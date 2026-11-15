@@ -1,8 +1,8 @@
-"""Humanoid G-code: a general rig's joint angles from a mocap, made its own, read as its program.
+"""Humanoid G-code: a general rig's joint angles from mocap, made its own, read as its program.
 
     rows = gcode.rig(joints)                        # (n, len(WORDS)) of a take's joints (`fbx.take`), the general rig
     text = gcode.text(header, times, WORDS, rows)   # a program's text; `parse` reads it back
-    its own = gcode.its_own(header, times, rows)          # (header, times, its joints, its degrees), its limits kept
+    the robot's own = gcode.robot_own(header, times, rows)          # (header, times, its joints, its degrees), its limits kept
     beats = gcode.program(path)                     # its program's beats as `joints` plays them
 
 The dialect: lines of `; key value` head a program; a move is `G1 T<s> <WORD><value> ...`, a word letters and
@@ -11,16 +11,17 @@ the general rig's words (WORDS) are the pelvis's place and turn (X Y Z m, A B C
 roll pitch yaw deg), the spine's flexion, lateral bend and yaw (SPF SPL SPY), the neck's (NKF NKL) and a side's
 (L or R) hip flexion, abduction and rotation (HF HA HR), knee (KF), ankle dorsiflexion and roll (AF AR), shoulder
 flexion, abduction and rotation (SF SA SR), elbow (EF) and wrist (WF), all degrees, 0 the anatomical neutral,
-flexion forward, abduction out and rotation external positive. Its program's words are its joints (`figure.JOINTS`).
+flexion forward, abduction out and rotation external positive. The robot's program's words are its joints
+(`figure.JOINTS`).
 
-The rig's angles come from twenty joints' places alone (JOINTS: a take's HumanIK names, its own by `SEGMENTS`): the
-pelvis frame from the hips and the spine's base, the trunk's from the spine and the shoulders, each bone's
-direction in its parent's frame; a hip's or shoulder's rotation from the plane its knee or elbow bends in, read
-once the bend passes BENT. Converting to it: the same extraction on its own figure (`figure.frames`) at a stand
-and with each driven joint moved CALIBRATE deg tells which word a joint moves, its sign and gain (`calibrated`;
-words no joint moves are dropped), the take's times scaled by dynamic similarity (the rig's leg to its own), each
-joint clamped to its drive's range and each move slowed to its drives' speeds (`defrobot`), the report in its
-program's header.
+The rig's angles come from twenty joints' places alone (JOINTS: a take's HumanIK names, the robot's own by
+`SEGMENTS`): the pelvis frame from the hips and the spine's base, the trunk's from the spine and the shoulders,
+each bone's direction in its parent's frame; a hip's or shoulder's rotation from the plane its knee or elbow bends
+in, read once the bend passes BENT. Converting to the robot: the same extraction on its own figure
+(`figure.frames`) at a stand and with each driven joint moved CALIBRATE deg tells which word a joint moves, its
+sign and gain (`calibrated`; words no joint moves are dropped), the take's times scaled by dynamic similarity (the
+rig's leg to the robot's own), each joint clamped to its drive's range and each move slowed to its drives' speeds
+(`defrobot`), the report in the robot's program's header.
 """
 import math
 import os
@@ -30,7 +31,7 @@ from machine.errors import MachineError
 
 #: The robot's programs' home, the host's gcode/: `<name>.gcode` beside `<name>.general.gcode`.
 DIR = os.path.join(os.path.dirname(mechatronics.HERE), 'gcode')
-#: The general rig's joints (HumanIK's names) and its segment each is the origin of.
+#: The general rig's joints (HumanIK's names) and the robot's segment each is the origin of.
 SEGMENTS = {'Hips': 'pelvis', 'Spine': 'torso', 'Neck': 'neck', 'Head': 'head'}
 SEGMENTS.update({side + n: side.lower() + '_' + seg for side in ('Left', 'Right')
                  for n, seg in (('UpLeg', 'thigh'), ('Leg', 'shank'), ('Foot', 'foot'), ('ToeBase', 'toes'),
@@ -41,8 +42,9 @@ SIDES = (('L', 'Left', 1.0), ('R', 'Right', -1.0))
 WORDS = ('X', 'Y', 'Z', 'A', 'B', 'C', 'SPF', 'SPL', 'SPY', 'NKF', 'NKL') + tuple(
     s + w for s, _side, _sign in SIDES for w in ('HF', 'HA', 'HR', 'KF', 'AF', 'AR', 'SF', 'SA', 'SR', 'EF', 'WF'))
 #: A bend, deg, past which a joint's rotation reads off its child's bending plane; a joint moved this far, deg,
-#: on its figure calibrates its word; a word moved less than this per degree is no joint's; the bends its figure
-#: is calibrated at, deg, so every rotation reads: its stand's knees and elbows are straighter than BENT.
+#: on the robot's figure calibrates its word; a word moved less than this per degree is no joint's; the bends
+#: the robot's figure is calibrated at, deg, so every rotation reads: its stand's knees and elbows are
+#: straighter than BENT.
 BENT, CALIBRATE, GAIN = 10.0, 5.0, 0.3
 BASE = {'left_hip': -20.0, 'right_hip': -20.0, 'left_knee': 30.0, 'right_knee': 30.0, 'left_elbow': 30.0, 'right_elbow': 30.0}
 
@@ -106,7 +108,7 @@ def rig(joints):
         out[s + 'HF'], out[s + 'HA'] = np.degrees(hf), _asin(sign * _dot(d, l_p))
         out[s + 'HR'] = _bend(sh, d, -f_thigh, -l_p, sign)
         out[s + 'KF'], out[s + 'AF'] = _angle(d, sh), _angle(sh, toe) - 90.0
-        knee = np.cross(d, sh)                                        # the knee's bending plane's normal, toward its left
+        knee = np.cross(d, sh)                                        # the knee's bending plane's normal, toward the robot's left
         knee = _unit(knee * np.sign(_dot(knee, l_p) + 1e-12)[:, None])
         out[s + 'AR'] = _asin(sign * _dot(toe, knee)) * (_angle(d, sh) > BENT)
         a, r = _unit(J[side + 'ForeArm'] - J[side + 'Arm']), _unit(J[side + 'Hand'] - J[side + 'ForeArm'])
@@ -150,12 +152,13 @@ def _manifest():
     """The robot's manifest (`defrobot.read`): its name and its drives."""
     r = defrobot.read()
     if r is None:
-        raise MachineError('no (defrobot ..) in its manifest')
+        raise MachineError('no (defrobot ..) in the robot\'s manifest')
     return r
 
 
 def figured(degrees):
-    """{rig joint: (1, 3) place} of its figure at {joint: degrees} (`figure.frames`), its pelvis 1 m up."""
+    """{rig joint: (1, 3) place} of the robot's figure at {joint: degrees} (`figure.frames`), its pelvis 1 m
+    up."""
     import numpy as np
     frames = figure.frames(degrees, (0.0, 1.0, 0.0), figure.IDENT)
     return {name: np.array([frames[seg][0]], float) for name, seg in SEGMENTS.items()}
@@ -200,9 +203,9 @@ def read(path):
 
 
 def calibrated():
-    """({word: (its joint, deg a word's degree)}, the rig's words at its base pose, that pose): the word each of
-    its driven joints moves most on its figure (`figured`, `rig`) from its stand bent BASE and its gain; a word two
-    joints move is the stronger's."""
+    """({word: (the robot's joint, deg a word's degree)}, the rig's words at its base pose, that pose): the
+    word each of its driven joints moves most on its figure (`figured`, `rig`) from the robot's
+    stand bent BASE and its gain; a word two joints move is the stronger's."""
     import numpy as np
     base = dict(figure.stand(), **BASE)
     at = rig(figured(base))[0]
@@ -219,18 +222,18 @@ def calibrated():
 
 
 def limits():
-    """({joint: (lo, hi) deg or None}, {joint: deg/s}) of its drives (`defrobot`): each's range and the speed
-    its motor's rpm through its ratio gives."""
+    """({joint: (lo, hi) deg or None}, {joint: deg/s}) of the robot's drives (`defrobot`): each's range and
+    the speed its motor's rpm through its ratio gives."""
     drives = _manifest()['drives']
     return ({j: tuple(d['range']) if d.get('range') else None for j, d in drives.items()},
             {j: 6.0 * float(d['speed']) / float(d['ratio']) for j, d in drives.items() if d.get('speed') is not None})
 
 
-def its_own(header, times, values):
-    """(header, times s, its joints, (n, k) degrees) of the general rig's `values` (WORDS) at `times` converted
-    to it: each word's joint by `calibrated`, the times by dynamic similarity, the degrees within its ranges,
-    the moves within its speeds; the header carries the rig, its leg, what was dropped, clamped, the worst move's
-    slowing and the whole's stretch."""
+def robot_own(header, times, values):
+    """(header, times s, the robot's joints, (n, k) degrees) of the general rig's `values` (WORDS) at `times`
+    converted to it: each word's joint by `calibrated`, the times by dynamic similarity, the degrees within its
+    ranges, the moves within its speeds; the header carries the rig, its leg, what was dropped, clamped, the
+    worst move's slowing and the whole's stretch."""
     import numpy as np
     table, at, base = calibrated()
     ranges, speeds = limits()
@@ -256,7 +259,7 @@ def its_own(header, times, values):
         for k, j in enumerate(joints):
             slow[1:] = np.maximum(slow[1:], np.abs(np.diff(deg[:, k])) / speeds[j] / dt)
         t = np.concatenate([[t[0]], t[0] + np.cumsum(np.diff(t) * slow[1:])])
-    out = dict(header, rig=_manifest().get('name', 'its_own'), general=header.get('rig', 'general'), leg='%.3f' % mine,
+    out = dict(header, rig=_manifest().get('name', 'robot_own'), general=header.get('rig', 'general'), leg='%.3f' % mine,
                similar='%.3f' % scale, dropped=' '.join(w for w in WORDS[6:] if w not in table) or 'none',
                clamped=' '.join('%s:%.0f' % kv for kv in clamped.items()) or 'none', slowed='%.2f' % float(slow.max()),
                stretched='%.2f' % (float(t[-1]) / float(max(times[-1] * scale, 1e-9)) if len(t) > 1 else 1.0))
@@ -265,8 +268,8 @@ def its_own(header, times, values):
 
 def beats(times, joints, degrees):
     """[(name, s, {joint: deg})] a move a beat, as `machine.process.joints` plays them: the first over its own
-    time from wherever it is; a word `nan` is not asked by its move, the joint held where the move finds it (a
-    program's joint first named by a later beat, `tools/sim/gcode.py`)."""
+    time from wherever the robot is; a word `nan` is not asked by its move, the joint held where the move
+    finds it (a program's joint first named by a later beat, `tools/sim/gcode.py`)."""
     out, last = [], 0.0
     for k, (t, row) in enumerate(zip(times, degrees)):
         out.append(('g%d' % k, max(float(t) - last, 1e-3), {j: float(v) for j, v in zip(joints, row) if v == v}))
@@ -275,6 +278,6 @@ def beats(times, joints, degrees):
 
 
 def program(path):
-    """The robot's program at `path` as beats (`beats`): its words its joints."""
+    """The robot's program at `path` as beats (`beats`): its words the robot's joints."""
     _header, times, words, values = read(path)
     return beats(times, words, values)

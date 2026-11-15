@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Takes' walks measured as tools/sim/look.py measures its own, beside a woman's normal walk.
+"""Takes' walks measured as tools/sim/look.py measures the robot's own, beside a woman's normal walk.
 
     python tools/sim/mocap.py TAKE.fbx [..]         # a column a take, the first the reference
     python tools/sim/mocap.py TAKE.fbx --joints     # each joint's first and last place, m
 
-A take (`fbx.take`: binary or ASCII, a mocap's, an animation's or its own, `look.py --fbx`):
+A take (`fbx.take`: binary or ASCII, a mocap's, an animation's or the robot's own, `look.py --fbx`):
 its longest straight walk only - a turn at the runway's end and a pose left out - each measure
-against its path, not the room: a stride's running mean is the path. Its line in look.py's
+against its path, not the room: a stride's running mean is the path. The take's line in look.py's
 names, then `normal.BAND`'s measures beside the band, how far off it the take is and how far
 from the first.
 """
@@ -21,8 +21,8 @@ from tools.sim import normal
 from tools.sim.fbx import take
 
 #: The straight walk: at least WALKING of the take's top speed, its heading within TURN_DEG of
-#: the walk's; TRIM_S off each end, where it gathers pace or slows. A take travelling less than
-#: IN_PLACE_M walks on the spot: all of it is measured, ahead of its hips' line.
+#: the walk's; TRIM_S off each end, where the robot gathers pace or slows. A take travelling less than
+#: IN_PLACE_M walks on the spot: all of it is measured, ahead of the robot's hips' line.
 WALKING, TURN_DEG, TRIM_S, IN_PLACE_M = 0.6, 15.0, 0.5, 1.0
 
 
@@ -63,16 +63,16 @@ def walked(times, joints):
     if len(t) < 2 or t[-1] - t[0] < 2.0:
         raise ValueError('no straight walk of 2 s in the take')
     rate = (len(t) - 1) / (t[-1] - t[0])
-    hips = j['LeftUpLeg'] - j['RightUpLeg']                    # to its left
+    hips = j['LeftUpLeg'] - j['RightUpLeg']                    # to the robot's left
     travel = j['Hips'][-1] - j['Hips'][0]
-    if cut == slice(None):                                     # on the spot: ahead of its hips
+    if cut == slice(None):                                     # on the spot: ahead of the robot's hips
         travel = np.cross(hips.mean(0), up)
     ahead = (travel - up * travel[1]) / np.linalg.norm(travel - up * travel[1])
     left = np.cross(up, ahead)
     if np.median(hips @ left / np.linalg.norm(hips, axis=1)) < 0.7:
-        raise ValueError("its hips' line is not across its path: a turning take, or a rig read wrong")
-    roll = np.degrees(np.unwrap(np.arctan2(hips @ up, hips @ left)))      # + its left hip up
-    turn = np.degrees(np.unwrap(np.arctan2(hips @ ahead, hips @ left)))   # + its left hip ahead
+        raise ValueError("the robot's hips' line is not across its path: a turning take, or a rig read wrong")
+    roll = np.degrees(np.unwrap(np.arctan2(hips @ up, hips @ left)))      # + the robot's left hip up
+    turn = np.degrees(np.unwrap(np.arctan2(hips @ ahead, hips @ left)))   # + the robot's left hip ahead
     spectrum = np.abs(np.fft.rfft((roll - roll.mean()) * np.hanning(len(roll))))
     freqs = np.fft.rfftfreq(len(roll), 1.0 / rate)
     stride = freqs[np.argmax(np.where(freqs > 0.3, spectrum, 0.0))]

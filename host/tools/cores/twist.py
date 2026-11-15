@@ -15,7 +15,7 @@ from tools.cores import wbc
 
 class Twist(ctypes.Structure):
 
-    """wbc_twist_t: the step's reading of its law's arrays, laid once."""
+    """wbc_twist_t: the step's reading of the robot's law's arrays, laid once."""
 
     _fields_ = ([(name, ctypes.c_int) for name in ('gyro_at', 'quat_at', 'y_cells', 'f_heading', 'st_now_gain',
                                                    'st_now_phase', 'st_to_amp', 'st_to_hz', 'st_now_hz', 'st_theta',
@@ -41,10 +41,10 @@ def _typed():
 
 
 def laid(k, y_in, y, fr, a, st, out, posture, state, words, waist, head):
-    """The step in C on its law's arrays, pointed at once - `machine.law.se2.twisted` of its edge's
-    `y_in`, modal's `y`, `fr` and `a`, its latent `st` and its `out`, its `posture` with its
-    `waist`'s and its `head`'s places in it, the step's `state` and its `words` -: a step (dt, vel,
-    held, prior); `k` the ask's (`tools.cores.motion.laid`)."""
+    """The step in C on the robot's law's arrays, pointed at once - `machine.law.se2.twisted` of the robot's
+    edge's `y_in`, modal's `y`, `fr` and `a`, its latent `st` and its `out`, the robot's `posture`
+    with its `waist`'s and its `head`'s places in it, the step's `state` and its `words` -: a
+    step (dt, vel, held, prior); `k` the ask's (`tools.cores.motion.laid`)."""
     from machine.senses import edge
     from machine.law import latent, modal, se2, stride
     from machine.moves import leap

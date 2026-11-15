@@ -1,7 +1,7 @@
-"""A craft's flight run apart as its body is: stepped in its own process, played back by its page.
+"""A craft's flight stepped apart as the robot's body is: in its own process, played back by its page.
 
-Its boards, its sky, its law and its card stepped STEP_S at a time (`machine.process.apart`), paced to the
-wall and no further than its lead past what the page has shown; each step said as the page draws
+The flight's boards, its sky, its law and its card stepped STEP_S at a time (`machine.process.apart`), paced
+to the wall and no further than its lead past what the page has shown; each step said as the page draws
 it: the frame, its rotors, the flight's instruments. The page plays them back steady
 (`terminal.views.playback`, `blend`): in real time or slower, never run ahead.
 
@@ -140,7 +140,7 @@ class Flight:
                                              air={k: air.get(k) for k in AIR}))}
 
     def close(self):
-        """Its drives off, gates off, its stand-ins and emulated boards closed."""
+        """The flight's drives off, gates off, its stand-ins and emulated boards closed."""
         for rotor in self.rotors:
             for rig in (rotor.get('emu'), rotor['rig']):
                 if rig is not None:

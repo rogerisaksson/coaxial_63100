@@ -34,7 +34,7 @@ class _Limits(ctypes.Structure if os.name == 'nt' else object):
 
 def tied(process):
     """On Windows, a job that ends `process` when this one ends, killed or not - a script
-    killed mid-run left its Renode running for hours. Its handle, kept."""
+    killed mid-run left its Renode running for hours. The job's handle, kept."""
     if os.name != 'nt':
         return None
     kernel = ctypes.windll.kernel32

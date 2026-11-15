@@ -50,7 +50,7 @@ class Record(dict):
         for s in self.samples:
             if s.name == name:
                 return s
-        raise KeyError('%r is not in this record. It has: %s'
+        raise KeyError('%r is not in this record. The record has: %s'
                        % (name, ', '.join(self.channel_name)))
 
     def value(self, name):

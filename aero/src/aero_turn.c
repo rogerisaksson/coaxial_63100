@@ -187,7 +187,7 @@ void aero_refer(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aero_ou
 }
 
 /** The torque asked about each axis, the payload's impedance as far as the rotors render it.
-    Its attitude mode's stiffness on the miss and damping on the rate the axis asked itself
+    Each axis's attitude mode's stiffness on the miss and damping on the rate the axis asked itself
     has not (`turns`); its rate mode's damping on its rate's miss and stiffness on that miss
     summed, where no attitude is tracked there: one rate asked, d of its miss the
     acceleration. Past what the rotors' reach this pass turns - a jerk, j - the miss is
@@ -201,7 +201,7 @@ void aero_turn(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aero_out
 {
   const float dt = most(in->dt, TINY);
   const float *n = s->p.inertia;
-  /* its own inertia's turn, less what its turn about the rotors' axis carries its tilt's
+  /* the frame's own inertia's turn, less what its turn about the rotors' axis carries its tilt's
      rates round by: a tilt is closed in the world, whatever the frame's heading does */
   const float carried[AERO_AXES] = {(n[2] - n[1] + n[0]) * in->spin[1] * in->spin[2],
                                     (n[0] - n[2]) * in->spin[2] * in->spin[0],

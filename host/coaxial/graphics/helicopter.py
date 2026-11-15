@@ -1,9 +1,9 @@
 """The 3D helicopter drawn in braille, a T-REX 700's form (`machine.aircraft.helicopter.form`).
 
-Its canopy, frames, boom, skids, 63100 drives and rotors.
+The helicopter's canopy, frames, boom, skids, 63100 drives and rotors.
 
     lines = render(pose, rotors, 96, 40, lit=gpu.LitRaster())   # the GPU's lit raster
-    lines = render(pose, rotors, 96, 40)                        # its dots splatted here
+    lines = render(pose, rotors, 96, 40)                        # the helicopter's dots splatted here
 
 `pose` is `machine.aircraft.helicopter.Sky.state()`'s, its 'turn' and 'at'; `rotors` the main and tail
 drives' (angle rad, speed rad/s, can C, board C[, sink C]), each can, board and heatsink painted

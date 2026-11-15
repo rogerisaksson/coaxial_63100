@@ -1,10 +1,10 @@
-"""Sparse coupling between its driven joints' kinematic innovation and its modal references.
+"""Sparse coupling between the robot's driven joints' kinematic innovation and its modal references.
 
     dq = support.couple(q, qd, ref_q, ref_v, eso_z, out)   # arrays in, array out, no branch
 
-When an upper-body joint (its arms or its waist) meets an obstruction that holds it back from
+When an upper-body joint (the robot's arms or its waist) meets an obstruction that holds it back from
 its inner-loop reference (`ref_q`, `ref_v`), its kinematic innovation `nu` is shrunk smoothly
-by `nu^3 / (nu^2 + SIGMA^2)`: its non-weight-bearing posture yields (`GAMMA`), its observer's
+by `nu^3 / (nu^2 + SIGMA^2)`: the robot's non-weight-bearing posture yields (`GAMMA`), its observer's
 disturbance integral (`eso_z`) bleeds so the arm never winds up into a rigid hook, and the
 sparse coupling matrix `PI` shifts `LATERAL` and `TURN` away from the deflected side so it
 steps clear without stopping.
@@ -32,7 +32,7 @@ GAMMA = np.zeros(DRIVEN)
 GAMMA[UPPER] = (0.35, 0.95, 0.85, 0.95, 0.85)
 
 #: Sparse coupling matrix `PI` (modes, driven): left arm held back (`nu < 0`) shifts `LATERAL`
-#: and `TURN` negative (to its right); right arm held back (`nu < 0`) shifts them positive (left).
+#: and `TURN` negative (to the robot's right); right arm held back (`nu < 0`) shifts them positive (left).
 PI = np.zeros((N, DRIVEN))
 PI[LATERAL, UPPER] = (0.18, 0.25, 0.12, -0.25, -0.12)
 PI[TURN, UPPER] = (0.45, 0.40, 0.18, -0.40, -0.18)

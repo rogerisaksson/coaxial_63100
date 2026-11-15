@@ -3,11 +3,11 @@
     law = aerokin.fresh()                                     # the law's own: its spot, its heading
     payload = aerokin.step(law, row, frame, dt, pull, head)   # a pass: aero/'s payload for it
 
-A row is `machine.aircraft.aerobatics`': a height and the pace it may go there at, a speed along its
-heading and across, a place, a turn, turns about its nose and its wing. Up and down the frame
-flies the speed its distance from its height allows - the loop's own approach near it, past
+A row is `machine.aircraft.aerobatics`': a height and the pace the quad may go there at, a speed
+along its heading and across, a place, a turn, turns about its nose and its wing. Up and down the
+frame flies the speed its distance from its height allows - the loop's own approach near it, past
 that what its pull stops from - and along the floor its spot goes at the speed asked and the
-frame is kept on it. What that asks of it, a force a kg, is a collective and where the rotors'
+frame is kept on it. What that asks of the quad, a force a kg, is a collective and where the rotors'
 axis points in the world: its tilt in the level frame of the heading the core holds (`head`,
 the core's answer) - a payload's latent targets, at the frame's impedance. The air is not in
 it: what it does to the frame is the core's observers'. No branch: a choice is a number of 0
@@ -46,12 +46,12 @@ SPOT_KP, SPOT_KD, HOME_K, HOME_M_S = _HORIZ['spot_kp'], _HORIZ['spot_kd'], _AK['
 #: what of its rotors' top a card is planned on: the rest the tilt's and the observers'.
 LEAST, HEADROOM = _ENV['least_pull'], _AK['headroom']
 
-#: Held: within this of its height, m, and of its spot, m, this slow, m/s, its axis this
+#: Held: the quad within this of its height, m, and of its spot, m, this slow, m/s, its axis this
 #: near up, rad - what it may lean into a wind.
 HELD_M, HELD_SPOT_M = _HOLD['height_tol'], _HOLD['spot_tol']
 HELD_M_S, HELD_RAD = _HOLD['speed_tol'], _HOLD['tilt_tol']
 
-#: What it is doing where it is asked a height far under it, by how light its lift is:
+#: What the quad is doing where it is asked a height far under it, by how light its lift is:
 #: burning, let fall.
 BURN, FALL = 'burn', 'fall'
 DOING = (None, BURN, FALL)
@@ -114,7 +114,7 @@ def spooled(w, w_pull, w_idle):
 
 
 def climb(row, h, v, room, spool=(0.0, 0.0), dt=0.0, kd=KD):
-    """(the pull asked up, m/s^2, what it is doing) for the frame at `h` climbing `v`, `room`
+    """(the pull asked up, m/s^2, what the quad is doing) for the frame at `h` climbing `v`, `room`
     the pull up its rotors leave it: braked as its pace asks or as its height needs, on all
     of it - rising, gravity over the rotors' idle - from the lead the frame moves before
     the brake is there, the rotors' `spool` to the pull and to their idle (`spooled`) and
@@ -191,7 +191,7 @@ def step(law, row, frame, dt, pull, head=(0.0, 0.0), pitch=math.inf, spool=(0.0,
     rotors take to the pull and to their idle. The law's heading turned on;
     the pull up and along the floor (`climb`, `lean`); the force that is, as a collective
     along its direction and that direction's tilt in the core's level frame; the turn its
-    heading gives the axis, as the rates about its wing and its nose; its nose brought round
+    heading gives the axis, as the rates about the quad's wing and its nose; its nose brought round
     to the law's heading as firmly as asked; a turn about its nose or its wing as a rate, that
     attitude dropped and the collective its weight."""
     turn = [[float(frame['turn'][r][k]) for k in range(3)] for r in range(3)]
@@ -257,11 +257,11 @@ def step(law, row, frame, dt, pull, head=(0.0, 0.0), pitch=math.inf, spool=(0.0,
     there = (want[0] * head[0] - want[2] * head[1], want[1], want[0] * head[1] + want[2] * head[0])
     flat = math.hypot(there[0], there[2])
     arc = math.atan2(flat, there[1]) / max(flat, 1e-9)
-    # a turn about its nose or its wing: its rate, that attitude dropped, its weight borne
+    # a turn about the quad's nose or its wing: its rate, that attitude dropped, its weight borne
     rolls, flips = float(row['roll'] != 0.0), float(row['flip'] != 0.0)
     turning = max(rolls, flips)
     law['lift'] = turning * quad.GRAVITY + (1.0 - turning) * lift
-    # its nose round to the law's heading: the miss's sine as its nose lies along the floor,
+    # the quad's nose round to the law's heading: the miss's sine as its nose lies along the floor,
     # a unit past a quarter turn
     nose = (s * turn[2][2] - c * turn[0][2], c * turn[2][2] + s * turn[0][2])
     behind = float(nose[1] < 0.0)

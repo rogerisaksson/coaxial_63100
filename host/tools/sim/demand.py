@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
-"""Its drives against what its loop asks: each one's amps, speed and heat beside its parts' limits.
+"""The robot's drives against its loop's asks: each one's amps, speed, heat beside its parts' limits.
 
-Its walk, its hop and a shove on its loop as the page runs it, and every scenario of the bench
-(`tools/sim/scenarios.py`) as it runs it, a relay job each.
+The robot's walk, its hop and a shove on its loop as the page runs it, and every scenario of
+the bench (`tools/sim/scenarios.py`) as it runs it, a relay job each.
 
     python tools/sim/demand.py                 # every scene, a relay job each: a row a drive
     python tools/sim/demand.py --scene walk    # one, here: its row as JSON
-    python tools/sim/demand.py --scenarios     # the bench's, those it stands through
+    python tools/sim/demand.py --scenarios     # the bench's, those the robot stands through
 
 A drive's amps are its joint's torque over its N m an amp (`World.motor`, `drives.kt`); a
 parallel pair's two give the first joint's share plus and less its roll's (`physics.paired`),
-and turn at its speed plus and less its roll's the same way. Its heat is `machine.body.heat`'s nodes
-on those amps, HASTE times the clock. Its parts' limits: its board's amps (`Size.amps`), the
-amps it holds for ever (`heat.held`), its gearbox's momentary torque (`Size.shock`), its motor's
+and turn at its speed plus and less its roll's the same way. A drive's heat is `machine.body.heat`'s
+nodes on those amps, HASTE times the clock. A drive's parts' limits: its board's amps (`Size.amps`),
+the amps it holds for ever (`heat.held`), its gearbox's momentary torque (`Size.shock`), its motor's
 speed with no load at the pack's volts (`drives.speed`), a node's span to its ceiling. A share
-past PAST of any is over. A shove it falls of is not a scene: a fall's demand is the fall's.
+past PAST of any is over. A shove the robot falls of is not a scene: a fall's demand is the fall's.
 """
 import argparse
 import json
@@ -26,8 +26,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 #: What a part may be asked of its limit.
 PAST = 2.0 / 3.0
-#: A scene: (the gym's entries, each at its second - 'walk' its walk from rest -, a shove's N,
-#: its seconds); a shove comes at SHOVE_AT s from each of WAYS, deg round it.
+#: A scene: (the gym's entries, each at its second - 'walk' the robot's walk from rest -, a shove's N,
+#: its seconds); a shove comes at SHOVE_AT s from each of WAYS, deg round the robot.
 SCENES = {'walk': ('walk', 0.0, 51.0), 'hop': ((('hop', 1.0),), 0.0, 6.0),
           'nudge': ((), 38.0, 6.0), 'push': ((), 80.0, 6.0)}
 SHOVE_AT, WAYS = 1.0, tuple(range(0, 360, 45))
@@ -99,7 +99,7 @@ def row(m, **head):
 
 
 def ran(scene, way=0):
-    """`row` of `scene` on its loop as the page runs it, a shove from `way` deg."""
+    """`row` of `scene` on the robot's loop as the page runs it, a shove from `way` deg."""
     from machine.process import sprung
     asked, shove, seconds = SCENES[scene]
     g = sprung.laid(sprung.STACK_EVERY)
@@ -119,7 +119,7 @@ def ran(scene, way=0):
 
 
 def scenario(name):
-    """`row` of the bench's scenario `name` as `scenarios.ran` runs it, standing if it stood."""
+    """`row` of the bench's scenario `name` as `scenarios.ran` runs it, standing if the robot stood."""
     from machine.process import worker
     from tools.sim import scenarios
     was, held = worker.stepped, {}
@@ -149,7 +149,7 @@ def kinds(rows):
 
 
 def said(scene, rows):
-    """A scene's table over the runs it stood, and its shares past PAST: [(kind, share,
+    """A scene's table over the runs the robot stood, and its shares past PAST: [(kind, share,
     value)]."""
     stood = [row for row in rows if row['stood']]
     print('%s: stood %d of %d, %.0f s' % (scene, len(stood), len(rows), max(row['t'] for row in rows)))

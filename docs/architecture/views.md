@@ -20,7 +20,7 @@ coaxial/graphics/   board renderer (wireframe pipeline + one module per concern)
                     braille), callouts (framed rows, leaders), quadcopter and
                     scenery (the quad of machine.aircraft.quad and its course, drawn),
                     inset (a picture in the viewport's corner, the
-                    instruments' frame: humanoid robot eyes' view; the quad's carried
+                    instruments' frame: the robot's eyes' view; the quad's carried
                     camera's, onboard)
 coaxial/draw/       2D drawings: dials, gauges, cross_section, thermal map
 tools/render/       renderer checks against the exporter; ansi2png; attitude (the

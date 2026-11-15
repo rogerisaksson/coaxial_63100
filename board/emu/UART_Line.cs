@@ -1,6 +1,6 @@
 // UART_Line.cs - The wire between a terminal and a UART, and the host's side of an RTU line
 // (HostLine), which the console's wire and the limb's adapter (RS485_Adapter.cs) both pace
-// with. It hangs on the UART's RX pin.
+// with. The wire hangs on the UART's RX pin.
 
 using System;
 using System.Collections.Generic;

@@ -18,7 +18,7 @@ _AERO_INERTIA = (ctypes.c_double * 3)(*INERTIA)
 
 
 def observe(core, state, dt):
-    """`core`'s estimates `dt` s on from `state`: its velocity, the push on it and the wind through
+    """`core`'s estimates `dt` s on from `state`: the aerobat's velocity, the push on it and the wind through
     its wing too; its spin and the turn on it, the airframe's own moments known."""
     t_in, v_in, s_in = state['turn'], state['vel'], state['spin']
     turn = t_in if (type(t_in) is tuple and type(t_in[0]) is tuple and type(t_in[0][0]) is float) \
@@ -46,11 +46,11 @@ def observe(core, state, dt):
     lift_raw = float(state.get('lift', 0.0))
     share = _aero_inflow(along, vh, w_p)
     lift = lift_raw * share
-    # The surfaces in its slipstream as the propwash's at w_p: what the C reads, `K w^2`.
+    # The surfaces in the aerobat's slipstream as the propwash's at w_p: what the C reads, `K w^2`.
     q_s = max(1.0, slipstream(along, lift)) / max(1.0, w_p * w_p)
     k_pitch, k_roll = K_PITCH_Q * q_s, K_ROLL_Q * q_s
     dive = min(1.0, max(0.0, 1.0 + vel[1] / DIVE_M_S))
-    # Its wing's air in its plane of symmetry, whatever its pitch, none past 60 deg off the nose:
+    # The aerobat's wing's air in its plane of symmetry, whatever its pitch, none past 60 deg off the nose:
     # on the nose's share it swung 0.4-1.0 with the pitch it set, 2 Hz, from a hover into its
     # circuit at 8 m/s.
     flat = math.sqrt(max(0.0, fast * fast - (u[0] * t0[0] + u[1] * t1[0] + u[2] * t2[0]) ** 2))

@@ -218,8 +218,8 @@ class Marquee:
             yield newline
 
     def _centred(self, options):
-        """Its lines in the middle of the region, as Align(center, middle) put them: the widest
-        line's width (no more than the region's), each line padded to it, the region's excess
+        """The marquee's lines in the middle of the region, as Align(center, middle) put them: the
+        widest line's width (no more than the region's), each line padded to it, the region's excess
         left - its half, rounded down - and right, blank lines above - half - and below."""
         width = min(self.wide, options.max_width)
         extra = self.wide - width

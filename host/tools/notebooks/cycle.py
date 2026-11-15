@@ -137,7 +137,7 @@ RESULTS = [
 print('2. the cycle   %d passes, %d frames lost' % (len(log), edge.lost.sum()))
 print('3. held        %d boards, the worst %.1f rad/s off its target' % (len(legs), miss.max()))
 print('4. together    %.0f -> %.0f rad/s apart' % tuple(spread))'''),
-    md('- `machine.Loop` is this pass over a dict of channels, for the panel and the sequencer.\n'
+    md('- `machine.rig.controller.Loop` is this pass over a dict of channels, for the panel and the sequencer.\n'
        "- ctrl.c is the same table on the board: a part's step by kind, `FILTERS`, "
        '`REGULATORS`.'),
 ]

@@ -1,14 +1,13 @@
-"""What its skin and its soles feel: a touch that gates its going, a shove walked out, an edge.
+"""What the robot's skin and its soles feel: a touch that gates its going, a shove walked out, an edge.
 
-    touch.step(g, out, dt)                  # a pass of its motion, `g` and `out` as `machine.law.motion`'s
+    touch.step(g, out, dt)                  # a pass of the robot's motion, `g` and `out` as `machine.law.motion`'s
     touch.stepped(y_in, vel, y, fr, a, st, out, rest, state, soled, asked, twist, tw_on, heading, dt)
-    touch.soles(b, touch, ids, tips, y, fr, stance)   # its arithmetic of its soles
-    touch.against(g, twist)                 # a twist less its part toward what it felt
+    touch.soles(b, touch, ids, tips, y, fr, stance)   # its arithmetic of the robot's soles
+    touch.against(g, twist)                 # a twist less its part toward what the robot felt
 
-Its law's own reading of the edge's touch (`machine.senses.edge`): no body is named, nothing but forces
-on its segments in their own frames, turned by its own model. The filter's memory is one array
-(`laid`, STATE): what it felt and where, its hold, its brake, its stand, its drive, each sole's
-clearance.
+The robot's law's own reading of the edge's touch (`machine.senses.edge`): no body is named, nothing but
+forces on its segments in their own frames, turned by its own model. The filter's memory is one array (`laid`,
+STATE): what the robot felt and where, its hold, its brake, its stand, its drive, each sole's clearance.
 """
 import math
 import os
@@ -20,7 +19,8 @@ import numpy as np
 from machine.senses import edge
 from machine.body import figure
 
-#: Its segments under its knees, a side's: what bears on the floor, or trips over what is on it.
+#: The robot's segments under its knees, a side's: what bears on the floor, or trips over what is on
+#: it.
 SOLES = ((edge.SKIN.index('left_foot'), edge.SKIN.index('left_toes')),
          (edge.SKIN.index('right_foot'), edge.SKIN.index('right_toes')))
 ARMS = (tuple(edge.SKIN.index(n) for n in ('left_upper_arm', 'left_forearm', 'left_hand', 'left_fingers')),
@@ -29,28 +29,29 @@ CORE = [edge.SKIN.index(n) for n in ('pelvis', 'torso', 'neck', 'head')]
 ABOVE = sorted(set(range(len(edge.SKIN))) - set(SOLES[0] + SOLES[1] + ARMS[0] + ARMS[1]))
 
 
-#: A touch above its soles not along its going - a wall, a tree, a hand that shoves it back or
-#: aside - gates it: it brakes and stands, steps where its capture point asks, and goes on
-#: as it was told RESUME_S after it is gone; one within ALONG_COS of its going it walks out.
-#: Walking at 0.69 m/s an 80 N shove felled its 5 ways of 8 going on; stopped 0.1 s after it, 3 -
-#: those along its way among them.
+#: A touch above the robot's soles not along its going - a wall, a tree, a hand that shoves it
+#: back or aside - gates it: the robot brakes and stands, steps where its capture point asks, and goes
+#: on as it was told RESUME_S after it is gone; one within ALONG_COS of the robot's going it
+#: walks out. Walking at 0.69 m/s an 80 N shove felled the robot's 5 ways of 8 going on; stopped 0.1 s after
+#: it, 3 - those along the robot's way among them.
 RESUME_S, ALONG_COS = 1.5, math.cos(math.radians(50.0))
-#: What it felt stays a while: its going toward where it pushed it from is cut for FELT_S after.
+#: What the robot felt stays a while: its going toward where it pushed the robot from is cut for
+#: FELT_S after.
 FELT_S = 3.0
 
-#: A sole meets an edge EDGE_M and more over the floor its bearing soles stand on: walking a flat
+#: A sole meets an edge EDGE_M and more over the floor the robot's bearing soles stand on: walking a flat
 #: floor its swinging soles were touched along it 7.9 mm over it at most - a landing's friction
-#: 544 N -, the 35 mm sill's face 14 to 38 mm up. Its lowest point is its toes' tip as much
+#: 544 N -, the 35 mm sill's face 14 to 38 mm up. A sole's lowest point is its toes' tip as much
 #: as its corners (TIPS, in the toes' frame): turning, toes scuffing the floor at 0.6 to 6.6 mm
-#: read 17 to 35 mm by the corners alone, tripped it on a flat floor.
+#: read 17 to 35 mm by the corners alone, tripped the robot on a flat floor.
 EDGE_M = 0.01
 TIPS = tuple((x, -figure.TOE_RY, figure.TOE_M) for x in (-figure.SOLE_HALF, figure.SOLE_HALF))
 
-#: The filter's state: what it felt, along and across (m of FELT_S's reach left); its hold's
+#: The filter's state: what the robot felt, along and across (m of FELT_S's reach left); its hold's
 #: seconds; its brake, its stand and its drive, 0 to 1; each sole's clearance.
 FELT, HOLD_S, U_BRAKE, U_STAND, U_DRV, CLEAR = slice(0, 2), 2, 3, 4, 5, slice(6, 8)
 STATE = CLEAR.stop
-#: At rest: nothing felt, no hold, no brake, standing, its drive whole, nothing to clear.
+#: At rest: nothing felt, no hold, no brake, standing, the robot's drive whole, nothing to clear.
 REST = (0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0)
 
 
@@ -60,18 +61,18 @@ def laid():
 
 
 def step(g, out, dt):
-    """Its skin's and its soles' contact filter on `out` and `g['a']` this pass, its twist told
+    """The robot's skin's and its soles' contact filter on `out` and `g['a']` this pass, its twist told
     back: `stepped` in C on its arrays (`g['touched_step']`, `machine.law.motion.laid`)."""
     g['twist'] = g['touched_step'](g.get('governed', g.get('asked', (0.0, 0.0, 0.0))), g['twist'],
                                    float(g.get('_twist_active', False)), float(g['heading']), dt, g['est']['vel'])
 
 
 def stepped(y_in, vel, y, fr, a, st, out, rest, state, soled, asked, twist, tw_on, heading, dt):
-    """A pass of the filter on its edge's array `y_in` and its estimate's velocity `vel`, modal's
-    `y`, `fr` and `a`, its latent `st` and its `out`, its `rest`: `out`, `a` and `state` (`laid`)
-    stepped `dt` s in place, its twist returned - `asked` the twist told, `twist` its own now, `tw_on`
-    whether one is told, `heading` its own; `soled` its soles as `soles` has them. In C bit for bit
-    (`step`)."""
+    """A pass of the filter on the robot's edge's array `y_in` and its estimate's velocity `vel`,
+    modal's `y`, `fr` and `a`, its latent `st` and its `out`, the robot's `rest`: `out`, `a` and
+    `state` (`laid`) stepped `dt` s in place, its twist returned - `asked` the twist told, `twist` the
+    robot's own now, `tw_on` whether one is told, `heading` its own; `soled` its soles as
+    `soles` has them. In C bit for bit (`step`)."""
     from machine.law import latent, modal
     from machine.texts import ortho
     touch = y_in[edge.TOUCH].reshape(-1, 3)
@@ -148,10 +149,10 @@ def pushed_core(soled, touch):
 
 
 def soles(b, touch, ids, tips, y, fr, stance):
-    """`stepped`'s arithmetic of its soles and its core on its law's body `b` as `wbc.sense` left
-    it: (each sole's pushes, world - its foot's and its toes' -, their sizes, N; its toes' lowest
-    tip and the floor under it, m; its core's segments' frames (4, 9)) - `touch` the edge's (SKIN,
-    3), `ids` its segments' bodies, `tips` TIPS."""
+    """`stepped`'s arithmetic of the robot's soles and its core on its law's body `b` as
+    `wbc.sense` left it: (each sole's pushes, world - its foot's and its toes' -, their sizes, N; its toes'
+    lowest tip and the floor under it, m; the robot's core's segments' frames (4, 9)) - `touch` the edge's
+    (SKIN, 3), `ids` its segments' bodies, `tips` TIPS."""
     from machine.law import modal
     d = b.d
     pushed = [[d.xmat[ids[k]].reshape(3, 3) @ touch[k] for k in segs] for segs in SOLES]
@@ -161,7 +162,7 @@ def soles(b, touch, ids, tips, y, fr, stance):
 
 
 def against(g, tw):
-    """`tw` (body frame) less any axis aimed into what it felt (`g['touched']`): a wall walked
+    """`tw` (body frame) less any axis aimed into what the robot felt (`g['touched']`): a wall walked
     into, a hand that shoved it - it does not walk on into it."""
     return _against(tuple(g['touched'][FELT]), float(g['heading']), tw)
 

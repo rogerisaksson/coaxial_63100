@@ -1,24 +1,25 @@
 #!/usr/bin/env python3
-"""The takes as its scenarios: a move's measures from joints' places, a take's and its own alike.
+"""The takes as the robot's scenarios: a move's measures from joints' places, a take's, its own alike.
 
     python tools/sim/stunts.py                      # every take's scenario on the relay, a table
     python tools/sim/stunts.py stand_to_sit backflip
     python tools/sim/stunts.py --save build/stunts.json [--against build/was.json]
     python tools/sim/stunts.py --reference          # the takes measured anew into tests/takes/
-    measures = stunts.measured(times, joints)       # {name: value} of a take's (`fbx.take`) or its rows'
+    measures = stunts.measured(times, joints)       # {name: value} of a take's (`fbx.take`) or the robot's rows'
     got = stunts.evaluate(); stunts.total(got)      # every stunt run, how far off its take, the one number
 The takes lie in stunts/<folder>/ beside the repo (crawl, dance, falling, flips, jumping, kneel,
 lying, run, sitting, slipping, stairs, standing), read once: a take's seconds, its leg and MOVES'
 measures into tests/takes/stunts.json, the reference each scenario in `scenarios.STUNTS` is
-judged by - the scene placed, its told as a player would or handed the take's own rows
+judged by - the scene placed, the robot's told as a player would or handed the take's own rows
 (`machine.texts.takes`), its rows measured here over the take's seconds from the telling, and each
-measure of the scenario's signature within WITHIN of the take's: a sole's length, its list, its
-arm's cone, one natural time; whatever it does, its head goes no lower than the human's (SAFE)
-- and its modes at its frames into `machine/texts/takes.npz`, read as `modal.reading` reads its own.
+measure of the scenario's signature within WITHIN of the take's: a sole's length, its list, the
+robot's arm's cone, one natural time; whatever it does, its head goes no lower than the human's
+(SAFE)
+- and its modes at its frames into `machine/texts/takes.npz`, read as `modal.reading` reads the robot's own.
 
-The take's human and it are alike by dynamic similarity (SIMILAR): the measures are in legs,
+The take's human and the robot are alike by dynamic similarity (SIMILAR): the measures are in legs,
 sqrt(leg / g) and sqrt(g leg), so neither size enters them; what does is a woman of its size,
-its weight (`figure.MASS_KG`). Every measure is kinematic, of its body: its drives' demand
+its weight (`figure.MASS_KG`). Every measure is kinematic, of the robot's body: its drives' demand
 (`scenarios.ran`'s scale_min, shrunk) is reported beside, never in them, so a motor or a ratio
 changed alters what it reaches, not what a score or a tuned parameter means.
 """
@@ -42,7 +43,7 @@ TAKES = os.path.join(os.path.dirname(REPO), 'stunts')
 REFERENCE = os.path.join(REPO, 'host', 'tests', 'takes', 'stunts.json')
 
 #: A move's measures, (name, unit, side): lengths in legs (hip to knee to ankle), times in
-#: sqrt(leg / g), speeds in sqrt(g leg), so a human's and its own read alike. A side of 1 is met by
+#: sqrt(leg / g), speeds in sqrt(g leg), so a human's and the robot's own read alike. A side of 1 is met by
 #: more, 0 within the tolerance either way. Heights are over the lower foot's lowest; ahead is
 #: where the hips faced at the start.
 MOVES = (
@@ -65,7 +66,7 @@ MOVES = (
     ('hips back', 'legs', 0),          # the hips behind the ankles at the end
     ('arms', 'limb deg', 0),           # an upper arm's swing off the trunk, its range
 )
-#: Within what a measure is the take's: its sole's length and the speed carrying its capture
+#: Within what a measure is the take's: the robot's sole's length and the speed carrying its capture
 #: point as far in one natural time (both a sole over a leg), its list, its arm's cone, one
 #: natural time.
 WITHIN = {'legs': (figure.BALL + figure.HEEL) / modal.LEG_M,
@@ -75,21 +76,21 @@ WITHIN = {'legs': (figure.BALL + figure.HEEL) / modal.LEG_M,
 SAFE = ('head',)
 #: A rise time: from this far along the hips' way from start to end to this far.
 RISE = (0.1, 0.9)
-#: Dynamic similarity, a quantity's power of L = its leg over the take's: a length goes as L, a
-#: time and a speed as its root, a mass and a force as its cube (the take's human weighs its
+#: Dynamic similarity, a quantity's power of L = the robot's leg over the take's: a length goes as L, a
+#: time and a speed as its root, a mass and a force as its cube (the take's human weighs the robot's
 #: weight over L cubed, a woman of its build), a moment as its fourth power, a power as L^3.5.
 SIMILAR = {'length': 1.0, 'time': 0.5, 'speed': 0.5, 'acceleration': 0.0, 'mass': 3.0, 'force': 3.0,
            'moment': 4.0, 'power': 3.5, 'energy': 4.0}
-#: The modes a take's rows say (`takes.STREAMED`), its posture's. The rest stay its balance's -
-#: where its soles go and how they rock, its pelvis's list and turn over them, its arms' swing:
-#: the human's feet widened and shifted through a crouch collapsed it (head 0.02 legs), his
-#: pelvis's 20 deg list or his heels' rise in it felled it (head 0.04, 0.24), his arms' swing
-#: too (0.05, hands' jerk 29 000 m/s^3); with these three alone the crouch, the sit and the
-#: kneel are the takes' (far 0.0, 0.9, 0.0).
+#: The modes a take's rows say (`takes.STREAMED`), the robot's posture's. The rest stay the robot's
+#: balance's - where its soles go and how they rock, its pelvis's list and turn over them, the
+#: robot's arms' swing: the human's feet widened and shifted through a crouch collapsed it (head 0.02
+#: legs), his pelvis's 20 deg list or his heels' rise in it felled the robot (head 0.04, 0.24), his arms'
+#: swing too (0.05, hands' jerk 29 000 m/s^3); with these three alone the crouch, the sit and the kneel are
+#: the takes' (far 0.0, 0.9, 0.0).
 SIDES = ('Left', 'Right')
 UP = np.array([0.0, 1.0, 0.0])
 FLAT = np.array([1.0, 0.0, 1.0])
-#: Each of its segments' bone, its share of its weight (`figure.SEGMENTS`, de Leva's for a
+#: Each of the robot's segments' bone, its share of the robot's weight (`figure.SEGMENTS`, de Leva's for a
 #: woman) and where its centre lies: this far along the bone to the next joint's, or at the
 #: joint itself with none below it.
 CHAIN = {'torso': 'neck', 'neck': 'head', 'upper_arm': 'forearm', 'forearm': 'hand', 'hand': 'fingers',
@@ -114,7 +115,7 @@ CENTRES = _centres()
 
 
 def _com(joints):
-    """A skeleton's centre of mass, (n, 3), by its segments' shares laid on its bones (CENTRES);
+    """A skeleton's centre of mass, (n, 3), by the robot's segments' shares laid on its bones (CENTRES);
     a bone the take lacks weighs nothing."""
     total, com = 0.0, 0.0
     for bone, child, share, f in CENTRES:
@@ -128,7 +129,7 @@ def _com(joints):
 
 
 def similar(leg, quantity):
-    """What a take's `quantity` becomes at its size: (its leg / `leg`) to SIMILAR's power."""
+    """What a take's `quantity` becomes at the robot's size: (its leg / `leg`) to SIMILAR's power."""
     return (modal.LEG_M / leg) ** SIMILAR[quantity]
 
 
@@ -237,7 +238,7 @@ def measured(times, joints):
 
 
 def modes(times, joints, fr):
-    """(times s at its size, (n, N) its modes) of a take, as `modal.reading` reads its own (its
+    """(times s at the robot's size, (n, N) its modes) of a take, as `modal.reading` reads its own (its
     frame `fr`, `statics.frame`): the legs shorter than standing, the centre of mass over the
     soles' middle to its left and along, the soles apart along, up and across, the trunk's pitch, the
     hips' line's list and turn, the arms' swing and the feet's rock off standing; lengths at its
@@ -267,8 +268,8 @@ def modes(times, joints, fr):
     out[:, modal.DRIVE] = 0.5 * ((place[1] - place[0]) @ along) * scale / stride.STRIDE_M
     out[:, modal.LIFT] = ((place[0] - place[1]) @ UP) * scale / modal.CLEAR_M
     out[:, modal.WIDTH] = 0.5 * ((place[0] - place[1]) @ left) * scale / fr[modal.W0] - 1.0
-    # the trunk's pitch it takes is the human's own, off its stand's: his rig stands with its
-    # neck 3-6 deg behind its hips, and zeroed there it leant 5 deg past him and fell
+    # the trunk's pitch the robot takes is the human's own, off its stand's: his rig stands with its
+    # neck 3-6 deg behind its hips, and zeroed there the robot leant 5 deg past him and fell
     out[:, modal.PITCH] = (pitch - fr[modal.PITCH0][1]) / modal.PITCH_RAD
     out[:, modal.LIST] = np.arctan2(line @ UP, line @ left) / modal.LIST_RAD
     out[:, modal.TURN] = np.arctan2(line @ along, line @ left) / modal.TURN_RAD
@@ -278,7 +279,7 @@ def modes(times, joints, fr):
 
 
 def moved(rows, start, stop):
-    """Its measures over its look's rows between `start` and `stop` s, SAFE's over all of them
+    """The robot's measures over its look's rows between `start` and `stop` s, SAFE's over all of them
     from `start`; {} with fewer than two."""
     from tools.sim import fbx
     after = [r for r in rows if start <= float(r['t'])]
@@ -289,41 +290,41 @@ def moved(rows, start, stop):
     return dict(out, **{name: whole[name] for name in SAFE})
 
 
-def apart(its_own, ref, signature):
-    """[(measure, its own, the take's, within)] of the signature's measures and SAFE's."""
+def apart(robot_own, ref, signature):
+    """[(measure, the robot's own, the take's, within)] of the signature's measures and SAFE's."""
     out = []
     for name, unit, side in MOVES:
         if name not in signature + SAFE:
             continue
-        a, b = its_own.get(name, math.nan), ref[name]
+        a, b = robot_own.get(name, math.nan), ref[name]
         within = (a >= b - WITHIN[unit]) if side > 0 else (abs(a - b) <= WITHIN[unit])
         out.append((name, a, b, bool(within)))
     return out
 
 
-def met(its_own, ref, signature):
+def met(robot_own, ref, signature):
     """Whether every measure of the signature and of SAFE is within WITHIN of the take's."""
-    return bool(its_own) and all(within for _n, _a, _b, within in apart(its_own, ref, signature))
+    return bool(robot_own) and all(within for _n, _a, _b, within in apart(robot_own, ref, signature))
 
 
-def far(its_own, ref, signature):
+def far(robot_own, ref, signature):
     """How far off the take a run is: each measure of the signature and of SAFE beyond WITHIN,
     in widths of it, summed; one not measured a width."""
     out = 0.0
     for name, unit, side in MOVES:
         if name not in signature + SAFE:
             continue
-        a, b = its_own.get(name, math.nan), ref[name]
+        a, b = robot_own.get(name, math.nan), ref[name]
         gap = (max(0.0, b - a) if side > 0 else abs(a - b)) / WITHIN[unit]
         out += 1.0 if a != a else max(0.0, gap - 1.0)
     return out
 
 
 def told(command):
-    """A command as its worker hears it: a take's rows (`{'take': key}`, `takes.wire`) or a gait
+    """A command as the robot's worker hears it: a take's rows (`{'take': key}`, `takes.wire`) or a gait
     take's pattern (`{'pattern': key}`, `takes.pattern`) as the loop's entries. Measured, not kept
-    (stunts.md): the take's legs scaled to the seat's height; the seat told as its support before
-    it bore it."""
+    (stunts.md): the take's legs scaled to the seat's height; the seat told as the robot's support before
+    it bore the robot."""
     take, pattern = command.get('take'), command.get('pattern')
     rows = {'entries': [(take, takes.wire(take)[0], (take,))]} if take else command
     return {'entries': [(pattern, takes.pattern(pattern), (pattern,))]} if pattern else rows
@@ -338,7 +339,7 @@ def reference():
 
 
 def measure_takes(takes, fr):
-    """({take: its measures}, {take_t, take_z: its modes at its size}) of the takes read from
+    """({take: its measures}, {take_t, take_z: its modes at the robot's size}) of the takes read from
     TAKES: `takes` {key: 'folder/Name'}, `fr` its frame."""
     from tools.sim import fbx
     out, kept = {}, {}
@@ -351,7 +352,7 @@ def measure_takes(takes, fr):
 
 def evaluate(names=None, wobble=0.0):
     """{stunt: its run (`scenarios.ran`'s line) with `far`}, every stunt on the relay: the one
-    table to iterate on while a parameter of its own or of the loop is tuned."""
+    table to iterate on while a parameter of the robot's own or of the loop is tuned."""
     from tools.dev import focus
     from tools.sim import scenarios
     names = list(names or scenarios.STUNTS)
@@ -374,7 +375,7 @@ def total(got):
 
 
 def line(name, got, ref, signature):
-    """One scenario's line: how far, met, stood or refused, its hands' jerk, each signature
+    """One scenario's line: how far, met, stood or refused, the robot's hands' jerk, each signature
     measure take -> its own, * out."""
     if got.get('refused'):
         return '%-24s %5.1f refused %r: no text' % (name, got['far'], got['refused'])

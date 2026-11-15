@@ -322,7 +322,7 @@ static void usart_send(USART_TypeDef *u, const uint8_t *data, size_t n)
 }
 
 /** The RS485 pair hears itself - RE tied low, as the application's dev_uart.c has it: what
-    just went out came back in, and is no request. Its last byte is in before TC. */
+    just went out came back in, and is no request. The echo's last byte is in before TC. */
 static void usart_drop_echo(USART_TypeDef *u)
 {
   u->ICR = USART_ICR_ORECF | USART_ICR_FECF | USART_ICR_NECF;

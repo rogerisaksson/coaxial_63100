@@ -6,7 +6,7 @@
         ...
 
 `CARD` is what the page flies: the unlimited 3D aerobatic monoplane routine (`machine.aircraft.aerobat`),
-its two 63100 drives (`PROP` driving the single tractor propeller and `VECT` the tail/vector drive)
+the aerobat's two 63100 drives (`PROP` driving the single tractor propeller and `VECT` the tail/vector drive)
 and their thermal observers warmed on it, then its airfield's gate course (`machine.aircraft.airfield`).
 """
 from machine.aircraft import aerobat, airfield
@@ -17,7 +17,7 @@ from terminal.views.quad.flight import asked, observers, reset, spun, struck, wa
 #: The aerobat's two 63100 drives: single tractor propeller and tail/vector drive.
 ROTORS = ('PROP', 'VECT')
 
-#: The page's flights: the 3D aerobat routine, then two laps of its airfield's course.
+#: The page's flights: the 3D aerobat routine, then two laps of the aerobat's airfield's course.
 CARD, FIELD = aerobat.CARD + airfield.CARD, airfield
 
 

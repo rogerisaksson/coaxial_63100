@@ -7,9 +7,9 @@
 
 The page's worker logs each command with its epoch (a world laid anew each: a restart, a fall
 recovered) and the pass of that epoch it came at (`worker.apply`); a recording's `commands`
-column carries them from the epoch's first pass on. Replayed the same, its world is the same
+column carries them from the epoch's first pass on. Replayed the same, the robot's world is the same
 pass for pass: the line is how far its pelvis came from where the recording has it, and whether
-it fell. `--keep` writes the recording's commands and its pelvis's track alone.
+the robot fell. `--keep` writes the recording's commands and the robot's pelvis's track alone.
 """
 import argparse
 import csv
@@ -25,7 +25,7 @@ from machine.process.introspect import RECORDINGS
 
 #: What a kept replay holds of a recording, column by column.
 KEPT = ('t', 'epoch', 'stage', 'x', 'y', 'z', 'keys', 'commands')
-#: A kept replay stands laid these m to its left too: one that stood on this host fell at 10.6 s
+#: A kept replay stands laid these m to the robot's left too: one that stood on this host fell at 10.6 s
 #: on CI's - another platform's floating point, a fall in the margin.
 WOBBLES = (0.0, 2e-4, -2e-4)
 
@@ -39,10 +39,11 @@ def entries(rows):
 
 
 def replayed(heard, rows=(), to=None, wobble=0.0, record=None):
-    """{fell: (epoch, t) or None, off: m its pelvis furthest from the rows' (x, y, z) at their
+    """{fell: (epoch, t) or None, off: m the robot's pelvis furthest from the rows' (x, y, z) at their
     (epoch, t), t: where it ended, epochs}: `heard` (`entries`) replayed from its first epoch's
-    lay to its last command, or `to` s into its last epoch; laid `wobble` m to its left; `record`,
-    its loop recorded the while (`watch.recorded`: recordings/`record`.jsonl, `tools/sim/recording.py`)."""
+    lay to its last command, or `to` s into its last epoch; laid `wobble` m to the robot's left; `record`,
+    its loop recorded the while (`watch.recorded`: recordings/`record`.jsonl,
+    `tools/sim/recording.py`)."""
     from machine.world import physics
     from machine.process import worker
     laid = next(c['laid'] for _e, _p, _t, c in heard if 'laid' in c)
@@ -69,9 +70,9 @@ def replayed(heard, rows=(), to=None, wobble=0.0, record=None):
             here = g['world'].data.qpos[0:3]
             out['off'] = max(out['off'], math.dist(at, (float(here[0]), float(here[1]), float(here[2]))))
 
-    # replayed apart from the recording - wobbled, or by other code - it falls where it did not, or
+    # replayed apart from the recording - wobbled, or by other code - the robot falls where it did not, or
     # does not where it did: the epoch the recording went on into never comes, so the replay ends
-    # as it falls, or once it has run the passes the recording ran
+    # as the robot falls, or once it has run the passes the recording ran
     timed = [(int(r['epoch']) - first, float(r['t'])) for r in rows if r.get('epoch') not in (None, '')]
     last = max(timed) if timed else (0, 0.0)
     spans = {}
@@ -106,8 +107,8 @@ def main(argv=None):
     parser.add_argument('csv', nargs='?', help='a HUMANOID recording')
     parser.add_argument('--last', action='store_true', help='the newest recording')
     parser.add_argument('--all', action='store_true', help='analyze all kept replays across WOBBLES')
-    parser.add_argument('--keep', help='its commands and its pelvis track written here')
-    parser.add_argument('--record', help="its loop recorded the while, recordings/NAME.jsonl (`watch.recorded`)")
+    parser.add_argument('--keep', help='its commands and the robot\'s pelvis track written here')
+    parser.add_argument('--record', help="the robot's loop recorded the while, recordings/NAME.jsonl (`watch.recorded`)")
     args = parser.parse_args(argv)
     from tools.sim import tabular
     if args.all:
@@ -130,7 +131,7 @@ def main(argv=None):
         print('%s: no commands recorded - a recording from before they were' % path)
         return 1
     got = replayed(heard, rows, record=args.record)
-    print('%s: %d commands over %d epochs, to %.3f s; its pelvis within %.1f mm of the recording; %s'
+    print('%s: %d commands over %d epochs, to %.3f s; the robot\'s pelvis within %.1f mm of the recording; %s'
           % (path, len(heard), got['epochs'], got['t'], 1e3 * got['off'],
              'fell at %.3f s of epoch %d' % (got['fell'][1], got['fell'][0]) if got['fell'] else 'stood'))
     if args.keep:

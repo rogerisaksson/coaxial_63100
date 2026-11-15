@@ -9,7 +9,7 @@ An agile 2 kg 4-wing flapping ornithopter (`ornithopter.lisp`) powered by two Co
 heatsinks with temperature-controlled cooling fans): collective stroke amplitude and wing pitch
 pull upright or inverted, stroke-plane tilt pitches the carapace, differential left/right stroke
 rolls it, and fore/aft wing-twist skew yaws it through pirouettes, sandstorm dives, and gates.
-Its numbers and its XML (`airframe`), its flight in MuJoCo (`sky`), its law (`law`) and its
+The ornithopter's numbers and its XML (`airframe`), its flight in MuJoCo (`sky`), its law (`law`) and its
 observer (`observer`).
 """
 from machine.aircraft.course import TWIN_SPHERE as COURSE_SPHERE

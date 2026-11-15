@@ -10,8 +10,8 @@
 
 /** numpy's OpenBLAS: cblas_dgemm, cblas_dsyrk, cblas_dgemv, cblas_ddot and LAPACK's dgesv, dpotrf, dgeqrf and
     dorgqr (its linalg's cholesky and qr), each as numpy's umath_linalg calls it; and the order numpy's einsum sums
-    its hand ports' two in here (npsumof's `order`, an index of tools.cores.orders.ORDERS): 'nia,ia->n' of six
-    contiguous, then 'nia,n->ia'. */
+    the robot's hand ports' two in here (npsumof's `order`, an index of tools.cores.orders.ORDERS): 'nia,ia->n' of
+    six contiguous, then 'nia,n->ia'. */
 typedef struct
 {
   void   (*gemm)(int order, int ta, int tb, int64_t m, int64_t n, int64_t k, double alpha, const double *a,

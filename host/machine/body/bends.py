@@ -1,6 +1,6 @@
-"""How each driven joint goes a radian of its modes: its knees' bend, its arms' swing, reach and fold.
+"""How each driven joint goes a radian of the robot's modes: knees' bend, arms' swing, reach and fold.
 
-Each a vector over its driven joints (`machine.body.terms`), its modes' (`machine.law.modal`).
+Each a vector over the robot's driven joints (`machine.body.terms`), its modes' (`machine.law.modal`).
 """
 import os
 
@@ -16,7 +16,7 @@ ELBOW_BY = 0.4
 
 
 def crouch(names):
-    """How each driven joint (`names`) goes a radian of its knees' bend as it comes straight
+    """How each driven joint (`names`) goes a radian of the robot's knees' bend as it comes straight
     down: the knee by it, its hip and its ankle by half (`machine.body.terms`)."""
     bend = np.zeros(len(names))
     for limb in (0, 1):
@@ -27,7 +27,7 @@ def crouch(names):
 
 
 def swing(names):
-    """How each driven joint (`names`) goes a radian of its arms' swing: its first shoulder
+    """How each driven joint (`names`) goes a radian of the robot's arms' swing: its first shoulder
     forward by it and the other back, each elbow bent ELBOW_BY of its shoulder's way."""
     out = np.zeros(len(names))
     for limb in (0, 1):
@@ -38,7 +38,8 @@ def swing(names):
 
 
 def reach(names):
-    """How each driven joint (`names`) goes a radian of its arms' reach: both shoulders forward by it."""
+    """How each driven joint (`names`) goes a radian of the robot's arms' reach: both shoulders forward by
+    it."""
     out = np.zeros(len(names))
     kind, sign, _low, _high = terms.TERMS[('shoulder', 'flexion')]
     for limb in (0, 1):
@@ -47,7 +48,7 @@ def reach(names):
 
 
 def fold(names):
-    """How each driven joint (`names`) goes a radian of its arms' fold: both elbows bent by it."""
+    """How each driven joint (`names`) goes a radian of the robot's arms' fold: both elbows bent by it."""
     out = np.zeros(len(names))
     kind, sign, _low, _high = terms.TERMS[('elbow', 'flexion')]
     for limb in (0, 1):

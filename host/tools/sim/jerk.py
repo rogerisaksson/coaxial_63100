@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """The robot's jerk through transitions against its steady walk's, each segment of it.
 
-The DOD: no transition jerks it more than its walk does.
+The DOD: no transition jerks the robot more than its walk does.
 
     python tools/sim/jerk.py                       # every transition, a table of ratios
     python tools/sim/jerk.py --one play_weave 0 99 # one scenario's peaks in a window, as JSON
 
 Each segment's jerk is the referee's (`scenarios.JERKED`, `JERK_S`): a 20 ms window's third
-difference; a peak is its largest. Its walk's peaks are `play_walk`'s from STEADY on, past its
+difference; a peak is its largest. The robot's walk's peaks are `play_walk`'s from STEADY on, past its
 start; a transition's are over its whole run.
 """
 import argparse
@@ -77,7 +77,7 @@ def main(argv=None):
         print('%-16s %s%s' % (name, ' '.join('%10.1f' % (p.get(s, 0.0) / max(walk.get(s, 1.0), 1.0))
                                              for s in scenarios.JERKED), '' if got[name]['met'] else '  (goal missed)'))
     worst = max(got[n]['peaks'].get(s, 0.0) / max(walk.get(s, 1.0), 1.0) for n in TRANSITIONS for s in scenarios.JERKED)
-    print('the worst, of its walk: %.1f' % worst)
+    print('the worst, of the robot\'s walk: %.1f' % worst)
     return 0
 
 

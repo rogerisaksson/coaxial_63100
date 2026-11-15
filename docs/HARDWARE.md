@@ -17,23 +17,22 @@ tabled here. Nothing is measured against an instrument unless it says so.
 
 | Region | Use |
 | --- | --- |
-| ITCM 64 K | sample-path code (`.itcm`, copied by `Board_Early`), ~30 K |
+| ITCM 64 K | sample-path code (`.itcm`, copied by `Board_Early`), ~33 K |
 | DTCM 128 K | .data, .bss, 1 K stack, log ring; top 32 B = handover slot |
 | AXI SRAM 512 K | 480 K DAQ ring (`.buffers`, NOLOAD), lent to the loop's state while idle (`Board_DaqLend`) |
 | D2 SRAM 0x30000000, 288 K | application, linked to run here; header +0x400 |
 | Flash 0x08000000, 128 K | bootloader |
 | Flash 0x08020000, 1792 K | store: the application's sealed copy (BOOT.md) |
-| Flash 0x081E0000, 128 K | calibration record, magic 'CX63', CAL_VERSION 15 |
+| Flash 0x081E0000, 128 K | calibration record, magic 'CX63', CAL_VERSION 16 |
 
 ## Conversions
 
 - Phase: 2x 7 mOhm shunts = 3.5 mOhm, THS4551 gain 4.5455 -> 15.909 mV/A;
   100 A = 48 % of span. Schematic arithmetic, not spanned.
   Noise floor 0.35-0.41 A rms. Group delay 60 ns (simulation).
-- DC link: 49.9 k / 2.2 k = 78.15 V FS (invariant 11). Not spanned: the
-  -32 418 ppm was the converter's offset; 33.84 V at a supply's
-  34.
-- NTC: Murata NCU18XH103D60RB, R25 10 k, B 3380 K, vs 10 k 0.1 %. 30 mK
+- DC link: 49.9 k / 2.2 k = 78.15 V FS, headroom on purpose. Not spanned: the
+  -32 418 ppm was the converter's offset; 33.84 V at a supply's 34.
+- NTC: NCU18XH103D60RB, R25 10 k, B 3380 K, vs 10 k 0.1 %. 30 mK
   resolution. Beside the V gate driver: 0.56 of the V patch's rise over the
   centre, as fast as the laminate.
 - +5V sense 10 k / 10 k; Vgate 57 k / 10 k (ratio 6.70), traced.
@@ -41,16 +40,15 @@ tabled here. Nothing is measured against an instrument unless it says so.
 
 ## Reference and AFE_ON
 
-VREFBUF off; U2 REF2033 makes `+3V3_ref` and `+1V65_bias` (they track).
-PB2 AFE_ON powers AFE, reference, NTC divider, A1335, BNO085 and +5, the STO
-chain's pilot detector (U16): off, the chain is down. The bench board is
-unmodified (R93 on +5, not 3V3D): there AFE_ON removes the gate drivers'
-supply and PE15 follows it inversely. Off:
-mid-scale everywhere, NTC 25.00 C (invariant 9). The rail is reference
-counted (`board_power.c`): host claim dropped after 10 s silence, others
-hold 3 s leases. main() raises it 100 ms at boot: each converter's linearity
-and both offsets calibrate on the reference (CALFACT ~1000), and the thermal
-observer starts on the thermistor.
+VREFBUF off; U2 REF2033 makes `+3V3_ref` and `+1V65_bias` (they track). PB2
+AFE_ON powers AFE, reference, NTC divider, A1335, BNO085 and +5, the STO chain's
+pilot detector (U16): off, the chain is down. The bench board is unmodified (R93
+on +5, not 3V3D): there AFE_ON removes the gate drivers' supply and PE15 follows
+it inversely. Off: mid-scale everywhere, NTC 25.00 C. The rail is reference
+counted (`board_power.c`): host claim dropped after 10 s silence, others hold 3
+s leases. main() raises it 100 ms at boot: each converter's linearity and both
+offsets calibrate on the reference (CALFACT ~1000), and the thermal observer
+starts on the thermistor.
 
 ## Gate stage
 
@@ -115,7 +113,7 @@ UART5 termination on PE14.
 `board_cal.c` holds the ids, units and schematic defaults; `0x6E` dev 3
 reads and writes them. Ids 15-44 (motor, drive gains, dead-time table) are
 placeholders until `tools/bench/commission.py` writes them. A stored record of
-another version is refused, except the two before the firmware's (prefix
+another version is refused, except the three before the firmware's (prefix
 layouts), taken up with later fields at defaults.
 
 ## Thermal
@@ -169,19 +167,20 @@ layouts), taken up with later fields at defaults.
   stepping `UNCERTAIN` -> `CONVERGING` -> `STABLE` and scaling `margin`
   (`0.80`..`1.00`) by `doubt`.
 - **Executive, `hold_amps`, WEP & mounting (`thermal_run.c`, `thermal_app.c`,
-  `machine/body/heat.py`)**: the `100 ms` slice (`board_thermal.c`, sub-stepped to
-  `<= 0.25 s`) binary-searches (`10` halvings) the balanced 3-phase current
+  `machine/body/heat.py`)**: the `100 ms` slice (`board_thermal.c`, sub-stepped
+  to `<= 0.25 s`) binary-searches (`10` halvings) the balanced 3-phase current
   `hold_amps` that keeps `THERMAL_HOLD_S = 0.5 s` to throttle, applies WEP
   override (op `14`) and airspeed (op `16`), and configures mounting boundaries
   (`thermal_application`: `still`, `airstream`, `enclosure`, `fan_sink`,
   `cold_plate`, `immersion_pao`, `immersion_oil`, `joint`). In
-  `THERMAL_APP_JOINT` and `machine/body/heat.py`, the inverter disc mounts coaxially
-  on the aluminium stator housing (`~250 J/K` body sink, `2.0 K/W` leg gap
-  pads, `20 K/W` rim standoffs, `4.0 K/W` leg vias, rotor forced gain `0.3` and
-  `0.5 / sqrt(krpm)`), while local clothing insulation (`mjcf.CLOTH`: denim
-  jeans on pelvis/thighs/shanks, cotton t-shirt on torso/upper arms, ventilated
-  by limb speed) scales the ambient air path seen by the thermal/WEP observer.
-  `test_thermal_core` and `test_thermal_app` hold the Python mirrors to the C.
+  `THERMAL_APP_JOINT` and `machine/body/heat.py`, the inverter disc mounts
+  coaxially on the aluminium stator housing (`~250 J/K` body sink, `2.0 K/W` leg
+  gap pads, `20 K/W` rim standoffs, `4.0 K/W` leg vias, rotor forced gain `0.3`
+  and `0.5 / sqrt(krpm)`), while local clothing insulation (`drives.CLOTH_AIR`,
+  the build's `[cloth]`: denim on the legs, a cotton tee on the trunk and arms,
+  ventilated by limb speed) scales the ambient air path seen by the thermal/WEP
+  observer. `test_thermal_core` and `test_thermal_app` hold the Python mirrors
+  to the C.
 
 ## Other
 
@@ -196,6 +195,6 @@ layouts), taken up with later fields at defaults.
   quarter turn on; two 4.6 x 6.8 mm parts beside each phase's, r 34-45 mm.
   The power on the rim, the MCU inside 70 mm; the parts' boxes 4 338 mm^2
   on top, 860 under - a 70 mm disc is 3 848 a side.
-- `electronic_simulations/3d_models/U8IILite 85KV.glb` (mm,
-  16 parts): T-Motor's U8 II Lite, its can 87.1 x 26.95 mm, the stator
-  80.5 x 9.6 mm, its windings 11.1 mm tall.
+- `electronic_simulations/3d_models/U8IILite 85KV.glb` (mm, 16 parts): the U8 II
+  Lite, its can 87.1 x 26.95 mm, the stator 80.5 x 9.6 mm, its windings 11.1 mm
+  tall.

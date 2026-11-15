@@ -1,14 +1,14 @@
 """The robot's movements' orthopaedic terms as static arrays: which joint makes each, and which way.
 
     python tools/cores/terms.py --write     # machine/body/term_rows.py
-    laid = terms.rows()                     # what the file holds, laid anew from its figure
+    laid = terms.rows()                     # what the file holds, laid anew from the robot's figure
 
 Anatomy names a movement by what it does: flexion of the hip brings the knee forward, abduction
 takes it from the midline, dorsiflexion raises the toes toward the shin. ANATOMY says that for
-each part - a point or an axis of its segment and the way it goes. Which of its joints makes it,
-and with which sign, is found: each joint of the segment is turned in its figure
+each part - a point or an axis of its segment and the way it goes. Which of the robot's joints makes it,
+and with which sign, is found: each joint of the segment is turned in the robot's figure
 (`figure.frames`) and the one whose motion is the term's is kept. A movement no driven joint of
-its own makes is absent. A limb's terms are found on both limbs and must agree - a limb is an
+the robot's own makes is absent. A limb's terms are found on both limbs and must agree - a limb is an
 index, its joints' names data. Ranges, deg: the compiled figure's stops (`drives.TRAVEL`); nothing
 stopping it, None. `machine.body.terms` reads them, tests/test_terms.py holds them to MuJoCo.
 """
@@ -24,7 +24,7 @@ from tools import REPO
 from tools.cores import written
 
 PATH = os.path.join(REPO, 'host', 'machine', 'body', 'term_rows.py')
-NOTICE = "Its movements' terms as static arrays: written by host/tools/cores/terms.py, not by hand."
+NOTICE = "The robot's movements' terms as static arrays: written by host/tools/cores/terms.py, not by hand."
 
 #: A joint is turned TURN_DEG to see what it moves; it makes a movement where MAKES of the
 #: motion goes the movement's way.
@@ -36,7 +36,7 @@ DOWN_IT, UP_IT, ALONG_IT = (0.0, -1.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)
 #: (part, segment - a limb's by its name less the limb's -, the movement, its opposite - none,
 #: it is told toward a side -, what of the segment: its point or its axis, in its frame, the
 #: way that goes: ahead, back, up, or out - from the midline; toward limb 0's side where the
-#: movement is told toward one). A segment None: it has no such part.
+#: movement is told toward one). A segment None: the robot has no such part.
 ANATOMY = (
     ('hip', 'thigh', 'flexion', 'extension', 'point', DOWN_IT, AHEAD),
     ('hip', 'thigh', 'abduction', 'adduction', 'point', DOWN_IT, OUT),
@@ -66,7 +66,7 @@ ANATOMY = (
 
 
 def limbs():
-    """({segment less its limb's name: segment}, ..) of its limbs - the segments named alike but
+    """({segment less its limb's name: segment}, ..) of the robot's limbs - the segments named alike but
     for what comes before the first '_' -, the limb on +x first: limb 0, as `reach.LIMBS`."""
     names = [s[0] for s in figure.SEGMENTS]
     stems = {}
@@ -116,7 +116,7 @@ def stops():
 
 def makers(pair, stem, kind, vector, way):
     """[(joint, sign), ..] of the joints that take a segment's point or axis `way` - one a limb,
-    out from the midline its own way; the trunk's one, out toward limb 0's side - or None: it
+    out from the midline its own way; the trunk's one, out toward limb 0's side - or None: the robot
     has no such segment, or no joint of it goes that way."""
     if stem is None or kind is None or vector is None or way is None:
         return None
@@ -134,7 +134,7 @@ def _term(found, limits):
     have no drive."""
     signs, spans = {s for _j, s in found}, {limits.get(j) for j, _s in found}
     if len(signs) != 1 or len(spans) != 1:
-        raise ValueError('a movement its limbs make unlike: %r, %r' % (found, spans))
+        raise ValueError('a movement the robot\'s limbs make unlike: %r, %r' % (found, spans))
     if any(drives.passive(j) for j, _s in found):
         return None
     sign, span = signs.pop(), spans.pop()
@@ -182,7 +182,7 @@ def render(laid):
     lines += ['    (%r, %r): (%r, %s, %s, %s),' % (part, name, kind, number(sign), number(low), number(high))
               for (part, name), (kind, sign, low, high) in laid['TERMS'].items()]
     lines += ['}', 'TOWARD = (%s)' % ''.join('(%r, %r), ' % t for t in laid['TOWARD']).rstrip(' '),
-              '#: Movements anatomy names that no driven joint of its own makes.',
+              '#: Movements anatomy names that no driven joint of the robot\'s own makes.',
               'ABSENT = (']
     lines += ['    ' + ' '.join('(%r, %r),' % t for t in laid['ABSENT'][k:k + 3])
               for k in range(0, len(laid['ABSENT']), 3)]

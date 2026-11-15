@@ -1,14 +1,14 @@
-/** wbc_wrench.c - its whole body's step without an active set: machine/stack/wrench.py, row for row.
+/** wbc_wrench.c - the robot's whole body's step without an active set: machine/stack/wrench.py, row for row.
 
     WBC_U unknowns: six a sole - the wrench it takes of the floor where it stands (m, f; world,
-    about its middle), its own acceleration where it does not - and its upper body's drives'
+    about its middle), its own acceleration where it does not - and the robot's upper body's drives'
     accelerations. Every acceleration follows from them and the pelvis's six, udot = T base +
-    E x + t0: a leg through its sole's damped inverse, the pelvis by the six base rows of its
-    dynamics. One weighted least squares on the normal equations finds x, WBC_ROUNDS times, each
-    wrench clipped into its sole's bounds and what was clipped pinned for the next. Striding,
-    what the floor cannot give is not traded among the rows again: its inertia takes it
-    (wbc_cone.c). An ask the drives cannot carry is shrunk as one toward nothing asked - the
-    same rows solved again with every acceleration 0 and its weight borne - as far as brings
+    E x + t0: a leg through its sole's damped inverse, the pelvis by the six base rows of the
+    robot's dynamics. One weighted least squares on the normal equations finds x, WBC_ROUNDS times,
+    each wrench clipped into its sole's bounds and what was clipped pinned for the next. Striding,
+    what the floor cannot give is not traded among the rows again: the robot's inertia takes it
+    (wbc_cone.c). An ask the drives cannot carry is shrunk as one toward nothing asked - the same
+    rows solved again with every acceleration 0 and the robot's weight borne - as far as brings
     every torque within its clamp (wbc_shrunk.c). No iteration but those rounds
     (docs/findings/wrench.md). */
 #include "wbc.h"
@@ -26,8 +26,9 @@ static const double EDGE_M = 0.003, DAMP = 0.02;
 static const double W_COM = 1000.0, W_TURN = 30.0, W_SWING = 30.0, W_KNEE = 3.0, W_POSTURE = 1.0;
 static const double W_HEIGHT = 1.0, W_MOMENT = 0.3, W_FOLD = 3.0, W_STOP = 30.0, W_PART = 0.1;
 static const double W_AIR = 1e-3, W_PIN = 1e5;
-/* striding, a standing sole's wrench kept in the projection's metric, of its share of its weight:
-   its soles pushed against each other move it by nothing (machine/stack/wrench.py, W_KEEP) */
+/* striding, a standing sole's wrench kept in the projection's metric, of its share of the robot's
+   weight: its soles pushed against each other move it by nothing
+   (machine/stack/wrench.py, W_KEEP) */
 static const double W_KEEP = 3.0;
 
 static double clip(double x, double lo, double hi)
@@ -54,7 +55,7 @@ static void lay(wbc_wrench_t *w, const double r[NU], double c, double none, doub
   }
 }
 
-/** A row over its accelerations, r, as a row over the unknowns, and what is left of it:
+/** A row over the robot's accelerations, r, as a row over the unknowns, and what is left of it:
     udot = T (P x + p0) + E x + t0. */
 static double over(const wbc_wrench_t *w, const double r[WBC_N], double row[NU])
 {
@@ -95,7 +96,7 @@ void wbc_wrench_init(wbc_wrench_t *w)
   {
     int at = 5;
 
-    /* its leg's drives from its sole up to the pelvis, kept hip first */
+    /* the robot's leg's drives from its sole up to the pelvis, kept hip first */
     for (int link = wbc_sole[k]; (link > 0) && (at >= 0); link = wbc_parent[link])
     {
       for (int j = 0; (wbc_kind[link] == WBC_IS_DRIVEN) && (j < WBC_DRIVEN); j++)
@@ -153,8 +154,8 @@ void wbc_wrench_init(wbc_wrench_t *w)
   }
 }
 
-/** The joints no drive and no stop holds, by their own rows of its dynamics under all the rest:
-    their rows of t, e and t0 from the others'. */
+/** The joints no drive and no stop holds, by their own rows of the robot's dynamics under all the
+    rest: their rows of t, e and t0 from the others'. */
 static void passive_of(const wbc_body_t *b, wbc_wrench_t *w)
 {
   enum { COLS = 6 + NU + 1 };
@@ -165,7 +166,8 @@ static void passive_of(const wbc_body_t *b, wbc_wrench_t *w)
   {
     const double *m = b->m[w->passive[i]];
 
-    /* less what its other accelerations put on its row: only the dofs its row of M reaches */
+    /* less what the robot's other accelerations put on its row: only the dofs its row of M reaches
+     * */
     memset(rhs[i], 0, sizeof(rhs[i]));
     rhs[i][COLS - 1] = -b->h[w->passive[i]];
     for (int n = 0; n < WBC_N; n++)
@@ -368,9 +370,10 @@ static void maps(wbc_body_t *b, wbc_wrench_t *w, const double u[WBC_N], const wb
   passive_of(b, w);
 }
 
-/** The unknowns for the rows' right-hand side g, its height's band lo to hi: WBC_ROUNDS
-    solves, the clipped parts pinned, its height held to its band's edge once past; striding,
-    what the floor cannot give its inertia takes. 0 where a solve has no factor. */
+/** The unknowns for the rows' right-hand side g, the robot's height's band lo to hi: WBC_ROUNDS
+    solves, the clipped parts pinned, its height held to its band's edge once past;
+    striding, what the floor cannot give the robot's inertia takes. 0 where a solve has no factor.
+    */
 static int solved(wbc_body_t *b, wbc_wrench_t *w, const wbc_ask_t *ask, const double stance[2],
                   double grounded, double lo, double hi, const double g[NU], const double part[NU],
                   const double own[NU], const double mbt[6][6], double at[NU])
@@ -437,7 +440,7 @@ static int solved(wbc_body_t *b, wbc_wrench_t *w, const wbc_ask_t *ask, const do
     {
       double step;
 
-      /* its height at its band's edge met: x along K^-1 of its row, as far as that takes */
+      /* the robot's height at its band's edge met: x along K^-1 of its row, as far as that takes */
       memset(row, 0, sizeof(row));
       row[4] = stance[0] / mass;
       row[10] = stance[1] / mass;
@@ -458,7 +461,8 @@ static int solved(wbc_body_t *b, wbc_wrench_t *w, const wbc_ask_t *ask, const do
       pinned[c] = (moved[c] > pinned[c]) ? moved[c] : pinned[c];
       clipped += pinned[c];
     }
-    /* an answer past its height's band after the rounds is held to its edge (machine/stack/wrench.py) */
+    /* an answer past the robot's height's band after the rounds is held to its edge
+     * (machine/stack/wrench.py) */
     ay = (stance[0] * at[4] + stance[1] * at[10]) / mass - G;
     if ((round == rounds - 1) && (rounds < WBC_ROUNDS + WBC_PAST) && (ask->strides == 0.0) && (grounded > 0.0)
         && (fabs(clip(ay, lo, hi) - ay) > 1e-9))
@@ -471,12 +475,12 @@ static int solved(wbc_body_t *b, wbc_wrench_t *w, const wbc_ask_t *ask, const do
     if ((bent == 0.0) || ((ask->strides >= 1.0) && (n3 == 0)))
     {
       break;                      /* nothing clipped: the rounds to come would solve the same;
-                                     striding whole, their answer is not its own */
+                                     striding whole, their answer is not the robot's own */
     }
   }
   if ((ask->strides > 0.0) && (bent > 0.0))
   {
-    /* striding: what the floor cannot give its inertia takes, as far as it strides */
+    /* striding: what the floor cannot give the robot's inertia takes, as far as it strides */
     if (!wbc_cone_taken(b, w, ask, stance, lo, hi, mbt, own, u0, way))
     {
       return 0;
@@ -515,7 +519,7 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
   }
   maps(b, w, u, ask, want, a6, asked);
 
-  /* the base's rows of its dynamics: A base = (Gm - M_b E) x - d */
+  /* the base's rows of the robot's dynamics: A base = (Gm - M_b E) x - d */
   for (int i = 0; i < 6; i++)
   {
     d[i] = b->h[i];
@@ -628,7 +632,7 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
     w->g[c] += ww * a6[c];
   }
   {
-    /* each knee's acceleration over the unknowns: its standing knees' posture, a swinging
+    /* each knee's acceleration over the unknowns: the robot's standing knees' posture, a swinging
        knee's fold */
     double pick[WBC_N], bends[2][NU], left[2], rhs = 0.0, none = 0.0;
 
@@ -699,7 +703,8 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
     w->h[c][c] += weight * weight + 1e-12;
   }
 
-  /* the ask's answer, and nothing's: every acceleration 0, its weight borne, by the same rows */
+  /* the ask's answer, and nothing's: every acceleration 0, the robot's weight borne, by the same
+   * rows */
   if (!solved(b, w, ask, stance, grounded, lo, hi, w->g, part, own, mbt, whole)
       || !solved(b, w, ask, stance, grounded, -hband, hband, w->gn, part, own, mbt, stood))
   {

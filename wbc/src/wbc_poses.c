@@ -1,4 +1,4 @@
-/** wbc_poses.c - under the ask (wbc_imp.h): machine.law.impedance._poses, its turns, its arms and its knees
+/** wbc_poses.c - under the ask (wbc_imp.h): machine.law.impedance._poses, the robot's turns, its arms and its knees
     into `a` - numpy's arithmetic operation for operation (wbc_np.h), the same bit for bit. Portable C11, the
     host's alone. */
 #include "wbc_imp.h"
@@ -6,9 +6,10 @@
 
 #include <math.h>
 
-/** machine.law.impedance._poses: its turns, its arms and its knees into `a`; `z` its modes as it
-    is, `up` how far each sole is asked up, `folds` which soles' knees are asked a fold, `still`
-    how still its rhythm is - its trunk's rates then its head's, shrunk where they are small. */
+/** machine.law.impedance._poses: the robot's turns, its arms and its knees into `a`; `z` its modes
+    as it is, `up` how far each sole is asked up, `folds` which soles' knees are asked a fold,
+    `still` how still its rhythm is - its trunk's rates then its head's, shrunk where they are
+    small. */
 void wbc_imp_poses(const wbc_imp_t *k, const double *out, const double *y, const double *fr, double *a,
                    const double *z, const wbc_imp_said_t *s, const double turn[3][2], const double rates[3][2],
                    const double up[2], const double folds[2], double still)

@@ -1,25 +1,26 @@
-"""Its docks foreseen: the faces its wayfinder reaches on each thing, before it is told to go.
+"""The robot's docks foreseen: the faces its wayfinder reaches on each thing, before it is told to go.
 
 Asked of a planner of their own one thing after another, nearest first, again and again; the page rings
 them (`balloons.docked`).
 
     peek.peeked(s)            # a pass: an answer taken where it is ready, the next thing asked
-    peek.told(s)              # [{'kind', 'slot', 'at', 'chosen'}] each thing's docks, its errand's over its own
+    peek.told(s)              # [{'kind', 'slot', 'at', 'chosen'}] each thing's docks, the robot's errand's over its own
 
-`dock.docked` took 43-157 ms a thing it reaches and up to 3.6 s one it does not (its page's room, 12
+`dock.docked` took 43-157 ms a thing the robot reaches and up to 3.6 s one it does not (its page's room, 12
 things): a round of them some seconds, the loop never waiting on one (`planner.Planner.ready`).
 """
 import functools
 
 
-#: The verbs its page rings docks for (`scanner.AFFORDANCES`), and the classes that are no seats.
+#: The verbs the robot's page rings docks for (`scanner.AFFORDANCES`), and the classes that are no seats.
 VERBS, NO_SEAT = ('sit_chair', 'lie_bed', 'exit_door'), ('table', 'platform', 'step', 'stairs', 'bed')
 
 
 def _goes(g):
-    """[(verb, box)] each thing among its own a walked verb goes to (`furniture.GOES`), nearest its first: what affords
-    each as its errand keeps it told of its things (`furniture._afforded`) - told here anew each round, every thing
-    against every other, it was 3.9 ms of its loop nine times a second in its door's errand."""
+    """[(verb, box)] each thing among the robot's own a walked verb goes to (`furniture.GOES`), nearest the
+    robot's first: what affords each as its errand keeps it told of the robot's things
+    (`furniture._afforded`) - told here anew each round, every thing against every other, it was 3.9 ms of the
+    robot's loop nine times a second in its door's errand."""
     from machine.way import affordance, furniture
     q = furniture.where(g)
     at = (float(q[0]), float(q[2]))
@@ -31,7 +32,7 @@ def _goes(g):
 
 
 def _key(verb, box):
-    """A thing's key: its verb and its slot among its own, its centre where it has none."""
+    """A thing's key: its verb and its slot among the robot's own, its centre where it has none."""
     return verb, int(box[4]) if len(box) > 4 else tuple(round(float(v), 1) for v in box[1])
 
 
@@ -58,9 +59,9 @@ def _maneuver():
 
 
 def peeked(s):
-    """A pass of its peeks (`s['peeker']`, a planner of their own): its answer taken where ready - a thing
-    it reaches none of dropped -, the next thing asked; a round over, things gone dropped; a new epoch
-    all of them."""
+    """A pass of the robot's peeks (`s['peeker']`, a planner of their own): its answer taken where ready - a
+    thing the robot reaches none of dropped -, the next thing asked; a round over, things gone dropped; a new
+    epoch all of them."""
     maneuver = _maneuver()
     g, planner = s['g'], s.get('peeker')
     if planner is None:
@@ -78,8 +79,9 @@ def peeked(s):
             st['docks'][_key(verb, box)] = None
     if planner.asked_at is not None:
         return
-    # a round over, its things told anew - but those that told none are not told again: what a verb goes to is its
-    # things' alone, and told each pass with none (its door's errand, 3 387 times) it was 31 us of each
+    # a round over, the robot's things told anew - but those that told none are not told again: what a verb goes
+    # to is its things' alone, and told each pass with none (its door's errand, 3 387 times) it
+    # was 31 us of each
     if not st['todo'] and st.get('none') is not g['things']:
         st['todo'] = _goes(g)
         live = {_key(verb, box) for verb, box in st['todo']}
@@ -97,8 +99,8 @@ def peeked(s):
 
 
 def told(s):
-    """[{'kind', 'slot', 'at', 'chosen'}] its peeks' docks (`peeked`), its errand's (`dock.shown`) in place
-    of its thing's."""
+    """[{'kind', 'slot', 'at', 'chosen'}] the robot's peeks' docks (`peeked`), its errand's
+    (`dock.shown`) in place of its thing's."""
     from machine.way import dock
     mine = dock.shown(s['g'].get('_errand'))
     peeks = [d for d in (s.get('peek') or {}).get('docks', {}).values() if d]

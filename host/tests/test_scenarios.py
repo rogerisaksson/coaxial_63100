@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Its scenarios that hold (`tools/sim/scenarios.py`): each placed, commanded as a player would,
+"""The robot's scenarios that hold (`tools/sim/scenarios.py`): each placed, commanded as a player would,
 judged by the world; a scenario joins HELD once it meets its goal, docs/TODO.md the rest."""
 import os
 import sys
@@ -9,21 +9,21 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from tools.dev.focus import chosen
 from gynoid_kit import Report
 
-#: The scenarios it meets laid turned by each of WOBBLES, rad - one met at 0 and not at
+#: The scenarios the robot meets laid turned by each of WOBBLES, rad - one met at 0 and not at
 #: 2e-4 is in the margin and out: into a wall and a tree, over a sill, a rug and a 10 cm hole,
 #: snow, asphalt, across ice it is told of; a player's starts and stops, turns, strafes,
 #: reversals, sprint, a spin in place, a weave, a turnabout, a release and press again
 #: mid-stride; down onto a chair and up. Each holds at 13 of 13 wobbles, -6e-4 to 6e-4 rad; the
-#: bed is out: told to lie by its text it reclines 27 deg with its soles down, the bed bearing
-#: 0.39 of it to its soles' 0.61 (stunts.md). Ice and the slick patch held while they were 1 mm films its soles
-#: stood through onto the floor.
+#: bed is out: told to lie by its text the robot reclines 27 deg with its soles down, the bed bearing
+#: 0.39 of it to its soles' 0.61 (stunts.md). Ice and the slick patch held while they were 1 mm
+#: films the robot's soles stood through onto the floor.
 HELD = ('wall', 'tree', 'hole', 'ice', 'ice_told', 'play_strafes', 'play_reverse', 'play_spin', 'play_weave',
         'play_about', 'play_moves', 'play_walk', 'mattress')
 WOBBLES = (0.0, 2e-4, -2e-4)
 
 
 def _scenario(name, wobble):
-    """A test of one scenario laid turned `wobble`: run as the page runs it, its goal met."""
+    """A test of one scenario laid turned `wobble`: run as the page runs the robot, its goal met."""
     def test(report):
         from tools.sim import knobs, scenarios
         texts = knobs.arranged({}) if os.environ.get('COAXIAL_PARAMS') else None
@@ -36,7 +36,7 @@ def _scenario(name, wobble):
 
 
 def test_the_referee_judges_by_touch(report):
-    """Laid on its back onto a bed it lies, onto the floor it fell (`referee.fallen`): judged
+    """Laid on the robot's back onto a bed it lies, onto the floor it fell (`referee.fallen`): judged
     by what it was doing, a tilt past 45 deg on a bed was a fall."""
     import math
     from machine.world import floor, referee
@@ -58,7 +58,7 @@ def test_the_referee_judges_by_touch(report):
     on_bed = laid()
     floor.take(world, 'prop_bed')
     on_floor = laid()
-    report.check('standing no fall, on its back on a bed none, on the floor a fall',
+    report.check('standing no fall, on the robot\'s back on a bed none, on the floor a fall',
                  (stood, on_bed, on_floor) == (False, False, True), (stood, on_bed, on_floor))
 
 

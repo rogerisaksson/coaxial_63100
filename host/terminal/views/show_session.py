@@ -42,7 +42,7 @@ _screen.CHATTER = False     # the boot bar replaced the scroll
 #: supply, so `Board_PowerPoll` refuses the rail while MOE is set - a sample
 #: mid-switch would drop the drivers with six inputs moving. A sample needs
 #: the switching stopped, and stopping is a policy of whoever asked for the
-#: run, not of the board (invariant 10).
+#: run, not of the board.
 #:
 #: 30 s and not 10: each sample costs an arm/disarm pair and the reference's
 #: 500 ms settle, so 10 s spends 7 % of the run not switching against 2 %,

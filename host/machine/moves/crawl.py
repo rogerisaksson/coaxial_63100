@@ -1,11 +1,11 @@
-"""Its gaits off its feet: a twist's coronal index and turnout, a sled's share, its anchors' hold.
+"""The robot's gaits off its feet: a twist's coronal index, turnout, a sled's share, its anchors' hold.
 
     kappa = crawl.coronal(twist)                  # 1: |vy| / |(vx, vy)| of floor twists [vx vy wz] (..., 3)
     turn = crawl.turnout(twist, most)             # rad: a hip's or shoulder's turnout for them, `most` sideways
-    share = crawl.sled(phase, gamma)              # 1: its weight on the sled at an axial phase, the rest on anchors
+    share = crawl.sled(phase, gamma)              # 1: the robot's weight on the sled at an axial phase, the rest on anchors
     use = crawl.slip(phase, gamma, mu_a, mu_s)    # 1: the anchors' friction the sled's drag takes, 1 at its limit
     held = crawl.held(gamma, mu_a, mu_s)          # 1: of the vault's half turn, where the anchors hold
-    Mbar, A, b = crawl.partitioned(M, h, free)    # its drives less those in High-Z: q''_f = A q''_a + b
+    Mbar, A, b = crawl.partitioned(M, h, free)    # the robot's drives less those in High-Z: q''_f = A q''_a + b
     up = crawl.lifted(across, roll)               # m: the far hip a roll onto one buttock lifts
     gain = crawl.boost(hands, heel)               # 1: the dead leg's side's arm over the other's, no yaw
 
@@ -32,8 +32,8 @@ def turnout(twist, most):
 
 
 def sled(phase, gamma):
-    """1: its weight on the sled at axial `phase` rad, 1 - gamma sin+ phase (`modulate-stick-slip-sled-ratchet`'s
-    F_z,sled over m g); the anchors bear the rest."""
+    """1: the robot's weight on the sled at axial `phase` rad, 1 - gamma sin+ phase
+    (`modulate-stick-slip-sled-ratchet`'s F_z,sled over m g); the anchors bear the rest."""
     return 1.0 - gamma * np.clip(np.sin(phase), 0.0, None)
 
 
@@ -52,9 +52,10 @@ def held(gamma, mu_anchor, mu_sled):
 
 
 def partitioned(M, h, free):
-    """(its mass matrix's active block less what its freewheeling joints take, M_aa - M_af M_ff^-1 M_fa; the map
-    and offset of their accelerations, q''_f = A q''_a + b, unforced) of its mass matrix `M` and bias `h` - a
-    freewheeling drive's backdrive in it -, `free` 1 a joint in High-Z (`partition-fault-tolerant-dynamics`)."""
+    """(the robot's mass matrix's active block less what its freewheeling joints take, M_aa - M_af
+    M_ff^-1 M_fa; the map and offset of their accelerations, q''_f = A q''_a + b, unforced) of its mass
+    matrix `M` and bias `h` - a freewheeling drive's backdrive in it -, `free` 1 a joint in High-Z
+    (`partition-fault-tolerant-dynamics`)."""
     free = np.asarray(free, bool)
     act = ~free
     taken = np.linalg.solve(M[np.ix_(free, free)], np.column_stack([M[np.ix_(free, act)], h[free]]))
@@ -62,12 +63,13 @@ def partitioned(M, h, free):
 
 
 def lifted(across, roll):
-    """m: a hip `across` m from the buttock it rolls onto, lifted by `roll` rad (`escort-passive-towed-limb`)."""
+    """m: a hip `across` m from the buttock the robot rolls onto, lifted by `roll` rad
+    (`escort-passive-towed-limb`)."""
     return across * np.sin(roll)
 
 
 def boost(hands, heel):
-    """1: the push of the arm on its dead leg's side over the other's that leaves it no yaw, its hands `hands` and
-    its working heel `heel` m off its midline, the heel pushing as an arm (`nullify-asymmetric-propulsion-yaw`):
-    a f_L - a f_R - b f_h = 0, f_h = f_R."""
+    """1: the push of the arm on the robot's dead leg's side over the other's that leaves it no yaw, its hands
+    `hands` and its working heel `heel` m off its midline, the heel pushing as an arm
+    (`nullify-asymmetric-propulsion-yaw`): a f_L - a f_R - b f_h = 0, f_h = f_R."""
     return 1.0 + heel / hands

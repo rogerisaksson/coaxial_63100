@@ -257,7 +257,7 @@ def test_link_diagnose(report):
                      and 'COM ports Windows sees' not in result4, result4)
         find_board.check_power = lambda timeout=15: (3.30, 'fake: powered')
 
-        # It names the stand-in it is actually on and the way off it.
+        # The session names the stand-in it is actually on and the way off it.
         stood_in = str(toolmod.Toolbox(SimulatedSession()).call('link_diagnose', {}))
         report.check('a session with no port names the stand-in it is on, '
                      'and the way off it',

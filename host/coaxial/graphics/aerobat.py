@@ -1,7 +1,7 @@
 """The 3D RC aerobatic monoplane drawn, an Extra 300 (`machine.aircraft.aerobat.form`) on its hinges.
 
     lines = render(pose, rotors, 96, 40, lit=gpu.LitRaster())   # the GPU's lit raster
-    lines = render(pose, rotors, 96, 40)                        # its dots splatted here
+    lines = render(pose, rotors, 96, 40)                        # the aerobat's dots splatted here
 
 `pose` is `machine.aircraft.aerobat.Sky.state()`'s, its 'turn', 'at' and 'controls'; `rotors` the two
 63100 drives' (angle rad, speed rad/s, can C, board C[, sink C]), each can, board and heatsink

@@ -1,5 +1,5 @@
-"""The ortho-DSP suite on its loop (`machine.texts.dsp`, `machine.texts.voicing`): its modules read and evaluated
-as written, a patch voiced on its walk by its changes, what it cannot do refused by name, the
+"""The ortho-DSP suite on the robot's loop (`machine.texts.dsp`, `machine.texts.voicing`): its modules read and evaluated
+as written, a patch voiced on the robot's walk by its changes, what the robot cannot do refused by name, the
 runway's dialect read alike, a take converted to a modifier it reads (`tools/sim/identify.py`)."""
 import math
 import sys
@@ -9,8 +9,8 @@ from gynoid_kit import Report, robot_frame, near, suite_read
 
 
 def test_the_suite_reads_as_written(report):
-    """Its patches' params as their stages compute them, in their order: the catwalk's track 0.44
-    of the sneaker's foot and its bow clear of it, a clamp on a sidechain none had its bound;
+    """The suite's patches' params as their stages compute them, in their order: the catwalk's track
+    0.44 of the sneaker's foot and its bow clear of it, a clamp on a sidechain none had its bound;
     the ice's track clamped above the foot, its roll clamped under; the boot's track clamped,
     then the pack's added; the stairs' riser the step's; the schedule's nine segments."""
     from machine.texts import dsp
@@ -89,15 +89,15 @@ def test_the_maneuvers_read_as_written(report):
                  and near(wake.acts[0][1]['coronal-com-shift-mm'], 0.45 * 0.44 * 96.5), str(wake.acts))
 
 
-def test_a_patch_moves_its_walk_by_its_changes(report):
-    """The nominal manifold voiced on itself moves no slot of its walk and tells its walk's speed;
-    the runway moves each voiced slot by its change off the nominal, relative to its walk."""
+def test_a_patch_moves_the_robots_walk_by_its_changes(report):
+    """The nominal manifold voiced on itself moves no slot of the robot's walk and tells its walk's
+    speed; the runway moves each voiced slot by its change off the nominal, relative to the robot's walk."""
     from machine.texts import dsp, ortho, voicing
     from machine.law import modal, se2
     got, fr = suite_read(), robot_frame()
     dry = got['nominal-biped-manifold']
     row, told = voicing.voiced(dry, dry, fr)
-    report.check('the nominal is its walk: no slot moved, its walk speed told', not row and told['twist'] == (
+    report.check('the nominal is the robot\'s walk: no slot moved, its walk speed told', not row and told['twist'] == (
         se2.WALK_SPEED, 0.0, 0.0), '%s %s' % (row, told))
     walk = voicing.walk(fr)
     row, told = voicing.voiced(got['patch-sneaker-runway'], dry, fr)
@@ -107,16 +107,16 @@ def test_a_patch_moves_its_walk_by_its_changes(report):
             ortho.AMP + modal.ARMS: walk[ortho.AMP + modal.ARMS] * 10.0 ** (-1.5 / 20.0),
             ortho.PHASE + modal.ARMS: walk[ortho.PHASE + modal.ARMS] - 0.25,
             ortho.DUCK.start: -0.026, ortho.DUCK.start + 1: 0.105, ortho.DUCK.start + 2: 0.26}
-    report.check('the runway: its clock, track, roll, lean, arms and duck on its voices, nothing else',
+    report.check('the runway: its clock, track, roll, lean, arms and duck on the robot\'s voices, nothing else',
                  set(row) == set(want) and all(near(row[k], v) for k, v in want.items()),
                  str({k: (round(row.get(k, math.nan), 4), round(v, 4)) for k, v in want.items()}))
-    report.check('its twist its walk speed by its tempo, its grip its cone', near(told['twist'][0], se2.WALK_SPEED * 1.03636)
+    report.check('its twist the robot\'s walk speed by its tempo, its grip its cone', near(told['twist'][0], se2.WALK_SPEED * 1.03636)
                  and told['grip'] == 0.85, str(told))
 
 
-def test_what_it_cannot_do_is_refused_by_name(report):
+def test_what_the_robot_cannot_do_is_refused_by_name(report):
     """A gallop by its phase, a sprint by its flight, a carioca by its crossing, a param in no
-    table by its name; a sidestep's way and a retro's are told it as a twist."""
+    table by its name; a sidestep's way and a retro's are told the robot as a twist."""
     from machine.texts import dsp, voicing
     from machine.errors import MachineError
     got, fr = suite_read(), robot_frame()
@@ -138,12 +138,13 @@ def test_what_it_cannot_do_is_refused_by_name(report):
     side = dsp.value(['->', 'nominal-biped-manifold', ['topology-coronal-sidestep']], got)
     back = dsp.value(['->', 'nominal-biped-manifold', ['topology-retro-locomotion']], got)
     told = [voicing.voiced(g, dry, fr)[1]['twist'] for g in (side, back)]
-    report.check('a sidestep told it leftward, a retro walk backward', told[0][1] > 100.0 * abs(told[0][0])
+    report.check('a sidestep told the robot leftward, a retro walk backward', told[0][1] > 100.0 * abs(told[0][0])
                  and told[1][0] < 0.0, str(told))
 
 
 def test_the_insert_is_every_patch_last(report):
-    """Every patch ends in the anti-spasm insert, its params named on its loop, another number refused."""
+    """Every patch ends in the anti-spasm insert, its params named on the robot's loop, another number
+    refused."""
     import copy
     from machine.texts import dsp, voicing
     from machine.law import supervisor
@@ -171,8 +172,8 @@ def test_the_insert_is_every_patch_last(report):
 
 
 def test_the_runway_reads_in_its_own_dialect(report):
-    """lisp/humanoid/runway.lisp through the same reader: its dry plays its walk, its wet narrows its
-    track by its own ratio, its morph lays a curve row every sixteenth of two bars."""
+    """lisp/humanoid/runway.lisp through the same reader: its dry plays the robot's walk, its wet narrows the
+    robot's track by its own ratio, its morph lays a curve row every sixteenth of two bars."""
     import os
     from machine.texts import dsp, ortho, patch, voicing
     from machine.body import mechatronics
@@ -183,17 +184,17 @@ def test_the_runway_reads_in_its_own_dialect(report):
     wet_row, _told = voicing.voiced(m.target, m.source, fr)
     wire, span = voicing.morphed(m, m.source, fr)
     rows = [ortho.ROW.unpack_from(wire, k) for k in range(0, len(wire), ortho.ROW.size)]
-    report.check('its dry moves nothing, its wet its width by 42 over 115 mm', not dry_row and near(
+    report.check('its dry moves nothing, its wet the robot\'s width by 42 over 115 mm', not dry_row and near(
         wet_row[ortho.Z + modal.WIDTH], 42.0 / 115.0 - 1.0), str(wet_row))
     report.check('its morph: 33 rows, every one but the last a curve sample, %.2f s' % span,
                  len(rows) == 2 * patch.GRID + 1 and all(r[3] == ortho.CURVE for r in rows[:-1]) and rows[-1][3] == 0,
                  '%d rows' % len(rows))
 
 
-def test_a_take_converts_to_a_modifier_it_reads(report):
-    """Its walk as approved against itself: the converter emits the nominal, read back it moves
-    its walk's slots no further than its text's four places and tells it no duck. Its peak
-    finder and Welch's estimate read a known signal as scipy's do."""
+def test_a_take_converts_to_a_modifier_the_robot_reads(report):
+    """The robot's walk as approved against itself: the converter emits the nominal, read back it moves
+    the robot's walk's slots no further than its text's four places and tells the robot no duck.
+    `identify.peaks` and `identify.welch` read a known signal as scipy's do."""
     import os
     import numpy as np
     from machine.texts import dsp, ortho, voicing
@@ -217,13 +218,13 @@ def test_a_take_converts_to_a_modifier_it_reads(report):
     fr = robot_frame()
     row, told = voicing.voiced(g, suite['nominal-biped-manifold'], fr)
     walk = voicing.walk(fr)
-    report.check('its walk converted against itself: its slots within 1e-4, no duck, ahead',
+    report.check('the robot\'s walk converted against itself: its slots within 1e-4, no duck, ahead',
                  all(abs(v - walk[k]) <= 1e-4 * max(1.0, abs(walk[k])) for k, v in row.items())
                  and ortho.DUCK.start not in row and told['twist'][1] == 0.0, '%s %s' % (row, told))
 
 
 def test_the_side_lie_reads_and_is_refused_by_name(report):
-    """The side-lie (side_lie.lisp): docked, the mattress's edge sat on, the pendulum on its right
+    """The side-lie (side_lie.lisp): docked, the mattress's edge sat on, the pendulum on the robot's right
     trochanter to 1.57 rad along the bed; played, refused by name - its list mode reaches 0.9 rad -;
     a lean of 0.6 rad on its left plays: one contact phase on its trochanter, its ZMP let go, its
     legs' free modes at the mattress's -36 dB, its pelvis listed 4 units and turned 3."""
@@ -236,7 +237,7 @@ def test_the_side_lie_reads_and_is_refused_by_name(report):
     g = dsp.value(['patch-bed-side-lie', 'nominal-biped-manifold'], got)
     at = next(e for e in g['_events'] if e[0] == 'on-contact-threshold' and e[2] and e[2][0][0] == 'stage-coupled-pendulum')
     swing = at[2][0][1]
-    report.check('read: the pendulum on its right trochanter, 1 550 ms, listed to 1.5708 rad, yawed to the bed\'s axis',
+    report.check('read: the pendulum on the robot\'s right trochanter, 1 550 ms, listed to 1.5708 rad, yawed to the bed\'s axis',
                  swing['fulcrum-node'] == ':greater-trochanter-r' and swing['total-duration-ms'] == 1550.0
                  and swing['coupled-lever-dynamics']['torso-list-slew-rad'][-1] == 1.5708
                  and swing['coupled-lever-dynamics']['pelvic-yaw-slew-rad'][-1] == 1.5708
@@ -258,9 +259,9 @@ def test_the_side_lie_reads_and_is_refused_by_name(report):
         except MachineError as error:
             refusal = str(error)
         swung = next(p for p in maneuver.phases('side_lean', got=suite) if p.what == 'pendulum')
-    report.check('played: refused by name, 1.5708 rad on its list mode past its reach',
+    report.check('played: refused by name, 1.5708 rad on the robot\'s list mode past its reach',
                  'refused' in refusal and 'mode_pelvis_list' in refusal and '1.5708' in refusal and 'REACH' in refusal, refusal)
-    report.check('a 0.6 rad lean on its left: a contact phase on its trochanter, ZMP 0, the free leg modes -36 dB, '
+    report.check('a 0.6 rad lean on the robot\'s left: a contact phase on its trochanter, ZMP 0, the free leg modes -36 dB, '
                  'the list at rest, listed 4, turned 3',
                  swung.stage == 'contact' and swung.weighs == (0.0, 0.0, 1.0, 0.0, 0.0) and swung.zmp == acts.NONE
                  and swung.ms == 1550.0 and near(swung.targets['mode_pelvis_list'], 4.0)
@@ -270,9 +271,9 @@ def test_the_side_lie_reads_and_is_refused_by_name(report):
 
 
 ROSTER = (test_the_suite_reads_as_written, test_the_maneuvers_read_as_written,
-          test_a_patch_moves_its_walk_by_its_changes, test_what_it_cannot_do_is_refused_by_name,
+          test_a_patch_moves_the_robots_walk_by_its_changes, test_what_the_robot_cannot_do_is_refused_by_name,
           test_the_insert_is_every_patch_last, test_the_runway_reads_in_its_own_dialect,
-          test_a_take_converts_to_a_modifier_it_reads, test_the_side_lie_reads_and_is_refused_by_name)
+          test_a_take_converts_to_a_modifier_the_robot_reads, test_the_side_lie_reads_and_is_refused_by_name)
 
 
 def main(argv=None):

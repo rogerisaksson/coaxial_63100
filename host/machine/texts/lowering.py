@@ -2,21 +2,21 @@
 
     bank = lowering.lowered(g, live)          # gait `g` as a bank (float32, wbc_soa.h), its filters seeded
     v = lowering.field(bank, 'track-width-mm')  # a field read back, SI; a node's by `node=`
-    y = lowering.biquad(bank, node, x)        # its loop's pass of a node's filter, its states advanced
+    y = lowering.biquad(bank, node, x)        # the robot's loop's pass of a node's filter, its states advanced
     plan = lowering.scheduled(soa, live)      # a compile-to-soa's schedule, each gait its bank
 
-The text's fold, on the gait it folded, over the bank of its nominal gait (`*nominal-soa-template*`,
+The text's fold, on the gait it folded, over the bank of the robot's nominal gait (`*nominal-soa-template*`,
 TEMPLATE): each of its fields (`*abi-field-descriptors*`) a param of
 the gait's nodes, else a key of the last stage its trace says it of, scaled to SI and clamped at
-its bounds, written at its offset; a field its nominal gait says of several nodes is each node's,
+its bounds, written at its offset; a field the robot's nominal gait says of several nodes is each node's,
 four bytes a node's index on (NODES) - the text's `offset + 4 joint` for every field would lay a
 node's track over its neighbours' (0x80 + 4 k on 0x84, 0x88). Then a biquad a node - a low-pass
 where the node has a cut-off, a notch where a notch, else passing -, its coefficients the text's own
-Tustin (`precompute-tustin-biquad`, pre-warped, at the schedule's rate), its states seeded on its
+Tustin (`precompute-tustin-biquad`, pre-warped, at the schedule's rate), its states seeded on the robot's
 live value (`seed-bumpless-biquad-states`) for the float32 coefficients its loop runs: its first
 output that value through their DC gain, its rest, no step at the swap. Then
 the manifolds' weights and the body schema's capsules. Every section on whole 64-byte lines, a
-column a node or capsule; its loop's side is C (wbc/inc/wbc_soa.h), the same offsets. A bank rides
+column a node or capsule; the robot's loop's side is C (wbc/inc/wbc_soa.h), the same offsets. A bank rides
 `machine.process.rcu`'s table as its words (`words`).
 """
 import os
@@ -35,7 +35,7 @@ FIELDS = tuple((str(k)[1:], int(at), scale, lo, hi) for k, at, scale, lo, hi in 
 LINE, F32 = 64, 4
 PER_LINE = LINE // F32
 _NOMINAL = _TEXT['nominal-biped-gait']
-#: The nodes a bank indexes: its nominal gait's, in its order (the text's `resolve-joint-soa-index`).
+#: The nodes a bank indexes: the robot's nominal gait's, in its order (the text's `resolve-joint-soa-index`).
 NODES = tuple(k for k in _NOMINAL if not k.startswith('_'))
 #: The manifolds a bank weighs, the registry's order.
 MANIFOLDS = tuple(_TEXT['anatomical-manifold-registry'])
@@ -64,7 +64,7 @@ def _number(v):
     return isinstance(v, float | int) and not isinstance(v, bool)
 
 
-#: The fields each node's: those its nominal gait says of more than one node.
+#: The fields each node's: those the robot's nominal gait says of more than one node.
 EACH = tuple(k for k, *_r in FIELDS if sum(_number(p.get(_param(k))) for p in _NOMINAL.values() if isinstance(p, dict)) > 1)
 
 
@@ -131,13 +131,13 @@ def _fields(bank, g):
     return bank
 
 
-#: The bank the fold begins on: its nominal gait's fields.
+#: The bank the fold begins on: the robot's nominal gait's fields.
 TEMPLATE = _fields(np.zeros(SIZE // F32, np.float32), _NOMINAL)
 
 
 def lowered(g, live=None):
     """Gait `g` (`dsp`'s, evaluated) as a bank, float32 (SIZE bytes): its fields over TEMPLATE's, a
-    biquad a node seeded on `live` ({node: its value}, 0 where none), the manifolds' weights, the
+    biquad a node seeded on `live` ({node: the robot's value}, 0 where none), the manifolds' weights, the
     capsules."""
     live = live or {}
     bank = _fields(TEMPLATE.copy(), g)
@@ -160,7 +160,7 @@ def field(bank, key, node=None):
 
 
 def biquad(bank, node, x):
-    """Its loop's pass of `node`'s biquad of `bank` on `x`, direct form II transposed in float32 as
+    """The robot's loop's pass of `node`'s biquad of `bank` on `x`, direct form II transposed in float32 as
     wbc_soa.c: its output, its states advanced in the bank."""
     k, f = _index(node, 'biquad'), np.float32
     b0, b1, b2, a1, a2 = (bank[AT[c] + k] for c in BIQUAD[:5])

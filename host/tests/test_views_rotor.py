@@ -108,8 +108,8 @@ def test_both_gutters_run_on_one_scale(report):
 
 
 def test_a_power_node_never_reads_below_the_copper(report):
-    """It sheds into the board, so it cannot be colder than the board - switching: AFE_ON up,
-    the STO chain's pilot detector on +5, the drivers on the chain's supply."""
+    """A power node sheds into the board, so it cannot be colder than the board - switching:
+    AFE_ON up, the STO chain's pilot detector on +5, the drivers on the chain's supply."""
     from coaxial import SIMULATED, Coaxial63100
     from terminal.views.rotor import layout, legend
 
@@ -171,9 +171,9 @@ def test_the_ntc_is_shown_as_the_one_measurement(report):
                  'NTC' in said and not any('NTC' in row
                                            for row in rows[1:]),
                  said.replace(chr(27), '^'))
-    # Its own tube's colour, the thermometer ramp - blue at the cold
-    # end and red at the hot - because the thermistor has no ceiling to be a
-    # margin against.
+    # The NTC row's own tube's colour, the thermometer ramp - blue at the
+    # cold end and red at the hot - because the thermistor has no ceiling to
+    # be a margin against.
     report.check('and takes its own tube colour, off the thermometer ramp',
                  any('38;5;%d' % cross_section.INK[step] in said
                      for step in cross_section.NTC_RAMP),

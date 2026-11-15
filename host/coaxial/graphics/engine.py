@@ -251,8 +251,8 @@ def shade(depth, top, sun, cam, m, pivot, slope, floor,
     reach = cam.get('reach', 1.0)
     back = m[8] < 0.0
     # The art is the top's layout: seen from behind the slab shows none, or
-    # the top's parts print through onto the bottom. It is read on the top
-    # plane (`planes` is (top, bottom); z = 0 where a model names none).
+    # the top's parts print through onto the bottom. The art is read on the
+    # top plane (`planes` is (top, bottom); z = 0 where a model names none).
     _rows, art_w, art_h, dense = art if (art and not back) else ([], 0, 0, [])
     plane = planes[0] if planes is not None else 0.0
     w_all = np.asarray(depth, float)

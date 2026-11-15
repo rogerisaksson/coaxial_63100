@@ -1,30 +1,33 @@
-"""The furniture its eyes tell it of: the thing a verb goes to nearest a place, its top and middle.
+"""The furniture the robot sees: the thing a verb goes to nearest a place, its top and middle.
 
-Its things are its registry's boxes (`g['things']`, `machine.eyes.registry`: its eyes' under `physics.SIGHT`,
-the world's props standing in for them without), what each affords it the text's (`machine.way.affordance`):
-a chair a seat with a back, the nearest seat without one; a bed what it can lie on; the door its kind.
+The robot's things are its registry's boxes (`g['things']`, `machine.eyes.registry`: its eyes'
+under `physics.SIGHT`, the world's props standing in for them without), what each affords it the text's
+(`machine.way.affordance`): a chair a seat with a back, the nearest seat without one; a bed what it can
+lie on; the door its kind.
 """
 import math
 import operator
 
 from machine.way import affordance
 
-#: What `verb` goes to among its things: whether a box affords it, whether it is the thing itself, and
-#: the headings of the faces it docks at (`route.docked`): a bed's ends and sides, its lie the edge's (`first`).
+#: What `verb` goes to among the robot's things: whether a box affords it, whether it is the thing itself, and
+#: the headings of the faces the robot docks at (`route.docked`): a bed's ends and sides, its lie the
+#: edge's (`first`).
 GOES = {'sit_chair': (affordance.sits, affordance.backed, affordance.fronts),
         'lie_bed': (affordance.lies, lambda _b, _t: True, affordance.faces),
         'leg_bed': (affordance.lies, lambda _b, _t: True, affordance.faces),
         'lie_floor': (affordance.lies, lambda _b, _t: True, affordance.sides),
         'exit_door': (affordance.door, lambda _b, _t: True, affordance.sides)}
 _NONE = (lambda _b, _t: False, lambda _b, _t: False, lambda _b, _t: ())
-#: A face's kind as a patch names the one it docks it at first (`maneuver.face`): a bed's ends, its sides.
+#: A face's kind as a patch names the one it docks the robot at first (`maneuver.face`): a bed's ends, its
+#: sides.
 KINDS = {':short': affordance.ends, ':long': affordance.sides}
 
 
 def first(verb, box, things, heading):
-    """0 where `heading` (rad) is a face of `box` among `things` that `verb`'s patch docks it at first
-    (`maneuver.face`, KINDS) - any face where it names none -, 1 one it docks at only where none of those
-    is its own to reach."""
+    """0 where `heading` (rad) is a face of `box` among `things` that `verb`'s patch docks the robot at first
+    (`maneuver.face`, KINDS) - any face where it names none -, 1 one the robot docks at only where none of
+    those is its own to reach."""
     from machine.texts import maneuver
     kind = KINDS.get(maneuver.face(verb) or '') if verb in maneuver.PLAYED else None
     return int(kind is not None and all(abs(math.remainder(heading - h, 2.0 * math.pi)) > 1e-9
@@ -32,7 +35,8 @@ def first(verb, box, things, heading):
 
 
 def _things(g, things):
-    """`things` (its own, `g['things']`, without) as boxes: kind, centre, half sizes, turn at the least."""
+    """`things` (the robot's own, `g['things']`, without) as boxes: kind, centre, half sizes, turn at the
+    least."""
     return [p for p in (g['things'] if things is None else things) if _boxlike(p)]
 
 
@@ -41,14 +45,15 @@ def _boxlike(p):
 
 
 def _afforded(g, verb, things=None):
-    """(its boxes of `things` - its own, `g['things']`, without -, [(box, whether it is the thing itself)] of those
-    `verb` goes to, in their order): told anew only as its things change - the very ones last told, or a look's of the
-    same bits (`_alike`): the last told in its places -, kept on `g` till then, its own and those given each their own.
-    Each pass of a bed's move found the bed again among the lodge's 64 things (a box `affordance.lies` reads every other
-    thing over it), 0.86 ms of its 1 kHz pass while it played: lying down on the bed and rising from it it ran at half
-    its pace; told anew each look, a third of it. Kept one a verb, its errand's look for a thing - its own and its
-    registry's every slot, both each pass (`words._seen`, `words._glimpsed`) - told it anew at every call: 346 us of
-    19 558 in its bed errand, 15 % of its wall."""
+    """(the robot's boxes of `things` - its own, `g['things']`, without -, [(box, whether it is the
+    thing itself)] of those `verb` goes to, in their order): told anew only as the robot's things change - the
+    very ones last told, or a look's of the same bits (`_alike`): the last told in its places -, kept on `g`
+    till then, the robot's own and those given each their own. Each pass of a bed's move found the bed again
+    among the lodge's 64 things (a box `affordance.lies` reads every other thing over it), 0.86 ms of the
+    robot's 1 kHz pass while it played: lying down on the bed and rising from it the robot ran at half the
+    robot's pace; told anew each look, a third of it. Kept one a verb, the robot's errand's look for a thing -
+    the robot's own and its registry's every slot, both each pass (`words._seen`, `words._glimpsed`) -
+    told it anew at every call: 346 us of 19 558 in the robot's bed errand, 15 % of its wall."""
     source, key = (g['things'] if things is None else things), (verb, things is None)
     kept = g.setdefault('_afforded', {}).get(key)
     if kept is None or not (kept[0] is source and len(kept[1]) == len(source) and all(map(operator.is_, kept[1], source))):
@@ -82,7 +87,7 @@ def _near(kept, things, index):
     (`registry.Things`) - follow those `kept` told: it moved, or one that moved stands near it, its circle and the
     other's within one cell (`voxels.CELL_M`) - all a box's seat, bed and back read of another (`affordance.clear`'s
     circles, `back_of`'s cell); the rest as told before. None where it cannot be told: another count, no arrays.
-    Each look of a bed awake under its renewed all, 70 boxes' affordances 23 % of its lying."""
+    Each look of a bed awake under the robot's renewed all, 70 boxes' affordances 23 % of its lying."""
     import numpy as np
     from machine.eyes.voxels import CELL_M
     if kept is None or kept[2] != index:
@@ -105,9 +110,9 @@ def _near(kept, things, index):
 
 
 def _faced(g, verb, things, box):
-    """The headings of the faces `verb` docks it at on `box` (GOES), one of the boxes last told of `things`
-    (`_afforded`): told once a telling, with what affords it - a seat's back sought among all its things at every
-    read of its errand's thing (`nearest`), 100 us a third of its passes."""
+    """The headings of the faces `verb` docks the robot at on `box` (GOES), one of the boxes last told of
+    `things` (`_afforded`): told once a telling, with what affords it - a seat's back sought among all the
+    robot's things at every read of its errand's thing (`nearest`), 100 us a third of its passes."""
     _source, _was, _index, _chosen, boxes, _afford, told = g['_afforded'][(verb, things is None)]
     if id(box) not in told:
         told[id(box)] = GOES.get(verb, _NONE)[2](box, boxes)
@@ -125,7 +130,8 @@ def _alike(was, things):
 
 
 def where(g):
-    """Its pelvis (3,) in its things' frame: its invariant EKF's under its eyes, the world's without."""
+    """The robot's pelvis (3,) in its things' frame: its invariant EKF's under its eyes, the world's
+    without."""
     return g['inekf']['p'] if g.get('eyes') else g['world'].data.qpos[:3]
 
 
@@ -135,12 +141,12 @@ def floor(g):
 
 
 def _found(g, verb, at=None, thing=None, things=None):
-    """(its distance from `at`, its edge's from it, the thing - kind, centre, half sizes, turn, slot) of
+    """(its distance from `at`, its edge's from the robot, the thing - kind, centre, half sizes, turn, slot) of
     what `verb` goes to nearest `at` (x, z) - it without one - among `things` (its own, `g['things']`,
-    without), the thing itself before what else affords it; the thing of slot `thing` where it holds
-    one still (an errand's, chosen when it was seen whole); None with none seen. What affords it told as its things
-    change (`_afforded`); its edge's distance (`affordance.distance`) only where it decides - the nearest's, and those
-    as near to the hair -, the first least by (not itself, distance, edge's) as among all."""
+    without), the thing itself before what else affords it; the thing of slot `thing` where the robot holds
+    one still (an errand's, chosen when it was seen whole); None with none seen. What affords it told as the robot's
+    things change (`_afforded`); its edge's distance (`affordance.distance`) only where it decides - the nearest's,
+    and those as near to the hair -, the first least by (not itself, distance, edge's) as among all."""
     from machine.law import stride
     q = where(g)
     gx, gz = float(q[0]), float(q[2])
@@ -159,10 +165,10 @@ def _found(g, verb, at=None, thing=None, things=None):
 
 
 def nearest(g, verb, at=None, where=(0.0, 0.0), things=None, thing=None):
-    """`(dist_edge, px, pz, top, thing, faces, box)` of the thing `verb` goes to nearest `at` (x, z) - it
-    without one - among `things` (its own without), the thing of slot `thing` where given: its edge's distance
-    from it, its centre, its top's height, its slot, the headings of the faces it docks at (GOES), its box;
-    `where`, no top, no slot, no faces and no box with none seen."""
+    """`(dist_edge, px, pz, top, thing, faces, box)` of the thing `verb` goes to nearest `at` (x, z) - the
+    robot without one - among `things` (its own without), the thing of slot `thing` where given: its
+    edge's distance from the robot, its centre, its top's height, its slot, the headings of the faces the
+    robot docks at (GOES), its box; `where`, no top, no slot, no faces and no box with none seen."""
     hit = _found(g, verb, at, thing=thing, things=things)
     if hit is None:
         return math.inf, where[0], where[1], None, None, None, None
@@ -172,19 +178,20 @@ def nearest(g, verb, at=None, where=(0.0, 0.0), things=None, thing=None):
 
 
 def slotted(g, verb, at=None, things=None):
-    """Whether the thing `verb` goes to nearest `at` among `things` (`nearest`) is a slot of its registry's: told of
-    what affords it alone where each of them is one, or none is - the nearest sought (`_found`) only between both.
-    Its errand's glimpse (`words._glimpsed`) asked the nearest's place, top and faces each pass for this one word:
-    42 us of its door errand's pass, its look held."""
+    """Whether the thing `verb` goes to nearest `at` among `things` (`nearest`) is a slot of the robot's registry's:
+    told of what affords it alone where each of them is one, or none is - the nearest sought (`_found`) only between
+    both. The robot's errand's glimpse (`words._glimpsed`) asked the nearest's place, top and faces each pass for
+    this one word: 42 us of its door errand's pass, its look held."""
     of = {len(p) > 4 and p[4] is not None for p, _own in _afforded(g, verb, things)[1]}
     return of.pop() if len(of) == 1 else bool(of) and nearest(g, verb, at, things=things)[4] is not None
 
 
 def lain(g, verb='lie_bed'):
-    """(its root from the middle of the thing `verb` goes to nearest it along its length, m - its sign the box's -,
-    that half length, m; its root's speed, m/s) of its things, (0.0, 0.0, speed) with none seen: its root where a
-    look takes it (`_found`), its place in the room as its eyes tell it - not its dead reckoning, whose estimate drifted
-    0.28 m along a bed as it lay down on it and stroked up it."""
+    """(the robot's root from the middle of the thing `verb` goes to nearest it along its length, m -
+    its sign the box's -, that half length, m; the robot's root's speed, m/s) of its things, (0.0,
+    0.0, speed) with none seen: its root where a look takes it (`_found`), the robot's place in the
+    room as its eyes tell it - not the robot's dead reckoning, whose estimate drifted 0.28 m along a
+    bed as it lay down on it and stroked up it."""
     q, data = where(g), g['world'].data
     speed = float(math.sqrt(sum(float(v) ** 2 for v in data.qvel[:3])))
     hit = _found(g, verb)
@@ -197,16 +204,16 @@ def lain(g, verb='lie_bed'):
 
 
 def seen(g, stunt, at=None, thing=None):
-    """(its top, the face it backs into behind its soles' middle along its way, its middle to its
-    left of theirs, m; that face's turn off square to its way, rad; its depth across that face and its
-    width along it, m)
-    of the furniture stunt `stunt` is on nearest `at` (it without one), the thing of slot `thing`
-    where given - a rise's that of the stunt it rises from -; None where it sees none. The face is the side whose outward normal lies most
-    along its way: read as the box's reach along its way, a bed turned 0.6 rad to it was its far
-    corner, -0.45 m where its long side lay 0.15 m behind it. Its soles about its root as its
-    estimate has them, its root where `_found` reads it: a look is taken from it, its odometry's
-    drift none of it - an errand drifted its estimate 3 cm, the seat seen 2.2 cm deep of where it
-    stood, a thigh met its edge and it fell."""
+    """(its top, the face the robot backs into behind its soles' middle along its way, its
+    middle to the robot's left of theirs, m; that face's turn off square to its way, rad; its depth
+    across that face and its width along it, m) of the furniture stunt `stunt` is on nearest `at` (the robot
+    without one), the thing of slot `thing` where given - a rise's that of the stunt it rises from -; None
+    where the robot sees none. The face is the side whose outward normal lies most along the robot's way: read
+    as the box's reach along its way, a bed turned 0.6 rad to it was its far corner, -0.45 m
+    where its long side lay 0.15 m behind the robot. The robot's soles about its root as its
+    estimate has them, its root where `_found` reads it: a look is taken from it, the
+    robot's odometry's drift none of it - an errand drifted the robot's estimate 3 cm, the seat seen 2.2 cm
+    deep of where it stood, a thigh met its edge and the robot fell."""
     from machine.senses import edge
     from machine.texts import maneuver
     from machine.law import modal

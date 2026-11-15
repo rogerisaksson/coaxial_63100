@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""WASD on it: the page's keys drive it, and it neither falls nor stumbles on them.
+"""WASD on the robot: the page's keys drive it, and it neither falls nor stumbles on them.
 
-W, A, D and S typed on the HUMANOID page as a terminal types them (`humanoid_keys.steered` each frame, its
-twist the page's), each held its seconds and let go, on its loop as the page lays it; and the player's plays
-(`tools/sim/player.py` PLAYS: start-stop, turns, strafes, reverse, sprint, a spin, a weave, a turnabout, its
-walk, the moves, the stutter) from each of the ensemble's starts (`tools/sim/handovers.ENSEMBLE`'s diagonal:
-its drive and its axial as built and a hair either side), a relay job each (`tools/sim/handover.py --spec
---play`), judged by the world and by its analyzers: `support.stumble` (its surety under its brace),
-`support.fall`, and `motion.spasm` counted beside them."""
+W, A, D and S typed on the HUMANOID page as a terminal types them (`humanoid_keys.steered` each frame, the
+robot's twist the page's), each held its seconds and let go, on the robot's loop as the page lays it; and the
+player's plays (`tools/sim/player.py` PLAYS: start-stop, turns, strafes, reverse, sprint, a spin, a weave, a
+turnabout, the robot's walk, the moves, the stutter) from each of the ensemble's starts
+(`tools/sim/handovers.ENSEMBLE`'s diagonal: its drive and its axial as built and a hair either
+side), a relay job each (`tools/sim/handover.py --spec --play`), judged by the world and by the robot's
+analyzers: `support.stumble` (its surety under its brace), `support.fall`, and `motion.spasm`
+counted beside them."""
 import math
 import os
 import sys
@@ -21,23 +22,26 @@ from views_kit import typed
 
 #: The page's frames, s apart, and a held key's repeats as a terminal types them, s apart (test_leap's page tests).
 FRAME_S, REPEAT_S = 0.05, 0.033
-#: The keys held in turn, s each: W walks it on, WA and WD arc it, none stops it, S backs it, none again.
+#: The keys held in turn, s each: W walks the robot on, WA and WD arc it, none stops it, S backs it, none
+#: again.
 HELD = (('w', 3.0), ('wa', 2.0), ('wd', 2.0), ('', 3.0), ('s', 2.0), ('', 3.0))
-#: It has gone this far on W, m; turned this far on WA and on WD, deg; backed this far on S, m (a walk back from
-#: its stand sets out slowly: 3-16 cm in its first 2.6 s); and stands slower than this, m/s, when the keys are let go.
+#: The robot has gone this far on W, m; turned this far on WA and on WD, deg; backed this far on S, m (a walk back
+#: from its stand sets out slowly: 3-16 cm in its first 2.6 s); and stands slower than this, m/s, when the
+#: keys are let go.
 WENT_M, TURNED_DEG, BACKED_M, STILL_M_S = 1.5, 15.0, 0.02, 0.3
 #: The seconds each play is judged over (`handover.py --window`).
 WINDOW = (1.0, 14.0)
 
 
 def _heading(s):
-    """Its pelvis's heading, rad, from its quaternion as `leap.step` reads it: positive turns its left."""
+    """The robot's pelvis's heading, rad, from its quaternion as `leap.step` reads it: positive turns the
+    robot's left."""
     w, x, y, z = (float(v) for v in s['g']['s']['turns'][0]['quat'])
     return math.atan2(2.0 * (x * z + w * y), 1.0 - 2.0 * (x * x + y * y))
 
 
-def test_the_keys_that_move_its_are_one_twist(report):
-    """W A S D move and turn its relative to its own body (independent of the viewport); Q E
+def test_the_keys_that_move_the_robots_are_one_twist(report):
+    """W A S D move and turn the robot's relative to its own body (independent of the viewport); Q E
     sidestep; Shift sprints: one twist, sent when it changes, each one the bench's plays hold, the
     build's speeds (`se2`); a back turn said in a brake laid for the other back turn splices into it."""
     import time
@@ -50,7 +54,7 @@ def test_the_keys_that_move_its_are_one_twist(report):
         keys = dict({k: k in word.lower() for k in 'wsadqe'}, shift=word != word.lower())
         return humanoid_keys.twist(keys, viewpoint.looks({'yaw': yaw}), heading)
 
-    report.check('in its frame: W walks it on, S walks it back, A turns its left in place, Q sidesteps left',
+    report.check('in the robot\'s frame: W walks it on, S walks it back, A turns its left in place, Q sidesteps left',
                  (tw('w'), tw('s'), tw('a'), tw('q')) == ((walk, 0.0, 0.0), (-back, 0.0, 0.0), (0.0, 0.0, yaw_s), (0.0, side, 0.0)))
     report.check('independent of view yaw: W walks straight, WA arcs left, Shift+W sprints, E sidesteps right',
                  (tw('w', 240.0), tw('wa', 240.0), tw('W', 90.0), tw('e', 45.0))
@@ -68,7 +72,7 @@ def test_the_keys_that_move_its_are_one_twist(report):
     typed(humanoid_keys.PAD, 'w', st, t)
     for dt in (0.0, 0.05, 2.0):
         humanoid_keys.steered(st, t + dt, 0.0)
-    report.check('a W typed walks it, sent once while held, the stop once when let go',
+    report.check('a W typed walks the robot, sent once while held, the stop once when let go',
                  sent == [{'twist': (walk, 0.0, 0.0)}, {'twist': (0.0, 0.0, 0.0)}]
                  and not humanoid_keys.polled(['s'], st['pad'], t, held=set())['s'], sent)
     from machine.law import latent, modal
@@ -87,8 +91,9 @@ def test_the_keys_that_move_its_are_one_twist(report):
 
 
 def _driven(texts):
-    """Its session of `texts` driven by the page's keys, HELD in turn: {went m on W, turned deg on WA and on WD,
-    stood (doing, m/s) at each let-go, backed m on S, twists (t, twist) sent, fell at, stumbles (event, t), spasms}."""
+    """The robot's session of `texts` driven by the page's keys, HELD in turn: {went m on W, turned deg on WA and on
+    WD, stood (doing, m/s) at each let-go, backed m on S, twists (t, twist) sent, fell at, stumbles (event, t),
+    spasms}."""
     from types import SimpleNamespace as SN
     from machine.process import introspect, sprung, watch, worker
     from terminal.ui import bindings
@@ -129,10 +134,11 @@ def _driven(texts):
             'spasms': sum(e['event'] == 'spasm' for e in told)}
 
 
-def test_the_pages_keys_drive_it(report):
-    """W, WA, WD, nothing, S, nothing, each HELD its seconds on the page, from each of the ensemble's starts: it
-    walks WENT_M and more, arcs TURNED_DEG left then right, stops and stands, backs BACKED_M, stands again; the
-    twists sent are the keys' as `se2` has them; no fall and no stumble, its spasms counted."""
+def test_the_pages_keys_drive_the_robot(report):
+    """W, WA, WD, nothing, S, nothing, each HELD its seconds on the page, from each of the ensemble's starts:
+    the robot walks WENT_M and more, arcs TURNED_DEG left then right, stops and stands, backs BACKED_M, stands
+    again; the twists sent are the keys' as `se2` has them; no fall and no stumble, its spasms
+    counted."""
     from machine.law import se2
     from tools.sim.handover import arranged, parsed
     from tools.sim.handovers import ENSEMBLE
@@ -141,14 +147,14 @@ def test_the_pages_keys_drive_it(report):
     yaw = round(se2.YAW_RATE, 2)
     asked = {(se2.WALK_SPEED, 0.0, 0.0), (se2.WALK_SPEED, 0.0, yaw), (se2.WALK_SPEED, 0.0, -yaw), (0.0, 0.0, 0.0),
              (-se2.BACK_SPEED, 0.0, 0.0)}
-    report.check('W walks it %.1f m and more in %.0f s, WA then WD arc it %.0f deg and more left then right, each start' % (
+    report.check('W walks the robot %.1f m and more in %.0f s, WA then WD arc it %.0f deg and more left then right, each start' % (
         WENT_M, HELD[0][1], TURNED_DEG),
         len(up) >= 2 and all(r['went'] >= WENT_M and r['turned'][0] >= TURNED_DEG and r['turned'][1] <= -TURNED_DEG for r in up.values()),
         {k: 'went %.2f m, turned %+.0f then %+.0f deg' % (r['went'], *r['turned']) for k, r in runs.items()})
-    report.check('the keys let go, it stops and stands, after S too, each start',
+    report.check('the keys let go, the robot stops and stands, after S too, each start',
                  len(up) >= 2 and all(d in ('stand', 'rest') and v < STILL_M_S for r in up.values() for d, v in r['stood']),
                  {k: r['stood'] for k, r in runs.items()})
-    report.check('S backs it %.1f m and more in %.0f s, each start' % (BACKED_M, HELD[4][1]),
+    report.check('S backs the robot %.1f m and more in %.0f s, each start' % (BACKED_M, HELD[4][1]),
                  len(up) >= 2 and all(r['backed'] >= BACKED_M for r in up.values()), {k: round(r['backed'], 2) for k, r in runs.items()})
     report.check("the twists sent are the keys' as se2 has them",
                  len(up) >= 2 and all({tw for _t, tw in r['twists']} == asked for r in up.values()), next(iter(up.values()))['twists'])
@@ -182,14 +188,14 @@ def _play(name):
                      ok,
                      'stood %d of %d, fell at %s, stumbled at %s, %d spasms' % (
                          stood, len(rows), fell, stumbles[:6], sum(r.get('spasms') or 0 for r in rows)))
-    test.__name__ = 'test_it_plays_' + name
+    test.__name__ = 'test_the_robot_plays_' + name
     return test
 
 
 def test_a_sidestep_lifts_its_leading_sole_and_closes_neutral(report):
-    """On E (strafe_right) and Q (strafe_left) from a stand, the leading sole unloads and lifts first so its body leans
-    naturally that way - no counter-step or lean the other way -, lands on the stabilizing polygon, and the trailing
-    sole closes so it stands neutrally again."""
+    """On E (strafe_right) and Q (strafe_left) from a stand, the leading sole unloads and lifts first so the robot's
+    body leans naturally that way - no counter-step or lean the other way -, lands on the stabilizing polygon, and the
+    trailing sole closes so it stands neutrally again."""
     from machine.law import modal
     from machine.process import introspect, sprung, watch
     from tools.sim import scenarios
@@ -244,7 +250,7 @@ def test_a_sidestep_lifts_its_leading_sole_and_closes_neutral(report):
                  res['fell_at'] is None and res['met'], (res['fell_at'], res['met']))
 
 
-ROSTER = [test_the_keys_that_move_its_are_one_twist, test_the_pages_keys_drive_it,
+ROSTER = [test_the_keys_that_move_the_robots_are_one_twist, test_the_pages_keys_drive_the_robot,
           test_a_sidestep_lifts_its_leading_sole_and_closes_neutral] + [_play(name) for name in player.PLAYS]
 
 

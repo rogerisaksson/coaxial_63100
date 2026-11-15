@@ -201,9 +201,9 @@ def test_errors_cross_as_themselves(report):
         report.check('a Modbus exception crosses as one',
                      type(raised) is errors.ModbusException,
                      type(raised).__name__)
-        # It formats its message in __init__, so rebuilding from `args` gets
-        # `missing 2 required positional arguments` - measured, and it hid a
-        # whole run's actual refusal behind a TypeError.
+        # ModbusException formats its message in __init__, so rebuilding from
+        # `args` gets `missing 2 required positional arguments` - measured, and
+        # it hid a whole run's actual refusal behind a TypeError.
         report.check('with its unit, function and code',
                      getattr(raised, 'code', None) == 4
                      and getattr(raised, 'function', None) == 0xEE,

@@ -1,5 +1,5 @@
-"""Its streams gated (`machine.rig.gate`) as its passes made them: each gated section the same, sample for
-sample and to the bit, as a harness recording each subsystem where it runs; its triggers held off and
+"""The robot's streams gated (`machine.rig.gate`) as its passes made them: each gated section the same, sample for
+sample and to the bit, as a harness recording each subsystem where it runs; the robot's triggers held off and
 re-armed; the gate armed by a client of its telemetry."""
 import json
 import os
@@ -11,15 +11,17 @@ import time
 from tools.dev.focus import chosen
 from views_kit import Report
 
-#: Its marks, s after the gate is armed: a trigger, one held off in its window, one re-armed, one past the count.
+#: The robot's marks, s after the gate is armed: a trigger, one held off in its window, one re-armed, one past
+#: the count.
 MARKS = (1.0, 1.3, 2.5, 3.9)
 
 
 def _harnessed(s):
-    """Its subsystems recorded where they run, apart from the gate: {name: [(t, sample)]} - its edge's
-    array after each felt (in its drives' pass's C call, `tools.cores.beat`, or python's where it runs) and each
-    contacts' read, its law's layers after each control, its drives after each drives pass, the world after each
-    step, its things after each look, its wear told, the commands heard -; and the undo."""
+    """The robot's subsystems recorded where they run, apart from the gate: {name: [(t, sample)]} - the robot's
+    edge's array after each felt (in its drives' pass's C call, `tools.cores.beat`, or python's where it
+    runs) and each contacts' read, the robot's law's layers after each control, its drives after each
+    drives pass, the world after each step, its things after each look, its wear told, the
+    commands heard -; and the undo."""
     import numpy as np
     from machine.world import physics
     from machine.senses import edge
@@ -27,7 +29,7 @@ def _harnessed(s):
     from machine.process import sprung
     from machine.identify import wear
     got = {k: [] for k in ('felt', 'read', 'law', 'drives', 'world', 'things', 'wear', 'heard')}
-    def copied(v):   # this pass's: arrays copied in its tuples, lists and dicts too (its turns are a compiled block's)
+    def copied(v):   # this pass's: arrays copied in its tuples, lists and dicts too (the robot's turns are a compiled block's)
         return (v.copy() if isinstance(v, np.ndarray) else {k: copied(x) for k, x in v.items()} if isinstance(v, dict)
                 else type(v)(copied(x) for x in v) if isinstance(v, (tuple, list)) else v)
     was = {(edge, 'felt'): edge.felt, (edge, 'contacted'): edge.contacted, (motion, 'control'): motion.control,
@@ -54,7 +56,7 @@ def _harnessed(s):
 
     def drives(g, dt, step):
         out = was[motion, 'drives'](g, dt, step)
-        got['felt'].append((t(), g['sense'].copy()))      # its felt this pass, in C before its drives' tick
+        got['felt'].append((t(), g['sense'].copy()))      # the robot's felt this pass, in C before its drives' tick
         got['drives'].append((t(), {k: v.copy() for k, v in g['cmd'].items()}))
         return out
 
@@ -88,7 +90,7 @@ def _plain(v):
 
 def _expected(stream, meta, sample):
     """The gated vector `stream`'s sample as the harness's `sample` gives it, field by field through
-    its code's own slices and names: the metadata's offsets checked as the values are."""
+    the robot's code's own slices and names: the metadata's offsets checked as the values are."""
     import numpy as np
     from machine.senses import edge
     from machine.law import latent, modal
@@ -145,14 +147,14 @@ def _sections(path, got, events):
     return out, len(each) == len(out) and all(keys == sorted(keys) for keys in each)
 
 
-def test_each_gated_section_is_its_passes_own(report):
-    """Its lie on the floor with a gate armed by a client of its telemetry on a trigger of its own
-    (an analyzer saved for it): each gated section of every stream - its edge's reads, its law's
-    latent, impedance and wrench, its drives, the world, its things, its wear, the commands it
-    heard, its events - the same samples at the same times as a harness recording each subsystem
-    where it runs, none missing and none made up; the fields' names and offsets its code's; the
-    records in time, one instant's in its pass's order; the trigger in a window held off, the gate
-    re-armed, none past its count."""
+def test_each_gated_section_is_the_robots_passes_own(report):
+    """The robot's lie on the floor with a gate armed by a client of its telemetry on a trigger of the
+    robot's own (an analyzer saved for it): each gated section of every stream - the robot's edge's reads, the
+    robot's law's latent, impedance and wrench, its drives, the world, its things, the robot's
+    wear, the commands it heard, its events - the same samples at the same times as a harness
+    recording each subsystem where it runs, none missing and none made up; the fields' names and offsets the
+    robot's code's; the records in time, one instant's in its pass's order; the trigger in a window
+    held off, the gate re-armed, none past its count."""
     from machine.process import introspect, worker
     s = worker.session()
     worker.apply(s, {'scenario': 'flat'})
@@ -191,7 +193,7 @@ def test_each_gated_section_is_its_passes_own(report):
     events = [e for e in told if e.get('analyzer') != 'gate' and e['event'] != 'watching']
     sections, in_time = _sections(path, got, events)
     gated = [(round(g['meta']['t'] - t_arm, 3), [h['name'] for h in g['trailer']['held_off']]) for g, _v in sections]
-    report.check('every gated section of every stream its passes\' own, to the bit; in time',
+    report.check('every gated section of every stream the robot\'s passes\' own, to the bit; in time',
                  sections and all(ok for _g, v in sections for _k, ok in v.values()) and in_time,
                  [{n: v for n, v in verdict.items()} for _g, verdict in sections])
     faults = [e for e in told if e['event'] == 'error']
@@ -203,8 +205,8 @@ def test_each_gated_section_is_its_passes_own(report):
 
 
 def _in_a_daemon(out):
-    """Its session in a daemon process, as its page's worker runs it: a gate armed, fired and its
-    window written - its notices put on `out`."""
+    """The robot's session in a daemon process, as its page's worker runs it: a gate armed,
+    fired and its window written - its notices put on `out`."""
     from machine.rig import gate
     from machine.process import worker
     s = worker.session()
@@ -222,7 +224,7 @@ def _in_a_daemon(out):
 
 
 def test_a_gate_writes_from_a_daemon(report):
-    """A gate fired in a daemon process - its page's worker is one, and may start no multiprocessing
+    """A gate fired in a daemon process - the robot's page's worker is one, and may start no multiprocessing
     child - written by its writer all the same."""
     import multiprocessing
     ctx = multiprocessing.get_context('spawn')
@@ -239,7 +241,7 @@ def test_a_gate_writes_from_a_daemon(report):
         os.remove(n['file'])
 
 
-ROSTER = (test_each_gated_section_is_its_passes_own, test_a_gate_writes_from_a_daemon)
+ROSTER = (test_each_gated_section_is_the_robots_passes_own, test_a_gate_writes_from_a_daemon)
 
 
 def main(argv=None):

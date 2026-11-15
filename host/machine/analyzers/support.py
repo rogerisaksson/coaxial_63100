@@ -1,9 +1,9 @@
-"""What bears it, as `told.Run.borne` and the fall probes read it.
+"""What bears the robot, as `told.Run.borne` and the fall probes read it.
 
-Its soles' share of its weight crossing half and holding there its natural time - on its soles, or
-borne by what else it lies or sits on; a landing's bounce about half no change -, captured; its
-surety under where its brace takes it over (`meta['brace']`), a stumble, captured, and back over
-it, steadied; a fall, captured, where it was and what it did.
+The robot's soles' share of its weight crossing half and holding there its natural time - on
+the robot's soles, or borne by what else it lies or sits on; a landing's bounce about half no change -,
+captured; its surety under where its brace takes it over (`meta['brace']`), a stumble,
+captured, and back over it, steadied; a fall, captured, where the robot was and what it did.
 """
 
 

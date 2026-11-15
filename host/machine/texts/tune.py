@@ -1,21 +1,21 @@
-"""The autotuner (meta_ast_autotuner.lisp) on its texts: its grammar, walk, reach and step.
+"""The autotuner (meta_ast_autotuner.lisp) on the robot's texts: its grammar, walk, reach and step.
 
     gr = tune.grammar()                              # {class: Residual}, the text's order
-    texts = tune.texts()                             # {key: text}: every text its loop reads
+    texts = tune.texts()                             # {key: text}: every text the robot's loop reads
     table = tune.walked('walk', gr, texts)           # [(Literal, class)] the root reaches
     cols, refused = tune.reach('walk', table, texts, fr)   # what each moves of its
     texts = tune.spliced(texts, lits, values, digits)  # values written at the literals' spans
     d = tune.step(J, r, scales)                      # the damped least-squares step, in their scales
 
-Its texts are the suite's and its gym's, its includes (`ortho.sources`). A literal is a keyword's
-number in the suite's dialect (`:compliance 0.80`) or an op's said of the keyword before its form
-(`:stride-length-mm (:scale 0.82)`); in its gym's, a clause's number (`(stiffness MODE 3000)`), the
-suite's name it is the one voicing reads into that clause's slot of its row (`ortho.SLOTS`,
-`voicing.VOICES`): either where it stands. A root - a gait, a schedule, a stunt it plays, a
-behaviour of its gym, its walk its streams (WHOLE) - reaches its definitions, those they name,
-theirs. A literal moves it where its voices change as it does, by evaluation, nothing run: the
-rest are inert, their Jacobian's columns zero. The step's numbers are the text's (`knobs`); what the
-text names that its loop does another way is named (INSTEAD).
+The robot's texts are the suite's and its gym's, its includes (`ortho.sources`). A literal is a
+keyword's number in the suite's dialect (`:compliance 0.80`) or an op's said of the keyword before its form
+(`:stride-length-mm (:scale 0.82)`); in the robot's gym's, a clause's number (`(stiffness MODE 3000)`), the
+suite's name it is the one voicing reads into that clause's slot of the robot's row (`ortho.SLOTS`,
+`voicing.VOICES`): either where it stands. A root - a gait, a schedule, a stunt the robot plays, a behaviour
+of its gym, its walk its streams (WHOLE) - reaches its definitions, those they name, theirs. A
+literal moves the robot where its voices change as it does, by evaluation, nothing run: the rest are
+inert, their Jacobian's columns zero. The step's numbers are the text's (`knobs`); what the text names that
+the robot's loop does another way is named (INSTEAD).
 """
 import collections
 import functools
@@ -32,25 +32,27 @@ TEXT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.absp
 #: invariant bounding it or None.
 Residual = collections.namedtuple('Residual', 'name telemetry keys sign invariant')
 #: A literal: its file and span, the definition it is in, the node or clause it is said of, its key
-#: (the suite's name), the op it is of or None, its value, its slot of its row where its gym's.
+#: (the suite's name), the op it is of or None, its value, its slot of the robot's row where its
+#: gym's.
 Literal = collections.namedtuple('Literal', 'path start end symbol node key op value slot', defaults=(None,))
 #: The text's names of the manifold's invariants (core_manifold.lisp's physical-invariants).
 NAMES = {'min-normal-fz-ratio': 'min-normal-force-ratio'}
 #: The text's primitives and daemon, each by what does it here.
 PRIMITIVES = {'introspect-active-ast': 'tune.walked', 'compute-adjoint-ast-deltas': 'tune.step',
               'apply-homoiconic-rewrite': 'tune.spliced',
-              'atomic-rcu-soa-swap': 'suite.played: a row laid on its walk, a morph at its lateral crossing, both soles locked',
+              'atomic-rcu-soa-swap': 'suite.played: a row laid on the robot\'s walk, a morph at its lateral crossing, both soles locked',
               'sync-mutated-packages-to-disk': 'tune.written', 'universal-autotune-daemon': 'tools/sim/tune.py, a run a window'}
-#: What the text names that its loop does another way, or not.
+#: What the text names that the robot's loop does another way, or not.
 INSTEAD = {'adjoint-sign': "the measured Jacobian's signs; the text's are not read",
            'binding-deadband': "none said: a step under the text's float precision writes nothing",
-           'substrate-eigenfreq-hz': "no substrate mode on a rigid floor; fitted, its vertical mode read its step's rate"}
-#: A root that is several definitions: its walk, its streams as its loop composes them (`gait.said`).
+           'substrate-eigenfreq-hz': "no substrate mode on a rigid floor; fitted, the robot's vertical mode read its step's rate"}
+#: A root that is several definitions: the robot's walk, its streams as the robot's loop composes them
+#: (`gait.said`).
 WHOLE = {'walk': ('stand', 'sway', 'step', 'walk')}
-#: The forms of its gym that are knobs: a behaviour's, a trait's, a derivation's, a stream's - not
+#: The forms of the robot's gym that are knobs: a behaviour's, a trait's, a derivation's, a stream's - not
 #: its manifest's numbers nor a situation's caps.
 KNOBS = ('defbehavior', 'deftrait', 'derive', 'stream_inject')
-#: Where its gym's payload clauses begin: a definition's own, a stream's, a phase's.
+#: Where the robot's gym's payload clauses begin: a definition's own, a stream's, a phase's.
 PAYLOADS = KNOBS + ('phase',)
 #: The robot's texts' names of its modes (`ortho.MODES`).
 MODES = {'mode_' + m for m in ortho.MODES}
@@ -69,7 +71,7 @@ def _numeral(tok):
 
 
 def texts():
-    """{key: text} of every text its loop reads, as on disk: the suite's and its gym's."""
+    """{key: text} of every text the robot's loop reads, as on disk: the suite's and its gym's."""
     return dict(ortho.sources(), **{path: ortho.source(path) for path in dsp.SUITE})
 
 
@@ -85,7 +87,7 @@ def _named(form):
 
 @functools.lru_cache(maxsize=None)
 def _laid(clause):
-    """The slots of its row a payload clause lays: compiled alone in a stream (`ortho.compiled`), its
+    """The slots of the robot's row a payload clause lays: compiled alone in a stream (`ortho.compiled`), its
     number 1, the parameters it says."""
     import numpy as np
     try:
@@ -156,7 +158,7 @@ def _gym_literals(path, name, toks):
 
 
 def literals(path, text):
-    """[Literal] of a text in its order: the suite's keyword numbers and ops' numbers; its gym's
+    """[Literal] of a text in its order: the suite's keyword numbers and ops' numbers; the robot's gym's
     clauses' numbers in its knobs' forms (KNOBS), each the suite's name its slot is voiced by."""
     out = []
     for form, toks in _tops(text):
@@ -216,7 +218,7 @@ def reached(roots, texts):
         defined.update({_named(f): f for f in patch.forms(text) if isinstance(f, list) and f and _named(f)})
     missing = sorted(set(roots) - set(defined))
     if missing:
-        raise MachineError('%s: no definition among its texts' % ', '.join(missing))
+        raise MachineError('%s: no definition among the robot\'s texts' % ', '.join(missing))
     seen, todo = set(), list(roots)
     while todo:
         name = todo.pop()
@@ -228,8 +230,8 @@ def reached(roots, texts):
 
 def walked(root, gr, texts):
     """The binding table: [(Literal, class)] of each literal in a definition `root` reaches whose key
-    a class of `gr` names, in the texts' order - the master insert's not: its numbers are its own, said
-    otherwise refused (`supervisor.checked`) -; past the text's max-nodes refused."""
+    a class of `gr` names, in the texts' order - the master insert's not: its numbers are the robot's own,
+    said otherwise refused (`supervisor.checked`) -; past the text's max-nodes refused."""
     keys = {k: name for name, r in gr.items() for k in r.keys}
     names = reached(starts(root), texts) - reached(['master-anti-spasm-insert'], texts)
     table = [(lit, keys[lit.key]) for path, text in texts.items() for lit in literals(path, text)
@@ -241,7 +243,7 @@ def walked(root, gr, texts):
 
 
 def kind(root, got, gym=()):
-    """What `root` is: a 'stunt' it plays (`maneuver.PLAYED`), a 'schedule' (a compile-to-soa's), a
+    """What `root` is: a 'stunt' the robot plays (`maneuver.PLAYED`), a 'schedule' (a compile-to-soa's), a
     'gait' of the suite (a state or patch: a trace), a 'behaviour' among its gym's entries `gym`;
     anything else refused."""
     g = got.get(root)
@@ -290,7 +292,7 @@ def _segment(seg, got, fr, gym):
 
 
 def _scheduled(root, got, fr, gym):
-    """A schedule's segments voiced in order to the first it cannot play, as it plays."""
+    """A schedule's segments voiced in order to the first the robot cannot play, as it plays."""
     out = {}
     for k, seg in enumerate(dsp.schedule(got[root])):
         try:
@@ -302,8 +304,8 @@ def _scheduled(root, got, fr, gym):
 
 
 def _behaved(root, got, fr, gym):
-    """A behaviour's rows: its walk's row as its loop holds it (`voicing.walk`) where it is a whole of
-    streams (WHOLE), else its entry's wire."""
+    """A behaviour's rows: the robot's walk's row as its loop holds it (`voicing.walk`) where it is a
+    whole of streams (WHOLE), else its entry's wire."""
     if root in WHOLE:
         return {('slot', k): float(v) for k, v in enumerate(voicing.walk(fr, gym))}
     return _wired({e[0]: e for e in gym}[root][1])
@@ -315,16 +317,16 @@ VOICED = {'stunt': lambda root, got, fr, gym: _phased(maneuver.phases(root, None
 
 
 def voices(root, got, fr, gym):
-    """{voice: value} of what `root` moves of it (VOICED), of the suite `got` and its gym's entries
+    """{voice: value} of what `root` moves of the robot (VOICED), of the suite `got` and its gym's entries
     `gym`: a played stunt's phases (`maneuver.phases`), a schedule's segments, a gait's voiced row,
     twist and grip (`voicing.voiced`, its statics `fr`), a behaviour's rows."""
     return VOICED[kind(root, got, gym)](root, got, fr, gym)
 
 
 def scale(lit, got, row):
-    """A literal's scale: its size, or where larger the manifold's of its key (the suite's) or its
-    row's in its slot (its gym's, `row` its walk's row as its loop holds it); a scaling op's its own,
-    a ratio."""
+    """A literal's scale: its size, or where larger the manifold's of its key (the suite's) or the robot's
+    row's in its slot (the robot's gym's, `row` its walk's row as its loop holds it); a
+    scaling op's its own, a ratio."""
     if lit.op == 'scale':
         return abs(lit.value)
     said = ([abs(float(row[lit.slot]))] if lit.slot is not None else
@@ -345,23 +347,24 @@ def _slope(up, down, h):
 
 
 def evaluated(texts):
-    """(the suite, its gym's entries) of its texts `texts`: what its loop plays from them."""
+    """(the suite, the robot's gym's entries) of its texts `texts`: what its loop plays from them."""
     from machine.process import sprung
     got = dsp.read(dsp.SUITE, texts)
     return got, sprung.entries(texts=texts, suite=got)
 
 
 def _voices_of(root, texts, lit, fr, gym):
-    """`root`'s voices of `texts` moved at `lit`: its gym re-read where it is its gym's, else `gym`."""
+    """`root`'s voices of `texts` moved at `lit`: the robot's gym re-read where it is the robot's gym's, else
+    `gym`."""
     got, gym = evaluated(texts) if lit.slot is not None else (dsp.read(dsp.SUITE, texts), gym)
     return voices(root, got, fr, gym)
 
 
 def reach(root, table, texts, fr):
-    """({i: {voice: d voice / d literal}} of the literals of `table` that move it, {i: why} of those
+    """({i: {voice: d voice / d literal}} of the literals of `table` that move the robot, {i: why} of those
     refused): literal i its scale times the text's trust region up and down, the suite and - for
-    its gym's literals - its gym re-read, its voices compared, a voice there one way alone d nan.
-    The rest are inert."""
+    the robot's gym's literals - its gym re-read, its voices compared, a voice there one way
+    alone d nan. The rest are inert."""
     got, gym = evaluated(texts)
     base, row = voices(root, got, fr, gym), voicing.walk(fr, gym)
     trust = knobs()[('compute-adjoint-ast-deltas', 'trust-region-scale')]
@@ -369,7 +372,7 @@ def reach(root, table, texts, fr):
     for i, (lit, _cls) in enumerate(table):
         h = trust * scale(lit, got, row)
         if not h:
-            refused[i] = 'no scale: 0, and 0 or none in the manifold or its row'
+            refused[i] = 'no scale: 0, and 0 or none in the manifold or the robot\'s row'
             continue
         try:
             up, down = (_voices_of(root, spliced(texts, [lit], [lit.value + s * h]), lit, fr, gym) for s in (1, -1))
@@ -382,7 +385,7 @@ def reach(root, table, texts, fr):
 
 
 def number(v, digits=None):
-    """A literal's text, positional - its gym's reader takes no exponent: `digits` after the point,
+    """A literal's text, positional - the robot's gym's reader takes no exponent: `digits` after the point,
     else the fewest that read back as it; its trailing zeros cut to one."""
     import numpy as np
     s = np.format_float_positional(float(v), trim='0') if digits is None else ('%.*f' % (int(digits), v)).rstrip('0')
@@ -398,7 +401,8 @@ def spliced(texts, lits, values, digits=None):
 
 
 def given(state, base=None, digits=None):
-    """Its texts (`base`, else `texts()`) with `state`'s literals ({(path, start, end): value}) spliced."""
+    """The robot's texts (`base`, else `texts()`) with `state`'s literals ({(path, start, end): value})
+    spliced."""
     lits = [Literal(p, a, z, None, None, None, None, v) for (p, a, z), v in state.items()]
     return spliced(texts() if base is None else base, lits, [lit.value for lit in lits], digits)
 

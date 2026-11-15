@@ -3,8 +3,8 @@
 ;; DOMAIN: Laplace Innovation Collapse, Tri-IMU (Head/Torso/Pelvis) Gravity
 ;;         Simplex Priors & Active Weight-Shift Compliance Probing
 ;; REQUIRES: ortho_dsp_somatic_substrate.lisp, canonical_posture_bundle.lisp
-;; Its own (`machine.senses.observer`, wbc_gmo.c): its whole body's balance - its pelvis's IMU and its momentum - bears the
-;; sum, so no 0/0: what its joints cannot tell, gravity, height and stillness do, its soles their last pass's.
+;; The robot's own (`machine.senses.observer`, wbc_gmo.c): its whole body's balance - its pelvis's IMU and its momentum -
+;; bears the sum, so no 0/0: what its joints cannot tell, gravity, height and stillness do, its soles their last pass's.
 ;; =============================================================================
 (defpackage :ortho-dsp.prior-observer
   (:use :ortho-dsp.core
@@ -28,7 +28,7 @@
 ;; 1. TRI-IMU & PRIOR OBSERVER SOA STATE (64B-ALIGNED REAL-TIME TELEMETRY)
 ;; Integrates the 3 IMUs (:pelvis-imu, :thorax-imu, :head-imu) with prior-backed
 ;; manifold weights `out[MANIFOLDED]` and directional compliance estimates.
-;; Its own: its observer reads its pelvis's IMU alone; each of its boards carries a BNO085.
+;; The robot's own: its observer reads its pelvis's IMU alone; each of its boards carries a BNO085.
 ;; -----------------------------------------------------------------------------
 (defstate tri-imu-observer-soa-state
   (:memory-layout
@@ -51,9 +51,9 @@
 ;; Evaluates Mahalanobis motion energy across all 3 IMUs and joint encoders.
 ;; When standing upright and still (E_motion < 1.0), applies soft-thresholding
 ;; shrinkage to collapse filter innovation to EXACT 0.0, locking gyro biases!
-;; Its own: a joint's row within its friction's band - its loss, 1.23-2.24 N m, less what its speed spends
-;; (`slip` 0.03 rad/s) - is read as friction and tells the split nothing; past it, the band's edge.
-;; -----------------------------------------------------------------------------
+;; The robot's own: a joint's row within its friction's band - its loss, 1.23-2.24 N m, less what its
+;; speed spends (`slip` 0.03 rad/s) - is read as friction and tells the split nothing; past it, the band's
+;; edge. -----------------------------------------------------------------------------
 (defprimitive collapse-static-equilibrium-innovation
   [state &key (static-energy-threshold 1.0)
               (deadzone-lambda-max 0.045)
@@ -77,7 +77,7 @@
 ;; Compares relative gravity vectors [g_pelvis, g_thorax, g_head] against spinal
 ;; encoder forward kinematics to observe unmodeled mattress cradling, pillow
 ;; support, and trunk pitch/roll even when all leg/arm torques are zero!
-;; Its own: none of it on its loop.
+;; The robot's own: none of it on the robot's loop.
 ;; -----------------------------------------------------------------------------
 (defprimitive fuse-tri-imu-axial-kinematics
   [state &key (complementary-cutoff-hz 18.0)
@@ -99,15 +99,16 @@
 ;; Computes `out[MANIFOLDED]` by blending measured GMO joint-torque forces with
 ;; a morphological 3-IMU gravity-alignment prior pi_m(q, g_P, g_T, g_H).
 ;; Guarantees sum(w_m) == 1.0 and smooth CWC matrices even with zero force sensors!
-;; Its own: the prior its split's tie-break, over its points, not its manifolds' weights: each pressing up as
-;; far as its pushes' cosine with its pelvis IMU's vertical, lying low as far as its height over its
-;; lowest point in its ischia's radius; trusted as a floor, sat on the chair its seat read 94 N off.
+;; The robot's own: the prior its split's tie-break, over its points, not its
+;; manifolds' weights: each pressing up as far as its pushes' cosine with the robot's pelvis IMU's vertical,
+;; lying low as far as its height over the robot's lowest point in its ischia's radius; trusted as a
+;; floor, sat on the chair its seat read 94 N off.
 ;; -----------------------------------------------------------------------------
 (defprimitive regularize-manifold-simplex-with-priors
-  [state &key (min-prior-floor-mg-ratio 1.0e-6)  ; a tie-break, of its split's largest curvature (0.02)
+  [state &key (min-prior-floor-mg-ratio 1.0e-6)  ; a tie-break, of the robot's split's largest curvature (0.02)
               (uninstrumented-prior-boost 0.85)
-              (gravity-alignment-beta 7.02)      ; its law's pyramid's edge at e^-1: 1 / (1 - cos atan 0.6) (6.5)
-              (height-reach-m 0.07)]             ; its ischia's radius (the text's 12 per m)
+              (gravity-alignment-beta 7.02)      ; the robot's law's pyramid's edge at e^-1: 1 / (1 - cos atan 0.6) (6.5)
+              (height-reach-m 0.07)]             ; the robot's ischia's radius (the text's 12 per m)
   (-> state
       (compute-map-simplex-manifold-weights
         :manifolds [:plantar-bilateral :metatarsal-equinus-bilateral
@@ -132,12 +133,13 @@
 
 ;; -----------------------------------------------------------------------------
 ;; 4b. A SUPPORT STANDS STILL (ITS OWN)
-;; What bears it does not move through what it stands on: a point of its own moving past its grip's slip -
-;; a hand it lifts, a sole in swing, a limb it moves itself - takes no prior share and joins the split
-;; only where nothing still would. Its feet and hands on the floor bear it; its seat once it lands.
+;; What bears the robot does not move through what it stands on: a point of the robot's own moving past
+;; its grip's slip - a hand it lifts, a sole in swing, a limb it moves itself -
+;; takes no prior share and joins the split only where nothing still would. The robot's feet and hands on
+;; the floor bear it; its seat once it lands.
 ;; -----------------------------------------------------------------------------
 (defprimitive gate-supports-by-stillness
-  [state &key (support-slip-mps 0.15)]          ; its law's slip: a contact slides past it (`wbc.SLIDE_M_S`)
+  [state &key (support-slip-mps 0.15)]          ; the robot's law's slip: a contact slides past it (`wbc.SLIDE_M_S`)
   (-> state
       (gate-manifold-simplex-by-patch-speed
         :observer-bank 'tri-imu-observer-soa-state
@@ -149,15 +151,16 @@
 
 ;; -----------------------------------------------------------------------------
 ;; 4c. A SLIDE TELLS ITS FLOOR ONCE ITS SOLE HAS SETTLED (ITS OWN)
-;; A bearing sole sliding past its slip uses the floor's friction: the share of its push across
-;; (`machine.senses.grip`). A landing sole settles into the floor as its speed is drawn to it: what it
-;; pushes across till then is its settle, not the floor's. Read at once, a stop's first braking landing -
-;; its sole still 0.4-0.6 m/s along the floor at 300-400 N - told 0.19 on a floor of 1.0, its slippery
-;; situation cut its drive mid-brake and it fell from 6 of 39 starts; read once settled, from none. Its
-;; run's landings slide on past it, 0.16-0.23 m/s 30-60 ms on: its foot strike's, not the floor's.
+;; A bearing sole sliding past the robot's slip uses the floor's friction: the share of its push across
+;; (`machine.senses.grip`). A landing sole settles into the floor as the robot's speed is drawn to it:
+;; what it pushes across till then is its settle, not the floor's. Read at once, a stop's first braking
+;; landing - its sole still 0.4-0.6 m/s along the floor at 300-400 N - told 0.19 on a floor of 1.0, the
+;; robot's slippery situation cut its drive mid-brake and it fell from 6 of 39 starts;
+;; read once settled, from none. The robot's run's landings slide on past it, 0.16-0.23 m/s 30-60 ms on:
+;; the robot's foot strike's, not the floor's.
 ;; -----------------------------------------------------------------------------
 (defprimitive read-floor-friction-from-settled-slides
-  [state &key (settle-s 0.03)]                   ; its speed drawn to a landing sole (`estimate.HOLD_S`)
+  [state &key (settle-s 0.03)]                   ; the robot's speed drawn to a landing sole (`estimate.HOLD_S`)
   (-> state
       (read-floor-friction-from-slides
         :observer-bank 'tri-imu-observer-soa-state
@@ -169,7 +172,7 @@
 ;; gentle, bounded weight redistribution (via limb cantilever or trunk shift)
 ;; and demodulates the 3-IMU pitch/roll admittance response d(theta_IMU)/d(tau_probe)
 ;; to verify support stiffness and detect hidden mattress/cushion edges!
-;; Its own: none of it on its loop.
+;; The robot's own: none of it on the robot's loop.
 ;; -----------------------------------------------------------------------------
 (defprimitive probe-unobserved-substrate-via-weight-shift
   [state &key (probe-trigger-kappa 0.45)

@@ -10,8 +10,8 @@ A statement: 'fill' a buffer laid by np.zeros; 'ew' an elementwise tree (IEEE pe
 order the same); 'reduce' a sum, min or max in numpy's own order; 'einsum' a contraction, its order
 numpy's to be found (`orders.ordered`); 'matmul' numpy's a @ b, its BLAS's in C (`wbc_matmul`);
 'solve' linalg's solve or inv, numpy's dgesv (`wbc_solve`); 'gather' and 'scatter' a copy through
-index tables; 'mj' a MuJoCo function on its model and data (`trace_mj`), an extern's memory theirs.
-numpy's functions: `trace_np`. A branch, a float, a write into a plain array on its state or an
+index tables; 'mj' a MuJoCo function on the robot's model and data (`trace_mj`), an extern's memory theirs.
+numpy's functions: `trace_np`. A branch, a float, a write into a plain array on the robot's state or an
 array's method not held cannot be traced and raises: what is compiled is a function of its arrays
 alone.
 """
@@ -25,18 +25,18 @@ UFUNCS = ('add', 'subtract', 'multiply', 'divide', 'negative', 'positive', 'sign
           'sqrt', 'absolute', 'square', 'reciprocal', 'sin', 'cos', 'tan', 'arcsin', 'arccos', 'arctan',
           'arctan2', 'exp', 'log', 'hypot', 'floor', 'ceil', 'greater', 'greater_equal', 'less', 'less_equal',
           'equal', 'not_equal', 'logical_and', 'logical_or', 'logical_not', 'isnan', 'invert')
-#: Files whose frames are the tracer's, not its code's (`hide`).
+#: Files whose frames are the tracer's, not the robot's code's (`hide`).
 _HERE = {__file__}
 
 
 def hide(path):
-    """`path`'s frames the tracer's own: a statement placed at the line of its code that called it."""
+    """`path`'s frames the tracer's own: a statement placed at the line of the robot's code that called it."""
     _HERE.add(path)
 
 
 class Untraced(TypeError):
 
-    """What its code did to a traced array that a program of its arrays alone cannot hold."""
+    """What the robot's code did to a traced array that a program of its arrays alone cannot hold."""
 
 
 class Buffer:
@@ -75,7 +75,7 @@ class Ref:
 class Statement:
 
     """One operation: `kind`, the view it writes `out` (None for 'mj'), its `args`, numpy's values
-    after it `value`, where in its code it stood `where`."""
+    after it `value`, where in the robot's code it stood `where`."""
 
     def __init__(self, kind, out, args, value, where):
         self.kind, self.out, self.args, self.value, self.where = kind, out, args, value, where
@@ -83,7 +83,7 @@ class Statement:
 
 class Program:
 
-    """Its function as statements over buffers: its inputs and its outputs (Refs), its externs; its
+    """The robot's function as statements over buffers: its inputs and its outputs (Refs), its externs; its
     result's `shape` (`unflatten`); the MuJoCo functions it `calls` (name, parameters); the `consts`
     a wrap read by name, the objects the trace holds the same."""
 
@@ -99,7 +99,8 @@ class Program:
         return b
 
     def extern(self, name, arr):
-        """A Traced view of `arr`, memory another's (MuJoCo's, its body's), named: one buffer a name."""
+        """A Traced view of `arr`, memory another's (MuJoCo's, the robot's body's), named: one buffer a
+        name."""
         for b in self.externs:
             if b.name == name:
                 return Traced(self, b, b.root)
@@ -122,7 +123,7 @@ class Program:
 
 
 def where():
-    """file:line of the frame in its code nearest this statement."""
+    """file:line of the frame in the robot's code nearest this statement."""
     f = sys._getframe(2)
     while f is not None and (f.f_code.co_filename in _HERE or 'numpy' in f.f_code.co_filename):
         f = f.f_back
@@ -156,7 +157,7 @@ def _np(name):
 
 class Traced:
 
-    """An array of its state: numpy's own value (`view`, over its buffer's root) and the program
+    """An array of the robot's state: numpy's own value (`view`, over its buffer's root) and the program
     that writes it."""
 
     __array_priority__ = 1000
@@ -180,10 +181,10 @@ class Traced:
         return (self[k] for k in range(len(self)))
 
     def __bool__(self):
-        raise Untraced('a branch on its state at %s' % where())
+        raise Untraced('a branch on the robot\'s state at %s' % where())
 
     def __float__(self):
-        raise Untraced('a float of its state at %s' % where())
+        raise Untraced('a float of the robot\'s state at %s' % where())
 
     __int__ = __index__ = __float__
 
@@ -194,11 +195,11 @@ class Traced:
         return 'Traced(%s)' % (self.shape,)
 
     def __getattr__(self, name):
-        """An array's attribute or method not held here: Untraced, its part numpy's own - a
+        """An array's attribute or method not held here: Untraced, the robot's part numpy's own - a
         protocol's dunder probe AttributeError, as of any object."""
         if name.startswith('__') and name.endswith('__'):
             raise AttributeError(name)
-        raise Untraced('.%s of its state at %s' % (name, where()))
+        raise Untraced('.%s of the robot\'s state at %s' % (name, where()))
 
     def _view(self, view):
         if owner(view) is not owner(self.view):
@@ -356,7 +357,7 @@ def _flat(value):
 def _static(key):
     for k in (key if isinstance(key, tuple) else (key,)):
         if isinstance(k, Traced):
-            raise Untraced('an index of its state at %s' % where())
+            raise Untraced('an index of the robot\'s state at %s' % where())
 
 
 def _sub(key, k, view):
@@ -441,35 +442,36 @@ def _holds(x):
 
 
 def _array(prog, real, copy, obj, dtype=None, **kw):
-    """np.array or np.asarray of a nested list holding its arrays: numpy's own value, laid first as it
-    is, each of its own then copied to its place; of one of its own, it (asarray) or its copy."""
+    """np.array or np.asarray of a nested list holding the robot's arrays: numpy's own value, laid first as it
+    is, each of the robot's own then copied to its place; of one of the robot's own, it (asarray) or its
+    copy."""
     if not _holds(obj):
         return real(obj, dtype, **kw)
     if isinstance(obj, Traced) and dtype in (None, float, np.float64) and not kw:
         return obj.copy() if copy else obj
-    its_own = []
+    robot_own = []
 
     def concrete(x, tagged):
         if isinstance(x, Traced):
-            its_own.append(x)
-            return np.full(x.shape, len(its_own)) if tagged else x.view
+            robot_own.append(x)
+            return np.full(x.shape, len(robot_own)) if tagged else x.view
         if isinstance(x, (list, tuple)):
             return [concrete(v, tagged) for v in x]
         return np.zeros(np.shape(x), dtype=int) if tagged else x
     got = real(concrete(obj, False), dtype, **kw)
     if got.dtype.kind not in 'fb':
         raise Untraced('np.array of %s at %s' % (got.dtype, where()))
-    its_own.clear()
+    robot_own.clear()
     tags = real(concrete(obj, True))
     result = Traced(prog, prog.buffer(got, 'temp'), got)
     at = result.ref().addresses()
     prog.add('scatter', Ref(result.buffer, 0, (), ()), (at[tags == 0], None, np.array(got[tags == 0], dtype=float)))
-    for k, x in enumerate(its_own):
+    for k, x in enumerate(robot_own):
         prog.add('scatter', Ref(result.buffer, 0, (), ()), (at[tags == k + 1].reshape(x.shape), x.buffer, x.ref()))
     return result
 
 
-#: numpy's array makers its code lays a traced buffer with, called from its code.
+#: numpy's array makers the robot's code lays a traced buffer with, called from its code.
 MAKERS = {'zeros': _zeros, 'array': lambda prog, real, *a, **k: _array(prog, real, True, *a, **k),
           'asarray': lambda prog, real, *a, **k: _array(prog, real, False, *a, **k),
           'full': lambda prog, real, *a, **k: _np('full')(prog, real, *a, **k),
@@ -529,7 +531,7 @@ def leaves_of(shape, tree, out=None):
 
 def traced(fn, args, inputs, kwargs=None, wrap=None, after=None):
     """(the Program, fn's own result) of `fn(*args, **kwargs)`, the arrays at `inputs` traced: numpy's
-    makers patched for its code's own calls in this thread while it runs - another thread's, numpy's.
+    makers patched for the robot's code's own calls in this thread while it runs - another thread's, numpy's.
     `wrap(prog, args)` the arguments as traced, `after(prog, args)` once fn has run."""
     prog = Program()
     args = list(args)

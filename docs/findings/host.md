@@ -46,26 +46,25 @@ The board's findings: [FINDINGS](../FINDINGS.md).
   next run one job of 831.6 s, killed there: only a whole run is kept.
 - A suite the table held no row of was expected at 0 s: laid from a gate
   that stopped at its first red suite, the table had none of eleven of the
-  offline gate's, and on GitHub's runner - no record of its own - its
+  offline gate's, and on GitHub's runner - no record of its own - the robot's
   errands ran as one job cut at the plain limit (test_errands.py CRASHED
   exit=None 300.1s; FRESH_S had held 760 s). A suite neither the tree's
   record nor the table knows is expected as the heaviest they know till
   its first whole run tells (`machine_detector.expected`): in a fresh tree
-  its errands ran as 5 shards, 444.7 s, 21 of 21. `--keep` read the table
-  after it had opened it to be written - a run of 18 suites left a table
-  of 109 those 18 - and laid the tree's last run whatever the tree's
-  state: test_layout took 20.7 s as a fresh tree's first run and 2.2 s as
-  its next, and 36 of the gate's suites ran past 1.6 times lighter in that
-  tree's gate than in the one the table was laid from (test_emulator 1 of
-  its checks, no image built there). A row is the most a whole run of its
-  suite has been measured to cost, raised and never lowered; test_ci holds
-  the table to a row a suite of the offline gate. The gate whole in a
-  fresh tree: 120 suites, 6 500 checks.
+  the robot's errands ran as 5 shards, 444.7 s, 21 of 21. `--keep` read the
+  table after it had opened it to be written - a run of 18 suites left a table
+  of 109 those 18 - and laid the tree's last run whatever the tree's state:
+  test_layout took 20.7 s as a fresh tree's first run and 2.2 s as its next, and
+  36 of the gate's suites ran past 1.6 times lighter in that tree's gate than in
+  the one the table was laid from (test_emulator 1 of its checks, no image built
+  there). A row is the most a whole run of its suite has been measured to cost,
+  raised and never lowered; test_ci holds the table to a row a suite of the
+  offline gate. The gate whole in a fresh tree: 120 suites, 6 500 checks.
 - GitHub's runner by its own measure (the run of b7999dd2): 2 cores, 4
   threads, x86_64 Linux, 2 at once; 5.09 kernels a second a baton on its
   Python 3.12 job, 2.63 on its 3.14 job. The table told its 3.12 job's
   test_structure at 39.9 s and it took 36.7 s, its test_mirrors at 70.1 s
-  and they took 86.0 s. Ten runs before it took its errands 267.6 to
+  and they took 86.0 s. Ten runs before it took the robot's errands 267.6 to
   585.5 s on the one job and 276.7 to 523.5 s on the other, the slower job
   not the same from run to run: a runner's pace is a run's.
 - A batch fits whose host it is (`background.runner`: CI true in a job's
@@ -77,14 +76,14 @@ The board's findings: [FINDINGS](../FINDINGS.md).
   (`machine_detector.host`): told as a runner this desk does 96.6 kernels
   a second at 64 wide and 81.9 at 32 wide. A benchmark's processes run
   above normal priority on a desk only, and `pace.py` run on one errand
-  raises its own as the relay's benchmark does.
+  raises the robot's own as the relay's benchmark does.
 - GitHub's run of 011bfef4, 2 at once, 3.38 kernels a second a baton on
   its Python 3.12 job and 3.27 on its 3.14 job: no suite cut. The table
   told test_wasd at 576.1 and 595.5 s and it took 611.1 and 587.7 s;
   test_mirrors at 112.1 and 115.9 s, 107.4 and 103.1 s; test_structure at
   68.6 and 70.9 s, 52.0 and 43.8 s. The gate stopped at test_wasd, 2 of
-  its 23 red on both jobs to the same numbers, before its errands had told
-  their seconds.
+  its 23 red on both jobs to the same numbers, before the robot's errands had
+  told their seconds.
 - Offline gate: 544 s at 17 % busy, a job a suite; one relay with shards past
   half its work over the batons: 224 s at 31 %.
 - test_controller's tied rows gave a knee 0.3 s to 20 deg: on the stand-in
@@ -95,7 +94,7 @@ The board's findings: [FINDINGS](../FINDINGS.md).
 - The offline gate was 400 s of sleeping on the stand-in's clock; suites run
   four at a time: 142 s.
 - The pre-push smoke (`tools/dev/smoke.py`): every `machine` module imported
-  and its first 1.5 s on the loop told to walk, 2.7 s; a raise in
+  and the robot's first 1.5 s on the loop told to walk, 2.7 s; a raise in
   `flight.check_contacts` stopped it in 0.4 s.
 - test_controller's 1500 rpm lane on the wall read 1421 on Python 3.12: told
   its seconds (`hostclock.Told`) it reads 1446 every run, the lane ringing
@@ -134,13 +133,14 @@ The board's findings: [FINDINGS](../FINDINGS.md).
 - A kept replay that stood here fell at 10.60 s on CI's runner, Python 3.12 and
   3.14 alike: another platform's floating point. Laid 0.2 mm aside it fell here
   too, at 11.33 s; a kept replay now stands laid 0.2 mm either way. The hop
-  after a stop, a fall at 8.97 s when recorded, stands on its law since the
-  sensor boundary at every wobble to 1 mm.
+  after a stop, a fall at 8.97 s when recorded, stands on the robot's law since
+  the sensor boundary at every wobble to 1 mm.
 - A HUMANOID recording replayed (`tools/sim/replay.py`) through the worker's
   process: 7 commands over 2 epochs, the pelvis 0.0 mm off the recording, a
   400 N shove's fall at 4.162 s again. `stage` read off the gait's amplitude
-  said stand at 0.9 m/s; measured, its first pass after a lay read 0 N on
-  both soles and walk for a second till a lift counted only off a bearing sole.
+  said stand at 0.9 m/s; measured, the robot's first pass after a lay read 0 N
+  on both soles and walk for a second till a lift counted only off a bearing
+  sole.
 - A FAIL behind a page's footer or screen clear went unnamed: the runner takes
   a line's first marker, escapes stripped.
 - numpy's OpenBLAS pool costs ~499 MB commit per process; this laptop has no
@@ -161,29 +161,28 @@ The board's findings: [FINDINGS](../FINDINGS.md).
   4 and the first dt's failure not seen.
 - A pull rebuilds: git's hooks after a merge, a rebase and another commit
   checked out (.githooks/post-merge, post-rewrite, post-checkout) and the
-  terminal, opened in a console, ask each tree's ninja what it would build
-  (0.04 s) and build Debug and Release where either is behind, Release last,
-  so `open()` loads the newest (tools/target/current.py); a tree that built
-  no image builds them at its pull and its rebase (35 s from nothing), none
-  at a commit checked out: a worktree's suites found no image after its
-  rebase (test_boot 26 of 27). Asked by the terminal alone the images stood
-  three days behind a pull's sources. `git reset --hard` runs no hook, and
-  what an autostash lays back comes after its hook: both are the terminal's
-  to see.
-  The host's C libraries are built in each process already, each named by
-  its sources', headers' and flags' bytes: the headers beside its sources
-  are among them (aero_bits.h, read by its native board's build off
-  aero/src, was 1 of 189 in no digest; the other cores' 0 of 133), and
-  MuJoCo's headers' version is one of its whole-body core's flags. A source
-  touched: both built in 3.9 s.
-- MuJoCo Warp on its world as built (mujoco_warp 3.15, an RTX 4080 SUPER;
-  its model from its default pose, no control, 86 contacts): the CPU steps
-  it in 0.31 ms, 3 200 a second a core; Warp 14 ms a step for one world,
-  0.27 ms a world for 64, 0.039 for 512, 0.018 for 2 048, 0.015 for 8 192 -
-  66 000 world steps a second, 21 cores' worth. A pass of its walk is 1.3 ms
-  of wall, the world's step 0.1-0.3 of it: the physics batched alone gains a
-  quarter at most, and pays once its law and its boards step as arrays
-  beside it (docs/TODO.md, the latent stack).
+  terminal, opened in a console, ask each tree's ninja what it would build (0.04
+  s) and build Debug and Release where either is behind, Release last, so
+  `open()` loads the newest (tools/target/current.py); a tree that built no
+  image builds them at its pull and its rebase (35 s from nothing), none at a
+  commit checked out: a worktree's suites found no image after its rebase
+  (test_boot 26 of 27). Asked by the terminal alone the images stood three days
+  behind a pull's sources. `git reset --hard` runs no hook, and what an
+  autostash lays back comes after its hook: both are the terminal's to see. The
+  host's C libraries are built in each process already, each named by its
+  sources', headers' and flags' bytes: the headers beside its sources are among
+  them (aero_bits.h, read by the robot's native board's build off aero/src, was
+  1 of 189 in no digest; the other cores' 0 of 133), and MuJoCo's headers'
+  version is one of its whole-body core's flags. A source touched: both
+  built in 3.9 s.
+- MuJoCo Warp on the robot's world as built (mujoco_warp 3.15, an RTX 4080
+  SUPER; its model from its default pose, no control, 86 contacts): the
+  CPU steps it in 0.31 ms, 3 200 a second a core; Warp 14 ms a step for one
+  world, 0.27 ms a world for 64, 0.039 for 512, 0.018 for 2 048, 0.015 for 8
+  192 - 66 000 world steps a second, 21 cores' worth. A pass of the robot's walk
+  is 1.3 ms of wall, the world's step 0.1-0.3 of it: the physics batched alone
+  gains a quarter at most, and pays once the robot's law and its boards
+  step as arrays beside it (docs/TODO.md, the latent stack).
 
 - CI flakes diagnosed and resolved across 5 suites looped under heavy load:
   + `test_native_heat`: transient stability mark cleared if state drops out of
@@ -198,6 +197,22 @@ The board's findings: [FINDINGS](../FINDINGS.md).
     accommodate host CPU scheduler preemption.
   + `coaxial_mcp`: ring test window broadened to 0.35 s ensuring >= 3 zero
     crossings, and `RigError` caught in server tool calls.
+- The gate whole on CI's runner at f169f839: both workflows green, the
+  offline gate on 3.12 and 3.14 124 of 130 suites, none red; test_wasd 28 of
+  28 on both jobs at 587.0 and 593.9 s; the runner's own measure laid in
+  tests/work.json (5316715d: 19 rows raised, none lowered). Red before it on
+  Linux: the camera's chair back told from one 0.1 m voxel here, none there;
+  the chair's rise, the seat bearing 230-280 N at seat-off and the soles
+  10-40, the rounds' clip-and-pin flipping their split pass to pass; the
+  leap's hop, both soles under TOUCH_N 0.88 m up (here on
+  OPENBLAS_CORETYPE=Sandybridge).
+- The crafts' laws in Python a flown second: the helicopter's 18.4 ms of
+  113, the aerobat's 30.3 of 128, the ornithopter's 20.7 of 114, the drives'
+  50 kHz ticks 43 %.
+- The gate under coverage (`cover.py --readme`) stops at its first red
+  suite: test_camera's apart-against-here look (101 things each, told
+  unlike), test_native's alternate refused while 32 other processes held the
+  host; 61 suites and 4 314 checks ran before the cut (9e56fdca).
 
 ## Stand-in on the board's C
 
@@ -228,8 +243,8 @@ The board's findings: [FINDINGS](../FINDINGS.md).
   all 144 pairs of zeros, NaNs, infinities): 277 ns, the state the same bits.
   The crafts a flown second, frames' hashes the same: quad 0.19 -> 0.155 s,
   helicopter 0.115 -> 0.10, aerobat 0.13 -> 0.11, ornithopter 0.115 -> 0.10.
-  native:// built so too (`build.FAST`): its twenty boards 2.03 -> 1.81 CPU s
-  a wall s.
+  native:// built so too (`build.FAST`): the robot's twenty boards 2.03 -> 1.81
+  CPU s a wall s.
 - A QUAD rotor through the flight's loop, the law against the closed form:
   450.0 and 450.0 rad/s on 27.5 A, 690.0 on 58.0; 33 rad/s apart at most,
   in a 2 900 rad/s^2 spool.

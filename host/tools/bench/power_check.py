@@ -9,9 +9,9 @@ Two ways for a power manager to be wrong, and this checks both:
 Both have happened here. The second is why the reference count exists; the
 first is why every hold but the host's is a lease.
 
-It arms the gate stage to check that an acquire is refused there, so it
-runs beside the board, not in `run_tests.ps1`, which has to pass on a bench
-with no board attached.
+This tool arms the gate stage to check that an acquire is refused there,
+so it runs beside the board, not in `run_tests.ps1`, which has to pass on
+a bench with no board attached.
 
     python tools/bench/power_check.py
 """

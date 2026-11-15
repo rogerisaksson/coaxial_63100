@@ -226,7 +226,7 @@ def test_a_payload_is_blended_in_and_swung(report):
                  abs(half[0] - math.radians(-10.0)) < 5e-3 and abs(half[1] - 2000.0) < 1.0
                  and abs(half[2] - 10.905) < 1e-2, '%.2f deg, %.0f, %.2f' % (
                      math.degrees(half[0]), half[1], half[2]))
-    report.check('its blend over, its own', abs(full[0] - math.radians(-20.0)) < 2e-3
+    report.check('the payload\'s blend over, its own', abs(full[0] - math.radians(-20.0)) < 2e-3
                  and full[1] == 3000.0, '%.2f deg, %.0f' % (math.degrees(full[0]), full[1]))
     dropped = aero.payload(aerolisp.compiled(
         '(stream_inject (sequence_id 3) (blend_duration 100ms) (latent_targets '
@@ -278,7 +278,7 @@ def test_the_observers_take_what_pushes(report):
                  abs(lean - math.degrees(math.atan2(1.5, 9.81))) < 0.05
                  and speed < 1.2 * 1.5 / (0.5 * aero.WO_PULL),
                  '%.2f deg of %.2f, %.3f m/s' % (lean, math.degrees(math.atan2(1.5, 9.81)), speed))
-    report.check('its height kept under the lean', abs(frame.vel[1]) < 0.01,
+    report.check('the frame\'s height kept under the lean', abs(frame.vel[1]) < 0.01,
                  '%.4f m/s up' % frame.vel[1])
     report.check('in no air, no wind held', max(abs(x) for x in out.wind) == 0.0,
                  '%s m/s' % ' '.join('%.3f' % x for x in out.wind))

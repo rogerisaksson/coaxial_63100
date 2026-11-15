@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Its compiled parts called whole in C (`tools.cores.quick`'s runner, quick_run.c) beside their Python glue - each part
-of its law walking given twins of its arguments made alike -, and its step asked in C (quick_step.c) beside its Python
-from the same struct: both ways' results the same trees, types, views and bits at every call."""
+"""The robot's compiled parts called whole in C (`tools.cores.quick`'s runner, quick_run.c) beside their Python glue - each part
+of its law walking given twins of its arguments made alike -, and the robot's step asked in C (quick_step.c)
+beside its Python from the same struct: both ways' results the same trees, types, views and bits at every call."""
 import os
 import sys
 
@@ -40,9 +40,9 @@ def _apart(a, b):
 
 
 def test_a_part_called_whole_in_c_as_by_its_glue(report, c):
-    """Each compiled part of its law walking, called whole in C (its head, walk, C and result's views) and through its
-    Python glue on twins of its arguments made alike - its turn kept as its own call finds it -: their results the
-    same trees, types, views and bits at every call."""
+    """Each compiled part of the robot's law walking, called whole in C (its head, walk, C and result's views) and
+    through its Python glue on twins of its arguments made alike - its turn kept as the robot's own call finds it -:
+    their results the same trees, types, views and bits at every call."""
     from machine.process import worker
     from tools.cores import bodied, quick
     if quick.module() is None:
@@ -87,10 +87,11 @@ def _numbers(k):
                     for name, t in type(k)._fields_ if not pointer(t))
 
 
-def test_its_step_asked_in_c_as_by_python(report, c):
-    """Its step's ask and senses laid into its struct, its C called and its answer made in one C call (quick_step.c)
-    beside `_stepped`'s Python from the same struct - lying into a bed, rising off it and walking -: every answer the
-    same trees, types, views and bits, `b.load` too, and the struct but its pointers the same after."""
+def test_the_robots_step_asked_in_c_as_by_python(report, c):
+    """The robot's step's ask and senses laid into its struct, its C called and its answer made in one C call
+    (quick_step.c) beside `_stepped`'s Python from the same struct - lying into a bed, rising off it and walking -:
+    every answer the same trees, types, views and bits, `b.load` too, and the struct but its pointers the same
+    after."""
     import ctypes
     from machine.process import worker
     from tools.cores import quick, step as cs
@@ -136,7 +137,7 @@ def test_its_step_asked_in_c_as_by_python(report, c):
                  tally['calls'] > 3000 and tally['contacts'] > 1000 and not tally['apart'], '%(apart)d apart' % tally)
 
 
-ROSTER = (test_a_part_called_whole_in_c_as_by_its_glue, test_its_step_asked_in_c_as_by_python)
+ROSTER = (test_a_part_called_whole_in_c_as_by_its_glue, test_the_robots_step_asked_in_c_as_by_python)
 
 
 def main(argv=None):

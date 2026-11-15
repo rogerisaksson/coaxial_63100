@@ -2,8 +2,8 @@
 
 Open work. An item is a gap and its DOD (done when); its measurements are in
 the files under docs/FINDINGS.md. An item is deleted when its DOD is met and
-gets a line at the end of [DONE](DONE.md). Subjects off the gynoid's list:
-the table under [Subjects](#subjects).
+gets a line at the end of [DONE](DONE.md). The items by subject: the table
+under [Subjects](#subjects).
 
 ## Goal
 
@@ -14,16 +14,16 @@ the table under [Subjects](#subjects).
 - Drives sized in the gym's scenes for simplicity, DFM and printing: few
   variants of toleranced parts (gearboxes, electronics); stock lengths,
   linkages and ball bearings.
-- End to end: the LLM writes text of balance, rhythm and elasticity, the gynoid
-  humanoid robot latent loop runs it, its torques go over the bus to the boards'
+- End to end: the LLM writes text of balance, rhythm and elasticity, the
+  robot's latent loop runs it, its torques go over the bus to the boards'
   firmware and drives, emulated or on the bench.
 - Under the text no rule a case and no branch: flat static arrays, a mode a
-  spring, a landing read from the gynoid humanoid robot capture point.
+  spring, a landing read from the robot's capture point.
 - Avoid all conditional logic (`if`-statements, boolean gates, discrete mode
   switches, string-name checks and hard thresholds) in favour of continuous
   physical and mathematical formulas: SE(3) kinematics, Euler-Lagrange
-  dynamics, smooth convex blends and support-polygon projections. Whether it
-  walks, stands, sits on a chair, lies on a bed or leans on an obstacle is
+  dynamics, smooth convex blends and support-polygon projections. Whether the
+  robot walks, stands, sits on a chair, lies on a bed or leans on an obstacle is
   implicit in its continuous SE(3) and modal state vectors; discrete labels
   project strictly outward (`machine.senses.situation` -> `state['situation']`).
 - A special case means the problem needs a more general form.
@@ -33,9 +33,9 @@ the table under [Subjects](#subjects).
 | Subject | File |
 | --- | --- |
 | Scenarios, by the general case: each a test in MuJoCo, in order | [todo/scenarios.md](todo/scenarios.md) |
-| The somatic dual-domain kernel: its seven steps on its loop, its five tests in the lodge | [todo/protocol.md](todo/protocol.md) |
-| The 32 base moves: each on its loop, as its texts, or a gap with its prerequisite | [todo/moves.md](todo/moves.md) |
+| The somatic dual-domain kernel: its seven steps on the robot's loop, its five tests in the lodge | [todo/protocol.md](todo/protocol.md) |
+| The 32 base moves: each on the robot's loop, as its texts, or a gap with its prerequisite | [todo/moves.md](todo/moves.md) |
 | The bench: what the board has still to show | [todo/bench.md](todo/bench.md) |
-| Flight pages: the crafts in wind, the aerobat's landing | [todo/flight.md](todo/flight.md) |
-| Host: native://, identification on the robot, its law compiled | [todo/host.md](todo/host.md) |
-| Its wayfinder: its dock and its way round its things, planned apart | [todo/wayfinder.md](todo/wayfinder.md) |
+| Flight pages: the crafts' laws, courses and props, the aerobat in wind and its landing | [todo/flight.md](todo/flight.md) |
+| Host: CI, the robot's loop's cost and branches, the robot's law and the crafts' compiled, native://, identification, the papers, the buses, the prompt | [todo/host.md](todo/host.md) |
+| The robot's wayfinder: its dock and its way round its things, planned apart | [todo/wayfinder.md](todo/wayfinder.md) |

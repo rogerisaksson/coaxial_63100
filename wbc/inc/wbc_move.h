@@ -1,13 +1,13 @@
-/** wbc_move.h - its moves in C (wbc_bedexit.c, wbc_scoot.c, wbc_sensed.c): machine.moves' programs whose phases its
+/** wbc_move.h - the robot's moves in C (wbc_bedexit.c, wbc_scoot.c, wbc_sensed.c): machine.moves' programs whose phases its
     senses tell,
     numpy's arithmetic operation for operation (wbc_np.h). Portable C11, the host's alone. */
 #ifndef WBC_MOVE_H
 #define WBC_MOVE_H
 
-/** Its moves' anatomy (wbc_anatomy.c, machine.moves.anatomy): how a part goes - held where it is, blended over its
-    phase from where it began, to its goal at its rate (deg/s), its sensed angle and its goal past it, drawn toward
-    its goal from its sensed angle by its rate (deg) at most, yielding past it, to its goal at its rate but no
-    straighter than it is. */
+/** The robot's moves' anatomy (wbc_anatomy.c, machine.moves.anatomy): how a part goes - held where it is, blended
+    over its phase from where it began, to its goal at its rate (deg/s), the robot's sensed angle and its goal past
+    it, drawn toward its goal from the robot's sensed angle by its rate (deg) at most, yielding past it, to its
+    goal at its rate but no straighter than it is. */
 enum
 {
   WBC_ANATOMY_HELD,
@@ -22,11 +22,11 @@ enum
 double wbc_anatomy_aimed(double how, double goal, double x);
 
 /** A joint's command (deg) a pass `dt` s on, as `how` it goes (WBC_ANATOMY_*): its `goal` and `rate`, its command
-    `x`, its sensed angle `q`, where its phase began `start`, `a` of its phase's way. */
+    `x`, the robot's sensed angle `q`, where its phase began `start`, `a` of its phase's way. */
 double wbc_anatomy_driven(double how, double goal, double rate, double x, double q, double start, double a, double dt);
 
-/** `x` (deg), its hips holding its trunk's `pitch` at `trunk` (deg): moved `gain` deg/s a deg of its error, within
-    [`lo`, `hi`]. */
+/** `x` (deg), the robot's hips holding its trunk's `pitch` at `trunk` (deg): moved `gain` deg/s a deg of
+    its error, within [`lo`, `hi`]. */
 double wbc_anatomy_held(double x, double gain, double pitch, double trunk, double dt, double lo, double hi);
 
 /** The bed exit's phases, the parts it moves (hips, knees, ankles, shoulders, elbows, spine) and their joints. */
@@ -34,7 +34,8 @@ double wbc_anatomy_held(double x, double gain, double pitch, double trunk, doubl
 #define WBC_BEDEXIT_PARTS  6
 #define WBC_BEDEXIT_MOVED  11
 
-/** Its state's slots: the phase, when it began, the strokes, past the edge (0/1), the pose the phase began from. */
+/** The bed exit's state's slots: the phase, when it began, the strokes, past the edge (0/1), the pose the phase
+    began from. */
 enum
 {
   WBC_BEDEXIT_PHASE,
@@ -45,12 +46,11 @@ enum
 };
 
 /** machine.moves.bedexit's tables, filled once from it: the joints it moves (figure.JOINTS) and each one's part
-    (the knees part 1), its joints, the push's phase (it counts the strokes, ending once it sits), the stretch's
-    (it tells it past the edge), the settle's (where it goes seated), the last; each phase's length (s), the phase after it, the trunk's
-    pitch its hips hold (deg) and whether they do; each part's goal (deg), how it is reached (WBC_ANATOMY_*) and its
-    rate, on the bed and past its edge; its
-    hips' gain on its trunk (deg/s a deg) and range (deg); its shanks' share past the edge, its soles' share and its
-    knees' fold (deg) seated, the strokes at most. */
+    (the knees part 1), the robot's joints, the push's phase (it counts the strokes, ending once the robot sits), the stretch's
+    (it tells the robot past the edge), the settle's (where it goes seated), the last; each phase's length (s), the phase after
+    it, the trunk's pitch the robot's hips hold (deg) and whether they do; each part's goal (deg), how it is reached (WBC_ANATOMY_*) and
+    its rate, on the bed and past its edge; the robot's hips' gain on its trunk (deg/s a deg) and range (deg); the robot's
+    shanks' share past the edge, its soles' share and its knees' fold (deg) seated, the strokes at most. */
 typedef struct
 {
   int    joint[WBC_BEDEXIT_MOVED], part[WBC_BEDEXIT_MOVED], joints, pushed, stretched, seated, done, spare;
@@ -61,11 +61,13 @@ typedef struct
   double trunk_gain, hip_lo, hip_hi, shin_share, sole_share, knee_seat, strokes;
 } wbc_bedexit_t;
 
-/** The move's `state` from its pose `q_deg` (deg, its joints) at `t` s: its first phase, nothing done. */
+/** The move's `state` from the robot's pose `q_deg` (deg, its joints) at `t` s: its first phase,
+ * nothing done. */
 void wbc_bedexit_laid(const wbc_bedexit_t *b, const double *q_deg, double t, double *state);
 
-/** A pass of the move at `t`, `dt` on: `cmd` (deg, its joints) laid over from `state`, its pose `q_deg` (deg), its
-    soles' and shanks' share of its weight and its trunk's pitch (deg) sensed; 1.0 once it sits on the edge. */
+/** A pass of the move at `t`, `dt` on: `cmd` (deg, the robot's joints) laid over from `state`, its pose `q_deg`
+    (deg), its soles' and shanks' share of its weight and its trunk's pitch (deg) sensed; 1.0 once it sits on the
+    edge. */
 double wbc_bedexit_step(const wbc_bedexit_t *b, double *state, double *cmd, const double *q_deg, double t, double dt,
                         double soles, double shins, double pitch);
 
@@ -76,7 +78,8 @@ double wbc_bedexit_step(const wbc_bedexit_t *b, double *state, double *cmd, cons
 #define WBC_SCOOT_MOVED  18
 #define WBC_SCOOT_STEPS  2
 
-/** Its state's slots: the phase, the step, each side's way this cycle, the heading aimed at, whether aimed. */
+/** The floor scoot's state's slots: the phase, the step, each side's way this cycle, the heading aimed at,
+    whether aimed. */
 enum
 {
   WBC_SCOOT_PHASE,
@@ -90,14 +93,14 @@ enum
 /** machine.moves.scoot's tables, filled once from it: the joints it moves (figure.JOINTS), each one's part (hips 0,
     knees 1), side (0 left and the trunk, 1 right) and pair (its other side's, the trunk's its own); each step's side;
     when each phase is over (0 its goals reached, 1 braced, 2 its heel touching, 3 stroked, 4 asked, 5 vaulted, 6
-    leant); the phases it sits, sets a heel, reaches, pushes and holds in; each step's joints (1 its heel's); each
+    leant); the phases the robot sits, sets a heel, reaches, pushes and holds in; each step's joints (1 its heel's); each
     part's how (0 held, 1 its goal at its rate, 2 the stroke's end at the way's rate, 3 the stroke's start, 4 its goal
     while its foot touches none, 5 its pair's mean, a hip holding the trunk as well, 6 its goal while the trunk is short
     of its vault), goal (deg) and rate (deg/s) a phase, the next phase asked and idle, whether a step's heel alone moves,
     whether the twist's ways are taken as it ends and whether the hips hold the trunk; the knees' fold and stretch and
-    the hips' lift (deg), its trunk's lean (deg), its hold's gain (deg/s a deg), range and band (deg), a stroke's rate
-    (deg/s), the shares a foot bears and touches at, a twist asks past, a goal is reached within, a side's share of a
-    turn, a heading's error a whole share (deg), the aim's lead turning (deg), the inner side's least share back. */
+    the hips' lift (deg), the robot's trunk's lean (deg), its hold's gain (deg/s a deg), range and band (deg), a stroke's
+    rate (deg/s), the shares a foot bears and touches at, a twist asks past, a goal is reached within, a side's share of
+    a turn, a heading's error a whole share (deg), the aim's lead turning (deg), the inner side's least share back. */
 typedef struct
 {
   int    joint[WBC_SCOOT_MOVED], part[WBC_SCOOT_MOVED], sided[WBC_SCOOT_MOVED], partner[WBC_SCOOT_MOVED];
@@ -114,21 +117,22 @@ typedef struct
 /** The move's `state` as it begins: bracing, the first step next, no way and no aim yet. */
 void wbc_scoot_laid(double *state);
 
-/** A pass of the move `dt` s on: `cmd` (deg, its joints) laid over from `state`, its trunk's pitch (deg), its fists'
-    and feet's shares of its weight, its twist back and turning (shares of its keys') and its heading (deg, left +)
-    sensed; 0.0, never over. */
+/** A pass of the move `dt` s on: `cmd` (deg, the robot's joints) laid over from `state`, its trunk's pitch (deg),
+    its fists' and feet's shares of its weight, its twist back and turning (shares of its keys') and its heading
+    (deg, left +) sensed; 0.0, never over. */
 double wbc_scoot_step(const wbc_scoot_t *s, double *state, double *cmd, double dt, double pitch, double hands,
                       double left, double right, double back, double turn, double heading);
 
-/** Its moves whose phases end by what it senses (machine.moves.sensed: a table each of the suite's lisp - its way
-    into a bed over its end to its middle, up onto a seat too high for its feet): its phases at most, the parts it
-    moves (shoulders, elbows, hips, knees, ankles and their rolls, the legs' rolls and yaws a side each, the spine,
-    waist and neck) and their joints. */
+/** The robot's moves whose phases end by what it senses (machine.moves.sensed: a table each of the suite's
+    lisp - its way into a bed over its end to its middle, up onto a seat too high for the robot's feet):
+    its phases at most, the parts it moves (shoulders, elbows, hips, knees, ankles and their rolls, the legs' rolls
+    and yaws a side each, the spine, waist and neck) and their joints. */
 #define WBC_SENSED_PHASES 15
 #define WBC_SENSED_PARTS  11
 #define WBC_SENSED_MOVED  19
 
-/** Its state's slots: the phase, the strokes, its side of the furniture's middle (0 till its first pass). */
+/** A sensed move's state's slots: the phase, the strokes, the robot's side of the furniture's middle (0 till
+ * its first pass). */
 enum
 {
   WBC_SENSED_PHASE,
@@ -138,12 +142,13 @@ enum
 };
 
 /** A move's tables, filled once from machine.moves.sensed's, its phases first: the joints it moves (figure.JOINTS) and
-    each one's part, how each phase ends (0 its goals reached, 1 its feet planted or that, 2 its pelvis pulled in or
-    that and it still, 3 that and it lying, 4 that and it still, 5 at the middle or that), the last phase; each
-    phase's next, its next while a stroke is due and whether it counts a stroke; each part's goal (deg), how it goes
-    (WBC_ANATOMY_HELD, _RATE, _LEAST) and its rate (deg/s); its feet's share planted, its pelvis's pull in (m), still
-    under its speed (m/s), lying past its pitch (deg), a stroke again while this short of the middle (m), the strokes
-    at most and a goal reached within (deg), one no end of its table reads 0. */
+    each one's part, how each phase ends (0 its goals reached, 1 the robot's feet planted or that, 2 its pelvis
+    pulled in or that and it still, 3 that and it lying, 4 that and it still, 5 at the middle or
+    that), the last phase; each phase's next, its next while a stroke is due and whether it counts a stroke; each
+    part's goal (deg), how it goes (WBC_ANATOMY_HELD, _RATE, _LEAST) and its rate (deg/s); the robot's feet's share
+    planted, its pelvis's pull in (m), still under its speed (m/s), lying past its pitch (deg),
+    a stroke again while this short of the middle (m), the strokes at most and a goal reached within (deg), one no end
+    of its table reads 0. */
 typedef struct
 {
   int    joint[WBC_SENSED_MOVED], part[WBC_SENSED_MOVED], over[WBC_SENSED_PHASES], done;
@@ -156,9 +161,9 @@ typedef struct
 /** A move's `state` as it begins: its first phase, no stroke, no side yet. */
 void wbc_sensed_laid(double *state);
 
-/** A pass of the move of tables `b` `dt` s on: `cmd` (deg, its joints) laid over from `state`, its soles' share of its
-    weight, its pelvis from the furniture's middle along its length and that half length (m), its trunk's pitch (deg)
-    and its speed (m/s) sensed; 1.0 once at its last phase. */
+/** A pass of the move of tables `b` `dt` s on: `cmd` (deg, the robot's joints) laid over from `state`, the robot's
+    soles' share of its weight, its pelvis from the furniture's middle along its length and that half
+    length (m), the robot's trunk's pitch (deg) and its speed (m/s) sensed; 1.0 once at its last phase. */
 double wbc_sensed_step(const wbc_sensed_t *b, double *state, double *cmd, double dt, double soles, double along,
                        double half, double pitch, double speed);
 

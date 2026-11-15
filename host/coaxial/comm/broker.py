@@ -524,7 +524,7 @@ def stand_down(address=(HOST, PORT), wait=5.0):
     try:
         reached.stand_down()
     except errors.RigError:
-        # It says no by refusing, and this function answers `did it`.
+        # The broker says no by refusing, and this function answers `did it`.
         return False
     finally:
         reached.close()

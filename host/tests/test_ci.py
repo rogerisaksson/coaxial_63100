@@ -4,9 +4,9 @@ runner's work told; a job cut at its time says where it was (`tools.dev.focus`).
 
 No network: a gate's log tail as its comment holds it, and suites.py's own text. And a run fits the host it
 is on (`tools.dev.machine_detector`): a suite's seconds on hosts laid here, this one measured. And the jobs
-take what they need from outside kept (.github/actions/inputs), the tools pinned (.github/inputs.txt). And its C
-built for the gate's target (`tools.cores.build.TARGETS`). And the last commit every gate left green named as
-the reference (`ci.whole`, `ci.behind`, `ci.said`)."""
+take what they need from outside kept (.github/actions/inputs), the tools pinned (.github/inputs.txt). And the
+robot's C built for the gate's target (`tools.cores.build.TARGETS`). And the last commit every gate left green
+named as the reference (`ci.whole`, `ci.behind`, `ci.said`)."""
 import json
 import os
 import pathlib
@@ -177,7 +177,7 @@ def test_a_batch_fits_whose_host_it_is(report):
 def test_the_jobs_take_their_inputs_kept(report):
     """.github/inputs.txt pins each tool a job takes from outside: a row a tool, the sha256 of what its
     source serves, its program inside that, and an https archive of a kind .github/inputs.sh unpacks; a
-    tool's sources of one kind name one program. The workflows running its suites (the gate, the
+    tool's sources of one kind name one program. The workflows running the robot's suites (the gate, the
     firmware's, the runner probe's) take their inputs through the inputs
     action (.github/actions/inputs, kept in the Actions cache) and fetch nothing themselves - apt's
     mirrors not resolving had failed the host's gate before a suite ran, three pushes running. Every
@@ -198,7 +198,7 @@ def test_the_jobs_take_their_inputs_kept(report):
     raw = [name for name in ('firmware.yml', 'host.yml', 'probe.yml')
            if './.github/actions/inputs' not in (text := (root / 'workflows' / name).read_text(encoding='utf-8'))
            or re.search(r'apt-get|curl |pip install', text)]
-    report.check('every job running its suites takes its inputs kept, fetching nothing itself', not raw, str(raw))
+    report.check('every job running the robot\'s suites takes its inputs kept, fetching nothing itself', not raw, str(raw))
     health = (root / 'workflows' / 'inputs.yml').read_text(encoding='utf-8')
     watched = re.findall(r'paths: \[([^\]]*)\]', health)
     unchecked = [name for name in ('inputs.sh', 'apt.sh')
@@ -241,7 +241,7 @@ def test_the_runner_here_is_host_yml_s(report):
                  "cached environment by it, the runner's image installing through it", all(held), held)
     arm = linux.environment(info, 'arm64', 'sme2', 'max,sve-default-vector-length=64')
     own = linux.environment(info)
-    report.check("an arm64 container: host.yml's environment without its x86 keys, its target and QEMU's processor "
+    report.check("an arm64 container: host.yml's environment without its x86 keys, the robot's target and QEMU's processor "
                  "named; the runner's as host.yml's; each image its own tag, the arch the image's build is told",
                  not set(linux.X86_ENV) & set(arm) - {'COAXIAL_ISA'} and arm['COAXIAL_ISA'] == 'sme2'
                  and arm['QEMU_CPU'] == 'max,sve-default-vector-length=64' and own == info['env']
@@ -249,11 +249,11 @@ def test_the_runner_here_is_host_yml_s(report):
                  '%s | %s' % (arm, linux.tagged(info, '3.12', 'arm64')))
 
 
-def test_the_gate_builds_its_c_for_its_target(report):
-    """host.yml's gate names its cores' target (COAXIAL_ISA), one of `build.TARGETS`, its flags those `native`
-    gives under it, nothing contracted; a name none of them refused; unset, this host's own (-march=native). And
-    the probe (isa.c) says of this processor what numpy finds where nothing disables its sets: AVX on x86-64-v2,
-    AVX2 as x86-64-v3."""
+def test_the_gate_builds_the_robots_c_for_its_target(report):
+    """host.yml's gate names the robot's cores' target (COAXIAL_ISA), one of `build.TARGETS`, its flags those
+    `native` gives under it, nothing contracted; a name none of them refused; unset, this host's own
+    (-march=native). And the probe (isa.c) says of this processor what numpy finds where nothing disables its
+    sets: AVX on x86-64-v2, AVX2 as x86-64-v3."""
     from tools.cores import build
     from tools.dev import linux
     found = set(build._host().split(','))
@@ -277,10 +277,10 @@ def test_the_gate_builds_its_c_for_its_target(report):
         os.environ.pop('COAXIAL_ISA', None)
         if kept is not None:
             os.environ['COAXIAL_ISA'] = kept
-    report.check("the gate's target one of its targets, its flags given under it, nothing contracted",
+    report.check("the gate's target one of the robot's targets, its flags given under it, nothing contracted",
                  isa in build.TARGETS and given in (None, ('-ffp-contract=off',) + build.TARGETS[isa]),
                  '%s: %s' % (isa, given))
-    report.check('a name none of its targets refused; unset, this host\'s own', refused
+    report.check('a name none of the robot\'s targets refused; unset, this host\'s own', refused
                  and own[0] == '-ffp-contract=off' and all(flag.endswith('=native') for flag in own[1:]), str(own))
 
 
@@ -310,7 +310,7 @@ ROSTER = (test_a_log_tail_names_its_red_suites, test_a_tail_tells_the_runner_s_w
           test_a_suite_s_seconds_are_the_host_s, test_the_gate_s_suites_have_their_work,
           test_a_table_laid_keeps_what_was_not_run, test_a_batch_fits_whose_host_it_is,
           test_the_jobs_take_their_inputs_kept, test_the_runner_here_is_host_yml_s,
-          test_the_gate_builds_its_c_for_its_target, test_the_last_green_commit_is_the_reference)
+          test_the_gate_builds_the_robots_c_for_its_target, test_the_last_green_commit_is_the_reference)
 
 
 def main(argv=None):

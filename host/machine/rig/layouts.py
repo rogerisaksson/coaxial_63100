@@ -1,4 +1,4 @@
-"""The live bus and software diagrams (docs/architecture): its buses (`edge.LIMBS`) and its layers.
+"""Live bus and software diagrams (docs/architecture): the robot's buses (`edge.LIMBS`) and its layers.
 
     open('docs/architecture/bus_layout.svg').read() == layouts.bus_layout_svg()
     open('docs/architecture/software_layout.svg').read() == layouts.software_layout_svg()

@@ -207,9 +207,9 @@ def orientation(session, op='once', **_):
     got = _rotation_vector(session.board.imu)
     if got['quaternion'] is None:
         raise DeviceStateError(
-            'the IMU sent no rotation vector. It is enabled now, so a second '
-            'call may find one; if not, the part is not reporting. AFE_ON '
-            'powers it - with that off it answers reads and acts on no write.')
+            'the IMU sent no rotation vector. The rotation vector is enabled now, '
+            'so a second call may find one; if not, the part is not reporting. '
+            'AFE_ON powers it - with that off it answers reads and acts on no write.')
 
     q = got['quaternion']
     return orient.picture((q['i'], q['j'], q['k'], q['real']))

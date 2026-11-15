@@ -7,8 +7,8 @@
 The line is a closed curve through every gate along its heading, a Hermite span a gate. The frame
 is flown along it as fast as its plan's sphere lets it, pointed wherever it must - down, where a
 dive is faster than a fall: each bend at the speed its sphere turns it, braked for ahead of it.
-Rotors that have less than its sphere asks, it is flown on what they have. Its gates and what
-stands about it are `grounds`'.
+Rotors that have less than the quad's sphere asks, it is flown on what they have. The course's gates
+and what stands about it are `grounds`'.
 """
 import functools
 import itertools
@@ -20,7 +20,7 @@ from machine.aircraft import aerokin, grounds, quad
 #: The line: a span's tangents this much of its chord, sampled every DS m; its laps. And how
 #: it crosses each gate, a row a gate - the tuner's (`tools/sim/quad_race.py`), the first as
 #: it stands: turned off the gate's heading, degrees; its tangent there, of TENSION's; where
-#: across and up its opening, m off its middle - its apex. It rises through a gate SLOPE of
+#: across and up its opening, m off its middle - its apex. The line rises through a gate SLOPE of
 #: the way from the gate before it to the one after, the first level: level through each, a
 #: climb of 3.5 m in 12.5 was an S of 10 m/s^2 up and down at 10 m/s. The places across and
 #: up are laid by flight: each moved by what the frame crossed its gate off the searched
@@ -40,58 +40,55 @@ TWIN_WAYS = ((0.07, -0.16), (0.29, -0.08), (0.05, -0.12), (0.03, -0.10), (-0.10,
              (-0.03, -0.10), (0.00, -0.12), (0.07, -0.06), (-0.19, -0.06), (0.01, -0.13),
              (0.09, -0.05))
 
-#: The plan (raw - a dive pushed inverted, no level flight kept): a
-#: sphere about gravity, PULL of what the rotors pull on the flight's clamp - no more than
-#: they have (`aerokin.seen`) -, the
-#: thrust v^2 k + a t + g up wherever that points. A bend takes what its speed asks across; it
-#: is braked for BRAKE and sped out of GO of what is left along its way, the air through the
-#: discs taking their thrust (`quad.inflow`), the slope and the drag theirs; braked to its
-#: finish on STOP of it; the sphere comes down to what they have in EASE_S and back in twice
-#: that; bends braked for AHEAD_M ahead; a bend's pull swings from one side to the other in
-#: its tilt's own swing at the fastest (`swing`); the sphere FLOOR of gravity at the least. On a circle of 0.249 of its
-#: pull along the floor, a crest no faster than 0.511 g let it fall and 0.30 of the pull along
-#: its way, the 16x14s lapped in 19.6 and 19.2 s, 15.2 m/s at the most, never sped down past
-#: -8.8 m/s^2. Searched raw over boards, winds, sizes and heat: 13.8 and 14.0,
-#: on four boards 14.1 and 14.7; in two winds it never flew every flight whole, the boards'
-#: tips 0.06-0.09 m past their margin, SOA 0.84-1.00, WEP 0.6-2.4 s. These, the
-#: law's gains, LOOK_S, SOFT_S, SLACK, TENSION, SLOPE and the crossings are the tuner's.
-#: PULL 0.399 was searched on boards whose envelopes left 34-60 % of their pull on a second
-#: lap; on boards that hold 88 % of it at the least it came into gate 7 1.1 m high off the
-#: dive in two winds of three, as the ideal rotors did in one. Gridded there: 0.37, 34 flights
-#: of 34 whole in eleven winds, 14.2-14.3 and 14.5-15.2 s; 0.38 struck one. Off its pad
-#: straight into its laps, 0.37 came into gate 7 0.65 m high on its second in still air, 0.03 m
-#: into a tip's room; 0.36 left 0.085 m at the least in six winds.
+#: The plan (raw - a dive pushed inverted, no level flight kept): a sphere about gravity, PULL of
+#: what the rotors pull on the flight's clamp - no more than they have (`aerokin.seen`) -, the
+#: thrust v^2 k + a t + g up wherever that points. A bend takes what its speed asks across; it is
+#: braked for BRAKE and sped out of GO of what is left along its way, the air through the discs
+#: taking their thrust (`quad.inflow`), the slope and the drag theirs; braked to the quad's finish
+#: on STOP of it; the sphere comes down to what they have in EASE_S and back in twice that; bends
+#: braked for AHEAD_M ahead; a bend's pull swings from one side to the other in its tilt's own
+#: swing at the fastest (`swing`); the sphere FLOOR of gravity at the least. On a circle of 0.249
+#: of the quad's pull along the floor, a crest no faster than 0.511 g let it fall and 0.30 of the
+#: pull along its way, the 16x14s lapped in 19.6 and 19.2 s, 15.2 m/s at the most, never sped down
+#: past -8.8 m/s^2. Searched raw over boards, winds, sizes and heat: 13.8 and 14.0, on four boards
+#: 14.1 and 14.7; in two winds the quad never flew every flight whole, the boards' tips
+#: 0.06-0.09 m past their margin, SOA 0.84-1.00, WEP 0.6-2.4 s. These, the law's gains, LOOK_S,
+#: SOFT_S, SLACK, TENSION, SLOPE and the crossings are the tuner's. PULL 0.399 was searched on
+#: boards whose envelopes left 34-60 % of their pull on a second lap; on boards that hold 88 % of
+#: it at the least the quad came into gate 7 1.1 m high off the dive in two winds of three, as the
+#: ideal rotors did in one. Gridded there: 0.37, 34 flights of 34 whole in eleven winds, 14.2-14.3
+#: and 14.5-15.2 s; 0.38 struck one. Off the quad's pad straight into its laps, 0.37 came into
+#: gate 7 0.65 m high on its second in still air, 0.03 m into a tip's room; 0.36 left 0.085 m at
+#: the least in six winds.
 PULL, BRAKE, GO, EASE_S, STOP, FLOOR, AHEAD_M = 0.36, 0.735, 0.708, 2.0, 0.45, 1.1, 40.0
 
-#: The frame's place on the line is looked for REACH_M on from the last; the law's spot is kept
-#: on the line, SLACK_M from that place along it at most; a bend's pull is asked ahead of it
-#: by what the frame trails one (`trailed`); the frame's miss of the
-#: line is taken back over LOOK_S of its speed, LOOK_M at least. Its heading comes round to
-#: its way at AIM_K, 1/s, no faster than TURN_RAD_S, and its lean turns with it; its nose is
-#: left free of it: a turn of the frame is the discs' drag's, 10 N of thrust apart a N m -
-#: held on its heading, the rotors were at their clamp 12 % of a lap, 5 % with the heading
-#: still - and then the lean's own turn trailed its bend and a gate was passed 0.65 m wide.
-#: It stands STAND_M from its finish, this slow.
-#: Flown by the clock it fell 10 m behind its place and cut its bends 4 m inside their gates;
-#: its spot homed to the frame's own place, it kept the frame's speed, 2.5 m/s under the plan's.
-#: The speed it asks comes to the plan's over SOFT_S, the plan looked up as much
-#: further on: it stepped from its way out of a bend to its brake for the next, 14 m/s^2 in a
-#: pass.
+#: The frame's place on the line is looked for REACH_M on from the last; the law's spot is kept on
+#: the line, SLACK_M from that place along it at most; a bend's pull is asked ahead of it by what
+#: the frame trails one (`trailed`); the frame's miss of the line is taken back over LOOK_S of its
+#: speed, LOOK_M at least. The law's heading comes round to its way at AIM_K, 1/s, no faster than
+#: TURN_RAD_S, and its lean turns with it; the quad's nose is left free of it: a turn of the frame
+#: is the discs' drag's, 10 N of thrust apart a N m - held on its heading, the rotors were at
+#: their clamp 12 % of a lap, 5 % with the heading still - and then the lean's own turn trailed
+#: its bend and a gate was passed 0.65 m wide. The quad stands STAND_M from its finish, this slow.
+#: Flown by the clock the quad fell 10 m behind its place and cut its bends 4 m inside their
+#: gates; its spot homed to the frame's own place, it kept the frame's speed, 2.5 m/s under the
+#: plan's. The speed it asks comes to the plan's over SOFT_S, the plan looked up as much further
+#: on: it stepped from its way out of a bend to its brake for the next, 14 m/s^2 in a pass.
 REACH_M, SLACK_M, LOOK_S, LOOK_M, SOFT_S = 3.0, 2.0, 0.191, 3.0, 0.217
 AIM_K, TURN_RAD_S, STAND_M, STAND_M_S = 5.0, math.tau, 0.6, 0.5
 
 #: The lap's rows: the hover's, at any pace up and down, its nose free; the lean a row may take
-#: this much of the pull it is planned on. Its discs point down as far as its line asks - the
+#: this much of the pull it is planned on. The quad's discs point down as far as its line asks - the
 #: drag's part in it - and SLACK of gravity past that: free, 0.4 m over a rise in a bend the
 #: frame turned over to 125 degrees, and fell 1.5 m into the floor righting itself.
 RACE, LEAN_OVER, SLACK = dict(HOVER, pace=100.0, nose=0.0), 1.5, 0.264
-#: On the grid: over its spot in the first gate.
+#: On the grid: the quad over its spot in the first gate.
 GRID = dict(HOVER, height=grounds.GATES[0][1])
 
 
-#: The course's constants that have a unit, each by the powers of its metres and its seconds:
+#: The course's constants that have a unit, each by the powers of its metres and seconds:
 #: for a frame of another size the course is as much larger (`grounds.sized`) and its plan goes
-#: by that frame's clock (`sized`); its shares and its angles are any frame's.
+#: by that frame's clock (`sized`); its shares and angles are any frame's.
 _UNITS = {'DS': (1, 0), 'AHEAD_M': (1, 0),
           'REACH_M': (1, 0), 'SLACK_M': (1, 0), 'LOOK_M': (1, 0), 'STAND_M': (1, 0),
           'EASE_S': (0, 1), 'SOFT_S': (0, 1),
@@ -204,7 +201,7 @@ def swing():
 
 
 def _on(row, s):
-    """A row of the line - its points, its tangents, its bends - `s` samples along it, between
+    """A row of the line - its points, tangents or bends - `s` samples along it, between
     two."""
     n = len(row)
     k, share = int(math.floor(s)) % n, s - math.floor(s)
@@ -306,9 +303,9 @@ def flown(route, line_, laps, word, most_m_s, lag=0.0):
     seconds, whether it is `spent`: its speed the one the bends ahead allow in its sphere
     (`braked`, read where it is), along the line's way and back onto it, its bend's pull asked
     ahead (`trailed`), no faster than `most_m_s`, its spot kept on the line - the air none of its
-    own. Its `laps` flown -
+    own. The quad's `laps` flown -
     spent, the one it is on - it stands where the line starts, `word`. Where the line's turn
-    swings, no faster than the bend's pull goes from one side to the other in its tilt's swing
+    swings, no faster than the bend's pull goes from one side to the other in the quad's tilt's swing
     (`swing`): v^3 a metre of swing is the pull's change a second. No clause: a choice is a
     number of 0 or 1, a bound a least or a most."""
     fresh = {'began': route['at'], 'k': 0, 'v': 0.0, 'asks': 0.0, 'laps': 0, 'gate': 1,
@@ -319,12 +316,11 @@ def flown(route, line_, laps, word, most_m_s, lag=0.0):
     n, step = len(line_['at']), line_['step']
     dt, heading = seen.get('dt', 0.0), seen.get('heading', 0.0)
     at, vel = seen.get('at', line_['at'][0]), seen.get('vel', (0.0, 0.0, 0.0))
-    # the sphere it is planned on: PULL of the clamp's pull, what the rotors have at the
-    # most, FLOOR of gravity at the least, come to slowly
+    # the plan's sphere (PULL, FLOOR), come to slowly
     whole = max(FLOOR * quad.GRAVITY, min(PULL * seen.get('full', 2.0 * quad.GRAVITY),
                                           seen.get('pull', math.inf)))
     # at a share of all of it a second: of what is left, a stuffy room's spent boards were
-    # asked twice what they had for 2 s and it flew into a house
+    # asked twice what they had for 2 s and the quad flew into a house
     ease = PULL * seen.get('full', 2.0 * quad.GRAVITY) * dt / EASE_S
     sphere = lap['pull'] = (max(lap['pull'] - ease, min(whole, lap['pull'] + 0.5 * ease)),
                             whole)[int(not lap['pull'])]
@@ -339,7 +335,7 @@ def flown(route, line_, laps, word, most_m_s, lag=0.0):
     # what the law takes the change of spans the pass to come: asked for where that ends
     on = min(end, s + along * dt / step)
     lead = min(end, on + (trailed(dt) + lag) * lap['v'] / step)
-    # as fast as the bends ahead allow in its sphere, read as much further on as its asked
+    # as fast as the bends ahead allow in the quad's sphere, read as much further on as its asked
     # speed trails: a bend at the speed all of the sphere turns it, braked for on what the
     # bend there leaves along its way; to a stand at its finish; sped up on what is left
     # where it is, through the air along its discs
@@ -369,7 +365,7 @@ def flown(route, line_, laps, word, most_m_s, lag=0.0):
     nose = heading + turn * dt
     lap['asks'] += (speed - lap['asks']) * min(1.0, dt / SOFT_S)
     flat = lap['asks'] * math.hypot(to[0], to[2])
-    # the pull its bend takes a lag ahead, over the one where it is: the row's own
+    # the pull the quad's bend takes a lag ahead, over the one where it is: the row's own
     ahead, bent = _on(line_['way'], lead), _on(line_['bends'], lead)[2]
     more = [flat * flat * (bent * a / math.hypot(ahead[0], ahead[2])
                            - veer * b / math.hypot(to[0], to[2]))
@@ -391,7 +387,7 @@ def flown(route, line_, laps, word, most_m_s, lag=0.0):
 
 
 def _card(giver):
-    """The course's flight on `giver`'s line: off its pad (`grounds.PADS`) straight into its
+    """The course's flight on `giver`'s line: off the quad's pad (`grounds.PADS`) straight into its
     laps on all its sphere, and down on the pad - its descent not held: on its skids 0.25 m off
     its spot in gusts, asked to hold it, a quad leant over and struck."""
     return (('idle', DOWN, 2.0, 0.0, 'fit'), ('spool', PRESSED, 2.5, 2.5, ''),

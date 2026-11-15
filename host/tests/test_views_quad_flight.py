@@ -61,7 +61,7 @@ def test_the_boards_air_is_the_rotors(report):
     report.check('the air sees the rotor\'s own rpm at a hover, within 3 %',
                  rpm > 1000.0 and abs(air - rpm) <= 0.03 * rpm,
                  'the rotor %.0f rpm, the air %.0f' % (rpm, air))
-    report.check('its link is the pack\'s, 63 V full, and its drive says so',
+    report.check('the board\'s link is the pack\'s, 63 V full, and its drive says so',
                  link is not None and abs(link - flightpack.open_volts(1.0)) < 0.01, '%s V' % link)
 
 
@@ -152,7 +152,7 @@ def test_a_late_pass_is_its_steps(report):
 
 
 def test_struck_it_is_begun_again(report):
-    """A slab over the spot under its hover, in the lift's way: struck, the flight is CRASHED and says
+    """A slab over the spot under the quad's hover, in the lift's way: struck, the flight is CRASHED and says
     what it struck, its rotors stopped and the wreck on the floor; CRASH_S on the frame is on
     its spot again and the flight at its card's first row - and struck again."""
     from machine.aircraft import quad
@@ -169,7 +169,7 @@ def test_struck_it_is_begun_again(report):
     first = stages.index(view.CRASHED) if view.CRASHED in stages else len(stages)
     again = next((k for k in range(first, len(rows)) if rows[k][0] != view.CRASHED), len(rows))
     wreck = rows[first:max(first + 1, again - 1)]
-    report.check('the lift struck the slab under it: crashed into a house, %.0f s a wreck, its '
+    report.check('the lift struck the slab under it: crashed into a house, %.0f s a wreck, the quad\'s '
                  'rotors stopped' % view.CRASH_S,
                  first < len(rows) and rows[first - 1][0] == 'lift' and 0.0 < rows[first][4] < quad.HOVER_M
                  and set(words) == {'into a house'} and again < len(rows)
@@ -179,7 +179,7 @@ def test_struck_it_is_begun_again(report):
                      rows[first][4], rows[first - 1][0], sorted(set(words)),
                      rows[again][1] - rows[first][1] if again < len(rows) else math.nan,
                      wreck[-1][3]) if first < len(rows) else 'never struck')
-    report.check('on its spot again, its flight begun over from its card\'s first row - and '
+    report.check('the quad on its spot again, its flight begun over from its card\'s first row - and '
                  'struck a second time',
                  again < len(rows) and abs(rows[again][4]) <= 0.02
                  and rows[again][0] in (view.CARD[0][0], 'cool', 'swap')
@@ -224,10 +224,10 @@ def test_a_board_holds_its_clamp(report):
     report.check('from a hover it may carry its clamp; at its top what its legs balance on',
                  first >= pull.I_MAX > last > 0.5 * pull.I_MAX,
                  '%.1f A at the hover, %.1f A 1.5 s into its top' % (first, last))
-    report.check('it carries what it may and no more', over < 0.05 * pull.I_MAX,
+    report.check('the board carries what it may and no more', over < 0.05 * pull.I_MAX,
                  '%.1f A over at the most, %.1f A at its end' % (over, rows[-1][0]))
     worst = max(b['worst'] for _iq, b in rows)
-    report.check('its legs come to their throttle\'s point and none past it; its clamp held, '
+    report.check('the board\'s legs come to their throttle\'s point and none past it; its clamp held, '
                  'it says so, and trips nothing',
                  THROTTLE_AT - 0.05 < worst <= THROTTLE_AT + 1.0 / 255.0
                  and rows[-1][1]['throttling'] and not rows[0][1]['throttling']
@@ -271,7 +271,7 @@ def test_full_tilt_cuts_no_rotor_alone(report):
             rotor['rig'].close()
     cut = [(t, k) for t, _a, budgets, _tilt, _h in rows for k, b in enumerate(budgets)
            if b.get('tripped') or (b.get('worst') or 0.0) > THROTTLE_AT + 1.0 / 255.0]
-    # Its full tilt 0.45 s, a row 0.02 s: the four 4.5 A apart at its first, 1.8 at most from 0.08 s.
+    # The card's full tilt 0.45 s, a row 0.02 s: the four 4.5 A apart at its first, 1.8 at most from 0.08 s.
     report.check('a full tilt flown, no board of the four past its throttle\'s point or '
                  'tripped in it', len(rows) > 15 and not cut,
                  '%d steps, %s' % (len(rows), cut[:3] or 'none past it'))

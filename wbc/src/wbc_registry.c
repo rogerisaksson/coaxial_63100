@@ -1,4 +1,4 @@
-/** wbc_registry.c - its map's look (wbc_registry.h): machine.eyes.registry's passed and seen past its things'
+/** wbc_registry.c - the robot's map's look (wbc_registry.h): machine.eyes.registry's passed and seen past its things'
     classes over its slots' fields, numpy's arithmetic operation for operation (wbc_np.h), its OpenBLAS for each
     product (wbc_blas.h). Portable C11, the host's alone. */
 #include "wbc_registry.h"
@@ -8,7 +8,8 @@
 #include <stddef.h>
 #include <string.h>
 
-/** registry._eye: its eye's place `eye` and its head's rotation `turn` of its head at `pos` turned by `quat`. */
+/** registry._eye: the robot's eye's place `eye` and its head's rotation `turn` of its head at `pos` turned by
+ * `quat`. */
 static void eye_of(const wbc_registry_t *r, const double *pos, const double *quat, double eye[3], double turn[9])
 {
   const double     w = quat[0], x = quat[1], y = quat[2], z = quat[3];
@@ -31,8 +32,9 @@ static void eye_of(const wbc_registry_t *r, const double *pos, const double *qua
   }
 }
 
-/** registry.seen_of: whether each of `n` boxes (c, h (n, 3), R (n, 3, 3)) shows in its eyes' frustum - any of its
-    corners, its centre or its point nearest its `eye` (`nearest`), its head turned `turn` (`shown`) -, into `got`. */
+/** registry.seen_of: whether each of `n` boxes (c, h (n, 3), R (n, 3, 3)) shows in the robot's eyes' frustum - any of
+    its corners, its centre or its point nearest the robot's `eye` (`nearest`), its head turned `turn`
+    (`shown`) -, into `got`. */
 static void seen_of(wbc_registry_t *r, int n, const double *c, const double *h, const double *R, const double eye[3],
                     const double turn[9], int *got)
 {
@@ -201,8 +203,8 @@ static void laid(wbc_registry_t *r, int k, int64_t i, double t)
   r->clear[i]   = r->fclear[k];
 }
 
-/** registry._missed: the live slots no thing took shown as its frustum holds them, their salience moved; the
-    pruned let go. */
+/** registry._missed: the live slots no thing took shown as the robot's frustum holds them, their salience
+    moved; the pruned let go. */
 static void missed(wbc_registry_t *r, const int64_t *live, int nl, double t, const double eye[3], const double turn[9])
 {
   int m = 0;

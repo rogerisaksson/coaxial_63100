@@ -15,7 +15,7 @@ MOVES = ('lut', 'nig', 'knä', 'höft', 'svaj', 'bugar', 'vingl', 'catwalk', 'fe
          'överkropp', 'axl', 'fött', 'gynoid', 'lean', 'knee', 'hip', 'torso', 'gait', 'sway',
          'curts')
 
-#: Words that are its movement only beside a word naming the robot: alone they are "varje gång", "går
+#: Words that are the robot's movement only beside a word naming the robot: alone they are "varje gång", "går
 #: igenom", "det står", "nästa steg", "nodes", "arm the stage" - the hook fired on all of them.
 PLAIN = ('bakåt', 'framåt', 'huvud', 'gång', 'går ', 'gick', 'steg', 'reser', 'rest ', 'står',
          'stå ', 'tå', 'sjunk', 'hopp', 'skarv', 'arm', 'fot', 'walk', 'step', 'head', 'bob',
@@ -26,7 +26,7 @@ NAMED = ('robot', 'roboten', 'maskinen', 'gynoid', 'humanoid', 'kroppen', 'benen
 
 CONTEXT = (
     "The user describes how the gynoid moves. What they see is so (CLAUDE.md). Before any "
-    "explanation, measure: `cd host; python -X utf8 tools/sim/ortho.py --walk --look` (its walk "
+    "explanation, measure: `cd host; python -X utf8 tools/sim/ortho.py --walk --look` (the robot's walk "
     "on its latent loop, as the page runs it) and `python -X utf8 tools/sim/look.py --last` "
     "(their newest HUMANOID recording, R). Quote the row and the measure that shows what they describe; if none "
     "shows it, add the measure that would, not an argument. Fix, run it again, quote both. No "

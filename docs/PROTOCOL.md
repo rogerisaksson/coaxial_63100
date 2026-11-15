@@ -2,13 +2,13 @@
 
 Host mirror: `host/coaxial/comm/protocol.py`, `wire.py`, `transport.py`. Version
 in `comms/inc/cmd.h` (`CMD_PROTO_MAJOR`/`MINOR`, 2.36); firmware version in
-`version.h`. A host picks its codec on MAJOR only (invariant 4).
+`version.h`. A host picks its codec on MAJOR only.
 
 ## Framing
 
 - Modbus RTU (V1.02): `unit, function, data, CRC-16/MODBUS` (CRC low first).
   Above 19 200 baud t1.5 = 750 us, t3.5 = 1.75 ms; a gap > t1.5 inside a
-  frame discards it. Timing in raw CYCCNT ticks (invariant 2).
+  frame discards it. Timing in raw CYCCNT ticks.
 - Length oracle (`cmd_length.c`, MINOR 9): a request whose shape its own
   bytes prove is dispatched on its CRC, not after t3.5. Host mirror
   `protocol.request_length`; `test_modbus_core.py` sweeps every prefix.
@@ -78,7 +78,7 @@ request length is refused with 03 on any other length;
 
 ### 0x41 VERSION
 
-Request: empty. Reply, append-only (invariant 3):
+Request: empty. Reply, append-only:
 
     u8 proto_major, u8 proto_minor,
     u8 fw_major, u8 fw_minor, u8 fw_patch,
@@ -94,7 +94,7 @@ Append = MINOR; move, resize or repurpose = MAJOR.
 Request: empty, or `u8 first`. Reply: `u8 n`, then `n` rows of
 `u8 adc_index, u8 channel, str pin, u8 differential, str signal,
 i32 raw, i32 uV, u8 unit, i32 scaled`, then `u8 total` appended. Pages
-(nine rows exceed a PDU). `scaled` uses the record (invariant 7).
+(nine rows exceed a PDU). `scaled` uses the record, scaling's one home.
 
 ### 0x43 ADC_SCAN
 
@@ -167,8 +167,8 @@ conversion is 04.
 ### 0x6C SELF_TEST
 
 Request: empty. Reply: `u8 count`, then per check `str name,
-u8 status, i32 value`. Pass/fail only from own registers/flash
-(invariant 10): `hse_rdy, pll1_lock, clk_crystal, clk_agrees, cyccnt_runs,
+u8 status, i32 value`. Pass/fail only from own registers/flash:
+`hse_rdy, pll1_lock, clk_crystal, clk_agrees, cyccnt_runs,
 vref_ext, adc_pcsel`; the rest are information.
 
 ### 0x6D CHANNELS
@@ -250,11 +250,11 @@ request refused in words, `u8 0, str` (MINOR 21).
 
 ### 3 CAL, `cmd_cal.c`
 
-The record at 0x081E0000, magic 'CX63', CAL_VERSION 15, CRC-16/MODBUS.
+The record at 0x081E0000, magic 'CX63', CAL_VERSION 16, CRC-16/MODBUS.
 
 | op | Request | Reply |
 | --- | --- | --- |
-| 0 get | - | `u8 stored, u16 version, u8 15`, params 0 .. 14 as u32, `u8 10`, per channel `i32 offset, i32 gain_ppm`, `u8 10`, per node `i32 soa_limit_centi`, `u32 soa_throttle_ppm` |
+| 0 get | - | `u8 stored, u16 version, u8 15`, params 0 .. 14 as u32, `u8 10`, per channel `i32 offset, i32 gain_ppm`, `u8 20`, per node `i32 soa_limit_centi`, then `u32 soa_throttle_ppm` |
 | 1 set_param | `u8 id, u32 value` | empty; 03 on a bad id |
 | 2 set_channel | `u8 index, i32 offset, i32 gain_ppm` | empty |
 | 3 zero | `u8 index` | `i32 measured` - what became the offset |
@@ -265,7 +265,7 @@ The record at 0x081E0000, magic 'CX63', CAL_VERSION 15, CRC-16/MODBUS.
 | 8 params | `[u8 first]` | `u8 total, u8 first, u8 count`, up to 60 u32 |
 
 `stored` = calibrated vs schematic defaults. Another version is refused,
-except the two before (prefix layouts). Ids and defaults: `board_cal.c`.
+except the three before (prefix layouts). Ids and defaults: `board_cal.c`.
 
 ### 4 GATE_DRIVERS, `cmd_gate_drivers.c`
 
@@ -346,7 +346,7 @@ orientation, acceleration, rotation rate, magnetic field, shaft angle.
 
 A record: `u32 stamp`, 4 B SUM per analog field, 1 B duty per digital pin,
 4x i16 snapshot per sensor, `u16 count`. Use op 5's stride; never recompute.
-Its codes come through the calibration record, on either clock.
+A record's codes come through the calibration record, on either clock.
 
 ### 7 TIME, `cmd_time.c`
 
@@ -522,7 +522,7 @@ in it, and what its link's volts leave.
 | --- | --- | --- |
 | 0 tick | `u8 ticks` (1..16) | `u32 cycles_first, u32 cycles_last, u32 sysclk_hz, u8 held, u8 passes, u8 stuck, i32 x3 tau` (milli N m): the loop (`wbc/`) on the model's stand, the first tick cold; refused while the acquisition runs (its state lives in the ring) |
 | 1 step | `u8 ticks` (1..16) | `u32 cycles_first, u32 cycles_last, u32 sysclk_hz, i32 x3 tau, i32 x2 bears` (milli N m, milli N): the step without an active set (`wbc_wrench.c`) on the same stand; refused while the acquisition runs |
-| 2 swung | `u8 ticks` (1..16), `u8 strides` (0..100, hundredths) | `u32 cycles_first, u32 cycles_last, u32 sysclk_hz, i32 x3 tau, i32 x2 bears`, as op 1: the step with humanoid robot right sole swung where it is, its knee asked folded to 0.6 rad, the left's moment past its room - its four rounds; striding, what the floor cannot give humanoid robot inertia's (`wbc_cone.c`), the rounds beside it between 0 and 100 (MINOR 35) |
+| 2 swung | `u8 ticks` (1..16), `u8 strides` (0..100, hundredths) | `u32 cycles_first, u32 cycles_last, u32 sysclk_hz, i32 x3 tau, i32 x2 bears`, as op 1: the step with the robot's right sole swung where it is, its knee asked folded to 0.6 rad, the left's moment past its room - its four rounds; striding, what the floor cannot give, the robot's inertia's (`wbc_cone.c`), the rounds beside it between 0 and 100 (MINOR 35) |
 
 ### 14 AERO, `cmd_aero.c`
 

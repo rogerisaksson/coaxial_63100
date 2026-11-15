@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Its situation read from its sensors (`machine.senses.situation`): its text's bounds and caps, the readings
+"""The robot's situation read from its sensors (`machine.senses.situation`): its text's bounds and caps, the readings
 off what it senses, each situation entered unannounced on the world told within a second."""
 import math
 import os
@@ -12,17 +12,17 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from tools.dev.focus import chosen
 from gynoid_kit import Report
 
-#: A situation entered unannounced is told within TOLD_S s at HELD of WOBBLES (its lay turned, rad).
+#: A situation entered unannounced is told within TOLD_S s at HELD of WOBBLES (the robot's lay turned, rad).
 TOLD_S, HELD, WOBBLES = 1.0, 3, (0.0, 2e-4, -2e-4, 4e-4)
-#: Each scene (tools/sim/scenarios.py): the body that has it in it, bearing this share of its
+#: Each scene (tools/sim/scenarios.py): the body that has the robot in it, bearing this share of the robot's
 #: weight by the world's own contacts - a sole landed on it, a seat sat on, a wall pushed MET_N -,
-#: and what its law tells there.
+#: and what the robot's law tells there.
 SCENES = {'ice': ('ice', 0.3, 'slippery'), 'slope': ('slope_ramp', 0.3, 'uphill'),
           'chair': ('chair', 0.5, 'seated'), 'wall': ('wall', 0.04, 'held')}
 
 
-def test_its_text_names_its_situations(report):
-    """Its text's situations, each bounds on its readings and caps on its rhythm: the slippery floor
+def test_the_robots_text_names_its_situations(report):
+    """The robot's text's situations, each bounds on its readings and caps on its rhythm: the slippery floor
     under 0.25 of grip with the ice walk's caps, a slope past 0.08 either way, a seat bearing half
     its weight, lying, held by a push on it, stepping over an edge met; one without a bound, with
     a bound of 0, on no reading of its own or neither below nor above is refused."""
@@ -43,15 +43,15 @@ def test_its_text_names_its_situations(report):
             refused.append('')
         except SyntaxError as error:
             refused.append(str(error))
-    report.check('one without a bound, of 0, on no reading of its own or neither below nor above is refused',
+    report.check('one without a bound, of 0, on no reading of the robot\'s own or neither below nor above is refused',
                  all(len(r) > 12 for r in refused), ' | '.join(r[:50] for r in refused))
 
 
-def test_its_readings_place_it(report):
-    """Its readings off what it senses: level on its law's grip, upright, borne and touched by
-    nothing, it is in no situation; at a grip of 0.1 on the slippery floor, at 0.225 half in; up a
-    10 deg ramp uphill and down it downhill; half its weight on a seat seated, lying on it lying and
-    not seated; 20 N on its torso held; an edge 3 cm up stepping."""
+def test_the_robots_readings_place_it(report):
+    """The robot's readings off what it senses: level on its law's grip, upright, borne and
+    touched by nothing, it is in no situation; at a grip of 0.1 on the slippery floor, at 0.225 half
+    in; up a 10 deg ramp uphill and down it downhill; half the robot's weight on a seat seated, lying on it
+    lying and not seated; 20 N on the robot's torso held; an edge 3 cm up stepping."""
     from machine.senses import edge
     from machine.law import modal
     from machine.senses import situation
@@ -64,7 +64,7 @@ def test_its_readings_place_it(report):
     touched, weight, own = np.zeros((len(edge.SKIN), 3)), 540.0, np.full(2, MU)
     r0 = situation.readings(y, fr, a, own, touched, weight)
     into = situation.read(table, r0)
-    report.check('level, upright, on its own grip, borne and touched by nothing it is in no situation: %s' % r0.round(3),
+    report.check('level, upright, on the robot\'s own grip, borne and touched by nothing it is in no situation: %s' % r0.round(3),
                  (into == 0.0).all() and situation.told(table, into) == '' and np.allclose(r0, (MU, 0.0, 0.0, 1.0, 0.0, 0.0)))
 
     def told(**put):
@@ -73,23 +73,23 @@ def test_its_readings_place_it(report):
             r[situation.READINGS.index(name)] = v
         deep = situation.read(table, r)
         return situation.told(table, deep), deep
-    report.check('at a grip of 0.1 it is on the slippery floor, at 0.225 half in',
+    report.check('at a grip of 0.1 the robot is on the slippery floor, at 0.225 half in',
                  told(grip=0.1)[0] == 'slippery' and abs(told(grip=0.225)[1][table['names'].index('slippery')] - 0.5) < 1e-9)
     fr[modal.GROUND] = -math.radians(10.0)
     up = situation.readings(y, fr, a, own, touched, weight)
     fr[modal.GROUND] = math.radians(10.0)
     down = situation.readings(y, fr, a, own, touched, weight)
     fr[modal.GROUND] = 0.0
-    report.check('up a 10 deg ramp it is uphill, down it downhill: rise %.3f a metre' % up[1],
+    report.check('up a 10 deg ramp the robot is uphill, down it downhill: rise %.3f a metre' % up[1],
                  situation.told(table, situation.read(table, up)) == 'uphill'
                  and situation.told(table, situation.read(table, down)) == 'downhill'
                  and abs(up[1] - math.tan(math.radians(10.0))) < 1e-9)
-    report.check('half its weight on a seat seated, lying on it lying and not seated',
+    report.check('half the robot\'s weight on a seat seated, lying on it lying and not seated',
                  told(borne=0.6)[0] == 'seated' and told(borne=0.6, upright=0.1)[0] == 'lying'
                  and told(borne=0.6, upright=0.1)[1][table['names'].index('seated')] == 0.0)
     touched[edge.SKIN.index('torso')] = (0.0, 0.0, 20.0)
     pushed = situation.readings(y, fr, a, own, touched, weight)
-    report.check('20 N on its torso: held, pushed %.3f of its weight' % pushed[4],
+    report.check('20 N on the robot\'s torso: held, pushed %.3f of its weight' % pushed[4],
                  situation.told(table, situation.read(table, pushed)) == 'held' and abs(pushed[4] - 20.0 / weight) < 1e-12)
     a[modal.RAISE] = 0.03
     edged = situation.readings(y, fr, a, own, 0.0 * touched, weight)
@@ -97,8 +97,8 @@ def test_its_readings_place_it(report):
 
 
 def _entered(name, wobble):
-    """(entered s, told s, fell s) of scene `name` laid turned `wobble` rad: when the world had it
-    in it by its own contacts, when its law named it."""
+    """(entered s, told s, fell s) of scene `name` laid turned `wobble` rad: when the world had the robot
+    in it by its own contacts, when the robot's law named it."""
     from machine.world import physics
     from machine.senses import edge
     from machine.law import modal
@@ -115,7 +115,7 @@ def _entered(name, wobble):
     q, c, sn = d.qpos[3:7].copy(), math.cos(wobble / 2.0), math.sin(wobble / 2.0)
     d.qpos[3:7] = (q[0] * c - q[2] * sn, q[1] * c + q[3] * sn, q[2] * c + q[0] * sn, q[3] * c - q[1] * sn)
     world._mj.mj_forward(m, d)
-    its_own = np.array([edge._rooted(m, b, world.pelvis) for b in range(m.nbody)], int)
+    robot_own = np.array([edge._rooted(m, b, world.pelvis) for b in range(m.nbody)], int)
     kinds, force, weight = {m.body(body).id: body}, np.zeros(6), float(s['g']['fr'][modal.WEIGHT])
     entered = told = None
     k, plan = 0, sorted(plan, key=lambda cmd: cmd[0])
@@ -126,7 +126,7 @@ def _entered(name, wobble):
             k += 1
         worker.stepped(s)
         g = s['g']
-        if entered is None and scenarios.borne(world, its_own, kinds, force)[1].get(body, 0.0) > share * weight:
+        if entered is None and scenarios.borne(world, robot_own, kinds, force)[1].get(body, 0.0) > share * weight:
             entered = round(g['t'], 3)
         if entered is not None and told is None and situation.told(g['situations'], g['into']) == said:
             told = round(g['t'], 3)
@@ -134,7 +134,8 @@ def _entered(name, wobble):
 
 
 def _situation(name):
-    """A test of scene `name` entered unannounced: its law tells it within TOLD_S at HELD of WOBBLES."""
+    """A test of scene `name` entered unannounced: the robot's law tells it within TOLD_S at HELD of
+    WOBBLES."""
     def test(report):
         got = [_entered(name, w) for w in WOBBLES]
         within = [e is not None and t is not None and t - e <= TOLD_S for e, t, _f in got]
@@ -146,7 +147,7 @@ def _situation(name):
     return test
 
 
-ROSTER = [test_its_text_names_its_situations, test_its_readings_place_it] + [_situation(n) for n in SCENES]
+ROSTER = [test_the_robots_text_names_its_situations, test_the_robots_readings_place_it] + [_situation(n) for n in SCENES]
 
 
 def main(argv=None):

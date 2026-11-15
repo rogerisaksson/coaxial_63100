@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Onto and off a stool over its hips (`machine.moves.bedside`; the kernel's overheight_*.lisp): the texts read whole, its
+"""Onto and off a stool over the robot's hips (`machine.moves.bedside`; the kernel's overheight_*.lisp): the texts read whole, its
 dip hung from its fists, the seat's edge and the stool under it, its way down to the floor."""
 import math
 import os
@@ -12,7 +12,7 @@ from tools.dev.focus import chosen
 from gynoid_kit import Report
 from ground_kit import LANDMARKS, MOVES, laid, part, skin
 
-#: The texts' landmarks by the segment of its own that carries each.
+#: The texts' landmarks by the segment of the robot's own that carries each.
 CARRIED = {**LANDMARKS, 'posterior-femoral': 'thigh'}
 
 #: The overheight texts, lisp/humanoid/kernel/.
@@ -44,7 +44,7 @@ def _dip():
 
 def test_the_texts_read_whole(report):
     """The texts read with the kernel: one posture, its origin, three columns and its hang; every manifold they name a
-    patch, every landmark a segment of its own; their stages; the mount, 4 s seated, the dismount."""
+    patch, every landmark a segment of the robot's own; their stages; the mount, 4 s seated, the dismount."""
     from machine.texts import dsp, kernel
     from machine.body import mechatronics
     got, plan = kernel.read(), _plan()
@@ -62,7 +62,7 @@ def test_the_texts_read_whole(report):
              for m in re.findall(r':([a-z0-9-]+-(?:bilateral|continuum|lateral|sphinx))(?![a-z0-9-])', t)}
     marks = {m for t in texts for m in re.findall(r':([a-z0-9-]+)-[lr](?![a-z0-9-])', t)}
     report.check('%d manifolds named, each a patch; landmarks %s, each a segment of its own' % (
-        len(named), ', '.join('%s (it %s)' % (m, CARRIED.get(m)) for m in sorted(marks))),
+        len(named), ', '.join('%s (the robot %s)' % (m, CARRIED.get(m)) for m in sorted(marks))),
         named <= set(patches) and marks <= set(CARRIED), str(sorted(named - set(patches))))
     stages = [n for t in texts for n in re.findall(r'\(def(?:primitive|modifier|patch) ([a-z0-9-]+)', t)]
     report.check('%d stages' % (len(stages) - 1), all(isinstance(got[n], dsp.Stage) for n in stages
@@ -82,8 +82,9 @@ def _posed(a):
 
 
 def _hung(a):
-    """Its figure on the dip's origin `a` along its axial column, pitched so its centre stands over its fists - a
-    point each, no moment - nearest upright: (deg, the floor's up in its frame, its fists' bottom, its pitch rad)."""
+    """The robot's figure on the dip's origin `a` along its axial column, pitched so the robot's centre stands over
+    the robot's fists - a point each, no moment - nearest upright: (deg, the floor's up in its frame, the
+    robot's fists' bottom, its pitch rad)."""
     import numpy as np
     from machine.body import figure
     from machine.world import groundwork
@@ -100,7 +101,8 @@ def _hung(a):
 
 
 def _torque(deg, up, joint, force):
-    """N m: its left `joint`'s static torque holding `force` N up at its left fist (virtual work, its pelvis held)."""
+    """N m: the robot's left `joint`'s static torque holding `force` N up at its left fist (virtual work, its pelvis
+    held)."""
     import numpy as np
     from machine.body import figure
     moved = [np.array(figure.fist(dict(deg, **{'left_' + joint: deg['left_' + joint] + s * math.degrees(NUDGE)})))
@@ -109,16 +111,18 @@ def _torque(deg, up, joint, force):
 
 
 def _shares():
-    """The hands' shares of its weight the vault's anchors take (`inject-adjoint-cone`'s weight laws)."""
+    """The hands' shares of the robot's weight the vault's anchors take (`inject-adjoint-cone`'s weight
+    laws)."""
     return [c['gain-law'].args['max-share'] for g in _shots() for i, c in g['adjoint-cones'].items()
             if i.startswith('vault-')]
 
 
-def test_its_dip_hung_from_its_fists(report):
-    """The dip's joints its own or ones it lacks, its lockout at its elbow's stop. Its fists bear its centre: hung from
-    them it leans back, its pelvis rising from the origin to its lockout by the vault's lift and falling over the
-    dip's range by its travel; its shoulder and elbow at the anchors' share of it within their peak, past what they
-    hold for ever; its heel hooked bearing its share, its arms the rest."""
+def test_the_robots_dip_hung_from_its_fists(report):
+    """The dip's joints the robot's own or ones it lacks, its lockout at the robot's elbow's stop. The robot's
+    fists bear its centre: hung from them it leans back, its pelvis rising from the origin to
+    the robot's lockout by the vault's lift and falling over the dip's range by its travel; the robot's shoulder and
+    elbow at the anchors' share of it within their peak, past what they hold for ever; its heel hooked
+    bearing its share, the robot's arms the rest."""
     import numpy as np
     from machine.body import drives, figure, heat
     from machine.texts import kernel
@@ -129,7 +133,7 @@ def test_its_dip_hung_from_its_fists(report):
         'lockout-axial-command']
     stop = (math.radians(drives.TRAVEL['elbow'][0]) - origin['cubital']) / column['cubital']
     lacks = sorted(n for n in origin if MOVES[n] in ABSENT)
-    report.check('it lacks %s; its elbow\'s %g deg stop at %.3f along the column, the lockout %.2f' % (
+    report.check('it lacks %s; the robot\'s elbow\'s %g deg stop at %.3f along the column, the lockout %.2f' % (
         ', '.join(lacks), drives.TRAVEL['elbow'][0], stop, lockout), lacks == ['glenohumeral-abduct']
         and stop <= lockout < stop + 0.01)
     weight, share = figure.mass() * 9.81, max(_shares())
@@ -144,23 +148,24 @@ def test_its_dip_hung_from_its_fists(report):
     lift, travel = height[lockout] - height[0.0], height[DIP[0]] - height[DIP[1]]
     told = (kernel.node('drive-capstan-bevel-arm-vault', 'bevel-vault')['vertical-arch-clearance-m'],
             shots[1]['overhang-dip']['max-vertical-dip-stroke-m'])
-    report.check('hung from its fists it leans back %.0f-%.0f deg; its lockout lifts its pelvis %.0f mm from the '
+    report.check('hung from the robot\'s fists it leans back %.0f-%.0f deg; its lockout lifts its pelvis %.0f mm from the '
                  'origin, the text %.0f; the dip lowers it %.0f mm, the text %.0f' % (
                      rows[:, 1].min(), rows[:, 1].max(), 1e3 * lift, 1e3 * told[0], 1e3 * travel, 1e3 * told[1]),
                  abs(told[0] - lift) < 5e-4 and abs(told[1] - travel) < 5e-4)
     hook = kernel.node('specialize-vault-with-unilateral-leg-hook', 'adjoint-cones')['unilateral-bevel-leg-hook'][
         'gain-law'].args['max-share']
     most, hooked = rows[:, 3:].max(axis=0), (1.0 - hook) / share * rows[:, 3:].max(axis=0)
-    report.check('at the anchors\' %.2f of it: shoulder %.1f, elbow %.1f N m at most, hooked %.1f and %.1f; they peak '
+    report.check('at the anchors\' %.2f of the robot: shoulder %.1f, elbow %.1f N m at most, hooked %.1f and %.1f; they peak '
                  'at %.1f, hold %.1f' % (share, *most, *hooked, peak, held),
                  most.max() < peak and drives.peak('left_shoulder') == peak)
 
 
 def test_the_edge_and_the_stool(report):
-    """At the seat's edge its thighs bear 1 - alpha of it (`bedside.unweighted`), all of its far from it; the edge's
-    drag as its thighs wrap it from the dip to sitting (`bedside.capstan`). On the patch's stool, its seat at its hips,
-    its weight on its seat and that drag at its top (`bedside.cop`) keep its centre of pressure inside its base by the
-    cone's margin; the shear that tips it under the text's cap. Its fists reach along the seat past the replants."""
+    """At the seat's edge the robot's thighs bear 1 - alpha of it (`bedside.unweighted`), all of its far
+    from it; the edge's drag as the robot's thighs wrap it from the dip to sitting (`bedside.capstan`). On the patch's
+    stool, its seat at the robot's hips, its weight on its seat and that drag at its top (`bedside.cop`) keep
+    its centre of pressure inside its base by the cone's margin; the shear that tips it under the text's cap. The
+    robot's fists reach along the seat past the replants."""
     import numpy as np
     from machine.moves import bedside
     from machine.body import figure
@@ -177,7 +182,7 @@ def test_the_edge_and_the_stool(report):
     mu = kernel.read()['anatomical-manifold-registry']['posterior-femoral-bilateral']['default-mu']
     weight = figure.mass() * 9.81
     drag = mu * w[0] * weight * float(bedside.capstan(mu, wrap))
-    report.check('its thighs bear %s of it at %s mm from the edge; wrapping it %.0f deg, its drag %.1f N' % (
+    report.check('its thighs bear %s of the robot at %s mm from the edge; wrapping it %.0f deg, its drag %.1f N' % (
         ', '.join('%.2f' % x for x in w), ', '.join('%.0f' % (1e3 * x) for x in s), math.degrees(wrap), drag),
         abs(w[0] - (1.0 - alpha)) < 1e-12 and w[-1] > 0.999)
     stool = _calls(shots[0], 'specialize-vault-for-light-tippy-stool')[-1]
@@ -190,8 +195,8 @@ def test_the_edge_and_the_stool(report):
     tips = (base - cone['object-floor-zmp-margin-m']) / seat
     cap = cone['axial-pinning-law']['max-shear-to-normal-ratio-on-fixture']
     fist = shots[1]['adjoint-cones']['vault-carpal-flat-anchors']['cop-bounds'][1]
-    report.check('it %.0f kg stool, its seat %.3f m at its hips: its centre %.0f mm from its middle, %.0f mm in from '
-                 'its base\'s margin; it tips at %.3f of its load in shear, the text caps %.2f; its fists\' pressure '
+    report.check('it %.0f kg stool, its seat %.3f m at the robot\'s hips: its centre %.0f mm from its middle, %.0f mm in from '
+                 'its base\'s margin; it tips at %.3f of its load in shear, the text caps %.2f; the robot\'s fists\' pressure '
                  'within %s mm' % (mass, seat, 1e3 * x, 1e3 * (base - cone['object-floor-zmp-margin-m'] - abs(x)), tips,
                                    cap, fist),
                  abs(x) < base - cone['object-floor-zmp-margin-m'] and push > weight
@@ -204,14 +209,14 @@ def test_the_edge_and_the_stool(report):
     arm = np.linalg.norm(np.subtract(figure.fist(straight), shoulder)) + figure.FIST_R
     reach = math.sqrt(arm ** 2 - (shoulder[1] - floor) ** 2)
     steps = [k['hand-step-back-mm'] for g in shots for k in _calls(g, 'ratchet-carpal-seat-replant')]
-    report.check('seated its fists reach along the seat %.0f mm either side of its shoulders; the replants %s mm' % (
+    report.check('seated the robot\'s fists reach along the seat %.0f mm either side of its shoulders; the replants %s mm' % (
         1e3 * reach, ', '.join('%.0f' % x for x in sorted(set(steps)))), 1e-3 * max(steps) < 2.0 * reach)
 
 
-def test_its_way_down(report):
-    """Sat on a seat its hip is over it; its forefeet take it at the handover's reach (rho of its leg): without the
-    dip it steps down from no higher than that less its hip, dipped from that less its hip at the dip's end - from
-    there undipped a drop."""
+def test_the_robots_way_down(report):
+    """Sat on a seat the robot's hip is over it; the robot's forefeet take it at the handover's reach (rho
+    of its leg): without the dip it steps down from no higher than that less its hip, dipped
+    from that less its hip at the dip's end - from there undipped a drop."""
     import numpy as np
     from machine.body import figure
     from machine.texts import kernel
@@ -226,13 +231,13 @@ def test_its_way_down(report):
     deg, up, fists, _phi = _hung(DIP[1])
     dipped = up @ np.subtract(figure.frames(deg, (0.0, 0.0, 0.0), figure.IDENT)['left_thigh'][0], fists)
     drop = hip - dipped
-    report.check('its hip %.0f mm over the seat, %.0f at the dip\'s end; its forefeet take it at %.3f m (rho %.2f): '
+    report.check('its hip %.0f mm over the seat, %.0f at the dip\'s end; the robot\'s forefeet take it at %.3f m (rho %.2f): '
                  'it steps down from %.3f m, dipped from %.3f - undipped a %.0f mm drop, %.2f m/s, %.0f J' % (
                      1e3 * hip, 1e3 * dipped, reach, rho, reach - hip, reach - dipped, 1e3 * drop,
                      math.sqrt(2.0 * 9.81 * drop), figure.mass() * 9.81 * drop), drop > 0.0)
 
 
-ROSTER = [test_the_texts_read_whole, test_its_dip_hung_from_its_fists, test_the_edge_and_the_stool, test_its_way_down]
+ROSTER = [test_the_texts_read_whole, test_the_robots_dip_hung_from_its_fists, test_the_edge_and_the_stool, test_the_robots_way_down]
 
 
 def main(argv=None):

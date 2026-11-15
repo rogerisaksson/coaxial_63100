@@ -63,7 +63,8 @@ MPPI_FN double mppi_plane_rollout(const double *x0, const double *u, const doubl
         double T[3] = {k[MP_K_PITCH] * qs * el + arm * k[MP_STAB] * (qw * uz - qd * arm * w[0]),
                        k[MP_K_YAW] * w_v * w_v * ru - prop - qd * k[MP_AREA] * SQ(0.25 * k[MP_SPAN]) * w[1],
                        k[MP_K_ROLL] * qs * ai - arm * k[MP_FIN] * (qw * uxb + qd * arm * w[2])};
-        /* the floor under its contact points: a spring and a damper up, friction against the slip */
+        /* the floor under the plane's contact points: a spring and a damper up, friction
+           against the slip */
         const double ww[3] = {R[0] * w[0] + R[1] * w[1] + R[2] * w[2], R[3] * w[0] + R[4] * w[1] + R[5] * w[2],
                               R[6] * w[0] + R[7] * w[1] + R[8] * w[2]};
         double tw[3] = {0.0, 0.0, 0.0};

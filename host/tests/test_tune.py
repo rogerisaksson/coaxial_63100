@@ -1,10 +1,10 @@
-"""The autotuner on its texts: its text read, its texts given, every literal walked, its reach, its step.
+"""The autotuner on the robot's texts: its text read, the robot's texts given, every literal walked, its reach, its step.
 
-`machine.texts.tune`, `tools/sim/tune.py`, `tools/sim/telemetry.py`, `machine.process.rcu`, `machine.process.tap`: its texts
-given play as its files, every literal is walked where it stands and reaches it where a voice reads
-it, the step is the text's, a run's residuals and the verdicts on a step; at runtime a link between
-its loop and a tuner apart, its walk linked as unlinked, its raw passes cooked as MuJoCo reads
-them, its walk measured at runtime with its loop apart, a table laid at its barrier blending C2."""
+`machine.texts.tune`, `tools/sim/tune.py`, `tools/sim/telemetry.py`, `machine.process.rcu`, `machine.process.tap`: the
+robot's texts given play as its files, every literal is walked where it stands and reaches the robot where a voice
+reads it, the step is the text's, a run's residuals and the verdicts on a step; at runtime a link between the robot's loop
+and a tuner apart, its walk linked as unlinked, its raw passes cooked as MuJoCo reads them, its walk
+measured at runtime with its loop apart, a table laid at its barrier blending C2."""
 import math
 import sys
 
@@ -50,14 +50,14 @@ def test_the_autotuner_reads_as_written(report):
                  '%s %s' % (tune.primitives(), said))
 
 
-def test_its_texts_given_play_as_its_files(report):
-    """Its texts read and given (`tune.texts`): the suite, its gym's entries and a stunt's entry the
+def test_the_robots_texts_given_play_as_its_files(report):
+    """The robot's texts read and given (`tune.texts`): the suite, its gym's entries and a stunt's entry the
     same as its files'; one not among them refused by name."""
     from machine.texts import dsp, maneuver, ortho, tune
     from machine.process import sprung
     tx = tune.texts()
     got, gym = tune.evaluated(tx)
-    report.check('%d texts: the suite and its gym as from its files' % len(tx),
+    report.check('%d texts: the suite and the robot\'s gym as from its files' % len(tx),
                  got == _got() and gym == sprung.entries()
                  and maneuver.entry('sit_chair', None, got, tx) == maneuver.entry('sit_chair'), '')
     short = {k: v for k, v in tx.items() if not k.endswith('gait_base.lisp')}
@@ -70,9 +70,9 @@ def test_its_texts_given_play_as_its_files(report):
 
 
 def test_a_literal_is_walked_where_it_stands(report):
-    """Each keyword's number, each op's and each of its gym's clauses' where it stands: written back
-    in full the suite and its gym read the same; a value at the text's precision reads back; its gym's
-    stiffness the suite's compliance, its value its walk's row's axial spring."""
+    """Each keyword's number, each op's and each of the robot's gym's clauses' where it stands: written back
+    in full the suite and the robot's gym read the same; a value at the text's precision reads back; the
+    robot's gym's stiffness the suite's compliance, its value the robot's walk's row's axial spring."""
     from machine.texts import dsp, ortho, tune, voicing
     from machine.law import modal
     from machine.process import sprung
@@ -81,10 +81,10 @@ def test_a_literal_is_walked_where_it_stands(report):
     report.check('%d literals, each span its value' % len(lits),
                  lits and all(float(tx[lit.path][lit.start:lit.end]) == lit.value for lit in lits), '')
     back = tune.spliced(tx, lits, [lit.value for lit in lits])
-    report.check('every literal written back: the suite and its gym read the same',
+    report.check('every literal written back: the suite and the robot\'s gym read the same',
                  dsp.read(dsp.SUITE, back) == _got() and sprung.entries(texts=back) == sprung.entries(), '')
     spring = next(lit for lit in lits if lit.symbol == 'stand' and lit.node == 'impedance stiffness mode_axial_compression')
-    report.check("its stand's axial stiffness is the suite's compliance, in its row's axial spring",
+    report.check("the robot's stand's axial stiffness is the suite's compliance, in its row's axial spring",
                  spring.key == 'compliance' and spring.slot == ortho.K + modal.AXIAL
                  and float(voicing.walk(_robot(), sprung.entries())[spring.slot]) == spring.value, str(spring))
     op = next(lit for lit in lits if lit.symbol == 'surface-granular-dissipative' and lit.key == 'stride-length-mm')
@@ -95,10 +95,10 @@ def test_a_literal_is_walked_where_it_stands(report):
                  str(op))
 
 
-def test_a_literal_reaches_it_where_a_voice_reads_it(report):
-    """The runway reaches 17 literals: its stride, its trunk's lean and its duck's attack move its
+def test_a_literal_reaches_the_robot_where_a_voice_reads_it(report):
+    """The runway reaches 17 literals: its stride, its trunk's lean and its duck's attack move the robot's
     voices by their rules, nothing voiceless does, a 0 the manifold says nothing larger of has no
-    scale. The chair's sit: its hand-over's, its descent's and its mount's times move its phases."""
+    scale. The chair's sit: its hand-over's, its descent's and its mount's times move the robot's phases."""
     from machine.law import modal
     from machine.texts import ortho, tune, voicing
     tx, fr, gr = tune.texts(), _robot(), tune.grammar()
@@ -111,7 +111,7 @@ def test_a_literal_reaches_it_where_a_voice_reads_it(report):
                 twist * 640.0 / (640.0 - h), math.nextafter(voicing.WALK_TOP, 0.0))) / (2.0 * h)},
             'dc-offset-rad': {('slot', ortho.Z + modal.PITCH): -1.0 / fr[modal.UNIT][modal.PITCH]},
             'attack-ms': {('slot', ortho.DUCK.start + 1): 1e-3}}
-    report.check('17 walked: stride, lean and attack move it by their rules, the rest inert',
+    report.check('17 walked: stride, lean and attack move the robot by their rules, the rest inert',
                  len(table) == 17 and set(live) == set(want)
                  and all(set(live[k]) == set(v) and all(_near(live[k][j], x) for j, x in v.items()) for k, v in want.items()),
                  '%d %s' % (len(table), live))
@@ -119,12 +119,12 @@ def test_a_literal_reaches_it_where_a_voice_reads_it(report):
                  str(refused))
     table = tune.walked('sit_chair', gr, tx)
     cols, refused = tune.reach('sit_chair', table, tx, fr)
-    report.check("the sit: its hand-over's, descent's and mount's ms move its phases' times",
+    report.check("the sit: its hand-over's, descent's and mount's ms move the robot's phases' times",
                  sorted(table[i][0].key for i in cols) == ['descent-duration-ms', 'duration-ms', 'transfer-time-ms']
                  and all(v == 1.0 for col in cols.values() for v in col.values()), str(cols))
     table = tune.walked('walk', gr, tx)
     cols, refused = tune.reach('walk', table, tx, fr)
-    report.check("its walk: its stand's axial spring and damper and its step's lift move its row, its lean's 0s no scale",
+    report.check("the robot's walk: its stand's axial spring and damper and its step's lift move its row, its lean's 0s no scale",
                  sorted(table[i][0].key for i in cols) == ['compliance', 'damping-ratio', 'swing-clearance-z-mm']
                  and sorted(table[i][0].key for i in refused) == ['dc-offset-rad', 'dc-offset-rad'], '%s %s' % (cols, refused))
 
@@ -149,8 +149,8 @@ def test_the_step_is_damped_least_squares_in_its_trust_region(report):
 
 
 def test_a_run_measured_and_a_step_judged(report):
-    """Its contacts' hull and a point's margin in it; the six residuals of known measures in their
-    dimensions; a step not kept where it falls, its goal is lost, its form moves out past its
+    """The robot's contacts' hull and a point's margin in it; the six residuals of known measures in their
+    dimensions; a step not kept where the robot falls, its goal is lost, the robot's form moves out past its
     floor or the norm falls no further than its floor."""
     import numpy as np
     from machine.process import tap
@@ -180,8 +180,8 @@ def test_a_run_measured_and_a_step_judged(report):
                  str(said))
 
 
-def test_a_link_between_its_loop_and_a_tuner(report):
-    """Two sides of one block of shared memory, its loop's in C: a ring's samples drained in order, a
+def test_a_link_between_the_robots_loop_and_a_tuner(report):
+    """Two sides of one block of shared memory, the robot's loop's in C: a ring's samples drained in order, a
     full one dropping and counting; a table published, a second refused till its loop took the first;
     every section on a 64-byte line where both sides lay it; the block locked in memory here."""
     import sys
@@ -210,7 +210,8 @@ def test_a_link_between_its_loop_and_a_tuner(report):
 
 
 def _walked(seconds, link=None):
-    """Its session walking `seconds` s, linked to `link` where given: (the session, each pass's time)."""
+    """The robot's session walking `seconds` s, linked to `link` where given: (the session, each pass's
+    time)."""
     import time
     from machine.process import worker
     from tools.sim import scenarios
@@ -226,9 +227,9 @@ def _walked(seconds, link=None):
     return s, times
 
 
-def test_its_loop_linked_passes_as_unlinked(report):
-    """Its walk with a tuner linked and nothing laid passes as without one, bit for bit: the hook reads
-    its world and writes the link alone."""
+def test_the_robots_loop_linked_passes_as_unlinked(report):
+    """The robot's walk with a tuner linked and nothing laid passes as without one, bit for bit: the hook
+    reads its world and writes the link alone."""
     import numpy as np
     from machine.process import tap
     plain, plain_s = _walked(3.0)
@@ -244,8 +245,8 @@ def test_its_loop_linked_passes_as_unlinked(report):
                  same and tapped == len(linked_s), '%s %d' % (same, tapped))
 
 
-def test_its_raw_passes_cook_as_mujoco_reads_them(report):
-    """Its raw passes (C) cooked: the world's force on it, its slip and the cone's use as MuJoCo's
+def test_the_robots_raw_passes_cook_as_mujoco_reads_them(report):
+    """The robot's raw passes (C) cooked: the world's force on it, its slip and the cone's use as MuJoCo's
     own reads of each contact give them - `mj_contactForce`, its point's velocity off `cvel`."""
     import importlib
     import numpy as np
@@ -256,15 +257,15 @@ def test_its_raw_passes_cook_as_mujoco_reads_them(report):
     world = s['g']['world']
     m, d = world.model, world.data
     state, raws, want = tap.fresh(), [], []
-    its_own = np.array([edge._rooted(m, b, world.pelvis) for b in range(m.nbody)])[m.geom_bodyid]
+    robot_own = np.array([edge._rooted(m, b, world.pelvis) for b in range(m.nbody)])[m.geom_bodyid]
     while s['g']['t'] < 1.3:
         worker.stepped(s)
         raws.append(tap.raw(s, state))
         f_on, slip, cone, borne, grip = np.zeros(3), 0.0, 0.0, 0.0, 0.0
         for i in range(d.ncon):
             c, f6, v6 = d.contact[i], np.zeros(6), np.zeros(6)
-            one = its_own[c.geom1]
-            if one == its_own[c.geom2] or c.efc_address < 0:
+            one = robot_own[c.geom1]
+            if one == robot_own[c.geom2] or c.efc_address < 0:
                 continue
             mujoco.mj_contactForce(m, d, i, f6)
             frame, body = c.frame.reshape(3, 3), m.geom_bodyid[c.geom1 if one else c.geom2]
@@ -279,10 +280,10 @@ def test_its_raw_passes_cook_as_mujoco_reads_them(report):
                  % (len(raws), off[:3].max(), off[3], off[4]), bool(off.max() < 1e-12), str(off))
 
 
-def test_its_walk_measured_at_runtime(report):
-    """Its loop in a process of its own, linked: its walk's row compiled from its texts as they are
-    is its loop's, and a window of it published once it walks is measured standing, its six
-    residuals finite, its form measured."""
+def test_the_robots_walk_measured_at_runtime(report):
+    """The robot's loop in a process of its own, linked: the robot's walk's row compiled from the robot's
+    texts as they are is its loop's, and a window of it published once the robot walks is measured
+    standing, its six residuals finite, the robot's form measured."""
     import multiprocessing
     import numpy as np
     from machine.law import modal
@@ -301,17 +302,17 @@ def test_its_walk_measured_at_runtime(report):
         c['link'].said('halt', 1)
         c['robot'].join(10.0)
         c['link'].closed()
-    report.check('its walk as its loop holds it; a window standing, |r| %.3f, its form measured in %d of %d'
+    report.check('its walk as the robot\'s loop holds it; a window standing, |r| %.3f, the robot\'s form measured in %d of %d'
                  % (float(np.linalg.norm(out.get('r', [math.inf]))), sum(v is not None for v in out.get('form', {}).values()),
                     len(out.get('form', {}))),
                  runtime.row(c, {}) == {k: float(walked[k]) for k in c['slots']} and out.get('fell', 0) is None
                  and bool(np.all(np.isfinite(out['r']))) and any(v is not None for v in out['form'].values()), str(out)[:300])
 
 
-def test_a_table_is_laid_at_its_barrier_and_blends_c2(report):
-    """Its walk linked, a table of its lean published walking: laid at a pass with both soles locked
-    and its last blend done; its lean's target leaves and meets its new value minimum-jerk, its rate
-    with no step - a linear blend's step the control."""
+def test_a_table_is_laid_at_the_robots_barrier_and_blends_c2(report):
+    """The robot's walk linked, a table of its lean published walking: laid at a pass with both soles
+    locked and its last blend done; its lean's target leaves and meets its new value
+    minimum-jerk, its rate with no step - a linear blend's step the control."""
     import numpy as np
     from machine.law import gait, latent, modal
     from machine.texts import ortho, patch
@@ -340,17 +341,17 @@ def test_a_table_is_laid_at_its_barrier_and_blends_c2(report):
         k, j = int(np.searchsorted(t, at)), int(np.searchsorted(t, at + gait.BLEND_S + 0.1))
         rate = np.abs(np.diff(v[k - 3:k + 15:3]))
         steps.append(float(rate.max() / (abs(v[j] - v[k - 3]) * 3e-3 / gait.BLEND_S)))
-    report.check('laid with both soles locked, its last blend done; its rate leaving %.4f of its mean '
+    report.check('laid with both soles locked, the robot\'s last blend done; its rate leaving %.4f of its mean '
                  'minimum-jerk, %.2f linear' % tuple(steps),
                  all(locked and done for _t, locked, done in flags) and steps[0] < steps[1], str(flags))
 
 
-ROSTER = (test_the_autotuner_reads_as_written, test_its_texts_given_play_as_its_files,
-          test_a_literal_is_walked_where_it_stands, test_a_literal_reaches_it_where_a_voice_reads_it,
+ROSTER = (test_the_autotuner_reads_as_written, test_the_robots_texts_given_play_as_its_files,
+          test_a_literal_is_walked_where_it_stands, test_a_literal_reaches_the_robot_where_a_voice_reads_it,
           test_the_step_is_damped_least_squares_in_its_trust_region,
-          test_a_run_measured_and_a_step_judged, test_a_link_between_its_loop_and_a_tuner,
-          test_its_loop_linked_passes_as_unlinked, test_its_raw_passes_cook_as_mujoco_reads_them,
-          test_its_walk_measured_at_runtime, test_a_table_is_laid_at_its_barrier_and_blends_c2)
+          test_a_run_measured_and_a_step_judged, test_a_link_between_the_robots_loop_and_a_tuner,
+          test_the_robots_loop_linked_passes_as_unlinked, test_the_robots_raw_passes_cook_as_mujoco_reads_them,
+          test_the_robots_walk_measured_at_runtime, test_a_table_is_laid_at_the_robots_barrier_and_blends_c2)
 
 
 def main(argv=None):

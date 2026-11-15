@@ -1,9 +1,10 @@
 # Findings: flown from compiled streams
 
-A flight's intent as text (`machine.aircraft.aerolisp`, `machine.aircraft.intents`), compiled
-to flat payloads; a core in C under them with no branch (`aero/`), flown by
-`tools/sim/streams.py` on ideal rotors: a pass 2 ms, a rotor's speed 2 900
-rad/s^2 at the most. The quad's own: [quad](quad.md).
+A flight's intent as text (`machine.aircraft.aerolisp`,
+`machine.aircraft.intents`), compiled to flat payloads; a core in C under them
+with no branch (`aero/`), flown by `tools/sim/streams.py` on ideal rotors: a
+pass 2 ms, a rotor's speed 2 900 rad/s^2 at the most. The quad's own:
+[quad](quad.md).
 
 ## The text
 
@@ -16,7 +17,7 @@ rad/s^2 at the most. The quad's own: [quad](quad.md).
 - `MAX_SYS_THRUST` is a symbol given with the text, the four's thrust at
   their top a kg: 107.7 m/s^2. Degrees compile to rad.
 
-| Mode | Its target | Its stiffness acts on | Its damping on |
+| Mode | Target | Stiffness acts on | Damping on |
 | --- | --- | --- | --- |
 | collective | m/s^2 along the rotors' axis | nothing | nothing |
 | attitude pitch, roll | the rotors' axis's tilt from up - the nose up, the axis back; the right wing down, the axis right - in the level frame of the heading the core holds | the tilt that takes the axis there | the rate the axis asked itself has not |
@@ -31,8 +32,8 @@ A pass is seven steps in a table: the payload's coming and its blend, the
 oscillator, the observers, where the rotors' axis is asked, the torque, the
 lift inside its constraints, the share.
 
-- No `if`, `else`, `switch`, `while`, `?`, `&&` or `||` in its sources. Its
-  comparisons cast to numbers, the M7's compiler made 40 forward conditional
+- No `if`, `else`, `switch`, `while`, `?`, `&&` or `||` in the core's sources.
+  The comparisons cast to numbers, the M7's compiler made 40 forward conditional
   branches of them; as masks from a sign bit, none: 9 272 B, no float
   compare, 54 conditional branches each a loop's end, three negations on a
   condition (`copysignf`).
@@ -52,17 +53,17 @@ lift inside its constraints, the share.
 - The share: 400 wrenches and reaches at random, never past the best of the
   81 sets of rotors held at an end (1.4e-8 of the cost, the weights single
   precision), in 8 passes.
-- On the image (device 14, MINOR 34), a frame laid and a pass a request:
-  150 442 cycles under Renode, 0.32 ms on the M7 at one a cycle, the same
-  within two in each of 25 asks - the power loop's payloads over a frame
-  level at rest, tilted and turning, on its back, its rotors' reach shut,
-  nothing given. An interrupt's 90 fall in half the passes. Its thrusts are
-  the host core's on the reading as the board had it, to the wire's
-  millionth of a newton, eight runs of eight: its sources built with no
-  multiply fused into an add (`-ffp-contract=off`). Fused - the M7's VFMA,
-  none on the host - they stood 1.7e-5 N apart here and 3.6e-4 on CI's
-  host, by which passes an interrupt had fallen in; 149 288 cycles then.
-  9.3 KB of flash, its device 1.1, 821 B of state.
+- On the image (device 14, MINOR 34), a frame laid and a pass a request: 150 442
+  cycles under Renode, 0.32 ms on the M7 at one a cycle, the same within two in
+  each of 25 asks - the power loop's payloads over a frame level at rest, tilted
+  and turning, on its back, its rotors' reach shut, nothing given. An
+  interrupt's 90 fall in half the passes. The image's thrusts are the host
+  core's on the reading as the board had it, to the wire's millionth of a
+  newton, eight runs of eight: its sources built with no multiply fused into an
+  add (`-ffp-contract=off`). Fused - the M7's VFMA, none on the host - they
+  stood 1.7e-5 N apart here and 3.6e-4 on CI's host, by which passes an
+  interrupt had fallen in; 149 288 cycles then. 9.3 KB of flash, its device 1.1,
+  821 B of state.
 
 ## The axis asked
 
@@ -94,7 +95,6 @@ passes: its tilt's torques against that law's 1.5 N m rms.
   within reach), the frame 4.5 rad/s, and the axis miss on a lap drops to
   10.2 degrees rms (34.3 peak where 65); 12 flights of 12 whole in the race
   suite.
-
 
 ## The rotors' reach
 
@@ -163,7 +163,7 @@ place asked:
   leant against a wind sank 1.8 m/s in 6 s, and a dive's thrust was short -
   the course's laps 14.6 and 14.7 s where 14.3 and 14.5.
 - 202's dive ends 15.3 m/s ahead of a vacuum's 17.0.
-- It keeps a vacuum: no place is held (8.9 m gone in 100 s; 177 with no
+- The core keeps a vacuum: no place is held (8.9 m gone in 100 s; 177 with no
   lean), and a speed is kept against the drag as far as the lean reaches -
   9.6 m/s after the power loop, leant 23 degrees.
 
@@ -194,15 +194,14 @@ rate under 3 rad/s, for 50 ms -, the hover asked again:
 
 ## A card's rows
 
-A card flown a pass a row (`machine.aircraft.aerokin`, `streams.asked`, `flew`): the
-row's pull in a vacuum as a collective and its rotors' axis's tilt in the
-heading the core holds, the turn the law's heading gives that axis as the
-rates about the wing and the nose, the tilt's damping on what the frame
-turns short of them. The page's flight and the race fly it
-(`flight.step`, `quad_race.py`); the law they flew before is gone, its
-numbers beside:
+A card flown a pass a row (`machine.aircraft.aerokin`, `streams.asked`, `flew`):
+the row's pull in a vacuum as a collective and its rotors' axis's tilt in the
+heading the core holds, the turn the law's heading gives that axis as the rates
+about the wing and the nose, the tilt's damping on what the frame turns short of
+them. The page's flight and the race fly it (`flight.step`, `quad_race.py`); the
+law they flew before is gone, its numbers beside:
 
-| Card | Its rows' payloads | The law before |
+| Card | The card's rows' payloads | The law before |
 | --- | --- | --- |
 | the routine, ideal rotors | 59.3 s; a roll and a flip to 179 degrees, each caught 0.5 off, 0.09 m from its spot, the axis 22 and 14 off at the most on the way; the burn stopped at 0.12 m | 59.8 s; its catches to 176 |
 | the course, ideal rotors | laps 14.3 and 14.5 s, 16.7 m/s at the most | 14.2 and 14.5 s |
@@ -305,4 +304,3 @@ the current it holds gives; its rotor's thrust as given is its estimate's.
   every wind, room and pack state where 13.8 and 14.0-14.1, rows keeping 92 %
   of the clamp's pull at the least on a full pack (87 % from 60 %), mean rotor
   thrust 27-28 % of top (72-73 % left unused), WEP 0.6-0.8 s a flight.
-

@@ -71,7 +71,7 @@ _screen.CHATTER = False     # the boot bar replaced the scroll
 
 
 #: The thermistor's colour ramp, C: the page's scale (`coaxial.draw.gauges`, one
-#: for every thermometer and the winding), not a limit (invariant 10).
+#: for every thermometer and the winding), not a limit.
 NTC_COLD_C, NTC_HOT_C = TEMP_FLOOR_C, TEMP_SCALE_C
 
 def sane(args):

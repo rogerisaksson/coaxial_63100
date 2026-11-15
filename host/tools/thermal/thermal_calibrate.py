@@ -16,9 +16,9 @@ blind. The same dwell in all four: tau is 6.8 min measured, and 25 minutes is
 
 The A1335's TSEN is not used: it measures its own die, not the board, and its
 self-heating resets every time AFE_ON breaks (it fell 1.88 K during
-a run that warmed the board). It quantises at 0.125 K. The NTC has 30 mK and a
-stable bias (it sits in the drivers' hot spot), so it is the reference; the
-camera is the truth.
+a run that warmed the board). The TSEN quantises at 0.125 K. The NTC has
+30 mK and a stable bias (it sits in the drivers' hot spot), so it is the
+reference; the camera is the truth.
 
 Each state is held until a file appears, so the camera measurement can take as
 long as it takes:

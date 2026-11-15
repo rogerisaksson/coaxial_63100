@@ -22,7 +22,7 @@ INK, GROUND = (255, 96, 96), (10, 22, 35)
 
 def started(name, header):
     """A recording of rows under `header`, its file named after `name`, when it began and the commit it
-    began at (`stamp`, `commit.head` cut to SHORT, none outside a repository: its loop's own recording
+    began at (`stamp`, `commit.head` cut to SHORT, none outside a repository: the robot's loop's own recording
     of the same, `watch.recorded`, is named so)."""
     sha = commit.head()
     return {'name': name, 'header': list(header), 'rows': [], 'began': time.monotonic(),

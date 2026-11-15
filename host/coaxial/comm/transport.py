@@ -76,12 +76,12 @@ class Transport:
     both a 20-byte reply arriving whole in one chunk and a 215-byte one
     arriving in 175. This is twice that.
 
-    It cannot go much lower without knowing the reply's length, and the
-    board does not send one: nothing in the frame says where it ends, so a
-    reader that stops early would hand back a truncated payload that still
-    decoded. Stopping on a valid CRC was measured against and rejected - a
-    prefix of a 20-byte frame passes the check about once in 4096, which is
-    a wrong reading every few minutes rather than an error.
+    The gap cannot go much lower without knowing the reply's length, and
+    the board does not send one: nothing in the frame says where it ends,
+    so a reader that stops early would hand back a truncated payload that
+    still decoded. Stopping on a valid CRC was measured against and
+    rejected - a prefix of a 20-byte frame passes the check about once in
+    4096, which is a wrong reading every few minutes rather than an error.
     """
 
     #: The firmware dispatches proven requests on their own CRC (MINOR 9)

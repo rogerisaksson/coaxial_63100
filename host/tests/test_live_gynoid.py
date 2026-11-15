@@ -1,10 +1,10 @@
-"""Its prompt through the local model on its loop: each said as the page says it, judged under the surface.
+"""The robot's prompt through the local model on its loop: each said as the page says it, judged under the surface.
 
 Each case types its prompt into the page's own path (`gym.submit_prompt`: the local model asked off
-the page's thread, `drain_plan` sending what it chose to its worker) and steps its session, then
-reads what its loop did - its doing's phases, the errand laid, its pelvis, a fall's epoch, its
-drives' clamps, a refusal's words, how far it went - against what the prompt meant. Skipped where
-no model is here (`coaxial_ollama.gynoid.model`).
+the page's thread, `drain_plan` sending what it chose to the robot's worker) and steps its session,
+then reads what its loop did - its doing's phases, the errand laid, its pelvis, a
+fall's epoch, its drives' clamps, a refusal's words, how far it went - against what the prompt
+meant. Skipped where no model is here (`coaxial_ollama.gynoid.model`).
 """
 import math
 import sys
@@ -15,8 +15,8 @@ from views_kit import Report
 
 
 def _said(prompt, room=0.0, before=(), lead_s=0.5):
-    """(session, page state, sent) after `prompt` went through the page's path to its loop: its
-    session laid (`room` the lodge or the flat floor), `before` commands said and `lead_s` stepped,
+    """(session, page state, sent) after `prompt` went through the page's path to the robot's loop: the
+    robot's session laid (`room` the lodge or the flat floor), `before` commands said and `lead_s` stepped,
     then the prompt typed and its plan dispatched."""
     from machine.world import physics
     from machine.process import worker
@@ -39,7 +39,7 @@ def _said(prompt, room=0.0, before=(), lead_s=0.5):
 
 
 def _steps(s, seconds, until=None):
-    """Its session `seconds` of passes on, or till `until(s)` or a fall; the seconds it took, None
+    """The robot's session `seconds` of passes on, or till `until(s)` or a fall; the seconds it took, None
     never met. Passes counted: a fall lays a new epoch's `s['g']`, and a loop on the old one's time
     never ended (the first run hung 1200 s)."""
     from machine.process import worker
@@ -66,7 +66,7 @@ def _model(report, case):
 
 
 def test_lie_down_on_the_floor_said_in_swedish(report):
-    """'lägg dig på golvet' on the flat floor: lie_floor said; its doing through kneel and tip to
+    """'lägg dig på golvet' on the flat floor: lie_floor said; the robot's doing through kneel and tip to
     floor_rest, its pelvis under 0.25 m, no fall's epoch, its drives' clamps zero (limp)."""
     import numpy as np
     from machine.process import sprung
@@ -122,7 +122,7 @@ def test_out_through_the_door_said_in_swedish(report):
 
 
 def test_walk_forward_said_in_swedish(report):
-    """'gå framåt' on the flat floor: its walk's twist, 0.5 m on within 3 s, unfallen."""
+    """'gå framåt' on the flat floor: the robot's walk's twist, 0.5 m on within 3 s, unfallen."""
     case = 'walk forward, said in Swedish'
     if _model(report, case) is None:
         return
@@ -134,7 +134,7 @@ def test_walk_forward_said_in_swedish(report):
 
 
 def test_dance_said_in_swedish(report):
-    """'dansa' on the flat floor: the dance said, one of its phases its doing within 4 s."""
+    """'dansa' on the flat floor: the dance said, one of its phases the robot's doing within 4 s."""
     from machine.texts import says
     from machine.process import sprung
     case = 'dance, said in Swedish'
@@ -147,8 +147,8 @@ def test_dance_said_in_swedish(report):
                  'sent %s, dancing at %s s' % (sent, took))
 
 
-def test_nothing_it_can_do_moves_nothing(report):
-    """'baka en kaka' on the flat floor: nothing it can do with its body - nothing sent, it stays
+def test_nothing_the_robot_can_do_moves_nothing(report):
+    """'baka en kaka' on the flat floor: nothing the robot can do with its body - nothing sent, it stays
     within 5 cm of where it stood over 3 s."""
     case = 'bake a cake moves nothing'
     if _model(report, case) is None:
@@ -161,7 +161,7 @@ def test_nothing_it_can_do_moves_nothing(report):
 
 
 def test_rise_from_the_floor_refused_by_name(report):
-    """'res dig' lying on the floor: the rise said and refused by name - its legs' floor, item 13 -,
+    """'res dig' lying on the floor: the rise said and refused by name - the robot's legs' floor, item 13 -,
     it lies on, quiet."""
     import numpy as np
     from machine.process import sprung
@@ -178,7 +178,7 @@ def test_rise_from_the_floor_refused_by_name(report):
 
 ROSTER = (test_lie_down_on_the_floor_said_in_swedish, test_sit_on_the_chair_said_in_swedish,
           test_lie_on_the_bed_said_in_english, test_out_through_the_door_said_in_swedish,
-          test_walk_forward_said_in_swedish, test_dance_said_in_swedish, test_nothing_it_can_do_moves_nothing,
+          test_walk_forward_said_in_swedish, test_dance_said_in_swedish, test_nothing_the_robot_can_do_moves_nothing,
           test_rise_from_the_floor_refused_by_name)
 
 

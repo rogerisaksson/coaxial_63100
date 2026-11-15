@@ -1,10 +1,11 @@
-"""Its moves whose phases end by what it senses in C through ctypes (wbc_sensed.c), bit for bit.
+"""The robot's moves whose phases end by what it senses, in C via ctypes (wbc_sensed.c), bit for bit.
 
-`machine.moves.sensed`'s `laid` and `step` on a move's tables, the moves its loop plays (`machine.process.joints.MOVES`):
-each move's tables laid in C's own once, its phases first and the rest of them, past the last, zero.
+`machine.moves.sensed`'s `laid` and `step` on a move's tables, the moves the robot's loop plays
+(`machine.process.joints.MOVES`): each move's tables laid in C's own once, its phases first and the rest of them, past
+the last, zero.
 
     move = sensed.move('bed-entry')                                                 # its tables in C
-    state = move.laid(q_deg, t)                                                     # from where it sits
+    state = move.laid(q_deg, t)                                                     # from where the robot sits
     done = move.step(state, cmd, q_deg, t, dt, soles, along, half, pitch, speed)    # cmd (deg) laid over
 """
 import ctypes
@@ -50,7 +51,7 @@ def _laid(name):
     t = py.tables(name)
     n = len(t.names)
     if n > P:
-        raise MachineError('%s: %d phases, its C moves take %d at most' % (name, n, P))
+        raise MachineError('%s: %d phases, the robot\'s C moves take %d at most' % (name, n, P))
 
     def padded(a):
         return np.concatenate([a, np.zeros((P - n,) + a.shape[1:], a.dtype)])
@@ -77,8 +78,8 @@ class Move(py.Move):
         return state
 
     def step(self, state, cmd, q_deg, t, dt, soles, along, half, pitch, speed):
-        """`machine.moves.sensed.step` in C on `state` and `cmd` (contiguous float64, laid over in place) and its
-        senses."""
+        """`machine.moves.sensed.step` in C on `state` and `cmd` (contiguous float64, laid over in place) and the
+        robot's senses."""
         lib, tables = self._laid()
         return lib.wbh_sensed_step(ctypes.byref(tables), state.ctypes.data, cmd.ctypes.data, dt, soles, along, half,
                                    pitch, speed)

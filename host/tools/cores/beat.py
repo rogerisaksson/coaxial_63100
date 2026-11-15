@@ -1,13 +1,14 @@
 """The robot's 1 kHz pass beside its law in C (wbc_beat.c): its felt and its drive, one call each.
 
-    felt, drive, both, _b, _kept = g['beat'] = beat.laid(g)   # on its laid session, anew where it is relaid
+    felt, drive, both, _b, _kept = g['beat'] = beat.laid(g)   # on the robot's laid session, anew where it is relaid
     felt(dt)                              # its IMU, encoders and torques into its edge; its observer's, filter's sums
     motion.drives(g, dt, drive)           # its drives' tick and its law's joints told its boards, one call
     motion.drives(g, dt, both)            # its felt and its drive in one call, between its law's passes
 
-`machine.process.sprung.passed`'s edge.felt, observer.felt, inekf.felt, motion.drives and its law's joints told (its
-edge's bound drive) in that order, numpy's arithmetic operation for operation (test_tick): between its law's passes
-its five calls and the arrays between them were 59 us a pass, 24 of them its boards' told; in one call, 35.
+`machine.process.sprung.passed`'s edge.felt, observer.felt, inekf.felt, motion.drives and the robot's law's joints
+told (its edge's bound drive) in that order, numpy's arithmetic operation for operation (test_tick): between its
+law's passes its five calls and the arrays between them were 59 us a pass, 24 of them its boards' told; in one call,
+35.
 """
 import ctypes
 import functools
@@ -21,7 +22,8 @@ _d, _i, _vp = ctypes.c_double, ctypes.c_int, ctypes.c_void_p
 
 class Beat(ctypes.Structure):
 
-    """wbc_beat_t: its pass, pointing at its world's pass, its observer, its drives' tick and its arrays."""
+    """wbc_beat_t: the robot's pass, pointing at its world's pass, its observer, its drives' tick and its
+    arrays."""
 
     _fields_ = [('world', _vp), ('gmo', _vp), ('tick', _vp), ('y', _vp), ('motor', _vp), ('link', _vp), ('imu', _vp),
                 ('span', _vp), ('idx', _vp), ('target', _vp), ('feed', _vp), ('kp', _vp), ('limit', _vp),
@@ -43,16 +45,17 @@ def typed():
 
 
 def laid(g):
-    """(its felt - a call of `dt` -, its drive and both - each (its address, its call), as `motion.drives` takes a
-    step -, the struct, the arrays it points at) on its laid session `g`: its world's pass and boards, its edge's array
-    (`g['sense']`), its observer, its filter (`g['inekf']`), its drives' tick (`g['tick']`) and its law's joints told
-    as its edge's bound drive tells them (`g['joints']`, `g['cmd']`)."""
+    """(the robot's felt - a call of `dt` -, its drive and both - each (its address, its call), as
+    `motion.drives` takes a step -, the struct, the arrays it points at) on the robot's laid session `g`: the robot's
+    world's pass and boards, its edge's array (`g['sense']`), its observer, its filter
+    (`g['inekf']`), its drives' tick (`g['tick']`) and its law's joints told as its edge's
+    bound drive tells them (`g['joints']`, `g['cmd']`)."""
     from machine.senses import edge, inekf
     lib, world, y, f, cmd = typed(), g['world'], g['sense'], g['inekf'], g['cmd']
     edge.buses(world)
     idx, link, nj = np.ascontiguousarray(g['joints'], dtype=np.int32), world.link['v'], len(world.motor)
     if nj != edge.TAU.stop - edge.TAU.start:
-        raise ValueError('its world has %d motors, its edge %d torques' % (nj, edge.TAU.stop - edge.TAU.start))
+        raise ValueError('its world has %d motors, the robot\'s edge %d torques' % (nj, edge.TAU.stop - edge.TAU.start))
     b = Beat(world=ctypes.addressof(world.passing), gmo=ctypes.addressof(g['observer']['c']), tick=g['tick'][0],
              y=wbc.pointer(y), motor=wbc.pointer(world.motor), link=wbc.pointer(link), imu=wbc.pointer(f['imu']),
              span=wbc.pointer(f['span']), idx=wbc.pointer(idx, np.int32),

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Its drives' pass in one C call (`tools.cores.tick`, wbc_pass_tick; in its pass's, `tools.cores.beat`, its felt before
-it between its law's passes) beside its python (`motion.drives_twin`, edge.felt, observer.felt, inekf.felt) - from the
-same state at every STRIDE-th pass lying into a bed, resting limp there, rising and walking, every array, its master
-bus and the numbers it writes the same bits -, and a move's pass (`tools.cores.played`) beside its python's."""
+"""The robot's drives' pass in one C call (`tools.cores.tick`, wbc_pass_tick; in its pass's, `tools.cores.beat`, its felt before
+it between the robot's law's passes) beside its python (`motion.drives_twin`, edge.felt, observer.felt, inekf.felt) -
+from the same state at every STRIDE-th pass lying into a bed, resting limp there, rising and walking, every array, the
+robot's master bus and the numbers it writes the same bits -, and a move's pass (`tools.cores.played`) beside its
+python's."""
 import ctypes
 import os
 import sys
@@ -14,7 +15,8 @@ import numpy as np
 from tools.dev.focus import chosen
 from gynoid_kit import Report
 
-#: Its lie into the bed and its rise off it, s; its walk after, passes; a pass compared each STRIDE.
+#: The robot's lie into the bed and its rise off it, s; the robot's walk after, passes; a pass
+#: compared each STRIDE.
 LIE_S, RISE_S, WALK_PASSES, STRIDE = 24.0, 8.0, 6000, 7
 #: Each move played, s.
 MOVE_S = 2.0
@@ -23,8 +25,8 @@ NUMBERS = ('surety', 'surety_vec', 'surety_probe', 'left', '_wake')
 
 
 def _written(g):
-    """The arrays its pass writes in place: its drives', its clamps told, its master bus's, its edge's, its filter's
-    sums and its observer's."""
+    """The arrays the robot's pass writes in place: its drives', its clamps told, its master bus's, its edge's, its
+    filter's sums and its observer's."""
     _p, kept, _step = g['drives']
     _k, _bus, arrays = g['bus']
     o = g['observer']['c']
@@ -34,7 +36,8 @@ def _written(g):
 
 
 def _held(g):
-    """What its pass writes, as it is: its arrays, its master bus's state, its observer's span, its numbers."""
+    """What the robot's pass writes, as it is: its arrays, the robot's master bus's state, the robot's
+    observer's span, its numbers."""
     _k, bus, _arrays = g['bus']
     return [a.copy() for a in _written(g)] + [ctypes.string_at(ctypes.addressof(bus), ctypes.sizeof(bus)),
                                               g['observer']['c'].span, tuple(g.get(k) for k in NUMBERS)]
@@ -58,10 +61,10 @@ def _apart(a, b):
     return a != b if isinstance(a, bytes) else repr(a) != repr(b)
 
 
-def test_its_drives_pass_in_c_as_in_python(report, _c):
-    """Its drives' pass in one C call - its pass's, its felt in it between its law's passes - and in its python from
-    the same state - each pass of the two compared, the C's kept -: lying into a bed and resting limp there, rising
-    off it, walking."""
+def test_the_robots_drives_pass_in_c_as_in_python(report, _c):
+    """The robot's drives' pass in one C call - its pass's, its felt in it between the robot's law's
+    passes - and in its python from the same state - each pass of the two compared, the C's kept -: lying into a bed
+    and resting limp there, rising off it, walking."""
     from machine.law import motion
     from machine.process import worker
     from machine.senses import edge, inekf, observer
@@ -104,10 +107,10 @@ def test_its_drives_pass_in_c_as_in_python(report, _c):
 
 
 def test_a_moves_pass_in_c_as_in_python(report, _c):
-    """Each of its C moves played lying in a bed - its bed's exit, its scoot, its bed's entry, MOVE_S each -, its step
-    and its joints' setpoints and clamps in one C call (`tools.cores.played`, wbc_played_step) beside its python's from
-    the same state, the C's pass with its drive kept: the move's state, command, setpoints and clamps the same bits,
-    its done the same."""
+    """Each of the robot's C moves played lying in a bed - its bed's exit, its scoot, its bed's
+    entry, MOVE_S each -, its step and its joints' setpoints and clamps in one C call (`tools.cores.played`,
+    wbc_played_step) beside its python's from the same state, the C's pass with its drive kept: the move's state,
+    command, setpoints and clamps the same bits, its done the same."""
     from machine.process import joints, worker
     from machine.senses import edge
     from tools.cores import played
@@ -158,11 +161,12 @@ def test_a_moves_pass_in_c_as_in_python(report, _c):
 WORLD_PASSES, SWING_RAD, SWING_HZ = 2500, 0.08, 1.3
 
 
-def test_its_world_steps_in_c_as_in_python(report, _c):
-    """Two of its worlds laid alike in its room, their setpoints swung alike a pass at a time - one's steps between
-    MuJoCo's in C (`machine.world.steps`), its ankles' sprung gearboxes stepped there, the other's in python (`in_c`
-    False) -: MuJoCo's state, ctrl, its motors, gearboxes' peaks and state, meters, DC link, rates and stamps the same
-    bits at every pass; MuJoCo's contacts paired in C off its data (`steps.paired`) as python's views pair them."""
+def test_the_robots_world_steps_in_c_as_in_python(report, _c):
+    """Two of the robot's worlds laid alike in its room, their setpoints swung alike a pass at a time - one's
+    steps between MuJoCo's in C (`machine.world.steps`), its ankles' sprung gearboxes stepped there, the
+    other's in python (`in_c` False) -: MuJoCo's state, ctrl, its motors, gearboxes' peaks and state, meters,
+    DC link, rates and stamps the same bits at every pass; MuJoCo's contacts paired in C off its data (`steps.paired`)
+    as python's views pair them."""
     import math
     from machine.body import figure
     from machine.world import loose, physics, steps
@@ -178,8 +182,8 @@ def test_its_world_steps_in_c_as_in_python(report, _c):
         a, b = worlds
         b.in_c, base = False, a.target.copy()
         m = a.model
-        its_own, ground = (m.geom_bodyid > 0).astype(np.bool_), (m.geom_bodyid == 0).astype(np.bool_)
-        masks, paired = (cores.address(its_own), cores.address(ground)), cores.library().wbh_pass_paired
+        robot_own, ground = (m.geom_bodyid > 0).astype(np.bool_), (m.geom_bodyid == 0).astype(np.bool_)
+        masks, paired = (cores.address(robot_own), cores.address(ground)), cores.library().wbh_pass_paired
         for k in range(WORLD_PASSES):
             clock[0] = (k + 1) * physics.STEP_S
             for w in worlds:
@@ -195,8 +199,8 @@ def test_its_world_steps_in_c_as_in_python(report, _c):
                                   for x, y in zip(*held))
             d, held = a.data, a.furnished[9]
             if len(held[4]):
-                # its loose things asleep: those that wake told in C (wbc_world_held) as by its twin, one nudged past
-                # its stir each 50th pass and put back
+                # the robot's loose things asleep: those that wake told in C (wbc_world_held) as by its twin, one
+                # nudged past its stir each 50th pass and put back
                 v, nudged = int(held[0][0]), k % 50 == 0
                 kept, d.qvel[v] = float(d.qvel[v]), loose.SLIDE_M_S if nudged else float(d.qvel[v])
                 tally['apart'] += held[7](d) != loose._woke(d, held, 0.5 * loose.SLIDE_M_S)
@@ -211,7 +215,7 @@ def test_its_world_steps_in_c_as_in_python(report, _c):
             tally['passes'] += 1
     finally:
         physics.ROOM, physics.CAMERA, physics.SIGHT = was
-    report.check("its world's steps in C as in python, %(passes)d passes, its boxes in C %(boxed)d, its contacts paired "
+    report.check("the robot's world's steps in C as in python, %(passes)d passes, its boxes in C %(boxed)d, its contacts paired "
                  "%(paired)d of %(pairs)d, its loose things held %(held)d, %(woke)d woken" % tally,
                  tally['passes'] == WORLD_PASSES == tally['boxed'] == tally['held'] and tally['paired'] > 100
                  and tally['woke'] > 0 and not tally['apart'], '%(apart)d apart' % tally)
@@ -220,11 +224,11 @@ def test_its_world_steps_in_c_as_in_python(report, _c):
 SKIN_PASSES, SHOVE_N = 1500, 40.0
 
 
-def test_its_skin_reads_its_contacts_in_c_as_their_views(report, _c):
-    """Its world swung a pass at a time, its skin's bins filled twice each pass: off MuJoCo's data in one C call
-    (wbc_world_contacted, `edge.contacted`'s) and through its contacts', forces' and impedances' numpy views
-    (wbc_pass_contacts, as its edge read them before) - every bin the same bits, the contacts' layout the same, and a
-    shove told where the world applies a force to a body, a third of the passes."""
+def test_the_robots_skin_reads_its_contacts_in_c_as_their_views(report, _c):
+    """The robot's world swung a pass at a time, its skin's bins filled twice each pass: off MuJoCo's data in
+    one C call (wbc_world_contacted, `edge.contacted`'s) and through its contacts', forces' and impedances' numpy
+    views (wbc_pass_contacts, as the robot's edge read them before) - every bin the same bits, the contacts' layout
+    the same, and a shove told where the world applies a force to a body, a third of the passes."""
     import math
     from machine.body import figure
     from machine.senses import edge
@@ -237,7 +241,7 @@ def test_its_skin_reads_its_contacts_in_c_as_their_views(report, _c):
         w.reset(figure.stand(), where=(0.0, figure.standing(), 0.0))
         w.clock = lambda: clock[0]
         base, d, lib = w.target.copy(), w.data, cores.library()
-        skins = [(edge.laid(w), vars(w)['contacts'])[1] for _ in range(2)]     # two skins' bins on its one world
+        skins = [(edge.laid(w), vars(w)['contacts'])[1] for _ in range(2)]     # two skins' bins on the robot's one world
         (c, kept, contacted, _sensed), (c2, kept2, *_rest) = skins
         for k in range(SKIN_PASSES):
             clock[0] = (k + 1) * physics.STEP_S
@@ -259,7 +263,7 @@ def test_its_skin_reads_its_contacts_in_c_as_their_views(report, _c):
             tally['passes'] += 1
     finally:
         physics.ROOM, physics.CAMERA, physics.SIGHT = was
-    report.check("its skin's bins off MuJoCo's data in C as through its views, %(passes)d passes, %(contacts)d with "
+    report.check("the robot's skin's bins off MuJoCo's data in C as through its views, %(passes)d passes, %(contacts)d with "
                  "contacts, %(shoved)d shoved" % tally,
                  tally['passes'] == SKIN_PASSES and tally['contacts'] > 1000 and tally['shoved'] == SKIN_PASSES // 3
                  and not tally['apart'], '%(apart)d apart' % tally)
@@ -268,11 +272,12 @@ def test_its_skin_reads_its_contacts_in_c_as_their_views(report, _c):
 AHEAD_PASSES = 2000
 
 
-def test_its_step_begun_beside_its_law_as_whole(report, _c):
-    """Two of its worlds laid alike, their setpoints swung alike a pass at a time: one's steps each begun beside
-    (`steps.ahead`: MuJoCo's mj_step1 on a thread of its C's, mj_step2 at its step), the other's whole - MuJoCo's
-    state, ctrl, poses, contacts and constraint forces the same bits at every pass; a step begun and not taken, as
-    where its pass raised, is joined (`steps.behind`) and its next step whole, a seventh of them."""
+def test_the_robots_step_begun_beside_its_law_as_whole(report, _c):
+    """Two of the robot's worlds laid alike, their setpoints swung alike a pass at a time: one's steps each begun
+    beside (`steps.ahead`: MuJoCo's mj_step1 on a thread of its C's, mj_step2 at its step), the other's
+    whole - MuJoCo's state, ctrl, poses, contacts and constraint forces the same bits at every pass; a step begun
+    and not taken, as where the robot's pass raised, is joined (`steps.behind`) and its next step whole, a
+    seventh of them."""
     import math
     from machine.body import figure
     from machine.world import physics, steps
@@ -302,7 +307,7 @@ def test_its_step_begun_beside_its_law_as_whole(report, _c):
     finally:
         physics.ROOM, physics.CAMERA, physics.SIGHT = was
     told = c_world.staged() is not None
-    report.check("its world's steps begun beside as whole, %(passes)d passes, %(beside)d begun beside, %(dropped)d "
+    report.check("the robot's world's steps begun beside as whole, %(passes)d passes, %(beside)d begun beside, %(dropped)d "
                  "joined untaken" % tally,
                  tally['passes'] == AHEAD_PASSES and not tally['apart']
                  and (not told or (tally['beside'] == AHEAD_PASSES and tally['dropped'] == AHEAD_PASSES // 7 + 1)),
@@ -353,11 +358,11 @@ def _sync_control(g1, g2, skip):
     b2.load = g1['body'].load.copy()
 
 
-def test_its_motion_control_in_c_is_its_python_twins(report, _c):
+def test_the_robots_motion_control_in_c_is_its_python_twins(report, _c):
     """Each pass of `motion.control` on `motion.laid`'s C and compiled hooks beside a twin session rebound to
     `tools.cores.motion.twins` after `gc.collect()` from the same state - through an open-chain walk and a closed-chain
     bed lie (`chained` 0 and 1): every array and scalar written matches bit for bit (`exact_host`), or within 1e-9 on
-    its law's arrays and 1e-5 through the normal equations where numpy dispatches elsewhere."""
+    the robot's law's arrays and 1e-5 through the normal equations where numpy dispatches elsewhere."""
     import gc
     from machine.law import motion
     from machine.process import worker
@@ -416,14 +421,14 @@ def test_its_motion_control_in_c_is_its_python_twins(report, _c):
     exact = c_motion.exact_host()
     near = not tally['law_bad'] and not tally['solve_bad']
     ok = tally['passes'] >= 3000 and {0, 1} <= chains and (not tally['apart'] if exact else near)
-    report.check('its motion.control in C is its python twins, %d passes (chained %s)'
+    report.check('its motion.control in C is the robot\'s python twins, %d passes (chained %s)'
                  % (tally['passes'], sorted(chains)), ok,
                  '%(apart)d apart, law %(law_err).3g (%(law_bad)d), max %(err).3g (%(solve_bad)d)' % tally)
 
 
-ROSTER = (test_its_drives_pass_in_c_as_in_python, test_a_moves_pass_in_c_as_in_python,
-          test_its_world_steps_in_c_as_in_python, test_its_skin_reads_its_contacts_in_c_as_their_views,
-          test_its_step_begun_beside_its_law_as_whole, test_its_motion_control_in_c_is_its_python_twins)
+ROSTER = (test_the_robots_drives_pass_in_c_as_in_python, test_a_moves_pass_in_c_as_in_python,
+          test_the_robots_world_steps_in_c_as_in_python, test_the_robots_skin_reads_its_contacts_in_c_as_their_views,
+          test_the_robots_step_begun_beside_its_law_as_whole, test_the_robots_motion_control_in_c_is_its_python_twins)
 
 
 def main(argv=None):

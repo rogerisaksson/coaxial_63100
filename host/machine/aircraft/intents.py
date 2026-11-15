@@ -7,7 +7,7 @@ A stream says nothing of when: its seconds are its injector's.
 """
 
 #: A hover, a dive forward weaving, a turn over the nose asked faster than any frame turns, a
-#: catch on its back edge at all the rotors give: the streams as they were written.
+#: catch on the quad's back edge at all the rotors give: the streams as they were written.
 POWER_LOOP = """
 (stream_inject
   (sequence_id 201)

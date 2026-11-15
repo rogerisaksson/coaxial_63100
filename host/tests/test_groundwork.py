@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Its body on the floor (`machine.world.groundwork`; the kernel's floor_groundwork_core.lisp,
+"""The robot's body on the floor (`machine.world.groundwork`; the kernel's floor_groundwork_core.lisp,
 ground_rolling_and_transitions.lisp, floor_lifecycle_patches.lisp): the texts read whole, the roll's ring and girdles,
 its roll on a hard floor and out of a mattress's trough, the six ground postures laid on its figure."""
 import math
@@ -21,7 +21,7 @@ TURN, CRANIUM_M = 7200, 0.035
 
 
 def _parts(manifolds):
-    """Its segments' names, side-less, that carry the landmarks of `manifolds` (their frames)."""
+    """The robot's segments' names, side-less, that carry the landmarks of `manifolds` (their frames)."""
     from machine.texts import kernel
     got = kernel.read()
     patches = {**got['anatomical-manifold-registry'], **got['groundwork-manifold-extensions']}
@@ -30,9 +30,9 @@ def _parts(manifolds):
 
 
 def _pitched(deg):
-    """(pitches round a turn, each point's skin over the floor at each (`groundwork.clear`), its centre over it, its
-    margin at a pitch's index - its centre's over what touches along the floor, m, negative past it -, what touches
-    at an index, the points' parts) of its figure posed `deg`."""
+    """(pitches round a turn, each point's skin over the floor at each (`groundwork.clear`), the robot's centre over
+    it, the robot's margin at a pitch's index - its centre's over what touches along the floor, m, negative
+    past it -, what touches at an index, the points' parts) of the robot's figure posed `deg`."""
     import numpy as np
     from machine.world import groundwork
     points, radii, of, centre = skin(deg)
@@ -51,8 +51,8 @@ def _pitched(deg):
 
 
 def _bearing(deg, parts):
-    """Its figure posed `deg` at its rest, pitched about its x axis, where `parts` bear best: (pitch rad, the worst of
-    them and its float m, its centre's margin m, what touches, every rest's margin)."""
+    """The robot's figure posed `deg` at its rest, pitched about the robot's x axis, where `parts` bear best: (pitch
+    rad, the worst of them and its float m, the robot's centre's margin m, what touches, every rest's margin)."""
     import numpy as np
     from machine.world import groundwork
     phi, gap, h, margin, touching, names = _pitched(deg)
@@ -64,8 +64,8 @@ def _bearing(deg, parts):
 
 
 def _placed(deg, part):
-    """Its figure posed `deg`, pitched nearest upright with `part` on the floor: (its centre's margin m, what
-    touches)."""
+    """The robot's figure posed `deg`, pitched nearest upright with `part` on the floor: (its centre's margin
+    m, what touches)."""
     import numpy as np
     phi, gap, _h, margin, touching, names = _pitched(deg)
     k = int(np.argmin(np.where(gap[:, names == part].min(axis=1) < TOUCH, np.abs(phi), np.inf)))
@@ -75,8 +75,8 @@ def _placed(deg, part):
 def test_the_texts_read_whole(report):
     """The three texts read with the kernel (`kernel.read`): six postures, each its origin and three columns; three
     patches more, every manifold the texts name one of the registry's or theirs; the core, the transforms, the
-    specializers and the patches stages; the schedule four oneshots 1.5 s apart, the last igniting its walk's clock;
-    the roll's node as the default roll lays it, rolling its right."""
+    specializers and the patches stages; the schedule four oneshots 1.5 s apart, the last igniting the robot's
+    walk's clock; the roll's node as the default roll lays it, rolling the robot's right."""
     from machine.texts import dsp, kernel
     from machine.body import mechatronics
     got = kernel.read()
@@ -101,7 +101,7 @@ def test_the_texts_read_whole(report):
     plan = dsp.schedule(got['compile-complete-groundwork-soa'])
     phases = [seg[1]['_trace'][-1][0] for seg in plan if seg[0] == 'oneshot']
     clock = [x for name, x in plan[-1][1]['_trace'] if name == 'ignite-cyclic-clock']
-    report.check('the schedule: descent, sit and supine, the rolls, the rise, 1.5 s between; its clock ignited last',
+    report.check('the schedule: descent, sit and supine, the rolls, the rise, 1.5 s between; the robot\'s clock ignited last',
                  [seg[0] for seg in plan] == ['oneshot', 'dwell'] * 3 + ['oneshot']
                  and [seg[1] for seg in plan if seg[0] == 'dwell'] == [1.5] * 3
                  and phases == ['patch-descent-to-knees-and-all-fours', 'patch-transition-to-buttocks-and-supine',
@@ -122,7 +122,7 @@ def test_the_texts_read_whole(report):
 def test_the_ring_and_the_girdles(report):
     """The roll's ring (`groundwork.ring`) whole on one patch at each quarter, its shares summing to 1 round a turn;
     the girdles (`groundwork.girdles`) of the schedule's two rolls - 180 deg pelvis first, 360 deg thorax first - turn
-    its waist by the text's lag at most, within its stops, the leader ahead throughout, both done at
+    the robot's waist by the text's lag at most, within its stops, the leader ahead throughout, both done at
     (angle + lag) / omega."""
     import numpy as np
     from machine.body import drives
@@ -145,15 +145,15 @@ def test_the_ring_and_the_girdles(report):
         t = np.linspace(0.0, done + 1.0, 4001)
         girdles = groundwork.girdles(t, omega, total, lag, lead)
         twist = girdles[lead] - girdles[1 - lead]
-        report.check('%.0f deg, %s: done in %.2f s, its waist turned %.1f deg at most (%g..%g)' % (
+        report.check('%.0f deg, %s: done in %.2f s, the robot\'s waist turned %.1f deg at most (%g..%g)' % (
             math.degrees(total), roll['leader'][1:], done, math.degrees(twist.max()), low, high),
             abs(twist.max() - lag) < 1e-12 and twist.min() >= 0.0 and math.degrees(lag) <= high
             and np.all(girdles[:, t >= done] == total) and np.all(girdles[:, t < done - 1e-9].min(axis=0) < total))
 
 
 def _rolled(deg, side):
-    """(its centre's height round a turn on its back rolled onto `side`, each point's skin over the floor, its
-    segments, the samples) of its figure posed `deg`."""
+    """(the robot's centre's height round a turn on its back rolled onto `side`, each point's skin over the
+    floor, its segments, the samples) of its figure posed `deg`."""
     import numpy as np
     from machine.world import groundwork
     points, radii, of, centre = skin(deg)
@@ -163,8 +163,8 @@ def _rolled(deg, side):
 
 
 def _roll_postures():
-    """Its supine origin; the roll's right arm overhead (its slot); the slot and the left limbs across (its
-    cantilever, its shoulder's only axis its flexion)."""
+    """The robot's supine origin; the roll's right arm overhead (its slot); the slot and the left limbs across
+    (its cantilever, the robot's shoulder's only axis its flexion)."""
     from machine.texts import kernel
     from machine.body.term_rows import TERMS
     origin = kernel.read()['groundwork-1jet-posture-atlas']['postures']['floor-supine-flat']['origin-q0']
@@ -179,11 +179,12 @@ def _roll_postures():
     return sides, slotted, across
 
 
-def test_its_roll_on_a_hard_floor(report):
-    """`groundwork.rest` is its centre's height over its lowest skin, its figure turned any way (16 random turns,
-    1e-12 m). Rolled onto its right on a hard floor: its arms at its sides, its right fist is what it lies on, side
-    down; the roll's overhead slot lowers its climb onto its side, the cantilever lowers it again and moves its centre
-    toward the roll; its head clears the floor by the text's 35 mm round the turn in the slot."""
+def test_the_robots_roll_on_a_hard_floor(report):
+    """`groundwork.rest` is the robot's centre's height over its lowest skin, its figure turned any way (16 random
+    turns, 1e-12 m). Rolled onto the robot's right on a hard floor: its arms at its sides, the robot's
+    right fist is what it lies on, side down; the roll's overhead slot lowers its climb onto the
+    robot's side, the cantilever lowers it again and moves the robot's centre toward the roll; its head clears
+    the floor by the text's 35 mm round the turn in the slot."""
     import numpy as np
     from machine.body import figure
     from machine.world import groundwork
@@ -196,11 +197,11 @@ def test_its_roll_on_a_hard_floor(report):
         world, _r, _o, at = skin(deg, turn)
         h = groundwork.rest(points, radii, centre, np.array(turn)[1][None])[0]
         worst = max(worst, abs(h - (at[1] - (world[:, 1] - radii).min())))
-    report.check('its centre over its lowest skin, any turn: within %.0e m' % worst, worst < 1e-12)
+    report.check('the robot\'s centre over its lowest skin, any turn: within %.0e m' % worst, worst < 1e-12)
     weight = figure.mass() * 9.81
     side = TURN // 4
     climbs, held = [], []
-    for name, posed in zip(('its arms at its sides', 'the slot', 'the slot and the cantilever'), _roll_postures()):
+    for name, posed in zip(('the robot\'s arms at its sides', 'the slot', 'the slot and the cantilever'), _roll_postures()):
         h, gap, of, theta = _rolled(posed, -1.0)
         top = int(np.argmax(h[:side + 1]))
         torque = weight * np.gradient(h, theta)[:top + 1].max(initial=0.0)
@@ -209,22 +210,22 @@ def test_its_roll_on_a_hard_floor(report):
         centre = skin(posed)[3]
         climbs.append(weight * (h[top] - h[0]))
         held.append((lowest, head, centre[0]))
-        report.check('%s: onto its side %.1f J, %.1f N m at most; on it it lies on %s; its head %.0f mm clear, it '
+        report.check('%s: onto the robot\'s side %.1f J, %.1f N m at most; on it the robot lies on %s; its head %.0f mm clear, it '
                      'centre %+.3f m across' % (name, climbs[-1], torque, ', '.join(lowest), 1e3 * head, centre[0]),
                      True)
-    report.check('side down its arms at its sides lie under it: its right fist', held[0][0] == ['right_hand'])
-    report.check('the slot climbs less (%.1f J for %.1f), the cantilever less again (%.1f), its centre %.0f mm toward '
+    report.check('side down the robot\'s arms at its sides lie under it: its right fist', held[0][0] == ['right_hand'])
+    report.check('the slot climbs less (%.1f J for %.1f), the cantilever less again (%.1f), the robot\'s centre %.0f mm toward '
                  'the roll' % (climbs[1], climbs[0], climbs[2], -1e3 * held[2][2]),
                  climbs[2] < climbs[1] < climbs[0] and held[2][2] < held[1][2])
-    report.check("in the slot its head clears the floor by %.0f mm, the text's %.0f" % (1e3 * held[1][1], 1e3 * CRANIUM_M),
+    report.check("in the slot the robot's head clears the floor by %.0f mm, the text's %.0f" % (1e3 * held[1][1], 1e3 * CRANIUM_M),
                  held[1][1] >= CRANIUM_M)
 
 
 def test_out_of_a_mattress_trough(report):
-    """The roll law's branches (`groundwork.substrate`) never both on, the hard over 380 N/mm, the soft under 65; its
-    sinkage its weight over the stiffness; the text's law (`groundwork.escape`) at the start of a roll half its
-    sinkage times its weight. Its 110 N heel push about its right buttock's edge, lying on its back, against that
-    trough: the stiffness at which they are equal, and how high the cantilever holds that heel."""
+    """The roll law's branches (`groundwork.substrate`) never both on, the hard over 380 N/mm, the soft under 65; the
+    robot's sinkage its weight over the stiffness; the text's law (`groundwork.escape`) at the start of a roll half
+    its sinkage times its weight. The robot's 110 N heel push about its right buttock's edge, lying on its back,
+    against that trough: the stiffness at which they are equal, and how high the cantilever holds that heel."""
     import numpy as np
     from machine.body import figure
     from machine.world import groundwork
@@ -242,7 +243,7 @@ def test_out_of_a_mattress_trough(report):
     sink = groundwork.sinkage(weight, np.array([below, above]))
     sides, _slotted, across = _roll_postures()
     trough = groundwork.escape(weight, _rolled(sides, -1.0)[0][0], sink[0], 0.0)
-    report.check('it %.1f N sinks %.2f mm at %.0f N/mm, %.2f at %.0f; the trough holds it with %.2f N m' % (
+    report.check('the robot\'s %.1f N sinks %.2f mm at %.0f N/mm, %.2f at %.0f; the trough holds it with %.2f N m' % (
         weight, 1e3 * sink[0], below / 1e3, 1e3 * sink[1], above / 1e3, trough),
         abs(sink[0] * below - weight) < 1e-9 and abs(trough - 0.5 * weight * sink[0]) < 1e-12)
     points, radii, of, _centre = skin(sides)
@@ -252,19 +253,19 @@ def test_out_of_a_mattress_trough(report):
     equal = weight * weight / (2.0 * push * lever)
     lifted = groundwork.clear(*skin(across)[:2], groundwork.rolled(0.0, -1.0))[0]
     heel = float(lifted[[s == 'left_foot' for s in skin(across)[2]]].min())
-    report.check('the heel %.0f N at %.3f m from its right buttock: %.1f N m, %.0f times the trough at %.0f N/mm; '
+    report.check('the heel %.0f N at %.3f m from the robot\'s right buttock: %.1f N m, %.0f times the trough at %.0f N/mm; '
                  'equal at %.2f N/mm. The cantilever holds that heel %.0f mm up' % (
                      push, lever, push * lever, push * lever / trough, below / 1e3, equal / 1e3, 1e3 * heel),
                  equal < below)
 
 
-def test_the_postures_on_its_figure(report):
-    """The six origins and the roll's and the bridge's angles as its movements (`term_rows`): each joint one of its own
-    or one it lacks, each angle against its stops. Each origin laid rigid on a hard floor (`groundwork.rest`,
-    pitched): every rest its centre over what touches; the rest where its coupled patch bears best, the float of its
-    worst part and its centre's margin. Its supine rests on its dorsal patch, its pelvis and head bearing; the tall
-    kneel rests on its shins at no point of its origin, and at the least of its axial column that sets its centre
-    over them."""
+def test_the_postures_on_the_robots_figure(report):
+    """The six origins and the roll's and the bridge's angles as the robot's movements (`term_rows`): each joint one of
+    its own or one it lacks, each angle against its stops. Each origin laid rigid on a hard floor (`groundwork.rest`,
+    pitched): every rest the robot's centre over what touches; the rest where its coupled patch bears best, the float
+    of its worst part and the robot's centre's margin. The robot's supine rests on its dorsal patch, the robot's pelvis
+    and head bearing; the tall kneel rests on its shins at no point of its origin, and at the least of its
+    axial column that sets the robot's centre over them."""
     from machine.body import drives
     from machine.texts import kernel
     from machine.body.term_rows import ABSENT, TERMS
@@ -280,7 +281,7 @@ def test_the_postures_on_its_figure(report):
     out = sorted({'%s %s %.0f deg' % (p, n, math.degrees(r)) for p, n, r in told if n in MOVES and MOVES[n] in TERMS
                   and not stops[MOVES[n]][0] <= math.degrees(r) <= stops[MOVES[n]][1]})
     turn = math.degrees(bridge['lead-hip-internal-rot-rad'])
-    report.check('every joint its own or one it lacks: %s; past its stops: %s; the 90/90 bridge turns a hip %.0f deg, '
+    report.check('every joint the robot\'s own or one it lacks: %s; past its stops: %s; the 90/90 bridge turns a hip %.0f deg, '
                  'its own %g' % ('; '.join(lacks), '; '.join(out) or 'none', turn, drives.TRAVEL['hip_yaw'][1]),
                  not unknown, str(unknown))
     rests, by_name = [], {}
@@ -289,11 +290,11 @@ def test_the_postures_on_its_figure(report):
         by_name[name] = _bearing(laid(p['origin-q0']), _parts(coupled))
         phi, part, worst, margin, touching, every = by_name[name]
         rests += every
-        report.check('%s: best at %+.0f deg on %s, its %s %.0f mm up, its centre %.0f mm inside' % (
+        report.check('%s: best at %+.0f deg on %s, its %s %.0f mm up, the robot\'s centre %.0f mm inside' % (
             name, math.degrees(phi), ', '.join(touching), part, 1e3 * worst, 1e3 * margin), True)
-    report.check('every rest its centre over what touches (%.1f mm at least)' % (1e3 * min(rests)), min(rests) >= -TOUCH)
+    report.check('every rest the robot\'s centre over what touches (%.1f mm at least)' % (1e3 * min(rests)), min(rests) >= -TOUCH)
     supine = by_name['floor-supine-flat']
-    report.check('its supine on its dorsal patch: its pelvis and head bear, it %s %.1f mm up' % (supine[1], 1e3 * supine[2]),
+    report.check('the robot\'s supine on its dorsal patch: its pelvis and head bear, its %s %.1f mm up' % (supine[1], 1e3 * supine[2]),
                  {'pelvis', 'head'} <= set(supine[4]) and supine[3] > 0.0)
     kneel = atlas['kneeling-tall-biped']
     column = kneel['modal-basis-columns']['mode-axial-compression']
@@ -305,15 +306,15 @@ def test_the_postures_on_its_figure(report):
         steps.append((a, origin['tibiofemoral'], phi, worst, margin))
     found = next((s for s in steps if s[3] < TOUCH), None)
     past, on = _placed(laid(kneel['origin-q0']), 'shank')
-    report.check('the tall kneel: on it %s its centre %.0f mm past them, no rest; %.2f of its axial column - knee '
+    report.check('the tall kneel: on the robot %s its centre %.0f mm past them, no rest; %.2f of its axial column - knee '
                  '%.0f deg, pitched %+.0f deg - sets it %.0f mm inside' % (
                      ' and '.join(on), -1e3 * past, found[0], math.degrees(found[1]), math.degrees(found[2]),
-                     1e3 * found[4]) if found else 'the tall kneel: on its shins nowhere along its axial column',
+                     1e3 * found[4]) if found else 'the tall kneel: on the robot\'s shins nowhere along its axial column',
                  steps[0][3] > TOUCH and past < 0.0 and found is not None)
 
 
-ROSTER = [test_the_texts_read_whole, test_the_ring_and_the_girdles, test_its_roll_on_a_hard_floor,
-          test_out_of_a_mattress_trough, test_the_postures_on_its_figure]
+ROSTER = [test_the_texts_read_whole, test_the_ring_and_the_girdles, test_the_robots_roll_on_a_hard_floor,
+          test_out_of_a_mattress_trough, test_the_postures_on_the_robots_figure]
 
 
 def main(argv=None):

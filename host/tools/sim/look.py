@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """The gynoid as the eye sees it, measured a stage a row: a HUMANOID recording.
 
-A recording (R on the page, recordings/*.csv) - the rows the page hears from its loop
+A recording (R on the page, recordings/*.csv) - the rows the page hears from the robot's loop
 (`humanoid_keys.row`); its walk simulated is `tools/sim/ortho.py --look`'s, the same rows.
 
     python tools/sim/look.py --last                 # the newest recording
     python tools/sim/look.py --csv recordings/humanoid_20260928_070724.csv
     python tools/sim/look.py --last --brief         # the stages in a line, the walk's measures
-    python tools/sim/look.py --last --fbx build/walk.fbx   # its steady walk written a take (mocap.py)
+    python tools/sim/look.py --last --fbx build/walk.fbx   # the robot's steady walk written a take (mocap.py)
 
 A row a stage (the walk's first second apart): the pelvis and the head under the stand (the
 dip), the torso ahead of plumb, the torso against the left shin (under 0 it leans back over bent
 knees), the hips-to-shoulders line, the left knee (under 0 bent back), the head's pitch (its
 range the nod), the left hip's roll, the thighs' gap as drawn, bare and in the jeans (under 0
-they meet), how far the pelvis's and the head's forward point above level (90 on its back), the
+they meet), how far the pelvis's and the head's forward point above level (90 on the robot's back), the
 seat's drives past its skin, what its drives draw - least and most over the stage.
 """
 import argparse
@@ -30,7 +30,7 @@ from tools.sim.strides import _faces, _gap, _lean, _mid, _out, _p, _roll, walked
 #: The head's rest pitch in the neck's offset (`figure.SEGMENTS`: 0.09 up, 0.012 on), deg.
 HEAD_REST = math.degrees(math.atan2(0.012, 0.09))
 
-#: The rows' rate as the page hears it, Hz; the walk's first seconds apart.
+#: The rows' rate as the page hears the robot, Hz; the walk's first seconds apart.
 RATE_HZ, FIRST_S = 60.0, 1.0
 
 #: The drives of a leg, by kind.
@@ -38,7 +38,7 @@ LEG_KINDS = ('hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll')
 
 
 def _held(world):
-    """What its spine's drive and its hips' pitch drives give, N m."""
+    """What the robot's spine's drive and its hips' pitch drives give, N m."""
     from machine.body.figure import JOINTS
     tau = world.data.ctrl
     return {'spine_nm': float(tau[JOINTS.index('spine')]),
@@ -90,7 +90,7 @@ MEASURES = (
     ('drawing', 'W', lambda r, ref: float(r.get('watts') or 'nan')),
 )
 
-#: The seat's drives, `seat out` their worst reach past its skin.
+#: The seat's drives, `seat out` their worst reach past the robot's skin.
 SEAT = tuple(side + k for side in ('left_', 'right_') for k in ('hip', 'hip_roll', 'hip_yaw'))
 
 #: A seam's measures, by name, the knee as set beside them; the times read about it, s.
@@ -99,7 +99,7 @@ SEAM_AT = (-0.3, -0.1, 0.0, 0.1, 0.3)
 
 
 def staged(rows):
-    """[(stage, rows)] in order, the walk's first FIRST_S apart; the stand's heights - its
+    """[(stage, rows)] in order, the walk's first FIRST_S apart; the stand's heights - the robot's
     first rows', where none is called a stand."""
     stands = [r for r in rows if r['stage'] in ('stand', 'rest')] or rows[:1]
     mid = stands[len(stands) // 2]

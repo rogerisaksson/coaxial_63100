@@ -1,8 +1,8 @@
-/** wbc_world.h - its world's steps on the host (wbc_world.c): before MuJoCo's step its drives' torques on their
-    setpoints and its gearboxes stepped on them; after it the boxes moved, the drives' meters, its DC link and its
-    room's lamp switch - machine.world.physics.World.advance between its steps in two calls, numpy's arithmetic
-    operation for operation (wbc_np.h), MuJoCo's contacts read off its data through its own headers. The host's
-    alone. */
+/** wbc_world.h - the robot's world's steps on the host (wbc_world.c): before MuJoCo's step its drives' torques on their
+    setpoints and its gearboxes stepped on them; after it the boxes moved, the drives' meters, the robot's
+    DC link and its room's lamp switch - machine.world.physics.World.advance between its steps in two
+    calls, numpy's arithmetic operation for operation (wbc_np.h), MuJoCo's contacts read off its data through its
+    own headers. The host's alone. */
 #ifndef WBC_WORLD_H
 #define WBC_WORLD_H
 
@@ -17,9 +17,10 @@ struct mjData_;
 /** A ufunc's own inner loop (numpy's PyUFuncGenericFunction): its arguments' bytes, its length, their strides. */
 typedef void (*wbc_loop_t)(char **args, const ptrdiff_t *dimensions, const ptrdiff_t *steps, void *data);
 
-/** Its gearboxes (machine.body.gearbox.Boxes) laid once on its arrays, stepped in place as Boxes.step steps them:
-    each joint's numbers, the state its step carries, its world's braking of a shorted drive, and numpy's own tanh
-    loop - an array's tanh is numpy's SIMD, not libm's, in a fifth of its values (tools.cores.world.numpy_tanh). */
+/** The robot's gearboxes (machine.body.gearbox.Boxes) laid once on its arrays, stepped in place as Boxes.step
+    steps them: each joint's numbers, the state its step carries, the robot's world's braking of a shorted drive,
+    and numpy's own tanh loop - an array's tanh is numpy's SIMD, not libm's, in a fifth of its values
+    (tools.cores.world.numpy_tanh). */
 typedef struct
 {
   const unsigned char *on;          /**< each joint's box stepped (`sprung`), a byte each */
@@ -56,12 +57,12 @@ typedef struct
   int                  spare;       /**< explicit: its ints a whole number of doubles */
 } wbc_boxes_t;
 
-/** Its world's steps laid once (tools.cores.world): its pass's struct (wbc_pass_ctrl, wbc_pass_motor,
+/** The robot's world's steps laid once (tools.cores.world): its pass's struct (wbc_pass_ctrl, wbc_pass_motor,
     wbc_pass_metered), MuJoCo's data, its setpoints and their last stamp, its DC link (machine.body.dclink), its
     room's switch (machine.world.room.touched). */
 typedef struct
 {
-  wbc_world_t           *pass;       /**< its drives on their setpoints (wbc_pass.c) */
+  wbc_world_t           *pass;       /**< the robot's drives on their setpoints (wbc_pass.c) */
   const struct mjData_  *d;          /**< MuJoCo's data: its contacts */
   const wbc_blas_t      *blas;       /**< numpy's OpenBLAS: the link's dots */
   const double          *target;     /**< each setpoint, its rate, as last stamped (n) */
@@ -75,14 +76,14 @@ typedef struct
   const double          *link_ohm;
   const double          *link_amps;
   const double          *link_loss;
-  const unsigned char   *switch_geom;/**< its room's switch's geom and its hands', a byte a geom; NULL no room */
+  const unsigned char   *switch_geom;/**< the robot's room's switch's geom and its hands', a byte a geom; NULL no room */
   const unsigned char   *hands;
-  wbc_boxes_t           *boxes;      /**< its gearboxes where any is stepped (`World.sprung`); NULL rigid */
-  double                 house_w;    /**< its boards' housekeeping and switching, W */
+  wbc_boxes_t           *boxes;      /**< the robot's gearboxes where any is stepped (`World.sprung`); NULL rigid */
+  double                 house_w;    /**< the robot's boards' housekeeping and switching, W */
   double                 onset_v;    /**< the link's bleed onset and clamp, V; its capacitance, F */
   double                 clamp_v;
   double                 link_f;
-  double                 pack_v;     /**< its packs' volts, ohm and most charge, A */
+  double                 pack_v;     /**< the robot's packs' volts, ohm and most charge, A */
   double                 pack_ohm;
   double                 charge_a;
   double                 step_s;     /**< a step, s; the switch's dead time, s */
@@ -92,29 +93,32 @@ typedef struct
   int                    spare;      /**< explicit: its ints a whole number of doubles */
 } wbc_steps_t;
 
-/** Its setpoints' rates over `span` s since their last stamp where it is past 1e-9 s, each stamped. */
+/** The robot's setpoints' rates over `span` s since their last stamp where it is past 1e-9 s, each
+ * stamped. */
 void wbc_world_rated(wbc_steps_t *s, double span);
 
-/** Before MuJoCo's step `since` s past the stamp: its drives' torques into ctrl - on its boxes' rotors asked ahead
-    and their rates past the links where boxes are laid (Boxes.ahead) -, their motors' (wbc_pass.c), and ctrl what its
-    boxes pass on to their links (Boxes.step). */
+/** Before MuJoCo's step `since` s past the stamp: the robot's drives' torques into ctrl - on its boxes' rotors asked
+    ahead and their rates past the links where boxes are laid (Boxes.ahead) -, their motors' (wbc_pass.c), and ctrl
+    what its boxes pass on to their links (Boxes.step). */
 void wbc_world_before(wbc_steps_t *s, double since);
 
-/** After it: its boxes' rotors past their links where they landed (Boxes.moved), its drives' meters on its rotors'
-    speeds (wbc_pass_metered), its DC link a step on (dclink.step), its room's switch toggled where a hand of its own
-    touches it, not twice within its dead time (room.touched). */
+/** After it: the robot's boxes' rotors past their links where they landed (Boxes.moved), its drives' meters
+    on its rotors' speeds (wbc_pass_metered), its DC link a step on (dclink.step), its room's
+    switch toggled where a hand of its own touches it, not twice within its dead time (room.touched). */
 void wbc_world_after(wbc_steps_t *s);
 
 /** Whether any of MuJoCo's contacts now pairs a geom `a` marks with one `b` marks under `below` m up
     (wbc_pass_paired on its data's contacts). */
 int wbc_world_paired(const wbc_steps_t *s, const unsigned char *a, const unsigned char *b, double below);
 
-/** Its skin's bins filled from MuJoCo's contacts as its data `d` stands (wbc_pass_contacts on its contacts, their
-    forces and their rows' impedance), the contacts' layout laid on `c` at their first; 1 where the world applies a
-    force to any of its bodies (its xfrc_applied: a shove, for its skin to feel), else 0. */
+/** The robot's skin's bins filled from MuJoCo's contacts as its data `d` stands (wbc_pass_contacts on its
+    contacts, their forces and their rows' impedance), the contacts' layout laid on `c` at their first; 1 where the
+    world applies a force to any of its bodies (its xfrc_applied: a shove, for the robot's skin to feel), else 0.
+    */
 int wbc_world_contacted(const struct mjData_ *d, wbc_contacts_t *c);
 
-/** Its loose things asleep as machine.world.loose.stick holds them a pass (its `_held` arrays). */
+/** The robot's loose things asleep as machine.world.loose.stick holds them a pass (its `_held`
+ * arrays). */
 typedef struct
 {
   const int           *by_geom;  /**< each geom's thing asleep, -1 none (MuJoCo's ngeom) */
@@ -132,9 +136,9 @@ typedef struct
   int                  nthing;
 } wbc_held_t;
 
-/** Its loose things asleep a pass (loose._woke): each that MuJoCo's contacts pair with a geom of something that moves,
-    not of a thing asleep, or that moves past `low`, woken; none, each held where it lies, still. How many woke - those
-    the caller wakes, then holds the rest. */
+/** The robot's loose things asleep a pass (loose._woke): each that MuJoCo's contacts pair with a geom of something
+    that moves, not of a thing asleep, or that moves past `low`, woken; none, each held where it lies, still. How many
+    woke - those the caller wakes, then holds the rest. */
 int wbc_world_held(struct mjData_ *d, const wbc_held_t *h);
 
 #endif

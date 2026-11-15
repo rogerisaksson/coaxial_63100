@@ -1,4 +1,4 @@
-"""The dual-domain kernel on its loop (docs/todo/protocol.md): its momentum observer against its skin."""
+"""The dual-domain kernel on the robot's loop (docs/todo/protocol.md): momentum observer against skin."""
 import sys
 
 from tools.dev.focus import chosen
@@ -6,14 +6,15 @@ from gynoid_kit import Report, near
 
 
 def _engage():
-    """The text's contact comparator's engaging share of its weight (`latch-hysteretic-contact`)."""
+    """The text's contact comparator's engaging share of the robot's weight (`latch-hysteretic-contact`)."""
     from machine.texts import dsp, kernel
     got = kernel.read()
     return dsp.value(['latch-hysteretic-contact', 'nominal-biped-gait'], got)['contact-comparators']['schmitt-high-engage-fz']
 
 
 def _observed(scene, since, until):
-    """(observed, felt) each law pass of `scene` from `since` to `until` s, (n, MANIFOLDS); its weight, N."""
+    """(observed, felt) each law pass of `scene` from `since` to `until` s, (n, MANIFOLDS); the robot's
+    weight, N."""
     import numpy as np
     from machine.senses import observer
     from tools.sim import scenarios
@@ -30,9 +31,10 @@ def _observed(scene, since, until):
     return np.array([r[0] for r in rows]), np.array([r[1] for r in rows]), weight[0]
 
 
-def test_its_patches_observed_walking(report):
-    """Walking past its first stride, the observer reads its soles' push within the text's engaging
-    share of its weight at its 95th percentile, and nowhere its skin feels nothing past it."""
+def test_the_robots_patches_observed_walking(report):
+    """Walking past the robot's first stride, the observer reads its soles' push within the text's
+    engaging share of its weight at its 95th percentile, and nowhere the robot's skin feels nothing
+    past it."""
     import numpy as np
     from machine.senses import observer
     from tools.sim import observed
@@ -44,8 +46,8 @@ def test_its_patches_observed_walking(report):
                  % (share, p95, ghost, len(got)), p95 < weight and ghost < weight and len(got) > 1000, '')
 
 
-def test_its_patches_observed_seated(report):
-    """Sat on the chair: its soles and the seat each within the text's engaging share of its weight of
+def test_the_robots_patches_observed_seated(report):
+    """Sat on the chair: the robot's soles and the seat each within the text's engaging share of its weight of
     what its skin feels, at the 95th percentile."""
     import numpy as np
     from machine.senses import observer
@@ -53,14 +55,14 @@ def test_its_patches_observed_seated(report):
     share = _engage() * weight
     worst = {m: float(np.percentile(np.abs(got[:, k] - felt[:, k]), 95)) for k, m in enumerate(observer.MANIFOLDS)
              if m in ('plantar-bilateral', 'ischial-bilateral')}
-    report.check('its soles and the seat within %.0f N of its skin at the 95th percentile: %s' % (share, worst),
+    report.check('the observer\'s soles and seat within %.0f N of the robot\'s skin at the 95th percentile: %s' % (share, worst),
                  all(v < weight for v in worst.values()) and len(got) > 1000, '')
 
 
-def test_its_chest_yaw_leaks_nothing_standing(report):
-    """Standing, its trunk's turn asked 0.3 rad about up through its whole-body step (wbc_wrench.c):
-    its chest turns, its standing soles and its centre of mass move under 1e-4 of its acceleration -
-    the text's projector, `nullspace-leakage-guard` 0."""
+def test_the_robots_chest_yaw_leaks_nothing_standing(report):
+    """Standing, the robot's trunk's turn asked 0.3 rad about up through its whole-body step
+    (wbc_wrench.c): its chest turns, its standing soles and its centre of mass move
+    under 1e-4 of its acceleration - the text's projector, `nullspace-leakage-guard` 0."""
     import copy
     import math
     import numpy as np
@@ -87,15 +89,15 @@ def test_its_chest_yaw_leaks_nothing_standing(report):
     chest = float(np.abs(du[8]))
     moved = max([float(np.abs(core.com()[1] @ du).max())] + [float(np.abs(core.jacobian(link, b.sole) @ du).max())
                                                               for link in (23, 32)])
-    report.check('its chest %.1f rad/s^2; its soles and centre of mass %.2g' % (chest, moved),
+    report.check('the robot\'s chest %.1f rad/s^2; its soles and centre of mass %.2g' % (chest, moved),
                  chest > 1.0 and moved < 1e-4 * chest, '')
 
 
-def test_what_bears_its_weighs_as_felt(report):
-    """Its rows' told weights on its comparator (`observer.weighed`): its soles alone as told to the
-    bit, and unsaid (`observer.said`: shares of what is told, its soles alone where nothing is); a told
-    seat unfelt weighs nothing, its share its soles'; felt past the engaging share, as told after 1 /
-    UP s; let go, nothing within 1 / DOWN s of its release's dwell."""
+def test_what_bears_the_robots_weighs_as_felt(report):
+    """The robot's rows' told weights on its comparator (`observer.weighed`): its soles alone
+    as told to the bit, and unsaid (`observer.said`: shares of what is told, its soles alone where
+    nothing is); a told seat unfelt weighs nothing, its share the robot's soles'; felt past the engaging
+    share, as told after 1 / UP s; let go, nothing within 1 / DOWN s of its release's dwell."""
     import numpy as np
     from machine.senses import observer
     obs = {k: np.zeros(len(observer.ROWS)) for k in ('latched', 'below', 'since', 'gate')}
@@ -120,8 +122,8 @@ def test_what_bears_its_weighs_as_felt(report):
                  and np.allclose(felt, told) and np.allclose(gone, sole), '')
 
 
-def test_the_barrier_holds_its_capture_point(report):
-    """`barrier.barred` over a 0.2 m square: its capture point 0.05 m in of an edge moving out at
+def test_the_barrier_holds_the_robots_capture_point(report):
+    """`barrier.barred` over a 0.2 m square: the robot's capture point 0.05 m in of an edge moving out at
     0.5 m/s, an ask outward cut to the edge's h' + gamma h = 0; past the edge none further out; at
     rest 0 the ask as given."""
     import numpy as np
@@ -139,8 +141,9 @@ def test_the_barrier_holds_its_capture_point(report):
 
 
 def test_a_pulled_chair_weighs_nothing(report):
-    """The chair pulled 1 m back over 0.3 s from under its sit while its pelvis descends over it
-    (1.5 s): what bears it takes no seat till its rise is said (8 s), and it stands."""
+    """The chair pulled 1 m back over 0.3 s from under the robot's sit while its pelvis descends over
+    it (1.5 s): what bears the robot takes no seat till its rise is said (8 s), and the robot
+    stands."""
     import numpy as np
     from machine.law import latent
     from tools.sim import scenarios
@@ -158,9 +161,10 @@ def test_a_pulled_chair_weighs_nothing(report):
     report.check('the seat taken at most %.3f, stood %s' % (seat[0], out['stood']), seat[0] == 0.0 and out['stood'], '')
 
 
-def test_its_link_under_its_ceiling(report):
-    """Its DC link (`machine.body.dclink`) through a hop down off a chair: its landing's braking bled on its
-    boards' d axes past the text's onset, the link under its clamp; at rest its packs' volts."""
+def test_the_robots_link_under_its_ceiling(report):
+    """The robot's DC link (`machine.body.dclink`) through a hop down off a chair: its landing's braking bled
+    on the robot's boards' d axes past the text's onset, the link under its clamp; at rest the robot's packs'
+    volts."""
     from machine.body import dclink, drives
     from tools.sim import scenarios
     seen = {}
@@ -172,9 +176,9 @@ def test_its_link_under_its_ceiling(report):
 
 
 def test_the_field_seeks_a_seat_not_found(report):
-    """`field.step` on a table whose seat's contact row waits: its rows' height landed, it seeks down
-    at the text's 0.30 m/s through 43 ms; still descending, nothing; the seat bearing it, it stops
-    and holds; its rows leaning on none, it lets go."""
+    """`field.step` on a table whose seat's contact row waits: the robot's rows' height landed, it seeks down
+    at the text's 0.30 m/s through 43 ms; still descending, nothing; the seat bearing the robot, it stops
+    and holds; the robot's rows leaning on none, it lets go."""
     import numpy as np
     from machine.senses import field
     from machine.law import impedance, latent, modal
@@ -197,8 +201,8 @@ def test_the_field_seeks_a_seat_not_found(report):
 
 
 def test_the_invariant_ekf_drifts_less(report):
-    """Its walk (`tools/sim/drifted.py`): the right-invariant EKF's drift along the floor and in height
-    and its velocity's error each under its estimate's."""
+    """The robot's walk (`tools/sim/drifted.py`): the right-invariant EKF's drift along the floor and in
+    height and its velocity's error each under the robot's estimate's."""
     import math
     from tools.sim import drifted
     line = drifted.one('play_walk')
@@ -212,7 +216,7 @@ def test_the_invariant_ekf_drifts_less(report):
 def test_the_kernel_reads_whole(report):
     """The dual-domain kernel's texts (lisp/humanoid/kernel/) evaluated, each op its mechanism's
     node: the room's schedule; the room's walk with its bus, bands, body schema and shield; the
-    stool's shove gated on its funnel, each funnel's executor run from its nominal, the sit's blind
+    stool's shove gated on its funnel, each funnel's executor run from the robot's nominal, the sit's blind
     settle at the observer's 35 Hz, weights slewed 4.5 up and 45 down, the barrier at 14 /s and 18
     mm, its slide; the stairs; the lowering's own functions evaluated as written."""
     import math
@@ -250,7 +254,7 @@ def test_the_kernel_reads_whole(report):
             for t in stool['funnel-executors']['transitions']}
     sit = runs[(':bipedal-upright', ':ischial-seated')]
     report.check("each executor runs; the sit's observer 35 Hz, weights 4.5 / 45 per s, barrier 14 /s 18 mm, "
-                 "slid at 0.16 m/s under 0.55 of it, its leg 890 mm",
+                 "slid at 0.16 m/s under 0.55 of the robot, its leg 890 mm",
                  len(runs) == 4 and sit['momentum-observer']['filter-cutoff-hz'] == 35.0
                  and sit['manifold-weights']['asymmetric-slew'] == {'attack-rate': 4.5, 'release-rate': 45.0}
                  and (sit['dcm-barrier']['barrier-decay-rate'], sit['dcm-barrier']['safety-margin-mm']) == (14.0, 18.0)
@@ -259,7 +263,7 @@ def test_the_kernel_reads_whole(report):
                  and sit['reachability']['nominal-max-length-mm'] == 890.0, str(sit['manifold-weights']))
     stairs = plan[5][1]
     brace = stairs['adjoint-cones']['opportunistic-egress-brace']
-    report.check("the stairs at 90 BPM, down 175 mm 38 mm clear of the nosing; the egress's brace on what it "
+    report.check("the stairs at 90 BPM, down 175 mm 38 mm clear of the nosing; the egress's brace on what the robot "
                  "registry finds within 680 mm",
                  stairs['oscillator']['bpm'] == 90.0 and stairs['step-energy']['elevation-delta-mm'] == -175.0
                  and stairs['step-energy']['nosing-radial-guard-mm'] == 38.0
@@ -272,8 +276,8 @@ def test_the_kernel_reads_whole(report):
 
 
 def _both(c, step, outs, got):
-    """Its observer's `step` (wbc_gmo.c) on `c` scoped and on its copy whole (`whole`), in turns first, timed:
-    `got` counts the law passes, those whose `outs` were apart, its working set's sizes and each one's seconds.
+    """The robot's observer's `step` (wbc_gmo.c) on `c` scoped and on its copy whole (`whole`), in turns first, timed:
+    `got` counts the law passes, those whose `outs` were apart, the robot's working set's sizes and each one's seconds.
     The copy on a 64-byte line as wbc_gmo_t is (`gmo.made`): ctypes' own copy keeps 16 bytes', on CI's host a crash."""
     import ctypes
     import time
@@ -296,10 +300,11 @@ def _both(c, step, outs, got):
     return stepped
 
 
-def test_its_observer_scoped_as_whole(report):
-    """Its observer's working set (working_envelope_scoper.lisp) at every law pass of its walk and its crouch -
-    hinges on their stops, capsules touching -: its step scoped and its step whole from the same state the same
-    bits; scoped, about half its unknowns split and a fraction of its pairs searched, within the text's envelope."""
+def test_the_robots_observer_scoped_as_whole(report):
+    """The robot's observer's working set (working_envelope_scoper.lisp) at every law pass of its walk and
+    the robot's crouch - hinges on their stops, capsules touching -: its step scoped and its step whole from the
+    same state the same bits; scoped, about half the robot's unknowns split and a fraction of its pairs
+    searched, within the text's envelope."""
     from machine.texts import kernel
     from tools.cores.gmo import GMO_F
     from tools.sim import scenarios
@@ -325,8 +330,8 @@ def test_its_observer_scoped_as_whole(report):
                      and (got['touches'] > 0) == touching, '%d passes apart' % got['apart'])
 
 
-ROSTER = (test_the_invariant_ekf_drifts_less, test_the_field_seeks_a_seat_not_found, test_its_link_under_its_ceiling, test_the_barrier_holds_its_capture_point, test_a_pulled_chair_weighs_nothing, test_its_patches_observed_walking, test_its_patches_observed_seated, test_its_chest_yaw_leaks_nothing_standing,
-          test_what_bears_its_weighs_as_felt, test_the_kernel_reads_whole, test_its_observer_scoped_as_whole)
+ROSTER = (test_the_invariant_ekf_drifts_less, test_the_field_seeks_a_seat_not_found, test_the_robots_link_under_its_ceiling, test_the_barrier_holds_the_robots_capture_point, test_a_pulled_chair_weighs_nothing, test_the_robots_patches_observed_walking, test_the_robots_patches_observed_seated, test_the_robots_chest_yaw_leaks_nothing_standing,
+          test_what_bears_the_robots_weighs_as_felt, test_the_kernel_reads_whole, test_the_robots_observer_scoped_as_whole)
 
 
 def main(argv=None):

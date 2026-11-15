@@ -1,6 +1,6 @@
-"""What it was told and how it went.
+"""What the robot was told and how it went.
 
-A say refused, in its own words; its errand's phases - laid, each phase, over.
+A say refused, in its own words; the robot's errand's phases - laid, each phase, over.
 """
 
 

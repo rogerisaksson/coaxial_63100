@@ -21,7 +21,7 @@ SOURCES = [os.path.join(REPO, 'aero', name)
            for name in ('test/harness.c', 'src/aero.c', 'src/aero_turn.c', 'src/aero_share.c')]
 INCLUDES = [os.path.join(REPO, 'aero', 'inc'), os.path.join(REPO, 'aero', 'src')]
 #: Built as the firmware builds it (CMakeLists.txt) on this host's own instruction sets, nothing contracted
-#: (`build.native`: its cores' flags, one set for every loop's C), every symbol kept for ctypes.
+#: (`build.native`: the robot's cores' flags, one set for every loop's C), every symbol kept for ctypes.
 BUILT = ('-O2', '-fno-math-errno') + native() + ('-fno-builtin-sin', '-fno-builtin-cos', '-fno-builtin-tan') + (
     ('-Wl,--export-all-symbols',) if os.name == 'nt' else ())
 

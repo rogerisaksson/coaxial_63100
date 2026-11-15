@@ -226,7 +226,7 @@ void Board_ThermalInit(void)
   thermal_loss_t loss;
 
   /* Start on the NTC where its reference is up, otherwise somewhere plausible: down, it
-     reads mid-scale (invariant 9). */
+     reads mid-scale. */
   int32_t raw = 0, centi = 0;
   const bool have = Board_AfeOn() && Board_Ntc(&raw, &centi);
   const float start_c = have ? ((float)centi / CENTI_PER_UNIT) : 25.0f;
@@ -359,7 +359,7 @@ static void load_now(thermal_load_t *load)
     for (uint8_t i = 0U; i < 3U; i++)
     {
       /* Through Board_PhaseAmps, so the shunt and gain stay in the
-         calibration record (invariant 7). */
+         calibration record. */
       load->phase_amps[i] = Board_PhaseAmps(i, sample.phase[i]);
     }
 

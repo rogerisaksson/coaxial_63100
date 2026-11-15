@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Its whole bench on the relay: every scenario at three wobbles, the 80 N polar, the kept replays.
+"""The robot's whole bench on the relay: every scenario at three wobbles, the 80 N polar, kept replays.
 
     python tools/sim/bench.py build/bench.json                         # this tree's
     python tools/sim/bench.py build/now.json --against build/bench.json
@@ -31,7 +31,7 @@ REPLAYED = ('import csv, json, sys; sys.path.insert(0, sys.argv[3]); from tools.
 
 
 def jobs(host, sets=()):
-    """The bench's jobs on `host`'s code: (name, argv); its scenarios and shoves on its texts with
+    """The bench's jobs on `host`'s code: (name, argv); its scenarios and shoves on the robot's texts with
     `sets` (PATH:START:END=VALUE) spliced - a replay replays its texts as they are."""
     from tools.dev import focus
     names = json.loads(subprocess.check_output(

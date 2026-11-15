@@ -6,7 +6,7 @@ takes the dots down to ANSI cells.
     depth, rgb = splat((positions, normals, materials, uv), m, fine, centre)   # or a LitRaster
     lines = braille(depth, rgb, grid(m, fine, centre), width, height)
 
-Its meshes come from `shapes`.
+The meshes come from `shapes`.
 """
 from coaxial.graphics.callouts import LEADER_INK
 from coaxial.graphics.raster import BRAILLE, BRAILLE_BITS, DOTS_X, DOTS_Y, NOISE

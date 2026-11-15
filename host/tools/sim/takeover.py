@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-"""Its keys taking its errand over and handing it back as it moves, judged as its analyzers do.
+"""The robot's keys taking its errand over, handing it back as it moves, judged as its analyzers do.
 
     python tools/sim/takeover.py                          # every case from every spot on the relay: a sum, the bad rows
     python tools/sim/takeover.py --one X Z YAW CASE AT    # one run here, its row as JSON
 
-A case from a cell of the lodge's free floor at a heading (`house.spots`, `house.HEADINGS`), its chair errand as F
-offers it there (`gym.offered`, `gym.chose`): `taken` - AT s into the errand's walk its keys' WA held TAKE_S, let
-go, STAND_S on; `handed` - its keys' W held WALK_S, let go, and AT s on its chair errand chosen as F does while
-it still moves, run to its end or LIMIT_S. A row: its fall, its stumbles from the first key on (`support.stumble`),
-its spasms counted (`motion.spasm`), its errand's last phase and whether it docked; no chair offered, 'not offered'.
+A case from a cell of the lodge's free floor at a heading (`house.spots`, `house.HEADINGS`), the robot's chair
+errand as F offers it there (`gym.offered`, `gym.chose`): `taken` - AT s into the errand's walk the robot's keys' WA
+held TAKE_S, let go, STAND_S on; `handed` - its keys' W held WALK_S, let go, and AT s on its chair
+errand chosen as F does while it still moves, run to its end or LIMIT_S. A row: the robot's fall, the robot's
+stumbles from the first key on (`support.stumble`), its spasms counted (`motion.spasm`), the robot's
+errand's last phase and whether it docked; no chair offered, 'not offered'.
 """
 import argparse
 import json
@@ -17,9 +18,10 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-#: The keys held, s: WA taking it over, W before it hands back; the stand after a takeover, s; an errand at most, s.
+#: The keys held, s: WA taking the robot over, W before it hands back; the stand after a takeover, s; an errand at
+#: most, s.
 TAKE_S, WALK_S, STAND_S, LIMIT_S = 1.0, 1.5, 4.0, 40.0
-#: Each case's moments, s: into the errand's walk (`taken`), after its keys are let go (`handed`).
+#: Each case's moments, s: into the errand's walk (`taken`), after the robot's keys are let go (`handed`).
 ATS = {'taken': (0.5, 1.5), 'handed': (0.0, 0.4)}
 
 

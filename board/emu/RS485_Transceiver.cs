@@ -1,8 +1,8 @@
 // RS485_Transceiver.cs - A half-duplex RS485 transceiver with its receiver enabled, between its
 // UART and the bus: what the UART sends comes straight back - the local echo USART2 and UART5
 // hear on the board - and goes onto the bus; what the bus carries reaches the UART. Alone, it
-// is on a bus of its own; on a limb every node's is on the limb's (RS485_Bus.cs). It hangs on
-// its UART's DE pin; Renode's USART does not drive DE, so nothing waits for it.
+// is on a bus of its own; on a limb every node's is on the limb's (RS485_Bus.cs). The transceiver
+// hangs on its UART's DE pin; Renode's USART does not drive DE, so nothing waits for it.
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;

@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""The autotuner on its loop: a root of the suite run, its six classes measured, a step judged.
+"""The autotuner on the robot's loop: a root of the suite run, its six classes measured, a step judged.
 
     python tools/sim/tune.py patch-sneaker-runway             # its reach, its Jacobian, a step judged
-    python tools/sim/tune.py sit_chair --steps 3              # a stunt it plays; each from the last kept
+    python tools/sim/tune.py sit_chair --steps 3              # a stunt the robot plays; each from the last kept
     python tools/sim/tune.py compile-omnidirectional-suite    # a schedule to its first refusal
     python tools/sim/tune.py patch-sneaker-runway --write     # converged and held elsewhere: written
     python tools/sim/tune.py sit_chair --reach                # what each literal moves, nothing run
     python tools/sim/tune.py ROOT --one --set=PATH:START:END=V  # one run as JSON, a relay job's
 
 A run is the telemetry's (`telemetry.ran`): a gait, a stunt or a schedule, the text's six classes
-sampled over whatever bears it. Its Jacobian is a run pair a live literal (`tune.reach`), its
-scale times the text's trust region either side; the step the text's (`tune.step`), its form held
+sampled over whatever bears the robot. The autotuner's Jacobian is a run pair a live literal (`tune.reach`),
+its scale times the text's trust region either side; the step the text's (`tune.step`), the robot's form held
 on a gait's flat floor, kept unless VERDICTS say otherwise, its trust region halved till its
 model's gain is under the floor. Written (--write) converged by the text's tol and held on every
 other root a moved literal reaches (`elsewhere`).
@@ -44,12 +44,12 @@ def off(run):
 
 
 def _formed(run):
-    """Whether its form is a run's condition: its walk's, on a flat floor (`telemetry.ran`'s word)."""
+    """Whether the robot's form is a run's condition: its walk's, on a flat floor (`telemetry.ran`'s word)."""
     return run['formed']
 
 
 def _worse(before, after):
-    """The measures of its form `after` moves further outside its band than `before`'s floor, where
+    """The measures of the robot's form `after` moves further outside its band than `before`'s floor, where
     it is a condition, never a price."""
     b, a = off(before), off(after)
     return sorted(name for name in a if a[name] - b[name] > before['off_floor'][name]) if _formed(after) else []
@@ -103,7 +103,7 @@ def walk_report(root, table, cols, refused):
 
 
 def run_report(gr, before, after, table, live, cur, new):
-    """A step's lines: each class's residual before and after, its measures, each literal's move."""
+    """A step's lines: each class's residual before and after, the robot's measures, each literal's move."""
     lines = ['  %-28s %-32s %9s %9s' % ('class', 'telemetry', 'before', 'after')]
     lines += ['  %-28s %-32s %9.4f %9.4f' % (name, r.telemetry, before['r'][k], after['r'][k] if 'r' in after else math.nan)
               for k, (name, r) in enumerate(gr.items())]
@@ -124,7 +124,7 @@ def run_report(gr, before, after, table, live, cur, new):
 def tuned(root, steps, ran=None):
     """(the kept state {span: value}, whether the norm converged) of `root`'s live literals stepped
     up to `steps` times from the texts as they are, each step printed; its runs `ran`'s (`runs`'s
-    signature: the relay's where none, windows on its running loop at runtime)."""
+    signature: the relay's where none, windows on the robot's running loop at runtime)."""
     from machine.texts import tune, voicing
     gr, tx, fr = tune.grammar(), tune.texts(), suite._robot()
     table = tune.walked(root, gr, tx)
@@ -163,7 +163,7 @@ def floors(before, floor):
 
 
 def measured_at(c, state, cur, before, n):
-    """(J, held, ok): the residuals' and its form's Jacobians over the live literals `ok` that felled
+    """(J, held, ok): the residuals' and the robot's form's Jacobians over the live literals `ok` that felled
     it neither way, a run pair a literal its h either side - a form measure's slope where its pair
     moved it past its floor, else 0 -; `before`'s floors set (`floors`), each literal a unit of the
     text's last place off either way."""
@@ -187,7 +187,8 @@ def stepped(c, state, cur, before, measured):
     """(the state a kept step leaves, its run) - or (`state`, None) where none is kept -: the
     text's step on `measured` (J, held, ok), its trust region halved while a step is not kept,
     till the gain its own model predicts is under the floor, the step under the text's last place
-    (its deadband) or its run the same bit for bit (a literal its law rounds: the sit's ms)."""
+    (its deadband) or the robot's run the same bit for bit (a literal its law rounds: the sit's
+    ms)."""
     from machine.texts import tune
     J, held, ok = measured
     r, shrink = np.array(before['r']), 1.0
@@ -206,7 +207,7 @@ def stepped(c, state, cur, before, measured):
         trial = {**state, **{c['span'][j]: new[j] for j in ok}}
         after = c['runs']([(c['root'], trial)])[0]
         if after.get('r') == before['r']:
-            print('  at %.3g of its trust region its run is the one before it, bit for bit: none kept' % shrink, flush=True)
+            print('  at %.3g of its trust region the robot\'s run is the one before it, bit for bit: none kept' % shrink, flush=True)
             break
         why = judged(before, after)
         print('  at %.3g of its trust region: %s' % (shrink, 'kept' if why is None else 'not kept, ' + why), flush=True)
@@ -218,7 +219,7 @@ def stepped(c, state, cur, before, measured):
 
 
 def _voices(name, played, fr):
-    """`name`'s voices as `played` (the suite, its gym) has them, or the refusal's words."""
+    """`name`'s voices as `played` (the suite, the robot's gym) has them, or the refusal's words."""
     from machine.texts import tune
     from machine.errors import MachineError
     got, gym = played
@@ -230,7 +231,7 @@ def _voices(name, played, fr):
 
 def moved(root, state):
     """The other roots `state` moves, by evaluation: each gait and schedule of the suite, each stunt
-    it plays, each behaviour of its gym, whose voices differ as its texts are and with `state` - a
+    the robot plays, each behaviour of its gym, whose voices differ as its texts are and with `state` - a
     gait on its walk moved by its walk's numbers too."""
     from machine.texts import maneuver, tune
     fr, tx = suite._robot(), tune.texts()
@@ -263,7 +264,7 @@ def elsewhere(root, state):
 
 
 def benched(state):
-    """[(scenario@wobble, why)] of the bench's scenarios and shoves (`bench.jobs`) met as its texts
+    """[(scenario@wobble, why)] of the bench's scenarios and shoves (`bench.jobs`) met as the robot's texts
     are and not with `state`: a step on its walk held its suite's roots and broke the wall."""
     from machine.texts import tune
     from tools.sim import bench
@@ -281,11 +282,11 @@ def benched(state):
 
 def main(argv=None):
     """A root's walk and reach, its steps judged, or one run as JSON (--one)."""
-    p = argparse.ArgumentParser(description='The autotuner on its loop.')
-    p.add_argument('root', help='a gait, a schedule or a stunt it plays')
+    p = argparse.ArgumentParser(description='The autotuner on the robot\'s loop.')
+    p.add_argument('root', help='a gait, a schedule or a stunt the robot plays')
     p.add_argument('--one', action='store_true', help="one run as JSON, a relay job's")
     p.add_argument('--set', action='append', default=[], help='PATH:START:END=VALUE, a literal (--one)')
-    p.add_argument('--reach', action='store_true', help='what each literal moves of it, nothing run')
+    p.add_argument('--reach', action='store_true', help='what each literal moves of the robot, nothing run')
     p.add_argument('--steps', type=int, default=1)
     p.add_argument('--write', action='store_true', help='the kept texts written, converged and held elsewhere')
     args = p.parse_args(argv)
@@ -305,7 +306,7 @@ def main(argv=None):
 def kept(root, state, converged, write):
     """The kept `state` said; written (`write`) where it converged, holds on every other root it
     moves (`elsewhere`) and on the suites its files reach (`gate.held`) - refused, half its move
-    from its texts as they are, as a step's trust region halves, till it rounds to nothing."""
+    from the robot's texts as they are, as a step's trust region halves, till it rounds to nothing."""
     from machine.texts import tune
     from tools.sim import gate
     digits, tx = tune.knobs()[('sync-mutated-packages-to-disk', 'float-precision')], tune.texts()

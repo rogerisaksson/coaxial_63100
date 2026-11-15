@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Its processes placed by its host's topology (`machine.process.placed`), on hosts of other shapes than this one.
+"""The robot's processes placed by its host's topology (`machine.process.placed`), on hosts of other shapes than this one.
 
-Its policy is of masks alone: asked here of a host of one cache for all its cores, of a cache a core, of fast and
-slow cores each cluster its own cache, of two memory nodes of two caches each; Linux's sysfs read off a tree laid in
-a folder; and live where this host tells its topology - two of its loops each take a cache group none else holds,
-another process leaves both."""
+The placement policy is of masks alone: asked here of a host of one cache for all its cores, of a cache a core, of
+fast and slow cores each cluster its own cache, of two memory nodes of two caches each; Linux's sysfs read off a tree
+laid in a folder; and live where this host tells its topology - two of the robot's loops each take a cache group none
+else holds, another process leaves both."""
 import os
 import subprocess
 import sys
@@ -29,47 +29,53 @@ def _host(cores, threads, caches):
     return found, [sum(found[k][1] for k in group) for group in caches]
 
 
-def test_its_loop_takes_a_cache_of_its_own_on_hosts_of_other_shapes(report):
-    """`placed.apart`, `chosen` and `left` on four hosts: its loop's group, its first core, another process's."""
+def test_the_robots_loop_takes_a_cache_of_its_own_on_hosts_of_other_shapes(report):
+    """`placed.apart`, `chosen` and `left` on four hosts: the robot's loop's group, its first core, another
+    process's."""
     from machine.process import placed
     every = lambda _group: True
     none = lambda _group: False
-    # one cache for all of eight cores of two threads: its loop's process on all its cores, another off its first
+    # one cache for all of eight cores of two threads: the robot's loop's process on all its cores,
+    # another off its first
     found, caches = _host([0] * 8, 2, [range(8)])
     own, fast = placed.apart(found)
     mine = placed.chosen(caches, own, every, fast)
-    report.check('one cache for all its cores: its loop on them all, another process off its first core alone',
+    report.check('one cache for all the robot\'s cores: its loop on them all, another process off its first core alone',
                  own == fast == 0x5554 and mine == own and placed.left(caches, own, every) == own & ~(mine & -mine)
                  and placed.left(caches, own, none) == own, '%x, another %x' % (mine, placed.left(caches, own, every)))
-    # two cores or fewer: leaving the first core leaves at most one processor, so its processes are left unplaced
+    # two cores or fewer: leaving the first core leaves at most one processor, so the robot's processes are left
+    # unplaced
     two = _host([0] * 2, 2, [range(2)])
     report.check('two cores or fewer: leaving the first core leaves one processor at most, nothing bound',
                  placed.apart(two[0]) == (0x4, 0x4) and not placed.placed(True, two) and not placed.placed(False, two))
-    # a cache a core: no group holds two of its processors, its loop is left among them all
+    # a cache a core: no group holds two of the robot's processors, its loop is left among them all
     found, caches = _host([0] * 4, 2, [[k] for k in range(4)])
     own, fast = placed.apart(found)
-    report.check('a cache a core: none taken, every process left on its cores',
+    report.check('a cache a core: none taken, every process left on the robot\'s cores',
                  placed.chosen(caches, own, every, fast) == 0 and placed.left(caches, own, none) == own == 0x54)
-    # four slow cores then four fast, a cache a cluster, one thread each: its loop's group the fast cores'
+    # four slow cores then four fast, a cache a cluster, one thread each: the robot's loop's group the fast
+    # cores'
     found, caches = _host([1, 1, 1, 1, 4, 4, 4, 4], 1, [range(4), range(4, 8)])
     own, fast = placed.apart(found)
     mine = placed.chosen(caches, own, every, fast)
-    report.check('fast and slow cores, a cache a cluster: its loop on the fast ones, the slow left to the rest',
+    report.check('fast and slow cores, a cache a cluster: the robot\'s loop on the fast ones, the slow left to the rest',
                  fast == 0xf0 and mine == 0xf0 and placed.left(caches, own, lambda g: g == 0xf0) == 0x0e,
                  '%x of fast %x' % (mine, fast))
-    # fast cores first and one cache for all: its loop's thread on the first fast core of its own, not the lowest
+    # fast cores first and one cache for all: the robot's loop's thread on the first fast core of its own, not
+    # the lowest
     found, caches = _host([1, 1, 4, 4], 2, [range(4)])
     own, fast = placed.apart(found)
     mine = placed.chosen(caches, own, every, fast)
-    report.check('fast and slow cores on one cache: its loop\'s thread on its first fast core',
+    report.check('fast and slow cores on one cache: the robot\'s loop\'s thread on its first fast core',
                  mine == own == 0x54 and (mine & fast) & -(mine & fast) == 0x10, '%x' % ((mine & fast) & -(mine & fast)))
-    # two memory nodes of two caches of four cores: its loops take the last first, each its own, a fifth none
+    # two memory nodes of two caches of four cores: the robot's loops take the last first, each its own, a
+    # fifth none
     found, caches = _host([0] * 16, 2, [range(4), range(4, 8), range(8, 12), range(12, 16)])
     own, fast = placed.apart(found)
     held = []
     for _ in range(5):
         held.append(placed.chosen(caches, own, lambda g: g & own not in held, fast))
-    report.check('two nodes of two caches: its loops each a cache of its own, the last first, a fifth none',
+    report.check('two nodes of two caches: the robot\'s loops each a cache of its own, the last first, a fifth none',
                  held == [0x55000000, 0x00550000, 0x00005500, 0x00000054, 0]
                  and placed.left(caches, own, lambda g: g & own in held[:2]) == 0x00005554,
                  ' '.join('%x' % m for m in held))
@@ -78,7 +84,7 @@ def test_its_loop_takes_a_cache_of_its_own_on_hosts_of_other_shapes(report):
 def test_each_process_takes_a_core_of_its_own_on_hosts_of_other_shapes(report):
     """`placed.core` on hosts laid here: each process a core of its own, every cache's first before any's second,
     the last cache first, the fast before the slow, none where all are taken; a host held to a batch's processors
-    keeps every core of them - only the system's first, processor 0's, is left -; who starts it tells them
+    keeps every core of them - only the system's first, processor 0's, is left -; who starts the robot tells them
     (`told`)."""
     from machine.process import placed
     found, caches = _host([0] * 16, 2, [range(4), range(4, 8), range(8, 12), range(12, 16)])
@@ -100,10 +106,10 @@ def test_each_process_takes_a_core_of_its_own_on_hosts_of_other_shapes(report):
                  taken == [0x10, 0x20, 0x40, 0x80, 0x2, 0x4, 0x8, 0], ' '.join('%x' % m for m in taken))
     found, caches = _host([0] * 8, 2, [range(4), range(4, 8)])
     held = placed.held(found, caches, 0xfff0)
-    report.check("a host held to a batch's processors, the pages' first two cores kept: all six of its cores its own",
+    report.check("a host held to a batch's processors, the pages' first two cores kept: all six of its cores the robot's own",
                  placed.apart(held[0])[0] == 0x5550 and placed.apart(found)[0] == 0x5554,
                  '%x' % placed.apart(held[0])[0])
-    report.check('who starts it tells its processors in hex; none told or none read: 0',
+    report.check('who starts the robot tells its processors in hex; none told or none read: 0',
                  placed.told({placed.GIVEN: 'fff0'}) == 0xfff0 and placed.told({}) == 0
                  and placed.told({placed.GIVEN: 'none'}) == 0)
 
@@ -162,7 +168,7 @@ def test_linux_tells_its_topology_in_sysfs(report):
         found, caches = placed.sysfs(root)
         empty = placed.sysfs(os.path.join(root, 'none'))
     own, fast = placed.apart(found)
-    report.check("Linux's sysfs: its cores, their classes and their last-level caches as it tells them",
+    report.check("Linux's sysfs: the robot's cores, their classes and their last-level caches as it tells them",
                  found == [(512, 0x11), (512, 0x22), (1024, 0x44), (1024, 0x88)] and caches == [0x33, 0xcc]
                  and (own, fast) == (0x0e, 0x0c) and placed.chosen(caches, own, lambda g: True, fast) == 0x0c
                  and empty == ([], []), '%s %s' % (found, ['%x' % c for c in caches]))
@@ -197,15 +203,15 @@ def test_a_container_s_processors_are_its_cpuset(report):
 
 def test_two_loops_take_each_a_cache_and_another_process_leaves_both(report):
     """Live, where this host tells its topology and holds a thread or a process to its processors: two processes
-    placed as its loop's, a third as another, all alive at once - each loop's processors within one cache group
-    and no other's, the third's off both."""
+    placed as the robot's loop's, a third as another, all alive at once - each loop's processors within one
+    cache group and no other's, the third's off both."""
     from machine.process import placed
     found, caches = placed.topology()
     own, fast = placed.apart(found) if found else (0, 0)
     fits = [g for g in caches if (g & own) & ((g & own) - 1)]
     if len(fits) < 3:
         report.check('its loops each take a cache of their own (this host tells fewer than three such)', True,
-                     '%d caches of two of its cores' % len(fits))
+                     '%d caches of two of the robot\'s cores' % len(fits))
         return
     env = dict(os.environ, PYTHONPATH=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     alive = []
@@ -220,17 +226,17 @@ def test_two_loops_take_each_a_cache_and_another_process_leaves_both(report):
             child.communicate('')
     (_a, (ok_a, now_a, mine_a)), (_b, (ok_b, now_b, mine_b)), (_c, (ok_c, now_c, _none)) = alive
     if not (ok_a and ok_b and ok_c and mine_a and mine_b):
-        report.check("its loops each take a cache of their own (this run's job holds its processes, or none is free)",
+        report.check("the robot's loops each take a cache of their own (this run's job holds its processes, or none is free)",
                      not (mine_a or mine_b) or (ok_a and ok_b), 'placed %d %d %d' % (ok_a, ok_b, ok_c))
         return
-    report.check('two of its loops each on a cache group of its own, another process off both',
+    report.check('two of the robot\'s loops each on a cache group of its own, another process off both',
                  ok_a and ok_b and ok_c and mine_a and mine_b and now_a == mine_a and now_b == mine_b
                  and any(mine_a == g & own for g in caches) and any(mine_b == g & own for g in caches)
                  and not mine_a & mine_b and not now_c & (mine_a | mine_b) and now_c,
                  'loops %x %x, another %x' % (now_a, now_b, now_c))
 
 
-ROSTER = (test_its_loop_takes_a_cache_of_its_own_on_hosts_of_other_shapes,
+ROSTER = (test_the_robots_loop_takes_a_cache_of_its_own_on_hosts_of_other_shapes,
           test_each_process_takes_a_core_of_its_own_on_hosts_of_other_shapes, test_a_batch_binds_its_jobs_each_to_a_core,
           test_linux_tells_its_topology_in_sysfs, test_a_container_s_processors_are_its_cpuset,
           test_two_loops_take_each_a_cache_and_another_process_leaves_both)

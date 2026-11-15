@@ -1,6 +1,6 @@
 """Callouts on a drawing: a framed column of rows a joint, a leader to it.
 
-`callouts` places them at the drawing's edges, or around it (`band`), each at its joint's
+`callouts` places them at the drawing's edges, or around the robot (`band`), each at its joint's
 height at rest, and draws the leaders; `line` a line of dots, `lines` many; `packed` a cell's inks
 as a key.
 """
@@ -118,7 +118,7 @@ def callouts(labels, anchors, places, width, height, room=None, band=None):
     joint has at rest (`places` {joint: (x, y)}, dots), stacked down the edge as they meet and a
     column further in when the edge is full, within the first `room` rows (all of them); a leader
     from its inner edge to the joint's pivot as it is (`anchors`, dots). The callouts stand
-    still; the leaders follow. `band` (left, right) cells: docked there, around it, not at the
+    still; the leaders follow. `band` (left, right) cells: docked there, around the robot, not at the
     drawing's edges."""
     room = height if room is None else room
     import numpy as np

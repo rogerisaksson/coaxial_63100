@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""FBX takes in and out: a skeleton's joints' places from one, its look's rows written as one.
+"""FBX takes in and out: a skeleton's joints' places from one, the robot's look's rows written as one.
 
     times, joints = fbx.take('TAKE.fbx')        # s, {joint: (n, 3) places, m, y up}
-    fbx.wrote('OUT.fbx', rows)                  # its rows (`look.simulated`), a bone a segment
+    fbx.wrote('OUT.fbx', rows)                  # the robot's rows (`look.simulated`), a bone a segment
     fbx.write('OUT.fbx', times, bones)          # any skeleton's
 
 Read: binary 7.x (64-bit headers from 7500) and ASCII; a joint's place its chain's Lcl
@@ -366,13 +366,13 @@ def write(path, times, bones):
 
 
 def bone(segment):
-    """HumanIK's name of its `segment`."""
+    """HumanIK's name of the robot's `segment`."""
     side, _bar, rest = segment.partition('_')
     return (side.capitalize() + BONES[rest]) if side in ('left', 'right') else BONES[segment]
 
 
 def joints(rows):
-    """(times s, {joint: (n, 3) places, m}) of its look's rows, as `take` has a take's."""
+    """(times s, {joint: (n, 3) places, m}) of the robot's look's rows, as `take` has a take's."""
     from machine.body.figure import SEGMENTS
     return (np.array([float(r['t']) for r in rows]),
             {bone(seg[0]): np.array([[float(r['%s_%s' % (seg[0], axis)]) for axis in 'xyz']

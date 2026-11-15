@@ -1,17 +1,17 @@
-"""Its glazed mountain lodge: timber walls, a glass gable, a snowy roof, a deck, steps, a loft stair.
+"""The robot's glazed mountain lodge: timber walls, glass gable, snowy roof, deck, steps, loft stair.
 
     room.furnish(contacts)                 # the lodge's bodies for the figure's MJCF (`physics.ROOM`)
     room.props(world)                      # its boxes for the page, the door where it swings, the lamp lit
-    room.touched(world, dt)                # the lamp's switch under its hand: toggled, debounced
+    room.touched(world, dt)                # the lamp's switch under a hand: toggled, debounced
 
-Y up, z its walk's line from the squat, x to its left. The walls are static boxes with the floor's
+Y up, z the robot's walk's line from the squat, x to its left. The walls are static boxes with the floor's
 contacts: the sides and the near end dark timber, the far end a gable of glass between mullions
 (`coaxial.graphics.props.PROP_INK`) with the door in it, nothing breaks. The roof's two slabs
-meet at a ridge over the walls, snow on them, nothing collides with them. Past the gable a deck,
+meet at a ridge over the walls, snow on them. Past the gable a deck,
 its boards flush with the floor, a glass rail round it with a gap on the door's line where the
 wooden stair goes down the slope (`floor.scenario`, 'lodge'); at its left end a stone terrace one
 step up. Inside, along the right wall, a stair up to a loft. The door hangs on a hinge at its post
-and swings out as it pushes it; the lamp's switch sits on the wall by it.
+and swings out as the robot pushes it; the lamp's switch sits on the wall by it.
 """
 import math
 import re
@@ -29,55 +29,54 @@ DOOR_X, DOOR, DOOR_KG, DOOR_C, DOOR_DEG = (0.3, 1.2), (0.44, 1.0, 0.02), 2.5, 0.
 
 #: The roof: its pitch, deg; the eaves past the walls, m; a slab's half thickness, the snow on it.
 PITCH_DEG, EAVE_M, ROOF_T = 28.0, 0.4, 0.08
-#: The gable's mullions, each's x, the door's posts among them; a mullion's half width, a pane's
-#: half thickness.
+#: The gable's mullions, each's x, the door's posts among them; a mullion's half width, a pane's half thickness.
 MULLIONS, MULLION, PANE = (-WIDE, -1.9, -0.8, DOOR_X[0], DOOR_X[1], 2.1, WIDE), 0.05, 0.01
 
-#: The deck past the gable, to z; its boards' half thickness. The wooden stair down from it on the
-#: door's line, x. Its rail's posts' x along its far edge - the gap between the third and the
-#: fourth the stair's -, a post's half width and height, the top rail's height, the glass between
-#: posts half high.
+#: The deck past the gable, to z; its boards' half thickness. The wooden stair down from it on the door's line, x. The
+#: rail's posts' x along the deck's far edge - the gap between the third and the fourth the stair's -, a post's half
+#: width and height, the top rail's height, the glass between posts half high.
 DECK_TO, DECK_T = TO + 2.0, 0.03
 STAIR_X = (DOOR_X[0] + DOOR_X[1]) / 2.0
 POSTS, POST, POST_H2, RAIL_H, RAIL_GLASS = (-WIDE, -1.5, STAIR_X - 0.5, STAIR_X + 0.5, WIDE), 0.03, 0.5, 1.0, 0.4
 #: The stone terrace at the deck's left end and the step up to it: x from .. to, their heights.
 TERRACE_X, STEP_X, TERRACE_H, STEP_H = (-WIDE, -2.0), (-2.0, -1.7), 2.0 * RISE_M, RISE_M
-#: The loft stair along the right wall: its middle x, the z it starts at going -z, its steps its own
+#: The loft stair along the right wall: its middle x, the z it starts at going -z, its steps the robot's own
 #: (`floor.STEPS`, RISE_M, RUN_M); the loft's half sizes at its top.
 LOFT_X, LOFT_FROM, LOFT = 2.5, 3.0, (0.5, STEPS * RISE_M / 2.0, 0.75)
-#: The lodge's bodies it may stand on: its ground's (`floor.grounds`).
+#: The lodge's bodies to stand on: its ground's (`floor.grounds`).
 GROUND = ('deck', 'stone_step', 'stone_terrace', 'loft') + tuple('stair%d' % k for k in range(STEPS))
 
-#: The chair: its middle (x, z), facing -z; the seat's half sizes and height, the back's. The low chair
-#: against the wall straight to its right as it starts facing the door (-x; +x is its left), facing the room, its seat at its
-#: popliteal height (`floor.CHAIR_LOW_H`): in the room's middle (0.0, 0.8) it stood in the door's way and
-#: 10 errands failed; against the back wall it walked into it at 0.9 m/s.
+#: The chair: its middle (x, z), facing -z; the seat's half sizes and height, the back's. The low chair against the
+#: wall straight to the robot's right as it starts facing the door (-x; +x its left), facing the room, its seat at
+#: popliteal height (`floor.CHAIR_LOW_H`): in the room's middle (0.0, 0.8) it stood in the door's way and 10 errands
+#: failed; against the back wall the robot walked into it at 0.9 m/s.
 CHAIR_AT, SEAT, SEAT_H, BACK = (1.5, 0.8), CHAIR_SEAT, 0.45, (CHAIR_SEAT[0], 0.25, 0.02)
 CHAIR_LOW_AT = (-(WIDE - THICK - 2.0 * BACK[2] - CHAIR_SEAT[2]), 0.0)
-#: The bed: its middle, its half sizes (the mattress's top at twice the second), its frame's height under the
-#: mattress and how far it stands out of it, m. Its head 0.55 m off the gable fits no dock at that end; 0.20 m
-#: further out it fitted none either (from the east it still rounded the foot's corner and fell at 11.1 s) and the
-#: south spot's dock came 0.219 rad askew for 0.137, so it stays. The frame fills the slot under the mattress, no
-#: slot left (`floor`'s bed): through it its feet came down off its end under the mattress, wedged at 9.7 of its
-#: weight, and sat on its edge its soles bore nothing and its thrust waited. The mattress as it was: cut to 0.16 m
-#: up over a frame that high, its lie at its end from F's walk, its hips 0.06 m in, slid off it.
+#: The bed: its middle, its half sizes (the mattress's top at twice the second), its frame's height under the mattress
+#: and how far it stands out of it, m; its head 0.55 m off the gable fits no dock at that end; 0.20 m further out it
+#: fitted none either (from the east the robot still rounded the foot's corner and fell at 11.1 s) and the south spot's
+#: dock came 0.219 rad askew for 0.137, so it stays. The frame fills the slot under the mattress, no slot left
+#: (`floor`'s bed): through it the robot's feet came down off its end under the mattress, wedged at 9.7 of its weight,
+#: and sat on its edge its soles bore nothing and its thrust waited; the mattress as it was: cut to 0.16 m up over a
+#: frame that high, its lie at its end from F's walk, its hips 0.06 m in, slid off it.
 BED_AT, BED, BED_FRAME_H, BED_PROUD = (-1.8, 1.8), (0.585, 0.22, 1.1), 0.10, 0.02
 #: The table: its middle, the top's half sizes and height.
 TABLE_AT, TOP, TOP_H = (1.5, -0.8), (0.6, 0.015, 0.35), 0.74
 #: The stool: round, 340 mm across (the text's stool, `enforce-backless-stool-rim-zcbf`), no back, at the table's short
-#: side to the room's middle, its rim STOOL_GAP off the table's edge; its seat the chairs' at its popliteal height
-#: (`floor.CHAIR_LOW_H`), sat on as the low chair is, no mount on its arms; four round legs the chairs' in from its rim.
+#: side to the room's middle, its rim STOOL_GAP off the table's edge; its seat the chairs' at popliteal height
+#: (`floor.CHAIR_LOW_H`), sat on as the low chair is, no mount on the robot's arms; four round legs the chairs' in from
+#: its rim.
 STOOL_R, STOOL_GAP, STOOL_LEG = 0.17, 0.18, 0.015
 STOOL_AT = (TABLE_AT[0] - TOP[0] - STOOL_GAP - STOOL_R, TABLE_AT[1])
 #: The lamp: its foot (x, z), the post's half height, the shade's half sizes; its switch on the
 #: left wall, (y, z), its half sizes.
 LAMP_AT, POST_H, SHADE = (-2.5, -1.0), 0.75, (0.15, 0.12, 0.15)
 SWITCH_AT, SWITCH = (1.05, -0.5), (0.03, 0.04, 0.02)
-#: A touch of the switch toggles the lamp, and not again for this long, s.
+#: A touch of the switch toggles the lamp, not again for this long, s.
 SWITCH_S = 0.6
-#: Its furniture's weights, kg, loose on the floor (`loose`): a wooden chair's 5 (seat, back, a leg), a stool's 3
-#: (seat, a leg), a table's 25 (top, a leg), a bed's 60 (frame, core, mattress), a floor lamp's 5.5 (its weighted
-#: foot, post, shade); the lamp's foot, half across and half high, m - on its post alone it fell at 3.6 deg.
+#: The furniture's weights, kg, loose on the floor (`loose`): a wooden chair's 5 (seat, back, a leg), a stool's 3
+#: (seat, a leg), a table's 25 (top, a leg), a bed's 60 (frame, core, mattress), a floor lamp's 5.5 (its weighted foot,
+#: post, shade); the lamp's foot, half across and half high, m - on its post alone it fell at 3.6 deg.
 CHAIR_KG, STOOL_KG, TABLE_KG, BED_KG, LAMP_KG = (2.0, 1.0, 0.5), (1.4, 0.4), (17.0, 2.0), (30.0, 10.0, 20.0), (4.0, 1.0, 0.5)
 LAMP_FOOT = (0.14, 0.01)
 #: A glide under each leg, the bed frame's corners and the lamp foot's rim, its radius, m: the floor met at a point
@@ -153,7 +152,7 @@ def _deck(contacts):
 
 
 def _loft(contacts):
-    """The stair up along the right wall, a step its own each, and the loft at its top."""
+    """The stair up along the right wall, a step the robot's each, and the loft at its top."""
     out = [_box('stair%d' % k, (LOFT_X, (k + 1) * RISE_M / 2.0, LOFT_FROM - (k + 0.5) * RUN_M),
                 (LOFT[0], (k + 1) * RISE_M / 2.0, RUN_M / 2.0), contacts) for k in range(STEPS)]
     out.append(_box('loft', (LOFT_X, LOFT[1], LOFT_FROM - STEPS * RUN_M - LOFT[2]), LOFT, contacts))
@@ -161,10 +160,10 @@ def _loft(contacts):
 
 
 def furnish(contacts, textured=False, free=True):
-    """The lodge's bodies, after the floor: the timber walls, the glass gable with the door on its
-    hinge, the roof, the deck with its rail and the stone terrace, the loft stair, the furniture,
-    the lamp and its switch; `contacts` the floor's contact attributes; `textured`, each in its
-    kind's material for its eyes (`sight.LOOKS`); its loose things `free`, else welded where they stand."""
+    """The lodge's bodies, after the floor: the timber walls, the glass gable with the door on its hinge, the roof,
+    the deck with its rail and the stone terrace, the loft stair, the furniture, the lamp and its switch; `contacts`
+    the floor's contact attributes; `textured`, each in its kind's material for the eyes (`sight.LOOKS`); its loose
+    things `free`, else welded where they stand."""
     mid = (FROM + TO) / 2.0
     out = [
         _box('timber_left', (-WIDE, HIGH / 2.0, mid), (THICK, HIGH / 2.0, (TO - FROM) / 2.0), contacts),
@@ -187,7 +186,7 @@ def furnish(contacts, textured=False, free=True):
 
 
 def _geom(name, half, at, kg, grip='', textured=False, shape='box'):
-    """A loose thing's geom (`loose.MEETS`), in its body: its kind's material for its eyes where `textured`."""
+    """A loose thing's geom (`loose.MEETS`), in its body: its kind's material for the eyes where `textured`."""
     look = ' material="%s"' % next((k for head, k in KINDS.items() if name.startswith(head)), 'wood') if textured else ''
     return '<geom name="%s" type="%s" size="%s" pos="%g %g %g" mass="%g"%s%s%s/>' % (
         (name, shape, ' '.join('%g' % h for h in half)) + tuple(at) + (kg, look, loose.MEETS, grip))
@@ -195,7 +194,7 @@ def _geom(name, half, at, kg, grip='', textured=False, shape='box'):
 
 def _loose(textured, free=True):
     """The room's loose things (`loose`), each a free body on the floor its feet's grip alone holds, where they
-    stood welded to its world: the chair and the low chair, the stool, the table, the bed, the lamp."""
+    stood welded to the world: the chair and the low chair, the stool, the table, the bed, the lamp."""
     def legs(name, high, across, along, kg):
         return [g for dx in (-1.0, 1.0) for dz in (-1.0, 1.0) for g in (
             _geom('%s_%d_%d' % (name, dx > 0, dz > 0), (0.02, (high - FOOT_R) / 2.0, 0.02),
@@ -257,9 +256,9 @@ def props(world):
     swings, the lamp 'lit' while it is on; a still box told by the same tuple each call (`_told_props`),
     the door's read anew - each built anew, 35.8 us a call."""
     m, d, lit, told = world.model, world.data, bool(getattr(world, 'lamp', False)), _told_props(world)
-    # what moves - the door, its loose things - told by the same tuples while it all stands where it stood (its
-    # vision's changed things: told anew each call, the loose things were classed every look, 0.4 s of 2)
-    # a body moved, its boxes alone told anew: a bed awake under its rebuilt all 60 each call, its vision sent them
+    # what moves - the door, the loose things - told by the same tuples while it all stands where it stood (the vision's
+    # changed things: told anew each call, the loose things were classed every look, 0.4 s of 2) a body moved, its boxes
+    # alone told anew: a bed awake under the robot rebuilt all 60 each call, its vision sent them
     live = world.__dict__.get('_room_live')
     if live is None or live[0] is not told:
         moving = sorted({int(m.geom_bodyid[g]) for _still, g, _kinds in told if g >= 0})
@@ -293,8 +292,8 @@ def props(world):
 
 def _told_props(world):
     """[(the still boxes before it as told, unlit and lit; a geom read each call, -1 past the last; its kind
-    unlit and lit)] in `_laid_props`' order, laid once off it: its vision apart is sent a look's changed
-    things alone (`vision.Apart._changed`), each still one the same object."""
+    unlit and lit)] in `_laid_props`' order, laid once off it: the robot's vision apart is sent a look's
+    changed things alone (`vision.Apart._changed`), each still one the same object."""
     laid = _laid_props(world)
     told = getattr(world, '_room_told', None)
     if told is None or told[0] is not laid:
@@ -351,7 +350,7 @@ def _box_of(m, d, g, boxed=True):
 
 
 def touched(world, dt):
-    """The lamp toggled where a hand of its own touches its switch, not twice within SWITCH_S - the
+    """The lamp toggled where a hand of the robot's touches its switch, not twice within SWITCH_S - the
     switch's geom against a hand's, MuJoCo's contacts paired in C (`wbc_pass_paired`); whether it
     is on."""
     d = world.data
@@ -366,7 +365,7 @@ def touched(world, dt):
 
 
 def switch(world):
-    """(its room's switch's geom, its hands' geoms): a bool a geom each, laid once on `world` (`touched`'s, and its
+    """(the switch's geom, the robot's hands' geoms): a bool a geom each, laid once on `world` (`touched`'s, and its
     world's steps in C, `machine.world.steps`)."""
     return _switch_laid(world)[0]
 

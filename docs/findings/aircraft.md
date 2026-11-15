@@ -6,10 +6,10 @@ under three names (`machine.aircraft.helicopter`, `machine.aircraft.ornithopter`
 
 ## Helicopter and ornithopter
 
-`machine.aircraft.helicopter`, `machine.aircraft.ornithopter`: one core, a swashplate's or four
-wings' names on it; their routines on ideal rotors at 120 Hz, a line a stage
-(hover, pirouette, orbit, spiral, flip, inverted, tic-toc, roll, full tilt,
-burn, land).
+`machine.aircraft.helicopter`, `machine.aircraft.ornithopter`: one core, a
+swashplate's or four wings' names on it; their routines on ideal rotors at 120
+Hz, a line a stage (hover, pirouette, orbit, spiral, flip, inverted, tic-toc,
+roll, full tilt, burn, land).
 
 | | Helicopter | Ornithopter |
 | --- | --- | --- |
@@ -18,7 +18,7 @@ burn, land).
 | orbit, spiral: bank, L/W | 32-36 deg, 1.19-1.45 | 32-36, 1.19-1.47 |
 | flip, inverted hover | 247 deg/s, 2.0 L/W; -0.97 held | 247, 2.0; -0.98 held |
 | tic-toc / wing rock | 602 deg/s, 2.9 g, L/W -3.2..3.2, tail at its stop | 648, 2.9 g, -3.3..3.2 |
-| piro-flip / slash: drift | 2.4 m off its spot, caught at 1.95 L/W | 2.4 m, 6.1 m low, 3.4 L/W |
+| piro-flip / slash: drift | 2.4 m off the helicopter's spot, caught at 1.95 L/W | 2.4 m, 6.1 m low, 3.4 L/W |
 | full tilt | 703 rad/s, 11.1 L/W, 9.6 g, 26 m/s, 46 m | 703, 10.6, 9.1 g, 25 m/s, 44 m |
 | burn | from 61 m to 0.13, 3.9 g | from 55 m, 3.8 g |
 | landing | -0.06 m/s, 1.6 g for a step, one skid 53 deg/s | -0.07 m/s, 0.6 g |
@@ -41,9 +41,9 @@ burn, land).
   ornithopter's aft wings alike (0.94, k_yaw 3e-5): 0.91 in the slash.
 - The ornithopter's beat through a 6:1 crank: 9.7 Hz at the governor, 11
   boosted (the BionicOpter's 15-20 Hz at 175 g, by the sixth root of the mass
-  10). Its pairs' lift pulses 0.3 of its mean twice a beat in antiphase: a
-  pitching moment of 0.4 N m at 19 Hz, 0.07 deg of rock, 10 deg/s in the
-  hover - under a dot.
+  10). The ornithopter's pairs' lift pulses 0.3 of its mean twice a beat in
+  antiphase: a pitching moment of 0.4 N m at 19 Hz, 0.07 deg of rock, 10 deg/s
+  in the hover - under a dot.
 - Pulled against its axis - a burn's brake - a lean leant the frame the wrong
   way: the horizontal ask turned with the thrust's sign; the helicopter's burn
   leans 17-19 deg where 20, no longer against itself.
@@ -56,8 +56,8 @@ burn, land).
   at most); the ornithopter on 2.0 and 1.7 struck gate 7, on 1.5 lapped in
   24 s whole. The head idles up (the stunt boost) where the plan leans past
   half of gravity, as in the figures.
-- On their instruments (`machine.aircraft.senses`) both lap the course and land. The
-  ornithopter's dive turns its lean over the top - 1 m/s^2 asked up, its
+- On their instruments (`machine.aircraft.senses`) both lap the course and land.
+  The ornithopter's dive turns its lean over the top - 1 m/s^2 asked up, its
   lean 80 deg each way -, its cyclic end to end in 30 ms: 1.37 a pass on the
   truth, 1.50 on the instruments; 1.32-1.64 in ten gusty seeds, 0.80-1.90
   with the air and the ground at the floor, the check 2.0.
@@ -77,9 +77,9 @@ burn, land).
 Four meshes of lofts, surfaces, drums, tubes and boxes, each judged by PNG
 at 150 x 62 cells alone and at 80 x 30 on its page: the aerobat an Extra
 300's and the helicopter a T-REX 700's, measured off models
-(`machine.aircraft.aerobat.form`, `machine.aircraft.helicopter.form`); the quad a Hunter
-long-range quad's, measured off a model - two plates on flat arms, the pack
-under them, the camera ahead, a GPS mast, an aerial; the ornithopter
+(`machine.aircraft.aerobat.form`, `machine.aircraft.helicopter.form`); the quad
+a Hunter long-range quad's, measured off a model - two plates on flat arms, the
+pack under them, the camera ahead, a GPS mast, an aerial; the ornithopter
 designed, no model - a ribbed glass head, a segmented abdomen, veined
 dragonfly wings, a V-tail, insect legs. Skin, plate and accent paints:
 carbon's halftone leaves a cloud of dots, so the bodies are light and the
@@ -99,21 +99,22 @@ main under its mast, its tail's out from the boom's side.
 The Extra at the 1.4 m span, off a model 21.9 units across: fuselage 1.27 m
 to the spinner's tip, the stabiliser's quarter chord 0.67 m behind the
 centre of gravity at 27 % of the mean chord (the flight model's arm 0.48),
-the tail wheel 0.81 m. Its surfaces on hinge lines: the ailerons 28 % of the
-chord from 0.10 to 0.64 m out, the hinge swept 5 deg with the trailing edge;
-the elevator's halves behind 0.71 m; the
+the drawn wing 0.345 m^2 (the flight model's 0.392), the tail wheel 0.81 m.
+The aerobat's surfaces on hinge lines: the ailerons 28 %
+of the chord from 0.10 to 0.64 m out, the hinge swept 5 deg with the trailing
+edge; the elevator's halves behind 0.71 m; the
 rudder full height behind the fuselage's end. The flight model keeps its
 aerodynamics; its contacts are the drawing's - the wheels at 0.093 and
 -0.819 m, 0.147 out; the fuselage four boxes along its sections, one box at
 the belly's depth to the tail having struck the runway rolling at 5.6 s. The
 low hover's floor 0.55 -> 0.74 m: at 0.55 the rudder's foot went 13 cm into
 the runway, at 0.74 it holds 5.8 cm over it. The main legs 6.7 cm longer
-than the model's, the sky standing it 12 deg nose-up on them. The lettering
-read mirrored from above until its columns ran tip-in on +x.
+than the model's, the sky standing the aerobat 12 deg nose-up on them. The
+lettering read mirrored from above until its columns ran tip-in on +x.
 
 ## Aerobat
 
-Its own page: [aerobat](aerobat.md).
+The aerobat's own page: [aerobat](aerobat.md).
 
 ## Motors
 

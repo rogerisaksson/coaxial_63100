@@ -46,8 +46,8 @@ def duties_from(records):
 
 
 #: Records the host holds between the reader and the frame that draws
-#: them. Its own ring, and it can overflow the same way the board's
-#: does - which is the point of showing both.
+#: them. The host's own ring, and it can overflow the same way the
+#: board's does - which is the point of showing both.
 HOST_RING = 2048
 
 #: What a task asks for against what the board says it carries. Over one

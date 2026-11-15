@@ -75,7 +75,7 @@ class DriveNode(Node):
         return dict(zip(READING, self.world.reading(self.index)))
 
     def source(self, module):
-        """Its angle in its world's batch (`World.drives`), read once a pass for every drive."""
+        """The drive's angle in its world's batch (`World.drives`), read once a pass for every drive."""
         return self.world.batch if module == 'angle' else super().source(module)
 
     def identify(self, arming=None, again=False):

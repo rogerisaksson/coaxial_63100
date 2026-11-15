@@ -91,9 +91,9 @@ def test_the_loop_ticks_on_the_image(report, rig, emu):
 
 
 def test_the_step_ticks_on_the_image(report, rig, emu):
-    """The step without an active set (wbc_wrench.c) on the image at its stand's pose, its
-    torques and its soles' loads the host's: on its stand, then its right sole swung (op 2) -
-    its four rounds, striding, setting out."""
+    """The step without an active set (wbc_wrench.c) on the image at the robot's stand's pose, its
+    torques and the robot's soles' loads the host's: on its stand, then its right sole swung
+    (op 2) - its four rounds, striding, setting out."""
     import numpy as np
     from machine.stack import wbc
     from test_wbc_core import _standing

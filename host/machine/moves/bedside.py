@@ -1,17 +1,17 @@
-"""Its body at a seat's or a bed's edge: what meets it behind it, a rim's halt, a roll's drift.
+"""The robot's body at a seat's or bed's edge: what meets it from behind, a rim's halt, a roll's drift.
 
-    reach = bedside.behind(points, radii, lo, hi)  # (m, n) m: each point's skin behind it within heights lo..hi
+    reach = bedside.behind(points, radii, lo, hi)  # (m, n) m: each point's skin behind the robot within heights lo..hi
     v = bedside.halted(gap, speed, gamma)          # m/s: a slide's speed its rim's barrier lets it keep
     f = bedside.pendulum(moment, inertia)          # Hz: a limb hung from its joint, swinging free
-    y = bedside.drift(h, theta)                    # m: its travel rolling on a floor, h its centre over it
-    v = bedside.escape(h, rate, off, gain)         # m/s: the shrimp's scoot across, its centre held on its line
-    w = bedside.unweighted(s, alpha, sigma)        # 1: its weight its thighs may bear crossing a seat's edge
+    y = bedside.drift(h, theta)                    # m: the robot's travel rolling on a floor, h its centre over it
+    v = bedside.escape(h, rate, off, gain)         # m/s: the shrimp's scoot across, the robot's centre held on its line
+    w = bedside.unweighted(s, alpha, sigma)        # 1: the robot's weight its thighs may bear crossing a seat's edge
     r = bedside.capstan(mu, wrap)                  # 1: a drag over an edge it wraps, over its plain friction
     x, up = bedside.cop(points, forces, weight)    # m, N: a stool's centre of pressure on the floor, its push
 
-The kernel's bedside and overheight texts (lisp/humanoid/kernel/bedside_*.lisp, overheight_*.lisp). Its frame
-`machine.body.figure`'s: x its left, y up, z ahead; its skin as points with radii (`groundwork`). Flat arrays and
-arithmetic: no branch, no loop, no dict.
+The kernel's bedside and overheight texts (lisp/humanoid/kernel/bedside_*.lisp, overheight_*.lisp). The robot's
+frame `machine.body.figure`'s: x its left, y up, z ahead; its skin as points with radii (`groundwork`). Flat
+arrays and arithmetic: no branch, no loop, no dict.
 """
 import os
 
@@ -23,9 +23,9 @@ from machine.body.compile import G_M_S2 as G
 
 
 def behind(points, radii, lo, hi):
-    """(m, n) m: how far behind it (-z) each point's skin (`points` (n, 3), `radii` (n,)) reaches within heights
-    `lo`..`hi` (m,), -inf where it reaches none of them: a fixture's face there meets the most of a row first as it
-    backs onto it (`index-popliteal-standoff-datum`)."""
+    """(m, n) m: how far behind the robot (-z) each point's skin (`points` (n, 3), `radii` (n,)) reaches within
+    heights `lo`..`hi` (m,), -inf where it reaches none of them: a fixture's face there meets the most of a row
+    first as the robot backs onto it (`index-popliteal-standoff-datum`)."""
     lo, hi = np.asarray(lo, float)[:, None], np.asarray(hi, float)[:, None]
     off = np.clip(lo - points[:, 1], 0.0, None) + np.clip(points[:, 1] - hi, 0.0, None)
     return np.where(off <= radii, np.sqrt(np.clip(radii * radii - off * off, 0.0, None)) - points[:, 2], -np.inf)
@@ -45,20 +45,23 @@ def pendulum(moment, inertia):
 
 
 def drift(h, theta):
-    """m: its travel along the floor rolling without slip through `theta` (m,) rad, `h` (m,) its centre's height over
-    the floor there (`groundwork.rest`): the integral of h d theta from the first sample, R theta for a cylinder."""
+    """m: the robot's travel along the floor rolling without slip through `theta` (m,) rad, `h` (m,) its centre's
+    height over the floor there (`groundwork.rest`): the integral of h d theta from the first sample, R theta for a
+    cylinder."""
     return np.concatenate([[0.0], np.cumsum(0.5 * (h[1:] + h[:-1]) * np.diff(theta))])
 
 
 def escape(h, rate, off, gain):
-    """m/s: the shrimp's scoot across the bed (`execute-zero-translation-bed-roll`), -h theta' - gain off: `h` its
-    centre's height over the bed (the text's R_eff), `rate` its roll's rad/s, `off` its centre from its line, m."""
+    """m/s: the shrimp's scoot across the bed (`execute-zero-translation-bed-roll`), -h theta' - gain off: `h` the
+    robot's centre's height over the bed (the text's R_eff), `rate` its roll's rad/s, `off` the robot's
+    centre from its line, m."""
     return -h * rate - gain * off
 
 
 def unweighted(s, alpha, sigma):
-    """1: the share of its weight its thighs and buttocks may bear `s` m past a seat's edge (on the seat +), 1 - alpha
-    exp(-s^2 / 2 sigma^2) (`execute-bevel-arch-vault-homotopy`'s capstan unweighting); its arms bear the rest."""
+    """1: the share of the robot's weight its thighs and buttocks may bear `s` m past a seat's edge (on the seat +),
+    1 - alpha exp(-s^2 / 2 sigma^2) (`execute-bevel-arch-vault-homotopy`'s capstan unweighting); its arms bear the
+    rest."""
     return 1.0 - alpha * np.exp(-0.5 * (np.asarray(s, float) / sigma) ** 2)
 
 

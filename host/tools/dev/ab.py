@@ -58,7 +58,7 @@ IGNORED = re.compile(r'thermal\.(identification\.)?truth\..*|imu\.product_id\..*
 COUNTERS = re.compile(r'.*\.(updates|steps|cycles|periods|trips|errors|now|seconds|cargoes|'
                       r'keepalive|isr_cycles_last|isr_cycles_max|exit_ticks_max)')
 
-#: The DC link's full scale, V (invariant 11).
+#: The DC link's full scale, V.
 LINK_FS = 78.15
 
 #: An electrical speed past this share of the no-load speed is lost: the link cannot spin the

@@ -1,9 +1,9 @@
-"""A player's hands on it: the page's keys and their holds, the plays of them, the shoves."""
+"""A player's hands on the robot: the page's keys and their holds, the plays of them, the shoves."""
 from machine.law import se2
 
-#: A player's walk (`se2`'s, its build's), m/s; a stop.
+#: A player's walk (`se2`'s, the robot's build's), m/s; a stop.
 WALK, STOP = (se2.WALK_SPEED, 0.0, 0.0), (0.0, 0.0, 0.0)
-#: A player's twists, a hold each, s: the page's keys send none outside them, its build's speeds
+#: A player's twists, a hold each, s: the page's keys send none outside them, the robot's build's speeds
 #: (`humanoid_keys.twist`, its turn to the hundredth); an agent sends the same.
 _YAW = round(se2.YAW_RATE, 2)
 KEYS = {'w': WALK, 's': (-se2.BACK_SPEED, 0.0, 0.0), 'q': (0.0, se2.STRAFE_SPEED, 0.0), 'e': (0.0, -se2.STRAFE_SPEED, 0.0),
@@ -17,7 +17,7 @@ PLAYS = {'start_stop': 'w3 -3 w3 -3', 'turns': 'w2 wa2 wd2 -3', 'strafes': 'q2 e
 
 def played(keys):
     """(commands, seconds) of a player's keys, 'w3 -2': each a twist held its seconds, from 1 s; 'h' Space,
-    a hop said at its moment over the twist held ('W2 h W3 -3': its run's leap)."""
+    a hop said at its moment over the twist held ('W2 h W3 -3': the robot's run's leap)."""
     at, plan = 1.0, []
     for word in keys.split():
         key, held = word.rstrip('0123456789.'), word[len(word.rstrip('0123456789.')):]
@@ -26,7 +26,7 @@ def played(keys):
     return plan, at + 1.0
 
 
-#: Shoves: N for SHOVE_S, the way they push (deg about up from ahead, 90 to its left), standing or
+#: Shoves: N for SHOVE_S, the way they push (deg about up from ahead, 90 to the robot's left), standing or
 #: walking, at one of MOMENTS - a quarter of its stride apart, the foot that swings decides; 80 N
 #: held, 200 N held or fallen with its head slower than `scenarios.FALL_M_S` onto the floor.
 FORCES_N, SHOVE_S, MOMENTS = (80, 200), 0.12, (5.0, 5.15, 5.30, 5.45)

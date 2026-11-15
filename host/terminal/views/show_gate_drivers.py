@@ -60,9 +60,9 @@ LEGS = (('U', 'UH', 'UL'), ('V', 'VH', 'VL'), ('W', 'WH', 'WL'))
 
 #: What P pulses: U at this duty against V held low, through the load
 #: across them (about 8 ohm, DC link read at 25 V, 3.1 A for
-#: the on-time, 60 mA mean). It lasts until the second compare write
-#: lands: 15.5 ms measured, ~780 cycles; the protocol has no cycle-counted
-#: burst.
+#: the on-time, 60 mA mean). The pulse lasts until the second compare
+#: write lands: 15.5 ms measured, ~780 cycles; the protocol has no
+#: cycle-counted burst.
 PULSE = 0.02
 
 
@@ -117,7 +117,7 @@ def analog_rows(live, layout, powered, refused, width, params=None, bench=False)
     if not powered:
         out.append('  AFE_ON is off: it powers the ADC reference, so every')
         out.append('  channel above reads mid-scale and none of it is a')
-        out.append('  measurement. It is also what gives the drivers supply'
+        out.append('  measurement. AFE_ON is also what gives the drivers supply'
                    if bench else '  measurement, and +5 with it: the STO chain is down.')
         if bench:
             out.append('  on this bench board.')
@@ -400,7 +400,7 @@ def main(argv=None):
         'of its own' % state['deadtime'])
 
     # The board refuses to convert with AFE_ON off, because that pin powers the
-    # reference (invariant 9).
+    # reference.
     layout, refused = rig.configure(accumulate=args.accumulate,
                                     digital=False), None
     try:

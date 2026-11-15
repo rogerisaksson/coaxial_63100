@@ -5,7 +5,7 @@ A 2 kg Extra 330SC / Edge 540 style 3D RC aerobatic monoplane (`machine.aircraft
 finned aluminium heatsinks with temperature-controlled cooling fans), each armed on the master's
 pilot and running sensorless on the 63100 outrunner's model; the two on one 63 V pack; the airframe
 in MuJoCo under 3D prop-hang thrust and propwash-deflected elevator, full-span ailerons, and rudder
-(`terminal.views.aerobat.flight`). It takes off, turns back down the runway in a knife-edge, flies
+(`terminal.views.aerobat.flight`). The aerobat takes off, turns back down the runway in a knife-edge, flies
 its 3D routine - prop-hang, torque roll, climbing harrier, waterfall, snap roll, unwind, prop-hang
 burn arrest 10 cm over the floor -, lands, and then flies two laps of its airfield's gate course
 (`machine.aircraft.airfield`).
@@ -30,7 +30,7 @@ NEAR_M, CHASE_M, YAW, PITCH = 0.85, 2.4, 58.0, 16.0
 
 def look(camera, law, row, frame, chased, dt):
     """The aerobat camera, `(reach, centre)`: the spectator beside the runway (`show_quad.look`);
-    on its course the quad's chase."""
+    on the aerobat's course the quad's chase."""
     return quad_look(camera, law, row, frame, chased, dt, near_m=NEAR_M, chase_m=CHASE_M,
                      base_yaw=YAW, chase_pitch=PITCH, build=aero_gfx.aero_mesh, sight=aero_gfx.SIGHT)
 

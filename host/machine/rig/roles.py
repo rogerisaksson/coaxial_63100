@@ -61,7 +61,7 @@ class Input(Endpoint):
     """Something read: a channel, a sensor, a stream of records."""
 
     def read(self, count=None, timeout=None):
-        """Its value now, or `count` values within `timeout` seconds."""
+        """The input's value now, or `count` values within `timeout` seconds."""
         raise NotImplementedError
 
     def trigger(self):

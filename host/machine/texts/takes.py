@@ -1,21 +1,21 @@
-"""The mocap takes as rows for its loop: a take's modes at its beats, laid once, said as rows.
+"""The mocap takes as rows for the robot's loop: a take's modes at its beats, laid once, said as rows.
 
     wire, end_ms = takes.wire('stand_to_sit')  # the take's rows (ortho.ROW), its voices at its beats
-    row = takes.pattern('jogging_forward')     # a gait take as its amounts on its standard gait (machine.law.gait)
+    row = takes.pattern('jogging_forward')     # a gait take as its amounts on the robot's standard gait (machine.law.gait)
 
-FILE holds each take's times (s, at its size) and its first eleven modes at them, read off the take as
+FILE holds each take's times (s, at the robot's size) and its first eleven modes at them, read off the take as
 `modal.reading` reads its own (`tools/sim/stunts.py --reference`; the takes lie beside the repo).
 A take is said at its beats (`beats`): the frames where one of its voices turns - its rate, read
-over one natural time (TICK_S), changes sign -, its first and its last; its loop draws its own
+over one natural time (TICK_S), changes sign -, its first and its last; the robot's loop draws its own
 curve through them (`latent.CONTIG`, the rows contiguous). Said at every frame, 31 ms apart,
-the frames' noise bent its 118 sagittal/s^2 and 56 pitch/s^2 (stunts.md). STREAMED are the
-voices a take says, its posture's: the legs' shortening, the centre of mass over the soles
+the frames' noise bent the robot's 118 sagittal/s^2 and 56 pitch/s^2 (stunts.md). STREAMED are the
+voices a take says, the robot's posture's: the legs' shortening, the centre of mass over the soles
 along, the trunk's pitch; its stance's and its arms' stay its balance's (the human's feet,
 pelvis list, heels and arm swing each felled it when said), and VOICES names a take's own. A
-take enters over ENTER_S from wherever it is, its first row's blend. A gait take is its amounts
-on its standard gait (`amounts`, `pattern`: `gait.modified`): its stride's Hz and what its voices
-sing at it, less the walk's own, laid over the gait it is on. The
-bench tells a take (`scenarios._told`); its texts stay the lisp's: told the bed's takes it sat
+take enters over ENTER_S from wherever the robot is, its first row's blend. A gait take is its amounts
+on the robot's standard gait (`amounts`, `pattern`: `gait.modified`): its stride's Hz and what its voices
+sing at it, less the walk's own, laid over the gait the robot is on. The
+bench tells a take (`scenarios._told`); the robot's texts stay the lisp's: told the bed's takes it sat
 at its edge as the human did and collapsed back from there (stunts.md).
 """
 import math
@@ -24,31 +24,32 @@ import os
 from machine.law import latent, modal
 from machine.texts import ortho
 
-#: Each take's '<key>_t' and '<key>_z' (frames, modes), at its size.
+#: Each take's '<key>_t' and '<key>_z' (frames, modes), at the robot's size.
 FILE = os.path.join(os.path.dirname(__file__), 'takes.npz')
 #: The modes a take says.
 STREAMED = (modal.AXIAL, modal.SAGITTAL, modal.PITCH)
-#: A take's own voices, where STREAMED's are not all its own to say: a squat's hips go past his
-#: toes on heels that rise, a dance's where its steps are, and told them its parry stepped
+#: A take's own voices, where STREAMED's are not all the robot's own to say: a squat's hips go past his
+#: toes on heels that rise, a dance's where its steps are, and told them the robot's parry stepped
 #: its round the squat till it fell, over at 4.1 s in the dance (sequencer.md).
 VOICES = {key: (modal.AXIAL, modal.PITCH)
           for key in ('crouching_down', 'crouch_up', 'kneeling_down', 'kneeling_up', 'hip_hop')}
 #: A take's rows' sequence id, after the texts' streams (200-205).
 TAKE_ID = 300
-#: A take's first row's blend, s: the half period of its leg's swing, the window its measures
+#: A take's first row's blend, s: the half period of the robot's leg's swing, the window its measures
 #: are smoothed over too.
 ENTER_S = math.pi * math.sqrt(modal.LEG_M / modal.G)
-#: A beat's resolution, s: its natural time, the window a take's measures are read over.
+#: A beat's resolution, s: the robot's natural time, the window a take's measures are read over.
 TICK_S = math.sqrt(modal.LEG_M / modal.G)
 #: A pattern's modifiers (`gait.MODIFIERS`): its pace, these sung at the stride's Hz (their
-#: amplitudes) and these held (their means). A climb's is not its own yet (sequencer.md): its crouch
-#: said over the floor's fold it squatted twice as deep on the second tread, and its pace, stride
-#: and lean alone hopped it onto the first tread and toppled its backward, where the walk climbs.
+#: amplitudes) and these held (their means). A climb's is not the robot's own yet (sequencer.md): its crouch
+#: said over the floor's fold the robot squatted twice as deep on the second tread, and its pace, stride
+#: and lean alone hopped the robot onto the first tread and toppled its backward, where the walk
+#: climbs.
 SUNG, HELD = {'stride': modal.DRIVE, 'swing': modal.ARMS}, {'crouch': modal.AXIAL, 'lean': modal.PITCH}
 
 
 def frames(key, since_s=0.0, until_s=math.inf):
-    """(s, modes (frames, N)) of a take's frames from `since_s` to `until_s`, at its size."""
+    """(s, modes (frames, N)) of a take's frames from `since_s` to `until_s`, at the robot's size."""
     import numpy as np
     with np.load(FILE) as kept:
         t, z = kept[key + '_t'], kept[key + '_z'].astype(float)
@@ -80,7 +81,7 @@ def beats(key, voices, since_s=0.0):
     """(s, modes (beats, N)) of a take's beats from `since_s`: its frames where one of its
     `voices` turns or changes pace - its rate or its acceleration, each read over one natural
     time (TICK_S), changes sign -, its first and its last; every second or third where more
-    than its table holds (`latent.ROWS`). By its turns alone a rise from a crouch was one
+    than the robot's table holds (`latent.ROWS`). By its turns alone a rise from a crouch was one
     straight note, 10 to 90 % of the way in 5.95 natural times for the take's 2.33."""
     import numpy as np
     t, z = frames(key, since_s)
@@ -95,10 +96,10 @@ def beats(key, voices, since_s=0.0):
 
 
 def amounts(key):
-    """{modifier: amount} of a gait take on its standard gait (`gait.MODIFIERS`): its stride's Hz
+    """{modifier: amount} of a gait take on the robot's standard gait (`gait.MODIFIERS`): its stride's Hz
     - the drive voice's strongest line -, SUNG's amplitudes and HELD's means at that Hz by least
     squares, each less the walk's own (`gait.standard`). The lift's amplitude is the swing's
-    height in the take, not its clearance's; its stride renders it."""
+    height in the take, not the robot's clearance's; its stride renders it."""
     import numpy as np
     from machine.law import gait
     t, z = frames(key)
@@ -116,21 +117,21 @@ def amounts(key):
 
 
 def pattern(key, blend_s=ENTER_S):
-    """A gait take as one row (`ortho.ROW`) over the gait it is on: its standard gait moved by
+    """A gait take as one row (`ortho.ROW`) over the gait the robot is on: its standard gait moved by
     the take's amounts (`gait.modified`), the rest left the gait's, blended over `blend_s`."""
     from machine.law import gait
     return gait.modified(blend_s, **amounts(key))
 
 
 def told(key):
-    """The take `key` as its loop hears it: its rows as one entry (`wire`), as the bench says it."""
+    """The take `key` as the robot's loop hears it: its rows as one entry (`wire`), as the bench says it."""
     return {'entries': [(key, wire(key)[0], (key,))]}
 
 
 def wire(key, at_ms=0, since_s=0.0, enter_s=ENTER_S):
-    """A take's rows for its loop (`ortho.ROW`) from `at_ms` on, its beats from `since_s` of it:
+    """A take's rows for the robot's loop (`ortho.ROW`) from `at_ms` on, its beats from `since_s` of it:
     its first row blended over `enter_s`, each after laid as the beat before arrives and blended
-    to its own over their gap, so its loop draws one curve through them (`ortho.CURVE`); its
+    to its own over their gap, so the robot's loop draws one curve through them (`ortho.CURVE`); its
     voices said (VOICES, else STREAMED), the rest left as they are. And the ms its last beat
     arrives at, where a next take's rows join."""
     voices = VOICES.get(key, STREAMED)

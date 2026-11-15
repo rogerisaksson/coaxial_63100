@@ -26,7 +26,7 @@ PUSH_S = _AB['push_s']
 
 
 def path_pole(v):
-    """Its height's loop on its wing at `v` m/s through the air, 1/s (PATH_POLE)."""
+    """The aerobat's height's loop on its wing at `v` m/s through the air, 1/s (PATH_POLE)."""
     return PATH_POLE / (MASS_KG / (WING.q * WING.area * max(ROTATE_M_S, v)) + ATT_KD / ATT_KP)
 
 
@@ -98,7 +98,7 @@ class Core:
                            [float(state['at'][a]) + float(state['vel'][a]) * abs(v_fwd) / (2.0 * brake)
                             for a in (0, 2)])
         if not self.airborne and rh >= 0.0 and pace < 20.0:
-            # It climbs out no faster than its wing's loop stops at its height: at 12 deg it
+            # The aerobat climbs out no faster than its wing's loop stops at its height: at 12 deg it
             # rose 1.3 m over the lap's line into the limbo's bar 30 m on.
             return run(WING, self, v_fwd, h, yaw, rate, path_pole(v_fwd) * max(0.0, rh - h)) + (stunt, inv)
 
@@ -143,7 +143,7 @@ class Core:
                * ease((LINED_M[1] - row['height']) / (LINED_M[1] - LINED_M[0]))
                * (1.0 - ease(abs(rate) / LINED_RAD_S)) * (1.0 - ease(abs(row.get('slide', 0.0)) / LINED_M_S)))
         err = (target - math.atan2(law['heading'][1], law['heading'][0]) + math.pi) % math.tau - math.pi
-        # No faster than its lean carries it round at its speed: on a wing it stalled - its
+        # No faster than the aerobat's lean carries it round at its speed: on a wing it stalled - its
         # heading turned at the line's 115 deg/s, its nose at 64, 100 deg behind it, the pull
         # ahead asked against its nose: no thrust, into the house at 5 m/s.
         vh = math.hypot(vel[0], vel[2])
@@ -156,7 +156,7 @@ class Core:
         return cmd, target
 
     def margin(self, row):
-        """How much higher `row` is flown in its air's gusts, m: a figure's, not a laid line's."""
+        """How much higher `row` is flown in the aerobat's air's gusts, m: a figure's, not a laid line's."""
         return float(row.get('lined', 1.0) >= 0.5 and row.get('speed', 0.0) <= 5.0) * GUST_S * max(
             0.0, math.sqrt(self.gust2) - GUST_FLOOR)
 
@@ -176,13 +176,13 @@ class Core:
             r_climb, state['h'], state['v'], reach - GRAVITY,
             aerokin.spooled(self.out.speeds[0], math.sqrt(reach * MASS_KG / K_THRUST), IDLE_RAD_S), dt, kd)
         beside = math.sqrt(max(reach * reach - GRAVITY * GRAVITY, 0.0))
-        # On its wing it turns on the wing, its lift short of the stall, not the propeller's
-        # sphere: held to its 1.1 g, a 12 m turn at 20 m/s ran 9.5 m wide of the hoop. It
+        # The aerobat on its wing turns on the wing, its lift short of the stall, not the propeller's
+        # sphere: held to its 1.1 g, a 12 m turn at 20 m/s ran 9.5 m wide of the hoop. The aerobat
         # speeds up on its propeller: held to its wing's under the stall's speed, it hung
         # nose-high at 7 m/s from a hover into its circuit.
         lift = WING.q * WING.area * v2 * STALL_RAD / MASS_KG
         across = beside + self.wingborne * (math.sqrt(max(lift * lift - GRAVITY * GRAVITY, 0.0)) - beside)
-        # On its wing it flies the air's speed: the ground's 14 m/s stalled it in a 7 m/s tail.
+        # The aerobat on its wing flies the air's speed: the ground's 14 m/s stalled it in a 7 m/s tail.
         c, s = law['heading']
         on = flies(row, self.wingborne)
         wx, wz = on * self.wind[0], on * self.wind[2]
@@ -196,7 +196,7 @@ class Core:
         ahead = max(-min(most, beside), min(min(most, beside), ahead))
         side = max(-min(most, across), min(min(most, across), side))
         along = (ahead * s + side * c, ahead * c - side * s)
-        # Nose first it flies a speed: chasing a place it lagged a turn by 12 m.
+        # Nose first the aerobat flies a speed: chasing a place it lagged a turn by 12 m.
         held = 1.0 - self.airborne * (1.0 - on)
         if row['height'] >= 0.0:
             law['spot'] = [p + held * (float(state['at'][a]) - p) for p, a in zip(law['spot'], (0, 2))]

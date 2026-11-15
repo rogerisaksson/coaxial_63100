@@ -1,13 +1,13 @@
-"""The stand's campaign: its pose, a limb a stage at tones, step by step; its gearboxes read.
+"""The stand's campaign: the robot's pose, a limb a stage at tones, step by step; its gearboxes read.
 
     world.reset(campaign.pose(), where=(0.0, mjcf.STAND_M, 0.0))   # on the stand (mjcf.STAND)
     ref = campaign.setpoints(world, seconds, rng)   # a stage a limb, its drives at tones
-    ys, taus, touched = campaign.excite(world, ref) # it on the stand, played a step at a time
+    ys, taus, touched = campaign.excite(world, ref) # the robot on the stand, played a step at a time
     ys, taus = campaign.smoothed(ys, taus, dt)      # low-passed both ways, the rotors' ring out
     campaign.boxes(body, ys, taus, dt, armature)    # each gearbox's wind-up, play, damping, mesh; its rotor
 
-What `machine.identify.sysid` reads its rows off: its edge arrays (`machine.senses.edge`) and its drives' torques
-a step, on the world or on a robot of its build, its boards' currents its torques.
+What `machine.identify.sysid` reads its rows off: the robot's edge arrays (`machine.senses.edge`) and the robot's
+drives' torques a step, on the world or on a robot of its build, its boards' currents its torques.
 """
 import math
 
@@ -32,7 +32,7 @@ STAGES = (('spine_roll', 'spine', 'waist', 'neck', 'head'),) + tuple(
 
 
 def pose():
-    """{joint: deg} it takes on the stand: the stand's, POSE's movements on it, every limb's."""
+    """{joint: deg} the robot takes on the stand: the stand's, POSE's movements on it, every limb's."""
     degrees = figure.stand()
     for part, movement, deg in POSE:
         found = terms.find(part, movement)
@@ -187,8 +187,8 @@ def setpoints(world, seconds, rng):
 
 def excite(world, ref, pulls=None):
     """(ys (N + 1, SENSED), taus (N, JOINTS), touched) of `ref` (N + 1, JOINTS) played on the
-    stand a step each: its edge read every step and its drives' torques over it; `touched` the
-    steps something touched it. Hung, a list `pulls` takes what the harness's load cell reads
+    stand a step each: the robot's edge read every step and its drives' torques over it; `touched` the
+    steps something touched the robot. Hung, a list `pulls` takes what the harness's load cell reads
     each step (`World.pull`)."""
     import numpy as np
     from machine.world import physics
@@ -201,7 +201,7 @@ def excite(world, ref, pulls=None):
         ys.append(edge.felt(world, y).copy())
         if pulls is not None:
             pulls.append(world.pull())
-        touched += int(world.its_own[world.model.geom_bodyid[world.data.contact.geom[:world.data.ncon]]].any())
+        touched += int(world.robot_own[world.model.geom_bodyid[world.data.contact.geom[:world.data.ncon]]].any())
         if k == len(ref) - 1:
             break
         world.target[driven] = ref[k + 1, driven]
@@ -222,7 +222,7 @@ def rotations(q):
 
 
 def hemming(lay, body, ys, dt, every, state_holder=None):
-    """Its unmeasured 2-DoF pendulums (`lay['hems']`) integrated at `dt` over `ys` with their stops,
+    """The robot's unmeasured 2-DoF pendulums (`lay['hems']`) integrated at `dt` over `ys` with their stops,
     sampled every `every`th, yielding after each: ((qadr, vadr, q, qd, qdd), free). Each one's anchor
     follows its chain down from the pelvis, a link's every joint in its order (the torso's spine and
     waist both), its IMU and its encoders the chain's motion."""

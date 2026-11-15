@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Its law's parts ported to C by hand beside their python (`tools.cores.surety`, `touch`, `twist`,
-`wait`, `brace`): each at every pass of its law over PASSES of its walk, on copies of its arrays,
-bit for bit - its surety field, its touch's filter, its twist's step, its table's waits, its
-surety's brace on the solve - and each step's time beside its python's; its table's wait while a move plays
-on its bed's rise as said; its way out of a bed on senses drawn at random; its parts' leaves laid in
-C as Python lays them (`tools.cores.quick`). Where numpy's arithmetic is not this C's
-(`motion.exact_host`), within the last bits. The tracer's parts: test_compiled."""
+"""The robot's law's parts ported to C by hand beside their python (`tools.cores.surety`, `touch`, `twist`,
+`wait`, `brace`): each at every pass of its law over PASSES of its walk, on copies of the
+robot's arrays, bit for bit - its surety field, its touch's filter, its twist's step,
+the robot's table's waits, its surety's brace on the solve - and each step's time beside its python's;
+the robot's table's wait while a move plays on its bed's rise as said; its way out of a bed on
+senses drawn at random; its parts' leaves laid in C as Python lays them (`tools.cores.quick`). Where
+numpy's arithmetic is not this C's (`motion.exact_host`), within the last bits. The tracer's parts:
+test_compiled."""
 import os
 import sys
 import time
@@ -17,14 +18,14 @@ import numpy as np
 from tools.dev.focus import chosen
 from gynoid_kit import Report
 
-#: The passes of its walk each part is held over, its law every third, four times: into its walk.
+#: The passes of the robot's walk each part is held over, its law every third, four times: into its walk.
 PASSES = 3000
 
 
-def test_its_surety_in_c_as_it_walks(report, c):
+def test_the_robots_surety_in_c_as_it_walks(report, c):
     """The robot's surety field in C (`c_motion.surety_laid`, wbc_surety.c) beside its python
-    (`surety.field`) on its arrays at every call of its law over PASSES of its walk - its
-    surety, its vector and its probe bit for bit -, and a step's time beside its python's."""
+    (`surety.field`) on the robot's arrays at every call of its law over PASSES of its walk -
+    the robot's surety, its vector and its probe bit for bit -, and a step's time beside its python's."""
     from machine.law import surety
     from machine.process import worker
     from tools.cores import motion as c_motion
@@ -49,19 +50,20 @@ def test_its_surety_in_c_as_it_walks(report, c):
         worker.stepped(s)
     n, bad, apart = tally
     if c_motion.exact_host():
-        report.check("its surety field in C is its python's bit for bit at %d calls of its law walking" % n,
+        report.check("the robot's surety field in C is its python's bit for bit at %d calls of its law walking" % n,
                      n >= PASSES and not bad, '%d apart, %.3g at most' % (bad, apart))
     else:
-        report.check("its surety field in C is its python's within its last bits where numpy dispatches elsewhere",
+        report.check("the robot's surety field in C is its python's within its last bits where numpy dispatches elsewhere",
                      n >= PASSES and apart <= 1e-9, '%d of %d not bit for bit, %.3g apart at most' % (bad, n, apart))
     us = [1e6 * float(np.median(each)) for each in spent]
-    report.check('a step of its surety field in C on this host', us[0] < 20.0, '%.1f us, its python %.0f' % tuple(us))
+    report.check('a step of the robot\'s surety field in C on this host', us[0] < 20.0, '%.1f us, its python %.0f' % tuple(us))
 
 
-def test_its_touch_in_c_as_it_walks(report, c):
-    """Its touch's filter in C (`c_touch.laid`, wbc_touch.c) beside its python (`touch.stepped`) on
-    copies of its arrays at every pass of its law over PASSES of its walk - the latent out, the
-    ask, the filter's state and its twist bit for bit -, and a step's time beside its python's."""
+def test_the_robots_touch_in_c_as_it_walks(report, c):
+    """The robot's touch's filter in C (`c_touch.laid`, wbc_touch.c) beside its python (`touch.stepped`) on
+    copies of the robot's arrays at every pass of its law over PASSES of its walk - the latent
+    out, the ask, the filter's state and its twist bit for bit -, and a step's time beside its
+    python's."""
     from machine.senses import edge
     from machine.law import modal
     from machine.senses import touch
@@ -93,19 +95,19 @@ def test_its_touch_in_c_as_it_walks(report, c):
         worker.stepped(s)
     n, bad, apart = tally
     if c_motion.exact_host():
-        report.check("its touch's filter in C is its python's bit for bit at %d passes of its law walking" % n,
+        report.check("the robot's touch's filter in C is its python's bit for bit at %d passes of its law walking" % n,
                      n >= PASSES and not bad, '%d apart, %.3g at most' % (bad, apart))
     else:
-        report.check("its touch's filter in C is its python's within its last bits where numpy dispatches elsewhere",
+        report.check("the robot's touch's filter in C is its python's within its last bits where numpy dispatches elsewhere",
                      n >= PASSES and apart <= 1e-9, '%d of %d not bit for bit, %.3g apart at most' % (bad, n, apart))
     us = [1e6 * float(np.median(each)) for each in spent]
-    report.check("a step of its touch's filter in C on this host", us[0] < 30.0, '%.1f us, its python %.0f' % tuple(us))
+    report.check("a step of the robot's touch's filter in C on this host", us[0] < 30.0, '%.1f us, its python %.0f' % tuple(us))
 
 
-def test_its_twist_in_c_as_it_walks(report, c):
-    """Its twist's step in C (`c_twist.laid`, wbc_twist.c) beside its python (`se2.twisted`) on
-    copies of its arrays at every pass of its law over PASSES of its walk told slower and turning, each
-    bit for bit, and a step's time beside its python's."""
+def test_the_robots_twist_in_c_as_it_walks(report, c):
+    """The robot's twist's step in C (`c_twist.laid`, wbc_twist.c) beside its python (`se2.twisted`) on
+    copies of the robot's arrays at every pass of its law over PASSES of its walk told slower
+    and turning, each bit for bit, and a step's time beside its python's."""
     from machine.law import se2
     from machine.process import worker
     from tools.cores import motion as c_motion
@@ -134,20 +136,20 @@ def test_its_twist_in_c_as_it_walks(report, c):
         worker.stepped(s)
     n, bad, apart = tally
     if c_motion.exact_host():
-        report.check("its twist's step in C is its python's bit for bit at %d passes of its law walking" % n,
+        report.check("the robot's twist's step in C is its python's bit for bit at %d passes of its law walking" % n,
                      n >= PASSES and not bad, '%d apart, %.3g at most' % (bad, apart))
     else:
-        report.check("its twist's step in C is its python's within its last bits where numpy dispatches elsewhere",
+        report.check("the robot's twist's step in C is its python's within its last bits where numpy dispatches elsewhere",
                      n >= PASSES and apart <= 1e-9, '%d of %d not bit for bit, %.3g apart at most' % (bad, n, apart))
     us = [1e6 * float(np.median(each)) for each in spent]
-    report.check("a step of its twist in C on this host", us[0] < 30.0, '%.1f us, its python %.0f' % tuple(us))
+    report.check("a step of the robot's twist in C on this host", us[0] < 30.0, '%.1f us, its python %.0f' % tuple(us))
 
 
-def test_its_waits_in_c_as_it_walks(report, c):
-    """Its table's waits in C (`c_wait.laid`, wbc_wait.c: a law pass's in one call, `backs`) beside their python
-    (`waits.held_rows`, `risen_rows`, `landed_rows`, `sunk_rows`, `borne_rows`, `latched_rows` in that order,
-    `woken_rows`) on copies of its table and its state at every pass over PASSES of its walk - the table's times,
-    each one's shift and first row, the state and its rhythm woken bit for bit -, and a wait's time."""
+def test_the_robots_waits_in_c_as_it_walks(report, c):
+    """The robot's table's waits in C (`c_wait.laid`, wbc_wait.c: a law pass's in one call, `backs`) beside their
+    python (`waits.held_rows`, `risen_rows`, `landed_rows`, `sunk_rows`, `borne_rows`, `latched_rows` in that
+    order, `woken_rows`) on copies of its table and its state at every pass over PASSES of its walk - the table's
+    times, each one's shift and first row, the state and its rhythm woken bit for bit -, and a wait's time."""
     from machine.law import latent, waits as py_waits
     from machine.process import worker
     from tools.cores import motion as c_motion
@@ -195,20 +197,20 @@ def test_its_waits_in_c_as_it_walks(report, c):
         worker.stepped(s)
     n, bad, apart = tally
     if c_motion.exact_host():
-        report.check("its table's waits in C are its python's bit for bit at %d calls of its law walking" % n,
+        report.check("the robot's table's waits in C are its python's bit for bit at %d calls of its law walking" % n,
                      n >= 3 * PASSES and not bad, '%d apart, %.3g at most' % (bad, apart))
     else:
-        report.check("its table's waits in C are its python's within their last bits where numpy dispatches elsewhere",
+        report.check("the robot's table's waits in C are its python's within their last bits where numpy dispatches elsewhere",
                      n >= 3 * PASSES and apart <= 1e-9, '%d of %d not bit for bit, %.3g apart at most' % (bad, n, apart))
     us = [1e6 * float(np.median(each)) for each in spent]
     report.check("a wait in C on this host", us[0] < 20.0, '%.1f us, its python %.0f' % tuple(us))
 
 
-def test_its_played_wait_in_c_as_said(report, c):
-    """Its table's wait while a move of its own plays in C (`c_wait`'s `played`, wbc_wait.c) beside its python
-    (`waits.played_rows`) on copies of its bed's rise as said (`maneuver.entry`), a pass's wait every two passes
-    of its clock over its own length and a second, its rows coming due one by one: the table's times, the shift
-    and the time after which rows wait bit for bit."""
+def test_the_robots_played_wait_in_c_as_said(report, c):
+    """The robot's table's wait while a move of its own plays in C (`c_wait`'s `played`, wbc_wait.c)
+    beside its python (`waits.played_rows`) on copies of the robot's bed's rise as said (`maneuver.entry`), a
+    pass's wait every two passes of its clock over its own length and a second, its rows coming due one
+    by one: the table's times, the shift and the time after which rows wait bit for bit."""
     from machine.law import latent, se2, waits as py_waits
     from machine.process import worker
     from machine.texts import maneuver
@@ -222,14 +224,15 @@ def test_its_played_wait_in_c_as_said(report, c):
         want = py_waits.played_rows(mine, 2.0 * k * dt, dt)
         got = g['waits'].played(tab, 2.0 * k * dt, dt)
         n, bad = n + 1, bad + (not (same(tab, mine) and same(got, want)))
-    report.check("its table's wait while a move plays in C is its python's bit for bit at %d passes" % n,
+    report.check("the robot's table's wait while a move plays in C is its python's bit for bit at %d passes" % n,
                  n > 1000 and not bad, '%d apart' % bad)
 
 
-def test_its_bed_exit_in_c_as_in_python(report, c):
-    """Its way out of a bed in C (`tools.cores.bedexit`, wbc_bedexit.c) beside its python (`machine.moves.bedexit`)
-    from poses and senses drawn at random - its pose, its soles' and shanks' shares, its trunk's pitch - through every
-    phase to its seat: the move's state, its joints' command and its end bit for bit at every pass."""
+def test_the_robots_bed_exit_in_c_as_in_python(report, c):
+    """The robot's way out of a bed in C (`tools.cores.bedexit`, wbc_bedexit.c) beside its python
+    (`machine.moves.bedexit`) from poses and senses drawn at random - the robot's pose, its soles' and shanks'
+    shares, its trunk's pitch - through every phase to its seat: the move's state, the robot's joints' command
+    and its end bit for bit at every pass."""
     from machine.moves import bedexit as py
     from tools.cores import bedexit as c_exit
     from tools.cores.orders import same
@@ -249,15 +252,15 @@ def test_its_bed_exit_in_c_as_in_python(report, c):
             phases.add(int(mine[py.PHASE]))
             if want:
                 break
-    report.check("its bed exit in C is its python's bit for bit at %d passes through its %d phases" % (passes, len(phases)),
+    report.check("the robot's bed exit in C is its python's bit for bit at %d passes through its %d phases" % (passes, len(phases)),
                  not bad and len(phases) == len(py.PHASES), '%d apart' % bad)
 
 
-def test_its_scoot_in_c_as_in_python(report, c):
-    """Its scoot on the floor in C (`tools.cores.scoot`, wbc_scoot.c) beside its python (`machine.moves.scoot`) from
-    poses and senses drawn at random - its trunk's pitch, its fists' and feet's shares, its heading across its wrap,
-    its twist held, turned and let go every 2 s -: the move's state and its joints' command bit for bit at every pass,
-    through every phase."""
+def test_the_robots_scoot_in_c_as_in_python(report, c):
+    """The robot's scoot on the floor in C (`tools.cores.scoot`, wbc_scoot.c) beside its python
+    (`machine.moves.scoot`) from poses and senses drawn at random - the robot's trunk's pitch, its fists' and
+    feet's shares, its heading across its wrap, the robot's twist held, turned and let go every 2 s -: the
+    move's state and its joints' command bit for bit at every pass, through every phase."""
     from machine.moves import scoot as py
     from tools.cores import scoot as c_scoot
     from tools.cores.orders import same
@@ -276,12 +279,13 @@ def test_its_scoot_in_c_as_in_python(report, c):
             got = c_scoot.step(theirs, cmd_c, q, 0.0, dt, *sensed)
             passes, bad = passes + 1, bad + (not (same(mine, theirs) and same(cmd_py, cmd_c) and got == want))
             phases.add(int(mine[py.PHASE]))
-    report.check("its scoot in C is its python's bit for bit at %d passes through its %d phases" % (passes, len(phases)),
+    report.check("the robot's scoot in C is its python's bit for bit at %d passes through its %d phases" % (passes, len(phases)),
                  not bad and len(phases) == len(py.PHASES), '%d apart' % bad)
 
 
-def test_its_bed_entry_in_c(report, c):
-    """Its sensed moves in C (wbc_sensed.c) as in python, pass by pass (`bed-entry`, `chair-mount`, `chair-dismount`)."""
+def test_the_robots_bed_entry_in_c(report, c):
+    """The robot's sensed moves in C (wbc_sensed.c) as in python, pass by pass (`bed-entry`, `chair-mount`,
+    `chair-dismount`)."""
     from machine.moves import sensed as py
     from tools.cores import sensed as ce
     from tools.cores.orders import same
@@ -301,15 +305,15 @@ def test_its_bed_entry_in_c(report, c):
                 phases.add(int(ps[py.PHASE]))
                 if want:
                     break
-        report.check("it %s in C is its python's, %d phases" % (name, len(phases)),
+        report.check("the robot %s in C is its python's, %d phases" % (name, len(phases)),
                      not bad and len(phases) == len(pm.tables.names), '%d apart' % bad)
 
 
-def test_its_brace_in_c_as_it_walks(report, c):
+def test_the_robots_brace_in_c_as_it_walks(report, c):
     """The robot's surety's brace on the solve in C (`c_brace.laid`, wbc_brace.c) beside its python
-    (`brace.scaled`, `braced`) on copies at every pass of its law over PASSES of its walk - the
-    solve's M, its answer blended, its drives' inertia and its legs' stiffness bit for bit -, and
-    a blend's time beside its python's."""
+    (`brace.scaled`, `braced`) on copies at every pass of the robot's law over PASSES of its walk -
+    the solve's M, its answer blended, the robot's drives' inertia and its legs' stiffness bit for bit
+    -, and a blend's time beside its python's."""
     from machine.law import brace
     from machine.process import worker
     from tools.cores import motion as c_motion
@@ -346,13 +350,13 @@ def test_its_brace_in_c_as_it_walks(report, c):
         worker.stepped(s)
     n, bad, apart = tally
     if c_motion.exact_host():
-        report.check("its brace in C is its python's bit for bit at %d passes of its law walking" % n,
+        report.check("the robot's brace in C is its python's bit for bit at %d passes of its law walking" % n,
                      n >= PASSES and not bad, '%d apart, %.3g at most' % (bad, apart))
     else:
-        report.check("its brace in C is its python's within its last bits where numpy dispatches elsewhere",
+        report.check("the robot's brace in C is its python's within its last bits where numpy dispatches elsewhere",
                      n >= PASSES and apart <= 1e-9, '%d of %d not bit for bit, %.3g apart at most' % (bad, n, apart))
     us = [1e6 * float(np.median(each)) for each in spent]
-    report.check("a blend of its brace in C on this host", us[0] < 40.0, '%.1f us, its python %.0f' % tuple(us))
+    report.check("a blend of the robot's brace in C on this host", us[0] < 40.0, '%.1f us, its python %.0f' % tuple(us))
 
 
 def _leaves(x, d, s):
@@ -360,10 +364,11 @@ def _leaves(x, d, s):
     return x * s + d['a'] - d['b'].sum()
 
 
-def test_its_leaves_laid_in_c_as_in_python(report, c):
-    """`_leaves` on its memory (`bodied.on_args`), its walk ported to C (`tools.cores.quick`) beside the lines
-    it gives up to (`glue.walk`'s): fresh arrays, a strided and a bool array and an int handed to Python, a
-    shape not traced, a key not there - the same answer, table, scalars and own blocks; called, numpy's bits."""
+def test_the_robots_leaves_laid_in_c_as_in_python(report, c):
+    """`_leaves` on the robot's memory (`bodied.on_args`), its walk ported to C (`tools.cores.quick`) beside the
+    lines it gives up to (`glue.walk`'s): fresh arrays, a strided and a bool array and an int handed to Python,
+    a shape not traced, a key not there - the same answer, table, scalars and own blocks; called, numpy's
+    bits."""
     from tools.cores import bodied, glue, quick
     from tools.cores.orders import same
     if quick.module() is None:
@@ -396,21 +401,21 @@ def test_its_leaves_laid_in_c_as_in_python(report, c):
             apart.append(name)
     b.words[:] = words
     called = [same(part(*args), _leaves(*args)) for args in fits.values()]
-    report.check("its leaves laid in C as Python lays them, %d cases; called, numpy's bits" % len(cases),
+    report.check("the robot's leaves laid in C as Python lays them, %d cases; called, numpy's bits" % len(cases),
                  not apart and all(called) and part.c is not None and part.why is None,
                  'apart %s; called %s; why %s' % (apart, called, part.why))
 
 
-ROSTER = (test_its_surety_in_c_as_it_walks,
-          test_its_touch_in_c_as_it_walks,
-          test_its_twist_in_c_as_it_walks,
-          test_its_waits_in_c_as_it_walks,
-          test_its_played_wait_in_c_as_said,
-          test_its_bed_exit_in_c_as_in_python,
-          test_its_scoot_in_c_as_in_python,
-          test_its_bed_entry_in_c,
-          test_its_brace_in_c_as_it_walks,
-          test_its_leaves_laid_in_c_as_in_python)
+ROSTER = (test_the_robots_surety_in_c_as_it_walks,
+          test_the_robots_touch_in_c_as_it_walks,
+          test_the_robots_twist_in_c_as_it_walks,
+          test_the_robots_waits_in_c_as_it_walks,
+          test_the_robots_played_wait_in_c_as_said,
+          test_the_robots_bed_exit_in_c_as_in_python,
+          test_the_robots_scoot_in_c_as_in_python,
+          test_the_robots_bed_entry_in_c,
+          test_the_robots_brace_in_c_as_it_walks,
+          test_the_robots_leaves_laid_in_c_as_in_python)
 
 
 def main(argv=None):

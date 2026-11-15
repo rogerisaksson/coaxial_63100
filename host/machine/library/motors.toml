@@ -26,8 +26,8 @@ kv = 160.0
 
 # Bought but not built in: the rest of docs/findings/stacks.md's table, each as its page has it
 # (mm, g, KV, line-to-line mohm, peak N m where a page gives one). A build names them in
-# `machine/humanoids`; its own keeps the two above (motors cost, variants of boards and gearboxes
-# cost more).
+# `machine/humanoids`; the robot's own keeps the two above (motors cost, variants of boards and
+# gearboxes cost more).
 
 [U8_LITE]
 name = "T-Motor U8 Lite KV85"

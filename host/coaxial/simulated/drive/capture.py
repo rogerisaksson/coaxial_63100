@@ -20,9 +20,9 @@ class DriveCapture:
     _now: Any
 
     #: Raw codes at rest - THE SAME rest point every other path reads
-    #: (`NOMINAL`), U, V, W and the DC link. It was a second table with
-    #: its own numbers, and `offsets()` tared through this one while the
-    #: DAQ records sat on the other: -500 codes of phantom current on
+    #: (`NOMINAL`), U, V, W and the DC link. CENTRE was a second table
+    #: with its own numbers, and `offsets()` tared through this one while
+    #: the DAQ records sat on the other: -500 codes of phantom current on
     #: every phase of a recorded frame.
     CENTRE = (NOMINAL[0], NOMINAL[1], NOMINAL[2], NOMINAL[5])
 

@@ -108,7 +108,7 @@ class GateStage(Output):
     #:
     #: Volts and not codes: a threshold in codes stops meaning anything the
     #: moment a divider changes, and the divider is the board's, not this
-    #: file's (invariant 7). Cinj at U4's VIT-; Clevel between Q10A's release
+    #: file's. Cinj at U4's VIT-; Clevel between Q10A's release
     #: of FAULTOUT, 1.55 V, and its pumped level, 2.86 V with the keepalive
     #: every 5 us and 2.49 V every 50 us - D10 clamps the pump at 0.8 Cinj
     #: (world_sto.c).

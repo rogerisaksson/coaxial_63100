@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""What it buys, counted: drives, tubes, rods and their ends, belts, gear pairs, pins, bearings.
+"""What the robot buys, counted: drives, tubes, rods and their ends, belts, gear pairs, pins, bearings.
 
     python tools/sim/bom.py
 
@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 
 def parts(lib=None):
-    """[(part, count)] of its purchased parts, the drives first."""
+    """[(part, count)] of the robot's purchased parts, the drives first."""
     from machine.body import drives, linkage, mechatronics, skeleton
     from machine.body.figure import JOINTS
     from tools.sim import members

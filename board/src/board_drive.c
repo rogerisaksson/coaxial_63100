@@ -187,7 +187,7 @@ const char *Board_DriveSetMode(uint8_t mode)
 
   /* The record may have been edited since the last mode change; a drive
      running yesterday's gains after today's calibration is the stale copy
-     invariant 7 exists to prevent. */
+     the record's one home for scaling exists to prevent. */
   Board_DriveParamsFromCal();
 
   const uint32_t masked = Board_IrqHold();

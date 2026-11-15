@@ -1,18 +1,18 @@
-"""Its gait's numbers of its build: each derived on it, Froude-similar on another's leg and mass.
+"""The robot's gait numbers of its build: each derived on it, Froude-similar on another's leg and mass.
 
     STRIDE = gait.table('stride')     # {name: number} of `[gait.stride]` at this build's leg and mass
 
-`machine.body.compile` derives its tables at this build's leg `leg_m` (thigh and shank) and mass as
+`machine.body.compile` derives the robot's tables at this build's leg `leg_m` (thigh and shank) and mass as
 built `mass_kg` (`machine.body.build`), merged with any `[gait]` overrides in its build file. Where
 an override states another `leg_m` or `mass_kg`, each number goes as the powers of the leg and the
-mass its unit's dimensions are (Alexander & Jayes 1983). Its law reads them here, its C twin through
+mass its unit's dimensions are (Alexander & Jayes 1983). The robot's law reads them here, its C twin through
 `tools/cores/motion.py`.
 """
 from machine.body import compile, figure, mechatronics
 from machine.body.figure import SHANK, THIGH
 
 _G = compile.gait(mechatronics.robot().get('gait'))
-#: This build's leg and mass as built over those its numbers are stated at: 1 and 1 on it.
+#: This build's leg and mass as built over those the robot's numbers are stated at: 1 and 1 on it.
 SIMILAR = (THIGH + SHANK) / float(_G['leg_m'])
 MASSY = figure.mass() / float(_G['mass_kg'])
 #: A unit's dimension as powers of the leg and the mass, by its name's ending: m/s and s as the leg's root,
@@ -29,6 +29,6 @@ def power(name):
 
 
 def table(part):
-    """`[gait.<part>]` at this build's leg and mass: {name: number}, each its own times `SIMILAR` and `MASSY`
-    to its powers."""
+    """`[gait.<part>]` at this build's leg and mass: {name: number}, each the robot's own times `SIMILAR` and
+    `MASSY` to its powers."""
     return {name: float(v) * SIMILAR ** power(name)[0] * MASSY ** power(name)[1] for name, v in _G[part].items()}

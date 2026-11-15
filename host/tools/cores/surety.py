@@ -14,7 +14,7 @@ from tools.cores import wbc
 
 class Surety(ctypes.Structure):
 
-    """wbc_surety_t: its surety field's reading of its law's arrays, laid once."""
+    """wbc_surety_t: the robot's surety field's reading of its law's arrays, laid once."""
 
     _fields_ = ([(name, ctypes.c_int) for name in ('quat_at', 'gyro_at', 'accel_at', 'load_at', 'k_to', 'k_from',
                                                    'gain_now', 'zmp_out', 'held_out', 'spare')]
@@ -34,9 +34,9 @@ def _typed():
 
 
 def laid(k, y_in, y, fr, a, st, out):
-    """Its surety field in C on its law's arrays, pointed at once - `machine.law.surety.field` of
-    its edge's `y_in`, modal's `y`, `fr` and `a`, its latent `st` and its `out` -: a step (prev, dt,
-    ct, t) -> (cur, vec), `vec` its (5,) laid once; `k` the ask's (`tools.cores.motion.laid`)."""
+    """The robot's surety field in C on its law's arrays, pointed at once - `machine.law.surety.field`
+    of its edge's `y_in`, modal's `y`, `fr` and `a`, its latent `st` and its `out` -: a step
+    (prev, dt, ct, t) -> (cur, vec), `vec` its (5,) laid once; `k` the ask's (`tools.cores.motion.laid`)."""
     from machine.senses import edge
     from machine.law import latent, modal
     s = Surety(quat_at=edge.QUAT.start, gyro_at=edge.GYRO.start, accel_at=edge.ACCEL.start, load_at=edge.LOAD.start,
@@ -51,5 +51,5 @@ def laid(k, y_in, y, fr, a, st, out):
 
     def field(prev, dt, ct, t):
         return step(at, sp, prev, dt, ct, t, vp), vec
-    field.laid = (at, ctypes.addressof(s), s)     # its ask's and its own, for its drives' pass in C (`tick`)
+    field.laid = (at, ctypes.addressof(s), s)     # its ask's and its own, for the robot's drives' pass in C (`tick`)
     return field

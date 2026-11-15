@@ -196,8 +196,8 @@ class SimulatedAngle(AngleSensor):
         if register == angle.ANG:
             return 0x5000 | self._turn()
         if register == angle.TSEN:
-            # Its die in the thermal stand-in's truth, live, when the board wired
-            # one, else a room's 296 K.
+            # The A1335's die in the thermal stand-in's truth, live, when the board
+            # wired one, else a room's 296 K.
             thermal = self.thermal
             kelvin = (KELVIN_AT_ZERO_C + thermal._die('afe')
                       if thermal is not None else 296.0)

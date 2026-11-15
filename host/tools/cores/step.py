@@ -1,4 +1,4 @@
-"""Its whole-body steps in C through ctypes (wbc_step.c, wbc_chain.c), their python twins' bit for bit.
+"""The robot's whole-body steps in C via ctypes (wbc_step.c, wbc_chain.c), python twins' bit for bit.
 
 `machine.stack.wrench.step`'s and `machine.stack.chain.step`'s:
 
@@ -66,9 +66,10 @@ def _step_typed():
 
 
 def _laid(b, sensed):
-    """(the step laid for its law's body `b`, its fields' views): its body's indices and the step's constants laid
-    once, its mass, clamps and WEP read at each call - its model's masses move as its wear finds a load. `s` its
-    compiled sensing's last (`sensed`, `bodied.on_body`), the step pointed at its block in one write (POINTED)."""
+    """(the step laid for the robot's law's body `b`, its fields' views): the robot's body's indices and the
+    step's constants laid once, its mass, clamps and WEP read at each call - its model's masses
+    move as its wear finds a load. `s` the robot's compiled sensing's last (`sensed`, `bodied.on_body`),
+    the step pointed at its block in one write (POINTED)."""
     from machine.stack import rounds, wbc as law, wrench
     Step, _steps, (most_n, most_d, most_c) = _step_typed()
     passive, active = np.flatnonzero(b.passive), np.flatnonzero(b.active_dof)
@@ -111,8 +112,8 @@ def _laid(b, sensed):
 
 
 def wrench_laid(b, sensed=None):
-    """`machine.stack.wrench.step` in C (wbc_step.c) on its law's body `b`: a solve (b, s, ask) -> its dict, `b.load`
-    set (`_laid`)."""
+    """`machine.stack.wrench.step` in C (wbc_step.c) on the robot's law's body `b`: a solve (b, s, ask) -> its dict,
+    `b.load` set (`_laid`)."""
     k, views = _laid(b, sensed)
     k.quick = _quick(k, _step_typed()[1][0])
     return functools.partial(_stepped, k, _step_typed()[1][0], views)
@@ -120,7 +121,7 @@ def wrench_laid(b, sensed=None):
 
 def _quick(k, step):
     """(quick's step, `k`'s stepper, MISS): `_stepped` in one C call (quick_step.c) where the extension is built and
-    its sensing pointed at - its struct's FIELDS, `step`'s C, its law's friction -; else None."""
+    the robot's sensing pointed at - its struct's FIELDS, `step`'s C, the robot's law's friction -; else None."""
     from machine.stack import wbc as law
     from tools.cores import quick
     mod = quick.module()
@@ -141,8 +142,9 @@ def regime():
 
 
 def chain_laid(b, sensed=None, twin=False):
-    """`machine.stack.chain.step` in C (wbc_chain.c) on its law's body `b`, laid as `wrench_laid` lays the step, the
-    closed chains' `regime` laid once: a solve (b, s, ask) -> its dict; its python twin itself where `twin`."""
+    """`machine.stack.chain.step` in C (wbc_chain.c) on the robot's law's body `b`, laid as `wrench_laid` lays the
+    step, the closed chains' `regime` laid once: a solve (b, s, ask) -> its dict; its python twin itself where
+    `twin`."""
     from machine.stack import chain
     said = regime()
     if twin:
@@ -160,14 +162,14 @@ def chain_laid(b, sensed=None, twin=False):
     return functools.partial(_stepped, k, _step_typed()[1][1], views)
 
 
-#: The step's pointers at what its sensing returns, in the struct's order: (field, index, path).
+#: The step's pointers at what the robot's sensing returns, in the struct's order: (field, index, path).
 POINTED = ([(name, 0, (name,)) for name in ('M', 'h', 'v', 'q', 'com', 'k')]
            + [(name, side, ('feet', side, name)) for name in ('R', 'quat', 'J6', 'dJv', 'sole') for side in (0, 1)]
            + [(field, t, ('turns', t, name)) for field, name in (('tquat', 'quat'), ('Jr', 'Jr'), ('dJr', 'dJr'),
                                                                 ('tw', 'w')) for t in (0, 1)])
 
 
-#: What of its sensing the pointed write takes as its compiled sensing's: the same objects, M apart.
+#: What of the robot's sensing the pointed write takes as its compiled sensing's: the same objects, M apart.
 SENSED = ('h', 'v', 'q', 'com', 'k', 'feet', 'turns')
 #: The struct's fields `_stepped` writes and reads in C, their offsets laid in this order (quick_step.c's enum).
 FIELDS = ('n nd nc M cJ cp cdJv cf cpatch cbody cgive stance let_go com_acc nturns turn kdot_given kdot settle edge mus '
@@ -191,7 +193,7 @@ def _spread(a, n):
 
 
 def _stepped(k, step, v, b, s, ask):
-    """wrench.step(b, s, ask) on the laid `k`: what `s` senses pointed at - its compiled sensing's
+    """wrench.step(b, s, ask) on the laid `k`: what `s` senses pointed at - the robot's compiled sensing's
     last in one write, its M as `s` has it -, what `ask` asks copied through `v`, its fields' views; in one C call
     where `k.quick` is laid and all of it is as laid (quick_step.c: in Python 27 us a law pass about its C)."""
     q = k.quick

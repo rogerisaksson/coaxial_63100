@@ -7,7 +7,7 @@
 #include <math.h>
 
 #define VIEW(at, s0, s1) ((wbc_view_t){(at), (s0), (s1)})
-/** Its steps at most (machine.stack.qp.interior's `most`). */
+/** The predictor-corrector's steps at most (machine.stack.qp.interior's `most`). */
 #define STEPS 60
 
 /** What the Newton step reads: A (m by n, the rows scaled), the residuals rd (n) and rp (m), the slacks s and

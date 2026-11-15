@@ -1,7 +1,7 @@
 """A world stepped in a process of its own, paced to the wall and kept to what its page has shown.
 
 Behind the wall by more than a slice, its debt is dropped rather than run off; given what its page
-has `shown`, it runs no further than `lead_s` past it; commands in, states said out. Its body
+has `shown`, it runs no further than `lead_s` past it; commands in, states said out. The robot's body
 (`machine.process.worker`) and the crafts' flights (`terminal.views.quad.flying`) run on it, each
 placed as a loop from its process's start (`looped`): what is found for one loop's process is every one's.
 
@@ -126,10 +126,11 @@ def paced(world, commands, states, shown=None, lead_s=LEAD_S, realtime=True, say
 
 
 def looped(target, *args):
-    """`target(*args)` in a loop's process from its start: placed as a loop's by its host's topology
+    """`target(*args)` in a loop's process from its start: placed as a loop's by the robot's host's topology
     (`placed.placed(True)`: a cache group of its own, its thread held to it, not throttled) before its target lays
-    anything, so every process it starts leaves it that group. Its worker and each craft's flight alike - placed
-    each by its own target, its crafts' flights were placed as any other process, their pace 2-6 % under."""
+    anything, so every process it starts leaves it that group. The robot's worker and each craft's flight alike -
+    placed each by its own target, the robot's crafts' flights were placed as any other process, their pace 2-6 %
+    under."""
     placed.placed(True)
     target(*args)
 
@@ -181,7 +182,7 @@ class Apart:
     def close(self, wait=1.0):
         """The world stopped: a None command, its queues drained while it ends - `wait` s at the
         most - or ended, and not read after: ended mid-write it leaves half a state on a POSIX
-        pipe, and a read waits for the rest (its page hung so in close on CI's runner)."""
+        pipe, and a read waits for the rest (the robot's page hung so in close on CI's runner)."""
         LIVE.discard(self)
         try:
             self._commands.put_nowait(None)

@@ -1,15 +1,16 @@
-"""What bears it off its soles in C through ctypes (wbc_borne.c), `borne.read`'s bit for bit.
+"""What bears the robot off its soles in C through ctypes (wbc_borne.c), `borne.read`'s bit for bit.
 
-    read = borne.laid(b)                                     # its law's body, laid once
+    read = borne.laid(b)                                     # the robot's law's body, laid once
     prop, contacts, palms = read(b, s, y, weight, hands, let_go)        # as borne.read gives them
     prop, contacts, palms = read(b, s, y, weight, hands, let_go, dt, g) # and its seat's (`emancipation.seated`)
     supports = borne.supported(read)                         # emancipation.supports on its contacts as last read
 
-Its skin's bearing points walked in C - each one's push turned to the world, its room along the floor from its
-capsules, MuJoCo's own Jacobian and its drift at it (mj_jac, mj_jacDot by their pointers), numpy's OpenBLAS for
-every product -, its contacts handed back as its python lays them: lying in bed the python's 192 us a law pass. Given
-its law's `g`, the seat its text tells bears it as `emancipation.seated` lays it, on the read's contacts before any
-is a dict: its contacts out, its cone's four corners in (rising from the bed, the python's 173 us a law pass).
+The robot's skin's bearing points walked in C - each one's push turned to the world, its room along the floor from
+its capsules, MuJoCo's own Jacobian and its drift at it (mj_jac, mj_jacDot by their pointers), numpy's OpenBLAS for
+every product -, the robot's contacts handed back as its python lays them: lying in bed the python's 192 us a
+law pass. Given the robot's law's `g`, the seat its text tells bears it as `emancipation.seated` lays
+it, on the read's contacts before any is a dict: its contacts out, its cone's four corners in (rising from the bed,
+the python's 173 us a law pass).
 """
 import ctypes
 import functools
@@ -25,7 +26,7 @@ SKIN, CAPS, CONTACTS, DOF = 24, 8, 32, 64
 
 class Borne(ctypes.Structure):
 
-    """wbc_borne_t: the read laid on its law's model, a read's support and contacts beside it."""
+    """wbc_borne_t: the read laid on the robot's law's model, a read's support and contacts beside it."""
 
     _fields_ = ([(name, _i) for name in ('skin', 'above', 'n', 'nv', 'touch_at', 'at_at', 'give_at', 'nrm_at', 'pelvis',
                                          'carpal', 'let', 'role_spare')]
@@ -59,8 +60,9 @@ def _typed():
 
 
 def laid(b):
-    """`borne.read` in C on its law's body `b` (`wbc.Body`), laid once - its skin, capsules and constants, its model's
-    posed arrays, MuJoCo's Jacobians and numpy's OpenBLAS -: a read of borne.read's arguments, its result."""
+    """`borne.read` in C on the robot's law's body `b` (`wbc.Body`), laid once - its skin, capsules and constants, the
+    robot's model's posed arrays, MuJoCo's Jacobians and numpy's OpenBLAS -: a read of borne.read's arguments, its
+    result."""
     from machine.body import figure
     from machine.errors import MachineError
     from machine.law import modal
@@ -68,7 +70,7 @@ def laid(b):
     from machine.senses import borne, edge, observer, touch
     from tools.cores import held, trace_mj
     if len(edge.SKIN) > SKIN or max(len(c) for c in borne.CAPSULES) > CAPS or b.m.nv > DOF:
-        raise ValueError('its skin, a capsule list or its model past wbc_borne.h')
+        raise ValueError('the robot\'s skin, a capsule list or its model past wbc_borne.h')
     t = Borne(skin=len(edge.SKIN), above=len(borne.ABOVE), n=b.n, nv=b.m.nv, touch_at=edge.TOUCH.start,
               at_at=edge.AT.start, give_at=edge.GIVE.start, nrm_at=edge.NORMAL.start, pelvis=borne.PELVIS, carpal=borne.CARPAL, let=borne.LET,
               bears_n=borne.BEARS_N, seat_x=figure.SEAT_X)
@@ -98,7 +100,7 @@ def laid(b):
         go = np.ascontiguousarray(let_go, dtype=np.float64)
         v = np.ascontiguousarray(s['v'], dtype=np.float64)
         if step(at, wbc.address(y), wbc.address(v), hands, wbc.address(go)) < 0:
-            raise MachineError('its skin bears it at more than %d points (wbc_borne.h)' % CONTACTS)
+            raise MachineError('the robot\'s skin bears it at more than %d points (wbc_borne.h)' % CONTACTS)
         if g is not None:
             obs = g['observer']
             rows = kept.get(id(obs['row']))
@@ -108,7 +110,7 @@ def laid(b):
             if sat(at, wbc.address(obs['points']), wbc.address(rows[1]), len(rows[1]), row, float(g['told'][row]),
                    float(g['fr'][modal.FLOOR]), float(g.get('emancipated', np.zeros(2)).max()), float(g['sat']),
                    wbc.address(g['seat_f']), wbc.address(v)) < 0:
-                raise MachineError('its skin and its seat bear it at more than %d points (wbc_borne.h)' % CONTACTS)
+                raise MachineError('the robot\'s skin and its seat bear it at more than %d points (wbc_borne.h)' % CONTACTS)
             g['seat_on'], g['seat_near'] = t.seat_on, t.seat_near
         w = views
         contacts = [{'p': w['p'][c].copy(), 'f': w['f'][c].copy(), 'n': w['nrm'][c].copy(), 'J': w['J'][c, :, :n].copy(),
@@ -134,10 +136,10 @@ def _supporting():
 
 
 def supported(read):
-    """`emancipation.supports` in C (wbc_borne_supports) on the contacts `read` (`laid`'s) last read - its law reads
-    them each pass before its legs' release, its seat's cone among them -: its observer's points told its python's
-    (`emancipation.told_on`, its C where laid), the rest copied out in numpy's order into arrays of their own a call.
-    Its arrays built in numpy, its legs' release took 47 us a law pass seated of it."""
+    """`emancipation.supports` in C (wbc_borne_supports) on the contacts `read` (`laid`'s) last read - the robot's
+    law reads them each pass before its legs' release, its seat's cone among them -: its observer's points told its
+    python's (`emancipation.told_on`, its C where laid), the rest copied out in numpy's order into arrays of their
+    own a call. The arrays built in numpy, the robot's legs' release took 47 us a law pass seated of it."""
     from machine.errors import MachineError
     from machine.moves import emancipation, leap
     t, fn, rooms = read.kept[0], _supporting(), np.ascontiguousarray(emancipation.ROOMS, dtype=np.float64)

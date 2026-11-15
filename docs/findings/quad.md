@@ -1,8 +1,8 @@
 # Findings: QUAD
 
 The quad on four boards: frame and air (`machine.aircraft.quad`), routine and
-course, the page's flight, the tuner. Flown since from its cards' rows on a
-core in C ([streams](streams.md)): "the law" here is the one before it. The
+course, the page's flight, the tuner. Flown since from the quad's cards' rows on
+a core in C ([streams](streams.md)): "the law" here is the one before it. The
 board's findings: [FINDINGS](../FINDINGS.md).
 
 ## Hover and landing
@@ -33,9 +33,9 @@ its figures.
   (1 s: 36). The unwind at the hover's 1.5 m/s: at 2.5 from 4 m it braked
   into the hover at 0.94 g, its own stage reaching it where from 8 the hover's
   did. Full tilt's four boards 56 A each, 1.8 A apart from 0.08 s in.
-- On the page its routine opens with the sweep (`machine.aircraft.sweep`): out down
-  the runway and back past the spectator at 11.9 m/s, 1.5 m up and 9 m in
-  front of them, 13.9 s, home within 0.3 m.
+- On the page the quad's routine opens with the sweep
+  (`machine.aircraft.sweep`): out down the runway and back past the spectator at
+  11.9 m/s, 1.5 m up and 9 m in front of them, 13.9 s, home within 0.3 m.
 - The routines flown on the airfield, as the aerobat's: its runway, hangar,
   cars and tree lines standing for them, the course's grounds and gates for
   the course alone (`grounds.world`, `quad.Sky.stand`), each drawn while it
@@ -62,8 +62,8 @@ its figures.
   8.33 K/W: a hover at 0.65-0.72, every board throttled by the corkscrew. The
   record says a propeller's wash, 2.5 K/W (an assumption), the stand-in's
   truth laid on it: 0.52-0.60 in the figures, the hottest node 77-116 C.
-- A row's pull is the action space's for what its boards hold and its pack
-  has ([envelope](envelope.md), the shell): what the frame is sped up on
+- A row's pull is the action space's for what the quad's boards hold and its
+  pack has ([envelope](envelope.md), the shell): what the frame is sped up on
   and a fall's stop is planned on.
 - A row's height told from an eased one by what it moved a pass: a 50 ms
   pass took the landed row for 9.6 m/s and launched the frame 3 m. A row
@@ -103,9 +103,9 @@ house's ridge, round a mast, between two cars, a slalom).
   s late turned the rotors those seconds under a setpoint meant for 50 ms,
   and under the gate's load a gate was passed 2.7 m off; paced, 0.22 m alone
   and 0.25 m beside fourteen busy processes, envelopes 0.74 and 0.79.
-- Off its pad (`grounds.PADS`) into the lap, no hover at its grid: 35.8 s
+- Off the quad's pad (`grounds.PADS`) into the lap, no hover at its grid: 35.8 s
   where 39.8. After the sweep the page met the dive in turbulence, gate 7
-  1.0 m high and struck; its descent held to its spot sat 0.25-0.30 m off
+  1.0 m high and struck; the quad's descent held to its spot sat 0.25-0.30 m off
   it on its skids, leant 8.7 deg and struck. Not held, PULL 0.36: eighteen
   page runs whole.
 - A pack gives the routine 21 % of itself and the course 27 %: spent on a lap
@@ -123,7 +123,7 @@ house's ridge, round a mast, between two cars, a slalom).
 
 ## Air
 
-Its own page: [air](air.md).
+The air's own page: [air](air.md).
 
 ## Solids
 
@@ -135,7 +135,7 @@ frame strikes with its discs and hub; a pass 0.12 ms dearer.
   struck 8 cm up: the floor is its lower edge.
 - The gates stand for the course's flights alone, as drawn: full tilt goes up
   through the first one's top bar.
-- Struck, a flight is over (`flight.CRASHED`): its rotors cut (asked to a
+- Struck, a flight is over (`flight.CRASHED`): the quad's rotors cut (asked to a
   stand through their loops, sensorless, they hunted at 17 A), the wreck left
   4 s, the frame on its spot again, its flight begun over.
 - Through the tour's air nothing is struck, the routine and two laps: ideal
@@ -155,7 +155,7 @@ The page's four boards, still air and six winds:
   without the swing's limit struck the slalom's gate four flights of four.
 - War emergency power was a rule: a thing in the way of the frame's ghost,
   flown 0.5 s on, and the law short of pull - all the rotors gave for 0.6 s,
-  5 s of it a flight. It is the space's outer shell
+  5 s of it a flight. WEP is the space's outer shell
   ([envelope](envelope.md)).
 
 ## Tuner
@@ -166,9 +166,9 @@ The page's four boards, still air and six winds:
   middle and turned 25 deg at most) was planned 20.2 -> 17.8 s and flown
   19.1 and 18.3 where 20.8 and 19.4, but 0.9-1.05 m off its gates and into
   one. Turned alone: planned 18.6, flown 5 % shorter, 0.65-0.97 m off.
-- Its scoreboard: the card on ideal rotors and on four boards, still air and
-  three winds, 8 flights in 15 s on the relay: laps 20.8/19.4 and 21.8/20.8 s
-  as built, a gate 0.52 m off at most. A candidate is its constants by name
+- The tuner's scoreboard: the card on ideal rotors and on four boards, still air
+  and three winds, 8 flights in 15 s on the relay: laps 20.8/19.4 and 21.8/20.8
+  s as built, a gate 0.52 m off at most. A candidate is its constants by name
   and its line's crossings (`course.WAYS`), searched by `cmaes`.
 
 ## Size
@@ -201,16 +201,16 @@ second gate's top bar.
   samples (`course.nearest`); by a sample's own tangent the asked speed's
   change ran 4.3 m/s^2 rms a pass, 3.0 between. The asked speed eased to the
   plan's over SOFT_S, the plan looked up as much further: stepped, 14 m/s^2
-  in a pass, it stood past its finish. Braked for its finish as for a bend
-  it stood 0.36 m past the first gate (`course.STOP`).
+  in a pass, the quad stood past its finish. Braked for the quad's finish as
+  for a bend it stood 0.36 m past the first gate (`course.STOP`).
 - The line rises through its gates (`course.SLOPE`). Level
   through each, a climb is an S: second to third gate, 3.5 m in 12.5, 10
   m/s^2 up and down at 10 m/s, the frame 1.9 m under its line. Crossed at
   the slope from the gate before to the one after: 0.26 m; a lap 17.8 s
-  where 19.3 on the level line's plan, a gate 0.65 m off where 0.48; half its
-  size, struck on every plan before, flies 9.5 and 8.8 s. Searched on that
-  line, 80 generations of 24 on ideal rotors: 16.1 and 15.3 s, a gate 0.45 m
-  off; four boards 16.4 and 15.9 at 0.67-0.74 of their envelopes, stuffy
+  where 19.3 on the level line's plan, a gate 0.65 m off where 0.48; half the
+  quad's size, struck on every plan before, flies 9.5 and 8.8 s. Searched on
+  that line, 80 generations of 24 on ideal rotors: 16.1 and 15.3 s, a gate 0.45
+  m off; four boards 16.4 and 15.9 at 0.67-0.74 of their envelopes, stuffy
   18.2 and 17.1, the pack at 60 % 16.4 and 15.9; 33.3 as the tuner counts it
   where 38.5, 33.2 in four winds it never flew. A point round that line on
   the plan's shares: 14.0 s, 15.1 with the swing's limit.
@@ -241,7 +241,7 @@ line toward a spline's. The plan jerks: a burst of speed and a brake a gate.
 
 ### Pull turn rate
 
-From a hover, asked a speed rising 20 m/s^2 along its nose
+From a hover, asked a speed rising 20 m/s^2 along the quad's nose
 then falling as fast, every 0.9 s: the frame is 5-12 m/s under its ask when
 the next turn comes (half a second of its pull a turn) and 1-2 m off its
 height; the tilt's miss answered to 1.2 rad where 0.6: 2.4-7.5; its loop at
@@ -307,15 +307,15 @@ room, once 1 out.
 
 A dive pushed inverted, no level flight kept.
 
-- The race paced at 12 m/s and 12 m/s^2, its discs against 0.5 g at least,
-  a crest no faster than 0.511 g let it fall: never past -8.8 m/s^2 down.
-- On a sphere about gravity, its discs free, it turned over to 125 deg for a
-  0.4 m miss in a bend and fell into the floor; as far down as its line asks
-  and 0.26 g past it: whole.
+- The race paced at 12 m/s and 12 m/s^2, the quad's discs against 0.5 g at
+  least, a crest no faster than 0.511 g let it fall: never past -8.8 m/s^2 down.
+- On a sphere about gravity, the quad's discs free, it turned over to 125 deg
+  for a 0.4 m miss in a bend and fell into the floor; as far down as its line
+  asks and 0.26 g past it: whole.
 - Rotors asked through the air along their discs: the law learnt their loss
-  as a wind against it, until it learnt on the thrust it believes. A dive's
-  drag, 9 m/s^2 at 20 m/s, held it 2.5 m over its line until the climb took
-  it.
+  as a wind against the quad, until it learnt on the thrust it believes. A
+  dive's drag, 9 m/s^2 at 20 m/s, held the quad 2.5 m over its line until the
+  climb took it.
 - Rotors lagging 80 ms past their spool struck where the boards, a pass,
   flew whole.
 - Searched over boards, winds, sizes and heat: 13.8 and 14.0 s, 18.8 m/s,
@@ -340,9 +340,9 @@ A dive pushed inverted, no level flight kept.
   observers read on the flight's clock: one flight whatever the wall, 14.24
   and 14.98 s, every tip 0.25 m inside.
 
-## Thrusts shared as its torques
+## Thrusts shared as the robot's torques
 
-The collective and the torques shared over the rotors by its whole-body
+The collective and the torques shared over the rotors by the robot's whole-body
 law's levels under bounds (`machine.stack.qp.stack`) flew the race 0.3 s a lap
 slower on the boards than shared by hand, a strike more in 12 flights. A row
 of K_DRAG / K_THRUST, 0.04, fell under the stack's tie-break and the

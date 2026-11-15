@@ -4,7 +4,7 @@
     python tools/dev/ci.py          # GitHub asked (gh): the suites its last host run on main left red
     python tools/dev/ci.py --green  # the last commit on main that host, firmware and both gates left green
 
-Its red suites lead suites.FAILED_FIRST; what it measured raises tests/work.json (`machine_detector.py
+The run's red suites lead suites.FAILED_FIRST; what it measured raises tests/work.json (`machine_detector.py
 --keep`). `--green` names the reference tree: the newest commit whose host run, whose firmware run, and whose
 both ended green (`green`, `whole`), each with how many commits HEAD is past it (`behind`) and its subject; a
 red suite is A/B'd against a worktree at that commit and the fault read in the diff, not derived from first

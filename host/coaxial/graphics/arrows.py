@@ -55,7 +55,7 @@ def surface_at(x, z, props=(), include_furniture=False):
 
 
 def feet_origin(now, props=()):
-    """World (x, y, z) on the surface midway between its left and right feet."""
+    """World (x, y, z) on the surface midway between the robot's left and right feet."""
     where = now.get('where', (0.0, 0.90, 0.0))
     try:
         fr = figure.frames(now.get('angles') or {}, where, quat(*now.get('turn', (1.0, 0.0, 0.0, 0.0))))

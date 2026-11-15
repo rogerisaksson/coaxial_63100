@@ -15,8 +15,8 @@ are named by the task's own layout, and the SPI rows by the ring's source
 tags - a channel added to `board/src/board_adc.c` appears with nothing
 here told.
 
-Nothing judges a reading. Raw codes and the board's own units, and
-invariant 10 applies to a capture exactly as it applies to a meter.
+Nothing judges a reading. Raw codes and the board's own units: no value
+is expected of a capture, as none is of a meter.
 """
 import argparse
 import sys

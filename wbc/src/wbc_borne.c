@@ -1,4 +1,4 @@
-/** wbc_borne.c - what bears it off its soles as its skin feels it (wbc_borne.h): machine.senses.borne.read on its
+/** wbc_borne.c - what bears the robot off its soles as its skin feels it (wbc_borne.h): machine.senses.borne.read on the robot's
     law's model, numpy's arithmetic and its OpenBLAS operation for operation (wbc_np.h, wbc_blas.h), MuJoCo's own
     Jacobians by their pointers. Portable C11, the host's alone. */
 #include "wbc_borne.h"
@@ -55,8 +55,9 @@ static double room_of(const wbc_borne_t *b, int k, const double local[3])
   return r;
 }
 
-/** borne._normal: the normal of what bears segment `k` at its touch `local` (its frame), world, into it - its capsule
-    nearest the point (room_of's choice) outward there, turned by `R`, reversed -; up with none or the point on its axis. */
+/** borne._normal: the normal of what bears segment `k` at its touch `local` (its frame), world, into the robot - the
+    robot's capsule nearest the point (room_of's choice) outward there, turned by `R`, reversed -; up with none or the point
+    on its axis. */
 static void normal_of(const wbc_borne_t *b, int k, const double local[3], const double *R, double out[3])
 {
   double gap = 0.0, r = 0.0, best[3] = {0.0, 0.0, 0.0};
@@ -181,8 +182,9 @@ int wbc_borne_read(wbc_borne_t *b, const double *y, const double *v, double hand
     }
     double nrm[3], size;
 
-    /* the way its support pushes it: its contacts' normals as its edge has them (world, unit), its skin's own
-       estimate where it has none (normal_of), never against the push (machine.senses.borne.read) */
+    /* the way its support pushes it: its contacts' normals as the robot's edge has them (world, unit), the
+       robot's skin's own estimate where it has none (normal_of), never against the push
+       (machine.senses.borne.read) */
     if (nrms[3 * k] != 0.0 || nrms[3 * k + 1] != 0.0 || nrms[3 * k + 2] != 0.0)
     {
       mv3(l, R, nrms + 3 * k, nrm);
@@ -477,7 +479,8 @@ int wbc_borne_supports(const wbc_borne_t *b, int np_, const unsigned char *said,
   {
     return -1;
   }
-  /* its skin's contacts, its observer's points told, its soles' corners: numpy's concatenation's order */
+  /* the robot's skin's contacts, its observer's points told, its soles' corners: numpy's concatenation's
+   * order */
   for (int c = 0; c < b->nc; c++)
   {
     if (b->patch[c] < b->let)

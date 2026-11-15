@@ -8,9 +8,9 @@ Reads the board's parts list for an A1335, powers what powers it, and then
 reads the poll loop's shared record - the board reads the sensor, this reads
 the board. The drawing itself is `coaxial.draw.dial`, which is pure and tested.
 
-Nothing here judges an angle. It shows the counts the part reported and the
-degrees that follow from them - invariant 10 applies to a shaft angle exactly
-as it applies to a voltage.
+Nothing here judges an angle. The view shows the counts the part reported
+and the degrees that follow from them - no value is expected of a shaft angle,
+as none is of a voltage.
 """
 import argparse
 import os

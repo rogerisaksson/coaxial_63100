@@ -1,17 +1,16 @@
-"""What it can be told, scanned from the sources themselves - no register written by hand.
+"""What the robot can be told, scanned from the sources themselves - no register written by hand.
 
     rows = says.catalog()          # [{op, kind, command, said, ..}], JSON-able, for the local LLM or MCP
     python -m machine.texts.says         # the catalog served as JSON
 
 A row's kind and its source: 'errand' walks to a thing (`dock.docks`, what affords it
-`furniture.GOES`); 'stunt' plays a suite patch where it stands (`maneuver.PLAYED`, the furniture
-its eyes see its seat); 'gait' a stream of its texts; 'behavior' any other text of its gym
-(`sprung.entries`, its phases); 'take' a mocap take said at its beats (`machine.texts.takes`); 'word'
-the loop's own command vocabulary (`sprung.HEARD`); 'program' the page's own (`tour.HouseTour`).
-A row's `said` is its source's own words: a text's comment above its (defbehavior ..), an
-affordance's docstring, a stunt's patch. A row's `command` what hears it: a gait its keys drive
-its twist (`se2.NOMINAL_TWIST`), the rest a say. A say out of reach is refused by name at the say,
-the refusal text the answer.
+`furniture.GOES`); 'stunt' plays a suite patch where the robot stands (`maneuver.PLAYED`, the furniture
+its eyes see its seat); 'gait' a stream of the robot's texts; 'behavior' any other text of the robot's
+gym (`sprung.entries`, its phases); 'take' a mocap take said at its beats (`machine.texts.takes`); 'word' the
+loop's own command vocabulary (`sprung.HEARD`); 'program' the page's own (`tour.HouseTour`). A row's `said` is
+its source's own words: a text's comment above its (defbehavior ..), an affordance's docstring, a stunt's
+patch. A row's `command` what hears it: a gait the robot's keys drive its twist (`se2.NOMINAL_TWIST`), the
+rest a say. A say out of reach is refused by name at the say, the refusal text the answer.
 """
 import functools
 import glob
@@ -22,7 +21,7 @@ import re
 
 @functools.lru_cache(maxsize=1)
 def _comments():
-    """{name: the ;; comment over its (defbehavior name ..) or (defpatch name ..)} of its texts and
+    """{name: the ;; comment over its (defbehavior name ..) or (defpatch name ..)} of the robot's texts and
     the suite's (lisp/humanoid/*.lisp, lisp/humanoid/suite/*.lisp), its gym slot ('9: hop: ') cut; a (defbehavior
     hop (extends hop)) passed over, its comment the specialization's ('propulsion spring specialization')."""
     out, here = {}, os.path.dirname(os.path.dirname(__file__))
@@ -42,7 +41,7 @@ def _comments():
 
 
 def catalog(texts=None, suite=None):
-    """The rows of everything it can be told, scanned live from its texts, the suite, the docks,
+    """The rows of everything the robot can be told, scanned live from its texts, the suite, the docks,
     the takes and the loop's words; `texts` and `suite` its own where given, else their files'."""
     import numpy as np
     from machine.way import dock, furniture, tour
@@ -56,7 +55,7 @@ def catalog(texts=None, suite=None):
         doc = (affords.__doc__ or '').strip().split('\n')[0]
         rows.append({'op': sc, 'kind': 'errand', 'command': {'say': sc}, 'optional': {'at': 'the (x, z) of the thing meant'},
                      'affords': affords.__name__, 'faces': faces.__name__, 'source': 'dock.docks',
-                     'said': 'walks to the nearest thing among its own that affords it - %s' % doc})
+                     'said': 'walks to the nearest thing among the robot\'s own that affords it - %s' % doc})
     for name, (patch, under, stages) in maneuver.PLAYED.items():
         if name in docks:
             continue

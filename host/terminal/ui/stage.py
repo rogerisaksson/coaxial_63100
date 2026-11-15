@@ -91,7 +91,7 @@ def _vt_on():
 
 def stage():
     """The console every view draws on. Plain and sequential when piped; on a terminal, the page's process
-    placed a core apart from its worker's and its drawing's (`machine.process.placed`)."""
+    placed a core apart from the robot's worker's and its drawing's (`machine.process.placed`)."""
     _vt_on()
     console = Console(highlight=False, theme=THEME)
     if console.is_terminal:

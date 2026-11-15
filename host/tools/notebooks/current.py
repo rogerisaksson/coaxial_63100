@@ -67,7 +67,7 @@ the notebook - what is typed into a notebook is gone when it is next laid.
 python host/tools/notebooks/current.py
 ```
 
-It lays the papers behind their sources - run again where their code
+The script lays the papers behind their sources - run again where their code
 changed, with the outputs they have where only their prose did; `setup.ps1`
 and every pull and rebase do the same.
 """

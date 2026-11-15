@@ -3,9 +3,9 @@
 
 A candidate is a few constants of its lap - `machine.aircraft.course`'s, `machine.aircraft.aerokin`'s, the
 core's (`aero`: `tools.cores.aero`'s), the page's `flight`'s, each by `module.NAME` - and of
-its line through the gates: `turnN`, `tenseN`,
-`acrossN` and `upN`, gate N's row of `course.WAYS`. Its trials, the same for every candidate, each the course's
-card flown once through among what stands, solid:
+its line through the gates: `turnN`, `tenseN`, `acrossN` and `upN`, gate N's row of `course.WAYS`. The
+Monte Carlo's trials, the same for every candidate, each the course's card flown once through among
+what stands, solid:
 
 - ideal: rotors lagging to their speed, on all of their pull, a page's passes;
 - boards: four stand-in boards (the page's flight, no page), their envelopes binding;
@@ -220,7 +220,7 @@ def ideal(air, _room=BENCH, _left=1.0):
 
 def boards(air, room=BENCH, left=1.0):
     """The card on four stand-in boards in `air` (the page's flight), laid in `room` - told
-    to no observer - on a pack with `left` of its charge: (the laps' rows by lap, what it
+    to no observer - on a pack with `left` of its charge: (the laps' rows by lap, what the quad
     struck, the boards' worst envelope, the least share of the clamp's pull its rows had, the
     seconds a rotor was over the flight's clamp, on WEP's)."""
     from coaxial import Coaxial63100

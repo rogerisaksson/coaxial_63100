@@ -1,4 +1,4 @@
-/** wbc_poise.c - under the ask (wbc_imp.h): machine.law.poise's boxes, their span, its capture point
+/** wbc_poise.c - under the ask (wbc_imp.h): machine.law.poise's boxes, their span, the robot's capture point
     into them and which soles stand (flight.standing) - numpy's arithmetic operation for operation
     (wbc_np.h). Portable C11, the host's alone. */
 #include "wbc_imp.h"

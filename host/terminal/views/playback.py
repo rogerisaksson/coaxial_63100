@@ -1,6 +1,6 @@
 """A page's playback: the states a world run apart said, drawn on a clock of their own.
 
-At an even pace, blended between two: its own (`_blended`), a craft's (`terminal.views.quad.flying`).
+At an even pace, blended between two: the robot's own (`_blended`), a craft's (`terminal.views.quad.flying`).
 
     playback = Playback()
     playback.push(said)                       # the states its process said since the last frame
@@ -8,9 +8,9 @@ At an even pace, blended between two: its own (`_blended`), a craft's (`terminal
 """
 import math
 
-#: The page plays it back LAG_S of its time behind the newest state said, its clock's pace its
-#: process's ratio to real time and CATCH_UP of the lag's error a second, eased over PACE_S; a
-#: buffer of KEEP_S; a frame plays MOST_S of the wall at the most, STEADY_S held (`steady`).
+#: The page plays the robot back LAG_S of its time behind the newest state said, its clock's pace the
+#: robot's process's ratio to real time and CATCH_UP of the lag's error a second, eased over PACE_S; a buffer
+#: of KEEP_S; a frame plays MOST_S of the wall at the most, STEADY_S held (`steady`).
 LAG_S, CATCH_UP, PACE_S, KEEP_S, MOST_S, STEADY_S = 0.06, 1.5, 0.35, 1.0, 0.2, 0.1
 
 

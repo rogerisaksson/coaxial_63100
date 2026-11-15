@@ -8,11 +8,12 @@ from machine.aircraft.helicopter.kit import (_observe_wind_spin)
 
 
 def observe(core, state, dt):
-    """`core`'s estimates `dt` s on from `state`: its velocity, the push on it and the wind, its
+    """`core`'s estimates `dt` s on from `state`: the helicopter's velocity, the push on it and the wind, its
     spin and the turn on it."""
     t_in, v_in, s_in = state['turn'], state['vel'], state['spin']
     turn = t_in if (type(t_in) is tuple and type(t_in[0]) is tuple and type(t_in[0][0]) is float) \
-        else (t_in.tolist() if hasattr(t_in, 'tolist') else [[float(t_in[r][c]) for c in range(3)] for r in range(3)])
+        else (getattr(t_in, 'tolist')() if hasattr(t_in, 'tolist')
+              else [[float(t_in[r][c]) for c in range(3)] for r in range(3)])
     vel = v_in if (type(v_in) is tuple and type(v_in[0]) is float) else [float(x) for x in v_in]
     spin = s_in if (type(s_in) is tuple and type(s_in[0]) is float) else [float(x) for x in s_in]
     h = float(state['h'])

@@ -44,7 +44,7 @@ WALL_S, READ_S = 400, 0.5
 #: The rotor page's haste and its wall s, from DYNO, the first loaded segment - SPIN's rotor is
 #: unloaded: at 30 the envelope throttled 6.0 s into the first spin-up then, the worst node
 #: 0.93 of its span and 0.945 at most; at 100 the page drove nothing, the board holding real
-#: time at 1 002 observer steps a second. Its own board on the page's dyno - 63 V,
+#: time at 1 002 observer steps a second. The rotor page's own board on its dyno - 63 V,
 #: a fan's sink: the tour's room and haste stay on theirs.
 SOA_HASTE, SOA_S, SOA_PORT, SOA_FROM = 30, 25.0, 'native://?world=dyno', 'DYNO'
 

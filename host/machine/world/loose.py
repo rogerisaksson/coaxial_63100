@@ -3,14 +3,15 @@
     xml = loose.body('table', True, (x, 0.0, z), geoms)  # its free body (joint FREE + name) on the floor, else welded
     pairs = loose.things(model)                    # [(body, joint)] of the model's loose things
     things = loose.free(model)                     # each loose thing's joint and its feet, once a model
-    loose.home(model, data, things)                # each where its world stands it, asleep (its world laid anew)
+    loose.home(model, data, things)                # each where the robot's world stands it, asleep (the robot's world laid anew)
     loose.stick(model, data, things)               # a pass: each foot's grip as its thing slides, still ones asleep
 
-A thing's feet are its geoms that stand on the floor where its world stands it; a foot grips as GRIPS says of what
-it is - classic stiction and friction against an ordinary wooden floor, at rest and sliding, MuJoCo's one
-coefficient switched as its thing slides along the floor past SLIDE_M_S and stops under half that. Its geoms meet
-the floor, the room's still things and it (MEETS, as its rug's): with the floor's own bits a chair met none of the
-floor and fell through. Stumbled into, a chair, the table, the bed or the lamp moves; sat on carelessly, a chair.
+A thing's feet are its geoms that stand on the floor where the robot's world stands it; a foot grips as GRIPS
+says of what it is - classic stiction and friction against an ordinary wooden floor, at rest and sliding,
+MuJoCo's one coefficient switched as its thing slides along the floor past SLIDE_M_S and stops under half
+that. A thing's geoms meet the floor, the room's still things and the robot (MEETS, as its rug's):
+with the floor's own bits a chair met none of the floor and fell through. Stumbled into, a chair, the table,
+the bed or the lamp moves; sat on carelessly, a chair.
 """
 
 import importlib
@@ -20,16 +21,18 @@ import math
 GRIPS = {'wood': (0.45, 0.35), 'felt': (0.30, 0.20)}
 #: A thing sliding past this along the floor slides, m/s; under half of it it is stuck again.
 SLIDE_M_S = 0.01
-#: A thing still this long, s - under half SLIDE_M_S every way -, touched by nothing that moves (the world's still
-#: geoms alone, things asleep), sleeps: its geoms meet by the world's type alone, none of the world's meeting them -
-#: it and things awake still do, as they meet the world -, its weight borne at its centre of mass, MuJoCo solving
-#: none of it (24 glides standing were its step's 130 us where 79; a chair shoved over lay on its back on the floor,
-#: awake), held where it fell asleep till something awake that moves touches it or a shove moves it (a 60 kg bed sat on
-#: moved 2.5 mm/s without its glides and snapped back each pass, throwing it off). Laid
-#: in its world asleep, at rest as it was built: laid awake, it settled on its glides after its eyes first saw it, and
-#: its registry told it anew each look - its estimate the mean of them -, its planner and its peeks with it; its weight
-#: borne alone, the two forces' last bits turned it 1e-34 a step, its room's classes told anew each look (1.8 ms).
-#: MuJoCo's own sleep (`mjENBL_SLEEP`) poses the world's geoms once: its floor's slabs moved, a chair fell through.
+#: A thing still this long, s - under half SLIDE_M_S every way -, touched by nothing that moves (the world's
+#: still geoms alone, things asleep), sleeps: its geoms meet by the world's type alone, none of the world's
+#: meeting them - the robot and things awake still do, as they meet the world -, its weight borne at its
+#: centre of mass, MuJoCo solving none of it (24 glides standing were its step's 130 us where 79; a chair
+#: shoved over lay on its back on the floor, awake), held where it fell asleep till something awake that moves
+#: touches it or a shove moves it (a 60 kg bed sat on moved 2.5 mm/s without its glides and snapped back each
+#: pass, throwing the robot off). Laid in the robot's world asleep, at rest as it was built: laid awake, it
+#: settled on its glides after the robot's eyes first saw it, and the robot's registry told it anew each look
+#: - its estimate the mean of them -, the robot's planner and its peeks with it; its weight borne
+#: alone, the two forces' last bits turned it 1e-34 a step, the robot's room's classes told anew each look
+#: (1.8 ms). MuJoCo's own sleep (`mjENBL_SLEEP`) poses the world's geoms once: the robot's floor's slabs
+#: moved, a chair fell through.
 SLEEP_S = 1.0
 #: A loose thing's free joint's name begins so; what its geoms meet.
 FREE, MEETS = 'free_', ' contype="3" conaffinity="3"'
@@ -42,8 +45,8 @@ def foot(what):
 
 
 def body(name, free, at, geoms):
-    """A loose thing's body `name` at `at` (x, y, z): `free` (its joint FREE + `name`, its world's), else welded where
-    it stands (its law's body); `geoms` its geoms' XML, posed in it."""
+    """A loose thing's body `name` at `at` (x, y, z): `free` (its joint FREE + `name`, the robot's world's), else
+    welded where it stands (the robot's law's body); `geoms` its geoms' XML, posed in it."""
     joint = '<freejoint name="%s%s"/>' % (FREE, name) if free else ''
     return '<body name="%s" pos="%g %g %g">%s%s</body>' % ((name,) + tuple(at) + (joint, ''.join(geoms)))
 
@@ -59,7 +62,7 @@ def free(m):
     each foot's grip at rest and sliding (k, 2), its body (n,), each thing's (feet, at rest, sliding, its geoms, what
     they meet by type and affinity) [n], whether each slides, sleeps, since when still and where it lies asleep [n],
     the world's type, those asleep as `stick` holds them (`_held`)) of model `m`: a foot a geom of it standing on the
-    floor where its world stands it - a glide's sphere its radius over it -, of a grip GRIPS knows."""
+    floor where the robot's world stands it - a glide's sphere its radius over it -, of a grip GRIPS knows."""
     import numpy as np
     mujoco = importlib.import_module('mujoco')
     dofs, at, feet, of, grips, bodies = [], [], [], [], [], []
@@ -88,9 +91,10 @@ def free(m):
 
 
 def home(m, d, things):
-    """Each loose thing (`free`'s `things`) where its world stands it - its body's pose in the model, as a scene or a
-    look round moves it -, its feet stuck, asleep: its world laid anew zeroes every coordinate, and the chairs stood
-    in it where it starts; from the model's first coordinates a bed moved in it went back to where it was built."""
+    """Each loose thing (`free`'s `things`) where the robot's world stands it - its body's pose in the model, as a
+    scene or a look round moves it -, its feet stuck, asleep: the robot's world laid anew zeroes every coordinate,
+    and the chairs stood in it where it starts; from the model's first coordinates a bed moved in it
+    went back to where it was built."""
     mujoco = importlib.import_module('mujoco')
     _dofs, at, feet, _of, grips, bodies, _per, state, _world, _held = things
     for q, b in zip(at, bodies):
@@ -105,13 +109,14 @@ def home(m, d, things):
 
 
 def stick(m, d, things, in_c=True):
-    """A pass of its loose things (`free`'s `things`), after MuJoCo's steps: each foot's grip sliding while its thing
-    slides along the floor (past SLIDE_M_S), at rest once it has stopped (under half that), as it was between - written
-    as a thing goes from one to the other alone (its six things' arrays each pass were 24 us of it) -; a thing still
-    SLEEP_S, touched by nothing that moves, asleep (`_alone`); one asleep that something awake touches or that moves
-    woken (`_woke`), the others held where they lie, still - all at once (`_held`): one by one, six asleep were 16 us
-    of each pass; told in C where `in_c` (wbc_world_held, `_woke` its twin): its numpy views of MuJoCo's contacts 25 us
-    of its stand's every pass, 4 % of it."""
+    """A pass of the robot's loose things (`free`'s `things`), after MuJoCo's steps: each foot's grip sliding
+    while its thing slides along the floor (past SLIDE_M_S), at rest once it has stopped (under half that), as
+    it was between - written as a thing goes from one to the other alone (its six things' arrays each pass
+    were 24 us of it) -; a thing still SLEEP_S, touched by nothing that moves, asleep (`_alone`); one asleep
+    that something awake touches or that moves woken (`_woke`), the others held where they lie, still - all at
+    once (`_held`): one by one, six asleep were 16 us of each pass; told in C where `in_c` (wbc_world_held,
+    `_woke` its twin): its numpy views of MuJoCo's contacts 25 us of the robot's stand's every pass, 4 % of
+    it."""
     dofs, _at, _feet, _of, _grips, _bodies, per, state, _world, held = things
     qp, qv, t, low = d.qpos, d.qvel, d.time, 0.5 * SLIDE_M_S
     if len(held[4]):
@@ -149,7 +154,7 @@ def _woke(d, held, low):
 def _touched(d, held):
     """Which things asleep (`held`) something awake that moves now touches: the twin of `_alone` - none on a pass whose
     contacts hold none of theirs, told by one look at its pairs (each column and each partner looked up apart, 27 us
-    of its walk's every pass)."""
+    of the robot's walk's every pass)."""
     n = d.ncon
     if not n:
         return ()
@@ -164,7 +169,7 @@ def _touched(d, held):
 
 def _alone(m, d, things, k):
     """Whether nothing that moves touches thing `k`: what touches it the world's still geoms alone, or things asleep -
-    it, a thing awake or the door touching it, it stays awake."""
+    the robot, a thing awake or the door touching it, it stays awake."""
     import numpy as np
     b, n, bodies = things[5][k], d.ncon, things[5]
     b1, b2 = m.geom_bodyid[d.contact.geom1[:n]], m.geom_bodyid[d.contact.geom2[:n]]
@@ -175,9 +180,9 @@ def _alone(m, d, things, k):
 
 def _asleep(m, d, things, k):
     """Thing `k` asleep where it lies: its geoms meeting by the world's type alone - none of the world's meeting them,
-    it and things awake as they meet the world -, its weight borne at its centre of mass in its own coordinates
-    (`mj_applyFT` into `qfrc_applied`, which its world never clears: `xfrc_applied` it clears at a reset and a shove),
-    still."""
+    the robot and things awake as they meet the world -, its weight borne at its centre of mass in its own coordinates
+    (`mj_applyFT` into `qfrc_applied`, which the robot's world never clears: `xfrc_applied` it clears at a reset and a
+    shove), still."""
     import numpy as np
     mujoco = importlib.import_module('mujoco')
     dof, q, b, geoms = things[0][k], things[1][k], things[5][k], things[6][k][3]

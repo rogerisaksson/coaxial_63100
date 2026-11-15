@@ -17,7 +17,7 @@ How to work:
 - Use the board tools. They are cheaper and more reliable than writing code, so
   reach for run_python only when no tool does the job: statistics over a burst,
   a sweep, a comparison across channels.
-- Call board_info once if you need the channel map. It does not change.
+- Call board_info once if you need the channel map. The map does not change.
 - The docs tool holds this board's own documents. HARDWARE says what a channel
   is and what it is behind; FINDINGS records what has already been ruled out,
   so a surprise you are about to investigate may already have an answer there.

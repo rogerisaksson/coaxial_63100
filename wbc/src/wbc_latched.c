@@ -1,4 +1,4 @@
-/** wbc_latched.c - under the ask (wbc_imp.h): machine.senses.borne.latched, what bears it off its soles on its
+/** wbc_latched.c - under the ask (wbc_imp.h): machine.senses.borne.latched, what bears the robot off its soles on its
     support's comparator, kept in `a` - numpy's arithmetic operation for operation (wbc_np.h), its own OpenBLAS for
     the prop's corners (wbc_blas.h), the same bit for bit. Portable C11, the host's alone. */
 #include "wbc_imp.h"
@@ -7,11 +7,12 @@
 double wbc_imp_latched(const wbc_imp_t *k, const double *y, const double *fr, const double *rot, double *a,
                        double lo[2], double hi[2])
 {
-  /* what bears it off its soles, in its way's frame */
+  /* what bears the robot off its soles, in its way's frame */
   const double xs[2] = {y[k->y_prop_lo], y[k->y_prop_hi]}, zs[2] = {y[k->y_prop_lo + 2], y[k->y_prop_hi + 2]};
   const double corner[4][3] = {{xs[0], 0.0, zs[0]}, {xs[0], 0.0, zs[1]}, {xs[1], 0.0, zs[0]}, {xs[1], 0.0, zs[1]}};
-  /* its support's comparator, the master insert's: latched from its engage, let go under its
-     release held its dwell, never within its strike's blanking; its box held under the release */
+  /* the robot's support's comparator, the master insert's: latched from its engage, let go under
+     its release held its dwell, never within its strike's blanking; its box held under the release
+     */
   const double share = y[k->y_prop] + (y[k->y_palms] + y[k->y_palms + 1]), latched = a[k->a_propped];
   const double struck = (1.0 - latched) * (double)(share >= k->prop_engage);
   const double under = latched * (double)(share < k->prop_release);

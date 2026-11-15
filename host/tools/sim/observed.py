@@ -5,9 +5,9 @@
     python tools/sim/observed.py --one chair         # one scene, its line as JSON (the relay's job)
 
 Each law pass, standing or not yet fallen: the observer's normal force on each manifold
-(`machine.senses.observer`, blind) against its skin's (`edge.TOUCH`, MuJoCo's contacts) - each segment's
-touch along each of its manifolds' normals, pushing, a sole's along its up. Per manifold: the
-error's rms and 95th percentile, N; the most it reads where its skin feels under FELT_N.
+(`machine.senses.observer`, blind) against the robot's skin's (`edge.TOUCH`, MuJoCo's contacts) - each
+segment's touch along each of its manifolds' normals, pushing, a sole's along its up. Per manifold: the
+error's rms and 95th percentile, N; the most it reads where the robot's skin feels under FELT_N.
 """
 import argparse
 import json
@@ -16,9 +16,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-#: The scenes: its walk, the chair's sit and rise, the bed's lie and rise, the floor mattress's.
+#: The scenes: the robot's walk, the chair's sit and rise, the bed's lie and rise, the floor mattress's.
 SCENES = ('play_walk', 'chair', 'bed', 'bed_rise', 'mattress')
-#: A manifold its skin feels none of, N: MuJoCo's soft contact holds a resting hand at a few.
+#: A manifold the robot's skin feels none of, N: MuJoCo's soft contact holds a resting hand at a few.
 FELT_N = 5.0
 
 

@@ -1,4 +1,4 @@
-"""Static compliance of its skeleton, linkages and carbon ankle leaf."""
+"""Static compliance of the robot's skeleton, linkages and carbon ankle leaf."""
 import math
 
 from machine.body import linkage, mechatronics, skeleton

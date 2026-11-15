@@ -85,7 +85,7 @@ extern const uint8_t ctrl_kind_params[CTRL_KINDS];
 /** A part of `kind` with `params` (ctrl_kind_params[kind] of them), reset. False: no kind. */
 bool ctrl_part_set(ctrl_part_t *part, uint8_t kind, const float *params);
 
-/** Its state back to where it was set. */
+/** A part's state back to where it was set. */
 void ctrl_part_reset(ctrl_part_t *part);
 
 /** A filter's step: y from x. Any other kind passes x through. */

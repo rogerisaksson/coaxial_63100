@@ -1,4 +1,4 @@
-"""Its boards on their buses: a limb's boards a process, the host's Modbus RTU frames real bytes.
+"""The robot's boards on buses: a limb's boards a process, the host's Modbus RTU frames real bytes.
 
     block = Block(joints, buses); buses = Buses(block, limbs)   # World.wire: the processes up
     bus.arm(index); bus.short(index); bus.off(index)            # gate writes - the next pass
@@ -245,7 +245,7 @@ class Segment:
             qd = b.qd[i] + b.delta_d[i]
             s = b.scale[i]
             if h.shorted[k]:
-                # Its braking the world's damping (`physics.World.short`); its windings heat.
+                # The drive's braking the world's damping (`physics.World.short`); its windings heat.
                 b.ctrl[i] = 0.0
                 top = b.limit[i]
                 h.load(k, max(-top, min(top, -self.damping[k] * s * b.qd[i])))
@@ -359,15 +359,15 @@ class Bus:
         self.gating = {}
 
     def arm(self, index):
-        """Its board's gates on again, written with the next pass."""
+        """Board `index`'s gates on again, written with the next pass."""
         self.gating[index] = rtu.GATE_ON
 
     def short(self, index):
-        """Its board's phases shorted through the low sides, written with the next pass."""
+        """Board `index`'s phases shorted through the low sides, written with the next pass."""
         self.gating[index] = rtu.GATE_SHORT
 
     def off(self, index):
-        """Its board's gates off - no torque, nothing switched -, written with the next pass."""
+        """Board `index`'s gates off - no torque, nothing switched -, written with the next pass."""
         self.gating[index] = rtu.GATE_OFF
 
     def drain(self):

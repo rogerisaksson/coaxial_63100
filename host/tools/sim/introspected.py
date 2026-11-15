@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Its law's layers read as it runs: each pass's snapshot by name and its analyzers' events.
+"""The robot's law's layers read as it runs: each pass's snapshot by name and its analyzers' events.
 
-    python tools/sim/introspected.py                                # its walk into a turn: events, a row at 4.5 s
+    python tools/sim/introspected.py                                # the robot's walk into a turn: events, a row at 4.5 s
     python tools/sim/introspected.py --play 'w3 -3' --at 3.5 4.2    # rows at those seconds
     python tools/sim/introspected.py --fields kinematics.sensed.LOAD modes.z.lateral_shift drives.knees_deg
 
-A player's keys as a play (`player.played`) on a scene (`scenarios.ran`), read by the hook its loop calls each pass
-(`laid`) - read only: its code is never wrapped or patched. `introspect.Tap` hands a law pass's snapshot, each layer
-named from its code's own layouts as it is first read, in that pass (latent, impedance, wrench, observer, contacts,
-modes, kinematics, drives, body); `watch.Watch` turns the snapshots into its analyzers' events (a stumble, a fall,
-a spasm, a phase), its own left out (`recording.QUIET`). A row at each `--at` second: what it is doing and each
-field asked for, a dotted path into the snapshot.
+A player's keys as a play (`player.played`) on a scene (`scenarios.ran`), read by the hook the robot's loop calls
+each pass (`laid`) - read only: its code is never wrapped or patched. `introspect.Tap` hands a law pass's snapshot,
+each layer named from the robot's code's own layouts as it is first read, in that pass (latent, impedance, wrench,
+observer, contacts, modes, kinematics, drives, body); `watch.Watch` turns the snapshots into the robot's analyzers'
+events (a stumble, a fall, a spasm, a phase), its own left out (`recording.QUIET`). A row at each `--at` second:
+what the robot is doing and each field asked for, a dotted path into the snapshot.
 """
 import argparse
 import json
@@ -19,8 +19,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-#: The fields a row shows unless asked others: its speed and its capture point on its way, which soles stand, its
-#: surety.
+#: The fields a row shows unless asked others: the robot's speed and its capture point on its way, which soles
+#: stand, its surety.
 FIELDS = ('kinematics.v_way_m_s', 'kinematics.capture_way_m', 'impedance.ask.STANCE', 'body.surety')
 
 
@@ -35,7 +35,7 @@ def field(snap, path):
 
 
 def ran(play, scene, at, fields):
-    """(a row at each second of `at`, its analyzers' events, when it fell) of `play` on `scene`."""
+    """(a row at each second of `at`, the robot's analyzers' events, when it fell) of `play` on `scene`."""
     from machine.process import introspect, watch
     from tools.sim import scenarios
     from tools.sim.player import played
@@ -59,7 +59,7 @@ def ran(play, scene, at, fields):
 def main(argv=None):
     p = argparse.ArgumentParser(description=(__doc__ or '').split('\n\n')[0])
     p.add_argument('--play', default='w3 wa2 -3', help="the player's keys, held their seconds (`player.played`)")
-    p.add_argument('--scene', default='flat', help='the scene laid round it (`scenarios`)')
+    p.add_argument('--scene', default='flat', help='the scene laid round the robot (`scenarios`)')
     p.add_argument('--at', type=float, nargs='*', default=[4.5], help='the seconds a row is read at')
     p.add_argument('--fields', nargs='*', default=list(FIELDS), help="each a dotted path into the snapshot")
     args = p.parse_args(argv)

@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""A recording of its loop told (`watch.recorded`): its blocks, its events, each window a table.
+"""A recording of the robot's loop told (`watch.recorded`): its blocks and events, each window a table.
 
     python tools/sim/recording.py --last                  # the newest recording, every window
     python tools/sim/recording.py recordings/x.jsonl --window 2   # its second window alone
     python tools/sim/recording.py --last --overview 0.5   # the whole of it a row each 0.5 s, then its windows
 
-Its blocks in time - 60 Hz between, a window at its streams' own clocks about each capture its
+A recording's blocks in time - 60 Hz between, a window at the robot's streams' own clocks about each capture its
 analyzers mark -; every event its analyzers told, in time; each window a row at each offset from
-its trigger (ROWS_S) and each STEP_S across it, within it: its surety, each sole's load (N) as the row's time finds
-them; its drives' largest torque (N m) and its joints' fastest rate (deg/s) since the row before,
-each by its joint - a transient between rows is in the row it ends at -; the events since. The
+its trigger (ROWS_S) and each STEP_S across it, within it: the robot's surety, each sole's load (N) as the row's
+time finds them; its drives' largest torque (N m) and its joints' fastest rate (deg/s) since the
+row before, each by its joint - a transient between rows is in the row it ends at -; the events since. The
 overview's rows, 60 Hz and windows alike, are the same over its step.
 """
 import argparse
@@ -112,7 +112,7 @@ def fielded(series, lay, specs, times):
     """A row at each of `times` of the fields `specs` - 'stream.FIELD' of a vector stream (impedance.COM_ACC,
     latent.NOW.Z, read.LOAD), 'stream.key.key' into a plain one's sample (wrench.got.bears; nan where the sample
     lacks the key, wrench.ask.swing.1.0 while that sole stands) -, each entry '%.3g', the sample at or before the
-    row's time: its law's layers as the recording has them, beside the table."""
+    row's time: the robot's law's layers as the recording has them, beside the table."""
     import numpy as np
     cols = []
     for spec in specs:
@@ -198,7 +198,7 @@ def posed(series, lay, times):
 def told(path, window=None, overview=None, fields=(), modes=False, kinematics=False):
     """The recording at `path` told as text: its blocks, its events, its windows' tables (`window`:
     the one numbered so), the whole a row each `overview` s first where asked; `fields`, `modes` and
-    `kinematics`, its layers, modes and way-frame kinematics beside each table."""
+    `kinematics`, the robot's layers, modes and way-frame kinematics beside each table."""
     from machine.rig import gate
     gates = gate.read(path)
     series, lay = joined(gates)
@@ -206,7 +206,7 @@ def told(path, window=None, overview=None, fields=(), modes=False, kinematics=Fa
     wins = [g for g in gates if g['meta']['name'] != 'every']
     numbered = {id(g): k + 1 for k, g in enumerate(wins)}  # list.index would compare the blocks' arrays
     span = [min(g['meta']['window'][0] for g in gates), max(g['meta']['window'][1] for g in gates)]
-    out = ['%s: %.2f..%.2f s of it, %d blocks: %d windows, the rest 60 Hz' % (
+    out = ['%s: %.2f..%.2f s of the robot, %d blocks: %d windows, the rest 60 Hz' % (
         os.path.basename(path), span[0], span[1], len(gates), len(wins))]
     for g in gates:
         m, tr = g['meta'], g['trailer'] or {}
@@ -247,7 +247,7 @@ def main(argv=None):
     parser.add_argument('--last', action='store_true', help='the newest recording')
     parser.add_argument('--window', type=int, help='its window numbered so alone')
     parser.add_argument('--overview', type=float, help='the whole of it a row each this many s first')
-    parser.add_argument('--fields', default='', help="its layers' fields beside each table's rows, comma-separated: "
+    parser.add_argument('--fields', default='', help="the robot's layers' fields beside each table's rows, comma-separated: "
                                                      "impedance.COM_ACC,latent.NOW.Z,read.LOAD,wrench.got.bears")
     parser.add_argument('--modes', action='store_true', help='its measured modes beside references and worst error')
     parser.add_argument('--kinematics', action='store_true', help='its way-frame CoM, capture point, soles, legs and knees')

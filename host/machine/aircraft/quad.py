@@ -5,8 +5,8 @@
 
 A 2 kg frame on four direct-drive 63100 rotors under 16x14 propellers (board/emu/worlds/
 quad.json) on skids: gravity, the air on it (`machine.aircraft.weather`) and the floor; its boards on one
-pack of 15 cells (`machine.aircraft.flightpack`). Its flying is `machine.aircraft.aerobatics`' rows made payloads
-(`machine.aircraft.aerokin`) for its core (aero/); the rotors are the caller's.
+pack of 15 cells (`machine.aircraft.flightpack`). The quad's flying is `machine.aircraft.aerobatics`'
+rows made payloads (`machine.aircraft.aerokin`) for its core (aero/); the rotors are the caller's.
 """
 import importlib
 import math
@@ -67,7 +67,7 @@ DISC_R, DISC_HALF_M, HUB_M = (
 #: the frame's weight, the quad sitting on the floor.
 HOVER_M, FLOOR_M, IDLE_RAD_S = _ENV['hover_height'], _ENV['floor_height'], _GOV['idle_speed']
 
-#: Its rotors come to a speed asked of them in about this long, s: the frame's clock. The
+#: The quad's rotors come to a speed asked of them in about this long, s: the frame's clock. The
 #: law's loops (`aerokin`) and the lap's plan (`course`) are tuned by it and go by it at
 #: another size - the tilt's loop at twice its gain rang on these rotors.
 SPIN_S = _GOV['spin_time']
@@ -99,7 +99,7 @@ def sized(size=1.0):
     lengths by `size`, its mass by the cube and its inertia by the fifth, its propellers'
     thrust by the fourth and their drag's torque by the fifth at a speed, its drag's area by
     the square, its rotors as much slower to a speed - set where they live, for every
-    reader. Its rotors' top is 1/size of theirs, the caller's as they are. The law, the
+    reader. The frame's rotors' top is 1/size of theirs, the caller's as they are. The law, the
     routine and the course go by it once each is `sized` after it."""
     scope = globals()
     for name, power in _POWERS.items():

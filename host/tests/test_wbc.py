@@ -1,5 +1,5 @@
 """The robot's whole body as one stack of QPs a step (`machine.stack.wbc`): the solver against its
-optimality, its stand still on the stack, a nudge held - in a world without buses
+optimality, the robot's stand still on the stack, a nudge held - in a world without buses
 (`tools/sim/wbc.py`)."""
 import os
 import sys
@@ -64,28 +64,28 @@ def test_a_level_keeps_what_those_above_it_won(report):
                  'x %s' % (None if x is None else np.round(x, 6)))
 
 
-def test_it_stands_still_on_the_stack(report):
-    """Two seconds standing: up, its centre of mass still once settled, every drive inside its
+def test_the_robot_stands_still_on_the_stack(report):
+    """Two seconds standing: up, the robot's centre of mass still once settled, every drive inside its
     clamp."""
     from tools.sim import wbc
     out = wbc.stand(seconds=2.0)
-    report.check('standing 2 s on the stack it stays up, every drive within its clamp',
+    report.check('standing 2 s on the stack the robot stays up, every drive within its clamp',
                  out['stood'] and out['top'] <= 1.0 / 0.95 + 1e-6,
                  'tilt %.1f deg, drift %.1f mm, the most a clamp %.2f, %d us a step'
                  % (out['tilt'], out['drift_mm'], out['top'], out['us']))
 
 
-def test_nudged_aside_it_holds(report):
-    """60 N for 0.12 s from its right and from its left: up."""
+def test_nudged_aside_the_robot_holds(report):
+    """60 N for 0.12 s from the robot's right and from its left: up."""
     from tools.sim import wbc
     for way in (0.0, 180.0):
         out = wbc.stand(60.0, way)
-        report.check('nudged 60 N toward %s it holds' % ('its left' if way == 0 else 'its right'),
+        report.check('nudged 60 N toward %s the robot holds' % ('its left' if way == 0 else 'its right'),
                      out['stood'], 'tilt %.1f deg' % out['tilt'])
 
 
 ROSTER = (test_the_solver_meets_its_optimality, test_a_level_keeps_what_those_above_it_won,
-          test_it_stands_still_on_the_stack, test_nudged_aside_it_holds)
+          test_the_robot_stands_still_on_the_stack, test_nudged_aside_the_robot_holds)
 
 
 def main(argv=None):

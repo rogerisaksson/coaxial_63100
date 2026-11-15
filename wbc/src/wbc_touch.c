@@ -1,4 +1,4 @@
-/** wbc_touch.c - what its skin and its soles feel (wbc_imp.h): machine.senses.touch.stepped on its law's
+/** wbc_touch.c - what the robot's skin and its soles feel (wbc_imp.h): machine.senses.touch.stepped on its law's
     arrays, numpy's and Python's arithmetic operation for operation (wbc_np.h). Portable C11, the
     host's alone. */
 #include "wbc_imp.h"
@@ -14,7 +14,7 @@ static double hypot2(double a, double b)
   return pyhypot(v, 2);
 }
 
-/** machine.senses.touch.against: `tw` less any axis aimed into what it felt (`ox`, `oz`). */
+/** machine.senses.touch.against: `tw` less any axis aimed into what the robot felt (`ox`, `oz`). */
 static void against(double ox, double oz, double heading, double along_cos, const double tw[3], double got[3])
 {
   const double rem = hypot2(ox, oz), w = npmin(1.0, rem / 0.10);
@@ -40,7 +40,7 @@ void wbc_touch_step(const wbc_imp_t *k, const wbc_touch_t *t, const double asked
   double        sway_new[WBC_IMP_N], sine_new[WBC_IMP_N], kb[WBC_IMP_N], db[WBC_IMP_N], aloft[2], clear[2];
   double        pushed[2][2][3], sizes[2][2], lowest[2], floors[2], up[2], w_up[2], w_edge[2], unfelt[2], stance[2];
 
-  /* its core's touch turned out of its segments, summed; the largest of them */
+  /* the robot's core's touch turned out of its segments, summed; the largest of them */
   for (int b = 0; b < 4; b++)
   {
     const double *r = t->xmat + 9 * t->ids[t->core[b]], *tc = touch + 3 * t->core[b];
@@ -134,8 +134,8 @@ void wbc_touch_step(const wbc_imp_t *k, const wbc_touch_t *t, const double asked
     out[k->o_ks + m] = ((1.0 - u_b) * out0[k->o_ks + m] + (u_b * (1.0 - u_s)) * kb[m]) + (u_b * u_s) * t->rest[t->r_k + m];
     out[k->o_ds + m] = ((1.0 - u_b) * out0[k->o_ds + m] + (u_b * (1.0 - u_s)) * db[m]) + (u_b * u_s) * t->rest[t->r_d + m];
   }
-  /* its soles: each's pushes turned out of its foot and its toes, their sizes, its toes' lowest
-     tip, the floor under it (machine.senses.touch.soles) */
+  /* the robot's soles: each's pushes turned out of its foot and its toes, their sizes, its toes'
+     lowest tip, the floor under it (machine.senses.touch.soles) */
   for (int s = 0; s < 2; s++)
   {
     const int     toes = t->ids[t->soles[s][1]];

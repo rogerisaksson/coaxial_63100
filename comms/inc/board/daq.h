@@ -48,7 +48,7 @@ typedef struct
   bool     running;
   bool     done;         /**< a finite task reached its record count */
   bool     lost_power;   /**< stopped because AFE_ON went off, and the buffers were emptied with it
-      - invariant 9 */
+      - AFE_ON off reads mid-scale */
   uint16_t stride;       /**< bytes per record: 4 (stamp) + 4 per channel + 1 per sampled pin + 8
       per sensor field + 2 (count). */
   uint8_t  fields;

@@ -14,7 +14,7 @@ CLEAR_M = 0.25
 
 
 def reach():
-    """Its middle to a propeller's tip, m."""
+    """The quad's middle to a propeller's tip, m."""
     return quad.reach()
 
 
@@ -82,7 +82,7 @@ def lap_seconds(rows, lap):
 
 def test_its_gates_are_flown(report):
     """Floor to floor: both laps through every gate inside its opening, a tip clear of its
-    frame and of every tree, house, car and mast; raw; landed where it rose."""
+    frame and of every tree, house, car and mast; raw; landed where the quad rose."""
     rows = lapped()
     gates = passes(rows)
     # The first gate is the grid: left from a stand and come to a stand in, passed between.
@@ -108,7 +108,7 @@ def test_its_gates_are_flown(report):
                      max(r['tilt'] for r in laps), min(r['ay'] for r in laps)))
     names = [r['name'] for i, r in enumerate(rows) if i == 0 or rows[i - 1]['name'] != r['name']]
     last = rows[-1]
-    report.check('from the floor onto its grid, its laps, and landed where it rose',
+    report.check('the quad from the floor onto its grid, its laps, and landed where it rose',
                  names == [name for name, *_row in course.CARD] and abs(last['y']) <= 0.01
                  and math.hypot(last['x'], last['z']) <= 0.3,
                  '%s; ends %.3f m up, %.2f m off' % (' '.join(names), last['y'],
@@ -116,7 +116,7 @@ def test_its_gates_are_flown(report):
 
 
 def test_it_flies_on_its_envelopes(report):
-    """On a quarter of the rotors' pull - under its plan's sphere - the same line slower and
+    """On a quarter of the rotors' pull - under the quad's plan's sphere - the same line slower and
     leant less, every gate still inside its opening; spent in its first lap, that lap is its
     last and it lands where it rose."""
     whole, half = lapped(), lapped(share=0.25)
@@ -134,7 +134,7 @@ def test_it_flies_on_its_envelopes(report):
     spent = lapped(spent_at=at)
     gates, last = passes(spent), spent[-1]
     laps = [r for r in spent if r['name'] == 'lap']
-    report.check('spent half a lap in, that lap its last: its gates passed once, then the '
+    report.check('spent half a lap in, that lap the quad\'s last: its gates passed once, then the '
                  'floor where it rose',
                  laps[-1]['of'] == 1 and [len(gates[g]) for g in gates] == [0] + [1] * (len(gates) - 1)
                  and worst(gates) <= 0.0 and last['name'] == course.CARD[-1][0]
@@ -188,7 +188,7 @@ def test_its_gates_in_wind(report):
                  'passes %s, %+.2f m past a gate\'s room at the most, %+.2f in still air' % (
                      counted, worst(gates), worst(passes(still))))
     times = [[lap_seconds(flown, lap) for lap in range(course.LAPS)] for flown in (still, rows)]
-    report.check('its laps in the wind no more than a tenth slower',
+    report.check('the quad\'s laps in the wind no more than a tenth slower',
                  all(0.9 * a <= b <= 1.1 * a for a, b in zip(*times)),
                  '%s s in the wind, %s still' % (' '.join('%.1f' % x for x in times[1]),
                                                 ' '.join('%.1f' % x for x in times[0])))
@@ -288,7 +288,7 @@ def test_a_frame_of_another_size(report):
         race.sized(1.0)
     room = race.MISS_M - CLEAR_M
     built = flown[1.0]['laps']
-    report.check('frames of %s times its size: their laps flown, nothing struck, a propeller\'s '
+    report.check('frames of %s times the quad\'s size: their laps flown, nothing struck, a propeller\'s '
                  'tip %.2f m clear of a gate\'s frame and a lap within a fifth, in the built '
                  'frame\'s measure' % (' and '.join('%g' % s for s in race.SIZES), CLEAR_M),
                  all(len(f['laps']) == course.LAPS and not f['struck'] and f['miss'] <= room
@@ -298,7 +298,7 @@ def test_a_frame_of_another_size(report):
                      size, ' '.join('%.1f' % x for x in f['laps']), f['miss'],
                      ', struck %s' % f['struck'] if f['struck'] else '')
                      for size, f in flown.items()))
-    report.check('and built again: its mass, its gates, its plan\'s times',
+    report.check('and built again: the quad\'s mass, its gates, its plan\'s times',
                  (quad.MASS_KG, grounds.GATES, course.SOFT_S) == was,
                  '%.1f kg' % quad.MASS_KG)
 
@@ -334,7 +334,7 @@ def test_its_tilt_is_its_discs_own(report):
                  and abs(turned[1]) <= 0.05 * abs(straight[0]),
                  '%.2f N m along and %.2f across, %.2f and %.2f on its heading' % (
                      turned[0], turned[1], straight[0], straight[1]))
-    report.check('its nose turned back where the row holds it on its heading, left where free',
+    report.check('the frame\'s nose turned back where the row holds it on its heading, left where free',
                  abs(straight[2]) < 1e-6 and abs(turned[2]) > 0.5 and abs(free[2]) < 1e-6,
                  '%.2f N apart held, %.2f free' % (turned[2], free[2]))
 

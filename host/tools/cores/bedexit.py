@@ -1,8 +1,9 @@
 """The robot's way out of a bed over its end in C through ctypes (wbc_bedexit.c), bit for bit.
 
-`machine.moves.bedexit`'s `laid` and `step` on its tables, the move its loop plays (`machine.process.joints.MOVES`).
+`machine.moves.bedexit`'s `laid` and `step` on its tables, the move the robot's loop plays
+(`machine.process.joints.MOVES`).
 
-    state = bedexit.laid(q_deg, t)                                     # from where it lies, at t s
+    state = bedexit.laid(q_deg, t)                                     # from where the robot lies, at t s
     done = bedexit.step(state, cmd, q_deg, t, dt, soles, shins, pitch)  # cmd (deg, figure.JOINTS) laid over
 """
 import ctypes
@@ -58,7 +59,7 @@ def _laid():
 
 
 def laid(q_deg, t):
-    """`machine.moves.bedexit.laid` in C: the move's state from its pose `q_deg` (deg) at `t` s."""
+    """`machine.moves.bedexit.laid` in C: the move's state from the robot's pose `q_deg` (deg) at `t` s."""
     lib, tables = _laid()
     q = np.ascontiguousarray(q_deg, dtype=float)
     state = np.zeros(py.FROM + len(py.JOINTS))
@@ -67,8 +68,8 @@ def laid(q_deg, t):
 
 
 def step(state, cmd, q_deg, t, dt, soles, shins, pitch):
-    """`machine.moves.bedexit.step` in C on `state` and `cmd` (contiguous float64, laid over in place), its pose
-    `q_deg` (deg) and its senses."""
+    """`machine.moves.bedexit.step` in C on `state` and `cmd` (contiguous float64, laid over in place), the
+    robot's pose `q_deg` (deg) and its senses."""
     lib, tables = _laid()
     q = np.ascontiguousarray(q_deg, dtype=float)
     return lib.wbh_bedexit_step(ctypes.byref(tables), state.ctypes.data, cmd.ctypes.data, q.ctypes.data, t, dt, soles,

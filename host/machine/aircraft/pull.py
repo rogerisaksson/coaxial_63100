@@ -34,7 +34,7 @@ class Rotor(NamedTuple):
 
     @property
     def kt(self):
-        """Its torque a q amp, N m."""
+        """The motor's torque a q amp, N m."""
         return 1.5 * self.pairs * self.lam
 
 

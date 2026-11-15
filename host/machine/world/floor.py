@@ -1,6 +1,6 @@
-"""The floor and what befalls it on it: a slab, a sill, a patch, a rug, a stair, bricks, a board.
+"""The floor and what befalls the robot on it: a slab, sill, patch, rug, stair, bricks, board.
 
-Bodies (`ground`, `rug`) placed on its way (`place`) or parked (`park`), drawn as boxes (`props`).
+Bodies (`ground`, `rug`) placed on the way (`place`) or parked (`park`), drawn as boxes (`props`).
 """
 import math
 
@@ -17,26 +17,26 @@ SHOWN_Y = -1.5
 DEEP_M = 0.2
 #: A flight of stairs: steps, rise and run, m, its landing; a house's.
 STEPS, RISE_M, RUN_M, TOP_M = 5, 0.15, 0.30, 1.5
-#: The stairs takes' flight at its size: Ascending Stairs rises 0.421 m, runs 0.451 a stride.
+#: The stairs takes' flight at the figure's size: Ascending Stairs rises 0.421 m, runs 0.451 a stride.
 TAKE_RISE_M, TAKE_RUN_M = 0.21, 0.225
 #: The floor a flight or ramp reaches goes on this far, m: the base plane (the hole's bottom, 10 cm down)
 #: lay over a descent's lower half; a 1.2 m top ended in a drop.
 UPPER_M = 6.0
 BRICK, BOARD, BOARD_HINGE_M, BOARD_KG = (0.06, 0.031, 0.125), (0.25, 0.005, 0.20), 0.02, 1.2
 BOARD_K, BOARD_C = 3000.0, 20.0
-#: The low chair's seat at its popliteal height, its knee less its thigh's radius there: a human's deep sit,
-#: soles flat; the lodge's is 5.3 cm over it.
+#: The low chair's seat at popliteal height, the knee less the thigh's radius there: a human's deep sit, soles flat;
+#: the lodge's is 5.3 cm over it.
 CHAIR_LOW_H = figure.ANKLE_H + figure.SHANK - [c for c in figure.BODY if c[0] == 'thigh'][-1][1]
 #: The bed: its mattress's half sizes, its top's height and its frame's half sizes (m). The top under every build's
-#: knee (0.43-0.48 m), its soles on the floor sat on its edge; the mattress on the frame, no slot under it (at 0.45
-#: m a 5 cm one caught its feet as they came down off its end).
+#: knee (0.43-0.48 m), soles on the floor sat on its edge; the mattress on the frame, no slot under it (at 0.45 m a 5
+#: cm one caught the feet as they came down off its end).
 BED_MATTRESS, BED_MATTRESS_H, BED_FRAME = (0.65, 0.12, 1.0), 0.40, (0.67, 0.08, 1.02)
-#: A mattress's foam (priority 2): its cover's grip, sliding, over its own; its give, m (solimp's width: it lies 7.5 cm
-#: in, 5.5 at 0.04 s and 5 cm, and a quicker lie fell there), a firm `core` under it (all foam, its heels sank into
-#: its side and wedged on its frame, 8 kN).
+#: A mattress's foam (priority 2): its cover's grip, sliding, over the robot's; its give, m (solimp's width: it lies
+#: 7.5 cm in, 5.5 at 0.04 s and 5 cm, and a quicker lie fell there), a firm `core` under it (all foam, its heels sank
+#: into its side and wedged on its frame, 8 kN).
 BED_GRIP, BED_GIVE = 0.6, 0.10
 FOAM = ' priority="2" condim="4" friction="%g 0.005 0.0001" solref="0.08 1" solimp="0.8 0.95 %g"' % (BED_GRIP, BED_GIVE)
-#: What lies on the floor and bears its soles alone.
+#: What lies on the floor and bears the soles alone.
 TERRAIN = ('sill', 'slip', 'brick_left', 'brick_right', 'board_base', 'slope_ramp', 'slope_top', 'ice', 'snow', 'rug')
 #: A ramp's grade, deg, and half sizes: 10, a steep street's.
 SLOPE_ANGLE_DEG, SLOPE_HALF = 10.0, (0.60, 0.05, 1.44)
@@ -68,7 +68,7 @@ def _steps(top=TOP_M, rise=RISE_M, run=RUN_M):
 
 
 def told_stairs(rise=RISE_M, run=RUN_M):
-    """The stairs told it (`worker.told_floor`): level to the first riser 0.30 m on (`events`), STEPS
+    """The stairs told (`worker.told_floor`): level to the first riser 0.30 m on (`events`), STEPS
     treads of `run` at `rise`, the landing TOP_M long."""
     pts = [(-2.0, 0.0), (0.30, 0.0)]
     for k in range(STEPS):
@@ -77,7 +77,7 @@ def told_stairs(rise=RISE_M, run=RUN_M):
 
 
 def grounds(m):
-    """Its ground's bodies in `m`: the floor and its slabs, TERRAIN, the steps, `room.GROUND`."""
+    """The ground's bodies in `m`: the floor and its slabs, TERRAIN, the steps, `room.GROUND`."""
     from machine.world import room
     ids = {m.body(b).name: b for b in range(m.nbody)}
     laid = {ids[n] for n in TERRAIN + tuple(n for n, _h, _a in _steps()) + room.GROUND if n in ids}
@@ -85,14 +85,14 @@ def grounds(m):
 
 
 def lay(name):
-    """(x, z) it is laid at for scene `name`: the lodge's door line, else its origin."""
+    """(x, z) scene `name` starts at: the lodge's door line, else its origin."""
     from machine.world import room
     return {'lodge': (room.STAIR_X, 0.0)}.get(name, (0.0, 0.0))
 
 
 def _sized(world, body, half):
     """`body`'s box `half` its sizes, its contact bounds with them: grown 6 m past its compiled 1.2, a
-    slope's top bore nothing 0.85 m from its middle and it fell through its edge."""
+    slope's top bore nothing 0.85 m from its middle and the robot fell through its edge."""
     m = world.model
     b = m.body(body).id
     g = m.body_geomadr[b]
@@ -101,7 +101,7 @@ def _sized(world, body, half):
 
 
 def _beyond(world, along, ahead, pad):
-    """The slab taken away from `along` on, `ahead` the way it goes along z (1 or -1)."""
+    """The slab taken away from `along` on, `ahead` the heading along z (1 or -1)."""
     slab(world, along - pad, SLAB_TO_M) if ahead >= 0.0 else slab(world, SLAB_FROM_M, along + pad)
 
 
@@ -117,7 +117,7 @@ def core(name, half, mid, contacts):
 
 
 def ground(contacts, give, torsion):
-    """The worldbody's floor before its figure: the plane, the slabs, the mocap props."""
+    """The worldbody's floor before the figure: the plane, the slabs, the mocap props."""
     return [
         '<geom name="floor" type="plane" size="100 100 0.1" pos="0 %g 0" '
         'quat="0.7071068 -0.7071068 0 0"%s/>' % (-HOLE_M, contacts),
@@ -166,7 +166,7 @@ def ground(contacts, give, torsion):
 
 
 def rug(give, friction, torsion):
-    """The rug's body and the board's, after its figure."""
+    """The rug's body and the board's, after the figure."""
     return ['<body name="board_base" mocap="true" pos="0 -1 0"><body name="board" pos="0 %g 0">'
             '<joint name="board" type="hinge" axis="0 0 1" limited="true" range="%g %g" '
             'stiffness="%g" damping="%g"/><geom type="box" size="%g %g %g" pos="0 %g 0" '
@@ -308,7 +308,7 @@ def place(world, kind, z, x=0.0, heading=0.0, top=None, rise=RISE_M, run=RUN_M):
 
 
 def behind(stunt, half):
-    """m along its way from its ankles to a prop's middle, `half` m in from its edge behind it, its
+    """m along the robot's way from its ankles to a prop's middle, `half` m in from its edge behind it, its
     heels the stunt's standoff off it (`maneuver.standoff`)."""
     from machine.texts import maneuver
     return -(figure.HEEL + maneuver.standoff(stunt) + half)
@@ -320,7 +320,7 @@ def _on_chair(world):
 
 
 def _edge_behind(world):
-    """A floor a step's rise up ends half a tread behind its heels: a step back lands off its edge."""
+    """A floor a step's rise up ends half a tread behind the heels: a step back lands off its edge."""
     _sized(world, 'slope_top', (SLOPE_TOP_HALF[0], RISE_M / 2.0, UPPER_M / 2.0))
     mocap(world, 'slope_top', (0.0, RISE_M / 2.0, UPPER_M / 2.0 - figure.HEEL - RUN_M / 2.0))
     world.data.qpos[1] += RISE_M
@@ -412,7 +412,7 @@ def _ids(world):
 
 
 def dents(world, np):
-    """[(x, y, z, m)]: each contact in its mattress, world, and how deep."""
+    """[(x, y, z, m)]: each contact in the mattress, world, and how deep."""
     d, mat, ncon = world.data, _ids(world)['bed'][1], world.data.ncon
     if not ncon:
         return []

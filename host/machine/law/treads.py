@@ -1,10 +1,10 @@
-"""A floor told it: where each swing lands on its treads, the height under a place and between two.
+"""A floor told the robot: where each swing lands on its treads, height under a place and between two.
 
     s_new, top, land, run, cell = treads.footholds(along, rise, told, s_meet, s_fore, s_now, s_com, reach, hold, gap, step)
     treads.floor_at(along, rise, told, s)            # a told floor's height under each s
     treads.floor_mean(along, rise, told, s0, s1)     # its mean height from s0 to s1
 
-Arrays in, arrays out and no branch (tests/test_ortho.py); `machine.law.impedance` lands with it, its
+Arrays in, arrays out and no branch (tests/test_ortho.py); `machine.law.impedance` lands with it, the robot's
 frame's map (`modal.MAP_ALONG`, `MAP_RISE`) the floor told; wbc_floor.c the same in C.
 """
 import os
@@ -18,23 +18,23 @@ from machine.law.poise import BIG, HALF_M, MARGIN_M, TINY, clip
 
 
 def footholds(along, rise, told, s_meet, s_fore, s_now, s_com, reach, hold, gap, step):
-    """Each swing's landing along a floor told it (`along`, `rise`, `told` breakpoints) moved onto
-    the flat tread nearest where it will touch down (`s_fore`) that its whole sole fits within its
+    """Each swing's landing along a floor told the robot (`along`, `rise`, `told` breakpoints) moved onto
+    the flat tread nearest where it will touch down (`s_fore`) that its whole sole fits within the robot's
     reach (`s_com` +- `reach`), the tread chosen as it left kept (`hold`, -1 none), the landing
     that tread's point nearest its natural one (`s_meet`) drawn to the tread's end by how near
-    that end lies within a `step` (m, its centre's travel a step); the highest floor between each sole
+    that end lies within a `step` (m, the robot's centre's travel a step); the highest floor between each sole
     (`s_now`) and its landing; the landing's height over the floor felt (`gap` the told floor's
     over it); each tread's run; the tread landed on (-1 none). Nothing told, or no tread in reach,
     the landings as they are and the floor level."""
     cells = np.arange(len(along) - 1)
     # the last cell runs on past the map's end, as its height does (`floor_at`): drawn back to its
-    # band at the top landing's told end it stumbled, 37 cm short
+    # band at the top landing's told end the robot stumbled, 37 cm short
     a, b = along[:-1], np.where(cells == told - 2, BIG, along[1:])
     on = cells < told - 1
     # the heel may hang over the tread's edge behind, the toes stay MARGIN_M short of the riser ahead;
     # the landing the band's point nearest its natural one (at the band's middle instead, a swing
     # bound 4 mm past the flat's end was pulled 21 cm back behind its own sole), drawn on to the
-    # band's end as that comes within a step: landed 6-9 cm ahead of its centre where the takes'
+    # band's end as that comes within a step: landed 6-9 cm ahead of the robot's centre where the takes'
     # feet land 14-25, the pull-up pushed it past the stance toe at 1.0 m/s (findings/stairs.md)
     flat = on & (np.abs(rise[1:] - rise[:-1]) < TINY) & (b - a > HALF_M + TOE_M + 2.0 * MARGIN_M)
     lo, hi = np.maximum(a + MARGIN_M, s_com - reach), np.minimum(b - HALF_M - TOE_M - MARGIN_M, s_com + reach)

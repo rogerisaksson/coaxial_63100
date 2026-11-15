@@ -4,7 +4,7 @@
 
 An Extra 300 (`aerobat.lisp`) on two 63100 drives, `PROP` the tractor propeller and `VECT`
 the coaxial contra stage: propwash over oversized surfaces gives attitude authority from zero
-airspeed. Its numbers, its wing and its XML (`airframe`), its form (`form`), its flight in
+airspeed. The aerobat's numbers, its wing and its XML (`airframe`), its form (`form`), its flight in
 MuJoCo (`sky`), its law (`law`) and its observer (`observer`).
 """
 from machine.aircraft.aerobat.airframe import (A_DISC, BEHAVIORS, BLADE_PITCH, BODY_CDA, CARD, CD0, CD_INDUCED,

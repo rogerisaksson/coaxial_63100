@@ -57,7 +57,7 @@
     (phase_offset mode_lateral_shift mode_sagittal_drive -108deg)))
 
 ;; Shared deceleration / braking phase prototype: blended over one stride of its rhythm, both soles
-;; braking it (se2.BRAKE_S)
+;; braking the robot (se2.BRAKE_S)
 (deftrait gait_brake
   (duration 1800ms)
   (blend_duration 1176ms)
@@ -81,7 +81,7 @@
     (stiffness mode_sagittal_shift 300) (damping mode_sagittal_shift 150))
   (cpg_config (enable false)))
 
-;; sway from sole to sole, no steps: its ZMP into each sole in turn
+;; sway from sole to sole, no steps: the robot's ZMP into each sole in turn
 (stream_inject (use forward_rhythm)
   (sequence_id 202)
   (blend_duration 1500ms)
@@ -90,7 +90,7 @@
     (amplitude mode_lateral_shift 0.31)
     (amplitude mode_sagittal_drive 0.0)))
 
-;; step: 0.12 m/s. Along its way it is damped to its cruise, held to no place
+;; step: 0.12 m/s. Along the robot's way it is damped to its cruise, held to no place
 (stream_inject
   (sequence_id 203)
   (blend_duration 1500ms)
@@ -100,11 +100,12 @@
   (cpg_config (amplitude mode_sagittal_drive 0.2) (amplitude mode_limb_lift 1.0))
   (task_constraints (maintain_zmp (polygon dynamic_footprint))))
 
-;; walk on: 1.16 m/s, a woman's normal pace at its leg (1.26 m/s at 0.85 m). Its soles rock heel to
-;; toe, its pelvis lists and turns, its arms swing. Its pace from its rhythm, 2.3 steps a second: a
-;; step past 0.6 m lands its knee bent 40-48 deg (its drive 0.95 at 1 Hz) and spends it. Its legs
-;; 0.03 shorter than standing (0.065 landed its knee at 26 deg, this 23 and 11 after, its hip held
-;; through the handover on its trailing heel: `stride.vaults`); its drive 0.85 for 1.2 m/s there
+;; walk on: 1.16 m/s, a woman's normal pace at the robot's leg (1.26 m/s at 0.85 m). The robot's
+;; soles rock heel to toe, its pelvis lists and turns, its arms swing. The robot's pace from the
+;; robot's rhythm, 2.3 steps a second: a step past 0.6 m lands its knee bent 40-48 deg (the
+;; robot's drive 0.95 at 1 Hz) and spends it. The robot's legs 0.03 shorter than standing (0.065
+;; landed its knee at 26 deg, this 23 and 11 after, its hip held through the handover on its
+;; trailing heel: `stride.vaults`); its drive 0.85 for 1.2 m/s there
 (stream_inject
   (sequence_id 204)
   (blend_duration 2000ms)
@@ -117,7 +118,7 @@
     (amplitude mode_pelvis_turn 0.4)
     (amplitude mode_arm_swing 0.8)))
 
-;; back: the same rhythm, its sway and its list the other side of its drive
+;; back: the same rhythm, the robot's sway and its list the other side of its drive
 (stream_inject (use reverse_gait)
   (sequence_id 205)
   (blend_duration 1500ms))

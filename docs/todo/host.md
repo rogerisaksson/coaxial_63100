@@ -1,149 +1,89 @@
 # Host
 
-- **The offline gate red on main**: Linux's arithmetic (numpy 2.5.4,
-  AVX-512; EPYC 9V45 and Xeon 8573C alike) fells what holds here by a
-  margin. Camera: the chair's back told from one 0.1 m voxel here, none on
-  Linux. Chair rise (27/28 wobbles here): at seat-off the seat bears
-  230-280 N, the soles 10-40, and `wrench._rounds`' clip-and-pin flips their
-  split pass to pass (first solve 14/13 N, clipped 0/136); a sole asked 0 N
-  lifts 2 mm and `leap.standing` swings it. Replays' walk_turn_right, leap's
-  hop: mid-hop both soles under TOUCH_N 0.88 m up, stance 00, no force laid,
-  it drops (here on OPENBLAS_CORETYPE=Sandybridge). Postures' sat rise,
-  floor's scoot. DOD: `run_tests.py --offline` green on 3.12 and 3.14.
+- **The host workflow red on main**: on GitHub's runner the on-line
+  identification (test_sysid_live) rises past its 0.4 N m at the right
+  knee, +0.58; the gate stops there. DOD: both workflows green on main.
 - **wbc_blas's matmul against numpy 2.5**: at matrix @ matrix numpy copies an
   operand BLAS cannot take and calls gemm; wbc_matmul runs its plain loop
   there, so a hand core handing it such a view parts from numpy in the last
   bits (wbc_step.c, wbc_rounds.c). The tracer copies as numpy does. DOD:
   wbc_matmul copies as numpy, held by a test on such views.
-- **The robot's loop's Python round MuJoCo** (asked): profiled walking and cut,
-  each step bit for bit ([pace](../findings/pace.md)). Left, the largest
-  first: the drive pass's Python round its C (`motion.drives`, the SIL
-  drive, the bus check, the world's step round MuJoCo's: 66 us of 176),
-  its ask's dict both ways (`modal.given` 30 us, the step's edge 53, a law
-  pass: the ask the step's own struct), `bodied`'s glue round its compiled
-  parts, the shield's braking (40 us), `borne.read` with nothing on it (25),
-  the page's state as dicts (`told` 294 us at 60 Hz). DOD: its loop at the
-  solve's and MuJoCo's cost alone, the glue under 10 % of a pass.
-- **Branches out of its code** (asked): `if`/`else`/ternaries left, by module -
-  the law's: wrench 14/4/15 (`wbc_wrench.c`'s Python: a sole's stance, the
-  rounds, held contacts, the torque limit), wbc 11/0/4, leap 10/0/6, se2
-  4/0/6, situation 5, borne 2, reach 1; the outer loop's: worker 54/1/23,
-  tour 20/0/21 (the errand a table, `_on_rows`), sprung 11/2/4, room 9.
-  DOD: flat tables and arithmetic a reader follows, a raise where it
-  cannot; test_structure holds the law's modules at 0.
-- **CI red, the host workflow** (8 at acc7fb80; the sway's 2, the viewport
-  bed and the held leap met): test_leap's stride leap, 21 of 24 phases over
-  1.8-2.3 s of walking with its gather laid at its sole's landing
-  ([leap](../findings/leap.md)): no flight at the run's 2.3 s, the held run
-  at 2.1 s down after its landing - the parry's step leaves a split stance,
-  the stand centres it between it. On Linux one walk time is another phase:
-  CI's own sample decides. Snow at
-  one wobble since 1f1d039d (-2e-4, then +2e-4 since the insert): at the
-  patch's far lip its swing reaches 4 cm down past the rhythm's landing, 0.1
-  s late, and the standing sole on the snow, 4-6 mm up on 78-92 N, is let go
-  before it lands (`poise.stands`: over `leap.TOUCH_M` is left) - 10 m/s^2
-  ahead, 0.57 -> 2.0 m/s, down on 769 N and back (scenarios 2 and 3). The
-  replay walk_turn_right on Linux (scenarios 14), the
-  chair at -2e-4 (scenarios 1). DOD: both workflows green on main.
-- **The autotuner's write** (asked): its walk's step held on its suite's
-  roots and the bench broke test_errands' viewport bed and was undone. DOD: a
-  write held on the errands too (their house runs as the bench's), written
-  and committed.
-- **native://**: a limb's world on a fixed mount as board/emu's. A frame on
-  an idle limb of four 32 ms, the wire's 10: three boards awake t3.5 and each
-  chain's 2 ms recovery at 1 us substeps (emulation.md). DOD: the body's
-  balance and gait from the SIL.
-- **Identification on the robot** (identification.md): its tree's campaign
-  (`machine.identify.sysid`) through its buses once the SIL moves its figure; the
-  hips' yaw and roll armature untold on the stand; a link's inertia about
-  its centre as built under a correction. As it is: a drive on its board
-  (`coaxial.control.identify`, `tools/bench/sysid_drives.py`) - held, swung
-  by the board's own loop, its DAQ's currents and A1335 the rows - reads its
-  J, b and the gravity on its shaft against the world's. DOD: its tree's
-  campaign on emulated boards end to end; a bench drive on COM4; a link's
-  tensor corrected under a body's constraints.
-- **Its law compiled from its Python** (asked): numpy's own steps traced on
-  its arrays, each emitted in C11 on `wbc_np.h`'s primitives at its layout and
-  held bit for bit as it is built (`tools.cores.held`). As it is: the
-  regressor, its estimate, its sensing, its grip's feel and floor, its
-  situation, its drive's cap, its ask's poses, its sensing flat and its
-  soles' touch generated, the rest of its law ported by hand or numpy's -
-  its `npmax`
-  and `npmin` Python's tie of zeros where they stand for numpy's maximum and
-  minimum (110 calls). DOD: latent.step, support.couple and impedance.ask
-  generated, bit for bit, as fast as their ports.
-- **The crafts' laws compiled from their Python** (asked): the helicopter's,
-  the aerobat's and the ornithopter's `Core.step` scalar Python - dicts,
-  attributes, branches, a namedtuple - that the numpy tracer refuses; 18.4,
-  30.3 and 20.7 ms of 113, 128 and 114 a flown second, the drives' 50 kHz
-  ticks 43 %; their hot helpers ported by hand (`aero/test/harness.c`'s
-  `aeh_*`). The quad's law is the firmware's `aero.c`. DOD: the three steps
-  generated from their Python, bit for bit, the hand ports gone.
+- **The robot's loop's Python round its compiled parts and MuJoCo**
+  (asked): the glue between the solve, the law's compiled parts and
+  MuJoCo's step, and the law's own statements between them
+  ([pace](../findings/pace.md)). DOD: the loop at the solve's and MuJoCo's
+  cost alone, the glue under 10 % of a pass; the walk's pass under 400 us
+  with every step in; the trajectory's sha1 the same over the walk, the
+  lie and a chair.
+- **Branches out of the robot's code** (asked): `if`/`else`/ternaries
+  left in the law's modules (wrench, wbc, leap, se2, situation, borne,
+  reach) and the outer loop's (worker, tour, sprung, room). DOD: flat
+  tables and arithmetic a reader follows, a raise where it cannot;
+  test_structure holds the law's modules at 0.
+- **The autotuner's write** (asked): no tuned step kept since one broke
+  test_errands' viewport bed ([autotuner](../findings/autotuner.md)).
+  DOD: a write held on the errands too (`tools/sim/gate.py`: the suites
+  its files reach), written and committed.
+- **native://**: a limb's boards turn a world on a fixed mount, as
+  board/emu's; the robot's body is not wired to them (`modes.TIERS`), and
+  an idle limb pays more a frame than the wire (emulation.md). DOD: the
+  robot's balance and gait from the SIL.
+- **Identification on the robot** (identification.md): the tree's
+  campaign (`machine.identify.sysid`) through its buses once the
+  SIL moves its figure; the hips' yaw and roll armature untold on the
+  stand; a link's inertia about its centre as built under a correction.
+  DOD: the tree's campaign on emulated boards end to end; a bench drive on
+  COM4; a link's tensor corrected under a body's constraints.
+- **The robot's law compiled from its Python** (asked): numpy's own steps
+  traced on its arrays, emitted in C11 on `wbc_np.h`'s primitives at its
+  layout and held bit for bit as built (`tools.cores.held`); the rest of
+  its law ported by hand (`tools.cores.motion`). DOD: latent.step,
+  support.couple and impedance.ask generated, bit for bit, as fast as
+  their ports.
+- **The crafts' laws compiled from their Python** (asked): the
+  helicopter's, the aerobat's and the ornithopter's `Core.step`, scalar
+  Python the numpy tracer refuses (dicts, attributes, branches, a
+  namedtuple), their hot helpers ported by hand (`aero/test/harness.c`'s
+  `aeh_*`); the quad's law is the firmware's `aero.c`. DOD: the three
+  steps generated from their Python, bit for bit, the hand ports gone.
 - **The papers on the stand-in against the emulator** (asked,
   `make_notebooks.py --compare`): the motion paper's stop ramp through the
-  sensorless crossover trips the stand-in at overcurrent, 2 runs of 4 before
-  the night and 4 of 4 now; the applications paper's servo and velocity
-  cells trip the emulator, a cell further or nearer run to run, on the
-  night's tree as now - 5 runs of 5 since: the lane's stop once, the two
-  joints' poses four times; its paper stands on the outputs it had, its
-  code being what ran. DOD: every paper alike on both but where a world's
-  physics says otherwise (the machines paper's, on the stand-in).
-- **The gate on GitHub's runner stops at test_wasd** (found, the run of
-  011bfef4): start_stop and walk_leap each fell from one start of three,
-  at 13.0 s and at 8.1 s, on both jobs to the same numbers; 23 of 23 here.
-  Behind it no suite tells its seconds there - its errands' among them,
-  cut at 300.1 s the run before, while they had no row. DOD: test_wasd
-  green on the runner, the gate whole there, each suite's seconds beside
-  what the table told.
-- **The gate under coverage does not run whole** (found, `cover.py
-  --readme`, four runs): it stops at its first red suite, and one is red a
-  run - test_camera's apart-against-here look (101 things each, told
-  unlike), test_native's alternate refused its gates while 32 other
-  processes held the host. A suite cut short had kept the seconds of what
-  ran and was then planned too short (test_wasd killed at 831.6 s): only
-  whole runs are kept now. The README carries the run of 647aea1, its
-  tables of suites since gone left out. DOD: `cover.py --readme` whole,
-  docs/RESULTS.md written by it.
-- **Its surety field reads `out[latent.ZMP]`** (found): `latent.ZMP` indexes a
-  parameter row (`ortho.P`), not `latent.OUT`; in `out` it lands on the
-  drive mode's phase, so `w_air` is 1 - psi. Kept as is, bit for bit, by the
-  C port. DOD: the read placed (the row's ZMP, or out's HELD), its walk and
-  the scenarios measured before and after.
-- **The orientation page is sluggish on Renode** (asked): the A1335 read back
-  to back was the load, paced to 1 kHz with the drive and the DAQ off:
-  Renode 2.2-3.5 -> 1.48 wall s a virtual s, the page's vectors 52 -> 78 a
-  second (FINDINGS, A1335). Left: main() spinning for the keepalive's 200 kHz
-  edges while AFE_ON is up, 1.34-1.48 of the 1.0 an idle board makes in WFI.
-  PA10 is TIM1_CH3: a timer-driven pump re-armed by main() would let it sleep
-  with the front end on - a change to the STO chain, HARDWARE.md's, to be
-  measured on the probe first. DOD: the page at real time on Renode, Clevel
-  on the probe as before.
-- **WASD turns it** (asked): A D sidestep and Q E turn (`humanoid_keys.twist`),
-  against its test's docstring and scenarios.md. DOD: A D turn it, in place
-  alone, on an arc with W S; Q E sidestep; measured on the page's worker.
-- **The buses' errors told apart** (asked): BUSES' modbus row one count, `crc`,
-  the SIL's 0 a pass, the emulated limb's link faults beside it. DOD: the row
-  names what each count is - frames refused by CRC, writes timed out or refused,
+  sensorless crossover trips the stand-in at overcurrent; the applications
+  paper's servo and velocity cells trip the emulator (emulation.md). DOD:
+  every paper alike on both but where a world's physics says otherwise
+  (the machines paper's, on the stand-in).
+- **The gate under coverage cut short** (`cover.py --readme`): it stops at
+  its first red suite, one red a run, and docs/RESULTS.md carries an old
+  run's tables. DOD: `cover.py --readme` whole, docs/RESULTS.md written by
+  it.
+- **The surety field reads `out[latent.ZMP]`** (found): `latent.ZMP`
+  indexes a parameter row (`ortho.P`), not `latent.OUT`; in `out` it lands
+  on a drive mode's phase (PSI), read beside out's HELD and kept bit for
+  bit by wbc_surety.c. DOD: the read placed (the row's ZMP) or gone, the
+  robot's walk and the scenarios measured before and after.
+- **The orientation page slow on Renode** (asked): with AFE_ON up main()
+  spins for the keepalive's 200 kHz edges where an idle board sleeps in
+  WFI (emulation.md); a pump off TIM1_CH3 (PA10) changes the STO chain
+  (HARDWARE.md; [bench](bench.md)'s STO chain). DOD: the page at real time
+  on Renode, Clevel on the probe as before.
+- **The buses' errors told apart** (asked): BUSES' modbus row counts `crc`
+  alone on the SIL; on the emulated limb a refused arm and a write timed
+  out or refused share `lnk` (`EmulatedLimb.badge`). DOD: the row names
+  what each count is - frames refused by CRC, writes timed out or refused,
   arm refused - and none reads as a drive's trip, overcurrent or knock.
 - **A corrupt request costs the bystanders more** (found): on Renode one
   request's bit flipped is that request alone unanswered, but each node of a
   limb of three counts 3-7 comm errors against 0 in a clean run
   ([emulation](../findings/emulation.md)). DOD: the reason in `modbus_rtu.c`'s
   framing after a bad frame, one count a node a corrupt frame.
-- **A slot taken on its full map** (found): with every slot live, a thing
-  matching none takes the least salient one (`registry.seen`), and the look's
-  later things meet it by its old kind, place ahead and variance, its new half
-  sizes alone - a new thing matched as the one it replaced. Reached at 256
-  live slots only (the lodge's 24 never). DOD: a slot taken anew met as its
-  new thing, held by a test on a full map.
-- **Its prompt's two misses** (MODELS.md, its prompt): 'stand up from the
-  chair' seated picks the human's mocap take over its own rise_chair, 'bake a
-  cake' a body operation rather than null (gemma4:12b, 11 of 13). DOD:
-  `tests/test_live_gynoid.py` green 3 of 3 runs, the misses among its cases.
-- **Its law's python since the kernel's steps** (found, [pace](../findings/pace.md)):
-  its walk's pass 312 us before them, 510 now - its law 367 us of a pass, its
-  sensing 83 (the contacts above its soles, its EKF's and observer's glue),
-  its shield 41, its ask's own statements about 120 between the compiled
-  parts, whose wrappers take 60 us a law pass of 113. DOD: its walk's pass
-  under 400 us with every step in, its trajectory's sha1 the same over its
-  walk, its lie and a chair.
+- **A slot taken on a full map** (found): with every slot live, a thing
+  matching none takes the least salient one (`registry.seen`), and the
+  look's later things meet it by its old kind, place ahead and variance, its new
+  half sizes alone - a new thing matched as the one it replaced. Reached at 256
+  live slots only (the lodge's 24 never). DOD: a slot taken anew met as its new
+  thing, held by a test on a full map.
+- **The robot's prompt on the page's model** (MODELS.md): on gemma4:e4b
+  test_live_gynoid passes 7 of 8, 'res dig' lying picking lie_floor; no
+  case asks 'stand up from the chair' seated. DOD:
+  tests/test_live_gynoid.py green 3 of 3 runs on `gynoid.MODELS`' model,
+  a seated 'stand up from the chair' among its cases.

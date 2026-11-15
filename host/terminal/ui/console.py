@@ -316,8 +316,8 @@ class Keys:
                 # A press told while another is not let go - a chord of two buttons, or a release lost: VS
                 # Code's xterm.js lays its listeners for drags and releases anew at each press, the same
                 # handler, so the new one is no listener and the old one's removal takes the only one; it
-                # told presses and the wheel and never a drag or a release again - a chord froze the
-                # atlas's tree. Its reporting off and on clears them, and it tells none of these let go.
+                # told presses and the wheel and never a drag or a release again - a chord froze the atlas's
+                # tree. The terminal's reporting off and on clears them, and it tells none of these let go.
                 self._rearm()
                 self._unreleased = 0
             else:

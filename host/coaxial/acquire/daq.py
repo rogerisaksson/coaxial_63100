@@ -23,7 +23,7 @@ CLOCK_NAMES = {code: name for name, code in CLOCKS.items()}
 #: The state reply's first byte, bit by bit. `lost_power` is stopped
 #: because AFE_ON went off, and the buffers emptied with it: that pin
 #: powers the ADC reference, so anything held would have divided out to a
-#: plausible mid-scale (invariant 9).
+#: plausible mid-scale.
 FLAGS = ('running', 'done', 'lost_power')
 
 #: Coefficients cross as Q28 - the wire carries no floating point, and a

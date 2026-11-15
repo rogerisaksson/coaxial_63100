@@ -1,17 +1,17 @@
-"""Its DC link: its packs and its boards' capacitance under its drives' power, bled by its boards.
+"""The robot's DC link: its packs and boards' capacitance under its drives' power, bled by its boards.
 
-    link = dclink.laid()                       # at its packs' open-circuit volts (`drives.PACK_V`)
+    link = dclink.laid()                       # at the robot's packs' open-circuit volts (`drives.PACK_V`)
     dclink.step(link, tau, qvel, vadr, dt)     # its drives' torques at their speeds a step on: link['v']
-    dclink.stepped(world, dt)                  # the world's, its step `compiled`; its boards' buses driven
+    dclink.stepped(world, dt)                  # the world's, its step `compiled`; the robot's boards' buses driven
 
-Each step its drives' electrical power - the work they do, braking negative, their copper, each
+Each step the robot's drives' electrical power - the work they do, braking negative, their copper, each
 board's housekeeping and switching - is drawn from its packs through their resistance; what comes
 back they take no faster than their BMS's charge, the rest charges its boards' DC link. Solved
 implicit in the link's volts (its RC, 0.52 ms, is under a step): the packs' linear share or their
 charge's limit, whichever leaves the link higher. Past the text's bleed onset
 (`shunt-regenerative-bus-overvoltage`) each board drives its d axis in proportion to its clamp, at
 the current its drive's peak leaves its torque's - copper heat, no torque: the text's sinks
-(SINKS), unloaded, have the most. Its sinks alone (880 W) let a hop down's landing to 60.78 V.
+(SINKS), unloaded, have the most. The sinks alone (880 W) let a hop down's landing to 60.78 V.
 """
 import math
 
@@ -35,8 +35,8 @@ SINKS = [j for j in DRIVEN if drives.kind(j) in {k for node in _SHUNT['priority-
 
 
 def laid():
-    """The link at rest at its packs' open-circuit volts: {v, peak, bled (J), id (A, JOINTS order)}, each
-    written in place - v, peak and bled 0-d."""
+    """The link at rest at the robot's packs' open-circuit volts: {v, peak, bled (J), id (A, JOINTS order)},
+    each written in place - v, peak and bled 0-d."""
     import numpy as np
     driven = np.array([not drives.passive(j) for j in JOINTS])
     kt = np.array([drives.kt(j) if d else 1.0 for j, d in zip(JOINTS, driven)])
@@ -51,13 +51,14 @@ def laid():
 
 
 def compiled():
-    """`step` compiled on its arrays (`tools.cores.bodied`), its `vadr` and `dt` constants: a world's own."""
+    """`step` compiled on the robot's arrays (`tools.cores.bodied`), its `vadr` and `dt` constants: a world's
+    own."""
     from tools.cores import bodied
     return bodied.on_args(step, 'dclink', (0, 1, 2))
 
 
 def step(link, tau, qvel, vadr, dt):
-    """`link` `dt` s on under its drives' torques `tau` at their speeds `qvel[vadr]`."""
+    """`link` `dt` s on under the robot's drives' torques `tau` at their speeds `qvel[vadr]`."""
     import numpy as np
     speed, v = qvel[vadr], link['v'][()]
     spare = np.sqrt(np.maximum(link['amps'] ** 2 - (tau / link['kt']) ** 2, 0.0))
@@ -72,8 +73,8 @@ def step(link, tau, qvel, vadr, dt):
 
 
 def stepped(world, dt):
-    """`world`'s link `dt` s on under its drives' torques and speeds (`world.linked`, `compiled`); its
-    boards' current loops on their buses driven from it (their back-EMF's headroom, `buses`)."""
+    """`world`'s link `dt` s on under the robot's drives' torques and speeds (`world.linked`, `compiled`); the
+    robot's boards' current loops on their buses driven from it (their back-EMF's headroom, `buses`)."""
     world.linked(world.link, world.motor, world.data.qvel, world.vadr, dt)
     if world.buses is not None:
         world.block.volts[0] = world.link['v'] / math.sqrt(3.0)

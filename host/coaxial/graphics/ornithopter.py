@@ -1,7 +1,7 @@
 """The Dune-style 4-wing flapping ornithopter drawn: carapace, V-tail, 63100 drives and wings.
 
     lines = render(pose, rotors, 96, 40, lit=gpu.LitRaster())   # the GPU's lit raster
-    lines = render(pose, rotors, 96, 40)                        # its dots splatted here
+    lines = render(pose, rotors, 96, 40)                        # the ornithopter's dots splatted here
 
 `pose` is `machine.aircraft.ornithopter.Sky.state()`'s, its 'turn', 'at' and 'controls'; `rotors` the fore
 and aft 63100 drives' (angle rad, speed rad/s, can C, board C[, sink C]), each can, board and
@@ -40,7 +40,7 @@ _ORNI_MESH = {}
 #: The pod's dust, its ribs' and veins' dusk, its wings' sand.
 SHELL, DUSK, WING = (128, 120, 104), (58, 54, 48), (150, 142, 126)
 
-#: Its body, designed (no model), tail to nose: rings (z, half-width, half-height, middle's
+#: The ornithopter's body, designed (no model), tail to nose: rings (z, half-width, half-height, middle's
 #: height), m; glazed ahead of GLASS_Z, ribbed every RIB_M, the abdomen's segments SEGMENT_M
 #: long behind WAIST_Z.
 BODY = ((-0.66, 0.0, 0.0, 0.026), (-0.60, 0.014, 0.015, 0.026), (-0.50, 0.018, 0.020, 0.024),

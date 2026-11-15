@@ -1,19 +1,21 @@
 """The robot's braking cocoon on its keys: it stops short of a thing as a let-go key stops it.
 
-    cocoon.blocked(g)          # a pass: whether its stop along its asked way no longer fits short of its things
-    tw = cocoon.refused(g, tw)  # a key's twist, its way into a thing its stop cannot spare taken off
+    cocoon.blocked(g)          # a pass: whether the robot's stop along its asked way no longer fits short of its things
+    tw = cocoon.refused(g, tw)  # a key's twist, its way into a thing the robot's stop cannot spare taken off
 
-proprioceptive_body_schema.lisp's `extrude-velocity-braking-cocoon` on its walk: its things (its registry's boxes)
-it may not stand in (`voxels.STAND_M`), a door's or a slope's not (it pushes a door aside and walks a ramp), each
-grown by its half width (`figure.WIDE_HALF`: by its hips' alone its arm went 0.15 m into the bed) - a building's
-walls and windows (`classes.SHELL`) where its way runs into their face, less its half width: one brushed past is its
-touch's and its arms' yield's (grown, a doorway's post 0.15 m off closed it; left out, it walked into a pane at
-1.1 m/s and fell); its stop v T + v^2 / (2 a) along its way - T the text's horizon (`law.schema.HORIZON`), a its
-braking (`route.BRAKE`) - against the room to the nearest along it less the text's skin (`wayfinder.MARGIN`).
-Blocked, its keys are let go (`machine.process.worker`) and it stands by its own stop; turning and backing off are
-its own. Its twist held to it outran it - 1.2 m/s to a chair's skin - and a zero cap threw it. On an errand or blind
-on an open floor (`not (physics.ROOM or g.get('eyes'))`) none: an errand's dock is its own to reach
-(`gate-affordance-contact-permeability`), an open floor's unannounced props its touch's and its situation's.
+proprioceptive_body_schema.lisp's `extrude-velocity-braking-cocoon` on the robot's walk: its things (the
+robot's registry's boxes) it may not stand in (`voxels.STAND_M`), a door's or a slope's not (it pushes
+a door aside and walks a ramp), each grown by its half width (`figure.WIDE_HALF`: by its hips' alone
+the robot's arm went 0.15 m into the bed) - a building's walls and windows (`classes.SHELL`) where its way
+runs into their face, less its half width: one brushed past is its touch's and its arms'
+yield's (grown, a doorway's post 0.15 m off closed it; left out, the robot walked into a pane at 1.1 m/s and fell);
+the robot's stop v T + v^2 / (2 a) along its way - T the text's horizon (`law.schema.HORIZON`), a the
+robot's braking (`route.BRAKE`) - against the room to the nearest along it less the text's skin
+(`wayfinder.MARGIN`). Blocked, the robot's keys are let go (`machine.process.worker`) and it stands by its own stop;
+turning and backing off are its own. The robot's twist held to it outran it - 1.2 m/s to a chair's skin - and a zero
+cap threw the robot. On an errand or blind on an open floor (`not (physics.ROOM or g.get('eyes'))`) none: an
+errand's dock is the robot's own to reach (`gate-affordance-contact-permeability`), an open floor's unannounced
+props its touch's and its situation's.
 """
 import math
 
@@ -28,14 +30,16 @@ _KEPT: list = [None, None, None, None]
 
 
 def _seen(g):
-    """Its things for braking: under its eyes, boxes confirmed by stereo (`0.5 * registry.HIT`) before routing."""
+    """The robot's things for braking: under its eyes, boxes confirmed by stereo (`0.5 * registry.HIT`) before
+    routing."""
     if g.get('eyes') and g.get('vision') is not None:
         return g['vision'].boxes(g, 0.5 * registry.HIT)
     return g.get('things')
 
 
 def _rising(g):
-    """Whether it rests on a thing (`RISE_OF`) or is still in the rise stunt off it: it is its own to stand from."""
+    """Whether the robot rests on a thing (`RISE_OF`) or is still in the rise stunt off it: it is the robot's own to
+    stand from."""
     from machine.process import gaits
     cur = se2.doing(g)
     return cur in se2.RISE_OF or (
@@ -52,7 +56,8 @@ def _deeper(o, d, half, off, pad=None):
 
 
 def clear_of_rise(g):
-    """Whether a completed rise has carried its pelvis outside its things' half-width halo (or it steps deeper in)."""
+    """Whether a completed rise has carried the robot's pelvis outside its things' half-width halo (or it steps deeper
+    in)."""
     from machine.process import gaits
     cur = se2.doing(g)
     if cur in se2.RISE_OF or cur == 'init_walk' or gaits.in_stunt_transient(g):
@@ -81,7 +86,7 @@ def clear_of_rise(g):
 
 
 def _vel_blocked(g):
-    """Whether its current horizontal velocity carries it into a thing before it can stop."""
+    """Whether the robot's current horizontal velocity carries it into a thing before it can stop."""
     things = _seen(g)
     if not (physics.ROOM or g.get('eyes')) or g.get('_errand') or not things or _rising(g):
         return False
@@ -110,7 +115,8 @@ def _spin_blocked(g, wz, cut=False):
 
 
 def hop_blocked(g):
-    """Whether an in-stride leap along its current velocity cannot land and stop short of its things or a closed door."""
+    """Whether an in-stride leap along the robot's current velocity cannot land and stop short of its things or a closed
+    door."""
     things = _seen(g)
     if not (physics.ROOM or g.get('eyes')) or g.get('_errand') or not things or _rising(g):
         return False
@@ -123,8 +129,8 @@ def hop_blocked(g):
 
 
 def blocked(g):
-    """Whether its stop along its asked way (`g['asked']`), turning arc, or spin carry/momentum no longer fits
-    short of its things: never on an errand, already braking or standing, or with none seen."""
+    """Whether the robot's stop along its asked way (`g['asked']`), turning arc, or spin carry/momentum no
+    longer fits short of its things: never on an errand, already braking or standing, or with none seen."""
     tw = g.get('asked', (0.0, 0.0, 0.0))
     way = _way(g, tw)
     if way is None:
@@ -137,8 +143,9 @@ def blocked(g):
 
 
 def refused(g, tw):
-    """Twist `tw` (its body's), its way taken off where its stop along it or its turning arc cannot fit short of its
-    things; its spin held off while its carry or unsteered momentum runs into a thing."""
+    """Twist `tw` (the robot's body's), its way taken off where the robot's stop along it or its turning arc cannot
+    fit short of the robot's things; its spin held off while its carry or unsteered momentum runs
+    into a thing."""
     way = _way(g, tw)
     v = math.hypot(tw[0], tw[1])
     if way is None:
@@ -154,8 +161,8 @@ def refused(g, tw):
 
 
 def _way(g, tw, dh=0.0):
-    """The unit way (x, z) of twist `tw` along its heading turned by `dh`; None outside a room or sight, on an errand,
-    rising off a thing, or still."""
+    """The unit way (x, z) of twist `tw` along the robot's heading turned by `dh`; None outside a room or sight, on an
+    errand, rising off a thing, or still."""
     v = math.hypot(tw[0], tw[1])
     if not (physics.ROOM or g.get('eyes')) or g.get('_errand') or v < 1e-6 or not _seen(g) or _rising(g):
         return None
@@ -164,7 +171,7 @@ def _way(g, tw, dh=0.0):
 
 
 def _arc_room(g, tw, v_ref):
-    """Minimum room along its straight or yaw-curved braking horizon."""
+    """Minimum room along the robot's straight or yaw-curved braking horizon."""
     way0 = _way(g, tw)
     if way0 is None:
         return math.inf
@@ -186,17 +193,17 @@ def _stop(v):
 
 
 def _room(g, way, things=None):
-    """The room along `way` from its place to its nearest thing, less the text's skin, m: to a thing grown by it
-    half width, to a wall's or a window's face its way runs into less it."""
+    """The room along `way` from the robot's place to its nearest thing, less the text's skin, m: to a
+    thing grown by it half width, to a wall's or a window's face its way runs into less it."""
     q = furniture.where(g)
     boxes = _boxes(_seen(g) if things is None else things)
     return ahead(boxes, (float(q[0]), float(q[2])), way) - wayfinder.MARGIN
 
 
 def _boxes(things, doors=False):
-    """(centres (n, 2), axes (n, 2, 2), halves (n, 2), each one's distance off (n,)) of `things` it may not stand
-    in, slopes (and doors unless `doors`) out: a thing grown by its half width, a building's shell (`classes.SHELL`)
-    as it is and its half width off its face's distance - laid once a look."""
+    """(centres (n, 2), axes (n, 2, 2), halves (n, 2), each one's distance off (n,)) of `things` the robot may not
+    stand in, slopes (and doors unless `doors`) out: a thing grown by its half width, a building's shell
+    (`classes.SHELL`) as it is and the robot's half width off its face's distance - laid once a look."""
     import numpy as np
     slot = 2 if doors else 0
     if _KEPT[slot] is not things:
@@ -214,7 +221,7 @@ def _boxes(things, doors=False):
 
 def ahead(boxes, at, way):
     """How far from `at` (x, z) along `way` (a unit (x, z)) the nearest of `boxes` (`_boxes`') begins less its
-    distance off, m: 0 within one and going deeper, inf none ahead. Its division where its way crosses an axis alone
+    distance off, m: 0 within one and going deeper, inf none ahead. The division where the way crosses an axis alone
     (`where`): no warnings to hush, each a context of numpy's."""
     import numpy as np
     c, axes, half, off = boxes

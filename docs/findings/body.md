@@ -2,7 +2,7 @@
 
 Build, buses, falls, drawing and clothes; the drives in
 [drives](drives.md), the board's findings in [FINDINGS](../FINDINGS.md),
-its latent loop in [orthokinematics](orthokinematics.md).
+the robot's latent loop in [orthokinematics](orthokinematics.md).
 
 ## Model
 
@@ -70,6 +70,9 @@ its latent loop in [orthokinematics](orthokinematics.md).
   3.00 -> 2.53.
 - Down after a sill the spine bent back 98-101 deg; stopped (`mjcf.STOPS`)
   31-37.
+- Shoved 200 N from eight sides, standing and walking, and slipped
+  (`tools/sim/falls.py`, bc0fccbf): 11 of 17 fell, the head struck in each,
+  at 2.2-5.4 m/s in seven.
 
 ## Page
 
@@ -88,14 +91,15 @@ its latent loop in [orthokinematics](orthokinematics.md).
   once in 234, simulated time per wall second 0.22 of spread where 0.62. The
   drives' six-field readings had cost the loop's `flat` twice its time; a
   float taken as it is: 0.53 -> 0.64 of real time.
-- What its law sees, reviewed: its edge's array alone - an IMU in its own
-  frame, encoders, load cells, skin in each segment's frame, no place or
-  speed of its own in the world - and its own model as its estimate poses it;
-  its floor and its pitch from its soles. Its law in C is given its law's
-  arrays alone. The world is written by the drives' torques, a lay, a scene
-  and a shove; its harness is the stand's (`test_sysid`). test_structure
-  holds it, `borne`, `grip` and its law's C now among it; the fallen limp
-  took the world's joint angles where its encoders give the same bits.
+- What the robot's law sees, reviewed: its edge's array alone - an IMU
+  in its own frame, encoders, load cells, skin in each segment's frame, no place
+  or speed of the robot's own in the world - and its own model as the
+  robot's estimate poses it; the robot's floor and its pitch from the robot's
+  soles. The robot's law in C is given its law's arrays alone. The world is
+  written by the drives' torques, a lay, a scene and a shove; its harness is the
+  stand's (`test_sysid`). test_structure holds it, `borne`, `grip` and the
+  robot's law's C now among it; the fallen limp took the world's joint angles
+  where the robot's encoders give the same bits.
 
 ## Mechanics
 
@@ -131,7 +135,7 @@ its latent loop in [orthokinematics](orthokinematics.md).
     felled the body; a knee's drum landed past its gel, 935 N against 102 bare.
     Colliding, shoved past saving into the crouch, the head met the floor at
     1.03-1.66 m/s in 3 of 64 falls, without at 0.66-0.81 in 2; one with
-    nothing of the skeleton touching: chance. On its loop, colliding,
+    nothing of the skeleton touching: chance. On the robot's loop, colliding,
     it walks as without: 51 s, 0.69 m/s, 299 J/m, 2.45 off the band
     where 300 and 2.46; a pass 1 651 us where 1 610.
 - Every drive's output on its drum's axis from its gearbox's end
@@ -281,14 +285,13 @@ its latent loop in [orthokinematics](orthokinematics.md).
   bearing, the M 7 mm back: over +-35 deg its lever 1.33 at rest, 1.48-1.73
   toward the ends, its transmission 53 deg at worst, 2.9-3.7 kN in its rod;
   over spine -30..85 and roll +-35 the closest 1 mm.
-- By `tools/sim/bom.py`, `tools/sim/fit.py` and `tools/sim/members.py`:
-  21 part types, one bearing
-  size, one rod end, tubes of 7 stock sizes; standing, the elbow 20, the
-  shoulder 15 and the hip yaw 6 mm past the clothes; over 45 poses the
-  closest pairs -13 to -19 mm (the pelvis's frame and the hip roll's drum
-  rolling onto its front, the arm bones and the ankles' rods sitting back);
-  2 members of 61 past a limit, the shank's first run flexing 0.29 deg, the
-  spine roll's horn 0.26.
+- By `tools/sim/bom.py`, `tools/sim/fit.py` and `tools/sim/members.py`: 21 part
+  types, one bearing size, one rod end, tubes of 7 stock sizes; standing, the
+  elbow 20, the shoulder 15 and the hip yaw 6 mm past the clothes; over 45 poses
+  the closest pairs -13 to -19 mm (the pelvis's frame and the hip roll's drum
+  rolling onto the robot's front, the arm bones and the ankles' rods sitting
+  back); 2 members of 61 past a limit, the shank's first run flexing 0.29 deg,
+  the spine roll's horn 0.26.
 - Dressed as cloth hangs (`coaxial.graphics.gynoid`): the tee a tube hung
   plumb from the chest and the bust, EASE_M 12 mm off the torso where it is
   wider below, its hem at the hips' widest, 140 mm under the torso joint

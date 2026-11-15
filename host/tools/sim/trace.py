@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""A scenario traced a pass at a time: its law's floor, stance and loads beside the world's floor.
+"""A scenario traced pass by pass: the robot's law's floor, stance and loads beside the world's floor.
 
     python tools/sim/trace.py stairs_down 1.8 4.0          # from 1.8 to 4.0 s of it, a row every 20 ms
     python tools/sim/trace.py slope --every 0.05 > ramp.txt
     python tools/sim/trace.py snow --wobble -2e-4           # laid turned, as the bench's wobbles
 
-A row a pass (`--every` s apart): its centre of mass's height and speed along its way and up,
+A row a pass (`--every` s apart): the robot's centre of mass's height and speed along its way and up,
 the floor its law reads (`modal.FLOOR`), its plane under each sole (`modal.under`), the world's
 floor under each sole's middle (`arrows.surface_at`, the referee's), each sole's middle and lowest
-corner, its load, whether it stands and swings, its lead, what its swings are raised, its going,
-and when it fell. A scenario is `tools/sim/scenarios.py`'s, its commands at their seconds.
+corner, its load, whether it stands and swings, its lead, what the robot's swings are raised, the robot's
+going, and when it fell. A scenario is `tools/sim/scenarios.py`'s, its commands at their seconds.
 """
 import argparse
 import math

@@ -35,15 +35,15 @@ Distance off the band in the bands' widths:
 ## Reference take
 
 `tests/takes/walk.fbx`: 355 frames, 6 s, 134 kB, binary FBX 7400, a LimbNode a
-segment by HumanIK's names; read back 0.000 mm off over 20 joints. Its stamp is
-fixed; its FileId and its footer's code derive from that stamp as in the FBX
-SDK's own files, 48 of 48: the footer three passes over the stamp's digits, the
-FileId one.
+segment by HumanIK's names; read back 0.000 mm off over 20 joints. The take's
+stamp is fixed; its FileId and its footer's code derive from that stamp as in
+the FBX SDK's own files, 48 of 48: the footer three passes over the stamp's
+digits, the FileId one.
 
 ## Tests
 
-- `tests/test_ortho.py`: its walk on the loop measured against `normal.BAND`
-  and `tools/sim/gvs.py`.
+- `tests/test_ortho.py`: the robot's walk on the loop measured against
+  `normal.BAND` and `tools/sim/gvs.py`.
 - `tools/sim/gvs.py`: Hof-scaled geodesic Lie-algebraic SO(3) diff engine
   against biological ground truth, enforcing the CI guillotine gate (GPS).
 

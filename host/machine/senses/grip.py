@@ -1,14 +1,14 @@
-"""Its soles' grip as it feels it: each one's floor friction, read from what it used as it slid.
+"""The robot's soles' grip as felt: each one's floor friction, read from what it used as it slid.
 
-    grip = grip.laid()                                          # its law's own, MU, a sole each
+    grip = grip.laid()                                          # the robot's law's own, MU, a sole each
     grip = grip.felt(grip, seen, settled, frames, touch, slip, weight, dt, prior)  # a pass of its law on
 
 A bearing sole that slides (`estimate`'s slip) uses the floor's friction: the share of its push
-across the floor. One that holds has at least that. Read across its IMU's up: across a sole's own,
+across the floor. One that holds has at least that. Read across the robot's IMU's up: across a sole's own,
 one pitched 0.2 rad at its heel's strike read its push 0.2 across. Unread, a grip goes back to
-what it knows of the floor (`prior`: told, else MU). On the ice (0.02) sliding soles
-used 0.02 at the median; walking a level floor its soles used 0.39 at the 99th percentile. Read
-from what its step asked against what it got, the drives' lag at a walk's start read 0.05 on a
+what the robot knows of the floor (`prior`: told, else MU). On the ice (0.02) sliding soles
+used 0.02 at the median; walking a level floor the robot's soles used 0.39 at the 99th percentile. Read
+from what the robot's step asked against what it got, the drives' lag at a walk's start read 0.05 on a
 floor of 1.0.
 """
 import os
@@ -23,13 +23,13 @@ from machine.texts import kernel
 
 #: Each sole's segments with skin: its foot and its toes.
 SOLES = np.array([[edge.SKIN.index(side + '_foot'), edge.SKIN.index(side + '_toes')] for side in ('left', 'right')])
-#: A sole reads its floor bearing BEARS of its weight; past SLIDE_M_S of slip (`wbc`) it slides, its grip
-#: what it used once its slide is read (PLATEAU) - over 0.05 s a sole pushing off on ice slid back
-#: 0.3 m before its law asked less of it -; holding, up to what it used over TRUST_S - at once, a sole
-#: off the ice onto the floor freed its stride in a pass and it ran on to 1.7 m/s. Unread, a
-#: grip goes back to its prior over RELAX_S: at 3 s the ice read at 0.103 was 0.25, its
-#: envelope's, within a second, it drove on to 1.06 m/s and fell at 6.6-6.7 s; at 30 it kept
-#: it, slowed to 0.2 m/s by 4 s and crossed.
+#: A sole reads its floor bearing BEARS of the robot's weight; past SLIDE_M_S of slip (`wbc`) it slides, its
+#: grip what it used once its slide is read (PLATEAU) - over 0.05 s a sole pushing off on ice slid back 0.3 m
+#: before the robot's law asked less of it -; holding, up to what it used over TRUST_S - at once, a sole off
+#: the ice onto the floor freed the robot's stride in a pass and it ran on to 1.7 m/s. Unread, a grip
+#: goes back to its prior over RELAX_S: at 3 s the ice read at 0.103 was 0.25, the robot's envelope's, within
+#: a second, it drove on to 1.06 m/s and fell at 6.6-6.7 s; at 30 it kept it, slowed to 0.2 m/s
+#: by 4 s and crossed.
 BEARS, TRUST_S, RELAX_S = 0.1, 1.0, 30.0
 #: A slide's friction within 45 deg of against it. A slide counts once its share has held within
 #: PLATEAU of itself over its last SEEN passes: sliding, friction is a constant - on the ice 0.099
@@ -37,26 +37,27 @@ BEARS, TRUST_S, RELAX_S = 0.1, 1.0, 30.0
 #: a sole over a sill's edge 0.122 -> 0.096, and the sill fell at every wobble.
 AGAINST, PLATEAU, SEEN = 0.7, 0.05, 4
 #: A landing sole's push across tells its floor once the sole has borne SETTLE_S, its settle over
-#: (`read-floor-friction-from-settled-slides`, its kernel's observer).
+#: (`read-floor-friction-from-settled-slides`, the robot's kernel's observer).
 SETTLE_S = kernel.said('read-floor-friction-from-settled-slides', 'settle-s')
 UP = np.array([0.0, 1.0, 0.0])
-#: A pass of its grip as read (the gate's 'grip' stream): each sole's grip felt; its bearing soles' slip it read
-#: (`estimate`'s, world, m/s); each sole's shares used sliding of late, the newest last (0 held, -1 bore none).
+#: A pass of the robot's grip as read (the gate's 'grip' stream): each sole's grip felt; its bearing
+#: soles' slip it read (`estimate`'s, world, m/s); each sole's shares used sliding of late, the newest last (0
+#: held, -1 bore none).
 FELT, SLIP, SHARES = slice(0, 2), slice(2, 5), slice(5, 5 + 2 * SEEN)
 READ = SHARES.stop
 
 
 def laid():
-    """Each sole's grip before it has felt a floor: its law's own."""
+    """Each sole's grip before the robot has felt a floor: its law's own."""
     return np.full(2, MU)
 
 
 def outside(grip, grips):
-    """Each sole's grip as its law takes it: its own, MU, inside its envelope - over every
-    situation's bound on it (`grips`, `situation.text`) -, the grip felt as far as it is outside
-    it, the fifth under the highest bound from one to the other. Read whole, its estimator's slides of a
-    turnabout's pivot, a shove's skid and a weave read 0.27 to 0.55 on a floor of 1.0, bounded
-    its landings, and walking 80 N shoves fell 30 -> 25."""
+    """Each sole's grip as the robot's law takes it: the robot's own, MU, inside its envelope - over
+    every situation's bound on it (`grips`, `situation.text`) -, the grip felt as far as the robot is outside
+    it, the fifth under the highest bound from one to the other. Read whole, the robot's estimator's slides of
+    a turnabout's pivot, a shove's skid and a weave read 0.27 to 0.55 on a floor of 1.0, bounded its landings,
+    and walking 80 N shoves fell 30 -> 25."""
     top = np.max(grips, initial=0.0)
     out = np.clip((top - grip) / (0.2 * np.maximum(top, 1e-9)), 0.0, 1.0)
     return MU + out * (grip - MU)
@@ -64,22 +65,22 @@ def outside(grip, grips):
 
 def felt(grip, seen, settled, frames, touch, slip, weight, dt, prior=MU):
     """Each sole's grip `dt` s on (2,), `seen` (2, SEEN) its last shares used sliding (0 holding)
-    and `settled` (2,) how long it has borne, to SETTLE_S, moved on: `frames` (2, 2, 3, 3) its
+    and `settled` (2,) how long it has borne, to SETTLE_S, moved on: `frames` (2, 2, 3, 3) the robot's
     model's of each sole's foot and toes, `touch` the edge's
-    (SKIN, 3), `slip` its bearing soles' (3,, world, m/s), `weight` its own, N; `prior` what it
-    knows of the floor. An unloaded sole takes the floor the other stands on, as far as that is
-    known under the prior - kept from where it stood itself, past a slick patch a sole's reach
-    was 5 cm on a floor of 1.0 for a second and it fell there."""
+    (SKIN, 3), `slip` its bearing soles' (3,, world, m/s), `weight` its own, N; `prior` what
+    the robot knows of the floor. An unloaded sole takes the floor the other stands on, as far as that is
+    known under the prior - kept from where it stood itself, past a slick patch a sole's reach was 5 cm on a
+    floor of 1.0 for a second and the robot fell there."""
     pushed = np.einsum('kjab,kjb->kja', frames, touch[SOLES]).sum(axis=1)
     press = pushed @ UP
     across = pushed - press[:, None] * UP
     used = np.linalg.norm(across, axis=1) / np.maximum(press, 1e-9)
     bears = press >= BEARS * weight
     settled[:] = np.where(bears, np.minimum(SETTLE_S, settled + dt), 0.0)
-    # a landing sole meets the floor the other stands on, as far as that is known under its prior
+    # a landing sole meets the floor the other stands on, as far as that is known under the robot's prior
     touchdown = bears & (seen[:, -1] < 0.0)
     grip = grip + touchdown * (np.minimum(prior, grip.min()) - grip)
-    # friction on a sliding sole is against its slide: its estimator's slip past SLIDE_M_S in a
+    # friction on a sliding sole is against its slide: the robot's estimator's slip past SLIDE_M_S in a
     # turnabout's pivot, a trip or a shove read as slides, and walking 80 N shoves fell 30 -> 25
     against = across @ slip <= -AGAINST * np.linalg.norm(across, axis=1) * np.linalg.norm(slip)
     moving = bears & (np.hypot(slip[0], slip[2]) > SLIDE_M_S) & against

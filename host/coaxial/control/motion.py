@@ -239,8 +239,8 @@ class Velocity(_Mode):
     """Sensorless speed: a `Loop` of one `Feedback`, 'speed' - w_target -> Slew -> w_ref,
     drive.angle (the observer's, its whole turns counted) -> Rate(1 / poles) -> w (-> estimator)
     -> w_hat, SpeedPI -> iq_ref -> the drive. `regulator=`, `estimator=` plug other parts in; `load_k` is the regulator's
-    feedforward, not a load (the stand-in's drag is `model.configure(load=...)`). Its loop runs
-    RATE_PER_HZ times its crossover `hz` at least.
+    feedforward, not a load (the stand-in's drag is `model.configure(load=...)`). The speed loop
+    runs RATE_PER_HZ times its crossover `hz` at least.
     """
 
     def __init__(self, device, amps, hz=3.0, j=2e-5, b=1e-5, load_k=0.0,

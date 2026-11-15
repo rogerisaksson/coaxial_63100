@@ -103,7 +103,7 @@ def test_the_wire_refuses(report, rig):
                 break
             b.transport.sleep(0.1)
         for name, call, kind in (
-                ('analog.scan with the AFE off (invariant 9)', b.analog.scan, DeviceStateError),
+                ('analog.scan with the AFE off', b.analog.scan, DeviceStateError),
                 ('gpio.write with the test rig shut', lambda: b.gpio.write('B', 7, 1),
                  ModbusException),
                 ('gpio.port_write with the test rig shut', lambda: b.gpio.port_write('B', 1, 1),

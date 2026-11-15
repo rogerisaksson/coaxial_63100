@@ -1,7 +1,8 @@
 /** wbc_chain_rows.c - machine.stack.chain_qp.level1 and solved (wbc_step.h): level 1's least squares and laws over
-    u = (x, zeta) and the two levels by the dual active set (wbc_qp.c), its posture projected off its held hands;
-    numpy's arithmetic and its OpenBLAS (wbc_blas.h) operation for operation, every product in python's order and
-    layout; carved 64-byte aligned from the step's workspace. Portable C11, the host's alone. */
+    u = (x, zeta) and the two levels by the dual active set (wbc_qp.c), the robot's posture projected off the
+    robot's held hands; numpy's arithmetic and its OpenBLAS (wbc_blas.h) operation for operation, every product
+    in python's order and layout; carved 64-byte aligned from the step's workspace. Portable C11, the host's
+    alone. */
 #include "wbc_np.h"
 #include "wbc_step.h"
 
@@ -91,8 +92,9 @@ int wbc_chain_rows(const wbc_step_t *p, const wbc_maps_t *m, const double *S, co
     }
     if (held[i])
     {
-      /* its stick rows: the normal's with its give, an anchor's tangents' where it bears (`stick`) - its sled's
-         tangents are its friction's within the pyramid, no lock (machine.stack.chain_qp.level1) */
+      /* its stick rows: the normal's with its give, an anchor's tangents' where it bears (`stick`) - the
+         robot's sled's tangents are its friction's within the pyramid, no lock (machine.stack.chain_qp.level1)
+         */
       for (int c = 0; c < nu; c++)
       {
         L[ml * nu + c] = w_stick * normal[c];
@@ -113,7 +115,8 @@ int wbc_chain_rows(const wbc_step_t *p, const wbc_maps_t *m, const double *S, co
     }
     if (mode[i] == 1)
     {
-      /* a static sled's soft pin: its shear along the way drawn to the cone's edge, z_t . s_t = -mu z_n, over its mass */
+      /* a static sled's soft pin: its shear along the way drawn to the cone's edge, z_t . s_t = -mu z_n, over the robot's
+       * mass */
       for (int c = 0; c < nu; c++)
       {
         const double zn = c < nd ? 0.0 : S[(3 * i) * nz + (c - nd)];
@@ -202,7 +205,7 @@ int wbc_chain_rows(const wbc_step_t *p, const wbc_maps_t *m, const double *S, co
   {
     g1[at] = g1[at] - (p->chain_nreg * p->chain_nreg) * fl[3 * i];
   }
-  /* its torques within [lo, hi] */
+  /* the robot's torques within [lo, hi] */
   for (int i = 0; i < nd; i++)
   {
     for (int c = 0; c < nu; c++)
@@ -216,8 +219,8 @@ int wbc_chain_rows(const wbc_step_t *p, const wbc_maps_t *m, const double *S, co
     b[ma + nd + i] = m->t0[i] - lo[i];
   }
   ma += 2 * nd;
-  /* the static sleds' brake together no more than its anchors' friction can drive: a static friction is a reaction
-     (machine.stack.chain_qp.level1) */
+  /* the static sleds' brake together no more than the robot's anchors' friction can drive: a static friction is a
+     reaction (machine.stack.chain_qp.level1) */
   for (int i = 0; i < k; i++)
   {
     any_static = any_static || mode[i] == 1;
@@ -280,7 +283,8 @@ int wbc_chain_levels(wbc_step_t *p, const wbc_maps_t *m, const double *H1, const
       return 1;
     }
   }
-  /* level 1's damped null space, and its posture off its held hands (machine.stack.chain_qp.projector) */
+  /* level 1's damped null space, and the robot's posture off its held hands
+   * (machine.stack.chain_qp.projector) */
   if (wbc_solve(l, VIEW(H1, nu, 1), VIEW(G1, nu, 1), nu, nu, Y, gw))
   {
     return 1;

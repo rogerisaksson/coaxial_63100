@@ -1,4 +1,4 @@
-"""Its rows as `look.py` reads them: their geometry, and the steady walk's columns (WALK)."""
+"""The robot's rows as `look.py` reads them: their geometry, and the steady walk's columns (WALK)."""
 import functools
 import math
 
@@ -8,7 +8,7 @@ def _p(r, seg):
 
 
 def _faces(r, seg):
-    """How far `seg`'s forward points above level, deg: 90 lying on its back, -90 face down."""
+    """How far `seg`'s forward points above level, deg: 90 lying on the robot's back, -90 face down."""
     from machine.body import figure
     turn = figure.quat(*(float(r['q' + k]) for k in 'wxyz'))
     placed = figure.frames({j: float(r[j]) for j in figure.JOINTS}, _p(r, 'pelvis'), turn)
@@ -20,7 +20,7 @@ def _mid(a, b):
 
 
 def _out(r, joints):
-    """How far the drives of `joints` reach past its skin as `r` poses it, mm: the worst of their
+    """How far the drives of `joints` reach past the robot's skin as `r` poses it, mm: the worst of their
     drums' rims and faces (`drums`) outside every capsule of its own (`figure.BODY`)."""
     from coaxial.model.blocks import numpy as np
     from machine.body import figure
@@ -34,7 +34,7 @@ def _out(r, joints):
     for joint in joints:
         parent, dots = _drum(joint)
         if parent not in figure.STAGES and not any(seg == parent for seg, *_rest in _skin()):
-            continue                   # no capsule of its own: the shank's put the foot's 87 mm out
+            continue                   # no capsule of the robot's own: the shank's put the foot's 87 mm out
         pts = turn[parent][1] + dots @ turn[parent][0].T
         a, ab = ends[:, 0][None], (ends[:, 1] - ends[:, 0])[None]
         t = np.clip(((pts[:, None] - a) * ab).sum(-1) / np.maximum((ab * ab).sum(-1), 1e-12),
@@ -46,7 +46,7 @@ def _out(r, joints):
 
 @functools.lru_cache(None)
 def _skin():
-    """[(segment, radius, end, end)]: its capsules (`figure.BODY`), each segment's, its frame."""
+    """[(segment, radius, end, end)]: the robot's capsules (`figure.BODY`), each segment's, its frame."""
     from machine.body import figure
     out = []
     for seg in figure.SEGMENTS:
@@ -76,7 +76,7 @@ def _drum(joint):
 
 
 def _lean(a, b):
-    """The line a -> b, deg ahead of plumb (its forward z)."""
+    """The line a -> b, deg ahead of plumb (the robot's forward z)."""
     return math.degrees(math.atan2(b[2] - a[2], b[1] - a[1]))
 
 
@@ -87,7 +87,7 @@ def _tilt(r):
 
 
 def _roll(r):
-    """The pelvis's roll, deg, + its left hip up."""
+    """The pelvis's roll, deg, + the robot's left hip up."""
     w, x, y, z = (float(r[k]) for k in ('qw', 'qx', 'qy', 'qz'))
     return math.degrees(math.atan2(2.0 * (x * y + w * z), 1.0 - 2.0 * (x * x + z * z)))
 
@@ -130,7 +130,7 @@ WALK_FROM_S = 2.0
 WALK = (
     ('pelvis roll', 'deg', lambda rs: _ptp(_roll(r) for r in rs)),
     ('pelvis turn', 'deg', lambda rs: _ptp(_turn(r) for r in rs)),
-    # a stride's own: each row less its stride's mean, its path's drift out
+    # a stride's own: each row less its stride's mean, the robot's path's drift out
     ('hips wag', 'mm', lambda rs: _ptp(_surge(rs, lambda r: float(r['x']))) * 1e3),
     ('shoulders wag', 'mm', lambda rs: _ptp(_surge(rs, lambda r: _mid(
         _p(r, 'left_upper_arm'), _p(r, 'right_upper_arm'))[0])) * 1e3),
@@ -142,8 +142,9 @@ WALK = (
     ('head aside', 'mm', lambda rs: _ptp(_surge(rs, lambda r: _p(r, 'head')[0])) * 1e3),
     ('pelvis fore-aft', 'mm', lambda rs: _ptp(_surge(rs, lambda r: float(r['z']))) * 1e3),
     ('torso pitch', 'deg', lambda rs: _ptp(_lean(_p(r, 'torso'), _p(r, 'neck')) for r in rs)),
-    # how it carries its trunk: its lean, the pelvis's tilt and the spine between (a hollow back
-    # the spine under 0 with the pelvis tipped on), its upper body's mass ahead of its hips
+    # how the robot carries its trunk: its lean, the pelvis's tilt and the spine between (a hollow
+    # back the spine under 0 with the pelvis tipped on), the robot's upper body's mass ahead of its
+    # hips
     ('torso ahead', 'deg', lambda rs: _mean(_lean(_p(r, 'torso'), _p(r, 'neck')) for r in rs)),
     ('pelvis tilt', 'deg', lambda rs: _mean(_tilt(r) for r in rs)),
     ('spine bent', 'deg', lambda rs: _mean(float(r['spine']) for r in rs)),
@@ -190,7 +191,7 @@ WALK = (
     ('knee at landing', 'deg', lambda rs: _mean(float(b['left_knee']) for a, b in _landings(rs))),
     ('knee at lift', 'deg', lambda rs: _mean(float(a['left_knee']) for a, b in _lifts(rs))),
     ('heel at lift', 'deg', lambda rs: _mean(_heel(a) for a, b in _lifts(rs))),
-    # the stance leg a strut: its knee while its foot bears it alone, its ankle behind its hip
+    # the stance leg a strut: its knee while the robot's foot bears it alone, its ankle behind its hip
     ('knee behind plumb', 'deg', lambda rs: max((float(r['left_knee']) for r in _alone(rs)
                                                  if _p(r, 'left_foot')[2] < _p(r, 'left_thigh')[2]),
                                                 default=math.nan)),
@@ -217,14 +218,14 @@ def _held(rs, k, bears):
                if float(r['t']) - t < HELD_S)
 
 
-#: A landing's windows, s: its pelvis's top over DIP_S before it; its soles' loads from
+#: A landing's windows, s: the robot's pelvis's top over DIP_S before it; the robot's soles' loads from
 #: LOADED_S[0] before it to LOADED_S[1] after, their least from EASED_S after.
 DIP_S, LOADED_S, EASED_S = 0.45, (0.05, 0.25), 0.03
 
 
 def _borne(rs):
-    """A stagger's measures, meaned over either sole's landings: (its soles' loads' sum at its
-    most about a landing, at its least after it - both over its weight, that sum's mean -,
+    """A stagger's measures, meaned over either sole's landings: (the robot's soles' loads' sum at its
+    most about a landing, at its least after it - both over the robot's weight, that sum's mean -,
     its pelvis's fall into it from its top before, mm)."""
     ts = [float(r['t']) for r in rs]
     sums = [float(r['left_load']) + float(r['right_load']) for r in rs]
@@ -247,14 +248,14 @@ def _borne(rs):
 
 def _landings(rs):
     """The left foot's landings: it comes to bear with its ankle ahead of its hip - its toes'
-    load coming and going as the leg gives way behind it is no landing."""
+    load coming and going as the leg gives way behind the robot is no landing."""
     return [(a, b) for k, (a, b) in enumerate(zip(rs, rs[1:]), 1)
             if float(a['left_load']) <= BEARS_N < float(b['left_load']) and _held(rs, k, True)
             and _p(b, 'left_foot')[2] > _p(b, 'left_thigh')[2]]
 
 
 def _lifts(rs):
-    """Its lifts: the last time it stops bearing before each landing after the first."""
+    """The left foot's lifts: the last time it stops bearing before each landing after the first."""
     downs = [(k, a, b) for k, (a, b) in enumerate(zip(rs, rs[1:]), 1)
              if float(a['left_load']) > BEARS_N >= float(b['left_load']) and _held(rs, k, False)]
     lands = [float(b['t']) for _a, b in _landings(rs)] + [math.inf]
@@ -268,7 +269,7 @@ def _lifts(rs):
 
 def _slips(rs):
     """How far back the left toes go, each stride, from where they stood as the foot last bore
-    it alone before they go ahead of it, m: a foot let go still pushing slides back along the
+    the robot alone before they go ahead of it, m: a foot let go still pushing slides back along the
     floor. From the row its load read under BEARS_N, a load read through
     20 ms came after the slide and the measure said 0 of 93 mm."""
     out, alone = [], {id(r) for r in _alone(rs)}
@@ -285,7 +286,7 @@ def _slips(rs):
 
 
 def _alone(rs):
-    """The rows the left foot bears it alone."""
+    """The rows the left foot bears the robot alone."""
     return [r for r in rs if float(r['left_load']) > 250.0 and float(r['right_load']) < BEARS_N]
 
 
@@ -349,13 +350,13 @@ def _mean(values):
     return sum(v) / len(v) if v else float('nan')
 
 
-#: A stride's seconds at the walk's cadence, the window its surge is read against.
+#: A stride's seconds at the walk's cadence, the window the robot's surge is read against.
 STRIDE_S = 1.0 / 0.85
 
 
 def _surge(rs, along):
     """Each row's place along the walk less its mean over the stride about it: the surge alone,
-    whatever its pace does over seconds."""
+    whatever the robot's pace does over seconds."""
     ts, vs = [float(r['t']) for r in rs], [along(r) for r in rs]
     out = []
     for t, v in zip(ts, vs):
@@ -366,25 +367,25 @@ def _surge(rs, along):
 
 
 def _shoulders_turn(r):
-    """The shoulders' line about the vertical, deg, + its left shoulder back."""
+    """The shoulders' line about the vertical, deg, + the robot's left shoulder back."""
     a, b = _p(r, 'left_upper_arm'), _p(r, 'right_upper_arm')
     return math.degrees(math.atan2(a[2] - b[2], a[0] - b[0]))
 
 
 def _shoulders_roll(r):
-    """The shoulders' line from level, deg, + its left shoulder up."""
+    """The shoulders' line from level, deg, + the robot's left shoulder up."""
     a, b = _p(r, 'left_upper_arm'), _p(r, 'right_upper_arm')
     return math.degrees(math.atan2(a[1] - b[1], math.hypot(a[0] - b[0], a[2] - b[2])))
 
 
 def _turn(r):
-    """The pelvis's turn about the vertical, deg, + its left hip back."""
+    """The pelvis's turn about the vertical, deg, + the robot's left hip back."""
     w, x, y, z = (float(r[k]) for k in ('qw', 'qx', 'qy', 'qz'))
     return math.degrees(math.atan2(2.0 * (x * z + w * y), 1.0 - 2.0 * (x * x + y * y)))
 
 
 def measured(rows):
-    """{measure: value}: WALK over a walk's `rows` and, where the rows carry its power, the
+    """{measure: value}: WALK over a walk's `rows` and, where the rows carry the robot's power, the
     energy a metre (J/m)."""
     out = {name: f(rows) for name, _unit, f in WALK}
     watts = [float(r['watts']) for r in rows if r.get('watts') not in (None, '')]
@@ -402,7 +403,7 @@ def steady(rows):
 
 def walked(rows, take=None):
     """The steady walk's look: WALK over its rows, then how far off a woman's normal walk it
-    is and what of it is out of its band (`normal.BAND`: by place, where WALK's are by the
+    is and what of it is out of the robot's band (`normal.BAND`: by place, where WALK's are by the
     soles' loads); written a take at `take` (`fbx.wrote`)."""
     from tools.sim import fbx, normal
     walk = steady(rows)

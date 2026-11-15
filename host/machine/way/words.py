@@ -1,9 +1,10 @@
-"""Its errand's words: the thing it goes to, what its planner is asked, what each phase tells it.
+"""The robot's errand's words: what it goes to, what its planner is asked, what each phase tells it.
 
-Its errand (`machine.way.errand`) steps its phases by a table, a row's test and the phase next and its word;
-its words are here - each a function of its world `g`, its gym, the errand, the pass's context and what
-hears it -, beside the thing an errand goes to among its things (`_seen`, `_within`, `_near`, `_glimpsed`),
-the errand laid on it and its planner asked its dock and way (`_laid`, `_asked`, `_docked`, `_looking`).
+The robot's errand (`machine.way.errand`) steps its phases by a table, a row's test and the phase next and its
+word; its words are here - each a function of the robot's world `g`, its gym, the errand, the pass's
+context and what hears it -, beside the thing an errand goes to among its things (`_seen`,
+`_within`, `_near`, `_glimpsed`), the errand laid on it and the robot's planner asked its dock and way
+(`_laid`, `_asked`, `_docked`, `_looking`).
 """
 import functools
 import math
@@ -25,8 +26,8 @@ def _fire_errand_stunt(g, gym, kind, heard_say_fn, at=None, thing=None):
 
 
 def _seen(g, sc, at, swept=0.0):
-    """What `sc` goes to nearest `at` among its things - told a place, the thing there (`_there`) till it has looked a
-    full turn round (`swept`, rad) -, None with nothing of the kind among them."""
+    """What `sc` goes to nearest `at` among the robot's things - told a place, the thing there (`_there`) till it has
+    looked a full turn round (`swept`, rad) -, None with nothing of the kind among them."""
     from machine.way import furniture
     hit = furniture.nearest(g, sc, at)
     return None if hit[4] is None or not _there(hit[6], at, swept) else hit
@@ -34,15 +35,17 @@ def _seen(g, sc, at, swept=0.0):
 
 def _there(box, at, swept=0.0):
     """Whether `box` is the thing told at `at`: none told, a full turn looked round (`swept`, rad), or `at` on its
-    footprint a stride round. Taken the first that afforded it, its bed errand went for the loft 4.4 m off the bed
-    it was told: its textured floor's first look round told the loft a bed before the bed came in sight."""
+    footprint a stride round. Taken the first that afforded it, the robot's bed errand went for the loft 4.4 m off
+    the bed the robot was told: its textured floor's first look round told the loft a bed before the bed
+    came in sight."""
     from machine.way import affordance
     from machine.law import stride
     return at is None or swept >= math.tau or affordance.distance(box, at) <= stride.STRIDE_M
 
 
 def _ready_here(g, sc, hit, at):
-    """Whether `hit` within a stride is already behind its heels on a dockable face so the stunt can run in place."""
+    """Whether `hit` within a stride is already behind the robot's heels on a dockable face so the stunt can run in
+    place."""
     from machine.law import se2, stride
     from machine.senses import edge
     from machine.way import furniture
@@ -59,19 +62,20 @@ def _ready_here(g, sc, hit, at):
 
 
 def _within(sc, hit, g=None, at=None):
-    """Whether a thing found is within its reach: within three rooms' widths and not yet poised at hand; the door anywhere."""
+    """Whether a thing found is within the robot's reach: within three rooms' widths and not yet poised at hand; the door
+    anywhere."""
     from machine.world import room
     return sc == 'exit_door' or (not _ready_here(g, sc, hit, at) and hit[0] < 3.0 * room.WIDE)
 
 
 def _near(hit, g=None, sc=None, at=None):
-    """Whether a thing found is poised at hand: within a stride behind its heels."""
+    """Whether a thing found is poised at hand: within a stride behind the robot's heels."""
     return _ready_here(g, sc, hit, at)
 
 
 def _glimpsed(g, sc, at):
-    """Whether `sc` goes to a thing among its registry's live slots at any salience: a sighting not yet
-    its own (`registry.TAKEN`), its look held still while it firms up."""
+    """Whether `sc` goes to a thing among the robot's registry's live slots at any salience: a sighting not
+    yet its own (`registry.TAKEN`), its look held still while it firms up."""
     from machine.way import furniture
     things = g['vision'].boxes(g, -math.inf)
     if not furniture.slotted(g, sc, at, things=things):
@@ -80,14 +84,16 @@ def _glimpsed(g, sc, at):
     return box is not None and _there(box, at)
 
 
-#: Its heading docked off the dock's normal, by errand: through the door; its back to a seat, the rest.
+#: The robot's heading docked off the dock's normal, by errand: through the door; its back to a seat, the
+#: rest.
 _FACES = {'exit_door': math.pi}
 
 
 def _asked(g, e, kind, to=None, passed=0.0, way=(), dock=None):
-    """Its planner asked a `kind` (`machine.way.planner`: a dock of `dock` (verb, box, standoff), a plan to
-    `to`, a watch of its `way` left) from where it will be at its answer, a watch's LATENCY_S on at its
-    velocity and turn rate: from where it stood, a replan walking began 0.2 m behind it and it fell."""
+    """The robot's planner asked a `kind` (`machine.way.planner`: a dock of `dock` (verb, box, standoff), a
+    plan to `to`, a watch of its `way` left) from where it will be at its answer, a watch's
+    LATENCY_S on at the robot's velocity and turn rate: from where it stood, a replan walking began 0.2
+    m behind it and it fell."""
     from machine.senses import edge
     from machine.law import latent
     from machine.way import furniture, planner
@@ -101,9 +107,10 @@ def _asked(g, e, kind, to=None, passed=0.0, way=(), dock=None):
 
 
 def _laid(g, sc, found, at):
-    """The errand `sc` on the thing `found` (`_seen`'s), its dock and way asked of its planner. Run at the
-    door in one motion without the stage it slammed the panel to its 1.92 rad stop in 0.5 s and its
-    rebound felled it outside; settled at the stage first it grinds it open over 3 s and walks out."""
+    """The errand `sc` on the thing `found` (`_seen`'s), its dock and way asked of the robot's planner. Run at
+    the door in one motion without the stage the robot slammed the panel to its 1.92 rad stop in 0.5 s and its
+    rebound felled the robot outside; settled at the stage first it grinds it open over 3 s and walks
+    out."""
     from machine.texts import maneuver
     from machine.way import peek
     standoff = maneuver.standoff(sc, g['suite']) if sc in maneuver.PLAYED else 0.0
@@ -115,7 +122,7 @@ def _laid(g, sc, found, at):
 
 
 def _docked(sc, laid):
-    """The errand's fields of its dock `laid` (`dock.docked`), its heading docked (`_FACES`)."""
+    """The errand's fields of its dock `laid` (`dock.docked`), the robot's heading docked (`_FACES`)."""
     from machine.law import se2
     hn, (x_dock, z_dock), stage = laid['hn'], laid['edge'], laid['stage']
     nx, nz = math.sin(hn), math.cos(hn)
@@ -126,8 +133,8 @@ def _docked(sc, laid):
 
 
 def _looking(g, sc, at):
-    """The errand `sc` looking round for its thing: its dock where it stands, nothing planned, its yaw
-    swept from none."""
+    """The errand `sc` looking round for its thing: its dock where the robot stands, nothing planned, the
+    robot's yaw swept from none."""
     from machine.senses import edge
     from machine.way import furniture
     q, yaw = furniture.where(g), edge.yaw(g['sense'])
@@ -139,7 +146,7 @@ def _looking(g, sc, at):
 
 
 def _told(twist):
-    """A row's word: `twist`, its heading the dock's."""
+    """A row's word: `twist`, the robot's heading the dock's."""
     return lambda g, gym, er, c, heard_fn, _say_fn: tell(g, gym, heard_fn, {'heading': er['hdd'], 'twist': twist})
 
 
@@ -151,20 +158,21 @@ def _begun(g, gym, er, c, heard_fn, _say_fn):
 
 
 def _took(g, gym, er, c, heard_fn, _say_fn):
-    """The robot's planner's answer: its dock where it laid one, its way."""
+    """The robot's planner's answer: its dock where it laid one, the robot's way."""
     a = c['answer']
     er.update(_docked(er['kind'], a['laid']) if a.get('laid') else {})
     er.update(way=a['stops'], curve=a['curve'], held=a['held'], k=0, turn_dir=0.0)
 
 
 def _docking(er):
-    """(x, y, z) the place it docks at: its dock's edge at the thing's top (`peek.level`)."""
+    """(x, y, z) the place the robot docks at: its dock's edge at the thing's top (`peek.level`)."""
     return er['x_dock'], er['top'], er['z_dock']
 
 
 def _scanning(g, gym, er, c, heard_fn, _say_fn):
-    """Its planner's way taken (`_took`), stood: its eyes on each of its places in turn, its corners on its floor
-    and its dock (`gaze.scan`) - what they show its own before it walks it, its way scanned once."""
+    """The robot's planner's way taken (`_took`), stood: its eyes on each of its places in turn, its
+    corners on the robot's floor and its dock (`gaze.scan`) - what they show its own before the
+    robot walks it, the robot's way scanned once."""
     from machine.eyes import gaze
     from machine.way import furniture
     _took(g, gym, er, c, heard_fn, _say_fn)
@@ -175,16 +183,18 @@ def _scanning(g, gym, er, c, heard_fn, _say_fn):
 
 
 def _reported(g, gym, er, c, heard_fn, _say_fn):
-    """Its way scanned: its planner told what its eyes hold along it now (a watch, `_asked`) - barred, a way round."""
+    """The robot's way scanned: its planner told what its eyes hold along it now (a watch, `_asked`) -
+    barred, a way round."""
     from machine.way import furniture
     q = furniture.where(g)
     _asked(g, er, 'watch', (er['xd'], er['zd']), way=[(float(q[0]), float(q[2]))] + [tuple(p) for p in er['way']])
 
 
 def _fixed(g, gym, er, c, heard_fn, _say_fn):
-    """Its planner's word on its way: the way it gave taken where it gave one (`_took`), its gaze held on its dock as
-    it walks there led by its way (`gaze.fix`) - on its ground ahead of it by the time what a look shows there takes
-    to stand it: its own in HELD looks, its planner's watch and its answer, its brake's run-out."""
+    """The robot's planner's word on its way: the way it gave taken where it gave one (`_took`), the robot's
+    gaze held on its dock as it walks there led by its way (`gaze.fix`) - on its ground ahead
+    of the robot by the time what a look shows there takes to stand it: its own in HELD looks, the
+    robot's planner's watch and its answer, the robot's brake's run-out."""
     from machine.eyes import gaze, sight
     from machine.way import planner, route
     if 'stops' in c['answer']:
@@ -193,9 +203,10 @@ def _fixed(g, gym, er, c, heard_fn, _say_fn):
 
 
 def _refreshed(g, er):
-    """Its dock's edge on its thing as its map holds it close (`_arrived`, `_faced`, `settle`): laid from afar or
-    nudged loose as it arrives, its edge and heading update before it backs and sits - unrefreshed, a low chair
-    glimpsed 0.09 m shallow or a loose chair turned and nudged 0.09 m deeper left its hips on its lip."""
+    """The robot's dock's edge on its thing as the robot's map holds it close (`_arrived`, `_faced`, `settle`):
+    laid from afar or nudged loose as the robot arrives, its edge and heading update before the robot backs and
+    sits - unrefreshed, a low chair glimpsed 0.09 m shallow or a loose chair turned and nudged 0.09 m deeper left
+    the robot's hips on its lip."""
     if not g.get('things') or er['through']:
         return
     from machine.body import figure
@@ -222,7 +233,7 @@ def _refreshed(g, er):
 
 
 def _arrived(g, gym, er, c, heard_fn, _say_fn):
-    """Walked to its stage (`_stood`), its gaze let go (`gaze.rest`): its dock its body's now."""
+    """Walked to the robot's stage (`_stood`), its gaze let go (`gaze.rest`): its dock its body's now."""
     from machine.eyes import gaze
     _refreshed(g, er)
     _stood(g, gym, er, c, heard_fn, _say_fn)
@@ -236,18 +247,18 @@ def _ran(g, gym, er, c, heard_fn, _say_fn):
 
 
 def _held(g, gym, er, c, heard_fn, _say_fn):
-    """A glimpse of the kind not yet its own: stood still while it firms up."""
+    """A glimpse of the kind not yet the robot's own: stood still while it firms up."""
     tell(g, gym, heard_fn, {'twist': STOP})
 
 
 def _at_hand(g, gym, er, c, heard_fn, heard_say_fn):
-    """A thing found looking round within a stride: no errand, the stunt on it where it stands, as a
+    """A thing found looking round within a stride: no errand, the stunt on it where the robot stands, as a
     say's with one at hand (`start_errand` refused, `worker._apply_say`)."""
     _fire_errand_stunt(g, gym, er['kind'], heard_say_fn, er.get('at'), c['seen'][4])
 
 
 def _to_look(g, gym, er, c, heard_fn, _say_fn):
-    """Turning in place for a thing the verb goes to, its yaw's sweep summed."""
+    """Turning in place for a thing the verb goes to, the robot's yaw's sweep summed."""
     from machine.law import se2
     er['swept'] += abs(se2.wrap_angle(c['pyaw'] - er['yaw_was']))
     er['yaw_was'] = c['pyaw']
@@ -255,14 +266,14 @@ def _to_look(g, gym, er, c, heard_fn, _say_fn):
 
 
 def _stood(g, gym, er, c, heard_fn, _say_fn):
-    """Walked to the box: stood, its heading released."""
+    """Walked to the box: stood, the robot's heading released."""
     er['turn_dir'], g['has_heading'] = 0.0, 0.0
     tell(g, gym, heard_fn, {'twist': STOP})
 
 
 def _cornered(g, gym, er, c, heard_fn, _say_fn):
-    """Stood still on its way: the rest asked of its planner, its stage last - laid inside its map's
-    grown cells by its turn's own clearance (`dock.docked`), not moved for them."""
+    """Stood still on the robot's way: the rest asked of its planner, its stage last - laid
+    inside its map's grown cells by its turn's own clearance (`dock.docked`), not moved for them."""
     from machine.eyes import voxels
     from machine.law import stride
     _asked(g, er, 'plan', (er['xd'], er['zd']), stride.STRIDE_M + voxels.CELL_M)
@@ -270,7 +281,8 @@ def _cornered(g, gym, er, c, heard_fn, _say_fn):
 
 
 def _halted(g, gym, er, c, heard_fn, _say_fn):
-    """Settling: told to stand, once - laid within its run-out of its stage it may have been walking."""
+    """Settling: told to stand, once - laid within the robot's run-out of its stage it may have been
+    walking."""
     tell(g, gym, heard_fn, {'twist': STOP})
 
 
@@ -282,7 +294,8 @@ def _faced(g, gym, er, c, heard_fn, _say_fn):
 
 
 def _ended(g, gym, er, c, heard_fn, _say_fn):
-    """Out of the door, or a look round with nothing in reach found: the errand over, stood, its gaze let go."""
+    """Out of the door, or a look round with nothing in reach found: the errand over, stood, the robot's gaze
+    let go."""
     from machine.eyes import gaze
     g['_errand'], g['has_heading'] = None, 0.0
     gaze.rest(g)
@@ -290,7 +303,7 @@ def _ended(g, gym, er, c, heard_fn, _say_fn):
 
 
 def _stunt(g, gym, er, c, heard_fn, heard_say_fn):
-    """Docked and still: the stunt begins on the thing as it sees it, the errand over."""
+    """Docked and still: the stunt begins on the thing as the robot sees it, the errand over."""
     _fire_errand_stunt(g, gym, er['kind'], heard_say_fn, (er['x_dock'], er['z_dock']), er.get('thing'))
 
 
@@ -299,11 +312,11 @@ def _nothing(g, gym, er, c, heard_fn, heard_say_fn):
 
 
 def _out(g, gym, er, c, heard_fn, _say_fn):
-    """Settled at the stage facing out: the run out laid on its way's corners round its things
+    """Settled at the stage facing out: the run out laid on the robot's way's corners round its things
     through the doorway to the dock's far side (`route.planned`; hand-aimed from a stage reached
     aslant it jammed on the wall at x 1.33 for the opening's 0.3-1.2, 24 s). No curve: the push
     through the yielding door is contact, aimed at the next corner far ahead - the curve's near
-    tracking fought the opening panel's shove and wedged it on the hinge-side post at 0.92 rad."""
+    tracking fought the opening panel's shove and wedged the robot on the hinge-side post at 0.92 rad."""
     goal = (er['x_dock'] - er['d_most'] * er['nx'], er['z_dock'] - er['d_most'] * er['nz'])
     er['xd'], er['zd'] = goal
     _asked(g, er, 'plan', goal)
@@ -323,8 +336,8 @@ def _modal():
 
 
 def _to_aim(g, gym, er, c, heard_fn, _say_fn):
-    """Walking to its aim (`step_errand`'s) at its way's pace there (`route.rounded`'s, its walk's
-    without a curve); its turn's way held while it is all but behind it."""
+    """Walking to the robot's aim (`step_errand`'s) at its way's pace there (`route.rounded`'s, the
+    robot's walk's without a curve); its turn's way held while it is all but behind the robot."""
     modal = _modal()
     err_w, behind = c['err_w'], abs(c['err_w']) > math.pi - modal.LIST_RAD
     er['turn_dir'] = (er['turn_dir'] or math.copysign(1.0, err_w)) if behind else math.copysign(1.0, err_w)
@@ -332,19 +345,20 @@ def _to_aim(g, gym, er, c, heard_fn, _say_fn):
 
 
 def _to_face(g, gym, er, c, heard_fn, _say_fn):
-    """Turning in place to face away from the prop, the way that clears its things, held once begun."""
+    """Turning in place to face away from the prop, the way that clears the robot's things, held once
+    begun."""
     er['turn_dir'] = er['turn_dir'] or math.copysign(1.0, c['err_yaw'])
     steer(g, gym, heard_fn, c['err_yaw'], er['turn_dir'], 0.0, c['err_yaw'])
 
 
 def _turning(g, gym, er, c, heard_fn, _say_fn):
-    """Still, its turn clear of its things: turning the way that clears them (`dock.turns`)."""
+    """Still, the robot's turn clear of its things: turning the way that clears them (`dock.turns`)."""
     er['turn_dir'] = c['turns']
 
 
 def _retreat(g, gym, er, c, heard_fn, _say_fn):
-    """Still facing the face where no turn onto the dock clears its things: backing off it, its heading
-    as it is - its walk back stops in BACK_STOP_M."""
+    """Still facing the face where no turn onto the dock clears the robot's things: backing off it, the
+    robot's heading as it is - the robot's walk back stops in BACK_STOP_M."""
     from machine.law import se2
     er['retreats'] += 1
     g['has_heading'] = 0.0
@@ -360,7 +374,7 @@ def _to_line(g, gym, er, c, heard_fn, _say_fn):
 
 
 def _to_edge(g, gym, er, c, heard_fn, _say_fn):
-    """Backing onto the edge, its heading bent toward the dock's line as it bears from its stage:
-    bent as the dock bears from its it came to it 0.5 rad askew and sat on its edge."""
+    """Backing onto the edge, the robot's heading bent toward the dock's line as it bears from the robot's
+    stage: bent as the dock bears from its, it came to it 0.5 rad askew and sat on its edge."""
     g['has_heading'] = 1.0
     g['target_heading'] = er['hdd'] + math.atan2(c['s_perp'], er['d_stage'])

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Its map's look in C (`tools.cores.registry`, wbc_registry.c) beside its numpy twin (`registry.laid(twin=True)`):
+"""The robot's map's look in C (`tools.cores.registry`, wbc_registry.c) beside its numpy twin (`registry.laid(twin=True)`):
 looks drawn to take every path - each thing its own slot at once, the loop where two meet one, a full registry's
-least salient taken, things moving, unseen, pruned, its eyes' frustum or the whole room - and its lodge's own looks
-walking out of its door, as its process passes them and as its vision apart does (its changed rows restacked
-alone), every slot's every field and class bit for bit after each; a look's time beside numpy's."""
+least salient taken, things moving, unseen, pruned, the robot's eyes' frustum or the whole room - and the robot's
+lodge's own looks walking out of its door, as the robot's process passes them and as its vision apart does
+(its changed rows restacked alone), every slot's every field and class bit for bit after each; a look's time beside
+numpy's."""
 import math
 import os
 import sys
@@ -16,7 +17,7 @@ import numpy as np
 from tools.dev.focus import chosen
 from gynoid_kit import Report
 
-#: The draws' looks and their seed; the kinds they are of; its door errand's seconds.
+#: The draws' looks and their seed; the kinds they are of; the robot's door errand's seconds.
 LOOKS, SEED, DOOR_S = 600, 17, 16.0
 KINDS = ('chair', 'table', 'lamp', 'bed', 'glass', 'box', 'wall', 'door')
 
@@ -61,7 +62,7 @@ def _drawn(rng, things, t):
     return look
 
 
-def test_its_map_looks_in_c_as_in_numpy(report, c):
+def test_the_robots_map_looks_in_c_as_in_numpy(report, c):
     """Drawn looks through both, passed and seen in turn: every field and class bit for bit after each - the loop's,
     a full registry's eviction and the frustum's paths all taken."""
     from machine.eyes import registry
@@ -90,10 +91,11 @@ def test_its_map_looks_in_c_as_in_numpy(report, c):
                  % (worst[:3], paths['full'], paths['moving'], paths['pruned']))
 
 
-def test_its_lodge_looks_in_c_as_in_numpy(report, c):
-    """Its lodge's looks as it walks out of its door (`told`), its registry's C and a numpy twin fed each, and a third
-    fed as its vision apart is (`vision.main`: the rows not the same objects as the last look's, kept and restacked
-    alone): every field and class bit for bit after each look; a look's time beside numpy's."""
+def test_the_robots_lodge_looks_in_c_as_in_numpy(report, c):
+    """The robot's lodge's looks as it walks out of its door (`told`), the robot's registry's C and a numpy
+    twin fed each, and a third fed as its vision apart is (`vision.main`: the rows not the same objects as the
+    last look's, kept and restacked alone): every field and class bit for bit after each look; a look's time beside
+    numpy's."""
     from machine.eyes import registry, vision
     from machine.world import room
     from tools.sim import told
@@ -132,14 +134,14 @@ def test_its_lodge_looks_in_c_as_in_numpy(report, c):
         r.go(DOOR_S, lambda q: float(q.s['g']['world'].data.qpos[2]) > room.TO)
     finally:
         vision.Here.start = start
-    report.check("its lodge's looks in C as in numpy walking out of its door, passed whole and restacked as its vision "
+    report.check("the robot's lodge's looks in C as in numpy walking out of its door, passed whole and restacked as the robot's vision "
                  "apart's, every field and class bit for bit",
                  len(spent[0]) > 400 and not worst, '%d looks, apart %s' % (len(spent[0]), worst[:3]))
     us = [1e6 * float(np.median(each)) for each in spent]
-    report.check("a look of its lodge in C on this host", us[0] < us[1], '%.0f us a look, numpy %.0f' % tuple(us))
+    report.check("a look of the robot's lodge in C on this host", us[0] < us[1], '%.0f us a look, numpy %.0f' % tuple(us))
 
 
-ROSTER = (test_its_map_looks_in_c_as_in_numpy, test_its_lodge_looks_in_c_as_in_numpy)
+ROSTER = (test_the_robots_map_looks_in_c_as_in_numpy, test_the_robots_lodge_looks_in_c_as_in_numpy)
 
 
 def main(argv=None):

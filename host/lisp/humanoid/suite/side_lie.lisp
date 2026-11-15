@@ -16,9 +16,10 @@
            #:patch-bed-side-lie))
 (in-package :ortho-dsp.side-lie)
 
-;; Sat on the bed's edge, its back to it: its trunk levers down onto the near hip while its legs swing
-;; up onto the mattress as its counterweight, its pelvis turning the rest of the way to lie along the
-;; bed on its side - the trochanter bearing it, no roll onto its back.
+;; Sat on the bed's edge, the robot's back to it: the robot's trunk levers down onto the near hip
+;; while its legs swing up onto the mattress as its counterweight, the robot's pelvis turning
+;; the rest of the way to lie along the bed on its side - the trochanter bearing it, no
+;; roll onto its back.
 (defmaneuver handover-trochanteric-side-lie
   [edge-seated-state &key (mattress-z-mm 540.0) (mattress-eigenfreq-hz 1.80) (bed-axis-yaw-rad 1.5708)]
   (-> edge-seated-state
@@ -28,21 +29,21 @@
 
       (on-contact-threshold
         :sensor-bus :ischial-bilateral
-        :trigger-fz-ratio 0.15                  ; its seat bears it from 0.15 of its weight (impedance.PROP_ON)
+        :trigger-fz-ratio 0.15                  ; the robot's seat bears it from 0.15 of its weight (impedance.PROP_ON)
         :max-impact-velocity-mps 0.02
         (stage-coupled-pendulum
           :total-duration-ms 1550.0
           :fulcrum-node :greater-trochanter-r
           :fulcrum-touchdown-z-mm mattress-z-mm
           :coupled-lever-dynamics
-            (:torso-list-slew-rad [0.0 -> 1.5708]       ; its trunk down onto its side
+            (:torso-list-slew-rad [0.0 -> 1.5708]       ; the robot's trunk down onto its side
              :pelvic-yaw-slew-rad [0.0 -> bed-axis-yaw-rad] ; turned to lie along the bed
-             :leg-pendulum-gain 1.15                   ; its legs up as the counterweight
+             :leg-pendulum-gain 1.15                   ; the robot's legs up as the counterweight
              :knee-extension-window-ms [600.0 -> 1500.0])
           :contact-wavefront [:greater-trochanter-r]))))
 
-;; Dock at the bed's edge, its back to it; sit on the mattress's edge; the side-lie along it
-(defpatch patch-bed-side-lie [approach-gait &key (seat-z-mm 450.0)] ; the bed its eyes see
+;; Dock at the bed's edge, the robot's back to it; sit on the mattress's edge; the side-lie along it
+(defpatch patch-bed-side-lie [approach-gait &key (seat-z-mm 450.0)] ; the bed the robot's eyes see
   (-> approach-gait
       (dock-terminal-stance :standoff-x-mm 85.0 :target-yaw-rad 3.14159)
       (substrate-viscoelastic-mattress :eigenfreq-hz 1.80)

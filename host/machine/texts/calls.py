@@ -1,19 +1,20 @@
-"""What its law calls, by name, a count each, between two takes: its own functions and its C cores.
+"""What the robot's law calls, by name, a count each, between two takes: its own functions and C cores.
 
     tracer = calls.Calls().start(s)     # s['calls']: each snapshot (`introspect.Tap`) carries its pass's
     counts = tracer.take()              # {'motion.control': 1, 'c.poses': 1, 'c.wbh_gmo_step': 1, ..}
     tracer.stop(s)
 
-`sys.monitoring`: PY_START on its modules' code (machine/), CALL where its code or its cores' wrappers
-(tools/) call into C - a compiled function (`bodied`) by its name, a library's by its symbol, `c.` before
-each. Any other code, and any call site that calls into Python, disabled at its first event; the tracer's
-own and its telemetry's (QUIET) never counted.
+`sys.monitoring`: PY_START on the robot's modules' code (machine/), CALL where its code or the robot's
+cores' wrappers (tools/) call into C - a compiled function (`bodied`) by its name, a library's by its symbol,
+`c.` before each. Any other code, and any call site that calls into Python, disabled at its first event; the
+tracer's own and the robot's telemetry's (QUIET) never counted.
 """
 import ctypes
 import os
 import sys
 
-#: Its modules' folder, and the host's: code under the first is its own, a call into C under the second.
+#: The robot's modules' folder, and the host's: code under the first is its own, a call into C under the
+#: second.
 ROOT = os.path.normcase(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 HOST = os.path.dirname(ROOT)
 #: A ctypes function's class (private in ctypes, so read by name): a call into C is one of these.
@@ -28,13 +29,13 @@ _EVENTS = sys.monitoring.events
 
 class Calls:
 
-    """A tracer of its calls: started on a session, taken a snapshot at a time, stopped."""
+    """A tracer of the robot's calls: started on a session, taken a snapshot at a time, stopped."""
 
     def __init__(self):
         self.counts, self.names, self.compiled = {}, {}, ()
 
     def _name(self, code):
-        """Code `code`'s name among its own ('module.qualname'), '' for any other."""
+        """Code `code`'s name among the robot's own ('module.qualname'), '' for any other."""
         name = self.names.get(code)
         if name is None:
             path = os.path.normcase(code.co_filename)

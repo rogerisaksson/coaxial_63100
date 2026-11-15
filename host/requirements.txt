@@ -79,10 +79,11 @@ psutil>=5.9
 wgpu>=0.32
 
 # The gynoid's body with mass (machine.world.physics): its figure in MuJoCo, 1 ms steps,
-# its own process at x1.6 real time. Imported where it is called. Pinned: its scenarios'
+# its own process at x1.6 real time. Imported where it is called. Pinned: the robot's scenarios'
 # margins are the engine's - on 3.16.0 CI felled a hole and left a tree still moving that
 # 3.14.0 here held at every wobble.
 mujoco==3.14.0
 
-# Its eyes on a CUDA card - CuPy, torch, TensorRT - are requirements-gpu.txt: gigabytes a bench PC
-# or CI never uses. `pip install -r host/requirements-gpu.txt` after this file, where a card is.
+# The robot's eyes on a CUDA card - CuPy, torch, TensorRT - are requirements-gpu.txt: gigabytes a
+# bench PC or CI never uses. `pip install -r host/requirements-gpu.txt` after this file, where a
+# card is.

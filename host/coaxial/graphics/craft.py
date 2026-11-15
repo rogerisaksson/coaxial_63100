@@ -10,16 +10,16 @@ diving out under the frame, rolling to ROLL into its turn and yawing YAW each wa
 through it; none where the corner has under LEAST lengths.
 A fly-by climbs toward space ahead of us, vertical, on one column: BY_LANE in from its
 side's edge, or as far out as the bound asks anywhere on the way - from BY_START of the
-frame down. We close on it: it grows from BY_FAR of BY_SIZE columns to the whole as an
+frame down. We close on the craft: it grows from BY_FAR of BY_SIZE columns to the whole as an
 approach magnifies (1 / (1 - (1 - BY_FAR) k)), its haze lifting from BY_HAZE, and moves
 with its growth - slow far off, a swish out over the top edge near. A roll over BY_ROLL
-of the way. Its jet runs dead straight back along its axis, a ramjet burning a metal:
+of the way. The craft's jet runs dead straight back along its axis, a ramjet burning a metal:
 JET lengths at most, ending CLEAR off the bound, white-hot at the nozzle to violet at the
 end (JET_INK), SPARKS points of it flaring along the line each frame.
 CRAFT columns nose to tail at a 150-column frame: a spinner seen from above in steel
 alone - a wedge lit along its spine, swept fins lit by its bank, a glinting canopy - its
 trail fading along its path for TRAIL lengths. One colour a cell: lights of other
-colours would flip whole cells as it moves.
+colours would flip whole cells as the craft moves.
 On a corner pass a marker glides in from outside, away from the board, over GRIP and
 closes on the craft, AMBER: a frame FRAME lengths each side of it, square on screen, its
 corners in the arc's plan with CORNER for their cells. Gripped, it squeezes once and
@@ -197,7 +197,7 @@ def pose(width, height, t, board):
 
 
 def craft(width, height, t, board=None):
-    """{cell: (braille mask, (r, g, b), its body's)}: the craft at `t` when a pass is on and
+    """{cell: (braille mask, (r, g, b), the craft's body's)}: the craft at `t` when a pass is on and
     has room, else {} - a cell of its trail alone not its body's; `board` (cx, cy, radius)
     its bound, kept clear at every attitude."""
     now = pose(width, height, t, board)
@@ -248,7 +248,7 @@ def craft(width, height, t, board=None):
                         + (v / CANOPY_R[1]) ** 2 <= 1.0:
                     mark(x, y, steel(GLASS[2] / HULL[2]) if now['fade'] < 1.0 else GLASS, 2)
                 elif _inside(u, v, HULL_SHAPE):
-                    mark(x, y, steel(1.0 - 0.35 * min(1.0, abs(v) / 0.19)), 1)   # its spine lit
+                    mark(x, y, steel(1.0 - 0.35 * min(1.0, abs(v) / 0.19)), 1)   # the hull's spine lit
                 elif any(_inside(u, v, fin) for fin in FINS):
                     mark(x, y, steel(0.7 + 0.25 * lean * (1.0 if v > 0.0 else -1.0)), 0)
     return {at: (mask, inks[at][1], inks[at][0] >= 0) for at, mask in cells.items()}
@@ -296,7 +296,7 @@ def marker(width, height, t, board=None):
     cx, cy = (board[0], board[1]) if board else (width / 2.0, height / 2.0)
     ox, oy = x - cx, (y - cy) * ASPECT
     norm = math.hypot(ox, oy) or 1.0
-    # Its offset outward outruns its corners' growth: no nearer the board than gripped.
+    # The marker's offset outward outruns its corners' growth: no nearer the board than gripped.
     away = 1.5 * FRAME * math.sqrt(2.0) * now['size'] * (1.0 - g)
     half = FRAME * now['size'] * (1.0 + 1.2 * (1.0 - g) - 0.25 * math.sin(
         math.pi * min(1.0, max(0.0, (k - GRIP[1]) / 0.06))))

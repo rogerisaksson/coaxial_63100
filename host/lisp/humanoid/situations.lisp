@@ -7,28 +7,30 @@
 ;; ============================================================================
 
 ;; a floor holding less than a quarter of a sole's load across - ice, a wet tile:
-;; short flat steps, its pelvis and arms quiet
+;; short flat steps, the robot's pelvis and arms quiet
 (defsituation slippery (grip below 0.25)
   (cpg_config
     (amplitude mode_sagittal_drive 0.20) (amplitude mode_limb_lift 0.60)
     (amplitude mode_foot_rock 0.0) (amplitude mode_pelvis_list 0.10)
     (amplitude mode_pelvis_turn 0.10) (amplitude mode_arm_swing 0.15)))
 
-;; the floor rising under its standing soles past 1 in 12 - a ramp, a flight -, or falling
+;; the floor rising under the robot's standing soles past 1 in 12 - a ramp, a flight -, or falling
 (defsituation uphill (slope above 0.08))
 (defsituation downhill (slope below -0.08))
 
-;; a seat or a bed bearing half its weight off its soles, its pelvis upright; lying on it
+;; a seat or a bed bearing half the robot's weight off its soles, its pelvis
+;; upright; lying on it
 (defsituation seated (borne above 0.5) (upright above 0.5))
 (defsituation lying (upright below 0.5))
 
-;; a push on its above its soles a fiftieth of its weight - a wall, a tree, a hand
+;; a push on the robot's above its soles a fiftieth of its weight - a wall, a tree, a hand
 (defsituation held (pushed above 0.02) (borne below 0.5))
 
 ;; a swing met an edge 2 cm up - a sill, a step
 (defsituation stepping (raised above 0.02))
 
-;; frictionless skates: zero sagittal drive, foot rock and arm swing, its balance held by its ankles and hips
+;; frictionless skates: zero sagittal drive, foot rock and arm swing, the robot's balance held by its ankles
+;; and hips
 (defsituation skates (grip below 0.005)
   (cpg_config
     (amplitude mode_sagittal_drive 0.0) (amplitude mode_foot_rock 0.0)

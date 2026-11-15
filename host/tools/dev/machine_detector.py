@@ -33,7 +33,8 @@ from tools.dev.suites import ROOT
 PATH = ROOT / 'tests' / 'work.json'
 
 #: The kernel: its turns, the order of the system each solves, the terms python sums in each - a third of
-#: a second alone on a core of this year's, a suite's glue and its numpy in the share its law has them.
+#: a second alone on a core of this year's, a suite's glue and its numpy in the share the robot's law has
+#: them.
 TURNS, ORDER, TERMS = 12000, 48, 64
 
 #: A baton's process: numpy loaded and the kernel's code run once, 'ready' said, the kernel timed at a word.

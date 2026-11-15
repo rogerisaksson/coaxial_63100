@@ -1,4 +1,4 @@
-"""Its errands on its loop (`worker.session`): a walk and a stop that settles, F to sit and to
+"""The robot's errands on its loop (`worker.session`): a walk and a stop that settles, F to sit and to
 rise, a scene laid anew and a walk at once."""
 import math
 import os
@@ -21,7 +21,7 @@ def _first(st, typed, pad):
 
 
 def _run(s, seconds, until=None, after=0.0):
-    """`seconds` of passes: (the flips of its doing from `after` s on, the seconds to `until`'s
+    """`seconds` of passes: (the flips of the robot's doing from `after` s on, the seconds to `until`'s
     doing, or None)."""
     from machine.process import sprung, worker
     g, last, flips, got, t0 = s['g'], None, 0, None, s['g']['t']
@@ -37,7 +37,7 @@ def _run(s, seconds, until=None, after=0.0):
 
 
 def _forwarded(s):
-    """Its world forwarded after a prop placed between its steps, as `World.scenario` does."""
+    """The robot's world forwarded after a prop placed between its steps, as `World.scenario` does."""
     world = s['g']['world']
     world._mj.mj_forward(world.model, world.data)
 
@@ -48,7 +48,7 @@ def _speed(s):
 
 
 def test_a_stop_settles_and_f_is_heard(report):
-    """Walked 2 s and told to stop, its doing comes to the stand within 2.3 s and holds; told to
+    """Walked 2 s and told to stop, the robot's doing comes to the stand within 2.3 s and holds; told to
     sit it is seated within 5 s, told to rise it stands within 6 s; a scene laid anew with a
     walk asked at once, it walks at once."""
     from machine.world import floor
@@ -62,7 +62,7 @@ def test_a_stop_settles_and_f_is_heard(report):
     _run(s, 2.0)
     worker.apply(s, {'twist': STOP})
     flips, stood = _run(s, 4.0, until='stand', after=2.0)
-    report.check('the stop: the stand within 2.3 s, under 10 flips of its doing from 2 s on',
+    report.check('the stop: the stand within 2.3 s, under 10 flips of the robot\'s doing from 2 s on',
                  stood is not None and stood < 2.3 and flips < 10 and _speed(s) < 0.2,
                  'stand after %s, %d flips, %.2f m/s at the end' % (stood, flips, _speed(s)))
     x, _, z = s['g']['y'][modal.SOLE].reshape(2, 3).mean(axis=0)
@@ -73,7 +73,7 @@ def test_a_stop_settles_and_f_is_heard(report):
     _flips, seated = _run(s, 5.0, until='seated')
     worker.apply(s, {'say': 'rise_chair'})
     _flips, stand = _run(s, 6.0, until='stand')
-    report.check('F sits it within 5 s and rises it within 6 s, no fall',
+    report.check('F sits the robot within 5 s and rises it within 6 s, no fall',
                  seated is not None and stand is not None and s['fallen_at'] is None and s['epoch'] == 0,
                  (seated, stand, s['fallen_at'], s['epoch']))
     worker.apply(s, {'scenario': 'bed'})
@@ -83,10 +83,10 @@ def test_a_stop_settles_and_f_is_heard(report):
                  walking is not None and walking < 0.1, walking)
 
 
-def test_a_halting_row_waits_for_a_swing_only_while_its_rhythm_turns(report):
-    """A row halting its rhythm, due while its capture point asks a step, waits a pass while its
-    rhythm turns; at rest no swing comes and it comes at once (`waits.held_back`): sitting, its
-    centre of mass behind its heels, a seat asked was held for ever."""
+def test_a_halting_row_waits_for_a_swing_only_while_the_robots_rhythm_turns(report):
+    """A row halting the robot's rhythm, due while its capture point asks a step, waits a pass while
+    the robot's rhythm turns; at rest no swing comes and it comes at once (`waits.held_back`): sitting, the
+    robot's centre of mass behind its heels, a seat asked was held for ever."""
     import numpy as np
     from machine.law import latent, modal, waits
     from tools.cores import motion as c_motion, wait as c_wait
@@ -100,14 +100,14 @@ def test_a_halting_row_waits_for_a_swing_only_while_its_rhythm_turns(report):
         g['a'][modal.NEED], g['out'][latent.TURNS] = 1.0, turns
         waits.held_back(g, 0.003)
         return float(g['tab'][0, latent.AT]) - 1.0
-    report.check('a halting row waits a pass while its rhythm turns, none at rest',
+    report.check('a halting row waits a pass while the robot\'s rhythm turns, none at rest',
                  waited(np.pi) > 0.0 and waited(0.0) == 0.0, (waited(np.pi), waited(0.0)))
 
 
 def test_a_chair_a_hair_off_is_sat_on_and_risen_from(report):
-    """The chair 0.4 um off where its stop left it: a sole let go as it sat, the other standing,
-    rose where its folded legs put it and it was thrown off the chair at 4.1 s (`swing.free`);
-    it sits within 5 s and rises within 6 s."""
+    """The chair 0.4 um off where the robot's stop left it: a sole let go as it sat, the other
+    standing, rose where its folded legs put it and the robot was thrown off the chair at 4.1 s
+    (`swing.free`); it sits within 5 s and rises within 6 s."""
     from machine.world import floor
     from machine.moves import leap
     from machine.law import modal
@@ -128,13 +128,13 @@ def test_a_chair_a_hair_off_is_sat_on_and_risen_from(report):
     height = float(s['g']['world'].data.qpos[1])
     worker.apply(s, {'say': 'rise_chair'})
     _flips, stand = _run(s, 8.0, until='stand')
-    report.check('the chair 0.4 um off, F sits it within 5 s and rises it within 6 s',
-                 seated is not None and stand is not None, 'seated at %s s, its pelvis %.3f m up, stood at %s s'
+    report.check('the chair 0.4 um off, F sits the robot within 5 s and rises it within 6 s',
+                 seated is not None and stand is not None, 'seated at %s s, the robot\'s pelvis %.3f m up, stood at %s s'
                  % (seated, height, stand))
 
 
-def test_doorway_arm_yields_and_it_walks_on(report):
-    """Walking through the room's doorway (`DOOR_X = (0.3, 1.2)` at `z = 3.5 m`) from its initial lay
+def test_doorway_arm_yields_and_the_robot_walks_on(report):
+    """Walking through the room's doorway (`DOOR_X = (0.3, 1.2)` at `z = 3.5 m`) from the robot's initial lay
     near either jamb so its hand or forearm strikes the door frame, its arm yields backward (`<= -0.40 rad`)
     and it walks on past the doorway without braking to `stand`."""
     import numpy as np
@@ -165,9 +165,9 @@ def test_doorway_arm_yields_and_it_walks_on(report):
 
 
 def test_chair_and_bed_seated_and_rising(report):
-    """Seated on the chair by its text, the seat bears more of it than its soles do (`y[PROP]`
-    over its soles' share), and told the rise it stands on its soles (`sum(loads) >= 0.85 * weight`);
-    told to lie on the bed by its text it bears its reclined and it stays."""
+    """Seated on the chair by its text, the seat bears more of the robot than its soles do (`y[PROP]`
+    over its soles' share), and told the rise it stands on its soles (`sum(loads) >=
+    0.85 * weight`); told to lie on the bed by its text it bears the robot's reclined and it stays."""
     from machine.moves import leap
     from machine.law import modal
     from machine.world import physics
@@ -190,13 +190,13 @@ def test_chair_and_bed_seated_and_rising(report):
     _flips, stand_t = _run(s, 6.0, until='stand')
     _run(s, 1.0)
     soles_end = sum(g['loads']) / weight
-    report.check('chair: the seat bears %.2f of it, its soles %.2f, both on the floor %s; told to rise it stands (%.2f on soles)'
+    report.check('chair: the seat bears %.2f of the robot, its soles %.2f, both on the floor %s; told to rise it stands (%.2f on soles)'
                  % (prop_sat, soles_sat, down, soles_end),
                  prop_sat > soles_sat and stand_t is not None and soles_end >= 0.85 and s['fallen_at'] is None,
                  'prop=%.2f soles=%.2f down=%s stand=%s soles_end=%.2f fallen=%s'
                  % (prop_sat, soles_sat, down, stand_t, soles_end, s['fallen_at']))
     s, g, weight, prop_sat, soles_sat, down = seated('bed_behind', {'say': 'lie_bed'})
-    report.check('bed: by its text the bed bears %.2f of its reclined, its soles %.2f on the floor %s, and it stays on it'
+    report.check('bed: by its text the bed bears %.2f of the robot\'s reclined, its soles %.2f on the floor %s, and it stays on it'
                  % (prop_sat, soles_sat, down),
                  prop_sat > 0.0 and s['fallen_at'] is None,
                  'prop=%.2f soles=%.2f down=%s fallen=%s' % (prop_sat, soles_sat, down, s['fallen_at']))
@@ -204,7 +204,7 @@ def test_chair_and_bed_seated_and_rising(report):
 
 def test_viewport_f_errands_chair_bed_and_door(report):
     """Walking toward the chair (`SIGHT = 1.0`), bed, or door offers it first in the viewport
-    (`gym.offered`, `gym.ballooned`), and F (`_first`) makes it autonomously dock and sit, lie
+    (`gym.offered`, `gym.ballooned`), and F (`_first`) makes the robot autonomously dock and sit, lie
     down, or exit (`tools.sim.offered`: its walk, its judge, its ensemble)."""
     from machine.process import worker
     from terminal.views import gym, humanoid_keys, scanner
@@ -227,9 +227,9 @@ def test_viewport_f_errands_chair_bed_and_door(report):
 
 
 def test_the_errand_goes_to_the_thing_told(report):
-    """Two chairs, the scene's ahead and the lodge's aside: told to sit it looks (its registry's three
-    sightings), its planner docks it (`machine.way.planner`) and it walks to the nearer one, told to sit at
-    the lodge's (`at`, its balloon's) to that one."""
+    """Two chairs, the scene's ahead and the lodge's aside: told to sit the robot looks (the robot's
+    registry's three sightings), its planner docks it (`machine.way.planner`) and the robot
+    walks to the nearer one, told to sit at the lodge's (`at`, its balloon's) to that one."""
     from machine.world import physics, room
     from machine.process import worker
     physics.ROOM, physics.SIGHT = 1.0, 0.0
@@ -248,7 +248,7 @@ def test_the_errand_goes_to_the_thing_told(report):
 
 
 def test_the_low_chair_is_docked_as_it_faces(report):
-    """The lodge's low chair against the west wall facing +x: told to sit at it it docks before it
+    """The lodge's low chair against the west wall facing +x: told to sit at it the robot docks before it
     facing the room, not at its flank against the wall, and is seated within 30 s."""
     from machine.world import physics, room
     from machine.process import worker
@@ -262,14 +262,14 @@ def test_the_low_chair_is_docked_as_it_faces(report):
     _flips, seated = _run(s, 30.0, until='seated')
     before = (er.get('x_dock', -math.inf) > room.CHAIR_LOW_AT[0] + room.SEAT[2] / 2.0
               and abs(er.get('z_dock', math.inf) - room.CHAIR_LOW_AT[1]) < room.SEAT[2] / 2.0)
-    report.check('told the low chair it docks before it facing the room and is seated within 30 s',
+    report.check('told the low chair the robot docks before it facing the room and is seated within 30 s',
                  before and seated is not None,
                  'dock (%.2f, %.2f) facing %.2f rad, seated at %s s' % (er.get('x_dock', math.nan), er.get('z_dock', math.nan),
                                                                       er.get('hdd', math.nan), seated))
 
 
-def test_from_the_low_chair_it_rounds_the_bed_to_the_door(report):
-    """Sat on the lodge's low chair and risen, told the door: its way rounds the bed, out past the
+def test_from_the_low_chair_the_robot_rounds_the_bed_to_the_door(report):
+    """Sat on the lodge's low chair and risen, told the door: the robot's way rounds the bed, out past the
     door's line, clear of the bed's box by its hips, no fall."""
     from machine.body import figure
     from machine.world import physics, room
@@ -297,7 +297,7 @@ def test_from_the_low_chair_it_rounds_the_bed_to_the_door(report):
             nearest = min(nearest, math.hypot(dx, dz))
     _run(s, 3.0)
     g, d = s['g'], s['g']['world'].data
-    report.check('from the low chair, seated past its edge and risen, it rounds the bed to the door, no fall',
+    report.check('from the low chair, seated past its edge and risen, the robot rounds the bed to the door, no fall',
                  seated is not None and sat_x < room.CHAIR_LOW_AT[0] + room.SEAT[2] - 0.05 and stood is not None
                  and s['fallen_at'] is None and s['epoch'] == 0 and not g.get('_errand')
                  and float(d.qpos[2]) > room.TO and bed is not None and nearest > figure.HIP_HALF,
@@ -307,7 +307,7 @@ def test_from_the_low_chair_it_rounds_the_bed_to_the_door(report):
 
 def test_multi_pose_bed_settle_and_randomized_scenarios(report):
     """From arbitrary starting poses and headings (including the recorded `(-0.62, 1.86, -1.50)` pose),
-    `lie_bed` walks to the bed's edge, turns to face away, backs onto it with its heels within a
+    `lie_bed` walks to the bed's edge, turns to face away, backs onto it with the robot's heels within a
     sole's half-length of the edge and begins to sit, no fall; seeded randomized scenario
     perturbations stay upright without falling. Lying from the dock: scenarios.md item 1."""
     import random
@@ -367,8 +367,9 @@ def test_continuous_outer_loop_told_and_walk_again(report):
     no_tables = not any(hasattr(se2, k) or hasattr(worker, k) for k in ('INIT_DELAYS', 'BRAKE_DELAYS', 'RISES'))
     by = {e[0]: e for e in sprung.entries()}
     r_horizons = (se2.rise_lead(by['rise_chair'][1]), se2.rise_lead(by['rise_bed'][1]), se2.rise_lead(by['rise_floor'][1]))
-    # The bed's and floor's rises sit it up (specialize-sit-up-*: 400 ms), the chair's 450 mm one dips it (340).
-    report.check('zero discrete delay tables in se2/worker; a rise leads its walk by its own length',
+    # The bed's and floor's rises sit the robot up (specialize-sit-up-*: 400 ms), the chair's 450 mm one dips it
+    # (340).
+    report.check('zero discrete delay tables in se2/worker; a rise leads the robot\'s walk by its own length',
                  no_tables and r_horizons == (2.221, 2.281, 2.281), r_horizons)
     times = []
     fell = False
@@ -386,12 +387,12 @@ def test_continuous_outer_loop_told_and_walk_again(report):
                  not fell and all(dt is not None and dt < 1.0 for _, dt in times), times)
 
 
-ROSTER = (test_a_stop_settles_and_f_is_heard, test_a_halting_row_waits_for_a_swing_only_while_its_rhythm_turns,
-          test_a_chair_a_hair_off_is_sat_on_and_risen_from, test_doorway_arm_yields_and_it_walks_on,
+ROSTER = (test_a_stop_settles_and_f_is_heard, test_a_halting_row_waits_for_a_swing_only_while_the_robots_rhythm_turns,
+          test_a_chair_a_hair_off_is_sat_on_and_risen_from, test_doorway_arm_yields_and_the_robot_walks_on,
           test_chair_and_bed_seated_and_rising, test_viewport_f_errands_chair_bed_and_door,
           test_the_errand_goes_to_the_thing_told,
           test_the_low_chair_is_docked_as_it_faces,
-          test_from_the_low_chair_it_rounds_the_bed_to_the_door,
+          test_from_the_low_chair_the_robot_rounds_the_bed_to_the_door,
           test_multi_pose_bed_settle_and_randomized_scenarios,
           test_continuous_outer_loop_told_and_walk_again)
 

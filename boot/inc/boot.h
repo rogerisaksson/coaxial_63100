@@ -24,10 +24,10 @@ extern "C" {
 #define BOOT_UID_BYTES       12U      /**< the MCU's unique id, 96 bits */
 #define BOOT_UID_BITS        (BOOT_UID_BYTES * 8U)
 
-/** Where the application runs and where it is kept (docs/BOOT.md). It is
-    linked into D2 SRAM, which nothing else uses, and streamed there; flash
-    keeps a sealed copy for a power-up with no master - the seal word first,
-    the image behind it. */
+/** Where the application runs and where it is kept (docs/BOOT.md). The
+    application is linked into D2 SRAM, which nothing else uses, and
+    streamed there; flash keeps a sealed copy for a power-up with no
+    master - the seal word first, the image behind it. */
 #define BOOT_RUN_BASE        0x30000000U
 #define BOOT_RUN_BYTES       0x48000U      /**< SRAM1..3, 288 K */
 #define BOOT_FLASH_BASE      0x08000000U

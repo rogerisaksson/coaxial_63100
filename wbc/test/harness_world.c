@@ -1,4 +1,4 @@
-/** harness_world.c - its world's steps (wbc_world.c) through ctypes beside harness.c: tools.cores.world's
+/** harness_world.c - the robot's world's steps (wbc_world.c) through ctypes beside harness.c: tools.cores.world's
     calls; a stage of MuJoCo's step on a thread of the host's beside its law (machine.world.steps.ahead). */
 #include "wbc_world.h"
 

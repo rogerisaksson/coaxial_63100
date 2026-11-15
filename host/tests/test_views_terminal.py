@@ -354,7 +354,7 @@ def test_the_attitude_caps_its_frame_rate(report):
 
 def test_the_stand_shows_its_acts(report):
     """The front page's stand through its cycle, its three pictures stood in for: the board,
-    it, the quad and the board again, each torn into the next about its turn - and the board
+    the robot, the quad and the board again, each torn into the next about its turn - and the board
     alone where no card lights the others. Then the quad as the stand draws it."""
     import time
     from terminal import stand
@@ -378,7 +378,7 @@ def test_the_stand_shows_its_acts(report):
         stand._STAGE.update(ready=True, lit=object())
         got = [at(1.0), at(stand.BOARD_S + 2.0), at(stand.BOARD_S + stand.ROBOT_S + 2.0),
                at(cycle + 2.0)]
-        report.check('the stand: the board, it, the quad and the board again',
+        report.check('the stand: the board, the robot, the quad and the board again',
                      got == [{'B'}, {'H'}, {'Q'}, {'B'}], str(got))
         torn = [at(stand.BOARD_S), at(stand.BOARD_S + stand.ROBOT_S), at(cycle)]
         report.check('the stand: each torn into the next about its turn',
@@ -478,10 +478,10 @@ def test_the_thermal_page_arms_with_the_break_in(report):
 
 
 def test_the_attitude_draws_here_till_its_process_is_up(report):
-    """Its drawing's process not yet up and this process's card warm, BOARD ATTITUDE's frames are
-    this process's crew's (`drawn.where`); the frame the process is up they are its, the exposure
-    and the three frames' vote carried to it once (`drawn.handed`): the first frame waits on no
-    process's start - 2.3 -> 0.9 s from the front page on the bench."""
+    """BOARD ATTITUDE's drawing's process not yet up and this process's card warm, the attitude's
+    frames are this process's crew's (`drawn.where`); the frame the process is up they are its, the
+    exposure and the three frames' vote carried to it once (`drawn.handed`): the first frame waits on
+    no process's start - 2.3 -> 0.9 s from the front page on the bench."""
     import threading
     from coaxial.graphics import card
     from terminal.views import drawn

@@ -1,4 +1,4 @@
-"""The analog front end, its seven channels and the calibration record: invariant 9 without an ADC.
+"""The analog front end, its seven channels and the calibration record: AFE_ON's mid-scale, no ADC.
 """
 import math
 import random
@@ -51,8 +51,8 @@ class SimulatedAfe(Output):
 class SimulatedAnalog(Input):
     """Invented readings, in the shape the real ones come in."""
 
-    #: Its noise's seed: on the module's random a flight on four stand-ins was another flight
-    #: run again, its boards' SOA 0.83 then 0.91.
+    #: The readings' noise's seed: on the module's random a flight on four stand-ins was another
+    #: flight run again, its boards' SOA 0.83 then 0.91.
     NOISE_SEED = 2
 
     def __init__(self, afe):

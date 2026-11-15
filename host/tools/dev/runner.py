@@ -123,7 +123,8 @@ def _extra_for(name, args, tags, live_sections):
 
 
 def _timeout(name):
-    """s a suite runs at most: the live models' 1200 - a model's turns, its loop's errands -, the rest 300."""
+    """s a suite runs at most: the live models' 1200 - a model's turns, the robot's loop's errands -, the rest
+    300."""
     return 1200 if name in (LIVE, LIVE_GYNOID) else 300
 
 
@@ -239,7 +240,7 @@ def whole(jobs, got):
 def _results(suites, args, tags, live_sections):
     """(suite, its result, whether it ran whole) in the order the report lists them, stopping at once on the first
     failing job: structural checks first, previously failed suites next, then longest expected
-    first, a baton a physical core. Its result None where it is no file; the red suite the run stopped at where
+    first, a baton a physical core. A suite's result None where it is no file; the red suite the run stopped at where
     none of its jobs ran - not left out: asked after a red one, three suites of seven went unsaid, the tally's
     skipped counting them by their last run's.
     """

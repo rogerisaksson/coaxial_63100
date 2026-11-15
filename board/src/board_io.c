@@ -116,7 +116,7 @@ bool Board_Part(uint8_t index, board_part_t *info)
     case PART_PROBE_AFE:   info->state = probed(true);               break;
     case PART_PROBE_IMU:   info->state = probed(Board_ImuReady());   break;
     case PART_PROBE_ANGLE: info->state = probed(Board_AngleReady()); break;
-    default:               info->state = BOARD_PART_UNKNOWN;         break;  /* invariant 10 */
+    default:               info->state = BOARD_PART_UNKNOWN;         break;  /* no value expected */
   }
   return true;
 }

@@ -1,4 +1,4 @@
-/** cmd_wbc.c - The loop and the step ticked on its stand, a sole swung too: 0x6E, device 13. */
+/** cmd_wbc.c - The loop and step ticked on the robot's stand, a sole swung too: 0x6E, device 13. */
 #include "board.h"
 #include "cmd.h"
 #include "comms_limits.h"
@@ -54,8 +54,8 @@ static void stand(wbc_frame_t *base, wbc_ask_t *ask)
   }
 }
 
-/** op 0 - `ticks` ticks of the loop on its stand (the model's own) from a cleared memory: the
-    first's and the last's cycles, the bounds held and the set's changes at the last, the first
+/** op 0 - `ticks` ticks of the loop on the robot's stand (the model's own) from a cleared memory:
+    the first's and the last's cycles, the bounds held and the set's changes at the last, the first
     three drives' torques. */
 static cmd_status_t h_wbc_tick(rd_t *in, wr_t *out)
 {
@@ -107,7 +107,7 @@ static cmd_status_t h_wbc_tick(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-/** `ticks` ticks of the step without an active set (wbc_wrench.c) for `ask` at its stand's
+/** `ticks` ticks of the step without an active set (wbc_wrench.c) for `ask` at the robot's stand's
     pose: the first's and the last's cycles, the first three drives' torques, each sole's
     load. */
 static void stepped(wr_t *out, uint8_t ticks, const wbc_frame_t *base, const wbc_ask_t *ask)
@@ -145,7 +145,7 @@ static void stepped(wr_t *out, uint8_t ticks, const wbc_frame_t *base, const wbc
   wr_i32(out, milli_of(s_out.bears[1]));
 }
 
-/** op 1 - the step on its stand. */
+/** op 1 - the step on the robot's stand. */
 static cmd_status_t h_wbc_step(rd_t *in, wr_t *out)
 {
   const uint8_t ticks = rd_u8(in);
@@ -165,9 +165,9 @@ static cmd_status_t h_wbc_step(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-/** op 2 - the step with its right sole swung where it is, its knee asked folded, and the
+/** op 2 - the step with the robot's right sole swung where it is, its knee asked folded, and the
     left's moment past its room: its four rounds; striding `strides` hundredths, what the
-    floor cannot give its inertia's (wbc_cone.c) - whole at 100, the rounds beside it
+    floor cannot give the robot's inertia's (wbc_cone.c) - whole at 100, the rounds beside it
     between. */
 static cmd_status_t h_wbc_swung(rd_t *in, wr_t *out)
 {

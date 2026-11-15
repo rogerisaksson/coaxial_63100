@@ -5,9 +5,10 @@
 # stiffness, standing/deep-squat equilibria, service bands and Froude-scaled gait laws are derived by
 # the static meta-compiler (`structural`, `drives`, `figure`, `compile`).
 
-# Its two packs in parallel, each 15S2P of 5 Ah 21700 cells (`build.HOLDS`, `dclink`): cell cutoff
-# voltage (V), cell and case/BMS mass (kg), cell DC resistance (ohm), BMS max charge per cell (A),
-# per-board DC link capacitance (F: 33 x 10 uF X7S 1210), and flank mount coordinates in the torso (m).
+# The robot's two packs in parallel, each 15S2P of 5 Ah 21700 cells (`build.HOLDS`, `dclink`): cell
+# cutoff voltage (V), cell and case/BMS mass (kg), cell DC resistance (ohm), BMS max charge per cell
+# (A), per-board DC link capacitance (F: 33 x 10 uF X7S 1210), and flank mount coordinates in the torso
+# (m).
 [pack]
 packs = 2
 series = 15
@@ -99,7 +100,8 @@ play_deg = { left = [0.20, 0.15], right = [0.35, 0.25] }
 lever_m = { left = 0.006, right = 0.0065 }
 church = { left = -0.025, right = 0.025 }
 
-# Carbon-epoxy shells over its capsules (`machine/body/build.py`), housing lips/brackets and thermal interfaces.
+# Carbon-epoxy shells over the robot's capsules (`machine/body/build.py`), housing lips/brackets and thermal
+# interfaces.
 [shell]
 wall_m = 0.002
 kg_m3 = 1600.0

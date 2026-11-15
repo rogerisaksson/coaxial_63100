@@ -249,7 +249,7 @@ def test_the_bead_is_round_at_every_angle(report):
         report.check('and it travels rather than sitting in a few seats',
                      len(seats) > 60, '%d distinct cells' % len(seats))
 
-    # It rides the rim in the drawing's own space.
+    # The mark rides the rim in the drawing's own space.
     for aspect in (2.0, 2.4):
         stretch = aspect / 4.0 * 2.0
         cx, r, _, _ = cross_section.layout(46, 18, 0, 0, rows=18)

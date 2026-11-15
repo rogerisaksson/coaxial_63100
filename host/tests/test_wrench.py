@@ -1,4 +1,4 @@
-"""Its step without an active set (`machine.stack.wrench`) in the stack's place (`tools/sim/wbc.py
+"""The robot's step without an active set (`machine.stack.wrench`) in the stack's place (`tools/sim/wbc.py
 --wrench`): one step standing beside the stack's, a contact bearing it, its stand, a nudge
 held, a hop."""
 import os
@@ -14,7 +14,7 @@ APART_NM, APART_N = 0.5, 2.0
 
 
 def _standing():
-    """(its model, its sense, the capture point's ask) at its stand's first pass."""
+    """(the robot's model, its sense, the capture point's ask) at the robot's stand's first pass."""
     from machine.body import figure
     from machine.world import physics
     from machine.stack import wbc
@@ -42,9 +42,9 @@ def test_a_step_standing_is_the_stacks(report):
 
 
 def test_a_contact_bears(report):
-    """A segment that bears it is a contact of its step (`machine.senses.borne`): under its pelvis,
-    bearing half its weight now, it takes what its soles give up, no more than GROW_N over what
-    it bore, in its friction's pyramid."""
+    """A segment that bears the robot is a contact of its step (`machine.senses.borne`): under the
+    robot's pelvis, bearing half its weight now, it takes what the robot's soles give up, no more than
+    GROW_N over what it bore, in its friction's pyramid."""
     import numpy as np
     from machine.stack import rounds, wbc, wrench
     body, s, ask = _standing()
@@ -57,18 +57,18 @@ def test_a_contact_bears(report):
                                                  'dJv': np.zeros(3)}]), ask)
     f = held['borne'][0]
     given = sum(alone['bears']) - sum(held['bears'])
-    report.check('a contact under its pelvis takes what its soles give up, in its bounds',
+    report.check('a contact under the robot\'s pelvis takes what its soles give up, in its bounds',
                  0.0 < f[1] <= half + rounds.GROW_N and abs(given - f[1]) < 5.0
                  and np.hypot(f[0], f[2]) <= wbc.MU * f[1] * (1.0 + 1e-9),
-                 '%.0f N on it, its soles %.0f N less, %.0f N across' % (f[1], given, np.hypot(f[0], f[2])))
+                 '%.0f N on it, the robot\'s soles %.0f N less, %.0f N across' % (f[1], given, np.hypot(f[0], f[2])))
 
 
 def test_a_contact_slides(report):
-    """The kernel's Coulomb slide (`drive-tangential-coulomb-slide`) as its step feels it: a pressing contact
-    whose point slips past SLIDE_M_S along the slide its text says (`ask['slide']`) has its friction the kinetic
-    one against the slip, given - not the step's to spend -, its point held along its normal alone and its normal
-    force under the cap; slipping less, or against the said slide, it sticks, its friction the step's within the
-    cone."""
+    """The kernel's Coulomb slide (`drive-tangential-coulomb-slide`) as the robot's step feels it: a pressing
+    contact whose point slips past SLIDE_M_S along the slide its text says (`ask['slide']`) has its friction the
+    kinetic one against the slip, given - not the step's to spend -, its point held along its normal alone and
+    its normal force under the cap; slipping less, or against the said slide, it sticks, its friction the step's
+    within the cone."""
     import numpy as np
     from machine.stack import wbc, wrench
     body, s, ask = _standing()
@@ -118,19 +118,20 @@ def test_a_patch_splits_as_felt(report):
                  'alone %s N' % alone.round(1))
 
 
-def test_its_lean_hands_it_to_its_soles(report):
-    """A rise's preload (`maneuver._panned`): what bears it panned to the plantar share its cross-fade waits
-    for (the handover's liftoff, 0.82), its ZMP in its support, the kernel's egress slide forward, its legs'
-    springs back from the seat's gain by that share (`maneuver._legs`); the fade onto its soles ends the slide."""
+def test_the_robots_lean_hands_it_to_its_soles(report):
+    """A rise's preload (`maneuver._panned`): what bears the robot panned to the plantar share its cross-fade
+    waits for (the handover's liftoff, 0.82), the robot's ZMP in its support, the kernel's egress slide
+    forward, its legs' springs back from the seat's gain by that share (`maneuver._legs`); the fade onto
+    the robot's soles ends the slide."""
     from machine.texts import acts, maneuver
     from machine.law import somatic
     from machine.moves import seated
-    low = (seated.POPLITEAL, 0.17, 0.0, 0.0, None)  # a seat its feet reach: over it its dismount lands it on them
+    low = (seated.POPLITEAL, 0.17, 0.0, 0.0, None)  # a seat the robot's feet reach: over it the robot's dismount lands it on them
     ps = maneuver.phases('rise_chair', low)
     lean = next(k for k, p in enumerate(ps) if p.stage == 'preload')
     p, then = ps[lean], ps[lean + 1]
     text = maneuver.text('rise_chair', low)
-    report.check('the lean pans to (plantar 0.82, ischial 0.18), ZMP in its support, slide %.2f m/s; the thrust slide 0'
+    report.check('the lean pans to (plantar 0.82, ischial 0.18), ZMP in the robot\'s support, slide %.2f m/s; the thrust slide 0'
                  % somatic.EGRESS_M_S,
                  p.zmp == acts.SUPPORT and abs(p.weighs[0] - 0.82) < 1e-9 and abs(p.weighs[1] - 0.18) < 1e-9
                  and p.slide == somatic.EGRESS_M_S and then.waits == ('soles', 0.82) and then.slide == 0.0
@@ -139,19 +140,19 @@ def test_its_lean_hands_it_to_its_soles(report):
     sat = next(q for q in maneuver.phases('sit_chair', low) if q.stage == 'contact' and 'mode_lateral_shift' in q.springs)
     k_seat, k_rest, k_lean = (q.springs['mode_lateral_shift'][0] for q in (sat, then, p))
     report.check('its legs\' springs come back with the pan: the lean\'s lateral shift %.0f N/m, 0.82 of the way from the'
-                 ' seat\'s %.0f to its rest\'s %.0f' % (k_lean, k_seat, k_rest),
+                 ' seat\'s %.0f to the robot\'s rest\'s %.0f' % (k_lean, k_seat, k_rest),
                  k_seat < k_lean < k_rest and abs(k_lean - (k_seat + 0.82 * (k_rest - k_seat))) < 1e-6 * k_rest, '')
-    high = maneuver.phases('rise_chair')  # the suite's 450 mm seat, over its popliteal height
+    high = maneuver.phases('rise_chair')  # the suite's 450 mm seat, over the robot's popliteal height
     landed = next(q for q in high if q.weighs is not None and q.weighs[0] >= 1.0)
-    report.check('off a seat over its popliteal height its dismount lands it all on its soles, its ZMP in its support'
+    report.check('off a seat over the robot\'s popliteal height its dismount lands it all on its soles, its ZMP in its support'
                  ' and its legs at their rest (%.0f N/m) from then on' % landed.springs['mode_lateral_shift'][0],
                  all(q.zmp == acts.SUPPORT for q in high[high.index(landed):])
                  and landed.springs['mode_lateral_shift'][0] == k_rest, [q.zmp for q in high])
 
 
-def test_a_slide_said_rides_its_row(report):
-    """A phase's slide (`ortho.SLIDE`, m/s along its way) is laid in its row and carried by its latent's
-    output (`latent.SLID`) while the phase holds, its rest's none."""
+def test_a_slide_said_rides_the_robots_row(report):
+    """A phase's slide (`ortho.SLIDE`, m/s along the robot's way) is laid in its row and carried by the
+    robot's latent's output (`latent.SLID`) while the phase holds, its rest's none."""
     import numpy as np
     from machine.law import latent
     from machine.texts import ortho
@@ -166,21 +167,23 @@ def test_a_slide_said_rides_its_row(report):
     for tick in range(2000):
         latent.step(st, tab, tick * dt, dt, out)
         seen[tick] = float(out[latent.SLID])
-    report.check('the row says -0.16 m/s; its latent carries it blended in, 0 again at rest',
+    report.check('the row says -0.16 m/s; the robot\'s latent carries it blended in, 0 again at rest',
                  abs(row[4 + ortho.SLIDE] + 0.16) < 1e-6 and abs(seen[700] + 0.16) < 1e-6
                  and abs(seen[549] + 0.08) < 0.01 and seen[1999] == 0.0,
                  'row %.3f, out %.3f at 700, %.3f at 549, %.3f at rest' % (row[4 + ortho.SLIDE], seen[700], seen[549], seen[1999]))
 
 
-def test_its_reach_rolls_it_onto_the_ball(report):
-    """The kernel's reachability on its loop (`machine.law.somatic`): a leg's hip to its sole over its leg's length;
-    seated, from 0.86 of it its sole's centre of pressure goes onto its ball by the furniture's told share,
-    whole at 0.98; standing, nothing borne, its soles stay as its stride has them."""
+def test_the_robots_reach_rolls_it_onto_the_ball(report):
+    """The kernel's reachability on the robot's loop (`machine.law.somatic`): a leg's hip to its sole over the
+    robot's leg's length; seated, from 0.86 of it the robot's sole's centre of pressure goes onto its ball by the
+    furniture's told share, whole at 0.98; standing, nothing borne, the robot's soles stay as its stride has
+    them."""
     import numpy as np
     from machine.law import latent, modal, somatic, stride
     from machine.texts import ortho
     from machine.stack import rounds
-    # Its fists kept as they are (`seated.kept` is its suites'): the reach's caps alone are this check's.
+    # The robot's fists kept as they are (`seated.kept` is its suites'): the reach's caps alone are this
+    # check's.
     g, told_by = ({'fr': np.zeros(modal.FRAME), 'sat': 0.0, 'y': None, 'loads': [0.0, 0.0],
                    'kept': lambda y, fr, palmar, posture, q, fists: (posture, fists)}, np.eye(len(ortho.MANIFOLDS)))
     g['fr'][modal.ROT] = np.eye(3).ravel()
@@ -195,7 +198,7 @@ def test_its_reach_rolls_it_onto_the_ball(report):
         return somatic.asked(g, s, out, told if told.ndim else (1.0 - told) * told_by[0] + told * told_by[1], ask)
     seated, deep, stood = asked((0.75, 0.70), 0.85), asked((0.92, 0.98), 0.85), asked((0.998, 0.998), 0.0)
     unsaid = asked((0.75, 0.70), np.zeros(len(told_by)))
-    report.check('seated at 0.70-0.75 of its leg its soles are flat, the seat capped at its told 0.85 of its weight;'
+    report.check('seated at 0.70-0.75 of the robot\'s leg its soles are flat, the seat capped at its told 0.85 of the robot\'s weight;'
                  ' at 0.92 and 0.98 onto the ball by that 0.85; standing at 0.998, nothing borne, flat; nothing told, no cap',
                  seated['edge'] == (0.0, 0.0) and abs(float(deep['edge'][0]) - 0.85 * 0.5) < 1e-9
                  and abs(float(deep['edge'][1]) - 0.85) < 1e-9 and stood['edge'] == (0.0, 0.0)
@@ -205,7 +208,7 @@ def test_its_reach_rolls_it_onto_the_ball(report):
     slid = asked((0.75, 0.70), 0.85)
     out[latent.SLID] = 0.15
     egress = asked((0.75, 0.70), 0.85)
-    report.check('a slide said of -0.15 m/s caps a sliding contact\'s load at the ingress\'s 0.55 of its weight; forward,'
+    report.check('a slide said of -0.15 m/s caps a sliding contact\'s load at the ingress\'s 0.55 of the robot\'s weight; forward,'
                  ' at the egress\'s 0.70; the told cap as it was',
                  abs(float(slid['slid_cap']) - 0.55 * 300.0) < 1e-9 and abs(float(egress['slid_cap']) - 0.70 * 300.0) < 1e-9
                  and abs(float(slid['fz_cap']) - 0.85 * 300.0) < 1e-9 and float(seated['slid_cap']) == np.inf,
@@ -218,45 +221,45 @@ def test_its_reach_rolls_it_onto_the_ball(report):
             'q': None}
     lever, ask = float(somatic.lever(seat, way, 300.0)), {'edge': (0.0, 0.0), 'posture': None}
     behind: dict = somatic.asked(g, seat, out, 0.82 * told_by[0] + 0.18 * told_by[1], ask)
-    report.check('its centre of mass 0.1 m behind its heels, the seat 0.3 m behind its soles\' middle: the seat must bear'
+    report.check('its centre of mass 0.1 m behind the robot\'s heels, the seat 0.3 m behind its soles\' middle: the seat must bear'
                  ' %.2f of it by the lever\'s rule, and is capped no lower though told 0.18' % lever,
                  abs(lever - 0.1 / (0.3 - rounds.ROOM[1])) < 1e-9 and abs(float(behind['fz_cap']) - lever * 300.0) < 1e-9,
                  'lever %.3f cap %.1f' % (lever, float(behind['fz_cap'])))
 
 
-def test_it_stands_still(report):
+def test_the_robot_stands_still(report):
     """Three seconds standing: up, every drive inside its clamp."""
     from tools.sim import wbc
     out = wbc.stand(seconds=3.0, wrench=True)
-    report.check('standing 3 s it stays up, every drive within its clamp',
+    report.check('standing 3 s the robot stays up, every drive within its clamp',
                  out['stood'] and out['top'] <= 1.0 and out['tilt'] < 2.0,
                  'tilt %.1f deg, drift %.1f mm, the most a clamp %.2f, %d us a step'
                  % (out['tilt'], out['drift_mm'], out['top'], out['us']))
 
 
-def test_nudged_it_holds(report):
-    """60 N for 0.12 s from its right and from its left, 38 N from behind: up."""
+def test_nudged_the_robot_holds(report):
+    """60 N for 0.12 s from the robot's right and from its left, 38 N from behind: up."""
     from tools.sim import wbc
-    for push, way, name in ((60.0, 0.0, 'toward its left'), (60.0, 180.0, 'toward its right'),
+    for push, way, name in ((60.0, 0.0, 'toward the robot\'s left'), (60.0, 180.0, 'toward the robot\'s right'),
                             (38.0, 90.0, 'from behind')):
         out = wbc.stand(push, way, wrench=True)
-        report.check('nudged %.0f N %s it holds' % (push, name), out['stood'], 'tilt %.1f deg' % out['tilt'])
+        report.check('nudged %.0f N %s the robot holds' % (push, name), out['stood'], 'tilt %.1f deg' % out['tilt'])
 
 
-def test_it_hops(report):
+def test_the_robot_hops(report):
     """A hop (`tools.sim.hop`): thrown, airborne a tenth of a second, landed, stood."""
     from tools.sim import hop
     out = hop.hop(wrench=True)
-    report.check('thrown, it leaps, lands and stands',
+    report.check('thrown, the robot leaps, lands and stands',
                  out['stood'] and out['leaps'] == 1 and out['air_s'] >= 0.1 and out['clear_mm'] >= 12.0,
-                 '%.3f s, %.1f mm under its soles, landed %d N, tilt %.1f deg, %s'
+                 '%.3f s, %.1f mm under the robot\'s soles, landed %d N, tilt %.1f deg, %s'
                  % (out['air_s'], out['clear_mm'], out['landed_n'], out['tilt'], out['stances']))
 
 
 def test_singular_fall_is_bounded(report):
     """When tumbling airborne near a straight-knee singularity (`|tau0| > limit`), `shrunk` and
     `step` scale the baseline into the drives' clamps without collapsing `scale` to 0 or flinging
-    its driven joints at thousands of rad/s^2."""
+    the robot's driven joints at thousands of rad/s^2."""
     import numpy as np
     from machine.body import figure
     from machine.world import physics
@@ -281,7 +284,7 @@ def test_singular_fall_is_bounded(report):
 
 
 def test_surety_contracts_authority_and_damps_fall(report):
-    """Its directional surety field (`motion.surety`, `g['surety']`, `g['surety_vec']`) ranks a
+    """The robot's directional surety field (`motion.surety`, `g['surety']`, `g['surety_vec']`) ranks a
     wide double-support stance above narrow standing and single-sole walking, contracts into its
     2D tuck-and-brace regime outside its upright envelope, absorbs at 0 on collapse so a bounce
     never re-fires torques, and damps its joints passively."""
@@ -322,10 +325,10 @@ def test_surety_contracts_authority_and_damps_fall(report):
                  % (s_wide, s_up, s_walk, s_seat, s_mid, knee_tuck, sh_reach, s_col, s_bnc, power))
 
 
-def test_its_master_bus_and_buffers(report):
-    """Its master bus laid of the anti-spasm insert (`machine.law.supervisor`): each drive's slew its peak
-    through its board's current loop, its jerk that over its rotor's inertia; a buffer before each
-    stop of the insert's boundary nodes' joints, critically damped."""
+def test_the_robots_master_bus_and_buffers(report):
+    """The robot's master bus laid of the anti-spasm insert (`machine.law.supervisor`): each drive's slew its
+    peak through its board's current loop, its jerk that over its rotor's inertia; a buffer before each stop
+    of the insert's boundary nodes' joints, critically damped."""
     import math
     from coaxial.model import inverter, sensorless
     from machine.body import drives
@@ -352,9 +355,9 @@ def test_its_master_bus_and_buffers(report):
 
 
 ROSTER = (test_a_step_standing_is_the_stacks, test_a_contact_bears, test_a_contact_slides, test_a_patch_splits_as_felt,
-          test_its_lean_hands_it_to_its_soles, test_a_slide_said_rides_its_row, test_its_reach_rolls_it_onto_the_ball, test_it_stands_still, test_nudged_it_holds,
-          test_it_hops, test_singular_fall_is_bounded, test_surety_contracts_authority_and_damps_fall,
-          test_its_master_bus_and_buffers)
+          test_the_robots_lean_hands_it_to_its_soles, test_a_slide_said_rides_the_robots_row, test_the_robots_reach_rolls_it_onto_the_ball, test_the_robot_stands_still, test_nudged_the_robot_holds,
+          test_the_robot_hops, test_singular_fall_is_bounded, test_surety_contracts_authority_and_damps_fall,
+          test_the_robots_master_bus_and_buffers)
 
 
 def main(argv=None):

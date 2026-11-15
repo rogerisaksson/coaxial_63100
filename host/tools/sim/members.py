@@ -2,11 +2,11 @@
 """The robot's members under their drives' peaks: each tube's, plate's and rod's stress and flex.
 
     python tools/sim/members.py             # every member, the ones past a limit starred
-    python tools/sim/members.py --family 3  # its tubes cut from three stock sizes
+    python tools/sim/members.py --family 3  # the robot's tubes cut from three stock sizes
 
-A member is a run of its skeleton (`machine.body.skeleton`: the bones, the trunk's frame, the boom,
+A member is a run of the robot's skeleton (`machine.body.skeleton`: the bones, the trunk's frame, the boom,
 the hip's gimbal, the holders' struts) or a linkage's part (`machine.body.linkage`: a crank, a horn, a
-rod). Its load is the peak its drive delivers (`drives.peak`, through the lever) as a bending
+rod). A member's load is the peak its drive delivers (`drives.peak`, through the lever) as a bending
 moment, a twist, or a rod's pull on a crank's arm; its section a carbon tube (WALL of its radius),
 a printed PAHT-CF plate loaded in its plane, or a solid carbon rod. Each is judged on stress
 against its material's allowable and on flex over its length at FLEX_AT of the load against

@@ -1,16 +1,16 @@
-"""Its latent space, stepped: rows blended into one vector, its rhythm turned, its modes asked.
+"""The robot's latent space, stepped: rows blended into one vector, its rhythm turned, its modes asked.
 
-    st = latent.state(rest)                       # (STATE,) at its rest vector (`statics.rest`)
+    st = latent.state(rest)                       # (STATE,) at the robot's rest vector (`statics.rest`)
     tab = latent.table(wire, begin, rest)         # (n, TABLE): rows (`ortho.compiled`) from `begin` s
     out = latent.step(st, tab, now, dt, out)      # (OUT,): what its modes are asked this pass
 
 Flat arrays, laid once, and arithmetic on them: no branch, no state but `st`. A row whose time
-has come lays what it says over where its vector was going (a mask), and its vector goes there
+has come lays what it says over where the robot's vector was going (a mask), and its vector goes there
 in a straight line over the row's blend. The robot's rhythm is one angle turning at its frequency; a
 mode's reference is its target and its amplitude's sine at that angle and the mode's phase, with
 the rate and the acceleration that makes. Out go each mode's reference, stiffness and damping
-and its rhythm's phases: what a mode is on its body, and what its drives can give of it, are
-downstream's (`machine.law.modal`, `machine.stack.wbc`). One row a tick. In a synthesizer's terms - a
+and the robot's rhythm's phases: what a mode is on its body, and what its drives can give of
+it, are downstream's (`machine.law.modal`, `machine.stack.wbc`). One row a tick. In a synthesizer's terms - a
 sequencer of notes, an oscillator, envelopes, the generator's out - docs/architecture/synth.md.
 """
 import math
@@ -26,8 +26,8 @@ N, P = ortho.N, ortho.P
 #: A row's parameters as slices (`ortho`'s layout): a mode each, then four numbers.
 Z, K, D, AMP, PHASE = (slice(at, at + N) for at in (ortho.Z, ortho.K, ortho.D, ortho.AMP, ortho.PHASE))
 GAIN, HZ, ZMP, YAW, DUCK, MANIFOLD, SLIDE = (ortho.GAIN, ortho.HZ, ortho.ZMP, ortho.YAW, ortho.DUCK, ortho.MANIFOLD, ortho.SLIDE)
-#: Its state: its vector as it is, where it came from and where it goes; when it set out, how
-#: long it takes, its rhythm's angle.
+#: The robot's state: its vector as it is, where it came from and where it goes; when it set out, how
+#: long it takes, the robot's rhythm's angle.
 NOW, FROM, TO = (slice(i * P, (i + 1) * P) for i in range(3))
 T0, BLEND, THETA = 3 * P, 3 * P + 1, 3 * P + 2
 #: A blend's rates at its start and its end, a param each; whether the row after begins where
@@ -37,24 +37,25 @@ CONTIG = 5 * P + 3
 #: The blend's shape: its share of the way at u, a quintic's coefficients on u..u^5 (SHAPES).
 SHAPE = slice(5 * P + 4, 5 * P + 9)
 STATE = 5 * P + 9
-#: The most rows its table holds (wbc_imp.h's WBC_WAIT_ROWS): a take's frames are thinned to fit.
+#: The most rows the robot's table holds (wbc_imp.h's WBC_WAIT_ROWS): a take's frames are thinned to fit.
 ROWS = 512
 #: A table's row: what it says, which of it is said (1) or left (0), when it comes, its blend,
-#: whether a curve's sample, whether it waits for a seat or a bed to bear it (`ortho.CONTACT`),
-#: whether it latches its vector where it is (`ortho.LATCH`), its blend's shape (SHAPES), whether it waits
-#: while its centre of mass sinks (`ortho.RISE`).
+#: whether a curve's sample, whether it waits for a seat or a bed to bear the robot (`ortho.CONTACT`),
+#: whether it latches the robot's vector where it is (`ortho.LATCH`), its blend's shape (SHAPES),
+#: whether it waits while the robot's centre of mass sinks (`ortho.RISE`).
 VALS, SAID = slice(0, P), slice(P, 2 * P)
 AT, LERP, CURVE, CONTACT, LATCH = 2 * P, 2 * P + 1, 2 * P + 2, 2 * P + 3, 2 * P + 4
 SHAPED = slice(2 * P + 5, 2 * P + 10)
 RISES = 2 * P + 10
 TABLE = 2 * P + 11
-#: What a pass gives: each mode's reference, its rate and acceleration, its stiffness (N/m) and
-#: damping (N s/m), its rhythm's phase (rad) and amplitude; its rhythm's rate (rad/s), its
-#: ZMP's polygon as told (its soles' weight laid on it after, `observer.weighed`), its yaw momentum's limit; and each mode's curve's own acceleration (BEND),
-#: the acceleration's less the rhythm's: the touch filter rebuilds the acceleration from it;
-#: its sidechain as said (DUCKED, `ortho.DUCK`); what bears it as told (MANIFOLDED, `ortho.MANIFOLD`) and
-#: its slide over it (SLID, `ortho.SLIDE`); and each mode's rhythm's amplitude as asked (ASKED): the blend's end,
-#: the text's own, where SWAY is the blend's now - a stop asks none while the sway still runs down.
+#: What a pass gives: each mode's reference, its rate and acceleration, its stiffness (N/m) and damping (N
+#: s/m), its rhythm's phase (rad) and amplitude; the robot's rhythm's rate (rad/s), its ZMP's polygon
+#: as told (its soles' weight laid on it after, `observer.weighed`), the robot's yaw momentum's limit;
+#: and each mode's curve's own acceleration (BEND), the acceleration's less the rhythm's: the touch filter
+#: rebuilds the acceleration from it; the robot's sidechain as said (DUCKED, `ortho.DUCK`); what bears the
+#: robot as told (MANIFOLDED, `ortho.MANIFOLD`) and its slide over it (SLID, `ortho.SLIDE`); and each
+#: mode's rhythm's amplitude as asked (ASKED): the blend's end, the text's own, where SWAY is the blend's now
+#: - a stop asks none while the sway still runs down.
 REF, RATE, ACC, KS, DS, PSI, SWAY = (slice(i * N, (i + 1) * N) for i in range(7))
 TURNS, HELD, YAWED = 7 * N, 7 * N + 1, 7 * N + 2
 BEND = slice(7 * N + 3, 8 * N + 3)
@@ -126,10 +127,10 @@ def _rate(st, u, span):
 
 def step(st, tab, now, dt, out):
     """`out` this pass: the row of `tab` whose time `now` is laid, `st` blended on a tick `dt`,
-    its rhythm turned. A text's row blends linearly to its target. A row flagged a curve's sample
+    the robot's rhythm turned. A text's row blends linearly to its target. A row flagged a curve's sample
     (`ortho.CURVE`, a take's frame) that the next begins on as it ends (CONTIG) blends as a
     Hermite curve (a text's row begun on as it ends, rise_chair's lean, curved too, bent its rise
-    with the arriving rate's span and it fell), leaving
+    with the arriving rate's span and the robot fell), leaving
     at the rate it had (V0: the rate given, not the Hermite's end slope of a row blended
     linearly - the push's first row left a held crouch at 4.6 a second, 709 a second squared)
     and arriving at the rate the row after asks (V1, Catmull-Rom's: the way from FROM to that

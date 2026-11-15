@@ -1,4 +1,4 @@
-"""Its movements' terms as static arrays: written by host/tools/cores/terms.py, not by hand."""
+"""The robot's movements' terms as static arrays: written by host/tools/cores/terms.py, not by hand."""
 
 #: (part, movement): (joint kind, sign, low, high) - the movement its own way is the
 #: joint's angle times sign, deg; low and high its amount's stops, None with none. A
@@ -29,7 +29,7 @@ TERMS = {
     ('elbow', 'extension'): ('elbow', -1, -160, 5),
 }
 TOWARD = (('trunk', 'lateral-flexion'), ('trunk', 'rotation'), ('head', 'rotation'),)
-#: Movements anatomy names that no driven joint of its own makes.
+#: Movements anatomy names that no driven joint of the robot's own makes.
 ABSENT = (
     ('toes', 'extension'), ('toes', 'flexion'), ('neck', 'lateral-flexion'),
     ('shoulder', 'abduction'), ('shoulder', 'adduction'), ('shoulder', 'lateral-rotation'),

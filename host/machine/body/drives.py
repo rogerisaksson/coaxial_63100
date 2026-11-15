@@ -1,4 +1,4 @@
-"""Its drives: each a coaxial stack of an inverter disc, a pancake outrunner, a one-stage gearbox.
+"""The robot's drives: each a coaxial stack of inverter disc, pancake outrunner and one-stage gearbox.
 
 Two motors as bought, one box at one ratio, one board - the 63100: a stack for the legs and the
 trunk, one for the arms and the head.
@@ -29,7 +29,7 @@ from machine.body import linkage, mechatronics
 from machine.body.figure import ANKLE_H, BALL, SCALE, SEGMENTS, SHANK, SOLE_HALF, THIGH, TOE_M
 from motor.pmsm import TORQUE_FACTOR
 
-#: The parts library and its build of it (machine/library, machine/humanoids): the tables below are
+#: The parts library and the robot's build of it (machine/library, machine/humanoids): the tables below are
 #: theirs, read once.
 _LIB, _BUILD = mechatronics.library(), mechatronics.robot()
 _MAT, _WORLD = mechatronics.materials(), mechatronics.environment()
@@ -277,7 +277,7 @@ BUS_HZ, LAW_DIV = _bus_timing()
 
 
 def travel(joint):
-    """Its travel, (low, high) deg (`TRAVEL`); None where it turns on."""
+    """The joint's travel, (low, high) deg (`TRAVEL`); None where it turns on."""
     return TRAVEL.get(kind(joint))
 
 
@@ -316,7 +316,7 @@ def outlet(joint):
 
 
 def pivot(joint):
-    """Its joint's centre in the frame its drive rides (`mount`): its segment's place on its
+    """The joint's centre in the frame its drive rides (`mount`): its segment's place on its
     parent, or a stage's origin."""
     from machine.body.figure import SEGMENTS, STAGES
     where = mount(joint)
@@ -355,7 +355,7 @@ def motors(joint):
 
 
 def emf(joint):
-    """Its motor's back-EMF through its size's ratio, V a rad/s of the joint: p lambda N."""
+    """The drive's motor's back-EMF through its size's ratio, V a rad/s of the joint: p lambda N."""
     s = of(joint)[1]
     return s.kt_motor / TORQUE_FACTOR * ratio(joint)
 
@@ -368,12 +368,12 @@ def kt(joint):
 
 
 def length(joint):
-    """Its stack's length, m."""
+    """The drive's stack's length, m."""
     return of(joint)[1].length
 
 
 def mass(joint):
-    """Its stack's mass, kg, its inverter apart (`board`)."""
+    """The drive's stack's mass, kg, its inverter apart (`board`)."""
     return of(joint)[1].mass
 
 
@@ -400,7 +400,7 @@ def board(joint):
 
 
 def tall(joint):
-    """Its board's height with its parts, m."""
+    """The drive's board's height with its parts, m."""
     return INVERTERS[STACKS[kind(joint)][2]][4]
 
 
@@ -430,13 +430,13 @@ def wep_scale(joint):
 
 
 def slew(joint):
-    """Its torque's fastest slew, N m/s: its peak through its board's current loop, first order at
+    """The drive's torque's fastest slew, N m/s: its peak through its board's current loop, first order at
     its bandwidth (`LOOP_HZ`)."""
     return peak(joint) * 2.0 * math.pi * LOOP_HZ[STACKS[kind(joint)][2]]
 
 
 def jerk(joint):
-    """Its joint's fastest angular jerk, rad/s^3: its torque's slew over its rotor's inertia
+    """The drive's joint's fastest angular jerk, rad/s^3: its torque's slew over its rotor's inertia
     through its box, unloaded (`armature`)."""
     return slew(joint) / armature(joint)
 

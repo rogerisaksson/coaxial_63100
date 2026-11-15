@@ -1,4 +1,4 @@
-/** wbc_chain_qp.c - machine.stack.chain_qp (wbc_step.h): its step in closed chains as one QP - the unknowns u =
+/** wbc_chain_qp.c - machine.stack.chain_qp (wbc_step.h): the robot's step in closed chains as one QP - the unknowns u =
     (x, zeta), level 1's affine maps through its dynamics, the answer's parts -, its rows and levels in
     wbc_chain_rows.c; numpy's arithmetic and its OpenBLAS (wbc_blas.h) operation for operation, every product in
     python's order and layout; carved 64-byte aligned from the step's workspace. Portable C11, the host's alone. */
@@ -111,9 +111,9 @@ static void letting(wbc_step_t *p, int k, int key[][3], const int *holds, const 
 }
 
 /** machine.stack.chain_qp.unknowns: each contact's width in zeta, S (3k x nz) zeta -> z in frames, its friction,
-    whether it bears (its patch hold-n, its foot not told free), whether it is its sled, its mode (1 a static sled told
-    a twist on a level slide, 2 a kinetic one pinned against its slip, 0 other) and the way's unit tangent in its frame
-    (st, 2 a contact); nz returned. */
+    whether it bears (its patch hold-n, its foot not told free), whether it is the robot's sled, its mode (1 a static
+    sled told a twist on a level slide, 2 a kinetic one pinned against its slip, 0 other) and the way's unit tangent in
+    its frame (st, 2 a contact); nz returned. */
 static int unknowns(const wbc_step_t *p, const double *Q, const double *slide, const double *Jv, int *width, double *S,
                     double *mu, int *bears, int *sleds, int *mode, double *st)
 {
@@ -141,8 +141,9 @@ static int unknowns(const wbc_step_t *p, const double *Q, const double *slide, c
     bears[i] = by >= p->chain_hold_n && !freed(p, i);
     mu[i] = sled ? p->chain_mu : p->chain_anchor_mu;
     width[i] = 3;
-    /* its sled told a twist on a level slide (its normal up within 45 deg, along the way under slide-tilt: a back
-       against a tilted rest braces): static at rest, kinetic past slide-m-s along the way, pinned against its slip */
+    /* the robot's sled told a twist on a level slide (its normal up within 45 deg, along the way under slide-tilt: a
+       back against a tilted rest braces): static at rest, kinetic past slide-m-s along the way, pinned against its
+       slip */
     if (sled && q[1] >= rh && fabs(sn) < p->chain_tilt && (slide[0] != 0.0 || slide[2] != 0.0))
     {
       double t[3], nt;
@@ -273,7 +274,7 @@ static void affine(const wbc_step_t *p, wbc_maps_t *m, const double *held, const
   framed(Q, k, Cx, nd, m->Ax);
   mm(l, Jp, m->Pz, Cz, k3, np_, nz);
   framed(Q, k, Cz, nz, m->Az);
-  /* its tasks: Rx x + Rz zeta = rr */
+  /* the robot's tasks: Rx x + Rz zeta = rr */
   sliced(RG, m1, ng, 0, nd, RGD);
   sliced(RG, m1, ng, nd, ng, RGH);
   mm(l, RP, m->Px, m->Rx, m1, np_, nd);
@@ -292,8 +293,9 @@ static void affine(const wbc_step_t *p, wbc_maps_t *m, const double *held, const
   {
     m->rr[i] = m->rr[i] - tm[i];
   }
-  /* its rise's centre of mass task where its rise's gate holds it (machine.stack.chain.leaned): three rows on the
-     contacts' forces alone, (lean / m) sum Q^T S zeta = lean (a* - g), each contact's block summed in turn */
+  /* the robot's rise's centre of mass task where its rise's gate holds it (machine.stack.chain.leaned): three
+     rows on the contacts' forces alone, (lean / m) sum Q^T S zeta = lean (a* - g), each contact's block summed in
+     turn */
   if (p->lean > 0.0 && k > 0)
   {
     const double scale = p->lean / p->M[0];
@@ -320,7 +322,7 @@ static void affine(const wbc_step_t *p, wbc_maps_t *m, const double *held, const
     m->rr[m1 + 2] = p->lean * (p->com_acc[2] - 0.0);
     m->m1 = m1 + 3;
   }
-  /* its torques: t0 + Tx x + Tz zeta */
+  /* the robot's torques: t0 + Tx x + Tz zeta */
   sliced(MA, nd, np_ + ng, 0, np_, MAP);
   sliced(MA, nd, np_ + ng, np_, np_ + nd, MAD);
   sliced(MA, nd, np_ + ng, np_ + nd, np_ + ng, MAH);
@@ -460,7 +462,8 @@ int wbc_chain_qp(wbc_step_t *p, int np_, int ng, int k3, const double *held, con
   {
     tau[i] = tau[i] + tn[i];
   }
-  /* with nothing asked of its joints, the forces kept: the shrink's other end (machine.stack.chain.step) */
+  /* with nothing asked of the robot's joints, the forces kept: the shrink's other end
+   * (machine.stack.chain.step) */
   mv(l, m.Pz, u + nd, qddP0, np_, m.nz);
   for (int a = 0; a < np_; a++)
   {

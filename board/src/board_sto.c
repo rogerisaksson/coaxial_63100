@@ -65,7 +65,7 @@ static uint32_t sto_edge_cycles(void)
 
 void Board_StoKeepalive(void)
 {
-  /* The longest gap between edges, in raw CYCCNT ticks - invariant 2's rule
+  /* The longest gap between edges, in raw CYCCNT ticks - the RTU's rule
      applies here too: dividing cycles down moves the wrap off a power of two
      and the unsigned arithmetic breaks across it. */
   const uint32_t now = Board_Cycles();
@@ -120,7 +120,7 @@ void Board_StoState(board_sto_state_t *out)
   memset(out, 0, sizeof(*out));
 
   /* Both channels come through the AFE's reference, so with AFE_ON low they
-     read exact mid-scale and mean nothing - invariant 9. */
+     read exact mid-scale and mean nothing. */
   int32_t raw;
   int32_t microvolts;
   int32_t scaled;

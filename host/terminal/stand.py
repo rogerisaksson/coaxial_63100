@@ -1,4 +1,4 @@
-"""The front page's stand: the board, its standing, the quad hovering, torn one into the next.
+"""The front page's stand: the board, the robot's standing, the quad hovering, torn one into the next.
 
     view = stand.fresh(now)                       # the turntable's state
     stand.idle(view, now, dt)                     # a frame of its own motion
@@ -96,10 +96,10 @@ def grab(view, keys, moved, now):
     carry(view, dx, dy)
 
 
-#: The stand shows the board BOARD_S, then its standing ROBOT_S (`figure.stand`), then the
+#: The stand shows the board BOARD_S, then the robot's standing ROBOT_S (`figure.stand`), then the
 #: quad QUAD_S, in a hover and once over its nose, each torn into
 #: the next over TORN_S (`terminal.ui.glitch`) - where a card lights them: on the CPU a frame
-#: of it took 280 ms, on the card 6.
+#: of the robot took 280 ms, on the card 6.
 BOARD_S, ROBOT_S, QUAD_S, TORN_S = 14.0, 9.0, 9.0, 0.5
 
 #: The quad on the stand: its lean, degrees, round once in LEAN_S; its roll, begun ROLL_AT s
@@ -112,7 +112,7 @@ LOOK_DEG, REACH_M, CAN_C, BOARD_C = 32.0, 0.62, 55.0, 45.0
 
 def turntable(view, width=52, height=18):
     """The board on the stand, at the pose and zoom the view holds - lit as the render demo
-    lights it: camera straight down the axis, no horizon - and in turn it, standing, and the
+    lights it: camera straight down the axis, no horizon - and in turn the robot, standing, and the
     quad, hovering.
     """
     if not _STAGE['ready']:
@@ -176,7 +176,7 @@ _STAGE: dict = {'ready': False}
 
 
 def warm():
-    """The stand's solids built, and it and the quad once on the card where one answers."""
+    """The stand's solids built, and the robot and the quad once on the card where one answers."""
     try:
         _draw({'pose': (0.0, 0.0, 0.0, 1.0), 'zoom': SWELL_FROM}, 8, 4)
         # On the card where one answers: 64 ms a frame at 52x18 on the CPU.

@@ -1,20 +1,21 @@
-"""Its moves whose phases end by what it senses, each a table of the suite's lisp (`defmove`).
+"""The robot's moves whose phases end by what it senses, each a table of the suite's lisp (`defmove`).
 
-A move its joints play as a program does (`machine.process.joints`), bound by its text to a stage of its own by its
-`:joint-program`, the `defmove` of that name: its way into a bed over its end to its middle (`bed-entry`,
-bed_lean.lisp), up onto a seat too high for its feet and down off it (`chair-mount`, `chair-dismount`,
-terminal_sequencer.lisp). Each phase drives its
-parts to its goals as its anatomy goes (`anatomy`: held, at a rate, at a rate but no straighter than it is) and ends
-by what it senses and where a look puts it on the furniture its eyes saw (`furniture.lain`), none by the clock: its
-goals reached; its feet planted (its soles' share PLANT) or that; its pelvis pulled in (PULL_IN m from its end), or
-that and it still (its speed under STILL); that and it lying (its pitch past LAIN); that and it still; at the
-middle or that. The phase after it, or while a stroke is due - more than NEAR short of the middle, STROKES at most, a
-phase's `:counts` one each - its `:again`. Its text's rows wait while it plays as its table says (`:holds`). A number
-no end of its table reads it need not say; one an end reads it must (`tables` refuses it). Every branch a select; its
-arithmetic is wbc_sensed.c's, bit for bit (`tools.cores.sensed`, what its loop plays).
+A move the robot's joints play as a program does (`machine.process.joints`), bound by its text to a stage of
+the robot's own by its `:joint-program`, the `defmove` of that name: the robot's way into a bed over its end to its
+middle (`bed-entry`, bed_lean.lisp), up onto a seat too high for the robot's feet and down off it (`chair-mount`,
+`chair-dismount`, terminal_sequencer.lisp). Each phase drives the robot's parts to its goals as the robot's anatomy
+goes (`anatomy`: held, at a rate, at a rate but no straighter than it is) and ends by what it senses
+and where a look puts it on the furniture its eyes saw (`furniture.lain`), none by the clock: its
+goals reached; the robot's feet planted (its soles' share PLANT) or that; its pelvis pulled in
+(PULL_IN m from its end), or that and the robot still (its speed under STILL); that and it lying (the
+robot's pitch past LAIN); that and it still; at the middle or that. The phase after it, or while a stroke is
+due - more than NEAR short of the middle, STROKES at most, a phase's `:counts` one each - its `:again`. The robot's
+text's rows wait while it plays as its table says (`:holds`). A number no end of its table reads it need not say; one
+an end reads it must (`tables` refuses it). Every branch a select; its arithmetic is wbc_sensed.c's, bit for bit
+(`tools.cores.sensed`, what the robot's loop plays).
 
     move = sensed.move('bed-entry')                                                 # its tables, laid and step
-    state = move.laid(q_deg, t)                                                     # from where it sits
+    state = move.laid(q_deg, t)                                                     # from where the robot sits
     done = move.step(state, cmd, q_deg, t, dt, soles, along, half, pitch, speed)    # cmd (deg) laid over
 """
 import collections
@@ -29,35 +30,39 @@ from machine.body.figure import JOINTS
 from machine.errors import MachineError
 from machine.moves import anatomy
 
-#: What `machine.process.joints` gives a pass beyond its pose: its soles' share of its weight, its pelvis from the
-#: middle of the furniture it is on along its length (m) and that half length (m), its trunk's pitch (deg, forward
-#: +), its pelvis's speed (m/s) - its place and speed as a look takes it.
+#: What `machine.process.joints` gives a pass beyond the robot's pose: its soles' share of its
+#: weight, its pelvis from the middle of the furniture it is on along its length (m) and that half
+#: length (m), the robot's trunk's pitch (deg, forward +), its pelvis's speed (m/s) - its place
+#: and speed as a look takes it.
 SENSED = ('soles', 'along', 'half', 'pitch', 'speed')
-#: The parts it moves, the first SIDED a side each - shoulders, elbows, hips, knees, ankles and their rolls, its
-#: legs' rolls and yaws -, then its spine, waist and neck; each joint of theirs and its part.
+#: The parts it moves, the first SIDED a side each - shoulders, elbows, hips, knees, ankles and their rolls, the
+#: robot's legs' rolls and yaws -, then its spine, waist and neck; each joint of theirs and its part.
 PARTS, SIDED = (
     'shoulder', 'elbow', 'hip', 'knee', 'ankle', 'ankle_roll', 'hip_roll', 'hip_yaw', 'spine', 'waist', 'neck'), 8
 JOINT = np.array([JOINTS.index(side + p) for p in PARTS[:SIDED] for side in ('left_', 'right_')]
                  + [JOINTS.index(p) for p in PARTS[SIDED:]])
 PART = np.repeat(np.arange(len(PARTS)), [2] * SIDED + [1] * (len(PARTS) - SIDED))
-#: How a phase ends: its goals reached; its feet planted or its goals reached; its pelvis pulled in, or its goals
-#: reached and it still; its goals reached and it lying; its goals reached and it still; at the middle or its goals
-#: reached - each the numbers it reads besides a goal's reach (READS). How a part goes (`anatomy`'s): held, to its goal
-#: at its rate, to its goal at its rate but no straighter than it is.
+#: How a phase ends: its goals reached; the robot's feet planted or its goals reached; the robot's pelvis
+#: pulled in, or its goals reached and the robot still; its goals reached and the robot lying; its goals
+#: reached and the robot still; at the middle or its goals reached - each the numbers it reads besides a
+#: goal's reach (READS). How a part goes (`anatomy`'s): held, to its goal at its rate, to its goal at its rate
+#: but no straighter than it is.
 REACHED, FEET, PULLED, LYING, STILLED, MIDDLE = range(6)
 READS = ((), ('plant',), ('pull-in', 'still'), ('lain',), ('still',), ())
 HELD, RATE, LEAST = anatomy.HELD, anatomy.RATE, anatomy.LEAST
 #: How the lisp says a phase ends.
 _ENDED = {':reached': REACHED, ':feet': FEET, ':pulled': PULLED, ':lying': LYING, ':stilled': STILLED,
           ':middle': MIDDLE}
-#: A move's numbers as its lisp names them: its feet's share planted; its pelvis pulled in (m); still under its speed
-#: (m/s); lying past its pitch (deg); a stroke again while this short of the middle (m), at most this many; a goal
-#: reached within this many deg - one no end of its table reads laid 0.
+#: A move's numbers as its lisp names them: the robot's feet's share planted; its pelvis pulled in (m); still
+#: under its speed (m/s); lying past its pitch (deg); a stroke again while this short of the middle
+#: (m), at most this many; a goal reached within this many deg - one no end of its table reads laid 0.
 NUMBERS = ('plant', 'pull-in', 'still', 'lain', 'near', 'strokes', 'tol')
 #: A move's tables (`tables`): each phase's name, how it ends, the next and the next while a stroke is due, whether it
-#: counts a stroke; each part's goal, rate and how it goes; the end; its NUMBERS; whether its text's rows wait.
+#: counts a stroke; each part's goal, rate and how it goes; the end; its NUMBERS; whether the robot's text's rows
+#: wait.
 Tables = collections.namedtuple('Tables', 'names over next again counts goal rates how done numbers holds')
-#: The state's slots: the phase, the strokes, its side of the furniture's middle (0 till its first pass).
+#: The state's slots: the phase, the strokes, the robot's side of the furniture's middle (0 till its first
+#: pass).
 PHASE, COUNT, WAY = 0, 1, 2
 
 
@@ -92,15 +97,15 @@ def tables(name):
 
 
 def laid(tb, q_deg, t):
-    """Move `tb`'s state (its Tables) as it begins, from its pose `q_deg` (deg) at `t` s: its first phase, no stroke,
-    no side yet."""
+    """Move `tb`'s state (its Tables) as it begins, from the robot's pose `q_deg` (deg) at `t` s: its first phase, no
+    stroke, no side yet."""
     return np.zeros(WAY + 1)
 
 
 def step(tb, state, cmd, q_deg, t, dt, soles, along, half, pitch, speed):
-    """A pass of move `tb` (its Tables) `dt` s on: `cmd` (deg, figure.JOINTS) laid over from `state`, its soles' share
-    of its weight, its pelvis along the furniture from its middle and its half length (m), its trunk's pitch (deg) and
-    its speed (m/s) sensed (`SENSED`); 1.0 once at its last phase."""
+    """A pass of move `tb` (its Tables) `dt` s on: `cmd` (deg, figure.JOINTS) laid over from `state`, the robot's
+    soles' share of its weight, its pelvis along the furniture from its middle and its half length
+    (m), the robot's trunk's pitch (deg) and its speed (m/s) sensed (`SENSED`); 1.0 once at its last phase."""
     plant, pull_in, still_at, lain, near, strokes, tol = tb.numbers
     k = int(state[PHASE])
     way = state[WAY] if state[WAY] != 0.0 else (-1.0 if along < 0.0 else 1.0)
@@ -121,8 +126,8 @@ def step(tb, state, cmd, q_deg, t, dt, soles, along, half, pitch, speed):
 
 class Move:
 
-    """Move `name` as its loop plays one (`joints.played`): its senses, whether its text's rows wait while it plays,
-    its tables (`tables`), its `laid` and `step`."""
+    """Move `name` as the robot's loop plays one (`joints.played`): its senses, whether the robot's text's rows wait
+    while it plays, its tables (`tables`), its `laid` and `step`."""
 
     def __init__(self, name):
         self.name, self.tables = name, tables(name)

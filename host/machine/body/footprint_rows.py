@@ -1,11 +1,11 @@
-"""Its body's footprint as static arrays: written by host/tools/cores/footprint.py, not by hand."""
+"""The robot's footprint as static arrays: written by host/tools/cores/footprint.py, not by hand."""
 
-#: Directions about it, K: the k-th at 2 pi k / K from its heading toward its left; its bands
-#: BAND_M m apart over the floor; its turns in place, deg.
+#: Directions about the robot, K: the k-th at 2 pi k / K from its heading toward its left; its bands
+#: BAND_M m apart over the floor; the robot's turns in place, deg.
 K, BAND_M, TURN_DEG = 32, 0.1, (45, 90, 135, 180)
-#: The least its swinging soles clear the floor at a swing's top over its steady walk, m.
+#: The least the robot's swinging soles clear the floor at a swing's top over its steady walk, m.
 STEP_M = 0.0486
-#: Standing: each band from the floor up, its reach about its pelvis along each direction, m.
+#: Standing: each band from the floor up, the robot's reach about its pelvis along each direction, m.
 STAND = (
     (0.152, 0.1765, 0.1941, 0.2044, 0.2067, 0.2012, 0.1878, 0.1673, 0.1405, 0.155, 0.1636, 0.1658, 0.1617, 0.1514, 0.1353, 0.114, 0.0883, 0.1138, 0.1349, 0.1509, 0.1611, 0.165, 0.1627, 0.1541, 0.1396, 0.1666, 0.1872, 0.2005, 0.2062, 0.204, 0.1939, 0.1763),
     (0.0504, 0.0689, 0.0867, 0.1032, 0.1176, 0.1293, 0.1381, 0.1434, 0.1454, 0.1477, 0.1462, 0.141, 0.1323, 0.1204, 0.1059, 0.0892, 0.071, 0.089, 0.1056, 0.12, 0.1317, 0.1403, 0.1454, 0.1469, 0.1448, 0.1431, 0.1377, 0.129, 0.1173, 0.103, 0.0867, 0.0689),
@@ -25,7 +25,7 @@ STAND = (
     (0.1196, 0.1189, 0.1169, 0.1137, 0.1094, 0.1041, 0.0981, 0.0916, 0.0849, 0.0786, 0.0725, 0.067, 0.0621, 0.0581, 0.0551, 0.0532, 0.0526, 0.0533, 0.0551, 0.0581, 0.0622, 0.0671, 0.0727, 0.0788, 0.0851, 0.0918, 0.0983, 0.1043, 0.1095, 0.1138, 0.117, 0.1189),
     (0.1196, 0.1189, 0.1169, 0.1137, 0.1094, 0.1041, 0.0981, 0.0916, 0.0849, 0.0786, 0.0725, 0.067, 0.0621, 0.0581, 0.0551, 0.0532, 0.0526, 0.0533, 0.0551, 0.0581, 0.0622, 0.0671, 0.0727, 0.0788, 0.0851, 0.0918, 0.0983, 0.1043, 0.1095, 0.1138, 0.117, 0.1189),
 )
-#: Walking and its stop: each band from the floor up, its reach about its pelvis along each direction, m.
+#: Walking and its stop: each band from the floor up, the robot's reach about its pelvis along each direction, m.
 WALK = (
     (0.3149, 0.3295, 0.3339, 0.3255, 0.3046, 0.272, 0.229, 0.1849, 0.1595, 0.2129, 0.2795, 0.3354, 0.3785, 0.4072, 0.4202, 0.4409, 0.4593, 0.4715, 0.4718, 0.454, 0.4195, 0.3688, 0.3042, 0.2397, 0.2068, 0.2055, 0.2355, 0.276, 0.3061, 0.3244, 0.3313, 0.3291),
     (0.2493, 0.2592, 0.2647, 0.2634, 0.252, 0.2309, 0.2028, 0.1716, 0.1607, 0.2129, 0.2795, 0.3354, 0.3785, 0.4072, 0.4202, 0.4409, 0.4593, 0.4715, 0.4718, 0.454, 0.4195, 0.3688, 0.3042, 0.2348, 0.2035, 0.1926, 0.2092, 0.2384, 0.2585, 0.2686, 0.2684, 0.2627),
@@ -45,7 +45,7 @@ WALK = (
     (0.2011, 0.1966, 0.1878, 0.1752, 0.1592, 0.1404, 0.1202, 0.1006, 0.0934, 0.0894, 0.0854, 0.0815, 0.0777, 0.0743, 0.0714, 0.069, 0.0672, 0.0662, 0.066, 0.0666, 0.0692, 0.074, 0.08, 0.0866, 0.0971, 0.1192, 0.1403, 0.1592, 0.1752, 0.1879, 0.1966, 0.2011),
     (0.2011, 0.1966, 0.1878, 0.1752, 0.1592, 0.1404, 0.1202, 0.1006, 0.0934, 0.0894, 0.0854, 0.0815, 0.0777, 0.0743, 0.0714, 0.069, 0.0672, 0.0662, 0.066, 0.0666, 0.0692, 0.074, 0.08, 0.0866, 0.0971, 0.1192, 0.1403, 0.1592, 0.1752, 0.1879, 0.1966, 0.2011),
 )
-#: Its walk back and its stop: each band from the floor up, its reach about its pelvis along each direction, m.
+#: Walking back and its stop: each band from the floor up, the robot's reach about its pelvis along each direction, m.
 BACK = (
     (0.26, 0.2791, 0.2876, 0.2849, 0.2713, 0.263, 0.2551, 0.2375, 0.2108, 0.2205, 0.2234, 0.2178, 0.2038, 0.182, 0.154, 0.1335, 0.1192, 0.1354, 0.1466, 0.1562, 0.169, 0.1754, 0.175, 0.1679, 0.1544, 0.1812, 0.2011, 0.2294, 0.251, 0.263, 0.2649, 0.2566),
     (0.2028, 0.2165, 0.2274, 0.2308, 0.2252, 0.211, 0.1896, 0.1972, 0.2018, 0.2005, 0.1935, 0.181, 0.1635, 0.142, 0.1173, 0.1012, 0.0925, 0.1027, 0.1108, 0.1238, 0.1377, 0.1483, 0.1552, 0.1581, 0.1569, 0.1574, 0.1797, 0.1969, 0.2085, 0.2139, 0.2131, 0.2061),
@@ -65,7 +65,7 @@ BACK = (
     (0.1199, 0.1194, 0.1176, 0.1163, 0.1154, 0.1143, 0.112, 0.1088, 0.1046, 0.0997, 0.0963, 0.0925, 0.0884, 0.0843, 0.0803, 0.0767, 0.0735, 0.0707, 0.0685, 0.0669, 0.0702, 0.0745, 0.0795, 0.0848, 0.0902, 0.0953, 0.1, 0.1055, 0.1105, 0.1145, 0.1174, 0.1191),
     (0.1199, 0.1194, 0.1176, 0.1163, 0.1154, 0.1143, 0.112, 0.1088, 0.1046, 0.0997, 0.0963, 0.0925, 0.0884, 0.0843, 0.0803, 0.0767, 0.0735, 0.0707, 0.0685, 0.0669, 0.0702, 0.0745, 0.0795, 0.0848, 0.0902, 0.0953, 0.1, 0.1055, 0.1105, 0.1145, 0.1174, 0.1191),
 )
-#: Its sidesteps either way and their stops: each band from the floor up, its reach about its pelvis along each direction, m.
+#: Sidesteps either way and their stops: each band from the floor up, the robot's reach about its pelvis along each direction, m.
 SIDE = (
     (0.1999, 0.2273, 0.2693, 0.301, 0.3212, 0.3289, 0.3241, 0.3068, 0.2777, 0.2818, 0.29, 0.2875, 0.2739, 0.25, 0.2178, 0.178, 0.1313, 0.1839, 0.2693, 0.3448, 0.4071, 0.4538, 0.483, 0.4936, 0.4871, 0.5064, 0.5061, 0.4864, 0.448, 0.3932, 0.3235, 0.2452),
     (0.1843, 0.2112, 0.2328, 0.2486, 0.258, 0.2603, 0.2575, 0.2614, 0.2571, 0.2536, 0.2527, 0.2435, 0.2264, 0.2023, 0.1728, 0.1387, 0.1011, 0.1418, 0.216, 0.2838, 0.342, 0.3884, 0.4214, 0.4395, 0.4421, 0.429, 0.4009, 0.3588, 0.3049, 0.2493, 0.2174, 0.1924),
@@ -85,7 +85,7 @@ SIDE = (
     (0.1302, 0.1294, 0.1334, 0.1368, 0.1382, 0.1375, 0.1348, 0.1302, 0.1238, 0.116, 0.107, 0.098, 0.0904, 0.0826, 0.0752, 0.0682, 0.0676, 0.068, 0.0705, 0.0809, 0.0915, 0.1019, 0.1115, 0.1202, 0.1275, 0.1332, 0.137, 0.1389, 0.1387, 0.1371, 0.1337, 0.1301),
     (0.1302, 0.1294, 0.1334, 0.1368, 0.1382, 0.1375, 0.1348, 0.1302, 0.1238, 0.116, 0.107, 0.098, 0.0904, 0.0826, 0.0752, 0.0682, 0.0676, 0.068, 0.0691, 0.0709, 0.0732, 0.0762, 0.0824, 0.0887, 0.0949, 0.1014, 0.1081, 0.114, 0.1198, 0.1247, 0.1282, 0.1301),
 )
-#: A turn in place to its left by each of TURN_DEG and its settling: each band, its reach about its
+#: A turn in place to the robot's left by each of TURN_DEG and its settling: each band, the robot's reach about its
 #: pelvis's place and heading as it began, m.
 LEFT = (
     (
@@ -167,7 +167,7 @@ CARRY_LEFT = ((0.006, -0.0946), (0.0371, -0.1441), (0.1559, -0.1246), (0.2164, -
 SPREAD_LEFT = (0.0522, 0.0507, 0.049, 0.0471)
 #: The most seconds each took from its word to still.
 TOOK_LEFT = (3.38, 4.89, 6.44, 7.95)
-#: A turn in place to its right by each of TURN_DEG and its settling: each band, its reach about its
+#: A turn in place to the robot's right by each of TURN_DEG and its settling: each band, the robot's reach about its
 #: pelvis's place and heading as it began, m.
 RIGHT = (
     (

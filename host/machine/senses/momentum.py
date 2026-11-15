@@ -1,10 +1,11 @@
-"""Its momentum observer laid in C once on its law's body: its points, pushes, stops and capsules.
+"""The robot's momentum observer laid in C once on its law's body: points, pushes, stops and capsules.
 
     obs = momentum.laid(body)       # `observer.laid`: the observer at rest, its outputs viewed
 
-What `machine.senses.observer` splits its external force over, laid in wbc_gmo.c's struct at its law's laying: each
-of its registry's points on its link with its pushes' edges, its joints' stops, its capsules and the pairs of them
-MuJoCo collides, each manifold's shares; its forefeet compiled from their numpy (`tools.cores.bodied`).
+What `machine.senses.observer` splits the robot's external force over, laid in wbc_gmo.c's struct at the robot's
+law's laying: each of its registry's points on its link with its pushes' edges, the robot's joints' stops,
+the robot's capsules and the pairs of them MuJoCo collides, each manifold's shares; its forefeet compiled
+from their numpy (`tools.cores.bodied`).
 """
 import math
 import os
@@ -20,16 +21,17 @@ from tools.cores.model import rotation
 
 
 def _link(seg):
-    """A segment's link in its chain (wbc_model.h): its last joint's, the pelvis the root."""
+    """A segment's link in the robot's chain (wbc_model.h): its last joint's, the pelvis the root."""
     from machine.body.figure import SEGMENTS
     joints = next(j for name, _p, j, *_r in SEGMENTS if name == seg)
     return joints[-1][0] if joints else 'root'
 
 
 def _capsules(m):
-    """(its capsules, each (segment, radius, its axis's ends in its frame), the pairs of them MuJoCo collides) of
-    its model `m`'s colliding geoms: a sphere a capsule of no length, a box one along its longest side as thick as
-    its thinnest; a pair on two bodies not welded, not parent and child, not excluded, their bits meeting."""
+    """(the robot's capsules, each (segment, radius, its axis's ends in its frame), the pairs of them MuJoCo
+    collides) of the robot's model `m`'s colliding geoms: a sphere a capsule of no length, a box one along its
+    longest side as thick as its thinnest; a pair on two bodies not welded, not parent and child, not excluded,
+    their bits meeting."""
     from machine.body.figure import SEGMENTS
     segs, kinds = {s[0] for s in SEGMENTS}, m.geom_type
     geoms = [g for g in range(m.ngeom) if m.body(m.geom_bodyid[g]).name in segs and kinds[g] in _AXES]
@@ -56,9 +58,10 @@ _AXES = {2: lambda s: (s[0], 2, 0.0), 3: lambda s: (s[0], 2, s[1]), 5: lambda s:
 
 
 def laid(body):
-    """The observer at rest on its law's `body` (`wbc.Body`), in C (wbc_gmo.c): its points, shares, its
-    joints' stops, its capsules and its drives' friction laid, its sums empty; its outputs viewed (`r`,
-    `f`, `normal`); its forefeet compiled from their numpy (`tools.cores.bodied`)."""
+    """The observer at rest on the robot's law's `body` (`wbc.Body`), in C (wbc_gmo.c): its points, shares,
+    the robot's joints' stops, its capsules and its drives' friction laid, its sums empty; its
+    outputs viewed (`r`, `f`, `normal`); the robot's forefeet compiled from their numpy
+    (`tools.cores.bodied`)."""
     import ctypes
     from machine.senses import observer as ob
     from tools.cores import bodied, gmo, wbc as cores

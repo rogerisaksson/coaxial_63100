@@ -209,7 +209,7 @@ class CtrlOp(IntEnum):
 
 
 class WbcOp(IntEnum):
-    """Device 13, the whole-body loop on its stand - `coaxial.devices.wbc`."""
+    """Device 13, the whole-body loop on the robot's stand - `coaxial.devices.wbc`."""
     TICK = 0
     STEP = 1
     SWUNG = 2
@@ -385,7 +385,7 @@ PART_STATES = {
     0: 'not probed', 1: 'ready', 2: 'unpowered', 3: 'silent',
 }
 """What the board can say about a fitted part without judging it. 'not
-probed' is what nothing on the board can prove either way - invariant 10."""
+probed' is what nothing on the board can prove either way."""
 
 NAMES = {
     VERSION: 'version', ADC_TABLE: 'adc_table', ADC_SCAN: 'adc_scan',

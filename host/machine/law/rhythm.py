@@ -2,8 +2,9 @@
 
     rhythm.modulated(st, out, held, prior, state, tw_on, vx, vy, wz, vxp)    # st, out and state in place
 
-Its twist's step (`se2.twisted`) modulates its rhythm so. Its rhythm's numbers are its build's (`[gait.rhythm]`, Froude-similar on another leg, `machine.body.gait`),
-laid in NAMES's order in its step's C twin (wbc_twist_t, wbc_twist.c).
+The robot's twist's step (`se2.twisted`) modulates its rhythm so. The robot's rhythm's numbers are its build's
+(`[gait.rhythm]`, Froude-similar on another leg, `machine.body.gait`), laid in NAMES's order in its step's C
+twin (wbc_twist_t, wbc_twist.c).
 """
 import math
 
@@ -20,9 +21,9 @@ R = gait.table('rhythm')
 
 
 def modulated(st, out, held, prior, state, tw_on, vx, vy, wz, vxp):
-    """Its gait's rhythm, drive, turn and arms under the twist told (`vx`, `vy`, `wz`; `vxp` its own
-    speed along), `tw_on` while one is: its latent `st` and its `out`, its twist's `state`, its soles'
-    grip `held` and its `prior` of it."""
+    """The robot's gait's rhythm, drive, turn and arms under the twist told (`vx`, `vy`, `wz`; `vxp` the
+    robot's own speed along), `tw_on` while one is: its latent `st` and its `out`, the robot's twist's
+    `state`, its soles' grip `held` and its `prior` of it."""
     from machine.law import latent, modal, se2
     r = R
     gain = float(st[latent.NOW][latent.GAIN])
@@ -47,9 +48,9 @@ def modulated(st, out, held, prior, state, tw_on, vx, vy, wz, vxp):
     bt_d, w = float(st[latent.THETA] + st[latent.NOW][latent.PHASE][modal.DRIVE]), float(out[latent.TURNS])
     w_vxp = min(1.0, max(0.0, (abs(vxp) - r['spin_fast_m_s']) / r['spin_fast_edge_m_s']))
     drv = g_sw * ((1.0 - w_vxp) * r['spin_drive'] + w_vxp * max(r['spin_drive'], r['spin_drive_s_m'] * (abs(vxp) - r['spin_drive_from_m_s'])))
-    # told on slower than its walk, past the spot's stillness, its stride is its speed's share of its walk's at its
-    # cadence, its drive's sway cut so: kept, told 0.2-0.5 m/s it walked 0.68-0.73 and turned 1.41 m round - its
-    # arc is its speed over its turn
+    # told on slower than the robot's walk, past the spot's stillness, its stride is its speed's share of its
+    # walk's at its cadence, its drive's sway cut so: kept, told 0.2-0.5 m/s it walked 0.68-0.73 and turned 1.41 m
+    # round - its arc is its speed over its turn
     w_short = w_on * (1.0 - min(1.0, max(0.0, (r['spin_still_m_s'] - vx) / r['edge_m_s']))) * max(0.0, 1.0 - vx / se2.WALK_SPEED)
     sw = float(out[latent.SWAY][modal.DRIVE])
     out[latent.REF][modal.DRIVE] -= w_short * sw * math.sin(bt_d)

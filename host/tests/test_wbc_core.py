@@ -1,9 +1,8 @@
-"""Its chain and the loop on the static model (wbc/) against MuJoCo and the python stack.
+"""The robot's chain and the loop on the static model (wbc/) against MuJoCo and the python stack.
 
 The arrays as the figure compiles; the core's poses, Jacobians, mass matrix and bias at random
-configurations; the loop's torques standing against `machine.stack.wbc.step`'s; its latent step,
-coupling and ask against its python's; its stand and a shove in MuJoCo on the loop; a step's
-and a tick's time on this host."""
+configurations; the loop's torques standing against `machine.stack.wbc.step`'s; the robot's latent step,
+coupling and ask against its python's; its stand and a shove in MuJoCo on the loop."""
 import ctypes
 import os
 import sys
@@ -28,7 +27,7 @@ POSES, APART = 40, 1e-9
 #: loads (N) may sit from `machine.stack.wrench`'s: both solve the same normal equations, two soles
 #: standing leave what they share between them to 1e-7 of the largest curvature.
 STEPS, STEP_APART = 12, 5e-3
-#: Its walk from rest for the striding step, s: it sets out at 5 and strides from there.
+#: The walk from rest for the striding step, s: it sets out at 5 and strides from there.
 WALK_S = 9.0
 
 #: Links whose Jacobians are compared, at the soles' corners, their middles and the origins.
@@ -107,7 +106,7 @@ def test_the_bias_is_mujocos(report, c, b, rows):
 
 
 def test_the_centre_of_mass_is_mujocos(report, c, b, rows):
-    """Its centre of mass and its Jacobian, the angular momentum about it, a point's drift
+    """The centre of mass and its Jacobian, the angular momentum about it, a point's drift
     J-dot u (the world's, J_mujoco-dot v + J_mujoco dT u) on the soles and the trunk."""
     import numpy as np
     rng, apart = np.random.default_rng(17), {'centre': 0.0, 'Jacobian': 0.0, 'momentum': 0.0,
@@ -141,7 +140,7 @@ def test_the_centre_of_mass_is_mujocos(report, c, b, rows):
 
 
 def test_the_jacobians_are_mujocos(report, c, b, rows):
-    """Points on the soles, the wrists, the head and the pelvis: where they are and their
+    """Points on the soles, wrists, head and pelvis: where they are and their
     Jacobians over u, the world's rows w then v."""
     import numpy as np
     rng, worst, placed = np.random.default_rng(11), 0.0, 0.0
@@ -175,7 +174,7 @@ def test_a_step_on_this_host(report, c, b, rows):
 
 
 def _standing(b):
-    """Its stand's state in `b` and the ask that keeps it: both soles, no acceleration, the
+    """The stand's state in `b` and the ask that keeps it: both soles, no acceleration, the
     turns and the posture as they are."""
     import numpy as np
     from machine.body import figure
@@ -195,7 +194,7 @@ def _standing(b):
 
 def test_the_ortho_row_is_the_wires(report, c, b, rows):
     """`ortho_row_t` (wbc/inc/wbc_ortho.h) is `machine.texts.ortho.ROW` and `machine.law.latent.WIRE` on
-    the wire: 252 bytes, and every compiled row of its text unpacks identically in C."""
+    the wire: 252 bytes, and every compiled row of the text unpacks identically in C."""
     import numpy as np
     from machine.law import latent
     from machine.texts import ortho
@@ -222,7 +221,7 @@ def test_the_ortho_row_is_the_wires(report, c, b, rows):
 
 
 def test_the_step_in_c_is_the_steps(report, c, b, rows):
-    """wbc_wrench.c beside `machine.stack.wrench.step` on its stand's pose under random velocities:
+    """wbc_wrench.c beside `machine.stack.wrench.step` on the stand's pose under random velocities:
     both soles standing, one with the other swung and its knee folded (still and striding),
     neither - the torques, every acceleration and the soles' loads; a tick's microseconds here."""
     import numpy as np
@@ -268,7 +267,7 @@ def test_the_step_in_c_is_the_steps(report, c, b, rows):
 
 
 def test_the_step_in_c_strides_as_the_steps(report, c, b, rows):
-    """wbc_wrench.c beside `machine.stack.wrench.step` at every solve of its walk from rest, WALK_S s
+    """wbc_wrench.c beside `machine.stack.wrench.step` at every solve of the walk from rest, WALK_S s
     on the python step: striding, by its standing soles - one, the rows' own answer; two, as
     far apart as what the two share between them is free."""
     import numpy as np
@@ -283,8 +282,8 @@ def test_the_step_in_c_strides_as_the_steps(report, c, b, rows):
         soles = sum(bool(k) for k in ask['stance']) * (float(ask.get('strides', 0.0)) > 0.0)
         if soles:
             # on two soles the drives' torques carry the force the soles share between them, free
-            # in both: judged by what it moves - its accelerations and its soles' loads. Standing
-            # on both with nothing pinned a stride began, the torques 2.2e-2 N m apart, the
+            # in both: judged by what it moves - the robot's accelerations and its soles' loads.
+            # Standing on both with nothing pinned a stride began, the torques 2.2e-2 N m apart, the
             # accelerations 3.6e-3 rad/s^2
             count[soles] += 1
             worst[soles] = max(worst[soles], float(np.abs(ours['tau'] - theirs['tau']).max()) if soles == 1 else 0.0,
@@ -303,10 +302,10 @@ def test_the_step_in_c_strides_as_the_steps(report, c, b, rows):
                  '%.1e rad/s^2 or N apart at most over %d solves' % (worst[2], count[2]))
 
 
-def test_its_law_in_c_is_its_python_s(report, c, b, rows):
+def test_the_robots_law_in_c_is_its_python_s(report, c, b, rows):
     """wbc_law.c, wbc_imp.c and wbc_step.c (`tools.cores.motion`) beside `latent.step`,
-    `support.couple`, `impedance.ask` and `wrench.step` at every pass of its motion over a player's
-    moves - a walk, turns, a strafe, back, a sprint, a stop -, a sit on a chair and up, and its walk
+    `support.couple`, `impedance.ask` and `wrench.step` at every pass of the motion over a player's
+    moves - a walk, turns, a strafe, back, a sprint, a stop -, a sit on a chair and up, and the walk
     ducked and narrowed by a row: every field the same, bit for bit."""
     import numpy as np
     from machine.law import impedance, latent, modal, support
@@ -372,10 +371,10 @@ def test_its_law_in_c_is_its_python_s(report, c, b, rows):
     for name in ('latent step', 'coupling', 'ask', 'whole-body step'):
         n, bad, apart = tally.get(name, (0, 0, 0))
         if exact:
-            report.check("it %s in C is its python's bit for bit" % name, n > 5000 and not bad,
+            report.check("the robot's %s in C is its python's bit for bit" % name, n > 5000 and not bad,
                          '%d of %d differ, %d past 1e-9 (%s)' % (bad, n, apart, host))
         else:
-            report.check("it %s in C is its python's within its last bits where numpy dispatches elsewhere" % name,
+            report.check("the robot's %s in C is its python's within its last bits where numpy dispatches elsewhere" % name,
                          n > 5000 and apart <= 0.01 * n, '%d of %d past 1e-9, %d not bit for bit (%s)' % (apart, n, bad, host))
 
 
@@ -401,7 +400,7 @@ def test_the_loop_stands_as_the_python_stack(report, c, b, rows):
     report.check('a tick of the loop on this host', us < 5000.0, '%.0f us' % us)
 
 
-def test_it_stands_on_the_loop(report, c, b, rows):
+def test_the_robot_stands_on_the_loop(report, c, b, rows):
     """In MuJoCo on the loop's torques: standing 3 s, shoved 38 N from behind."""
     from tools.sim import wbc as sim
     out = sim.stand(seconds=3.0, core=True)
@@ -409,7 +408,7 @@ def test_it_stands_on_the_loop(report, c, b, rows):
                  'tilt %.1f deg, drift %.0f mm, %d us a pass' % (out['tilt'], out['drift_mm'],
                                                                  out['us']))
     out = sim.stand(38.0, 90.0, core=True)
-    report.check('shoved 38 N from behind it stands', out['stood'], 'tilt %.1f deg' % out['tilt'])
+    report.check('shoved 38 N from behind the robot stands', out['stood'], 'tilt %.1f deg' % out['tilt'])
 
 
 ROSTER = (test_the_arrays_are_the_figures, test_the_ortho_row_is_the_wires,
@@ -417,8 +416,8 @@ ROSTER = (test_the_arrays_are_the_figures, test_the_ortho_row_is_the_wires,
           test_the_bias_is_mujocos, test_the_jacobians_are_mujocos,
           test_the_centre_of_mass_is_mujocos, test_a_step_on_this_host,
           test_the_step_in_c_is_the_steps, test_the_step_in_c_strides_as_the_steps,
-          test_its_law_in_c_is_its_python_s, test_the_loop_stands_as_the_python_stack,
-          test_it_stands_on_the_loop)
+          test_the_robots_law_in_c_is_its_python_s, test_the_loop_stands_as_the_python_stack,
+          test_the_robot_stands_on_the_loop)
 
 
 def main(argv=None):

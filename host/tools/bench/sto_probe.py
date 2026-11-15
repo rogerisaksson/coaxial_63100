@@ -14,7 +14,7 @@ board sets from its own thresholds. Run it with the tone absent, then
 present, then with the circuit changed, and read the columns against the
 scope.
 
-Nothing here judges: invariant 10. The `want` column is what
+Nothing here judges. The `want` column is what
 `GateStage.interlock()` asks for, printed beside the reading so the
 operator sees both; the `ok` columns are the board's flags, not this
 tool's opinion.

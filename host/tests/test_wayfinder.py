@@ -1,17 +1,18 @@
-"""Its wayfinder and its map (docs/todo/protocol.md): a gap's width across its way, what its looks told it.
+"""The robot's wayfinder and its map (docs/todo/protocol.md): a gap's width across its way, what its looks told it.
 
-The gauge's width through a doorway and the trunk's twist that fits it through it; its registry's slots
-by its looks, in and out of its eyes' frustum."""
+The gauge's width through a doorway and the trunk's twist that fits the robot through it; the robot's
+registry's slots by its looks, in and out of its eyes' frustum."""
 import sys
 
 from tools.dev.focus import chosen
 from gynoid_kit import Report
 
 
-def test_the_wayfinder_gauges_its_way(report):
-    """The wayfinder's gauge (`machine.way.wayfinder`): the free width across its way through a doorway and
-    inside its post; the trunk's twist that fits it through a gap - none square on, past twice
-    atan(depth / across) under its shoulders, the text's most past its contorted width."""
+def test_the_wayfinder_gauges_the_robots_way(report):
+    """The wayfinder's gauge (`machine.way.wayfinder`): the free width across the robot's way through a
+    doorway and inside its post; the trunk's twist that fits the robot through a gap - none square on, past
+    twice atan(depth / across) under its shoulders, the text's most past its contorted
+    width."""
     import math
     import numpy as np
     from machine.way import wayfinder as w
@@ -47,13 +48,14 @@ def test_the_wayfinder_gauges_its_way(report):
                  off == 0 and counts == {0: 0, 1: 1, 3: 4, 5: 8, 12: 16, 64: 64, 65: 128, 107: 128}, '%d gaps off' % off)
 
 
-def test_its_map_keeps_what_its_looks_told(report):
-    """Its registry (`machine.eyes.registry`): three things before its looked at thrice confirmed, none behind
-    it; a chair shoved at 1 m/s under the stand-in's looks (8 ms apart) kept one slot, moving once its
-    drift passes the text's chi2, its velocity within 5 %; a pane 1.1 m from its twin never takes its
-    slot; a thing before its unseen pruned at the text's rate, its head aside; the lamp out of its view
-    kept 45 s, swollen 1.5 mm/s to 120 mm, missed past them; 256 kinds in one look, a 257th takes the least
-    salient's slot, not the thrice-seen one's; its buses' boxes the slots at 1.8."""
+def test_the_robots_map_keeps_what_its_looks_told(report):
+    """The robot's registry (`machine.eyes.registry`): three things before its looked at thrice
+    confirmed, none behind it; a chair shoved at 1 m/s under the stand-in's looks (8 ms apart) kept one
+    slot, moving once its drift passes the text's chi2, its velocity within 5 %; a pane 1.1 m from its twin
+    never takes its slot; a thing before the robot's unseen pruned at the text's rate, its head aside;
+    the lamp out of its view kept 45 s, swollen 1.5 mm/s to 120 mm, missed past them; 256 kinds in one
+    look, a 257th takes the least salient's slot, not the thrice-seen one's; its buses' boxes the
+    slots at 1.8."""
     import math
     import numpy as np
     from machine.eyes import registry
@@ -77,7 +79,7 @@ def test_its_map_keeps_what_its_looks_told(report):
     panes = registry.laid()
     registry.seen(panes, [('glass', (0.0, 1.2, 3.0), (0.01, 1.0, 0.5), eye)], head, 0.0)
     registry.seen(panes, [('glass', (1.1, 1.2, 3.0), (0.01, 1.0, 0.5), eye)], head, 0.1)
-    report.check("three things before its thrice looked at: salience %.2f each, confirmed, the bed behind its none; the "
+    report.check("three things before the robot's thrice looked at: salience %.2f each, confirmed, the bed behind its none; the "
                  "chair shoved at 1 m/s one slot, moving from its %s. look at %.2f m/s; a pane's twin 1.1 m off its own slot"
                  % (first[0], flagged, speed),
                  first == [3 * registry.HIT] * 3 and all(v >= registry.CONFIRM for v in first) and int(r['on'].sum()) == 3
@@ -96,7 +98,7 @@ def test_its_map_keeps_what_its_looks_told(report):
     swell_kept, sal_kept = float(r['swell'][2]), float(r['salience'][2])
     registry.seen(slots, [], turned, t + registry.KEPT_S + 1.0)
     registry.passed(slots, turned, 100.0)
-    report.check('the table unseen before its pruned after %d looks from %.2f, its head aside; the lamp out of view kept at '
+    report.check('the table unseen before the robot\'s pruned after %d looks from %.2f, its head aside; the lamp out of view kept at '
                  '%.2f, swollen %.1f mm after 45 s, then missed once, %.0f mm at most'
                  % (looks, had, sal_kept, 1e3 * swell_kept, 1e3 * float(r['swell'][2])),
                  looks == math.ceil((had - registry.PRUNE) / -registry.MISS)
@@ -115,12 +117,12 @@ def test_its_map_keeps_what_its_looks_told(report):
                  and len(taken) == 1 and taken[0][0] == 'thing0' and tuple(taken[0][1]) == at, str(full['kinds'][:3]))
 
 
-def test_its_wayfinder_apart(report):
-    """Its wayfinder apart (`machine.way.planner`): the lodge's chair docked by its planner's process at once,
-    as answered here, its way to it watched LATENCY_S on, none before; what affords a verb kept of its own and of things
-    given it each (`furniture._afforded`); a table top it goes to opened to its reach ahead
-    before its face, behind it its reach across (`:affordance-aperture`); the text's clothoid its
-    arc's, its rate its arc over a step (smooth_interactive_wayfinder.lisp as fitted)."""
+def test_the_robots_wayfinder_apart(report):
+    """The robot's wayfinder apart (`machine.way.planner`): the lodge's chair docked by its planner's process at
+    once, as answered here, its way to it watched LATENCY_S on, none before; what affords a verb kept of the
+    robot's own and of things given it each (`furniture._afforded`); a table top it goes to opened to the
+    robot's reach ahead before its face, behind it the robot's reach across (`:affordance-aperture`); the text's
+    clothoid its arc's, its rate the robot's arc over a step (smooth_interactive_wayfinder.lisp as fitted)."""
     import math
     import numpy as np
     from machine.way import furniture, obstacles, planner, route
@@ -135,21 +137,23 @@ def test_its_wayfinder_apart(report):
         worker.stepped(s)
     floor = min(float(f['sole'][1]) for f in g['s']['feet'])
     box = furniture.nearest(g, 'sit_chair')[6]
-    # its errand's look asks of its own and of things given it each pass (`words._seen`, `words._glimpsed`): each kept
+    # the robot's errand's look asks of its own and of things given it each pass (`words._seen`,
+    # `words._glimpsed`): each kept
     given, anew = list(g['things']), furniture._afforded({'things': g['things']}, 'sit_chair')
-    its_own, theirs = furniture._afforded(g, 'sit_chair'), furniture._afforded(g, 'sit_chair', given)
+    robot_own, theirs = furniture._afforded(g, 'sit_chair'), furniture._afforded(g, 'sit_chair', given)
     kept = furniture._afforded(g, 'sit_chair') + furniture._afforded(g, 'sit_chair', given)
     alike = lambda a, b: len(a) == len(b) and all(p is q and own == mine for (p, own), (q, mine) in zip(a, b))
-    report.check('what affords its sitting told of its own and of things given it, each kept: neither anew for the other',
-                 all(a is b for a, b in zip(kept, its_own + theirs)) and bool(anew[1])
-                 and alike(its_own[1], anew[1]) and alike(theirs[1], anew[1]), '%d afford it' % len(anew[1]))
+    report.check('what affords the robot\'s sitting told of its own and of things given it, each kept: neither anew for the other',
+                 all(a is b for a, b in zip(kept, robot_own + theirs)) and bool(anew[1])
+                 and alike(robot_own[1], anew[1]) and alike(theirs[1], anew[1]), '%d afford it' % len(anew[1]))
     ask = {'kind': 'dock', 'at': (0.0, 0.0), 'yaw': 0.0, 'still': True, 'things': list(g['things']), 'floor': floor,
            'seen': None, 'slot': int(box[4]) if box is not None else -1, 'face': None, 'to': None, 'warm': (),
            'dock': ('sit_chair', box, maneuver.standoff('sit_chair')), 'passed': 0.0, 'way': ()}
     here: dict = planner.answered(ask)
     laid = here.get('laid') or {}
     told = early = watched = None
-    # no dock laid, no way to watch: a watch of none killed its planner's process and the suite with it
+    # no dock laid, no way to watch: a watch of none killed the robot's planner's process and the suite with
+    # it
     if 'stage' in laid:
         watch = dict(ask, kind='watch', to=laid['stage'], face=laid['face'], way=[(0.0, 0.0), laid['stage']])
         p = planner.Planner()
@@ -169,17 +173,17 @@ def test_its_wayfinder_apart(report):
     report.check('the top before its face blocked 0.30 m out, free 0.36 (0.38 plain); behind it blocked both',
                  list(plain) == [True, True, True, True] and list(opened) == [True, False, True, True], '%s %s' % (plain, opened))
     c = obstacles.laws()['clothoid']
-    report.check('the clothoid within its arc (%.2f /m), its rate its arc over a step (%.2f /m s)' % (c['kappa-max'], c['dkappa-max']),
+    report.check('the clothoid within the robot\'s arc (%.2f /m), its rate the robot\'s arc over a step (%.2f /m s)' % (c['kappa-max'], c['dkappa-max']),
                  math.isclose(c['kappa-max'], 1.0 / route.ARC_M, abs_tol=0.01)
                  and math.isclose(c['dkappa-max'], 1.0 / route.ARC_M / (0.5 * se2.BRAKE_S), abs_tol=0.01), str(c))
 
 
-def test_its_gaps_as_numpys_einsums(report):
-    """Its gaps to its things (`footprint.gaps`, its sums over pairs written out, its things' arrays laid once a list)
-    and its floor's distances to them (`obstacles.apart`, the same) as numpy's einsums give them (`footprint.gaps_twin`,
-    `obstacles.apart_twin`), bit for bit at every read its planner makes docking at the lodge's chair, its bed and its
-    door; each box's top clear under the lodge's seat and bed slabs read of all at once (`affordance.Boxes`) as one by
-    one."""
+def test_the_robots_gaps_as_numpys_einsums(report):
+    """The robot's gaps to its things (`footprint.gaps`, its sums over pairs written out, the robot's things'
+    arrays laid once a list) and its floor's distances to them (`obstacles.apart`, the same) as numpy's einsums
+    give them (`footprint.gaps_twin`, `obstacles.apart_twin`), bit for bit at every read its planner makes
+    docking at the lodge's chair, its bed and its door; each box's top clear under the lodge's seat and bed slabs read
+    of all at once (`affordance.Boxes`) as one by one."""
     import numpy as np
     from machine.body import footprint
     from machine.way import affordance, furniture, obstacles, planner
@@ -232,7 +236,7 @@ def test_its_gaps_as_numpys_einsums(report):
     finally:
         footprint.gaps, obstacles.apart = real, real_apart
         physics.ROOM, physics.SIGHT = was
-    report.check('its gaps and its floor\'s distances as numpy\'s einsums docking at the chair, the bed and the door: '
+    report.check('its gaps and the robot\'s floor\'s distances as numpy\'s einsums docking at the chair, the bed and the door: '
                  '%(calls)d reads, %(cells)d gaps, %(costs)d floors; %(clears)d tops clear at once' % tally,
                  tally['calls'] > 100 and tally['costs'] > 5 and tally['clears'] > 100 and not tally['apart'],
                  '%(apart)d apart' % tally)
@@ -241,7 +245,7 @@ def test_its_gaps_as_numpys_einsums(report):
 def test_the_planner_and_errand_rows_do_not_toggle(report):
     """`route.planned` within `passed` next to grown cells returns empty stops instead of detouring out and back;
     and `errand.step_errand` in `'settle'` and `'done'` ignores standing postural sway velocity (`s_perp_side`) when
-    its position `s_perp` is within `lat_tol`, waiting for `still` before re-settling from `'done'`."""
+    the robot's position `s_perp` is within `lat_tol`, waiting for `still` before re-settling from `'done'`."""
     import numpy as np
     from machine.law import latent
     from machine.process import worker
@@ -340,8 +344,8 @@ def test_the_planner_and_errand_rows_do_not_toggle(report):
                  (stale['x_dock'], risen[0]))
 
 
-ROSTER = (test_the_wayfinder_gauges_its_way, test_its_map_keeps_what_its_looks_told, test_its_wayfinder_apart,
-          test_its_gaps_as_numpys_einsums, test_the_planner_and_errand_rows_do_not_toggle)
+ROSTER = (test_the_wayfinder_gauges_the_robots_way, test_the_robots_map_keeps_what_its_looks_told, test_the_robots_wayfinder_apart,
+          test_the_robots_gaps_as_numpys_einsums, test_the_planner_and_errand_rows_do_not_toggle)
 
 
 def main(argv=None):

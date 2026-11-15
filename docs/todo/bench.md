@@ -18,7 +18,8 @@
   miss x1.8. DOD: `tools/bench/power_check.py` at 1-5 s keeps its patches.
 - **STO chain** (`tools/bench/sto_probe.py`): R93 to 3V3D, a master's pilot
   on RS485, one arm with neither bypass, the keepalive from a timer
-  interrupt. DOD: on the bench as on the emulator; one transient of
+  interrupt ([host](host.md): the orientation page on Renode). DOD: on the
+  bench as on the emulator; one transient of
   `sto.asc` at 0.7 and 2.2 V within the model's windows.
 - **DMA and WFI**. DOD: the A1335 by DMA against the poll; CYCCNT through
   WFI; the gate supply back after an idle's paused keepalive; ADC3's

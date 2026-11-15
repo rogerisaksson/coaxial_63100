@@ -7,7 +7,7 @@
 A robot's file names, for each joint kind, its stack's motor, gearbox and inverter from the
 library, the servo its board runs, the structure between its gearbox and its limb, and what has
 no drive; `machine.body.drives` and `machine.body.servos` read it, `tools/cores/manifest.py` writes its
-orthokinematic manifest of it, its text (machine/<robot>.lisp) includes that. ROBOT is the
+orthokinematic manifest of it, the robot's text (machine/<robot>.lisp) includes that. ROBOT is the
 process's: COAXIAL_ROBOT in the environment names another build, its text, manifest and
 corrections (`machine.identify.identified`) with it.
 """
@@ -25,7 +25,7 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPO = os.path.dirname(os.path.dirname(HERE))
 CACHE = os.path.join(REPO, '.cache', 'compiled')
 LIBRARY, ROBOTS = os.path.join(HERE, 'library'), os.path.join(HERE, 'humanoids')
-#: Every lisp text, out of the package: its own (texts, suite/, kernel/, builds/) and the crafts'.
+#: Every lisp text, out of the package: the robot's own (texts, suite/, kernel/, builds/) and the crafts'.
 LISP = os.path.join(os.path.dirname(HERE), 'lisp')
 HUMANOID, AIRCRAFT = os.path.join(LISP, 'humanoid'), os.path.join(LISP, 'aircraft')
 #: Classification schema following the gynoid_<morphology>_<scale> convention:
@@ -49,8 +49,8 @@ HUMANOID, AIRCRAFT = os.path.join(LISP, 'humanoid'), os.path.join(LISP, 'aircraf
 #: - gynoid_skeletal_ultralight: Hollowed truss or exoskeleton chassis stripped of synthetic soft
 #:   tissue; reduces feminine cues strictly to pelvic geometry, Q-angle, and lumbar lordosis to
 #:   minimize total system mass.
-#: Its own build - the committed C model's (tools/cores/model.py) -, and the robot this process builds:
-#: COAXIAL_ROBOT names one of `robots()`, else its own.
+#: The robot's own build - the committed C model's (tools/cores/model.py) -, and the robot this process
+#: builds: COAXIAL_ROBOT names one of `robots()`, else its own.
 STOCK = 'gynoid_mesomorph_medium'
 ROBOT = os.environ.get('COAXIAL_ROBOT', STOCK)
 #: Each part's file in the library, and what a stack names of it in turn.

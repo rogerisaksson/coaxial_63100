@@ -553,9 +553,9 @@ API int wbh_law_size(void)
   return (int)sizeof(wbc_law_t);
 }
 
-/** numpy's primitives as its law's C computes them, `n` draws, through numpy's own OpenBLAS `l` and its einsum's
-    order there: 0 a (3, 3) @ (3,), 1 a (2, 2) @ (2,), 2 a (2, 3) @ (3, 3).T and 3 @ (3, 3), 4 a 1-d dot of 3,
-    5 einsum 'nia,ia->n' of six. */
+/** numpy's primitives as the robot's law's C computes them, `n` draws, through numpy's own OpenBLAS `l` and its
+    einsum's order there: 0 a (3, 3) @ (3,), 1 a (2, 2) @ (2,), 2 a (2, 3) @ (3, 3).T and 3 @ (3, 3), 4 a 1-d dot
+    of 3, 5 einsum 'nia,ia->n' of six. */
 API void wbh_np_probe(int which, const double *a, const double *b, double *out, int n, const wbc_blas_t *l)
 {
   for (int k = 0; k < n; k++)
@@ -590,9 +590,9 @@ API void wbh_np_probe(int which, const double *a, const double *b, double *out, 
   }
 }
 
-/** libm as its law's C calls it, side by side in one body: of in (n, 5) - x, y, x within [-1, 1],
-    x within [-50, 50], |x| + 1e-3 - out (n, 10) sin x, cos x, tan x, asin, acos, atan2(x, y), exp,
-    log, hypot(x, y), pow(x, 2). */
+/** libm as the robot's law's C calls it, side by side in one body: of in (n, 5) - x, y, x within
+    [-1, 1], x within [-50, 50], |x| + 1e-3 - out (n, 10) sin x, cos x, tan x, asin, acos, atan2(x,
+    y), exp, log, hypot(x, y), pow(x, 2). */
 API void wbh_np_libm(int n, const double *in, double *out)
 {
   for (int k = 0; k < n; k++)

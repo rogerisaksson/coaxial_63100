@@ -13,8 +13,8 @@ it grows with the payload - which is why a ping is nearly all overhead and a
 full block is not. The board's own `max_rate_hz` is built on the same
 arithmetic.
 
-Nothing here judges the link. It reports what it measured against what the
-bitrate allows.
+Nothing here judges the link: the bench reports what it measured against
+what the bitrate allows.
 """
 import argparse
 

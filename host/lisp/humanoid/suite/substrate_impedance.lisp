@@ -45,12 +45,12 @@
 (defmodifier gate-inverter-high-z [state &key (verify-dwell-ms 400.0)]
   (-> state
       (on-manifold-equilibrium
-        :min-distributed-fz-ratio 0.15 ; its support counts the furniture from 0.15 of its weight (impedance.PROP_ON)
+        :min-distributed-fz-ratio 0.15 ; the robot's support counts the furniture from 0.15 of its weight (impedance.PROP_ON)
         :dwell-verify-ms verify-dwell-ms
 
         (cascade-actuator-gates
           :direction :distal-to-proximal
-          :nodes [:l4-l5-lumbar :c7-t12-thoracic :glenohumeral :c1-c2-atlas :craniofacial] ; its legs carry themselves, its feet on the floor
+          :nodes [:l4-l5-lumbar :c7-t12-thoracic :glenohumeral :c1-c2-atlas :craniofacial] ; the robot's legs carry themselves, its feet on the floor
           :stagger-ms 75.0
           :torque-decay-ms 300.0
           :bridge-state :high-z-passive-bypass

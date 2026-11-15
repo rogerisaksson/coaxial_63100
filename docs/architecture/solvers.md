@@ -8,12 +8,13 @@ The chain they solve over: [kinematics](kinematics.md); what asks them:
 
 | Where | Is |
 | --- | --- |
-| `machine/qp` | dense convex QP: dual active set, an interior-point fallback, a strict hierarchy by null space |
-| `machine/wbc` | the whole-body stack: accelerations and corner forces a step, torques after |
-| `machine/wrench` | the stack's step without an active set: each sole's wrench or acceleration and humanoid robot upper body's accelerations by one least squares, four times, clipped |
-| `machine/chain` | its step in closed chains, picked by its release alone - a leg let go or no sole standing, none asked to land: one QP in its driven accelerations and the contacts' forces, every other quantity affine in them through its dynamics (`chain_qp`); level 1 answers its turns (its pelvis's about its own up and way by the turn taking its left to the asked left, its pitch its posture's), a swing and the twist told it with the held contacts' stick rows and the forces least, under the laws - a contact presses alone and never sinks into its support faster than its give says, friction within an eight-sided pyramid, its torques within their clamps -; level 2 its posture in level 1's damped null space, projected off its held hands; its sled told a twist at its friction's edge against the way; its torques those forces' (lisp/humanoid/kernel/closed_chain_qp.lisp) |
-| `wbc/` | the loop over the chain (wbc_stack.c the levels and bounds, wbc_solve.c the dual active set), asks of R^k into torques by priority within the bounds; the step without an active set (wbc_wrench.c, machine.stack.wrench's rows; a sole's cone and humanoid robot stride through it, wbc_cone.c; what it hands out, wbc_shrunk.c); the closed chains' step (wbc_chain.c, machine.stack.chain's; its QP wbc_chain_qp.c and wbc_chain_rows.c on the dual active set wbc_qp.c, its rows above posture wbc_chain_tasks.c); host-tested; device 13 (`coaxial/devices/wbc`) |
-| `aero/aero_share.c` | the quad's thrusts shared by an active set: [quad](quad.md) |
+| `machine/stack/qp` | dense convex QP: dual active set, an interior-point fallback, a strict hierarchy by null space |
+| `machine/stack/wbc` | the whole-body stack: accelerations and corner forces a step, torques after |
+| `machine/stack/wrench` | the stack's step without an active set: each sole's wrench or acceleration and the robot's upper body's accelerations by one least squares, four times, clipped |
+| `machine/stack/pressed` | a bearing patch's rows on the step: each contact held still, its split as felt (wbc_patch.c) |
+| `machine/stack/chain` | the robot's step in closed chains, picked by its release alone - a leg let go or no sole standing, none asked to land: one QP in its driven accelerations and the contacts' forces, every other quantity affine in them through its dynamics (`chain_qp`); level 1 answers its turns (its pelvis's about its own up and way by the turn taking its left to the asked left, its pitch the robot's posture's), a swing and the twist told it with the held contacts' stick rows and the forces least, under the laws - a contact presses alone and never sinks into its support faster than its give says, friction within an eight-sided pyramid, the robot's torques within their clamps -; level 2 its posture in level 1's damped null space, projected off its held hands; its sled told a twist at its friction's edge against the way; the robot's torques those forces' (lisp/humanoid/kernel/closed_chain_qp.lisp) |
+| `wbc/` | the loop over the chain (wbc_stack.c the levels and bounds, wbc_solve.c the dual active set), asks of R^k into torques by priority within the bounds; the step without an active set (wbc_wrench.c, machine.stack.wrench's rows; a sole's cone and the robot's stride through it, wbc_cone.c; what it hands out, wbc_shrunk.c); the closed chains' step (wbc_chain.c, machine.stack.chain's; its QP wbc_chain_qp.c and wbc_chain_rows.c on the dual active set wbc_qp.c, its rows above posture wbc_chain_tasks.c); host-tested; device 13 (`coaxial/devices/wbc`) |
+| `aero/src/aero_share.c` | the quad's thrusts shared by an active set: [quad](quad.md) |
 | `host/tools/sim/wbc` | the whole-body stack standing, shoved |
 | `host/tools/cores/wbc.py` | the wbc core's ctypes harness |
 
@@ -21,6 +22,7 @@ The chain they solve over: [kinematics](kinematics.md); what asks them:
 
 | Suite | Holds |
 | --- | --- |
+| `test_qp.py` | the C dual active set beside `machine.stack.qp.solve` on random QPs, the interior point where it gives up (wbc_qp_interior.c) |
 | `test_wbc.py` | the QP solver's KKT, two levels' priority, standing, a nudge held |
-| `test_wrench.py` | the step without an active set: a step standing beside the stack's, humanoid robot stand, nudges held, a hop |
-| `test_chain.py` | the closed chains' step in C beside its python bit for bit over eight contacts, its forces pressing alone within their pyramids and its torques within their clamps wherever the laws were met, the QP turning it the asked way through the contacts it holds, its seat told a twist sliding at its friction's edge and still bearing, a tick's time; the selector and the standing sole as a patch |
+| `test_wrench.py` | the step without an active set: a step standing beside the stack's, the robot's stand, nudges held, a hop |
+| `test_chain.py` | the closed chains' step in C beside its python bit for bit over eight contacts, its forces pressing alone within their pyramids and the robot's torques within their clamps wherever the laws were met, the QP turning it the asked way through the contacts it holds, the robot's seat told a twist sliding at its friction's edge and still bearing, a tick's time; the selector and the standing sole as a patch |

@@ -32,7 +32,7 @@
       :origin-q0
         (:calcaneus 0.00 :talocrural -0.42 :tibiofemoral 1.46 :coxofemoral 1.30
          :iliac-coronal 0.00 :l4-l5-lumbar +0.16 :c7-t12-thoracic +0.22
-         :glenohumeral +1.36 :cubital 0.24 :c1-c2-atlas -0.785)            ; its neck's 45 deg stop
+         :glenohumeral +1.36 :cubital 0.24 :c1-c2-atlas -0.785)            ; the robot's neck's 45 deg stop
       :modal-basis-columns
         (:mode-axial-compression (:tibiofemoral +0.48 :coxofemoral +0.40 :glenohumeral +0.25 :cubital +0.88)
          :mode-sagittal-shift    (:coxofemoral -0.45 :tibiofemoral -0.30 :glenohumeral +0.42)
@@ -70,9 +70,9 @@
       :coupled-manifold [:plantar-bilateral :ulnar-carpal-shove-bilateral]
       :origin-q0
         (:calcaneus 0.00 :talocrural +0.18 :tibiofemoral 1.28
-         :coxofemoral 0.85 :coxofemoral-abduct 0.62 :coxofemoral-ext-rot 0.436 ; 45 deg hip turnout! Its own 25 deg
+         :coxofemoral 0.85 :coxofemoral-abduct 0.62 :coxofemoral-ext-rot 0.436 ; 45 deg hip turnout! The robot's own 25 deg
          :iliac-coronal 0.00 :l4-l5-lumbar -0.05 :c7-t12-thoracic 0.06
-         :glenohumeral -1.04 :glenohumeral-abduct 0.58 :glenohumeral-ext-rot 0.95 ; its straight arms plumb
+         :glenohumeral -1.04 :glenohumeral-abduct 0.58 :glenohumeral-ext-rot 0.95 ; the robot's straight arms plumb
          :cubital 0.00 :c1-c2-atlas 0.00)
       :modal-basis-columns
         (:mode-axial-compression (:tibiofemoral +0.65 :coxofemoral +0.45 :cubital +0.65)
@@ -112,7 +112,7 @@
 ;; -----------------------------------------------------------------------------
 (defprimitive align-hinge-joints-to-se2-vector
   [state &key (orientation-topology :pronograde-belly-down) ; :pronograde-belly-down | :supine-belly-up | :ischial-seated | :deep-biped-squat
-              (max-coxa-turnout-rad 0.436)                  ; Up to 45 deg external hip/shoulder turnout; its hip's 25
+              (max-coxa-turnout-rad 0.436)                  ; Up to 45 deg external hip/shoulder turnout; the robot's hip's 25
               (hindlimb-load-share 0.66)]
   (-> state
       (modulate-proximal-balljoint-turnout

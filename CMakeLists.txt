@@ -70,7 +70,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Ctrl: machine.rig.parts and a feedback, the board's loop.
     ctrl/src/ctrl.c
     ctrl/src/ctrl_loop.c
-    # Wbc: its chain on its static model, and the loop over it.
+    # Wbc: the robot's chain on its static model, and the loop over it.
     wbc/src/wbc_body.c
     wbc/src/wbc_stack.c
     wbc/src/wbc_solve.c

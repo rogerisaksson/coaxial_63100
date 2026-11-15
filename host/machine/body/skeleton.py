@@ -1,11 +1,11 @@
 """The robot's skeleton as MuJoCo collides it, a welded massless body a part riding its segment.
 
 Each drive's drum, each board apart from its drive, the femurs and tibias, the pelvis's boom, the
-ankles' bent rods and cranks, the hip rolls' spur pairs and the belts; its segments carry their
+ankles' bent rods and cranks, the hip rolls' spur pairs and the belts; the robot's segments carry their
 weight (`build.segments`).
 
     skeleton.bodies()           # [(body, segment it rides, [geom xml])], each geom in its frame
-    skeleton.owners(model)      # {body id: segment}: its segments and what rides each
+    skeleton.owners(model)      # {body id: segment}: the robot's segments and what rides each
     skeleton.overlapping(model) # [(body, body)]: touching standing, so by design
 
 A part a body of its own meets the segment its own hangs from - the folded femur the calf's rod -
@@ -30,7 +30,7 @@ def _collar_y(seg, y):
 
 
 #: Structural chassis tubes, hip gimbals, collars, struts and board posts read from `[skeleton]`
-#: in its build (`machine.body.mechatronics`), with `"end"` points anchored to limb joint lengths.
+#: in the robot's build (`machine.body.mechatronics`), with `"end"` points anchored to limb joint lengths.
 HUNG = {seg: (tuple(tuple(_pt(seg, p) for p in run) for run in h['tubes']),
               tuple(float(r) for r in h['radii']) if isinstance(h['radii'], list) else float(h['radii']),
               tuple((str(c[0]), str(c[1]), _collar_y(seg, c[2])) for c in h['collars']))
@@ -92,7 +92,7 @@ def _drums():
 
 
 def gimbal(stage):
-    """([(a, b, radius)], [(centre, axis, radius, half)]): the hip's gimbal on its `stage`, its
+    """([(a, b, radius)], [(centre, axis, radius, half)]): the hip's gimbal on its `stage`, the robot's
     left's in its frame, the hip's centre the origin (the right's x mirrored) - 'hip_yaw' the
     fork, from its drive's output down a steerer to a crown over the pitch's L and its legs to the
     roll's bearings; 'hip_roll' the cradle, a band round the L, its trunnions in the bearings."""
@@ -141,7 +141,7 @@ def held(side):
 
 
 def trunk():
-    """[(frame, shape)]: its trunk's frame (`TRUNK`), each ('ring', centre, axis, radius, half)
+    """[(frame, shape)]: the robot's trunk's frame (`TRUNK`), each ('ring', centre, axis, radius, half)
     or ('tube', a, b, radius) in its frame."""
     out = []
     for frame, (tubes, rings) in TRUNK.items():
@@ -195,7 +195,7 @@ def _rod(side, kind):
 
 
 def bodies():
-    """[(body, segment it rides, [geom xml])]: its skeleton's parts, each its own welded body."""
+    """[(body, segment it rides, [geom xml])]: the robot's skeleton's parts, each its own welded body."""
     out = []
     for joint, rides, at, axis in _drums():
         end = drives.toward(joint, axis)
@@ -272,7 +272,8 @@ def bodies():
 
 
 def owners(model):
-    """{body id: segment}: its segments' bodies and its skeleton's, each by the segment it rides."""
+    """{body id: segment}: the robot's segments' bodies and its skeleton's, each by the segment it
+    rides."""
     out = {model.body(s[0]).id: s[0] for s in SEGMENTS}
     for body, rides, _geoms in bodies():
         try:
@@ -283,7 +284,7 @@ def owners(model):
 
 
 def overlapping(model, angles):
-    """[(body, body)]: the pairs touching with its joints at {joint: deg}, at least one its
+    """[(body, body)]: the pairs touching with the robot's joints at {joint: deg}, at least one its
     skeleton's - by design, a drum and what hangs on it, a rod's ball and its heel."""
     import importlib
     from machine.body.figure import JOINTS

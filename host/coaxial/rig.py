@@ -99,7 +99,7 @@ class DaqView:
         if name in DAQ_DOOR:
             return getattr(self._device, name)
         raise AttributeError(
-            '%r is not part of the acquisition front door. It has: open, '
+            '%r is not part of the acquisition front door. The door has: open, '
             'close, layout, %s' % (name, ', '.join(DAQ_DOOR)))
 
     def __enter__(self):
@@ -346,7 +346,7 @@ class Coaxial63100(Task, TaskStream, Acquisition):
             return getattr(board, name)
         except AttributeError:
             raise AttributeError(
-                '%r is not a subsystem of this board. It has: %s'
+                '%r is not a subsystem of this board. The board has: %s'
                 % (name, ', '.join(sorted(
                     n for n in vars(board) if not n.startswith('_')))))
 
@@ -357,7 +357,7 @@ class Coaxial63100(Task, TaskStream, Acquisition):
         if name in _subsystem_names():
             return Later(self, name)
         raise AttributeError(
-            '%r is not a subsystem of this board. It has: %s'
+            '%r is not a subsystem of this board. The board has: %s'
             % (name, ', '.join(sorted(_subsystem_names()))))
 
     def _others_here(self):

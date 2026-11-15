@@ -1,6 +1,6 @@
-"""numpy's functions as its trace takes them: each numpy's own result, a statement.
+"""numpy's functions as the robot's trace takes them: each numpy's own result, a statement.
 
-Its functions over `tools.cores.trace`'s arrays: einsum, cross, matmul, stack, vstack and concatenate; the reductions - sum, mean, min, max - in
+The functions over `tools.cores.trace`'s arrays: einsum, cross, matmul, stack, vstack and concatenate; the reductions - sum, mean, min, max - in
 numpy's own order (`emit`'s 'reduce'), any and all; where, clip, nan_to_num, power and astype elementwise; full and
 full_like; diag, repeat and roll copies; linalg's norm, solve and inv.
 """
@@ -85,7 +85,8 @@ def matmul(prog, a, b):
 
 def _blased(prog, x, c):
     """(x, its array) as numpy 2.5's matrix @ matrix takes it: itself where BLAS takes its strides
-    either way (is_blasable2d), else a C-ordered copy of its own for gemm - its array's an 'ew' copy."""
+    either way (is_blasable2d), else a C-ordered copy of its own for gemm - the robot's array's an 'ew'
+    copy."""
     (s0, s1), (d0, d1), z = c.strides, c.shape, c.itemsize
     if (s1 == z and s0 % z == 0 and s0 // z >= d1) or (s0 == z and s1 % z == 0 and s1 // z >= d0):
         return x, c
@@ -167,7 +168,7 @@ def astype(x, dtype, order='K', casting='unsafe', subok=True, copy=True):
 
 
 def full(prog, real, shape, fill_value, *rest, **kw):
-    """np.full of its fill: numpy's own array, its fill copied to each element; of a fill not its own,
+    """np.full of the robot's fill: numpy's own array, its fill copied to each element; of a fill not its own,
     numpy's own - a constant."""
     if not isinstance(fill_value, Traced):
         return real(shape, fill_value, *rest, **kw)
@@ -175,7 +176,8 @@ def full(prog, real, shape, fill_value, *rest, **kw):
 
 
 def full_like(prog, real, a, fill_value, *rest, **kw):
-    """np.full_like of its fill, as `full`, laid as numpy lays `a`'s; of a fill not its own numpy's own."""
+    """np.full_like of the robot's fill, as `full`, laid as numpy lays `a`'s; of a fill not its own numpy's
+    own."""
     got = real(_view(a), _view(fill_value), *rest, **kw)
     return _filled(prog, fill_value, got) if isinstance(fill_value, Traced) else got
 
@@ -191,7 +193,7 @@ def _filled(prog, x, got):
 
 
 def _int(x):
-    """`x`, an int as numpy reads it: Untraced where it is its state."""
+    """`x`, an int as numpy reads it: Untraced where it is the robot's state."""
     if not isinstance(x, (int, np.integer)):
         raise Untraced('a count or an axis of %s at %s' % (type(x).__name__, where()))
     return int(x)
@@ -259,11 +261,11 @@ def _placed(prog, func, arrays, *rest, **kw):
 
 def reduced(prog, op, x, axis=None, initial=None, keepdims=False):
     """numpy's `op` ('add', 'multiply', 'minimum', 'maximum') reduced over `axis` (None every one): a
-    'reduce' statement, numpy's own result; one from an `initial` of its state, or one numpy refuses,
+    'reduce' statement, numpy's own result; one from an `initial` of the robot's state, or one numpy refuses,
     Untraced."""
     ufunc = getattr(np, op)
     if isinstance(initial, Traced):
-        raise Untraced('a reduction from an initial of its state at %s' % where())
+        raise Untraced('a reduction from an initial of the robot\'s state at %s' % where())
     kw = {} if initial is None else {'initial': initial}
     if not isinstance(x, Traced):
         return ufunc.reduce(np.asarray(x, dtype=float), axis=axis, keepdims=keepdims, **kw)
@@ -301,7 +303,7 @@ def _view(x):
 
 def _where(prog, condition, *picks):
     if len(picks) != 2:
-        raise Untraced('np.where of one argument at %s: its shape its state' % where())
+        raise Untraced('np.where of one argument at %s: its shape the robot\'s state' % where())
     return _node(prog, 'where', (condition,) + picks, np.where(_view(condition), *map(_view, picks)))
 
 

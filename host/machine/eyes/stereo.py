@@ -85,11 +85,11 @@ extern "C" __global__ void sgm_chains(const float* C, float* S, int H, int W, in
 
 #: The rest of the match on the card in three launches where numpy's arithmetic took some 2 500 small ones - its
 #: census a neighbour at a time, its costs and windows a disparity at a time, its right eye's sums a disparity at a
-#: time: 157 ms a match, launch-bound on its card's driver. Integers alike, so the same bits: each pixel's census (the
-#: neighbours in `_census`'s order, a picture's edge held as numpy's 'edge' pad holds it); each disparity's cost - the
-#: bits its census differs in - laid (H, W, D) as the paths read it, and its window's grey differences summed over
-#: that disparity's own overlap, its edges held as `_boxed` holds them; each pixel's best as the right eye sees it,
-#: numpy's argmin of `back`: its first least, nan first.
+#: time: 157 ms a match, launch-bound on the robot's card's driver. Integers alike, so the same bits: each pixel's
+#: census (the neighbours in `_census`'s order, a picture's edge held as numpy's 'edge' pad holds it); each
+#: disparity's cost - the bits its census differs in - laid (H, W, D) as the paths read it, and its window's grey
+#: differences summed over that disparity's own overlap, its edges held as `_boxed` holds them; each pixel's best as
+#: the right eye sees it, numpy's argmin of `back`: its first least, nan first.
 _FUSED = r"""
 extern "C" __global__ void censused(const long long* g, unsigned long long* dark, unsigned long long* bright,
                                     int H, int W, int rx, int ry, long long q) {
@@ -164,8 +164,8 @@ _GRIDS: dict = {}
 
 
 def indices(xp, dtype: type = int):
-    """(rows, columns) (H, W) of its pictures' pixels on array module `xp`, laid once each - five of a look's passes
-    laid them anew, 4.9 MB a time -: read, never written."""
+    """(rows, columns) (H, W) of the robot's pictures' pixels on array module `xp`, laid once each - five of a
+    look's passes laid them anew, 4.9 MB a time -: read, never written."""
     key = (xp.__name__, dtype)
     if key not in _GRIDS:
         _GRIDS[key] = xp.indices((H, W), dtype=dtype)
@@ -364,7 +364,8 @@ def _gpu_solver():
 
 
 def card():
-    """CuPy where its stereo's card answers (`_gpu_solver`), None on the CPU: COAXIAL_GPU=0 or no card, CI's."""
+    """CuPy where the robot's stereo's card answers (`_gpu_solver`), None on the CPU: COAXIAL_GPU=0 or no card,
+    CI's."""
     return _SOLVER.get('cp') if _gpu_solver() is not None else None
 
 

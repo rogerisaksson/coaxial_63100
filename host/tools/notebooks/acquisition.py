@@ -7,8 +7,8 @@ SUMMARY = 'A task configured, read in a loop, scaled into a frame, drawn live.'
 SECTIONS = [
     section(
         'What the board can record',
-        md("`catalogue()` is the board's list. AFE_ON off reads mid-scale and 25.00 C "
-           '(invariant 9): `enable()` takes the rail, `device.close()` gives it back.'),
+        md("`catalogue()` is the board's list. AFE_ON off reads mid-scale and 25.00 C"
+           ': `enable()` takes the rail, `device.close()` gives it back.'),
         code('''daq = device.daq
 for row in daq.catalogue():
     print('%-16s %-8s %-4s %-10s selectable=%s'
@@ -63,7 +63,7 @@ print('%.1f s of NTC, first %.1f last %.1f' % (seconds[-1] - seconds[0], ntc[0],
     section(
         'A run into a frame, scaled by the record',
         md('`frame(scaled=True)`: a column in units beside each code, through the '
-           "calibration record (invariant 7). `stored` False: the schematic's arithmetic. "
+           "calibration record. `stored` False: the schematic's arithmetic. "
            "Untared, a phase's offset reads as amps until section 6's tare."),
         code('''daq.configure('phaseU', 'phaseV', 'phaseW', 'DC bus', 'NTC', sample_rate=100)
 daq.start()
@@ -164,8 +164,8 @@ print('7. live             %d frames in 6 s = %.1f /s; %d records %.2f s deep; '
 ]
 
 BENCH = ('`stored` True once `calibration.save()` commits a record. The DC link spanned '
-         'against a DMM: -32 418 ppm, on 49.9k/2.2k = 78.15 V full scale '
-         '(invariant 11).')
+         'against a DMM: -32 418 ppm, on 49.9k/2.2k = 78.15 V full scale, '
+         'headroom on purpose.')
 
 REFERENCES = [
     ('host/coaxial/rig.py', 'the front door: `daq`, `set_time_from_pc`'),

@@ -18,7 +18,7 @@ void wbc_imp_swings(const wbc_imp_t *k, const double *y, const double *fr, const
   double        bo[3][3];
   double        sr[2][3], along[2], aloft[2], ds[2], d1, d2, d3, d4, lead[3];
 
-  /* its way's frame, standing or aloft: plumb under it, not turning with its trunk */
+  /* the robot's way's frame, standing or aloft: plumb under it, not turning with its trunk */
   for (int i = 0; i < 3; i++)
   {
     for (int j = 0; j < 3; j++)
@@ -121,9 +121,9 @@ void wbc_imp_swings(const wbc_imp_t *k, const double *y, const double *fr, const
   }
 }
 
-/** machine.law.swing.rested: a sole that neither stands nor strides while anything bears it - a seat,
-    its other sole -, its ZMP let go to its text (`held` 0), rests where it is, still on the floor
-    under it; `a`'s soles' accelerations and rests laid. */
+/** machine.law.swing.rested: a sole that neither stands nor strides while anything bears the robot -
+    a seat, its other sole -, its ZMP let go to its text (`held` 0), rests
+    where it is, still on the floor under it; `a`'s soles' accelerations and rests laid. */
 void wbc_imp_rested(const wbc_imp_t *k, const wbc_imp_said_t *s, double held, double grounded, const double aloft[2],
                     const double limbs[2], const double floors[2], const double *y, const double shod[2][3],
                     const double *rot, double *a)

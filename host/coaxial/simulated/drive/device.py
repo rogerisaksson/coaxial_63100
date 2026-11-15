@@ -149,7 +149,7 @@ class SimulatedDrive(DrivePlant, DriveCapture, DriveControl):
             return self._law.state(), stand.row(self._slot)
 
     def _now_row(self):
-        """Its slot's row at this moment."""
+        """The drive's slot's row at this moment."""
         with self._lock:
             self._advance()
             return stand.row(self._slot)

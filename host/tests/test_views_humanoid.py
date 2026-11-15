@@ -1,4 +1,4 @@
-"""The HUMANOID page's hands: its mouse on the view, its keys on its loop and on the view."""
+"""The HUMANOID page's hands: its mouse on the view, its keys on the robot's loop and on the view."""
 import sys
 from types import SimpleNamespace as SN
 
@@ -30,11 +30,11 @@ def test_the_humanoid_pages_mouse(report):
     report.check('V home starts straight behind at yaw 180',
                  viewpoint.YAW == 180.0 and all(state[k] == v for k, v in viewpoint.HOME.items()))
     viewpoint.mouse(state, lambda: (120, 50), humanoid_keys.clicked)['on_drag'](5, 0)
-    report.check('a left drag to the right turns it the way the left arrow does', state['yaw'] < viewpoint.YAW)
+    report.check('a left drag to the right turns the robot the way the left arrow does', state['yaw'] < viewpoint.YAW)
     told = []
     clicks = dict(state, body=SN(send=lambda **cmd: told.append(cmd)), choosing=None, tour=None)
     viewpoint.mouse(clicks, lambda: (120, 50), humanoid_keys.clicked)['on_click'](10, 10)
-    report.check('a click on the view with no choice open says its nothing', told == [], told)
+    report.check('a click on the view with no choice open says the robot\'s nothing', told == [], told)
     sgr = [('\x1b', 27, 1), ('[', 219, 1), ('<', 226, 1), ('0', 48, 1), (';', 188, 1),
            ('5', 53, 2), (';', 188, 1), ('2', 50, 2), ('M', 77, 1),
            ('\x1b', 27, 1), ('[', 219, 1), ('<', 226, 1), ('0', 48, 1), (';', 188, 1),
@@ -54,7 +54,7 @@ def test_the_humanoid_pages_mouse(report):
 
 
 def test_the_humanoid_pages_keys(report):
-    """The page's keys are its verbs, the gym's and the view's: Backspace lands its anew, digits
+    """The page's keys are the robot's verbs, the gym's and the view's: Backspace lands its anew, digits
     say entries, the side arrows turn the view, up and down the column's, the scene keys say nothing."""
     from terminal.ui import bindings
     from terminal.views import show_humanoid, viewpoint
@@ -63,13 +63,13 @@ def test_the_humanoid_pages_keys(report):
     st: dict = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'orbit': False, 'called': 'strong',
                 'shown': 'torque', 'skin': 'dressed', **viewpoint.HOME}
     typed(pad, ('\x08', '4'), st)
-    report.check('Backspace lands its anew, 4 says the fourth entry', sent == [{'restart': True}, {'say': 3}])
+    report.check('Backspace lands the robot\'s anew, 4 says the fourth entry', sent == [{'restart': True}, {'say': 3}])
     typed(pad, 'ltmo', st)
     s_pwr = st['shown']
     typed(pad, 't', st)
     s_tmp = st['shown']
     typed(pad, 't', st)
-    report.check('L the next callouts, T cycles power -> temp -> torque, M its shell, O the orbit',
+    report.check('L the next callouts, T cycles power -> temp -> torque, M the robot\'s shell, O the orbit',
                  st['called'] == 'all' and (s_pwr, s_tmp, st['shown']) == ('power', 'temp', 'torque')
                  and st['skin'] == 'shell' and st['orbit'] is True)
     letters = ''.join(sorted(k for k in pad['keys'] if len(k) == 1 and k.isalpha() and k.islower()))
@@ -110,7 +110,7 @@ def test_a_held_p_charges_a_push(report):
 
 
 def test_vision_scanner_docked_pip_and_affordances(report):
-    """The stereo scanner finds a support near it, F says its verb at it and the page prompts
+    """The stereo scanner finds a support near the robot, F says its verb at it and the page prompts
     it; the balloons' keys on the docked plate (test_views_floor: the balloons)."""
     from terminal.views import gym, humanoid_keys, scanner
     sc = scanner.VisionScanner()
@@ -119,7 +119,7 @@ def test_vision_scanner_docked_pip_and_affordances(report):
     now = {'where': (0.0, 0.0, 0.0), 'turn': (1, 0, 0, 0), 'angles': {}, 'heading': 0.0,
            'props': [('chair', (0.0, 0.45, 0.9), (0.22, 0.02, 0.22), ((1, 0, 0), (0, 1, 0), (0, 0, 1)))]}
     det = sc.scan(now, 0.0)
-    report.check('a chair in its sight, its verb sit_chair',
+    report.check('a chair in the robot\'s sight, its verb sit_chair',
                  len(det) == 1 and det[0]['kind'] == 'chair' and scanner.auto_action(det) == 'sit_chair'
                  and det[0]['affordances'] == [('sit_chair', 'sit')])
     sent = []
@@ -133,8 +133,8 @@ def test_vision_scanner_docked_pip_and_affordances(report):
                  and gym.prompt(st) == '[F1] sit chair', (sent, gym.prompt(st)))
 
 
-def test_its_verbs_and_the_chase(report):
-    """Space hops - up onto a chair close ahead, down from its seat -, C crouches and stands it, X
+def test_the_robots_verbs_and_the_chase(report):
+    """Space hops - up onto a chair close ahead, down from its seat -, C crouches and stands the robot, X
     swaps the shoulder; the view eases behind it as it goes, not after a look nor standing."""
     import math
     from terminal.views import humanoid_keys, scanner, viewpoint
@@ -147,13 +147,13 @@ def test_its_verbs_and_the_chase(report):
     typed(pad, ' ', st)
     st['now'] = dict(st['now'], where=(0.0, 0.9, 0.0), props=[])
     typed(pad, ' ', st)
-    report.check('Space hops it up onto a chair close ahead, down from its seat, in place with none',
+    report.check('Space hops the robot up onto a chair close ahead, down from its seat, in place with none',
                  sent == [{'say': 'hop_up_chair'}, {'say': 'hop_down_chair'}, {'say': 'hop'}], sent)
     sent.clear()
     typed(pad, 'c', st)
     st['now'] = dict(st['now'], doing='down')
     typed(pad, 'cx', st)
-    report.check('C crouches it and stands it from it; X looks over its other shoulder',
+    report.check('C crouches the robot and stands it from it; X looks over the robot\'s other shoulder',
                  sent == [{'say': 'crouch'}, {'say': 'stand'}] and st['shoulder'] == -1.0
                  and viewpoint.panned(st)[0] == -viewpoint.SHOULDER_M)
     t, behind = 100.0, 180.0 + math.degrees(1.0)
@@ -174,14 +174,14 @@ def test_its_verbs_and_the_chase(report):
     orb['left_held'] = False
     viewpoint.chased(orb, 0.0, True, t + 5.0 + viewpoint.LAG_S)
     ret_ok = abs((orb['yaw'] - yaw_held) / (180.0 - yaw_held) - (1.0 - math.exp(-1.0))) < 1e-6 and orb['pitch'] < pitch_held
-    report.check('the view eases behind it as it goes, 63 % in LAG_S; left-drag holds while pressed and returns on release',
+    report.check('the view eases behind the robot as it goes, 63 % in LAG_S; left-drag holds while pressed and returns on release',
                  abs((went['yaw'] - 180.0) / (behind - 180.0) - (1.0 - math.exp(-1.0))) < 1e-6
                  and looked['yaw'] == stood['yaw'] == 180.0 and held_ok and ret_ok
                  and errands == ['fall'] * 8 + ['locomotion'] * 4)
 
 
 def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
-    """Floor scenarios, [ / ] cycle, F up from what bears it, the tour as an agent's commands,
+    """Floor scenarios, [ / ] cycle, F up from what bears the robot, the tour as an agent's commands,
     BAL/THM/STB gauges, and 40-cell HUD boxes."""
     import io
     from rich.console import Console
@@ -234,7 +234,7 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
                  and all(set(c) <= {'twist', 'say', 'scenario', 'push', 'seconds'} for c in sent)
                  and verbs == set(scanner.PRIMARY_ACTION.values()) | {'rise_chair', 'rise_bed', 'rise_floor'}, verbs)
     typed(pad, 'w', st)
-    report.check('a key that moves it ends the tour', st.get('tour') is None)
+    report.check('a key that moves the robot ends the tour', st.get('tour') is None)
 
     nom = {'fallen': False, 'doing': 'walk', 'watts': 120.0, 'turn': (1, 0, 0, 0), 'loads': (160.0, 160.0),
            'where': (0.0, 0.9, 0.0), 'cadence': 0.9, 'phase': 0.2, 'ratio': 1.2, 'speed': 0.65,
@@ -262,9 +262,9 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
                  and '…' not in b_txt and ('%+5.2f' % se2.WALK_SPEED) in b_txt and len(show_humanoid.legend('temp', 60)) > 20)
 
 
-def test_its_clothes_bend_at_the_joints(report):
+def test_the_robots_clothes_bend_at_the_joints(report):
     """A stride: the seat's dots on the swung thigh's side follow it, the tee's hem the pelvis
-    under a bent spine, the sleeves the torso; the rest of it as unbent."""
+    under a bent spine, the sleeves the torso; the rest of the robot as unbent."""
     from coaxial.graphics import gynoid
     body = gynoid.body()
     stride = {'left_hip': -35.0, 'right_hip': 25.0, 'left_knee': 15.0, 'right_knee': 40.0, 'spine': 15.0,
@@ -286,7 +286,7 @@ def test_its_clothes_bend_at_the_joints(report):
 
 
 def test_a_scene_laid_anew_is_told_the_keys_again(report):
-    """W held through a scene change: its loop lays its anew with no twist, and the page tells
+    """W held through a scene change: the robot's loop lays its anew with no twist, and the page tells
     it the keys' twist again as it sees the new scene, not only when the keys change."""
     from terminal.views import humanoid_keys, viewpoint
     sent = []
@@ -304,10 +304,10 @@ def test_a_scene_laid_anew_is_told_the_keys_again(report):
                  len(twists) == 2 and twists[0] == twists[1] and twists[0][0] > 0.5, twists)
 
 
-def test_its_chat_a_drawer(report):
-    """Its chat slides as ?'s help (`gym.drawer`): up with the greeting as the page opens, down
-    HELP_S after; up on / while its prompt is open, HELP_S after its answer, then down; its lead
-    a braille turning."""
+def test_the_robots_chat_a_drawer(report):
+    """The robot's chat slides as ?'s help (`gym.drawer`): up with the greeting as the page opens, down
+    HELP_S after; up on / while the robot's prompt is open, HELP_S after its answer, then down; its
+    lead a braille turning."""
     from terminal.ui.recorder import SPIN
     from terminal.ui.taskbar import HELP_S, SLIDE_S
     from terminal.views import gym
@@ -326,9 +326,9 @@ def test_its_chat_a_drawer(report):
                  and answered == [full, 0] and lead in SPIN, (opened, greeted, typing, answered, lead))
 
 
-ROSTER = (test_the_humanoid_pages_mouse, test_the_humanoid_pages_keys, test_a_held_p_charges_a_push, test_vision_scanner_docked_pip_and_affordances, test_its_verbs_and_the_chase,
-          test_scenario_deck_tour_handoff_and_cybernetic_hud, test_its_clothes_bend_at_the_joints,
-          test_a_scene_laid_anew_is_told_the_keys_again, test_its_chat_a_drawer)
+ROSTER = (test_the_humanoid_pages_mouse, test_the_humanoid_pages_keys, test_a_held_p_charges_a_push, test_vision_scanner_docked_pip_and_affordances, test_the_robots_verbs_and_the_chase,
+          test_scenario_deck_tour_handoff_and_cybernetic_hud, test_the_robots_clothes_bend_at_the_joints,
+          test_a_scene_laid_anew_is_told_the_keys_again, test_the_robots_chat_a_drawer)
 
 
 def main(argv=None):

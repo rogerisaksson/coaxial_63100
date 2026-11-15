@@ -4,11 +4,11 @@
 
 The stack lays a force on every sole it is asked to stand on; a floor that is not there gives
 none. A sole the ask means to stand stands as it bears TOUCH_N; one that bears nothing stands
-lying within TOUCH_M of the floor beside one that bears, or with its centre of mass at rest. One
-that does not stand is asked to its landing: under its capture point as it comes down, as far
+lying within TOUCH_M of the floor beside one that bears, or with the robot's centre of mass at rest. One
+that does not stand is asked to its landing: under the robot's capture point as it comes down, as far
 off it as it is off the others, drawn in to what its leg reaches (`reach.land`), its hip
-LAND_DROP_M under the leg's length over it, coming down with it. With no sole standing no turn
-is asked, the stack lays no force, and its centre of mass comes down: `wbc.step` and the loop in C
+LAND_DROP_M under the leg's length over it, coming down with the robot. With no sole standing no turn
+is asked, the stack lays no force, and the robot's centre of mass comes down: `wbc.step` and the loop in C
 need nothing more. A limb is an index, as `reach.LIMBS`; nothing is kept from one pass to the
 next.
 """
@@ -21,7 +21,7 @@ from machine.body.figure import ANKLE_H, BALL, HEEL
 #: The robot's touch's and its leaps' numbers, its build's (`[gait.leap]`, `machine.body.gait`).
 _G = gait.table('leap')
 
-#: A sole bears at TOUCH_N, lies on the floor within TOUCH_M; it rests under REST_M_S.
+#: A sole bears at TOUCH_N, lies on the floor within TOUCH_M; the robot rests under REST_M_S.
 TOUCH_N, TOUCH_M, REST_M_S = _G['touch_n'], _G['touch_m'], _G['rest_m_s']
 
 #: A sole in the air waits for the floor with its hip LAND_DROP_M under the leg's length over
@@ -34,7 +34,7 @@ MIDDLE = (BALL - HEEL) / 2.0
 
 def standing(meant, loads, over, rising, borne=0.0):
     """Which soles stand, a bool a sole: `meant` the ask's stance, `loads` the soles' N, `over`
-    each sole's height over the floor, `rising` its centre of mass's speed up, `borne` what bears
+    each sole's height over the floor, `rising` the robot's centre of mass's speed up, `borne` what bears
     it off them, N."""
     rests = (max(loads) >= TOUCH_N) | (borne >= TOUCH_N) | (abs(rising) <= REST_M_S)
     return tuple(bool(m) & bool((n >= TOUCH_N) | ((h <= TOUCH_M) & rests))
@@ -43,8 +43,9 @@ def standing(meant, loads, over, rising, borne=0.0):
 
 def landing(limb, hip, heading, yaw, com, vcom, off, target=(0.0, 0.0), pitch=0.0):
     """(sole's middle, speed, acceleration, quaternion), the stack's swing ask for a sole in the
-    air: under its capture point as it lands - from its hip the same whenever that is -, `off`
-    it (x, z), drawn in to the leg's reach from `hip`, for `target` (height, distance) and `pitch`."""
+    air: under the robot's capture point as it lands - from its hip the same whenever that is
+    -, `off` it (x, z), drawn in to the leg's reach from `hip`, for `target` (height, distance) and
+    `pitch`."""
     dh, dz = target
     drop = reach.THIGH + reach.SHANK - LAND_DROP_M - dh
     omega = math.sqrt(G / max(0.3, com[1] - (hip[1] - drop - ANKLE_H)))
@@ -62,7 +63,7 @@ def landing(limb, hip, heading, yaw, com, vcom, off, target=(0.0, 0.0), pitch=0.
 def step(ask, loads, s, hips, floor=0.0):
     """`ask` as the stack is to be asked it: the soles it means to stand that do not touch asked
     to their landing; with none standing, no turn. `s` is `wbc.sense`'s, `hips` each limb's hip
-    joint, world, `floor` the floor's height under it."""
+    joint, world, `floor` the floor's height under the robot."""
     meant = ask['stance']
     feet = s['feet']
     over = [float(f['pts'][:, 1].min()) - floor for f in feet]
@@ -76,7 +77,7 @@ def step(ask, loads, s, hips, floor=0.0):
                              s['com'], s['vcom'], (float(feet[k]['sole'][0]) - mid[0],
                                                    float(feet[k]['sole'][2]) - mid[1]))
                   for k in (0, 1) if meant[k] and not stance[k]})
-    # with no sole standing there is nothing to turn it against: asked, even as they were,
+    # with no sole standing there is nothing to turn the robot against: asked, even as they were,
     # the stack spun its legs to hold its trunk still - the knees out at 3 rad/s with no
     # torque in them, on their stops as it landed
     return dict(ask, stance=stance, swing=swing, turns=ask['turns'][:2 * any(stance)])
@@ -104,7 +105,7 @@ PUSH_MS = 20
 
 
 def _a_z(fr, z):
-    """The drives' acceleration of its legs' shortening at `z` (axial/s^2): PUSH of the knees'
+    """The drives' acceleration of the robot's legs' shortening at `z` (axial/s^2): PUSH of the knees'
     clamp through the knee's lever to the leg's line there, against its weight."""
     from machine.body import drives, figure
     from machine.law import modal
@@ -117,11 +118,11 @@ def _a_z(fr, z):
 
 def pushed(fr, z0):
     """(the push's acceleration, axial a s^2, and its seconds) from the crouch `z0` to STRAIGHT
-    at PUSH of the knees' clamp against its weight, the knee's lever to the leg's line at the
+    at PUSH of the knees' clamp against the robot's weight, the knee's lever to the leg's line at the
     crouch - the longest of the push, where the clamp gives the least - so the drives carry every
     pass of it, the throw's share of it the crouch's share of his (a tap's shallow crouch at
     the whole clamp left at 10.5 axial/s of a hold's 12.3, a hop as high as the jump; the
-    clamp's share so, a tap's push fell short of its weight): asked as a spring (18 000) the
+    clamp's share so, a tap's push fell short of the robot's weight): asked as a spring (18 000) the
     step shrank the throw to a tenth and it rose 0.01 legs on either stack; his push 0.29 m
     in 0.3 s, its own 0.33 s at 472 N."""
     a_z = _a_z(fr, z0) * (z0 - STRAIGHT) / (CROUCH - STRAIGHT)
@@ -130,7 +131,7 @@ def pushed(fr, z0):
 
 def bottom(fr, v_off):
     """The legs' shortening a landing at `v_off` axial/s brakes to from STRAIGHT at the drives'
-    acceleration (`_a_z`), CROUCH at most: folded in flight as his, it had 0.07 m to brake 1.6
+    acceleration (`_a_z`), CROUCH at most: folded in flight as his, the robot had 0.07 m to brake 1.6
     m/s in and sank to the floor; from the crouch down, a tap's 0.7 m/s landed in a full squat."""
     import numpy as np
     zs = np.linspace(STRAIGHT, CROUCH, 200)
@@ -180,18 +181,18 @@ def _build_leap(base_wire, times_ms, blends_ms, spec, weights):
 
 
 def standing_leap(base_wire, fr, ch=0.0):
-    """Its standing jump's rows (`latent.WIRE`, the lisp's `hop` their base) by the hold's charge
+    """The robot's standing jump's rows (`latent.WIRE`, the lisp's `hop` their base) by the hold's charge
     `ch` in [0, 1]: the human's own descent (`takes.frames` to CROUCH_S) to his crouch at full
-    charge (CROUCH, leant LEAN), shallower by the charge at his pace - told a line to it it fell
-    70 ms free, a sole 8 mm up, its parry stepped it and it crouched and pushed on one leg;
-    quickened by its depth, a tap's dip of 0.08 m in 0.12 s dropped its 0.2 m off its soles -,
+    charge (CROUCH, leant LEAN), shallower by the charge at his pace - told a line to it the robot fell
+    70 ms free, a sole 8 mm up, its parry stepped it and the robot crouched and pushed on one leg;
+    quickened by its depth, a tap's dip of 0.08 m in 0.12 s dropped the robot's 0.2 m off its soles -,
     held a period of the row's spring so the push begins from rest - begun as it still sank,
     the step caught it up at 14 m/s^2 and it led the curve by 0.1 -; the push a curve of rows
     PUSH_MS apart (`pushed`, its frame `fr`) to STRAIGHT; then his frames from his take-off on
     (`takes.wire`), his fold in flight and his squat landing by how fast it leaves against him
-    (LEAVES) - told upright in flight, its legs swung 0.35 m ahead with its trunk's spin and it
-    fell back -, the landing row's springs on the first; its rest. And their names, the seconds
-    to its rest, the ms the push begins at."""
+    (LEAVES) - told upright in flight, its legs swung 0.35 m ahead with its trunk's spin and
+    the robot fell back -, the landing row's springs on the first; its rest. And their names, the
+    seconds to the robot's rest, the ms the push begins at."""
     import numpy as np
     from machine.moves import ballistic
     from machine.law import latent, modal
@@ -226,17 +227,16 @@ def standing_leap(base_wire, fr, ch=0.0):
         throw['p'][k, axial] = max(STRAIGHT, z0 - 0.5 * a_z * t * t)
         throw['p'][k, pitch] = LEAN * depth * (1.0 - t / seconds)
         throw['p'][k, sagittal] = z_d[-1, modal.SAGITTAL] * depth
-    # its flight at the push's end speed, its legs long and soft (no height spring) and its
-    # centre of mass where the crouch had it over its soles, 0.21 m forward over the jump
+    # the robot's flight at the push's end speed, its legs long and soft (no height spring) and its
+    # centre of mass where the crouch had it over the robot's soles, 0.21 m forward over the jump
     # (his 0.45 to 0.04 in his last 30 ms is his heels' rise: told there in a line it left
-    # 0.17 m back, told there with its rate dying 0.28 m back; folded in flight as his it
-    # landed on its heels 0.17 m behind them), his trunk's fold over it; the absorption a damper told the bottom the
-    # drives brake it to (`bottom`): it asks them what its speed is worth and the clamp gives
-    # what it can (a parabola from the push's end speed yanked it down at 23 m/s^2 where it
-    # met the floor slower), the polygon held again from the floor (let go through the
-    # absorption, no parry stepped it off a landing's tip and it fell); then its rest over his rise's
-    # seconds (his own rise, told as rows, carries his rebound - a second squat at 1.3-1.5 s -
-    # and it jumped again off the landing)
+    # 0.17 m back, told there with its rate dying 0.28 m back; folded in flight as his the robot
+    # landed on its heels 0.17 m behind them), his trunk's fold over it; the absorption a damper told the
+    # bottom the drives brake the robot to (`bottom`): it asks them what the robot's speed is worth and the clamp
+    # gives what it can (a parabola from the push's end speed yanked the robot down at 23 m/s^2 where it met
+    # the floor slower), the polygon held again from the floor (let go through the absorption, no parry stepped the
+    # robot off a landing's tip and it fell); then its rest over his rise's seconds (his own rise,
+    # told as rows, carries his rebound - a second squat at 1.3-1.5 s - and it jumped again off the landing)
     v_off = a_z * seconds
     flight_s = 2.0 * v_off * modal.AXIAL_M * fr[modal.HIPS_BY] / G
     fold = min(1.0, v_off / LEAVES)
@@ -267,7 +267,8 @@ def standing_leap(base_wire, fr, ch=0.0):
 
 
 def stride_leap(fr, turns, now, label):
-    """Its leap in stride from the sole landing now (`ballistic.bound`); the hold's charge is the standing jump's."""
+    """The robot's leap in stride from the sole landing now (`ballistic.bound`); the hold's charge is the standing
+    jump's."""
     from machine.moves import ballistic
     return ballistic.bound(fr, turns, now, label)
 
@@ -283,7 +284,7 @@ def update_leap_charge(g, by, walk_on_wire, ch):
     wire, names, dur, dt_load_ms = (stride_leap(g['fr'], *g['_leap_at']) if in_stride
                                     else standing_leap(by['hop'][1], g['fr'], ch))
     new = latent.table(wire, t0, g['rest'])
-    # in stride its first row's unsaid stay so, its rhythm runs on
+    # in stride the robot's first row's unsaid stay so, its rhythm runs on
     new[0, latent.VALS] = np.where((new[0, latent.SAID] > 0.5) | in_stride, new[0, latent.VALS], g['rest'])
     new[0, latent.SAID] = np.maximum(new[0, latent.SAID], float(not in_stride))
     started = g['t'] >= t0 - 1e-4
@@ -302,8 +303,8 @@ def update_leap_charge(g, by, walk_on_wire, ch):
     kept_labels = [(w, n) for w, n in g['labels'] if w < t0 - 1e-4 or (w <= t0 + 1e-4 and started)]
     hop_labels = [(float(w), names[i + idx0] if i + idx0 < len(names) else 'rest') for i, w in enumerate(hop_rows[:, latent.AT])]
     after_labels = [(w + dt_shift, n) for w, n in g['labels'] if w > old_until + 0.002]
-    # the old ones kept to 16, as `se2.said` keeps them: all to 16 dropped the hop's load and throw, it did 'rest'
-    # through them, and the page's Space said a new hop on its
+    # the old ones kept to 16, as `se2.said` keeps them: all to 16 dropped the hop's load and throw, the robot did
+    # 'rest' through them, and the page's Space said a new hop on its
     g['labels'] = kept_labels[-16:] + hop_labels + after_labels
     g['_jump_until'], g['_jump_throw'] = new_until, t0 + dt_load_ms * 0.001
 
@@ -333,7 +334,7 @@ def _resume_gait(g, by, prev, in_fwd, t_go, walk_on_wire, said_fn):
 
 
 def stride_hop(g, by, t0, spd, back_now, fwd_gaits, back_gaits, said_fn, walk_on_wire):
-    """Queue `hop` at `t0`: striding, the gather as its swinging sole lands (`stride.beat`: the
+    """Queue `hop` at `t0`: striding, the gather as the robot's swinging sole lands (`stride.beat`: the
     share of its swing left at its rhythm's rate), the leap, the gait resumed."""
     import numpy as np
     from machine.law import latent, modal, se2, stride
@@ -361,7 +362,7 @@ def stride_hop(g, by, t0, spd, back_now, fwd_gaits, back_gaits, said_fn, walk_on
     if dt_b > 0.0 and '_brake_wire' in g and 'stand' in by:
         said_fn(g, *by['stand'], at=t0 + dt_stand, reset=True)
     t_hop, ch = t0 + dt_b, float(g.get('_hop_charge', 0.0))
-    # going on its way it leaps in its stride, its rhythm on (`ballistic.bound`); else stands and hops
+    # going on the robot's way it leaps in its stride, its rhythm on (`ballistic.bound`); else stands and hops
     g['_leap_at'] = (float(out[latent.TURNS]), g['st'][latent.TO].copy(), 'run' if prev == 'jog' else prev)
     wire, names, dur, dt_load_ms = (stride_leap(g['fr'], *g['_leap_at']) if in_fwd
                                     else standing_leap(by['hop'][1], g['fr'], ch))

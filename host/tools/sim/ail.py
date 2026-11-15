@@ -1,4 +1,4 @@
-"""AIL, its AI in the loop: it driven about the lodge on its keys, its faults judged by the truth.
+"""AIL, AI in the loop: the robot driven about the lodge on its keys, its faults judged by the truth.
 
     python tools/sim/ail.py drive --seeds 8 --seconds 60          # sessions of held keys, each one's faults
     python tools/sim/ail.py drive --seeds 8 --stage 5              # and the first 5 faults of their own kinds kept
@@ -6,12 +6,12 @@
     python tools/sim/ail.py run CASE.json --trace 4 9              # a key script (a case's), a line a frame 4-9 s
     python tools/sim/ail.py run A.json '[["w", 1.3], ["", 4]]' --held --jobs 8   # scripts, files or inline, side by side
 
-A session: the lodge laid (ROOM), its page's keys held and let go as a hand does - W, S, A, D, Q, E and their pairs,
-each held 0.4-3 s, pauses between (`bindings.act_on` each repeat, `humanoid_keys.steered` each frame: its page's
-own path, test_wasd's) - and F now and then, its page's first offer docked; a seed's the same session each run. Its
-keys typed as a terminal types them (a key typed renews those held beside it), or --held as a keyboard tells them
-held (its page on Windows' console, `humanoid_keys.keyboard`).
-It ends where it does: fallen, stuck (W held and no way made), crashed, or its seconds run. Its faults: a fall, a
+A session: the lodge laid (ROOM), the robot's page's keys held and let go as a hand does - W, S, A, D, Q, E and
+their pairs, each held 0.4-3 s, pauses between (`bindings.act_on` each repeat, `humanoid_keys.steered` each frame:
+its page's own path, test_wasd's) - and F now and then, its page's first offer docked; a seed's the same session
+each run. The session's keys typed as a terminal types them (a key typed renews those held beside it), or --held as
+a keyboard tells them held (the robot's page on Windows' console, `humanoid_keys.keyboard`). The session ends where
+the robot does: fallen, stuck (W held and no way made), crashed, or its seconds run. The robot's faults: a fall, a
 stumble, a spasm (`watch.Watch`'s), its body into a thing on its keys (its place against the lodge's own boxes,
 `world.props()`, grown by its half width), stuck, a crash. A fault staged is a case of its own (ail_staged/*.json:
 its seed, its keys, its kind) that `replay` runs anew - red till fixed; no suite of CI's runs them.
@@ -26,7 +26,7 @@ import traceback
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-#: Its page's frame and its key repeat, s (test_wasd's); the words a hand holds, and how long, s.
+#: The robot's page's frame and its key repeat, s (test_wasd's); the words a hand holds, and how long, s.
 FRAME_S, REPEAT_S = 0.05, 0.033
 WORDS = ('w', 'w', 'w', 'wa', 'wd', 'a', 'd', 's', 'q', 'e', 'wq', 'we')
 HELD_S, PAUSE_S = (0.4, 3.0), (0.3, 1.5)
@@ -46,9 +46,9 @@ def script(seed, seconds):
 
 
 def _lodge(g, forward=False):
-    """(centres (n, 2), axes (n, 2, 2), halves (n, 2)) of the lodge's things it may not stand in, a door's not: as
-    its world's last step posed them, or `forward` posed first (before its first step) - each frame posed anew, its
-    solver's warm start went with it and its run was another."""
+    """(centres (n, 2), axes (n, 2, 2), halves (n, 2)) of the lodge's things the robot may not stand in, a door's
+    not: as its world's last step posed them, or `forward` posed first (before its first step) -
+    each frame posed anew, its solver's warm start went with it and the robot's run was another."""
     import numpy as np
     from machine.eyes import classes, voxels
     w = g['world']
@@ -77,9 +77,9 @@ def _near(lodge, at, half):
 
 
 def _traced(g, word, fast, gap, name):
-    """A frame of its session said short: its key, doing, errand's phase, speed, twist asked (! its cocoon blocked),
-    soles' loads, surety, its fastest driven joint since the last, the most its skin feels and where, its nearest
-    thing."""
+    """A frame of the robot's session said short: its key, doing, errand's phase, speed, twist asked (! the robot's
+    cocoon blocked), soles' loads, surety, its fastest driven joint since the last, the most its skin feels and
+    where, its nearest thing."""
     import numpy as np
     from machine.process import sprung
     from machine.senses import edge
@@ -96,7 +96,7 @@ def _traced(g, word, fast, gap, name):
 def drive(seed, seconds, eyes=False, words=None, trace=None, keyboard=False, room=1.0):
     """A seed's session (`script`, or `words`) in the lodge: {seed, words, faults [{kind, t, detail}], end, t}; a line
     a frame said (`_traced`) between `trace`'s (from, to) s; its keys typed, or `keyboard` held as a keyboard tells;
-    `room` 0 on an open floor (a stop's own measure, nothing in its way)."""
+    `room` 0 on an open floor (a stop's own measure, nothing in the robot's way)."""
     from types import SimpleNamespace as SN
     from machine.body import figure
     from machine.world import physics
@@ -112,13 +112,13 @@ def drive(seed, seconds, eyes=False, words=None, trace=None, keyboard=False, roo
     s = worker.session()
     g = s['g']
     lodge = _lodge(g, forward=True)
-    # its page's scanner (test_errands'): without it F had no offer and docked nothing
+    # the robot's page's scanner (test_errands'): without it F had no offer and docked nothing
     st = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'scanner': scanner.VisionScanner(), 'tour': None, 'yaw': 180.0,
           'pad': humanoid_keys.pad(), 'now': worker.told(s)}
     word_now = ['']
     if keyboard:
         st['keyboard'] = lambda: set(word_now[0])
-    # its driven joints, the spasm judge's (`analyzers.motion`): its toes and wrists no drive turns
+    # the robot's driven joints, the spasm judge's (`analyzers.motion`): its toes and wrists no drive turns
     tap, watched, fast, driven = introspect.Tap(), watch.Watch(), (0.0, ''), set(watch.meta()['rated'])
     frame, typed_at, deepest = 0.0, -math.inf, 0.0
     try:
@@ -138,10 +138,10 @@ def drive(seed, seconds, eyes=False, words=None, trace=None, keyboard=False, roo
                     frame = t
                     st['now'] = worker.told(s)
                     humanoid_keys.frame(st, t, 0.0)
-                    lodge = _lodge(g)      # read each frame: its loose things move (`machine.world.loose`)
+                    lodge = _lodge(g)      # read each frame: the robot's loose things move (`machine.world.loose`)
                     gap, name = _near(lodge, (float(g['world'].data.qpos[0]), float(g['world'].data.qpos[2])),
                                       figure.WIDE_HALF)
-                    # on an errand or in its stunt its thing is its own to reach and sit or lie on (permeable)
+                    # on an errand or in a stunt the robot's thing is its own to reach and sit or lie on (permeable)
                     if -gap > deepest + 0.02 and g.get('_errand') is None and g.get('active_entry') not in se2.STUNT_MODES:
                         deepest = -gap
                         faults.append({'kind': 'into', 't': round(t, 2), 'detail': '%.2f m into %s on %r' % (-gap, name, word)})
@@ -157,7 +157,7 @@ def drive(seed, seconds, eyes=False, words=None, trace=None, keyboard=False, roo
                         if e['event'] in ('stumble', 'fall', 'spasm'):
                             faults.append({'kind': e['event'], 't': round(e['t'], 2), 'detail': sprung.doing(g) + (
                                 ' %s %.0f deg/s' % (e['joint'], e['deg_s']) if 'joint' in e else '')})
-            # W refused short of a thing is its cocoon's (`machine.way.cocoon`), not stuck
+            # W refused short of a thing is the robot's cocoon's (`machine.way.cocoon`), not stuck
             if word == 'w' and held >= 2.0 and s['fallen_at'] is None and cocoon.refused(
                     g, (se2.WALK_SPEED, 0.0, 0.0))[0] and math.hypot(
                     float(g['world'].data.qpos[0]) - x0[0], float(g['world'].data.qpos[2]) - x0[1]) < 0.05:
@@ -171,7 +171,8 @@ def drive(seed, seconds, eyes=False, words=None, trace=None, keyboard=False, roo
     except Exception:
         faults.append({'kind': 'crash', 't': round(float(g['t']), 2), 'detail': traceback.format_exc(limit=3)[-400:]})
         end = 'crashed'
-    # its room's loose things (`machine.world.loose`), how far each went from where its world stood it, m
+    # the robot's room's loose things (`machine.world.loose`), how far each went from where its world
+    # stood it, m
     m, d = g['world'].model, g['world'].data
     moved = {m.body(b).name: round(math.dist(d.xpos[b], m.body_pos[b]), 3) for b, _j in loose.things(m)}
     return {'seed': seed, 'words': words, 'faults': faults, 'end': end, 't': round(float(g['t']), 2), 'eyes': eyes,
@@ -236,19 +237,19 @@ def _staged():
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(description='AIL, its AI in the loop: drive it about the lodge, stage its faults')
+    p = argparse.ArgumentParser(description='AIL, the robot\'s AI in the loop: drive it about the lodge, stage its faults')
     p.add_argument('what', choices=('drive', 'replay', 'run'))
     p.add_argument('path', nargs='*', help='run: key scripts, files or inline JSON - {"words": [[keys, s], ...]}')
     p.add_argument('--jobs', type=int, default=1, help='seeds or scripts side by side (`tools.dev.focus.relay`)')
     p.add_argument('--seeds', type=int, default=4)
     p.add_argument('--first', type=int, default=0, help='the first seed')
     p.add_argument('--seconds', type=float, default=60.0)
-    p.add_argument('--eyes', action='store_true', help='on its eyes (SIGHT 1), not the world\'s boxes')
+    p.add_argument('--eyes', action='store_true', help='on the robot\'s eyes (SIGHT 1), not the world\'s boxes')
     p.add_argument('--stage', type=int, default=0, help='keep the first N faults of kinds not yet kept')
     p.add_argument('--trace', type=float, nargs=2, metavar=('FROM', 'TO'), help='run: a line a frame between, s')
     p.add_argument('--held', action='store_true', help='keys held as a keyboard tells them (Windows\' console), not typed')
     p.add_argument('--kind', nargs='+', help='drive: stage only faults of these kinds (fall, stumble, spasm, into, ..)')
-    p.add_argument('--room', type=float, default=1.0, help='run: 0 an open floor, nothing in its way')
+    p.add_argument('--room', type=float, default=1.0, help='run: 0 an open floor, nothing in the robot\'s way')
     a = p.parse_args(argv)
     if a.what == 'run':
         calls = [(label, (0, sum(s for _w, s in words), a.eyes or eyes, words, a.trace, a.held or held, a.room))
@@ -285,7 +286,7 @@ def main(argv=None):
         calls.append((name, (case['seed'], case['until'], case['eyes'], words, None, case.get('held', False))))
     for name, run in _relayed(calls, a.jobs):
         case = cases[name]
-        # into: into the same thing (a window brushed is its shell's, not the bed it walked into)
+        # into: into the same thing (a window brushed is the robot's shell's, not the bed it walked into)
         thing = case['fault']['detail'].split(' into ')[-1].split(' ')[0] if case['fault']['kind'] == 'into' else ''
         again = [f for f in run['faults'] if f['kind'] == case['fault']['kind'] and (' into %s' % thing) in ' into ' + f['detail'].split(' into ')[-1]]
         failed += bool(again)

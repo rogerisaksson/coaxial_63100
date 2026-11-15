@@ -1380,7 +1380,7 @@ def test_the_gynoid(report):
     from coaxial.graphics import card, gpu, gynoid
     from machine.body import figure
     body = gynoid.body()
-    stride = dict(figure.stand(), left_hip=-22.0, right_hip=16.0)   # its left leg ahead
+    stride = dict(figure.stand(), left_hip=-22.0, right_hip=16.0)   # the robot's left leg ahead
     still, _normals = body.pose(figure.stand())
     report.check('gynoid: its soles on the floor, 1.60 to 1.75 m tall',
                  abs(still[:, 1].min()) < 1e-9 and 1.60 < still[:, 1].max() < 1.75,

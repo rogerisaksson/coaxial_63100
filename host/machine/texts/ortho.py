@@ -1,4 +1,4 @@
-"""Orthokinematics: its movement as text, compiled to rows of numbers its latent space is stepped by.
+"""Orthokinematics: the robot's movement as text, compiled to numeric rows stepping its latent space.
 
     (stream_inject
       (sequence_id 102)
@@ -12,22 +12,22 @@
 
     tables, phases = ortho.compiled(TEXT)   # TEXT with (defbehavior hop (phase pre_load ..) (phase propulsion ..))
     tables['']        # bytes: the payloads' rows in the order said, ROW.size each
-    tables['hop']     # its phases' rows, each at its ms from the behaviour's start, then its rest
+    tables['hop']     # its phases' rows, each at its ms from the behaviour's start, then the robot's rest
     phases['hop']     # ('pre_load', 'propulsion')
     ortho.rows(wire)  # [(id, at ms, blend ms, flags, the parameters ..)]
 
-A text speaks of balance, rhythm and elasticity alone. Where its latent coordinates are asked
+A text speaks of balance, rhythm and elasticity alone. Where the robot's latent coordinates are asked
 (`latent_targets`, -REACH to REACH a mode); how stiffly and how damped each is held there (`impedance`:
-N/m and N s/m, `global` every mode, MAX_SYS_K the stiffest said); its rhythm (`cpg_config`: on
-or off, its frequency, each mode's amplitude and its phase from another's; `cpg_override
-(halt_oscillators)` is off); what must hold whatever is asked (`task_constraints`: its ZMP in
-its soles' polygon, its yaw momentum's limit, what bears it and its slide over it). It names no
-joint, no limb's side and no motor.
+N/m and N s/m, `global` every mode, MAX_SYS_K the stiffest said); its rhythm (`cpg_config`: on or off,
+its frequency, each mode's amplitude and its phase from another's; `cpg_override (halt_oscillators)` is
+off); what must hold whatever is asked (`task_constraints`: its ZMP in its soles' polygon, its yaw
+momentum's limit, what bears it and its slide over it). A text names no joint, no limb's side and no
+motor.
 
-A row is numbers alone (`ROW`, little-endian, `ortho_row_t`), its parameters laid as its latent
+A row is numbers alone (`ROW`, little-endian, `ortho_row_t`), its parameters laid as the robot's latent
 state is (`machine.law.latent`). What a row leaves unsaid is NaN and stays as it was. A behaviour is rows in
-a table, each a phase at its time; its last row, flagged REST, is its rest again. What a mode is
-on its body and what its drives give are downstream's (`machine.law.modal`, `machine.stack.wbc`).
+a table, each a phase at its time; its last row, flagged REST, is the robot's rest again. What a mode is
+on the robot's body and what its drives give are downstream's (`machine.law.modal`, `machine.stack.wbc`).
 """
 import math
 import os
@@ -38,21 +38,22 @@ from machine.texts.curves import QUINTICS
 
 _FILE = os.path.join(mechatronics.HUMANOID, mechatronics.ROBOT + '.lisp')
 
-#: Its latent coordinates, a row's vectors in this order. Of its centre of mass over its soles'
-#: middle: its height, 1 fully compressed; its place across, 1 over its first limb's sole;
-#: along (the fifth), 1 at its toes' edge. Of its limbs against each other: the drive along its
-#: way, 1 its first limb a stride behind and the other as far ahead; the lift, 1 its first
-#: sole clear of the floor over the other; the width, 1 twice as wide as it stood. Its trunk's
-#: pitch, 1 ahead. The robot's pelvis's list, 1 its first hip up, and its turn, 1 its other hip
-#: forward; its arms' swing, 1 its first arm ahead; its soles' rock, 1 its first heel up and
-#: the other's toes; its arms' reach, 1 both ahead; their fold, 1 both elbows bent.
+#: The robot's latent coordinates, a row's vectors in this order. Of the robot's centre of mass over its
+#: soles' middle: its height, 1 fully compressed; its place across, 1 over its first limb's sole; along (the
+#: fifth), 1 at its toes' edge. Of the robot's limbs against each other: the drive along its way, 1 its first
+#: limb a stride behind and the other as far ahead; the lift, 1 its first sole clear of the floor over the
+#: other; the width, 1 twice as wide as it stood. The robot's trunk's pitch, 1 ahead. The robot's pelvis's
+#: list, 1 its first hip up, and its turn, 1 its other hip forward; its arms' swing, 1 its first arm ahead;
+#: its soles' rock, 1 its first heel up and the other's toes; its arms' reach, 1 both ahead; their fold, 1
+#: both elbows bent.
 MODES = mechatronics.MODES
 N = len(MODES)
 #: A row's parameters, one vector: each mode's target, stiffness, damping, amplitude and phase
-#: (rad); then its rhythm's gain (0 off, 1 on) and Hz, its ZMP's polygon (0 none, 1 the
+#: (rad); then the robot's rhythm's gain (0 off, 1 on) and Hz, its ZMP's polygon (0 none, 1 the
 #: support polygon, 2 the dynamic footprint), its yaw momentum's limit, N m s; its sidechain
 #: (DUCK): its height ducked on each touchdown, m (down negative), its attack and its release, s;
-#: the weight of what bears it (MANIFOLDS), unsaid at rest: its soles' alone (`observer.weighed`).
+#: the weight of what bears it (MANIFOLDS), unsaid at rest: its soles' alone
+#: (`observer.weighed`).
 Z, K, D, AMP, PHASE = (i * N for i in range(5))
 GAIN, HZ, ZMP, YAW = (5 * N + i for i in range(4))
 DUCK = slice(5 * N + 4, 5 * N + 7)
@@ -64,13 +65,14 @@ FURNITURE = slice(1, PALMAR)
 SLIDE, P = MANIFOLD.stop, MANIFOLD.stop + 1
 #: A row on the wire: id, at ms, blend ms, flags as u32; the parameters as f32.
 ROW = struct.Struct('<4I%df' % P)
-#: A row's flags: REST every parameter back to its rest (a behaviour's last row, blended REST_MS);
+#: A row's flags: REST every parameter back to the robot's rest (a behaviour's last row, blended REST_MS);
 #: CURVE a curve's sample - a take's frame - blended as one with the rows about it (`latent.CONTIG`),
 #: a text's rows each their own way; it and the rows after it wait (`waits.borne_back`) till a seat
-#: or bed bears it (CONTACT), its soles SHARE of it (SOLES, thousandths from SHARE_BIT), each hand (PALMED);
-#: LATCH its vector set where it is read, its gains back on no error (`waits.latched_back`).
+#: or bed bears the robot (CONTACT), its soles SHARE of it (SOLES, thousandths from SHARE_BIT),
+#: each hand (PALMED); LATCH its vector set where it is read, its gains back on no
+#: error (`waits.latched_back`).
 REST, REST_MS, CURVE, CONTACT, LATCH, SOLES, SHARE_BIT, PALMED = 1, 200, 2, 4, 8, 256, 9, 1 << 19
-#: A row that raises it out of a dip waits while its centre of mass still sinks (RISE: a leap's push).
+#: A row that raises the robot out of a dip waits while its centre of mass still sinks (RISE: a leap's push).
 RISE = 1 << 20
 WAITS = {'contact': CONTACT, 'soles': SOLES, 'palmar': PALMED}
 #: A row's blend's shape (shape NAME): its index in the flags from SHAPE_BIT (`latent.SHAPES`);
@@ -85,7 +87,8 @@ SYMBOLS = {'MAX_SYS_K': peripherals.bus()['max_sys_k'], 'true': 1.0, 'false': 0.
 
 _UNIT = re.compile(r'(-?\d+(?:\.\d+)?)(ms|s|Hz|deg)')
 _SCALE = {'ms': ('s', 1e-3), 's': ('s', 1.0), 'Hz': ('Hz', 1.0), 'deg': ('rad', math.pi / 180.0)}
-#: A text's time goes as the root of its build's leg, its rate as its inverse root (`machine.body.gait`).
+#: A text's time goes as the root of the robot's build's leg, its rate as its inverse root
+#: (`machine.body.gait`).
 _SIMILAR = {'s': gait.SIMILAR ** 0.5, 'Hz': gait.SIMILAR ** -0.5, 'rad': 1.0}
 _WANTS = {'s': 'ms or s', 'Hz': 'Hz', 'rad': 'deg'}
 _MODE = {'mode_' + m: (i,) for i, m in enumerate(MODES)}
@@ -205,7 +208,7 @@ def _offset(r, mode, of, v):
     r[_HEAD + PHASE + _MODE[mode][0]] = _CLEAR if rad is _CLEAR else (0.0 if math.isnan(lead) else lead) + rad
 
 
-#: How far a mode's target goes, units either way: past 1 is past its soles' own reach (a seat
+#: How far a mode's target goes, units either way: past 1 is past the robot's soles' own reach (a seat
 #: 3.5 axial down and 3 sagittal back, the floor 6), where a support, a step or a fall bears it.
 REACH = 6.0
 #: What a clause says, by the names down to it: how it is laid in the row. A latent target's
@@ -366,7 +369,7 @@ def _behavior(body, base=(), traits=None, row_traits=()):
 
 
 def key(path):
-    """A text's key among its texts: its absolute path, its case folded where the system folds it."""
+    """A text's key among the robot's texts: its absolute path, its case folded where the system folds it."""
     return os.path.normcase(os.path.abspath(path))
 
 
@@ -377,7 +380,7 @@ def source(path, texts=None):
         with open(key(path), encoding='utf-8', newline='') as f:
             return f.read()
     if key(path) not in texts:
-        raise SyntaxError('no text of %s among its texts' % os.path.basename(path))
+        raise SyntaxError('no text of %s among the robot\'s texts' % os.path.basename(path))
     return texts[key(path)]
 
 
@@ -413,8 +416,8 @@ def _forms(text, here, seen=(), done=None, texts=None):
 
 
 def sources(path=None):
-    """{key: text} of its gym's file (`_FILE`) or `path`, and every file it includes, as on disk:
-    its texts as its gym's compile reads them."""
+    """{key: text} of the robot's gym's file (`_FILE`) or `path`, and every file it includes, as on disk: its
+    texts as its gym's compile reads them."""
     out, todo = {}, [key(path or _FILE)]
     while todo:
         at = todo.pop()
@@ -427,7 +430,7 @@ def sources(path=None):
 
 def robot_form(form):
     """{name, body, modes, drives} of a (defrobot NAME (body (KEY N) ..) (mode MODE (KEY N) ..) ..
-    (drive JOINT (KEY V ..) ..) ..): its manifest's numbers (tools/cores/manifest.py)."""
+    (drive JOINT (KEY V ..) ..) ..): the robot's manifest's numbers (tools/cores/manifest.py)."""
     if len(form) < 2 or not isinstance(form[1], str):
         raise SyntaxError('%s: (defrobot NAME ..) wants a name' % said(form)[:60])
     out = {'name': form[1], 'body': {}, 'modes': {}, 'drives': {}}

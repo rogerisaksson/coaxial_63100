@@ -1,13 +1,13 @@
 """The HUMANOID page's keys: its rows of the terminal's one table (`terminal.ui.bindings`), its modes.
 
-    run_view(.., pad=humanoid_keys.PAD, state=state)       # its page's keys, the terminal's after them
+    run_view(.., pad=humanoid_keys.PAD, state=state)       # the robot's page's keys, the terminal's after them
     humanoid_keys.frame(state, now, heading)               # each frame: what is held, F's choice
 
-Its modes come before its rows: the LLM prompt open takes every key - Enter says it, Esc closes
-it, Backspace takes a character back -; F's choice open takes a digit, F or a function key, a key
-that acts on its closing it first, the view's leaving it, Esc shutting it. W A S D Q E - Shift
-sprints - are held into its pad, its twist told it each frame (`steered`); Space and P charge
-while held; the rest act once a press. An act takes the view's state, moves it and sends its body
+The robot's modes come before its rows: the LLM prompt open takes every key - Enter says it, Esc
+closes it, Backspace takes a character back -; F's choice open takes a digit, F or a function key, a key that
+acts on the robot's closing it first, the view's leaving it, Esc shutting it. W A S D Q E - Shift sprints -
+are held into the robot's pad, its twist told the robot each frame (`steered`); Space and P charge while held;
+the rest act once a press. An act takes the view's state, moves it and sends the robot's body
 (`machine.process.sprung`) what it asks - what an agent sends, its verbs `terminal.views.gym`'s. R's
 recordings and their rows (HEADER, `row`) are here with the key that writes them.
 """
@@ -21,16 +21,16 @@ from machine.moves.leap import hop_charge
 from terminal.ui import bindings, console, recorder
 from terminal.views import gym, viewpoint
 
-#: P held charges a push from the view onto it: CHARGE_N_S a second held, CHARGE_MAX_N at most,
+#: P held charges a push from the view onto the robot: CHARGE_N_S a second held, CHARGE_MAX_N at most,
 #: landing once the key's repeats stop - RELEASE_S after the last, FIRST_S after a lone press (a
 #: terminal's first repeat comes 250-500 ms on) - along the view's line of sight.
 CHARGE_N_S, CHARGE_MAX_N, RELEASE_S, FIRST_S = 120.0, 250.0, 0.25, 0.8
-#: Space's repeats feed its hop's charge HOP_HOLD_S after it; its table's rows of a hop under way, where Space
-#: says no other (`leap.standing_leap`'s names, a stride hop's push).
+#: Space's repeats feed the robot's hop's charge HOP_HOLD_S after it; the robot's table's rows of a hop under
+#: way, where Space says no other (`leap.standing_leap`'s names, a stride hop's push).
 HOP_HOLD_S = 0.55
 HOPPING = ('hop', 'load', 'push', 'throw', 'flight', 'land')
 
-#: Where R's recordings go, a CSV from a press to the next: every state the page hears from it,
+#: Where R's recordings go, a CSV from a press to the next: every state the page hears from the robot,
 #: 10-20 a second of its time (HEADER); beside each, the keys typed and held since the row before
 #: and the commands it heard since, (epoch, pass, t, command) each - from its epoch's lay on in
 #: the first row, so `tools/sim/replay.py` runs it again pass for pass.
@@ -41,21 +41,21 @@ HEADER = (['t', 'stage', 'yaw', 'speed', 'phase', 'left_load', 'right_load',
           + ['set_' + j for j in JOINTS] + ['watts', 'epoch', 'ratio', 'headroom', 'crc', 'link', 'keys', 'commands'])
 
 #: What L, T and M step through: the joints called out (`show_humanoid.CALLED`), what each
-#: callout shows, its skin - dressed, its shell, its mechanism (`coaxial.graphics.mechanism`), its
+#: callout shows, the robot's skin - dressed, its shell, its mechanism (`coaxial.graphics.mechanism`), its
 #: drives alone.
 CALLING, SHOWN, SKINS = ('strong', 'all', 'none'), ('torque', 'power', 'temp'), ('dressed', 'shell', 'mechanism', 'actuators')
 _CYCLES = {'l': ('called', CALLING), 't': ('shown', SHOWN), 'm': ('skin', SKINS)}
-#: The view's steps: an arrow's turn, deg, round it; a key's zoom.
+#: The view's steps: an arrow's turn, deg, round the robot; a key's zoom.
 _LOOKS, _ZOOMS = {'left': -viewpoint.TURN_DEG, 'right': viewpoint.TURN_DEG}, {'+': 1.1, '=': 1.1, '-': 1 / 1.1, '_': 1 / 1.1}
-#: The scenes' keys, each the step through `floor.SCENARIOS` it takes - Enter the one it is in.
+#: The scenes' keys, each the step through `floor.SCENARIOS` it takes - Enter the one the robot is in.
 _SCENES = {'[': -1, ']': 1, ',': 1, '<': 1, '\r': 0, '\n': 0}
 #: The function keys, F1 the first balloon's.
 FUNCTION_KEYS = tuple('f%d' % (k + 1) for k in range(len(gym.DIGITS)))
 
 
 def row(now, yaw, keys='', commands=(), crc=0, link=0):
-    """A recording's row (HEADER) at the page's `yaw`: `keys` typed and held, `commands` heard, its
-    pace against the wall and what it could be, the frames its buses refused (`crc`) and its
+    """A recording's row (HEADER) at the page's `yaw`: `keys` typed and held, `commands` heard, the robot's
+    pace against the wall and what it could be, the frames the robot's buses refused (`crc`) and its
     Renode limb's writes timed out or refused (`link`) so far."""
     placed = frames(now['angles'], now['where'], quat(*now['turn']))
     asked = now.get('set', {})
@@ -84,7 +84,7 @@ def plain(value):
 
 
 def heard(state, entries):
-    """Its heard commands into the page's `log` - its epoch's, from its lay - and, recording,
+    """The robot's heard commands into the page's `log` - its epoch's, from its lay - and, recording,
     into those the next row carries."""
     for entry in entries:
         if 'laid' in entry[3]:
@@ -111,9 +111,9 @@ def rows_of(state, said):
 
 
 def _recorded(state):
-    """R: recording from now, its epoch's commands so far its first row's, its loop recording its
-    layers beside it (`watch.recorded`, the same name's .jsonl); again: written to RECORDINGS,
-    its name on the page."""
+    """R: recording from now, the robot's epoch's commands so far its first row's, the robot's loop recording
+    its layers beside it (`watch.recorded`, the same name's .jsonl); again: written to RECORDINGS, its name on
+    the page."""
     body = state.get('body')
     if state['recording'] is None:
         state['recording'], state['recorded'] = recorder.started('humanoid', HEADER), None
@@ -128,13 +128,13 @@ def _recorded(state):
 
 
 def pad():
-    """The keys that move it as last seen (`polled`'s) and the twist they asked."""
+    """The keys that move the robot as last seen (`polled`'s) and the twist they asked."""
     return {'keys': dict.fromkeys(('w', 's', 'a', 'd', 'q', 'e', 'shift'), False), 'last_seen': {},
             'setpoint': (0.0, 0.0, 0.0), 'actual': (0.0, 0.0, 0.0)}
 
 
 def _moving(raw):
-    """The keys that move it among `raw` - characters typed, or the console's held names -,
+    """The keys that move the robot among `raw` - characters typed, or the console's held names -,
     Shift with an upper-case one."""
     out = set()
     for k in raw:
@@ -173,7 +173,7 @@ def polled(raw, st, now, held=None):
 
 
 def twist(keys, look=0.0, heading=0.0):
-    """(vx, vy, wz) the `keys` held (`polled`) ask of it in its own frame, independent of `look`."""
+    """(vx, vy, wz) the `keys` held (`polled`) ask of the robot in its own frame, independent of `look`."""
     _ = look, heading
     fwd = int(keys['w']) - int(keys['s'])
     turn = int(keys['a']) - int(keys['d'])
@@ -202,15 +202,16 @@ def _hop_held(state, now, held):
 
 
 def keyboard(state):
-    """The keys that move its held now, as a keyboard tells them: the page's own where it has one
+    """The keys that move the robot's held now, as a keyboard tells them: the page's own where it has one
     (`state['keyboard']`, AIL's), else the console's (`console.held`); None where none tells."""
     return (state.get('keyboard') or console.held)()
 
 
 def steered(state, now, heading):
     """Each frame: the keys held - a keyboard's (`keyboard`), else those typed within
-    `console.HOLD_WINDOW_S` - as its twist, sent when it changes and again as it reports a scene
-    laid anew, its twist zeroed with it; a key that moves it ends the tour. `now` the wall clock."""
+    `console.HOLD_WINDOW_S` - as the robot's twist, sent when it changes and again as the robot reports a
+    scene laid anew, its twist zeroed with it; a key that moves the robot ends the tour. `now` the
+    wall clock."""
     if (state.get('llm_prompt') or {}).get('open'):
         return
     raw_held = keyboard(state)
@@ -282,7 +283,8 @@ def _picked(state, key, _now):
 
 
 def _hopped(state, _key, now):
-    """A hop said (`gym.hopped`), syncing its pad's twist first when keys are active, its charge from now."""
+    """A hop said (`gym.hopped`), syncing the robot's pad's twist first when keys are active, its charge from
+    now."""
     if 'pad' in state and state['pad'].get('at'):
         steered(state, now, state.get('_heading', 0.0))
     if gym.hopped(state) == 'hop':
@@ -293,8 +295,8 @@ _HOPPED = bindings.once(_hopped)
 
 
 def _hop(state, key, now):
-    """Space: a hop once a press, its repeats while it loads it charging it (`_hop_held`), none said while one is under
-    way (HOPPING): held on, it said one in its flight and its landing and felled it."""
+    """Space: a hop once a press, its repeats while the robot loads it charging it (`_hop_held`), none said while one
+    is under way (HOPPING): held on, it said one in the robot's flight and its landing and felled it."""
     hh, doing = state.get('hop_hold'), (state.get('now') or {}).get('doing')
     if hh and now - hh['began'] <= HOP_HOLD_S and doing in ('brake', 'stand', 'load', 'push', 'hop'):
         hh['last'], hh['repeats'] = now, hh.get('repeats', 0) + 1
@@ -320,7 +322,7 @@ def _prompted(state, _key, _now):
 
 
 def _restarted(state):
-    """Backspace: it laid anew on the floor, the tour and the keys' twist ended."""
+    """Backspace: the robot laid anew on the floor, the tour and the keys' twist ended."""
     gym.cancel_tour(state)
     state['pad'] = pad()
     state['body'].send(restart=True)
@@ -333,7 +335,7 @@ def _cycled(state, key, _now):
 
 
 def _horizon(state, key, _now):
-    """Z on through its horizon's modes (`horizon.MODES`), Shift+Z back."""
+    """Z on through the robot's horizon's modes (`horizon.MODES`), Shift+Z back."""
     from coaxial.graphics.horizon import MODES
     state['horizon'] = MODES[(MODES.index(state.get('horizon') or 'off') + (1 if key == 'z' else -1)) % len(MODES)]
 
@@ -346,18 +348,18 @@ _ROWS = (
     ('ROBOT', 'SHIFT', 'sprint', (('SHIFT', 'SPRINT'),), {}),
     ('ROBOT', 'Q E', 'sidestep left, right', (('Q E', 'SIDESTEP'),), dict.fromkeys('qeQE', _HELD)),
     ('ROBOT', 'SPACE', 'hop - onto a chair ahead, down from one', (('SPC', 'HOP'),), {' ': _hop}),
-    ('ROBOT', 'F / F 1-0', "a balloon's verb: the one it faces / the one so keyed (or F1-F10)",
+    ('ROBOT', 'F / F 1-0', "a balloon's verb: the one the robot faces / the one so keyed (or F1-F10)",
      (('F', 'INTERACT'),), {**_cased('f', _interact), **dict.fromkeys(FUNCTION_KEYS, _picked)}),
     ('ROBOT', 'C', 'crouch, and up', (('C', 'CROUCH'),), _cased('c', _did(gym.crouched))),
     ('ROBOT', '1-0 / >', "the gym's entries, but after F / its other text", (),
      {**dict.fromkeys(gym.DIGITS, _digit), '>': _did(gym.next_text)}),
-    ('VIEW', 'L-DRAG / ← →', 'look round it; behind it again as it goes', (),
+    ('VIEW', 'L-DRAG / ← →', 'look round the robot; behind it again as it goes', (),
      {k: lambda state, key, _now: viewpoint.turned(state, _LOOKS[key] / viewpoint.DRAG_DEG[0], 0.0) for k in _LOOKS}),
     ('VIEW', 'X', 'the other shoulder', (('X', 'SHOULDER'),), _cased('x', _did(viewpoint.shouldered))),
-    ('VIEW', 'Z', "its horizon: each sole's landing room, its capture point", (), _cased('z', _horizon)),
+    ('VIEW', 'Z', "the robot's horizon: each sole's landing room, its capture point", (), _cased('z', _horizon)),
     ('VIEW', 'R-DRAG / WHEEL + -', 'pan / zoom', (),
      {k: lambda state, key, _now: viewpoint.zoomed(state, _ZOOMS[key]) for k in _ZOOMS}),
-    ('VIEW', 'V / O', 'behind it / orbit', (), {**_cased('v', _did(lambda state: state.update(viewpoint.HOME))),
+    ('VIEW', 'V / O', 'behind the robot / orbit', (), {**_cased('v', _did(lambda state: state.update(viewpoint.HOME))),
                                                  **_cased('o', _did(lambda state: state.update(orbit=not state['orbit'])))}),
     ('VIEW', 'M', 'dressed, shell, mechanism, drives', (), _cased('m', _cycled)),
     ('VIEW', 'L / T', 'callouts / torque, power, temp', (), {**_cased('l', _cycled), **_cased('t', _cycled)}),
@@ -400,7 +402,7 @@ def _prompt_key(state, key):
 
 
 def _take(state, key, _now):
-    """Its page's modes, before its rows: the LLM prompt open takes every key (`_prompt_key`); F's
+    """The robot's page's modes, before its rows: the LLM prompt open takes every key (`_prompt_key`); F's
     choice open takes Esc - shut -, leaves its own keys and the view's to their rows, and is shut by
     any other before it acts; a key past the prompt kept for R's recording (`rows_of`)."""
     if (state.get('llm_prompt') or {}).get('open'):
@@ -415,18 +417,18 @@ def _take(state, key, _now):
 
 
 def _held(state, keys, now):
-    """`keys` that move it, typed together, into its pad; the tour ended."""
+    """`keys` that move the robot, typed together, into its pad; the tour ended."""
     gym.cancel_tour(state)
     polled(keys, state.setdefault('pad', pad()), now, keyboard(state))
 
 
-#: Its page's keys for `run_view`: its rows, the terminal's after them, its modes and its pad.
+#: The robot's page's keys for `run_view`: its rows, the terminal's after them, its modes and its pad.
 PAD = bindings.page(ROWS, take=_take, held=_held)
 
 
 def clicked(state):
     """A left click on the viewport while F's choice is open: its first offer said, the choice closed. With none open
-    a click says nothing - said F's first offer, a click to turn the view walked it off to it."""
+    a click says nothing - said F's first offer, a click to turn the view walked the robot off to it."""
     if state.get('choosing') is not None:
         _chosen(state)
 
@@ -440,7 +442,7 @@ def lapsed(state, now):
 
 def frame(state, now, heading):
     """Each frame: F's choice lapsed (`lapsed`); the keys held - the console's, else those typed
-    within `console.HOLD_WINDOW_S` - its twist and Space's charge (`steered`); P let go shoves it
+    within `console.HOLD_WINDOW_S` - the robot's twist and Space's charge (`steered`); P let go shoves it
     along the view. `now` the wall clock."""
     state['_heading'] = heading
     lapsed(state, now)

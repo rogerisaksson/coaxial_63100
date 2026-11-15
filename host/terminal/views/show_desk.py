@@ -6,9 +6,9 @@
 
 The drawing itself is `coaxial.draw.desk`, which is pure and tested; this file is
 the loop, the screen and the cable. Nothing here judges a reading: the face
-is the converter's own scale (invariant 10).
+is the converter's own scale.
 
-AFE_ON is on for the run (invariant 9) and put back the way it was found on
+AFE_ON is on for the run and put back the way it was found on
 the way out. No demo motor: the drive's injected group locks the meter out of
 eight of the ten channels, and the sweep waited on phase U for ever.
 """
@@ -65,7 +65,7 @@ def main(argv=None):
                              'closed')
     args = parser.parse_args(argv)
 
-    # power_afe by name (invariant 9): with the rail down the board refuses
+    # power_afe by name: with the rail down the board refuses
     # to start the task.
     rig = open_rig('LINKING CONVERTERS', port=args.port, power_afe=True,
                    execution_mode=mode_of(args))

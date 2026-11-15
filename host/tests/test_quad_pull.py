@@ -1,5 +1,6 @@
-"""The quad's action space (machine.aircraft.pull) against the board's law: a rotor's top, its reach, its
-stage's watts on a stand-in; the four's on their pack."""
+"""The quad's action space (machine.aircraft.pull) against the board's law.
+
+A rotor's top, its reach, its stage's watts on a stand-in; the four's on their pack."""
 import sys
 
 from tools.dev.focus import chosen
@@ -97,7 +98,7 @@ def test_a_rotors_top_is_the_laws(report):
                  all(abs(a - b) <= 1e-6 * abs(b) for a, b in zip(record, pull.ROTOR[:4])),
                  '%s and %s' % (record, list(pull.ROTOR[:4])))
     worst = max(abs(w - pull.ceiling(v, a)) / w for v, a, w, _iq, _fault in tops)
-    report.check('its top on a held link is the space\'s within 0.1 %: the clamp\'s end at 63 V '
+    report.check('the rotor\'s top on a held link is the space\'s within 0.1 %: the clamp\'s end at 63 V '
                  'and 60 A, the link\'s elsewhere, no trip',
                  worst < 1e-3 and not any(fault for *_x, fault in tops)
                  and abs(tops[0][3] - CASES[0][1]) < 0.1 and tops[1][3] < 0.8 * CASES[1][1],
@@ -143,7 +144,7 @@ def test_a_rotors_reach_and_watts(report):
                           1.5 * (law['vd'] * law['id'] + law['vq'] * law['iq'])))
     finally:
         off(rig)
-    report.check('its speed gains what the space says within 3 %, on the clamp at 63 V and on '
+    report.check('the rotor\'s speed gains what the space says within 3 %, on the clamp at 63 V and on '
                  'what a link at 44 V leaves of it',
                  all(abs(got - want) < 0.03 * want for _v, _at, got, want, _room in gains)
                  and gains[0][4] > pull.I_MAX > gains[1][4],

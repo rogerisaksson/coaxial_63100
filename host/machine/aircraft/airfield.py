@@ -8,7 +8,7 @@ The runway ends at the middle of the world on RUNWAY_RAD. The lap (LEGS) is a pl
 at SPEED_M_S on turns of TURN_M from the near turn's exit: up the runway's line through an air
 gate and under a limbo bar at LOW_M, round the far turn up through a hoop at TOP_M, a slalom of
 three pylons down the back straight, a knife gate taken on its side, round the near turn onto
-the runway's line. Its line (`track`) is what it flies and what is drawn:
+the runway's line. The lap's line (`track`) is what the aerobat flies and what is drawn:
 straights and arcs a metre apart, each with its height and its knife. The gates stand only
 while it is flown (`quad.Sky.stand`); what stands always is clear of every line the routine and
 the course fly.
@@ -25,21 +25,23 @@ _AS, _RB = _MANIFEST['aerodynamics']['aero_surfaces'], _MANIFEST['dynamics']['ri
 KNIFE_PASS, ROLLING_HARRIER = _STUNTS['knife_pass'], _STUNTS['rolling_harrier']
 
 RUNWAY_RAD = math.radians(50.0)
-#: The runway's strip, m along its line from its end: where a landing stops. To 16 m, its
+#: The runway's strip, m along its line from its end: where a landing stops. To 16 m, the aerobat's
 #: take-off's length, a landing in the gusty kind's 1 m/s tail wind on the floor rolled past it in
 #: 10 of 13: a 9-13 m float and 32 m on its wheels from 12.2 m/s.
 RUNWAY_ALONG = (-20.5, 30.0)
-#: Its lap at SPEED_M_S: at 20 m/s its 17x8 on a pack sagged to 48 V, its top 600 rad/s and its pitch's
-#: speed 20 m/s, could not hold it and hung nose-high at 4-9 m/s into the slalom's pylons.
+#: The aerobat's lap at SPEED_M_S: at 20 m/s its 17x8 on a pack sagged to 48 V, its top 600 rad/s
+#: and its pitch's speed 20 m/s, could not hold it and hung nose-high at 4-9 m/s into the slalom's
+#: pylons.
 SPEED_M_S, TURN_M, HIGH_M, LOW_M, TOP_M, LAPS = 16.0, 12.0, 3.0, 1.2, 10.0, 2
-#: The point on the line it turns for, s ahead over the floor (L1, ArduPlane's), its rate at the
-#: most; the height and the knife read so far ahead, s. The line's tangent crabbed onto it over
-#: a second (`wingborne.lined`) put it 3.9 m off the hoop in gusts.
+#: The point on the line the aerobat turns for, s ahead over the floor (L1, ArduPlane's), its rate
+#: at the most; the height and the knife read so far ahead, s. The line's tangent crabbed onto it
+#: over a second (`wingborne.lined`) put the aerobat 3.9 m off the hoop in gusts.
 L1_S, TURN_RAD_S, LEAD_S = 0.7, math.radians(120.0), (0.8, 0.5)
-#: Faster on its side, m/s: at 14 m/s in gusts its wings swung 34 deg off upright in the gate.
+#: The aerobat faster on its side, m/s: at 14 m/s in gusts its wings swung 34 deg off upright in the gate.
 KNIFE_M_S = 4.0
 #: A pylon's side and the knife gate's width, m: an air race's, twice the wings plus the pylon,
-#: taken on its side by the rule - at 1.5 m, narrower than them, gusts put it 1.6 m off in knife-edge.
+#: taken with the aerobat on its side by the rule - at 1.5 m, narrower than them, gusts put it
+#: 1.6 m off in knife-edge.
 PYLON_M = 0.4
 SLOT_M = round(2.0 * _AS['wing_span'] + PYLON_M, 2)
 REST_M = round(_RB['skid_height'] + _RB['foot_radius'], 2)
@@ -107,13 +109,13 @@ def _ramp(x):
 #: The routine's opening off the runway, a line as the lap is: from LIFT_M up its line RUN_M
 #: to OPEN_M_S, sharp right a quarter turn straight into a sharp left three quarters round on
 #: OPENING_M turns - onto the runway's line again 2 OPENING_M on -, then PASS_M down it, down
-#: to KNIFE_M and rolled onto its side over DESCENT_M at PASS_M_S, its top to the spectator
-#: (the other way it showed them its belly), rolled back and up over its last PULL_M; a
+#: to KNIFE_M and the aerobat rolled onto its side over DESCENT_M at PASS_M_S, its top to the
+#: spectator (the other way it showed them its belly), rolled back and up over its last PULL_M; a
 #: teardrop to the far side on OPENING_M turns, its leg twice them so it closes on the line,
 #: and RUN_IN_M up it slowing to RUN_IN_M_S, before the spectator. Flown as timed turns the
 #: same figure ended 22 m beside the runway at 6 m/s, the teardrop 54 m out and 19 beside it;
-#: turned off the lift at 13 m/s on 8 m it bled to 3.6; the 1.4 m wing ran wide of 9 m turns.
-#: Its tip 4 cm over the runway on its side: at 0.45 m it struck.
+#: turned off the lift at 13 m/s on 8 m the aerobat bled to 3.6; the 1.4 m wing ran wide of 9 m
+#: turns. The aerobat's tip 4 cm over the runway on its side: at 0.45 m it struck.
 LIFT_M, RUN_M, OPENING_M, OPEN_M_S = 20.0, 12.0, 11.0, 18.0
 PASS_M, PASS_M_S, KNIFE_M, DESCENT_M, PULL_M = 74.0, KNIFE_PASS['speed'], KNIFE_PASS['height'], 12.0, 15.0
 HARRIER_M, HARRIER_H, HARRIER_M_S, HARRIER_ROLL = (
@@ -153,12 +155,12 @@ HOUSES = (placed(-12.0, -22.0) + (12.0, 10.0, 4.0, 5.5),)
 CARS = tuple(placed(a, c) + (math.degrees(RUNWAY_RAD),) for a, c in ((-3.0, -19.0), (0.5, -19.5)))
 MASTS, HALLS, PADS = (), (), ()
 
-#: Its lean the wing's, m/s^2: 12 at 14 m/s is 10.5 deg; the hover's 8 left 0.7 in a turn.
+#: The cruise's lean the wing's, m/s^2: 12 at 14 m/s is 10.5 deg; the hover's 8 left 0.7 in a turn.
 CRUISE = dict(HOVER, height=HIGH_M, pace=5.0, speed=SPEED_M_S, home=0.0, lean=50.0)
 FINAL = dict(CRUISE, height=0.22, speed=11.5, pace=1.8)
-#: The opening's lean its carbon airframe's 15 g; what a turn takes short of it is its wing's,
-#: short of the stall (`aerobat.law`). On 15 g the course's laps left it into the floor on its
-#: final, 36 m on.
+#: The opening's lean the aerobat's carbon airframe's 15 g; what a turn takes short of it is its
+#: wing's, short of the stall (`aerobat.law`). On 15 g the course's laps left the aerobat into the
+#: floor on its final, 36 m on.
 G15_M_S2 = 15.0 * _RB['gravity']
 
 
@@ -184,9 +186,9 @@ def _at(track, s, round_=False):
 
 
 def line(route, now):
-    """The lap's row for now (`aerobatics.fly`'s giver): on its wing at SPEED_M_S at the height
-    and the knife the line asks LEAD_S ahead, turned for its point L1_S ahead as `2 sin(eta) /
-    L1_S`, eta its way over the floor off it, TURN_RAD_S at the most; a lap at its end, LAPS
+    """The lap's row for now (`aerobatics.fly`'s giver): the aerobat on its wing at SPEED_M_S at the
+    height and the knife the line asks LEAD_S ahead, turned for its point L1_S ahead as `2 sin(eta)
+    / L1_S`, eta its way over the floor off it, TURN_RAD_S at the most; a lap at its end, LAPS
     laps, `lapped` there."""
     fresh = {'began': route['at'], 'k': None, 'laps': 0, 'gate': 0, 'of': LAPS}
     lap = route.get('lap', fresh)
@@ -229,7 +231,7 @@ def _open_step(route, start, end, hold):
     roll = HARRIER_ROLL * float(_HARR_S0 <= s <= _HARR_S0 + HARRIER_M)
     slow = (OPEN_M_S - HARRIER_M_S) * _ramp((s - _HARR_S0) / 18.0)
     lead_h = LEAD_S[0] * (OPEN_M_S - slow)
-    # Gusty, its pass higher by its law's gusts (`aerokin.seen`): at KNIFE_M on the 17x8 the
+    # Gusty, the aerobat's pass higher by its law's gusts (`aerokin.seen`): at KNIFE_M on the 17x8 the
     # page's tours sank it onto its tip 15 times in 47 crashes.
     lift = GUST_S * route.get('seen', {}).get('gust', 0.0)
     return dict(CRUISE, turn=math.degrees(rate),
@@ -255,23 +257,24 @@ def rolling_harrier(route, now):
 #: The circuit, a line as the lap is: from the lap's START up the runway's line to TURN_AT_M,
 #: round to its near side on CIRCUIT_M, down it and round onto its line at BASE_M, CIRCUIT_H up
 #: at CIRCUIT_M_S, slowed SLOW_M_S2 to it before its first turn; the routine joins it off its hold.
-#: As timed legs it came down 25-37 m beside the runway in gusts, or into the house. On 12 m turns
-#: at 12 m/s - 12.3 deg of the stall's 15 - it stalled in gusts, the course in its last near turn
-#: in all of eight; at 14 m/s a tip struck lining up low. The far side's gates stood 1.3 m off.
-#: At 1.8 m its final came in on a 2 deg glide.
+#: As timed legs the aerobat came down 25-37 m beside the runway in gusts, or into the house. On
+#: 12 m turns at 12 m/s - 12.3 deg of the stall's 15 - the aerobat stalled in gusts, the course in
+#: its last near turn in all of eight; at 14 m/s a tip struck lining up low. The far side's gates
+#: stood 1.3 m off. At 1.8 m the aerobat's final came in on a 2 deg glide.
 TURN_AT_M, CIRCUIT_M, BASE_M, CIRCUIT_H, CIRCUIT_M_S = 20.0, 20.0, -70.0, 3.0, 12.0
 CIRCUIT = tuple(p + (CIRCUIT_H, 0.0) for p in _laid(
     START, (TURN_AT_M - START[0], (-180.0, CIRCUIT_M), TURN_AT_M - BASE_M, (-180.0, CIRCUIT_M)))[0])
 _TURN_K = round(TURN_AT_M - START[0])
 #: The final down the runway's line from where the circuit leaves it: on a glide from CIRCUIT_H
 #: there to TOUCH_M along, flared where the glide is FLARE_H up. Flown on its heading for its
-#: seconds it touched 15-62 m short of the runway, 0.3-4.8 m off its line.
+#: seconds the aerobat touched 15-62 m short of the runway, 0.3-4.8 m off its line.
 TOUCH_M, FLARE_H = -20.0, 0.22
 GLIDE = CIRCUIT_H / (TOUCH_M - BASE_M)
-#: Its speed down to FINAL's where it flares, slowed SLOW_M_S2 a second - its idle drag's 1.7-2.9
-#: at 11.5-15 m/s -, the one it came on with at the most. Asked FINAL's at once off the lap's 18
-#: m/s it pitched up to slow, ballooned to 8 m and came down at 1.7 m/s into its flare; slowed as
-#: its drag does, 0.01 of its speed a metre, it held 20 m/s first and touched 15-35 m on.
+#: The aerobat's speed down to FINAL's where it flares, slowed SLOW_M_S2 a second - its idle drag's
+#: 1.7-2.9 at 11.5-15 m/s -, the one it came on with at the most. Asked FINAL's at once off the
+#: lap's 18 m/s the aerobat pitched up to slow, ballooned to 8 m and came down at 1.7 m/s into its
+#: flare; slowed as its drag does, 0.01 of its speed a metre, it held 20 m/s first and touched
+#: 15-35 m on.
 SLOW_M_S2 = 1.5
 _FLARE_AT = TOUCH_M - FLARE_H / GLIDE
 APPROACH = tuple(p + (min(HIGH_M, max(0.0, GLIDE * (TOUCH_M - p[0]))), 0.0)
@@ -296,7 +299,8 @@ def circuit(route, now):
 def approach(route, now):
     """The final's row for now (`aerobatics.fly`'s giver): APPROACH flown as the lap is from where
     the frame joins it, on its glide where it is - its slope the climb -; `flared` where the
-    glide is FLARE_H. Its height LEAD_S ahead brought it down at 1.3 m/s into the flare."""
+    glide is FLARE_H. APPROACH's height LEAD_S ahead brought the aerobat down at 1.3 m/s into
+    the flare."""
     seen = route.get('seen', {})
     v_g = math.hypot(*seen.get('vel', (0.0, 0.0, 0.0))[::2])
     h = seen.get('at', (0.0, 1.0, 0.0))[1] - REST_M

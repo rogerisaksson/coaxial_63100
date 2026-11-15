@@ -63,7 +63,7 @@ def _legend_targets(view, left, right):
     # The measurement first: everything under it is an estimate.
     seen = (view.get('thermal') or {}).get('ntc')
     if len(left) > NTC_AT and seen is not None:
-        # Its own tube's colour: the thermometer ramp, not a margin's.
+        # The NTC's own tube's colour: the thermometer ramp, not a margin's.
         said.append((0, reference(view), cross_section.INK[ntc_class(seen)], left[NTC_AT]))
     # SWITCH second and BOARD last, with the motor's margin between them.
     peak, cls = hottest(view, SOA_NODES)

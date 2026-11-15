@@ -1,7 +1,7 @@
 """The robot's doing's flips, as `told.Run` counts them.
 
 Each new doing and how long the last held, captured - a transition, upright gait to lying on a bed,
-its law's regime changing -; a doing come back to after a blip shorter than its natural time,
+the robot's law's regime changing -; a doing come back to after a blip shorter than its natural time,
 chatter, captured.
 """
 

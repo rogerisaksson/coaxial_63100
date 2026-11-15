@@ -88,7 +88,7 @@ function Install-Linux {
         if ($null -eq $docker) { return }
     }
     Test-DockerUsers
-    # Its whole output, then its code: Select-Object -First stops a program early and its code reads -1.
+    # The whole output of docker info, then its code: Select-Object -First stops a program early and its code reads -1.
     $version = @(& $docker info --format '{{.ServerVersion}}' 2>$null)
     if ($LASTEXITCODE -ne 0) {
         $desktop = Join-Path $env:ProgramFiles 'Docker\Docker\Docker Desktop.exe'
@@ -151,7 +151,7 @@ function Get-ArmFeatures {
 
 function Install-Arm {
     <#
-  Its C on an emulated Arm (run_tests.py --linux --arch arm64 --isa sve2|sme2): the engine's QEMU with SVE2 and
+  The robot's C on an emulated Arm (run_tests.py --linux --arch arm64 --isa sve2|sme2): the engine's QEMU with SVE2 and
         SME2, else tonistiigi's registered in its place; the runner's arm64 images - each after what it needs.
 #>
     param([string]$Docker, [string]$Python)

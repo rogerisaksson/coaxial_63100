@@ -1,13 +1,14 @@
-"""Its world's steps in C (wbc_world.c): drives, gearboxes, meters, link, switch about MuJoCo's step.
+"""The robot's world in C (wbc_world.c): drives, gearboxes, meters, link, switch between MuJoCo steps.
 
-    at, rated, before, after, paired, s, kept = world.laid(w)   # on its world `w`, anew where `w.reset` lays its link
+    at, rated, before, after, paired, s, kept = world.laid(w)   # on the robot's world `w`, anew where `w.reset` lays its link
     hold = world.held(vel, of, at, lie, still, by_geom, live, n, low) # its loose things asleep held a pass: woken
     loop, data = world.numpy_tanh()                             # numpy's own float64 tanh loop, for C to call
 
 `machine.world.physics.World.advance`'s steps where nothing else is asked of them (`machine.world.steps`), the same
-arithmetic in the same order (test_tick): between MuJoCo's steps its world's three C calls, its link's compiled part
-and its room's contacts read in Python were 37 us a pass of the door errand's; its ankles' leaves made its world's
-steps python's whole, its gearboxes' numpy 279 us of a walk's pass, now theirs in C.
+arithmetic in the same order (test_tick): between MuJoCo's steps the robot's world's three C calls, its link's
+compiled part and its room's contacts read in Python were 37 us a pass of the door errand's; the robot's ankles'
+leaves made its world's steps python's whole, its gearboxes' numpy 279 us of a walk's pass, now
+theirs in C.
 """
 import ctypes
 import functools
@@ -33,7 +34,7 @@ class _Ufunc(ctypes.Structure):
 
 class Boxes(ctypes.Structure):
 
-    """wbc_boxes_t: its gearboxes, pointing at `gearbox.Boxes`'s arrays and its world's braking."""
+    """wbc_boxes_t: the robot's gearboxes, pointing at `gearbox.Boxes`'s arrays and its world's braking."""
 
     _fields_ = ([(name, _vp) for name in ('on', 'k', 'c', 'j', 'gap', 'shock', 'mesh', 'observe', 'track', 'peak',
                                            'damping', 'delta', 'w', 'hat', 'p_int', 'drive', 'asked', 'rate',
@@ -44,7 +45,7 @@ class Boxes(ctypes.Structure):
 
 class Steps(ctypes.Structure):
 
-    """wbc_steps_t: its world's steps, pointing at its pass's struct, MuJoCo's data and its arrays."""
+    """wbc_steps_t: the robot's world's steps, pointing at its pass's struct, MuJoCo's data and its arrays."""
 
     _fields_ = ([(name, _vp) for name in ('pass_', 'd', 'blas', 'target', 'rate', 'was', 'link_v', 'link_peak',
                                            'link_bled', 'link_id', 'link_kt', 'link_ohm', 'link_amps', 'link_loss',
@@ -56,7 +57,8 @@ class Steps(ctypes.Structure):
 
 class Held(ctypes.Structure):
 
-    """wbc_held_t: its loose things asleep as `machine.world.loose.stick` holds them a pass, pointing at their arrays."""
+    """wbc_held_t: the robot's loose things asleep as `machine.world.loose.stick` holds them a pass, pointing at their
+    arrays."""
 
     _fields_ = ([(name, _vp) for name in ('by_geom', 'live', 'vel', 'of', 'at', 'lie', 'still', 'woken')]
                 + [('low', _d)] + [(name, _i) for name in ('nvel', 'nat', 'nstill', 'nthing')])
@@ -81,9 +83,9 @@ def typed():
 
 @functools.lru_cache(maxsize=None)
 def staged():
-    """(a stage begun on the thread of its C's beside its law, its join, MuJoCo's `mj_step1` where its library holds
-    it): its step's first half for `machine.world.steps.ahead`; None where MuJoCo's library is not found beside its
-    package."""
+    """(a stage begun on the thread of the robot's C's beside its law, its join, MuJoCo's `mj_step1` where
+    its library holds it): the robot's step's first half for `machine.world.steps.ahead`; None where MuJoCo's
+    library is not found beside its package."""
     import glob
     import os
     import mujoco
@@ -103,7 +105,7 @@ def numpy_tanh():
     u, code = _Ufunc.from_address(id(np.tanh)), np.dtype(np.float64).num
     found = [k for k in range(u.ntypes) if u.nargs == 2 and u.types[2 * k] == u.types[2 * k + 1] == bytes([code])]
     if u.name != b'tanh' or not found:
-        raise RuntimeError("numpy's tanh lays no float64 loop in its ufunc's head: its gearboxes in C need it")
+        raise RuntimeError("numpy's tanh lays no float64 loop in its ufunc's head: the robot's gearboxes in C need it")
     loop, data = u.functions[found[0]], u.data[found[0]]
     x = np.concatenate([np.linspace(-40.0, 40.0, 4097), np.geomspace(1e-300, 1e3, 4097)])
     y = np.empty_like(x)
@@ -115,8 +117,8 @@ def numpy_tanh():
 
 
 def boxed(w):
-    """wbc_boxes_t on its world `w`'s gearboxes (`w.boxes`, their arrays stepped in place) and its braking, with what
-    it points at; (None, ()) where none is stepped (`w.sprung`)."""
+    """wbc_boxes_t on the robot's world `w`'s gearboxes (`w.boxes`, their arrays stepped in place) and its braking,
+    with what it points at; (None, ()) where none is stepped (`w.sprung`)."""
     from machine.body import drives, gearbox
     if not w.sprung:
         return None, ()
@@ -133,10 +135,10 @@ def boxed(w):
 
 
 def laid(w):
-    """(its address, rated, before, after, paired - each a call of its address -, the struct, what it points at) on its
-    world `w`: its pass's struct (`w.passing`), MuJoCo's data, its setpoints, its DC link (`w.link`, laid anew by
-    `w.reset`), its room's switch where its room is laid (`room.switch`), its gearboxes where any is stepped
-    (`boxed`)."""
+    """(its address, rated, before, after, paired - each a call of its address -, the struct, what it points at) on the
+    robot's world `w`: its pass's struct (`w.passing`), MuJoCo's data, the robot's setpoints, its DC link
+    (`w.link`, laid anew by `w.reset`), its room's switch where its room is laid (`room.switch`), the
+    robot's gearboxes where any is stepped (`boxed`)."""
     from machine.body import dclink, drives
     from machine.world import physics, room
     lib, link, point = typed(), w.link, wbc.pointer
@@ -158,9 +160,10 @@ def laid(w):
 
 
 def held(vel, of, at, lie, still, by_geom, live, nthing, low):
-    """Its loose things asleep held a pass in C (wbc_world_held) on `loose._held`'s arrays - their velocities three a
-    thing, which they are, their coordinates, where each lies, their velocities held still, each geom's thing asleep,
-    the geoms of what moves -: a call of MuJoCo's data, the things that woke (none: each held where it lies, still)."""
+    """The robot's loose things asleep held a pass in C (wbc_world_held) on `loose._held`'s arrays - their velocities
+    three a thing, which they are, their coordinates, where each lies, their velocities held still, each geom's thing
+    asleep, the geoms of what moves -: a call of MuJoCo's data, the things that woke (none: each held where it lies,
+    still)."""
     lib, point = typed(), wbc.pointer
     ints = [np.ascontiguousarray(a, np.int32) for a in (by_geom, vel, of, at, still)]
     kept = ints + [np.ascontiguousarray(live, np.bool_), np.ascontiguousarray(lie, np.float64), np.zeros(nthing, np.uint8)]

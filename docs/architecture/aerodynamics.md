@@ -8,7 +8,10 @@ MuJoCo, each on its 63100 drives. The quad and the core in C it flies on:
 
 | Module | Is |
 | --- | --- |
+| compile | the crafts' static meta-compiler: `crafts.toml` and the parts library solved for each craft's and variant's blocks, pack, pull, kinematics and wing, cached under `.cache/compiled/` |
 | aerolisp | flight intent as text - `(stream_inject ..)`: latent targets, a stiffness and a damping a mode, an oscillator, task constraints - compiled to aero/'s payloads, a stream laid over the one before; a vehicle's blocks by `defblock` and `use` |
+| aeroblocks | AeroLisp's physical, dynamic and kinematic block schemas and their static scaling |
+| polars | static aerodynamic polars, arena kinematics, rigid-body inertia and heatsink blocks |
 | aerokin | the quad's kinematics in a vacuum, no branch: a row of `aerobatics`' setpoints and the frame as it flies to aero/'s payload - a collective, the rotors' axis's tilt in the heading, the rates its turn gives |
 | aerobatics | a figure a row of setpoints (`aerokin`'s), a routine a card of them |
 | grounds | the gates in the air and what stands about them; `world` the rotorcraft's, these grounds for the course and the airfield for the routines |
@@ -19,17 +22,19 @@ MuJoCo, each on its 63100 drives. The quad and the core in C it flies on:
 | ornithopter | the Dune-style four-wing flapping ornithopter in MuJoCo: articulated wings, dive fold, stunts; `airframe`, `sky`, `law`, `observer` |
 | aerobat | an Extra 300 in MuJoCo: prop-hang, high-deflection surfaces, stunts; `airframe`, `form` its measured form - drawn, and what touches the runway -, `sky`, `law`, `observer` |
 | wingborne | a plane's wing and tail in the air, its run on its wheels and its law wing-borne |
+| se3mpc | a plane's flight on SE(3) by sampled predictive control on the airframe's own forces, `mppi/` in C |
 
 - The texts: `aerodynamics.lisp`, `dynamics.lisp` and `kinematics.lisp`
   shared; `quadcopter.lisp`, `helicopter.lisp`, `ornithopter.lisp` and
-  `aerobat.lisp` a craft each.
+  `aerobat.lisp` a craft each, `<craft>_heavy.lisp` and
+  `quadcopter_15in.lisp` the variants on `crafts.toml`; `flights/<craft>.lisp`
+  the flights a craft and its variants fly.
 - Drawn by `coaxial/graphics/<craft>.py`; flown on `terminal/views/<craft>/`
   and `show_<craft>.py` ([views](views.md)).
 - `test_helicopter.py`: the helicopter and the ornithopter in MuJoCo, the
   three's boards and views; `test_aerobat.py`: the aerobat's routine on its
-  airfield and its gate course in wind.
+  airfield and its gate course in wind, every craft's variants flown.
 
 ## Aircraft Flight Stack & Real-Time SO(3) Control Architecture
 
 ![Aircraft flight stack and real-time SO(3) control architecture](aircraft_software_layout.svg)
-

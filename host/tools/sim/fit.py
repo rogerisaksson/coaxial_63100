@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """The robot's mechanism checked by geometry, nothing drawn.
 
-Each rod's transmission over its stroke, each drive's reach past its skin standing, and the least
-clearance between its drums, its boards, its ankles' rods and its bones standing and in the
-squat - or over a recording's poses.
+Each rod's transmission over its stroke, each drive's reach past the robot's skin standing, and the least
+clearance between its drums, its boards, its ankles' rods and its bones
+standing and in the squat - or over a recording's poses.
 
     python tools/sim/fit.py
     python tools/sim/fit.py --worst 20       # that many of the closest pairs
@@ -34,7 +34,7 @@ GIRDLE_Y = 0.325
 
 
 def poses(csv=None, every=10):
-    """[(name, {joint: deg})]: where it is put - standing, the squat - or where a recording
+    """[(name, {joint: deg})]: where the robot is put - standing, the squat - or where a recording
     (`csv`, R's rows) had it, every `every`th row."""
     from machine.body import figure
     if csv:
@@ -71,11 +71,11 @@ def rods():
 
 
 def outputs():
-    """[(joint, what its output turns, [what is wrong])], its left's and its trunk's: each drum's
-    axis that of its joint, its rod's crank or its belt's pulley (x) - else across it a bevel
-    pair's (`linkage.BEVELS`) -, its spur pair's pinion (z);
-    a crank or a belt past its gearbox's end; on its joint's axis, the pivot on the drum's line
-    and, the drum along the segment it turns, its gearbox's end toward that."""
+    """[(joint, what its output turns, [what is wrong])], the robot's left's and its trunk's: each
+    drum's axis that of its joint, its rod's crank or its belt's pulley (x) - else across it a bevel pair's
+    (`linkage.BEVELS`) -, its spur pair's pinion (z); a crank or a belt past its gearbox's end; on its joint's
+    axis, the pivot on the drum's line and, the drum along the segment it turns, its gearbox's end toward
+    that."""
     from coaxial.graphics import drums
     from machine.body import drives, figure, linkage
     placed = {name[len('drive_'):]: (parent, at) for name, parent, at, _m in drums.drums()}
@@ -132,7 +132,7 @@ def parts(angles):
         axis, _half = drums.AXES[joint]
         R, p = fr[parent]
         c, a = p + R @ np.array(at, float), R @ np.array(axis, float)
-        # Its stack's parts, each its own drum (`drives.along`): the motor the drive's name.
+        # The joint's stack's parts, each its own drum (`drives.along`): the motor the drive's name.
         for part, radius, along, long in drives.along(joint):
             named = {'board': 'inv_', 'motor': 'drive_', 'gear': 'gear_'}[part] + joint
             out[named] = ('drum', c + a * along, a, radius, long / 2.0)
@@ -390,7 +390,7 @@ def _excess(points, rings):
 
 
 def drawn(dressed):
-    """{joint: m}: each drum's, board's and rod's worst reach past its drawn shell (`dressed`
+    """{joint: m}: each drum's, board's and rod's worst reach past the robot's drawn shell (`dressed`
     False) or past its clothes and its skin where they leave it bare, standing."""
     from coaxial.graphics import gynoid
     from machine.body import figure
@@ -435,7 +435,7 @@ def main(argv=None):
     reach = sorted(((_out(row, [j]), drives.kind(j), drives.of(j)[0]) for j in figure.JOINTS
                     if j.startswith(('left_', 'spine', 'waist', 'neck', 'head'))
                     and not drives.passive(j)), reverse=True)
-    print('drives past its skin standing, mm: ' + ', '.join(
+    print('drives past the robot\'s skin standing, mm: ' + ', '.join(
         '%s %s %+.0f' % (k, s, r) for r, k, s in reach if r > -1e9))
     for dressed, what in ((False, 'its shell'), (True, 'its clothes')):
         got = drawn(dressed)

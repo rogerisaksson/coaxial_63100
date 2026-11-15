@@ -1,26 +1,27 @@
 #!/usr/bin/env python3
 """A take identified as an ortho-DSP modifier against a reference walk, for `machine.texts.dsp`.
 
-Its clock locked to its strikes, its coronal mid and side, its pelvis's sidechain, its trunk's
-filter bank, emitted as a (defmodifier ..) that `machine.texts.dsp` reads and voices on it.
+The take's clock locked to its strikes, its coronal mid and side, its pelvis's sidechain, its trunk's
+filter bank, emitted as a (defmodifier ..) that `machine.texts.dsp` reads and voices on the robot.
 
     python tools/sim/identify.py TAKE.fbx [..] [--against REF.fbx] [--out DIR]
-    soa = identify.soa(times, joints)            # flat signals: mm in its path's frame, rad, at its size
+    soa = identify.soa(times, joints)            # flat signals: mm in the robot's path's frame, rad, at its size
     got = identify.identified(soa)               # {'clock', 'coronal', 'sidechain', 'axial', 'path'}
     text = identify.emitted(name, got, ref)      # (defmodifier NAME [gait] ..), `ref`'s values the dry's
 
 numpy alone (the host carries no scipy): a peak's prominence and spacing as scipy's find_peaks
 reads them, Welch's averaged periodogram, the release's time constant by a log-spaced search with
 its gain in closed form. A stride's events are Zeni's (`tools.sim.normal`): a foot lands with
-its ankle furthest ahead of its hips and lifts with its toes furthest behind them - an ankle
-joint's lowest is mid-stance, not a strike. Lengths at its size (its leg over the take's), times
-by its square root (`stunts.similar`). What is its own to play - tempo, track, roll, sidechain,
-postures, arms, stride, clearance, height - is the suite's nominal moved by the take's change off
-the reference walk's (`--against`, REFERENCE its walk as approved): its walk against itself emits
-the nominal, which plays its walk to the last slot. What `machine.texts.dsp` refuses or names voiceless
+its ankle furthest ahead of the robot's hips and lifts with its toes furthest behind them - an ankle
+joint's lowest is mid-stance, not a strike. Lengths at the robot's size (its leg over the take's),
+times by its square root (`stunts.similar`). What is the robot's own to play - tempo, track, roll, sidechain,
+postures, arms, stride, clearance, height - is the suite's nominal moved by the take's change off the
+reference walk's (`--against`, REFERENCE its walk as approved): its walk against itself emits the nominal,
+which plays its walk to the last slot. What `machine.texts.dsp` refuses or names voiceless
 - duty, swing gate, the legs' phase, heading and turning, transients - is the take's own, as the
-spec's: a duty under 0.5 is a flight wherever its walk's lies. Its way is the nearest of its four
-(`se2.GAIT_BOXES`): 0.08 m/s aside of a walk measured 4.8 deg off its facing strafed it.
+spec's: a duty under 0.5 is a flight wherever the robot's walk's lies. The take's way is the nearest
+of the robot's four (`se2.GAIT_BOXES`): 0.08 m/s aside of a walk measured 4.8 deg off its facing strafed
+the robot.
 """
 import argparse
 import math
@@ -41,7 +42,7 @@ REFERENCE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path
 NOMINAL = {'duty': 0.62, 'lumbar': -0.14, 'thorax': 0.04, 'atlas': 0.0, 'cutoff': 8.0, 'lag': 0.0,
            'gain-db': -3.0, 'track': 103.0, 'foot-w': 96.5}
 #: The spec's numbers: a sidechain's window after a strike, s; its attack's floor, ms (a duck
-#: faster unloads its stance under 0.35 g); the release's search, ms; the jerk past which a
+#: faster unloads the robot's stance under 0.35 g); the release's search, ms; the jerk past which a
 #: strike is a hard clip, mm/s^3; Welch's segment; the locomotion band, Hz; the stance and
 #: swing windows of a stride's phase, its left strike at 0.
 WINDOW_S, ATTACK_MS, RELEASE_MS, CLIP_JERK = 0.45, 105.0, (40.0, 600.0), 2.5e6
@@ -86,12 +87,11 @@ def _pitch(v, ahead):
 
 def soa(times, joints):
     """{signal: array} of a take's straight walk (`mocap.walk`), a loop tripled: the heels'
-    (ankles') and the toes' places ahead of its hips' middle (Zeni's events), across its path -
-    the hips' middle's stride mean - to its left, and up, mm at its size; the sacrum's (the hips'
-    middle's) off its path and its height off its mean; the knees', the pelvis's
-    roll, the lumbar and thoracic pitch, the trunk's yaw, the left arm's pitch, the head's on
-    the trunk and its rate's share, rad; 'rate' Hz, 'time' its second over the take's, its travel
-    at its size, m."""
+    (ankles') and the toes' places ahead of the robot's hips' middle (Zeni's events), across the robot's
+    path - the hips' middle's stride mean - to its left, and up, mm at its size; the sacrum's
+    (the hips' middle's) off its path and its height off its mean; the knees', the pelvis's roll, the
+    lumbar and thoracic pitch, the trunk's yaw, the left arm's pitch, the head's on the trunk and its rate's
+    share, rad; 'rate' Hz, 'time' the robot's second over the take's, its travel at the robot's size, m."""
     t, j = mocap.walk(times, joints)
     t = np.asarray(t, float)
     j = {k: np.asarray(v, float) for k, v in j.items()}
@@ -147,8 +147,8 @@ def soa(times, joints):
 
 
 def _clock(soa_):
-    """Its strikes and lifts (Zeni), its steps a minute at its size, each foot's stance's share of
-    its stride - its period the left ankle's strongest line in STRIDE_S: the autocorrelation's
+    """The take's strikes and lifts (Zeni), its steps a minute at the robot's size, each foot's stance's share
+    of its stride - its period the left ankle's strongest line in STRIDE_S: the autocorrelation's
     highest lag read 22-53 steps a minute off walks' 2 to 4 strides -, the right strike's place in
     the left's stride less a half, its legs' phase apart
     and whether it is off pi - past twice its spread over the strides and a frame -, its strides'
@@ -221,7 +221,7 @@ def _sidechain(soa_, lands):
 
 def _axial(soa_, stride_s):
     """The lumbar, thoracic and atlas pitch's means, rad; the trunk's corner over the pelvis's roll
-    where its yaw falls 3 dB under the band's first, Hz at its size; the left arm's lag on the
+    where its yaw falls 3 dB under the band's first, Hz at the robot's size; the left arm's lag on the
     pelvis's roll at the stride's rate, rad, and its swing's amplitude; the atlas's ceiling; the
     head's share of the head's and trunk's turning."""
     rate = soa_['rate']
@@ -241,9 +241,9 @@ def _axial(soa_, stride_s):
 
 
 def _path(soa_, clock):
-    """Its speed by its strides, m/s, a stride, mm, its way off its facing and its turning - its
+    """The take's speed by its strides, m/s, a stride, mm, its way off its facing and its turning - its
     path's heading's slope - where it travels, rad and rad/s, the sacrum's height, mm, the swing's
-    clearance - the heel's highest over its strike's height -, mm, all at its size."""
+    clearance - the heel's highest over its strike's height -, mm, all at the robot's size."""
     seconds = soa_['seconds'] * soa_['time']
     lifts = [soa_['calc_l_z'][a:b].max() - soa_['calc_l_z'][a] for a, b in zip(clock['lands']['l'], clock['lands']['l'][1:])]
     travels = math.hypot(soa_['travel_ahead'], soa_['travel_side']) > mocap.IN_PLACE_M
@@ -285,7 +285,7 @@ def emitted(name, got, ref):
           :duck-depth-mm {depth:.1f}
           :min-fz-guard :min-normal-fz-ratio)
         """ if depth else ''
-    return f""";; {name}: {c['bpm']:.1f} BPM at its size | raw attack {sc['attack']:.0f} ms (clamped >= {ATTACK_MS:.0f})
+    return f""";; {name}: {c['bpm']:.1f} BPM at the robot's size | raw attack {sc['attack']:.0f} ms (clamped >= {ATTACK_MS:.0f})
 (defmodifier {name} [gait]
   (let [foot-w      (get-param gait :foot-collision-w-mm)
         target-tr-w (* {n['track'] * co['track'] / rco['track'] / n['foot-w']:.4f} foot-w)

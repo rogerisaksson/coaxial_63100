@@ -2,7 +2,7 @@
 #ifndef WBC_MODEL_H
 #define WBC_MODEL_H
 
-/** Links, link 0 the floating pelvis; its degrees of freedom, 6 of them the pelvis's:
+/** Links, link 0 the floating pelvis; the robot's degrees of freedom, 6 of them the pelvis's:
     link k > 0 is u[5 + k]; the drives and the held joints, as links. */
 #define WBC_LINKS 34
 #define WBC_N 39
@@ -69,7 +69,7 @@ extern const double wbc_sole_at[3];          /**< a sole's middle, in its foot's
 extern const double wbc_sole_corner[4][3];   /**< its corners */
 extern const double wbc_total_mass;          /**< kg */
 extern const double wbc_gravity[3];          /**< m/s^2, world frame */
-extern const double wbc_stand_base[12];     /**< its stand: the pelvis's frame, R by rows, then p */
+extern const double wbc_stand_base[12];     /**< the robot's stand: the pelvis's frame, R by rows, then p */
 extern const double wbc_stand_q[WBC_N - 6]; /**< and the hinges' angles, rad */
 extern const char *const wbc_name[WBC_LINKS]; /**< the joint's name */
 

@@ -131,7 +131,7 @@ class _Row:
         return (min(a for a, _b in spans), max(b for _a, b in spans)) if spans else None
 
     def segments(self):
-        """Its segments, the cells put over it in their places."""
+        """The row's segments, the cells put over it in their places."""
         if not self.put:
             yield from self.segs
             return

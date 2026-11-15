@@ -20,7 +20,7 @@
               (target-flexion-profile '((:tibiofemoral 1.52) (:coxofemoral 1.48) (:talocrural 0.32)))
               (com-counter-pitch-rad +0.68)
               (contact-threshold-fz 0.15)
-              (seat-z-mm 450.0)] ; the seat its eyes see
+              (seat-z-mm 450.0)] ; the seat the robot's eyes see
   (-> state
       ;; Stage A: Controlled eccentric descent with sagittal CoM counterweight
       (trigger-one-shot-envelope
@@ -43,8 +43,8 @@
           :transfer-time-ms 320.0
           :curve :equal-power
           :release-source-zmp true
-          :source-residual-weight 0.15 ; its soles' share sat
-          :thoracic-settle-rad 0.0)))) ; the spine straightened as the seat takes it
+          :source-residual-weight 0.15 ; the robot's soles' share sat
+          :thoracic-settle-rad 0.0)))) ; the spine straightened as the seat takes the robot
 
 ;; -----------------------------------------------------------------------------
 ;; 2. CONCENTRIC MANIFOLD HANDOVER (LOW-Z FIXTURE -> HIGH-Z BIPEDAL SUPPORT)
@@ -83,7 +83,7 @@
           :mode :concentric-drive
           :duration-ms ascent-duration-ms
           :curve ascent-curve
-          :joint-targets '((:tibiofemoral 0.1047) (:coxofemoral 0.0) (:talocrural 0.0524)) ; its stand: knee 6 deg, ankle 3
+          :joint-targets '((:tibiofemoral 0.1047) (:coxofemoral 0.0) (:talocrural 0.0524)) ; the robot's stand: knee 6 deg, ankle 3
           :axial-counterweight (:node :c7-t12-thoracic :dc-offset-rad 0.04)))))
 
 ;; -----------------------------------------------------------------------------
@@ -92,7 +92,7 @@
 (defmaneuver sequence-recumbent-cascade
   [state &key (direction :to-supine) ; :to-supine | :to-seated
               (duration-ms 1750.0)
-              (bed-yaw-align-rad 0.0)] ; across its 0.9 m bed: its pelvis turns 1.2 rad at most on its soles
+              (bed-yaw-align-rad 0.0)] ; across the robot's 0.9 m bed: its pelvis turns 1.2 rad at most on its soles
   (let [forward-p (eq direction :to-supine)]
     (-> state
         (stage-sequential-manifold
@@ -103,4 +103,4 @@
           :torso-pitch-ramp (if forward-p [0.0 -> -1.5708] [-1.5708 -> 0.0])
           :axial-yaw-ramp   (if forward-p [0.0 -> bed-yaw-align-rad] [bed-yaw-align-rad -> 0.0])
           :counterweight-limb-sweep
-            (:plantar-fz-target 0.25))))) ; its knees as it sits, its feet on the floor
+            (:plantar-fz-target 0.25))))) ; the robot's knees as it sits, its feet on the floor

@@ -19,7 +19,7 @@
 (in-package :ortho-dsp.elegance-sequencer)
 
 ;; 1. Rigid Chair: Single-anchor pivot -> Staggered upright drop -> Wavefront settle
-(defpatch patch-confident-chair-sit [approach-gait &key (seat-z-mm 450.0)] ; the seat its eyes see
+(defpatch patch-confident-chair-sit [approach-gait &key (seat-z-mm 450.0)] ; the seat the robot's eyes see
   (-> approach-gait
       (lock-horizon-gaze :room-pan-yaw-rad 0.0)
       (pivot-single-anchor-arc :target-yaw-rad 3.14159 :sagittal-stagger-mm 95.0)

@@ -1,10 +1,10 @@
-"""Bench rows on its chain's QP as it is, with its joints' stops, or what it holds giving otherwise.
+"""Bench rows on the robot's chain QP as is, with its joints' stops, or what it holds giving otherwise.
 
-The python twin stands in for wbc_chain.c in every run, so a row's lines differ by the variant alone: `twin` its
-step as it is, `stopped` with its joints' stops among the QP's laws (`chain.step(stopped=True)`), `rigid`,
-`compliant` and `material` with what it holds giving as none, as the foam or as its world has it. One start is
-not a measure: its leg over the bed's edge is chaotic (the twin and the C apart by last bits rolled 61.5 deg
-against 6.2), so each runs over turned starts.
+The python twin stands in for wbc_chain.c in every run, so a row's lines differ by the variant alone: `twin` the
+robot's step as it is, `stopped` with the robot's joints' stops among the QP's laws
+(`chain.step(stopped=True)`), `rigid`, `compliant` and `material` with what it holds giving as none, as
+the foam or as its world has it. One start is not a measure: the robot's leg over the bed's edge is
+chaotic (the twin and the C apart by last bits rolled 61.5 deg against 6.2), so each runs over turned starts.
 
     python -X utf8 tools/sim/chain_bounded.py bed_rise bed_leg --variants twin stopped --wobbles 0 4 -4 8 -8
 """
@@ -12,18 +12,19 @@ import argparse
 import statistics
 import sys
 
-#: Each variant's (stopped, compliant): `stopped` its joints' stops among the QP's laws (`chain.stop_rows`),
-#: `compliant` what it holds giving (`chain.gives_of`): its skin's, `twin`'s - `rigid` none; `compliant` all at the
-#: foam's `regime.soft`; `material` as its world has what bears it.
+#: Each variant's (stopped, compliant): `stopped` the robot's joints' stops among the QP's laws
+#: (`chain.stop_rows`), `compliant` what it holds giving (`chain.gives_of`): its skin's, `twin`'s -
+#: `rigid` none; `compliant` all at the foam's `regime.soft`; `material` as its world has what bears it.
 VARIANTS = {'twin': (False, 'sensed'), 'rigid': (False, False), 'stopped': (True, 'sensed'), 'compliant': (False, True),
             'material': (False, 'material')}
 
 
 def ran(name, variant, wobble):
     """`scenarios.ran` of row `name`, laid turned `wobble` rad, the python twin's closed-chain step as `variant`; its
-    `match` how far its step's model of it is from its world over its closed-chain passes: `support` what bears it
-    as felt against what its step counted on, summed over its contacts, of its weight (mean), `acc` its step's
-    accelerations against its world's, deg/s^2 (each pass's mean over its driven joints, their median)."""
+    `match` how far the robot's step's model of it is from its world over its closed-chain passes:
+    `support` what bears the robot as felt against what its step counted on, summed over the robot's
+    contacts, of its weight (mean), `acc` its step's accelerations against its world's,
+    deg/s^2 (each pass's mean over its driven joints, their median)."""
     import math
     import numpy as np
     from machine.law import modal
@@ -39,7 +40,8 @@ def ran(name, variant, wobble):
             g['solves'] = (g['solves'][0], lambda b, sc, ask: chain.step(
                 b, sc, dict(ask, _tc=g.get('_tc')) if flags[1] == 'material' else ask, regime, *flags))
         if flags[1] == 'material':
-            # what each body of its own touches, its time constant (solref's), read off its world for `chain.gives_of`
+            # what each body of the robot's own touches, its time constant (solref's), read off the robot's world for
+            # `chain.gives_of`
             wm, wd, tc = g['world'].model, g['world'].data, {}
             for j in range(wd.ncon):
                 con = wd.contact[j]
@@ -62,8 +64,8 @@ def ran(name, variant, wobble):
 
 
 def line(name, variant, mrad, r):
-    """One run's line: stood or fell, met, what bore it how long, its pelvis's and head's jerk, its step's model off
-    its world (`ran`'s `match`)."""
+    """One run's line: stood or fell, met, what bore the robot how long, its pelvis's and head's jerk, its step's
+    model off its world (`ran`'s `match`)."""
     bore = ' '.join('%s %.1f' % kv for kv in sorted(r.get('bore', {}).items()))
     match = r.get('match', {})
     return '%-12s %-17s %+4.0f mrad stood %-5s fell %-6s met %-5s bore %-22s jerk %5.0f %5.0f off %.2f %4.0f' % (
@@ -72,7 +74,8 @@ def line(name, variant, mrad, r):
 
 
 def summed(name, variant, runs):
-    """A variant's runs of a row summed: met, fell, the floor's and the jerk's medians, its model off its world's."""
+    """A variant's runs of a row summed: met, fell, the floor's and the jerk's medians, its model off the robot's
+    world's."""
     floor = [r.get('bore', {}).get('floor', 0.0) for r in runs]
     off = [r.get('match', {}).get('support', float('nan')) for r in runs]
     acc = [r.get('match', {}).get('acc', float('nan')) for r in runs]

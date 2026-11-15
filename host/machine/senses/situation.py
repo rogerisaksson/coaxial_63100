@@ -1,6 +1,6 @@
-"""Its situation read from its sensors each pass, and the text that fits it laid over its law.
+"""The robot's situation read from its sensors each pass, and the text that fits it laid over its law.
 
-    table = situation.text()                   # its text's (defsituation ..) forms, lisp/humanoid/situations.lisp
+    table = situation.text()                   # the robot's text's (defsituation ..) forms, lisp/humanoid/situations.lisp
     r = situation.readings(y, fr, a, grip, touched, weight)   # (R,), READINGS' order
     into = situation.read(table, r)            # (S,) how far it is in each, 0 to 1
     situation.told(table, into)                # the name of the one it is deepest in, '' in none
@@ -8,9 +8,9 @@
     (defsituation slippery (grip below 0.25)
       (cpg_config (amplitude mode_sagittal_drive 0.20) ..))
 
-A situation is bounds on READINGS and what its law takes inside them, whatever it does: its
-rhythm's amplitudes no more than its caps (`law.gripped`), blended in over FIFTH of each bound.
-It names no world, no scene and no body: a robot placed anywhere reads the same.
+A situation is bounds on READINGS and what the robot's law takes inside them, whatever it does: the
+robot's rhythm's amplitudes no more than its caps (`law.gripped`), blended in over FIFTH of each bound. A situation
+names no world, no scene and no body: a robot placed anywhere reads the same.
 """
 import math
 import os
@@ -23,22 +23,23 @@ from machine.law import modal
 from machine.texts import ortho
 from machine.senses import touch
 
-#: What it reads of where it is: the floor's grip, the least either sole has felt of it
+#: What the robot reads of where it is: the floor's grip, the least either sole has felt of it
 #: (`machine.senses.grip`: a sole that slid knows it while the other still stands); the floor's rise a
-#: metre along its way under its standing soles (`modal.under`); the share of its weight borne
-#: off its soles (`modal.PROP`); its pelvis's up along the world's, 1 upright and 0 lying; the
-#: push on its above its soles, of its weight; how high an edge met its swings, m (`modal.RAISE`).
+#: metre along the robot's way under its standing soles (`modal.under`); the share of its
+#: weight borne off its soles (`modal.PROP`); its pelvis's up along the world's, 1 upright and
+#: 0 lying; the push on its above its soles, of its weight; how high an edge met the
+#: robot's swings, m (`modal.RAISE`).
 READINGS = ('grip', 'slope', 'borne', 'upright', 'pushed', 'raised')
 #: A bound is entered over this share of it from its edge in: grip below 0.25 from 0.25 to 0.20,
-#: its grip's envelope (`grip.outside`).
+#: the robot's grip's envelope (`grip.outside`).
 FIFTH = 0.2
 
 
 def text(text=None, here=None):
     """{names (S,), lo (S, R), hi (S, R), caps (S, N), grips (S,)} of each (defsituation NAME
-    (READING below|above X) .. (cpg_config (amplitude MODE N) ..)) in `text` (or its text and its
-    includes, `ortho._FILE`): its bounds and its caps on its rhythm's amplitudes, NaN where unsaid;
-    its bound on its grip, 0 with none."""
+    (READING below|above X) .. (cpg_config (amplitude MODE N) ..)) in `text` (or the robot's text and its
+    includes, `ortho._FILE`): its bounds and its caps on the robot's rhythm's amplitudes, NaN where unsaid;
+    its bound on the robot's grip, 0 with none."""
     here = here or os.path.dirname(ortho._FILE)
     if text is None:
         with open(ortho._FILE, encoding='utf-8') as f:
@@ -67,7 +68,7 @@ def text(text=None, here=None):
 
 
 def readings(y, fr, a, grip, touched, weight):
-    """(R,) READINGS of what it senses: `y` (`modal.SENSED`), `fr` its statics, `a` the loop's
+    """(R,) READINGS of what the robot senses: `y` (`modal.SENSED`), `fr` its statics, `a` the loop's
     ask, `grip` each sole's as felt (2,), `touched` the edge's touch a segment (SKIN, 3), `weight`
     its own, N."""
     _w, x, _j, k = y[modal.QUAT][:4]
@@ -76,7 +77,7 @@ def readings(y, fr, a, grip, touched, weight):
 
 
 def read(table, r):
-    """(S,) how far it is in each situation of `table`, 0 to 1: over its bounds, how far `r`
+    """(S,) how far the robot is in each situation of `table`, 0 to 1: over its bounds, how far `r`
     (`readings`) is inside each, FIFTH of the bound from its edge in, multiplied."""
     lo, hi = table['lo'], table['hi']
     over = np.where(np.isnan(lo), 1.0, np.clip((r - lo) / (FIFTH * np.abs(lo)), 0.0, 1.0))
@@ -85,7 +86,7 @@ def read(table, r):
 
 
 def told(table, into, at=0.5):
-    """The name of the situation it is deepest in, `at` or more of the way; '' in none."""
+    """The name of the situation the robot is deepest in, `at` or more of the way; '' in none."""
     if not len(into) or into.max() < at:
         return ''
     return table['names'][int(np.argmax(into))]

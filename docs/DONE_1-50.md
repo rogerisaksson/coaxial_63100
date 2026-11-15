@@ -55,7 +55,7 @@ The first fifty lines of [DONE](DONE.md), the oldest first.
 23. The robot's movements' orthopaedic terms as laid rows, a joint and its
     sign found
     in its figure ([kinematics](findings/kinematics.md)).
-24. Flight on the whole-body stack: its soles released as it leaves
+24. Flight on the whole-body stack: its soles released as the robot leaves
     the
     floor and taken again as it lands; a hop stood on the python stack
     and on the loop in C ([flight](findings/flight.md)).
@@ -106,7 +106,7 @@ The first fifty lines of [DONE](DONE.md), the oldest first.
     lean across its way, 7.7 degrees inside a lap's bends where 12.5
     outside, rolled 9.5 degrees rms in them; level at rest
     ([aircraft](findings/aircraft.md)).
-35. One way it moves: the laws before its latent loop out of the
+35. One way the robot moves: the laws before its latent loop out of the
     tree - 34
     modules (the director, the walk as built, the one law, the stand, the
     falls, the get-up, the MPC), 14 tools, 7 suites, 8 findings; the page
@@ -151,15 +151,12 @@ The first fifty lines of [DONE](DONE.md), the oldest first.
     89 ms and 0.36 s were searched: the boards' laps 13.9 and 14.1-14.3 s
     where 14.3 and 14.5-14.6, 34 flights of 34 whole in fourteen winds
     ([streams](findings/streams.md)).
-44. The robot's head still as it walks: striding, what the floor cannot give
-    is taken by its inertia, a swinging sole's ask held, its landing
-    led
-    by half its speed's error, a knee folding before its swing as its
-    load leaves it - its head 2.5 deg where 46, 300 J/m where 330,
-    2.46
-    off the band where 2.60, stiff 0.32 where 0.37, 4 of its form's
-    12
-    broken where 6; standing as it stood, bit for bit
+44. The robot's head still as it walks: striding, what the floor cannot
+    give is taken by its inertia, a swinging sole's ask held, its landing led by
+    half its speed's error, a knee folding before its swing as its load leaves
+    it - its head 2.5 deg where 46, 300 J/m where 330, 2.46 off the band where
+    2.60, stiff 0.32 where 0.37, 4 of its form's 12 broken where 6; standing as
+    the robot stood, bit for bit
     ([orthokinematics](findings/orthokinematics.md),
     [wrench](findings/wrench.md)).
 45. A board's speed loop winds no further than its drive carries - its
@@ -184,5 +181,5 @@ The first fifty lines of [DONE](DONE.md), the oldest first.
     72-85, 34 flights of 34 whole ([streams](findings/streams.md)).
 49. Gait initiation from a stand to #203, its landing never behind its lift-off
     ([orthokinematics](findings/orthokinematics.md)).
-50. Its motion's measures in a dimensionless frame on SO(3), a CI gate on them
-    (`tools/sim/gvs.py`).
+50. The robot's motion's measures in a dimensionless frame on SO(3), a CI gate
+    on them (`tools/sim/gvs.py`).

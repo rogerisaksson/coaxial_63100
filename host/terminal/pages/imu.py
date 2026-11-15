@@ -7,7 +7,8 @@ before the loader is imported.
 HEADLINE, KEY, WHAT = 'BOARD ATTITUDE', 'B', 'board orientation visualizer'
 ORDER, NAME = 20, 'imu'
 
-#: Its drawing's process (terminal.ui.ahead), started as the terminal opens: up when it is picked.
+#: The page's drawing's process (terminal.ui.ahead), started as the terminal opens: up when the
+#: page is picked.
 AHEAD = ('coaxial.draw.easel', 'render')
 
 

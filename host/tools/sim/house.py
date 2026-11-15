@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
-"""Its errands from every spot of the lodge: sat or lain, held, its joints against its own walk's.
+"""The robot's errands from every lodge spot: sat or lain, held, its joints against its own walk's.
 
     python tools/sim/house.py                      # sit_chair from every spot and heading, as F says it
     python tools/sim/house.py lie_bed --said       # said as the prompt says it, seen or not
     python tools/sim/house.py --one 0.32 1.01 1.37 sit_chair [--said] [--rise] [--trace]   # one spot, here
-    python tools/sim/house.py --one 0.5 0.2 4.712 exit_door --said --record NAME           # and its loop recorded
+    python tools/sim/house.py --one 0.5 0.2 4.712 exit_door --said --record NAME           # and the robot's loop recorded
     python tools/sim/house.py --docks              # the chair's sit and rise laid at its dock, off by a grid
-    python tools/sim/house.py lie_bed --docked --said --rise   # at its dock on each face, its back to it
+    python tools/sim/house.py lie_bed --docked --said --rise   # at the robot's dock on each face, its back to it
 
 A spot is a cell of a GRID_M grid on the lodge's free floor, CLEAR_M clear of every furniture box, at
-each of four headings, or with --docked its dock at each face a verb docks it at, of each thing it
-goes to that its walk reaches (`dock.docked`), its back to it; what F offers there (`gym.offered`) is
+each of four headings, or with --docked the robot's dock at each face a verb docks it at, of each thing it
+goes to that the robot's walk reaches (`dock.docked`), its back to it; what F offers there (`gym.offered`) is
 said as F says it (`gym.chose`), or
-with --said as a prompt says it, whatever it sees. A run: seconds to the goal borne, held REST_S and
-its joints' program over (its rise's to up with --rise), its fall, what it bumped in which phase, the dock (along its normal,
-along its edge, its heading off it, s), and each joint group's fastest swing, widest sweep, when the
-fastest came and the seconds its master bus's passivity controller held it (`machine.law.supervisor`) - a
-spasm is a group swung faster than its own walk swings it (`walked`), a held one caught by that tank.
+with --said as a prompt says it, whatever the robot sees. A run: seconds to the goal borne, held REST_S and
+the robot's joints' program over (its rise's to up with --rise), the robot's fall, what it bumped in which phase, the
+dock (along its normal, along its edge, the robot's heading off it, s), and each joint group's fastest swing, widest sweep,
+when the fastest came and the seconds the robot's master bus's passivity controller held it (`machine.law.supervisor`) - a
+spasm is a group swung faster than the robot's own walk swings it (`walked`), a held one caught by that tank.
 """
 import argparse
 import json
@@ -29,22 +29,23 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from tools.sim.house_watch import FURNITURE, Watch, named
 
 #: Each verb's goal, the rise said after it held REST_S, the seconds it may take and its rise may (from the bed's
-#: end it stands 18-22 s after it is said; F's errand test gives it 30); the door's out past its line (`_out`).
+#: end the robot stands 18-22 s after it is said; F's errand test gives it 30); the door's out past its line
+#: (`_out`).
 GOALS = {'sit_chair': ('seated', 'rise_chair', 35.0, 12.0), 'lie_bed': ('bed_rest', 'rise_bed', 45.0, 30.0),
          'exit_door': ('out', None, 40.0, 0.0)}
 #: The robot's walk's seconds its joint groups' swings are judged against (`house_watch.GROUPS`).
 WALK_S = 8.0
-#: The groups a spasm is judged on: its trunk's motion is the maneuver's own lean.
+#: The groups a spasm is judged on: the robot's trunk's motion is the maneuver's own lean.
 SPASM = ('arms', 'neck')
-#: Its spots: a grid this fine, this clear of the furniture, four headings; a goal held this long, s.
+#: The robot's spots: a grid this fine, this clear of the furniture, four headings; a goal held this long, s.
 GRID_M, CLEAR_M, REST_S = 0.6, 0.45, 3.0
 HEADINGS = tuple(0.5 * math.pi * k for k in range(4))
-#: The chair's dock sweep: off along its edge, its root off it, its heading off it.
+#: The chair's dock sweep: off along its edge, the robot's root off it, the robot's heading off it.
 DOCK_GRID = ((-0.06, -0.03, 0.0, 0.03, 0.06), (0.14, 0.19), (-0.1, -0.05, 0.0, 0.05, 0.1))
 
 
 def walked():
-    """Each joint group's fastest swing and widest sweep over WALK_S of its walk: a spasm's bound."""
+    """Each joint group's fastest swing and widest sweep over WALK_S of the robot's walk: a spasm's bound."""
     from machine.process import worker
     w = Watch(0.0, -1.0, 0.0)
     worker.apply(w.s, {'twist': (0.69, 0.0, 0.0)})
@@ -53,8 +54,9 @@ def walked():
 
 
 def _lain(w):
-    """Where it lies on the bed nearest it as it stands: its pelvis off its middle along it toward its feet (m, +
-    short of it), across it to its left (m), its body's turn off its length (deg, left +); None with none."""
+    """Where the robot lies on the bed nearest it as it stands: the robot's pelvis off its middle along it
+    toward the robot's feet (m, + short of it), across it to the robot's left (m), its body's turn off
+    its length (deg, left +); None with none."""
     from machine.way import furniture
     d, box = w.world.data, furniture.nearest(w.g, 'lie_bed')[6]
     if box is None:
@@ -70,9 +72,10 @@ def _lain(w):
 
 
 def _on(w):
-    """Whether the bed bears all of it as the world has it: its pelvis, head and feet over its mattress (the room's
-    `bed` box, its top's footprint) and the lodge's scenery - its floor - bearing none of it. Judged by its prop
-    alone, a lie from the long side was held with its pelvis 0.18 m past the edge and its feet on the floor."""
+    """Whether the bed bears all of the robot as the world has it: the robot's pelvis, head and feet over its
+    mattress (the room's `bed` box, its top's footprint) and the lodge's scenery - its floor - bearing none of the
+    robot. Judged by the robot's prop alone, a lie from the long side was held with its pelvis 0.18 m past the edge
+    and its feet on the floor."""
     import numpy as np
     m, d = w.world.model, w.world.data
     bed = m.geom('bed').id
@@ -80,7 +83,8 @@ def _on(w):
     ends = [d.qpos[0:3]] + [d.xpos[m.body(n).id] for n in ('head', 'left_foot', 'right_foot')]
     over = all(abs(float(a)) <= float(h) for p in ends
                for a, h in zip((turn.T @ (np.asarray(p, float) - d.geom_xpos[bed]))[0::2], half[0::2]))
-    # its own by its body's root (a rug under the bed on its own body, on the floor, read as the floor bearing it)
+    # the robot's own by its body's root (a rug under the bed on its own body, on the floor, read as the
+    # floor bearing the robot)
     mine, force, floor = m.body_rootid[m.geom_bodyid] == m.body_rootid[w.world.pelvis], np.zeros(6), 0.0
     for k in range(d.ncon):
         a, b = int(d.contact[k].geom1), int(d.contact[k].geom2)
@@ -91,11 +95,11 @@ def _on(w):
 
 
 def _goal(w, goal, rise, limit, rise_s, t0, judged=None):
-    """(seconds to `goal` borne, held REST_S and its joints' program over - and where `judged`, where it ended as it
-    judges it (`_on`) -, seconds to up within `rise_s` once `rise`
-    is said - up held REST_S -, None unsaid) from `t0`. Counted up the moment it stood, 7 chair rises of 58 that
-    fell within 3 s were risen; said as its pull up the bed still played, it was cut and it rose from 0.49 m in, not
-    1.11, its knees past its end (F's errand test waits for it too)."""
+    """(seconds to `goal` borne, held REST_S and the robot's joints' program over - and where `judged`, where the
+    robot ended as it judges the robot (`_on`) -, seconds to up within `rise_s` once `rise` is said - up held REST_S
+    -, None unsaid) from `t0`. Counted up the moment the robot stood, 7 chair rises of 58 that fell within 3 s were
+    risen; said as its pull up the bed still played, it was cut and the robot rose from 0.49 m in, not 1.11,
+    the robot's knees past its end (F's errand test waits for it too)."""
     from machine.law import modal
     from machine.process import sprung, worker
     g = w.g
@@ -118,8 +122,8 @@ def _goal(w, goal, rise, limit, rise_s, t0, judged=None):
 
 
 def _out(w, limit, t0):
-    """(seconds to its pelvis out past the door's line `room.TO` and its errand ended, whether it is out and up REST_S
-    on, None: no rise) from `t0` - the door's goal."""
+    """(seconds to the robot's pelvis out past the door's line `room.TO` and its errand ended, whether it is out and
+    up REST_S on, None: no rise) from `t0` - the door's goal."""
     from machine.world import room
     g = w.g
     out = w.go(limit - (g['t'] - t0), lambda q: float(q.world.data.qpos[2]) > room.TO and not g.get('_errand'))
@@ -130,9 +134,9 @@ def _out(w, limit, t0):
 
 
 def one(x, z, yaw, verb, said=False, rise=False, trace=False, record=None):
-    """Its errand `verb` from (x, z, `yaw`), as F says it or `said` as a prompt does: a line's fields, its rise's
-    rows (`house_watch._row`) with them where `trace`; its loop recorded from its say to the run's end where `record` names it
-    (`watch.recorded`: recordings/NAME.jsonl)."""
+    """The robot's errand `verb` from (x, z, `yaw`), as F says it or `said` as a prompt does: a line's fields, the robot's
+    rise's rows (`house_watch._row`) with them where `trace`; its loop recorded from its say to the run's end
+    where `record` names it (`watch.recorded`: recordings/NAME.jsonl)."""
     from types import SimpleNamespace as SN
     from machine.senses import edge
     from machine.process import worker
@@ -180,7 +184,7 @@ def one(x, z, yaw, verb, said=False, rise=False, trace=False, record=None):
 
 
 def dock(dx, spar, dyaw):
-    """The chair's sit laid at its dock `dx` along its edge, its root `spar` off it, `dyaw` turned off
+    """The chair's sit laid at its dock `dx` along its edge, the robot's root `spar` off it, `dyaw` turned off
     it; held, risen: a line's fields."""
     from machine.world import room
     from machine.process import worker
@@ -208,11 +212,12 @@ def spots():
 
 
 def docked(verb):
-    """(x, z, heading) of its dock on each face `verb` docks it at (`furniture.GOES`), of each thing of the
-    lodge it goes to, that its walk reaches (`dock.docked`'s reach): its heels its stunt's standoff off the
-    face's edge - its soles' middle `poise.HALF_M` and the standoff out of it as it stands on them, the sit's
-    own reading (`furniture.seen`), not where it is laid 3 cm behind them: so laid, the bed's sit rocked it off its
-    heels and it perched on its end -, its back to it: a bed's end and its sides, a seat's front."""
+    """(x, z, heading) of the robot's dock on each face `verb` docks it at (`furniture.GOES`), of each thing
+    of the lodge it goes to, that the robot's walk reaches (`dock.docked`'s reach): its heels its stunt's
+    standoff off the face's edge - the robot's soles' middle `poise.HALF_M` and the standoff out of it as the robot
+    stands on them, the sit's own reading (`furniture.seen`), not where it is laid 3 cm behind them: so
+    laid, the bed's sit rocked it off its heels and it perched on its end -, the robot's back
+    to it: a bed's end and its sides, a seat's front."""
     from machine.law import modal, poise
     from machine.texts import maneuver
     from machine.process import sprung
@@ -224,7 +229,7 @@ def docked(verb):
     floor = min(float(f['sole'][1]) for f in w.g['s']['feet'])
     laid = [dock.docked(at, things, floor, verb, box, standoff) for box in things
             if len(box) >= 4 and furniture.GOES[verb][0](box, things)]
-    # its soles' middle as the sit reads it ahead of where it was laid, facing +z
+    # the robot's soles' middle as the sit reads it ahead of where the robot was laid, facing +z
     ahead = float(w.g['y'][modal.SOLE].reshape(2, 3)[:, 2].mean() + w.world.data.qpos[2] - w.g['est']['pos'][2]) - at[1]
     out = poise.HALF_M + standoff - ahead
     return [(round(x + out * math.sin(h), 3), round(z + out * math.cos(h), 3), round(h % math.tau, 3))
@@ -246,13 +251,13 @@ def main(argv=None):
     p.add_argument('--one', nargs=4, metavar=('X', 'Z', 'YAW', 'VERB'), help='one spot, here')
     p.add_argument('--dock', nargs=3, type=float, metavar=('DX', 'SPAR', 'DYAW'), help='one dock, here')
     p.add_argument('--docks', action='store_true', help='the chair at its dock, off by DOCK_GRID, on the relay')
-    p.add_argument('--docked', action='store_true', help='from its dock at each face each verb docks its at')
+    p.add_argument('--docked', action='store_true', help='from the robot\'s dock at each face each verb docks its at')
     p.add_argument('--said', action='store_true', help='said as a prompt says it, seen or not')
     p.add_argument('--rise', action='store_true', help='its rise said once it held')
     p.add_argument('--walked', action='store_true', help='its walk\'s fastest swings, here')
     p.add_argument('--every', action='store_true', help='every run\'s line, not only the short, fallen or spasmed')
     p.add_argument('--trace', action='store_true', help='its rise traced (house_watch.TRACED, each TRACE_S)')
-    p.add_argument('--record', help='with --one: its loop recorded from its say, recordings/NAME.jsonl (`watch.recorded`)')
+    p.add_argument('--record', help='with --one: the robot\'s loop recorded from its say, recordings/NAME.jsonl (`watch.recorded`)')
     args = p.parse_args(argv)
     flags = ['--said'] * args.said + ['--rise'] * args.rise + ['--trace'] * args.trace
     if args.walked:

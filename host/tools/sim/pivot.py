@@ -1,15 +1,16 @@
-"""Its pivot on an open floor: walked to its pace, a half turn by a way of turning, measured.
+"""The robot's pivot on an open floor: walked to its pace, a half turn by a way of turning, measured.
 
     python tools/sim/pivot.py                      # each way of turning, a line each
     python tools/sim/pivot.py --way spin --trace   # and a line a frame through the turn
 
-A way of turning (WAYS): `spin` - its walk's stop, then its keys' turn in place till it faces back; `heading` -
-its walk let go and its heading told back at once (`target_heading`, its slew, as an errand tells it); `turn`,
-`turn2` - straight out of its walk into its turn in place, no stop first, at its keys' yaw rate and twice it. It says the
-seconds from the turn's start to facing back (within `modal.LIST_RAD`), how far it went meanwhile, the most a
-standing sole turned on the floor while it bore it (rad: a heel's pivot turns it, a planted sole holds), its
-lowest surety, its hardest landing (N), its fastest driven joint (deg/s, the spasm judge's), its stumbles, a fall -
-the kernel's `pivot-single-anchor-arc` its mark: a half turn in a stride, no zero-velocity pause.
+A way of turning (WAYS): `spin` - the robot's walk's stop, then its keys' turn in place till it faces
+back; `heading` - its walk let go and its heading told back at once (`target_heading`, its slew, as an
+errand tells it); `turn`, `turn2` - straight out of the robot's walk into its turn in place, no stop first, at
+the robot's keys' yaw rate and twice it. A way's line says the seconds from the turn's start to facing back (within
+`modal.LIST_RAD`), how far the robot went meanwhile, the most a standing sole turned on the floor while it bore the robot
+(rad: a heel's pivot turns it, a planted sole holds), the robot's lowest surety, its hardest landing (N), the
+robot's fastest driven joint (deg/s, the spasm judge's), its stumbles, a fall - the kernel's
+`pivot-single-anchor-arc` its mark: a half turn in a stride, no zero-velocity pause.
 """
 import argparse
 import math
@@ -20,20 +21,21 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 #: The robot's walk to its pace, then the turn's time at most, s; its page's frame for a trace, s.
 WALK_S, OVER_S, FRAME_S = 4.0, 10.0, 0.05
-#: The ways and, for a turn straight out of its walk (no stop first), its yaw rate in its keys' (`se2.YAW_RATE`).
+#: The ways and, for a turn straight out of the robot's walk (no stop first), its yaw rate in the robot's keys'
+#: (`se2.YAW_RATE`).
 WAYS = ('spin', 'heading', 'turn', 'turn2')
 RATES = {'turn': 1.0, 'turn2': 2.0}
 
 
 def _yaw(d, body):
-    """A body's yaw, rad, as its heading reads one (its own z along the floor: (sin, cos) on x, z)."""
+    """A body's yaw, rad, as the robot's heading reads one (its own z along the floor: (sin, cos) on x, z)."""
     r = d.xmat[body].reshape(3, 3)
     return math.atan2(r[0, 2], r[2, 2])
 
 
 def turned(way, walk_s=WALK_S, over_s=OVER_S, trace=False):
-    """Way `way`'s half turn after `walk_s` of its walk: {way, faced_s, went_m, slip_rad, surety, landing_n,
-    fastest, stumbles, fell}."""
+    """Way `way`'s half turn after `walk_s` of the robot's walk: {way, faced_s, went_m, slip_rad, surety,
+    landing_n, fastest, stumbles, fell}."""
     from machine.world import physics
     physics.ROOM, physics.SIGHT = 0.0, 0.0
     from machine.law import modal, se2
@@ -88,9 +90,9 @@ def turned(way, walk_s=WALK_S, over_s=OVER_S, trace=False):
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(description='Its pivot on an open floor: a half turn after its walk, measured')
+    p = argparse.ArgumentParser(description='The robot\'s pivot on an open floor: a half turn after its walk, measured')
     p.add_argument('--way', choices=WAYS, nargs='+', default=list(WAYS))
-    p.add_argument('--walk', type=float, default=WALK_S, help='its walk before the turn, s')
+    p.add_argument('--walk', type=float, default=WALK_S, help='the robot\'s walk before the turn, s')
     p.add_argument('--trace', action='store_true', help='a line a frame through the turn')
     a = p.parse_args(argv)
     for way in a.way:

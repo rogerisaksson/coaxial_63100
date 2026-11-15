@@ -1,5 +1,6 @@
-"""The quad's flight: its routine (machine.aircraft.aerobatics' rows, machine.aircraft.aerokin's payloads on aero/)
-on ideal rotors, its pack, its air."""
+"""The quad's flight: its routine on ideal rotors, its pack, its air.
+
+The routine: machine.aircraft.aerobatics' rows, machine.aircraft.aerokin's payloads on aero/."""
 import functools
 import math
 import sys
@@ -89,7 +90,7 @@ def test_the_flight_stops_at_its_mark(report):
     report.check('the landing ends on the floor, still',
                  abs(down['h']) <= 0.005 and abs(down['v']) <= 0.05,
                  '%.3f m at %+.2f m/s' % (down['h'], down['v']))
-    # The envelopes' share: what it is sped up on and a stop is planned on, not what a stop
+    # The envelopes' share: what the quad is sped up on and a stop is planned on, not what a stop
     # may take.
     weak = flown(share=0.3, base=True)
     stop = [r for r in weak if r['name'] in ('burn', 'hold', 'descend')]
@@ -104,7 +105,7 @@ def test_the_flight_stops_at_its_mark(report):
 
 
 def test_its_figures_are_flown(report):
-    """The routine's figures as its card names them: the pirouette a turn on its spot, the orbit
+    """The routine's figures as its card names them: the pirouette a turn on the quad's spot, the orbit
     a banked lap about the point ahead of it, the corkscrew that lap climbed, the roll and the
     flip each once over and caught where they were tossed from, the way back down - gently, and
     clear of the pole."""
@@ -118,12 +119,12 @@ def test_its_figures_are_flown(report):
     turned = spin[-1]['heading'] - spin[0]['heading'] if spin else math.nan
     off = max((math.hypot(r['x'], r['z']) for r in spin), default=math.nan)
     lifted = max((abs(r['h'] - quad.HOVER_M) for r in spin), default=math.nan)
-    report.check('the pirouette a whole turn on its spot, within 5 cm and 3 cm of its height',
+    report.check('the pirouette a whole turn on the quad\'s spot, within 5 cm and 3 cm of its height',
                  abs(turned - 360.0) <= 3.0 and off <= 0.05 and lifted <= 0.03,
-                 '%.1f degrees, %.3f m off, %.3f m off its height' % (turned, off, lifted))
+                 '%.1f degrees, %.3f m off, %.3f m off the quad\'s height' % (turned, off, lifted))
     orbit, screw = seen.get('orbit') or [], seen.get('corkscrew') or []
     late = orbit[len(orbit) // 2:]
-    # About the point ORBIT_M ahead of where it stood, its nose on it.
+    # About the point ORBIT_M ahead of where the quad stood, its nose on it.
     out = [math.hypot(r['x'], r['z'] - aerobatics.ORBIT_M) for r in late + screw]
     bank = [r['tilt'] for r in late]
     lap = orbit[-1]['heading'] - orbit[0]['heading'] if orbit else math.nan
@@ -142,7 +143,7 @@ def test_its_figures_are_flown(report):
                      screw[-1]['heading'] - screw[0]['heading'] if screw else math.nan))
     # A turn over and its catch: the rows named for it and the catch after them.
     high = aerobatics.HIGH['height']
-    for name, axis, about in (('roll', 2, 'its nose'), ('flip', 0, 'its wing')):
+    for name, axis, about in (('roll', 2, 'the quad\'s nose'), ('flip', 0, 'the quad\'s wing')):
         at = next((i for i, (n, _rows) in enumerate(flight) if n == name), None)
         over = flight[at][1] + flight[at + 1][1] if at is not None else []
         caught = over[-1] if over else {'h': math.nan, 'tilt': math.nan, 'v': math.nan}
@@ -159,7 +160,7 @@ def test_its_figures_are_flown(report):
                         min((r['h'] for r in over), default=math.nan), caught['h'], caught['v'],
                         caught['tilt']))
     level = (seen.get('level') or [{'h': math.nan, 'x': math.nan, 'z': math.nan}])[-1]
-    report.check('unwound, it is level over its spot at its hover again',
+    report.check('unwound, the quad is level over its spot at its hover again',
                  abs(level['h'] - quad.HOVER_M) <= 0.05
                  and math.hypot(level['x'], level['z']) <= 0.2,
                  '%.2f m up, %.2f m off' % (level['h'], math.hypot(level['x'], level['z'])))
@@ -169,7 +170,7 @@ def test_its_figures_are_flown(report):
     still = [r['thrust'] for r in spin]
     px, pz = scenery.POLE_AT
     pole = min(math.hypot(r['x'] - px, r['z'] - pz) for r in flown())
-    report.check('gently: 0.7 g at most outside its lift, turns, full tilt and the burn, the '
+    report.check('gently: 0.7 g at most outside the quad\'s lift, turns, full tilt and the burn, the '
                  'pirouette on its hover\'s thrust within 1 N; the pole 1.5 m off at the least',
                  pull <= 0.7 and bool(still) and max(still) - min(still) <= 1.0 and pole >= 1.5,
                  '%.2f g, the pirouette %.1f-%.1f N, the pole %.2f m off' % (
@@ -177,7 +178,7 @@ def test_its_figures_are_flown(report):
 
 
 def test_spent_it_comes_down(report):
-    """Its pack spent in the corkscrew, metres up and going round: the routine leaves for its
+    """The quad's pack spent in the corkscrew, metres up and going round: the routine leaves for its
     way down, at its pace and never under the stop's mark, lands still and waits on the floor
     until it is fit; fit, it lifts again."""
     from machine.aircraft import aerobatics, quad
@@ -200,7 +201,7 @@ def test_spent_it_comes_down(report):
                      -min((r['v'] for r in down), default=math.nan),
                      min((r['h'] for r in down if r['name'] == 'descend'), default=math.nan),
                      down[-1]['h'] if down else math.nan, down[-1]['v'] if down else math.nan))
-    report.check('it waits on the floor while it is not fit, its rotors run down to their idle',
+    report.check('the quad waits on the floor while it is not fit, its rotors run down to their idle',
                  bool(floor) and sum(r['flat'] for r in floor) >= 100.0 * FLOOR_S - 5
                  and floor[-1]['least'] <= 1.01 * quad.IDLE_RAD_S,
                  '%d passes spent on the floor, %.1f N at their end, the slowest rotor %.1f rad/s' % (
@@ -289,7 +290,7 @@ def test_its_air(report):
     for _ in range(len(weather.TOUR) + 1):
         weather.kept(air)
         by_hand.append((air['kind'], air['kept']))
-    report.check('its kinds toured in turn, %.0f s each; by hand each kept in turn, then the tour '
+    report.check('the air\'s kinds toured in turn, %.0f s each; by hand each kept in turn, then the tour '
                  'again' % weather.KIND_S,
                  tuple(kinds) == weather.TOUR
                  and by_hand == [(kind, True) for kind in weather.TOUR] + [(weather.TOUR[0], False)],
@@ -297,7 +298,7 @@ def test_its_air(report):
 
 
 def test_it_holds_in_wind(report):
-    """A hover's row at 5 m in the air, the wind told to nothing: in a constant wind it is held
+    """A hover's row at 5 m in the air, the wind told to nothing: in a constant wind the quad is held
     on its spot, the wind the core's observer holds the wind on it - with no observer of its
     speed, ten times as far off and never held; in gusts within half a metre."""
     from machine.aircraft import aerobatics, aerokin, weather
@@ -305,7 +306,7 @@ def test_it_holds_in_wind(report):
     from tools.sim import streams
 
     def hover(kind, observed=True):
-        """(the furthest off its spot, m, the share of the passes held, how far the wind the
+        """(the furthest off the quad's spot, m, the share of the passes held, how far the wind the
         core holds was off the wind on the frame, m/s rms) over 20 s of the air, 12 s into
         it."""
         kept, aero.WO_PULL = aero.WO_PULL, aero.WO_PULL if observed else 0.0
@@ -330,13 +331,13 @@ def test_it_holds_in_wind(report):
         return (max(r[0] for r in rows), sum(r[1] for r in rows) / len(rows),
                 math.sqrt(sum(r[2] ** 2 for r in rows) / len(rows)))
     steady, blind, gusty = hover('constant'), hover('constant', False), hover('gusty')
-    report.check('a wind of 4 m/s: on its spot within 0.2 m and held nine passes of ten, the '
+    report.check('a wind of 4 m/s: the quad on its spot within 0.2 m and held nine passes of ten, the '
                  'wind held within 0.3 m/s of it; unobserved, ten times as far off and never held',
                  steady[0] <= 0.2 and steady[1] >= 0.9 and steady[2] <= 0.3
                  and blind[0] >= 10.0 * steady[0] and blind[1] <= 0.1,
                  '%.2f m off, held %.0f %%, its wind %.2f m/s off; unobserved %.2f m off, held '
                  '%.0f %%' % (steady[0], 100.0 * steady[1], steady[2], blind[0], 100.0 * blind[1]))
-    report.check('in gusts to 7 m/s within half a metre of its spot',
+    report.check('in gusts to 7 m/s the quad within half a metre of its spot',
                  gusty[0] <= 0.5, '%.2f m off at the most, held %.0f %% of it' % (
                      gusty[0], 100.0 * gusty[1]))
 

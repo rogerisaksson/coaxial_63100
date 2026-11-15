@@ -1,18 +1,20 @@
-"""The kernel's Step 4 on its loop: its legs' reach, its slide over what bears it, its load as told.
+"""The kernel's Step 4 on the robot's loop: its legs' reach, its slide on what bears it, its load told.
 
     somatic.asked(g, s, out, told, ask)    # a pass: the step's edge, slide, fz_cap and slid_cap asks laid
 
-somatic_interaction_core.lisp. Reachability (`modulate-kinematic-reachability`): each leg's reach, its hip to its sole over its leg's length
-(LEG_M), rho; from RHO[0] to RHO[1] its sole's centre of pressure goes onto its ball (the step's `edge`), by
-the share of it the furniture is told to bear - standing, rho 1 and nothing borne, its soles are its own. The
-Coulomb slide (`drive-tangential-coulomb-slide`): its text's slide (`ortho.SLIDE`, m/s along its way, forward
-+) names its regime, its pressing contacts' normal load capped at that regime's share of its weight (CAPS: its
-sit's ingress, deeper, and its egress) and the slide they may take; the slide itself its step feels and follows
-(`wrench._patch`, `rounds.pushed`) - a point's velocity asked of it lifted it off the seat, a drag assumed of a
-stuck seat fought it (seat findings). What bears it off its soles is capped at its told share of what is told
-(`ortho.MANIFOLDS`: a pan's wrench homotopy; nothing told, no cap), never under what its balance needs of it
-(`lever`): a rise's lean so hands it to its soles as its centre of mass comes over its heels; uncapped, the seat
-bore all of it through the lean and the dock's lean never ended.
+somatic_interaction_core.lisp. Reachability (`modulate-kinematic-reachability`): each leg's reach, its hip to
+its sole over the robot's leg's length (LEG_M), rho; from RHO[0] to RHO[1] its sole's centre of
+pressure goes onto its ball (the step's `edge`), by the share of the robot the furniture is told to bear -
+standing, rho 1 and nothing borne, its soles are its own. The Coulomb slide
+(`drive-tangential-coulomb-slide`): the robot's text's slide (`ortho.SLIDE`, m/s along its way,
+forward +) names its regime, the robot's pressing contacts' normal load capped at that regime's share of the
+robot's weight (CAPS: its sit's ingress, deeper, and its egress) and the slide they may take; the
+slide itself the robot's step feels and follows (`wrench._patch`, `rounds.pushed`) - a point's velocity asked
+of it lifted the robot off the seat, a drag assumed of a stuck seat fought it (seat findings). What
+bears the robot off its soles is capped at its told share of what is told (`ortho.MANIFOLDS`: a pan's
+wrench homotopy; nothing told, no cap), never under what the robot's balance needs of it (`lever`): a rise's
+lean so hands the robot to its soles as its centre of mass comes over its heels;
+uncapped, the seat bore all of it through the lean and the dock's lean never ended.
 """
 import os
 
@@ -33,26 +35,31 @@ _REACH = kernel.node('modulate-kinematic-reachability', 'reachability')['equinus
 #: The robot's leg's length, hip to sole, m; the reach the equinus morphs over, of it.
 LEG_M = ANKLE_H + THIGH + SHANK
 RHO = tuple(_REACH['rho-bounds'])
-#: Its sit's ingress and its egress (`bind-funnel-transition-executors`): the Coulomb slide's regime each way.
+#: The robot's sit's ingress and its egress (`bind-funnel-transition-executors`): the Coulomb slide's regime
+#: each way.
 INGRESS, EGRESS = (kernel.transition(a, b, 'coulomb-slide')
                    for a, b in ((':bipedal-upright', ':ischial-seated'), (':ischial-seated', ':bipedal-upright')))
-#: A pressing contact's load while it slides over it, of its weight: sliding backward (deeper), forward.
+#: A pressing contact's load while the robot slides over it, of the robot's weight: sliding backward (deeper),
+#: forward.
 CAPS = np.array([INGRESS['normal-load-governor']['cap-fz-ratio'], EGRESS['normal-load-governor']['cap-fz-ratio']])
-#: The egress slide along its way, m/s: forward off the seat through a rise's lean (`acts`).
+#: The egress slide along the robot's way, m/s: forward off the seat through a rise's lean (`acts`).
 EGRESS_M_S = float(EGRESS['tangent-velocity-attractor'][0])
-#: The seated butt-scoot's clock, turns a minute (`xform-locomotion-seated-butt-scoot`): its heels step in turn at it.
+#: The seated butt-scoot's clock, turns a minute (`xform-locomotion-seated-butt-scoot`): the robot's heels step in
+#: turn at it.
 ROW_BPM = float(kernel.said('xform-locomotion-seated-butt-scoot', 'bpm'))
 
 
 def asked(g, s, out, told, ask):
-    """`ask` with the step's `edge` rolled onto the ball as each leg reaches, `slide` its text's along its way
-    (world: the slide its contacts may take), `fz_cap`, what bears its told share of its weight, no less than its
-    balance needs of it (`lever`), and `slid_cap`, a sliding contact's load's cap, that slide's regime's share
-    (said, the cap stepped 260 -> 214 N on a seat feeling 190-270 and the lean struck), `hand_cap` what its hands
-    bear's, their told share - folded on the floor all of it, sat there (`g['sat']`) no more than its balance needs
-    of them (`propped`) or their told share: `s` its sensed state (hips, feet, com, contacts), `out` its latent's, `told` what bears
-    it as told (`latent.MANIFOLDED`), the furniture's its shares between its soles' and its hands' (`ortho`); and its
-    fists kept on the seat they are told to bear on (`seated.kept`, `g['fists']` their latch)."""
+    """`ask` with the step's `edge` rolled onto the ball as each leg reaches, `slide` the robot's text's along
+    the robot's way (world: the slide its contacts may take), `fz_cap`, what bears its told
+    share of its weight, no less than its balance needs of it (`lever`), and `slid_cap`, a
+    sliding contact's load's cap, that slide's regime's share (said, the cap stepped 260 -> 214 N on a seat
+    feeling 190-270 and the lean struck), `hand_cap` what the robot's hands bear's, their told share - folded
+    on the floor all of it, sat there (`g['sat']`) no more than its balance needs of them
+    (`propped`) or their told share: `s` its sensed state (hips, feet, com, contacts), `out` the
+    robot's latent's, `told` what bears it as told (`latent.MANIFOLDED`), the furniture's its shares
+    between the robot's soles' and its hands' (`ortho`); and its fists kept on the seat they
+    are told to bear on (`seated.kept`, `g['fists']` their latch)."""
     fr = g['fr']
     way, weight = fr[modal.ROT].reshape(3, 3)[stride.ALONG], fr[modal.WEIGHT]
     edge, ask['slide'], ask['fz_cap'], ask['hand_cap'], ask['slid_cap'] = g.get('capped', capped)(
@@ -61,21 +68,23 @@ def asked(g, s, out, told, ask):
     ask['edge'] = tuple(edge)
     ask['posture'], g['fists'] = g.get('kept', seated.kept)(g['y'], g['fr'], float(told[ortho.PALMAR]), ask['posture'], s['q'],
                                                         g.setdefault('fists', np.zeros(14)))
-    # something bearing it now off its soles (`borne`'s prop at impedance.PROP_ON), not its support's latch: the way
-    # chosen takes a swing to its closed chains only lying on it (`chain.chained`)
+    # something bearing the robot now off its soles (`borne`'s prop at impedance.PROP_ON), not its
+    # support's latch: the way chosen takes a swing to its closed chains only lying on it (`chain.chained`)
     ask['propped'] = float(s.get('prop', (0.0,))[0]) >= impedance.PROP_ON
-    # the twist told it (WASD) where no program plays: the closed chains' step carries its pelvis along it, its heels
-    # stepping in turn - the crawl take's knees alternate (r -0.63) - at the seated butt-scoot's clock, the one in its
-    # swing free for its posture to set back (held, one stroke stalled at 0.235 m, its limbs at their range)
+    # the twist told the robot (WASD) where no program plays: the closed chains' step carries its pelvis along
+    # it, the robot's heels stepping in turn - the crawl take's knees alternate (r -0.63) - at the seated butt-scoot's
+    # clock, the one in its swing free for the robot's posture to set back (held, one stroke stalled at 0.235 m, its
+    # limbs at their range)
     told = g.get('played') is None and any(float(v) != 0.0 for v in g.get('twist', ()))
     now = g.get('t', 0.0)
     phase, last = g.get('_row', (0.0, now))
     phase = (phase + (now - last) * ROW_BPM / 60.0) % 1.0 if told else 0.0
     g['_row'] = (phase, now)
-    # none told, its text's slide over what bears it along its way (its egress) its sled's twist, driven only as far as
-    # its soles do not yet bear what its legs weigh (`seated.RESTS`): the closed chains' step drives what it sits on
-    # at it - the upright step's slide frees its friction alone, 1.2 cm in 5.2 s -; driven on its low chair's
-    # bearing soles it pushed it off its seat
+    # none told, the robot's text's slide over what bears it along its way (its egress) the
+    # robot's sled's twist, driven only as far as its soles do not yet bear what its legs weigh
+    # (`seated.RESTS`): the closed chains' step drives what it sits on at it - the upright step's slide frees
+    # its friction alone, 1.2 cm in 5.2 s -; driven on the robot's low chair's bearing soles it pushed the robot off
+    # its seat
     soles = (g['loads'][0] + (0.0 + g['loads'][1])) / weight     # numpy's sum of the two, in its order
     driven = float(np.asarray(ask['slide'], float) @ way) * min(max(1.0 - soles / (2.0 * seated.RESTS), 0.0), 1.0)
     ask['twist'] = tuple(g['twist']) if told else (driven, 0.0, 0.0)
@@ -84,9 +93,10 @@ def asked(g, s, out, told, ask):
 
 
 def capped(hips, sole0, sole1, told, edge, rot, along, weight, sat, lever_, propped_):
-    """(each sole's edge (2,), the slide its contacts may take (world), fz_cap, hand_cap, slid_cap): `asked`'s arithmetic
-    of its law's arrays alone - `lever_` and `propped_` what bears it must take of its weight -, numpy's, so compiled
-    (`motion.laid`'s g['capped']): in numpy its ask's caps took 70 of `asked`'s 100 us."""
+    """(each sole's edge (2,), the slide the robot's contacts may take (world), fz_cap, hand_cap, slid_cap):
+    `asked`'s arithmetic of its law's arrays alone - `lever_` and `propped_` what bears it must take of its
+    weight -, numpy's, so compiled (`motion.laid`'s g['capped']): in numpy its ask's caps took 70 of `asked`'s
+    100 us."""
     rho = np.linalg.norm(hips - np.stack([sole0, sole1]), axis=1) / LEG_M
     equinus = told[ortho.FURNITURE].sum() * np.clip((rho - RHO[0]) / (RHO[1] - RHO[0]), 0.0, 1.0)
     local, said = np.zeros(3), told.sum()
@@ -101,11 +111,13 @@ def capped(hips, sole0, sole1, told, edge, rot, along, weight, sat, lever_, prop
 
 
 def propped(s, way):
-    """The share of its weight its hands must take for its balance once sat, by the lever's rule: its capture point
-    along its `way` behind its seat's contacts (`borne`'s body patches and its told seat lying on the floor,
-    `emancipation.lying`) toward its hands' middle - its pendulum's omega over its seat's height; all of it with no
-    seat or hands. Folded on the floor its hands took up to all of it as it sat too, carried it a millimetre over
-    its seat and it bore 0 N; by its centre of mass alone they let it roll back over its buttocks onto the floor."""
+    """The share of the robot's weight its hands must take for its balance once sat, by the lever's
+    rule: its capture point along its `way` behind its seat's contacts (`borne`'s body
+    patches and its told seat lying on the floor, `emancipation.lying`) toward its hands' middle -
+    the robot's pendulum's omega over its seat's height; all of it with no seat or hands. Folded on the
+    floor the robot's hands took up to all of it as it sat too, carried it a millimetre over
+    its seat and it bore 0 N; by the robot's centre of mass alone they let it roll back over the
+    robot's buttocks onto the floor."""
     from machine.senses.borne import CARPAL
     seat = [c['p'] for c in s.get('contacts', ()) if c.get('patch', 0) < CARPAL]
     hands = [c['p'] for c in s.get('contacts', ()) if c.get('carpal')]
@@ -118,10 +130,11 @@ def propped(s, way):
 
 
 def lever(s, way, weight):
-    """The share of its weight the furniture bearing it off its soles must take for its balance, by the lever's
-    rule: its centre of mass along its `way` between its points' middle and its soles' polygon's rear edge (ROOM[1]
-    behind their middle), less what its hands bear (`borne.CARPAL`) of its `weight`; 0 with nothing borne, or its
-    centre of mass over its soles. Capped under it the step planned its soles 20/19 N where 250 came and let it
+    """The share of the robot's weight the furniture bearing it off its soles must take for the
+    robot's balance, by the lever's rule: its centre of mass along its `way` between its points'
+    middle and the robot's soles' polygon's rear edge (ROOM[1] behind their middle), less what its hands
+    bear (`borne.CARPAL`) of its `weight`; 0 with nothing borne, or its centre of mass over the
+    robot's soles. Capped under it the step planned the robot's soles 20/19 N where 250 came and let it
     drop."""
     contacts = [c for c in s.get('contacts', ()) if not c.get('carpal')]
     hands = sum(max(float(c['f'][1]), 0.0) for c in s.get('contacts', ()) if c.get('carpal')) / weight

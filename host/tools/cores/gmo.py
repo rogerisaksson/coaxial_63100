@@ -1,4 +1,4 @@
-"""wbc_gmo.c through ctypes: its momentum observer's struct mirrored, its calls typed, its envelope."""
+"""wbc_gmo.c via ctypes: the robot's momentum observer's struct mirrored, calls typed, its envelope."""
 import ctypes
 import os
 import re
@@ -17,7 +17,7 @@ def _gmo_define(name):
     return int(found.group(1))
 
 
-#: The observer's sizes, as wbc_gmo.h defines them; its chain's body in doubles (wbc_body_t).
+#: The observer's sizes, as wbc_gmo.h defines them; the robot's chain's body in doubles (wbc_body_t).
 GMO_P, GMO_E, GMO_PUSH, GMO_C, GMO_PAIRS, GMO_T, GMO_S, GMO_M = (_gmo_define(n) for n in (
     'WBC_GMO_POINTS', 'WBC_GMO_EDGES', 'WBC_GMO_PUSHES', 'WBC_GMO_CAPSULES', 'WBC_GMO_PAIRS', 'WBC_GMO_TOUCH',
     'WBC_GMO_SHARES', 'WBC_GMO_MANIFOLDS'))
@@ -25,7 +25,7 @@ GMO_F = GMO_PUSH + N - 6 + GMO_T
 
 
 def horizon():
-    """Its pairs' envelope, m (`horizon`): the preload distance of working_envelope_scoper.lisp."""
+    """The robot's pairs' envelope, m (`horizon`): the preload distance of working_envelope_scoper.lisp."""
     from machine.texts import kernel
     return kernel.said('evaluate-operating-point-horizon', 'manifold-preload-distance-mm') * 1e-3
 _LINKS = _define('WBC_LINKS')
@@ -61,8 +61,8 @@ class _Laid(ctypes.Structure):
 
 class Gmo(ctypes.Structure):
 
-    """wbc_gmo_t: its momentum observer (`machine.senses.observer`), laid and its state - its hot block first, the
-    struct on whole 64-byte lines (alignas(64)): the tail C pads it to (`made` lays it on a line)."""
+    """wbc_gmo_t: the robot's momentum observer (`machine.senses.observer`), laid and its state - its hot block
+    first, the struct on whole 64-byte lines (alignas(64)): the tail C pads it to (`made` lays it on a line)."""
 
     _fields_ = _FIELDS + [('tail', ctypes.c_char * (-ctypes.sizeof(_Laid) % 64))]
 

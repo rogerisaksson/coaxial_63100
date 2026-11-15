@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""The autotuner at runtime: its walk tuned while it walks, its loop in a process of its own.
+"""The autotuner at runtime: the robot's walk tuned while it walks, its loop in a process of its own.
 
-    python tools/sim/runtime.py                      # its walk: windows, a Jacobian, a step judged
+    python tools/sim/runtime.py                      # the robot's walk: windows, a Jacobian, a step judged
     python tools/sim/runtime.py --steps 3 --write    # converged and held elsewhere: written
 
-Its loop (`loop`) walks linked (`tap.attached`), never waiting on this core: it drains its raw
-passes and looks and publishes tables (`tap.table`) of its walk's row compiled from its texts with
-a state's literals spliced (`row`), laid at its barrier. A run (`window`) is WINDOW_S of its
-passes from SETTLE_S past a table's laying: its six residuals and its form as offline
-(`telemetry.scored`); the Jacobian, the step, its verdicts and the write offline's
-(`tools.sim.tune.tuned`), its runs these windows one after another.
+The robot's loop (`loop`) walks linked (`tap.attached`), never waiting on this core: it drains the robot's raw
+passes and looks and publishes tables (`tap.table`) of its walk's row compiled from its texts
+with a state's literals spliced (`row`), laid at its barrier. A run (`window`) is WINDOW_S of the
+robot's passes from SETTLE_S past a table's laying: its six residuals and the robot's form as offline
+(`telemetry.scored`); the Jacobian, the step, its verdicts and the write offline's (`tools.sim.tune.tuned`),
+its runs these windows one after another.
 """
 import argparse
 import math
@@ -21,15 +21,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from tools.sim import suite, telemetry, tune as tuner
 
-#: Its walk's root; a window's settling past a table's laying and its length, s - whole strides
-#: of its walk and its blend's transient past (`gait.BLEND_S`); its rings' seconds.
+#: The robot's walk's root; a window's settling past a table's laying and its length, s - whole strides
+#: of the robot's walk and its blend's transient past (`gait.BLEND_S`); the robot's rings' seconds.
 ROOT, SETTLE_S, WINDOW_S, RING_S = 'walk', 2.0, 6.0, 8.0
 #: How long this core sleeps between drains, s; how long a window may take on the wall, s.
 NAP_S, WALL_S = 0.005, 600.0
 
 
 def loop(name):
-    """Its loop, linked to `name`: its walk told, each new epoch's too, till the tuner says halt."""
+    """The robot's loop, linked to `name`: its walk told, each new epoch's too, till the tuner says halt."""
     from machine.process import worker
     from tools.sim import scenarios
     s = worker.session()
@@ -45,16 +45,17 @@ def loop(name):
 
 
 def row(c, state):
-    """Its walk's row in its reached slots (`c['slots']`) compiled from its texts with `state`'s
-    literals ({span: value}) spliced: its gym re-read, its walk voiced (`voicing.walk`)."""
+    """The robot's walk's row in its reached slots (`c['slots']`) compiled from the robot's texts with
+    `state`'s literals ({span: value}) spliced: its gym re-read, its walk voiced
+    (`voicing.walk`)."""
     from machine.texts import tune, voicing
     walked = voicing.walk(c['fr'], tune.evaluated(tune.given(state, c['texts']))[1])
     return {k: float(walked[k]) for k in c['slots']}
 
 
 def window(c, seq):
-    """Its run of the table `seq` (`telemetry.scored`'s dict): its passes from SETTLE_S past its
-    laying for WINDOW_S, or where it fell first, its fall."""
+    """The robot's run of the table `seq` (`telemetry.scored`'s dict): its passes from SETTLE_S past
+    its laying for WINDOW_S, or where the robot fell first, its fall."""
     from machine.law import gait
     from machine.process import tap
     raws, looks, began, link = [], [], time.time(), c['link']
@@ -82,7 +83,7 @@ def window(c, seq):
 
 
 def walking(c):
-    """Drained till it walks: its epoch past the suite's settling (`suite.SETTLE_S`), standing - a
+    """Drained till the robot walks: its epoch past the suite's settling (`suite.SETTLE_S`), standing - a
     table laid at rest turns its rhythm on under its stand."""
     from machine.process import tap
     began = time.time()
@@ -95,7 +96,7 @@ def walking(c):
 
 
 def runs(c):
-    """The offline tuner's runs (`tools.sim.tune.runs`) as windows on its loop, one after another:
+    """The offline tuner's runs (`tools.sim.tune.runs`) as windows on the robot's loop, one after another:
     each state's table published once it walks (`walking`), laid, its window measured."""
     from machine.law import gait
     from machine.process import tap
@@ -118,7 +119,7 @@ def main(argv=None):
     from machine.law import modal
     from machine.process import tap
     from machine.texts import tune
-    p = argparse.ArgumentParser(description='The autotuner at runtime, on its walk.')
+    p = argparse.ArgumentParser(description='The autotuner at runtime, on the robot\'s walk.')
     p.add_argument('--steps', type=int, default=1)
     p.add_argument('--write', action='store_true', help='the kept texts written, converged and held elsewhere')
     args = p.parse_args(argv)

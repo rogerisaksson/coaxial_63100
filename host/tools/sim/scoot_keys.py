@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
-"""Its floor scoot under its keys: how far and which way each key takes it, its tips, its heels' lag.
+"""The robot's floor scoot under its keys: how far, which way each key takes it, its tips, heels' lag.
 
     python tools/sim/scoot_keys.py                       # every key at two starts, side by side on the relay
     python tools/sim/scoot_keys.py s w a d --at 8 9      # those keys at those starts
     python tools/sim/scoot_keys.py --one sa 8.0          # one session, its JSON line (the relay's)
     python tools/sim/scoot_keys.py --one s,w,a,d 12.5 0.5 --trace   # S, W, A, D in turn, said at 0.5 s, traced
-    python tools/sim/scoot_keys.py --python ...          # its scoot's python (`machine.moves.scoot`), not its C
+    python tools/sim/scoot_keys.py --python ...          # the robot's scoot's python (`machine.moves.scoot`), not its C
 
-Said scoot_floor 1 s after it stands on the flat floor, then at `at` s the key (or keys: 'sa' is S and A) held
-HOLD_S: its pelvis's travel along and across the heading it had (m, ahead and left +), its heading's turn (deg, left
-+), when it fell or tipped (its trunk TIPPED off its lean), its pelvis's highest (m), its joints' ranges (deg) and its
-knees' lag, left on right (deg of the left's stroke: 0 together, 180 in turn), the crawl take's beside it
-(gcode/crawl_backwards.gcode); each side's phases with the turn, travel and seconds spent in them.
+Said scoot_floor 1 s after the robot stands on the flat floor, then at `at` s the key (or keys: 'sa' is S and A) held
+HOLD_S: its pelvis's travel along and across the heading it had (m, ahead and left +), the robot's
+heading's turn (deg, left +), when it fell or tipped (its trunk TIPPED off its lean), the
+robot's pelvis's highest (m), its joints' ranges (deg) and its knees' lag, left on right (deg of the
+left's stroke: 0 together, 180 in turn), the crawl take's beside it (gcode/crawl_backwards.gcode); each side's phases
+with the turn, travel and seconds spent in them.
 """
 import json
 import math
@@ -22,8 +23,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 #: The keys compared by default, and their starts, s.
 KEYS, STARTS = ('s', 'w', 'a', 'd', 'sa', 'sd', 'wa', 'wd'), ('8.0', '9.0')
-#: A key held, s; its rows a pass apart, s; a traced line every TRACE_S; its trunk's pitch this far off its scoot's
-#: lean, deg, has tipped it over (on the floor its fall goes unflagged: S at 12.5 s laid its back, -177 deg).
+#: A key held, s; the robot's rows a pass apart, s; a traced line every TRACE_S; its trunk's pitch this far off its
+#: scoot's lean, deg, has tipped it over (on the floor its fall goes unflagged: S at 12.5 s laid its back, -177
+#: deg).
 HOLD_S, ROW_S, TRACE_S, TIPPED = 8.0, 0.02, 0.2, 50.0
 #: The robot's joints whose ranges are told.
 RANGED = ('hip', 'knee', 'shoulder', 'elbow')
@@ -67,7 +69,8 @@ def take():
 
 def run(keys, at, python=False, trace=False, say=1.0, module='machine.moves.scoot'):
     """One session: said scoot_floor at `say` s, `keys` held from `at` s for HOLD_S (keys 's,w' S then W, HOLD_S each);
-    its measures as a dict, each side's phase, its heading's turn, pitch and loads a line every TRACE_S where `trace`."""
+    its measures as a dict, each side's phase, the robot's heading's turn, pitch and loads a line every TRACE_S where
+    `trace`."""
     import numpy as np
     from machine.body.figure import JOINTS
     import importlib

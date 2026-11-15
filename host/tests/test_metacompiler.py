@@ -6,7 +6,7 @@ in `world.toml` alone; a build compiled anew is the build its cache holds; an ov
 one number it names; a figure scaled keeps its angles and shares and moves its lengths no further
 than its scale; a craft loaded heavier keeps its radii of gyration; no compiled number is not a
 number.
-Its cache's keys and the generated files' texts: test_mirrors; the specs' own words: test_gynoid."""
+The meta-compiler's cache keys and the generated files' texts: test_mirrors; the specs' own words: test_gynoid."""
 import ast
 import json
 import math

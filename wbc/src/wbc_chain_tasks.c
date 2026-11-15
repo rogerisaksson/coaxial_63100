@@ -28,8 +28,9 @@ int wbc_chain_tasks(const wbc_step_t *p, double *R, double *r, double *want, dou
   {
     if (t == 0)
     {
-      /* its pelvis's turn about its own up and way, not its left (machine.stack.chain.ways): its pitch is its
-         posture's; its error the turn taking its left to the asked left, numpy's cross of the two */
+      /* the robot's pelvis's turn about its own up and way, not its left (machine.stack.chain.ways): its
+         pitch is the robot's posture's; its error the turn taking its left to the asked left, numpy's cross
+         of the two */
       const double *q = p->tquat[0], *a = p->turn[0], *J = p->Jr[0];
       const double  ways[2][3] = {{2.0 * (q[1] * q[2] - q[0] * q[3]), 1.0 - 2.0 * (q[1] * q[1] + q[3] * q[3]), 2.0 * (q[2] * q[3] + q[0] * q[1])},
                                   {2.0 * (q[1] * q[3] + q[0] * q[2]), 2.0 * (q[2] * q[3] - q[0] * q[1]), 1.0 - 2.0 * (q[1] * q[1] + q[2] * q[2])}};
@@ -81,7 +82,8 @@ int wbc_chain_tasks(const wbc_step_t *p, double *R, double *r, double *want, dou
   }
   if (p->chain_vx != 0.0)
   {
-    /* the twist told it: its pelvis along its way, level, at the twist's speed (machine.stack.chain.tasks) */
+    /* the twist told the robot: its pelvis along its way, level, at the twist's speed
+     * (machine.stack.chain.tasks) */
     const double *q = p->tquat[0];
     const double  hx = 2.0 * (q[1] * q[3] + q[0] * q[2]), hz = 1.0 - 2.0 * (q[1] * q[1] + q[2] * q[2]);
     const double  nh = sqrt(hx * hx + hz * hz);

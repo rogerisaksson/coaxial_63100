@@ -432,7 +432,7 @@ bool Board_DaqField(uint8_t field, uint8_t *channel)
 }
 
 /** AFE_ON off means every channel reads exact mid-scale - it powers the ADC
-    reference, not just the signal path (invariant 9). */
+    reference, not just the signal path. */
 static bool powered(daq_t *d)
 {
   if (Board_AfeOn())

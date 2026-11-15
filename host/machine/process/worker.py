@@ -125,8 +125,8 @@ def heard(g, gym, command):
 
 
 def told_floor(g, profile):
-    """A floor told it into its frame's map (`modal.MAP_*`): (along, rise) m from where it
-    stands along its heading, its heights over the floor under it; None forgets it."""
+    """A floor told the robot into its frame's map (`modal.MAP_*`): (along, rise) m from where the
+    robot stands along its heading, its heights over the floor under the robot; None forgets it."""
     import numpy as np
     from machine.law import modal
     fr = g['fr']
@@ -141,20 +141,20 @@ def told_floor(g, profile):
 
 #: A hop's charge, 0 to 1, when a `hop` is said without one (the page says it with; tools/sim/knobs.py `charge`).
 HOP_CHARGE = 0.0
-#: A pass of its world, s; its drives' torque, power and watts averaged over AVERAGE_S; a wear
+#: A pass of the robot's world, s; its drives' torque, power and watts averaged over AVERAGE_S; a wear
 #: window's passes.
 DT = 1.0 / sprung.RATE_HZ
-#: The environment's port its loop's layers are served on (`introspect.attach`), unset none.
+#: The environment's port the robot's loop's layers are served on (`introspect.attach`), unset none.
 TELEMETRY = 'COAXIAL_TELEMETRY'
 K = DT / sprung.AVERAGE_S
 
 
 def session(every=sprung.STACK_EVERY, walks=False, heard=None, texts=None, ber=0.0):
-    """Its run on the loop, paced by nothing, of its texts `texts` ({key: text}: its gym's and the
-    suite's) where given, else their files': its world `g`, the gym and what it says, the last
-    refusal, when it fell, its drives' torque, power and watts, the epoch - a world laid anew
-    each - and the passes in it. Each command heard goes to `heard` (a list's append, a queue's
-    put) as (epoch, pass, t, command), each epoch's lay first."""
+    """The robot's run on the loop, paced by nothing, of its texts `texts` ({key: text}: the robot's
+    gym's and the suite's) where given, else their files': its world `g`, the gym and what it says,
+    the last refusal, when the robot fell, its drives' torque, power and watts, the epoch - a world
+    laid anew each - and the passes in it. Each command heard goes to `heard` (a list's append, a queue's put)
+    as (epoch, pass, t, command), each epoch's lay first."""
     from machine.texts import dsp
     suite = None if texts is None else dsp.read(dsp.SUITE, texts)
     s = {'every': every, 'walks': walks, 'gym_name': sprung.GYMS[0], 'gym': sprung.entries(texts=texts, suite=suite),
@@ -167,8 +167,8 @@ def session(every=sprung.STACK_EVERY, walks=False, heard=None, texts=None, ber=0
 
 
 def laid(s):
-    """A new epoch: its world laid anew, standing (walking where the session `walks`); the last one's camera
-    ended, its planner and its vision kept."""
+    """A new epoch: the robot's world laid anew, standing (walking where the session `walks`); the last one's
+    camera ended, its planner and its vision kept."""
     import numpy as np
     if s.get('g') is not None and s['g']['keep'] is not None:
         s['g']['keep'].close()
@@ -191,7 +191,7 @@ def laid(s):
 def apply(s, command):
     """`command` heard at this pass, logged before it is done; a restart lays a new epoch, a link a
     tuner's hook on each pass (`tap.attached`). A recording begun or ended (`watch.recorded`)
-    is not its own: never logged, never replayed."""
+    is not the robot's own: never logged, never replayed."""
     if 'record' in command:
         from machine.process import watch
         watch.recorded(s, command['record'])
@@ -220,9 +220,9 @@ def apply(s, command):
 
 
 def spawned(here=False):
-    """(its planner, its vision - in this process where `here` -, its peeks' planner, its wear) apart, spawned and
-    booting, before its laying (`session`) and beside it: spawned after it, its vision's boot held its first pass
-    (`readied`), a third of its cold start."""
+    """(the robot's planner, its vision - in this process where `here` -, its peeks' planner, the
+    robot's wear) apart, spawned and booting, before its laying (`session`) and beside it: spawned after
+    it, the robot's vision's boot held its first pass (`readied`), a third of its cold start."""
     told, peeker = planner.Planner(), planner.Planner()
     told.start()
     peeker.start()
@@ -234,8 +234,9 @@ def spawned(here=False):
 
 
 def readied(s):
-    """Its processes apart booted before its first pass - its vision's C warm (`vision.Apart.ready`), its camera's model
-    and renderer laid (`camera.Camera.ready`) -, beside its laying: its vision's boot held its first pass 0.66 s."""
+    """The robot's processes apart booted before its first pass - its vision's C warm (`vision.Apart.ready`),
+    its camera's model and renderer laid (`camera.Camera.ready`) -, beside its laying: its vision's boot held
+    its first pass 0.66 s."""
     s['g']['vision'].ready()
     if s['g']['keep'] is not None:
         s['g']['keep'].ready()
@@ -243,7 +244,8 @@ def readied(s):
 
 @functools.cache
 def _errand():
-    """`machine.way.errand`, imported at its first pass and not walked again each (a package's fromlist)."""
+    """`machine.way.errand`, imported at the robot's first pass and not walked again each (a package's
+    fromlist)."""
     from machine.way import errand
     return errand
 
@@ -255,7 +257,7 @@ def _cocoon():
 
 
 def stepped(s):
-    """A pass of its world, judged: fallen, it lies RECOVER_S, then a new epoch is laid; shut down
+    """A pass of the robot's world, judged: fallen, it lies RECOVER_S, then a new epoch is laid; shut down
     by a bus (`edge.held`), its drives stay off till a restart."""
     g, world = s['g'], s['g']['world']
     if s['shutdown'] is not None:
@@ -287,7 +289,7 @@ def stepped(s):
             if s['worn'].put(g['sense'], world.motor):
                 s['worn'].shut(s['passes'])
         else:
-            # fallen it lies with its drives let go, as the bench's STO drops them: driven on
+            # fallen the robot lies with its drives let go, as the bench's STO drops them: driven on
             # through the fall the rest law fought the ground - 1 658 deg/s, 3 793 N into it
             # supine, 40 deg/s and 45 N let go - the spasm of every fall and tipped lie.
             s['worn'].emptied()
@@ -297,8 +299,8 @@ def stepped(s):
             g['t'] += DT
             world.advance()
         if s['worn'].due_at is not None:
-            # a part of its wear's window a pass, or its read apart; its load laid LAND passes on (`worn`):
-            # in one pass the window held its world 0.12 s
+            # a part of the robot's wear's window a pass, or its read apart; its load laid LAND passes on
+            # (`worn`): in one pass the window held the robot's world 0.12 s
             t_wear = time.perf_counter()
             said = s['worn'].due(s['passes'], g)
             if said is not None:
@@ -320,8 +322,8 @@ def stepped(s):
 
 
 def told(s) -> dict:
-    """Its state as the page hears it (`sprung.state`), its epoch, its wear and its docks foreseen
-    (`peek.told`) beside it, as its last window left it."""
+    """The robot's state as the page hears it (`sprung.state`), the robot's epoch, its wear and the
+    robot's docks foreseen (`peek.told`) beside it, as its last window left it."""
     return dict(sprung.state(s['g'], s['torque'], s['power'], s['watts'], s['ratio'], s['fallen_at'],
                              s['says'], s['refused'], s['headroom']), epoch=s['epoch'], wear=s['wear_told'],
                 shutdown=s['shutdown'], docks=peek.told(s))
@@ -329,8 +331,9 @@ def told(s) -> dict:
 
 class Robot:
 
-    """Its session (`session`) as `apart.paced` steps it: its time, its epoch, a command applied,
-    a pass - its wear's seconds left out of the pace -, its state told at its ratio and headroom."""
+    """The robot's session (`session`) as `apart.paced` steps it: the robot's time, its epoch, a
+    command applied, a pass - its wear's seconds left out of the pace -, the robot's state told at the robot's
+    ratio and headroom."""
 
     def __init__(self, s):
         self.s = s
@@ -358,13 +361,14 @@ class Robot:
 
 
 def run(commands, states, shown, heard=None, every=sprung.STACK_EVERY, walks=False, realtime=True, ber=0.0):
-    """The worker: it stands on the loop, paced to the clock (`realtime`, or flat out without it);
-    commands heard - each put on `heard` at its pass -, its state said. Laid, it stands at rest
-    unless `walks`. Run apart (`apart.paced`), no further than its lead past what its page has
-    `shown`. Its registry's things are its eyes' (`physics.SIGHT`: its stereo pair drawn and matched, its map
-    classified), its vision's panel their view - the world's boxes are its page's drawing alone; its planner and
-    its vision (`vision.Apart`) spawned warm, its vision and its camera waited for warm before its first pass
-    (`readied`); placed as a loop's by the process it is run in (`apart.looped`)."""
+    """The worker: the robot stands on the loop, paced to the clock (`realtime`, or flat out without it);
+    commands heard - each put on `heard` at its pass -, the robot's state said. Laid, the robot stands at rest
+    unless `walks`. Run apart (`apart.paced`), no further than its lead past what the robot's page has
+    `shown`. The robot's registry's things are its eyes' (`physics.SIGHT`: its stereo pair drawn
+    and matched, its map classified), the robot's vision's panel their view - the world's boxes are the robot's
+    page's drawing alone; its planner and its vision (`vision.Apart`) spawned warm, the robot's
+    vision and its camera waited for warm before its first pass (`readied`); placed as a loop's
+    by the process it is run in (`apart.looped`)."""
     physics.ROOM, physics.CAMERA, physics.SIGHT = 1.0, 1.0, 1.0
     booting = spawned()
     s = session(every, walks, heard.put if heard is not None else None, ber=ber)
@@ -380,8 +384,8 @@ def run(commands, states, shown, heard=None, every=sprung.STACK_EVERY, walks=Fal
 
 class Running(apart.Apart):
 
-    """Its worker process on the loop (`run`, apart): `send` it commands, read its `latest` state
-    and the commands it has `heard`, tell it what its page has `shown` - from `shown`, none held
+    """The robot's worker process on the loop (`run`, apart): `send` it commands, read its `latest` state
+    and the commands it has `heard`, tell it what the robot's page has `shown` - from `shown`, none held
     back till told; laid, it stands at rest unless `walks`."""
 
     def __init__(self, every=sprung.STACK_EVERY, walks=False, realtime=True, shown=math.inf, ber=0.0):
@@ -391,14 +395,14 @@ class Running(apart.Apart):
 
     def send(self, **command):
         """{'say': the gym's entry by its place, in place of what was to come} | {'walk': True}:
-        its walk from rest | {'entries': [(label, wire, names)]} | {'gym': one of GYMS} |
+        the robot's walk from rest | {'entries': [(label, wire, names)]} | {'gym': one of GYMS} |
         {'text': orthokinematics, begun now} | {'push': (x, y, z) N, 'seconds': s} |
         {'restart': True}: laid anew | {'record': a file's name, or None}: recorded (`watch.recorded`).
-        Any other key is refused, said with its state."""
+        Any other key is refused, said with the robot's state."""
         super().send(**command)
 
     def heard(self):
-        """The commands it has heard since this was last asked, (epoch, pass, t, command) each:
+        """The commands the robot has heard since this was last asked, (epoch, pass, t, command) each:
         none is dropped, as a state can be."""
         out = []
         try:

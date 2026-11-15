@@ -48,8 +48,8 @@ STRAYS = (0, 3, -2, 1, -3, 2, -1, 0, 2, -3, 1, -2, 3, -1, 0, 1)
 #: all but the chosen node's, those above it and those laid out below it -, lit edges, the chosen node's
 #: ties out and in, lit nodes, then the legend's (the dark terminal's, validated all-pairs): reaches,
 #: reached by, found, chosen. Then text's: a dim name, a lit one, the chosen node's, a key that chooses; a
-#: panel's frame - its eyes' (coaxial.graphics.inset: the instruments' frame, the theme's name and value) -,
-#: an idle panel's frame, a brief.
+#: panel's frame - the robot's eyes' (coaxial.graphics.inset: the instruments' frame, the theme's name and
+#: value) -, an idle panel's frame, a brief.
 FAINT, DIM_EDGE, DIM_NODE, EDGE, TIE_OUT, TIE_IN, NODE, OUT, IN, HIT, OPEN, NAME_DIM, NAME, TOLD, KEY, \
     FRAME, TITLE, NOTE, FRAME_DIM, BRIEF = range(1, 21)
 INK = {FAINT: (23, 26, 31), DIM_EDGE: (28, 32, 38), DIM_NODE: (42, 48, 56), EDGE: (178, 190, 204),
@@ -243,7 +243,7 @@ def _local(v, p):
 def segments(x0, y0, x1, y1, w, h):
     """Every dot of every segment (x0, y0)-(x1, y1) - dots, arrays - within a `w` x `h` drawing: (flat index,
     segment, its count along the segment) a dot. A segment is cut to the drawing (Liang-Barsky) and drawn
-    as its longer extent's dots and two more, evenly spaced from its start to its end (numpy.linspace's),
+    as its longer extent's dots and two more, evenly spaced end to end (numpy.linspace's),
     each where it falls."""
     from coaxial.model.blocks import numpy as np
     dx, dy = x1 - x0, y1 - y0
@@ -400,7 +400,7 @@ def picture(scene, cam, width, height, keyed, found, over=None):
             runs = ([(key + ' ', KEY)] if key else []) + [(name, TOLD if node == focus else NAME if node in lit else NAME_DIM)]
             right, left, row = int((nx + r) // 2) + 1, int((nx - r) // 2) - sum(len(t) for t, _ in runs), int(ny // 4)
             sides = (left, right) if node in scene.get('lefts', ()) else (right, left)
-            # Its side (right, a scene's `lefts` left), the other, then a row or two up or down.
+            # A name's side (right, a scene's `lefts` left), the other, then a row or two up or down.
             if any(_label(text, col, row + step, runs, cols, rows) for step in (0, -1, 1, -2, 2) for col in sides):
                 named += 1
     return cells(dots, text, w, h, shade), fell, v

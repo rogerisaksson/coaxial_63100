@@ -443,7 +443,7 @@ def test_observer_chain(r, lib):
 
 
 def test_observer_needs_a_handover(r, lib):
-    """It cannot acquire a speed from nothing, and that is by construction."""
+    """The observer cannot acquire a speed from nothing, and that is by construction."""
     from coaxial.model.blocks import CurrentLoop, Plant, Signals
     from coaxial.model import sensorless
     from motor.catalog import BENCH_MOTOR

@@ -4,7 +4,7 @@
     out = core.step(law, row, sky.state(), dt, reach)
     sky.step(out.speeds + out.controls, dt, air)
 
-Two 63100 drives: `MAIN` on the mast, `TAIL` on the boom. Its numbers and its XML (`airframe`),
+Two 63100 drives: `MAIN` on the mast, `TAIL` on the boom. The helicopter's numbers and its XML (`airframe`),
 its flight in MuJoCo (`sky`), its law (`law`) and its observer (`observer`); `kit` the SO(3)
 law's pieces it shares with the ornithopter and the aerobat.
 """

@@ -54,7 +54,7 @@ class Sky(quad.Sky):
         return self.speeds, self.controls, (wx, wy, wz), (along if c[2] >= 0.0 else -along), math.hypot(vx, vz)
 
     def ground(self, ask):
-        """Its disc's thrust's share over the floor (`quad.ground`): the disc `_disc` (its middle
+        """The craft's disc's thrust's share over the floor (`quad.ground`): the disc `_disc` (its middle
         up the frame's axis, its radius, m), its thrust along that axis or against it as `ask`."""
         middle, radius = self._disc
         up = (self._xm[4], -self._xm[4])[int(ask < 0.0)]

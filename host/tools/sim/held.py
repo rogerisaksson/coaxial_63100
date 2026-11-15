@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""What holds each of its drives, standing.
+"""What holds each of the robot's drives, standing.
 
 A bone, a gimbal, the boom or the trunk's frame touching its drum, or its own collars and struts
 between (`machine.body.skeleton.HELD`); a drum held by nothing floats (the hip's
@@ -17,7 +17,7 @@ from tools.sim import fit
 
 
 def held_by(touch=0.001):
-    """{joint: [parts]}: standing, its left's and its trunk's drums and the structure holding
+    """{joint: [parts]}: standing, the robot's left's and its trunk's drums and the structure holding
     each - a bone, a gimbal, the boom, the trunk's frame, a bone's collar - touching it or through
     its own collars and struts, within `touch`; never a rod, a drum, a board, nor a wire through a
     segment's middle (a straight bone where `skeleton.HUNG` has none)."""
@@ -41,7 +41,7 @@ def held_by(touch=0.001):
         if not name.startswith('drive_') or name.startswith('drive_right_'):
             continue
         joint = name[len('drive_'):]
-        # Its stack's parts one drum (`drives.along`): its gearbox's and its inverter's with it.
+        # The drive's stack's parts one drum (`drives.along`): its gearbox's and its inverter's with it.
         stack = [parts_[k + joint] for k in ('drive_', 'gear_', 'inv_') if k + joint in parts_]
         pts = np.concatenate([dense(q) for q in stack])
         mine = [h for h in parts_ if h.startswith('held_' + joint) and h[len('held_' + joint):]

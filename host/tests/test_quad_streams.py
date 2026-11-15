@@ -72,7 +72,7 @@ def test_a_stream_alone_is_its_authors_bytes(report):
                                  ('mode_pitch_rate', '-314.0rad_s')],
               'impedance': [('stiffness', 'mode_pitch_rate', 4000.0)]}
     blob = aerolisp.AeroLispCompiler().compile(stream).pack()
-    report.check('its 116 bytes as written', blob[:116].hex() == ALONE_203, blob[:24].hex())
+    report.check('the stream\'s 116 bytes as written', blob[:116].hex() == ALONE_203, blob[:24].hex())
     report.check('the heights after them: none', blob[116:].hex() == '0000c07f' * 2,
                  blob[116:].hex())
 
@@ -149,8 +149,8 @@ def test_the_power_loop_is_flown(report):
                          '%.3f m, %.2f deg off, %.2f m at the most' % (
                              hover['ends']['h'], hover['off'], hover['heights'][1]))
             ahead, least, most, swing = _swung(dive, int(round(1.0 / flight.dt)))
-            report.check('202: its rotors\' axis 45 degrees ahead and what it leans into its own '
-                         'wind, swung either side twice a second',
+            report.check('202: the quad\'s rotors\' axis 45 degrees ahead and what it leans into its '
+                         'own wind, swung either side twice a second',
                          40.0 < ahead < 55.0 and abs(swing - 0.5) < 0.02 and 28.0 < most < 42.0
                          and -42.0 < least < -28.0,
                          '%.1f deg ahead at the mean, %.1f to %.1f aside, a swing %.2f s' % (
@@ -158,16 +158,16 @@ def test_the_power_loop_is_flown(report):
             report.check('202: forward and up on it',
                          float(dive['ends']['vel'][2]) > 12.0 and dive['ends']['h'] > 2.0,
                          '%.1f m/s ahead, %.2f m up' % (dive['ends']['vel'][2], dive['ends']['h']))
-        report.check('a turn of %.2f s: every rotor at an end of its reach, over past its back '
+        report.check('a turn of %.2f s: every rotor at an end of its reach, over past the quad\'s back '
                      'where it was long enough' % turn,
                      over['bound'] == 1.0 and (catch['offs'][1] > 150.0 or turn < 0.05),
                      '%.0f deg off at the most' % catch['offs'][1])
-        report.check('a turn of %.2f s: caught, its axis the 80 degrees asked off up' % turn,
+        report.check('a turn of %.2f s: caught, the quad\'s axis the 80 degrees asked off up' % turn,
                      catch['caught'] is not None and abs(catch['off'] - 80.0) < NEAR_DEG,
                      'in %s s, %.1f deg off, rates to %.1f rad/s' % (
                          '%.2f' % catch['caught'] if catch['caught'] else 'over %.1f' % CATCH_S,
                          catch['off'], catch['spin']))
-        report.check('a turn of %.2f s: standing at its height again, nothing struck' % turn,
+        report.check('a turn of %.2f s: the quad standing at its height again, nothing struck' % turn,
                      abs(stood['ends']['h'] - 1.5) < 0.02 and stood['ends']['hit'] is None
                      and max(abs(float(x)) for x in stood['ends']['spin']) < 0.1
                      and stood['heights'][0] > quad.FLOOR_M,
@@ -196,18 +196,18 @@ def test_the_power_loop_on_four_boards(report):
     finally:
         flight.close()
     ahead, least, most, swing = _swung(dive, int(round(1.0 / flight.dt)))
-    report.check('201 and 202 on the boards: to 1.5 m, then its axis ahead, swung, and gone',
+    report.check('201 and 202 on the boards: to 1.5 m, then the quad\'s axis ahead, swung, and gone',
                  abs(hover['ends']['h'] - 1.5) < 0.01 and 40.0 < ahead < 55.0 and abs(swing - 0.5) <= 0.021
                  and most > 25.0 and least < -25.0 and float(dive['ends']['vel'][2]) > 12.0,
                  '%.3f m; %.1f deg ahead, %.1f to %.1f aside, %.1f m/s ahead' % (
                      hover['ends']['h'], ahead, least, most, dive['ends']['vel'][2]))
-    report.check('203 and 204: over past its back, caught, its axis the 80 degrees asked off up',
+    report.check('203 and 204: over past the quad\'s back, caught, its axis the 80 degrees asked off up',
                  catch['offs'][1] > 150.0 and catch['caught'] is not None
                  and abs(catch['off'] - 80.0) < NEAR_DEG,
                  '%.0f deg off at the most, caught in %s s, %.1f off' % (
                      catch['offs'][1], '%.2f' % catch['caught'] if catch['caught'] else '-',
                      catch['off']))
-    report.check('standing at its height again, nothing struck',
+    report.check('the quad standing at its height again, nothing struck',
                  abs(stood['ends']['h'] - 1.5) < 0.02 and stood['ends']['hit'] is None
                  and max(abs(float(x)) for x in stood['ends']['spin']) < 0.1,
                  '%.3f m, rates %.2f rad/s' % (
@@ -244,11 +244,11 @@ def test_a_hover_keeps_still_in_the_air(report):
                      max(streams.tilt(s['turn'])[2] for _t, s, _f, _b in passes),
                      max(abs(s['h'] - 5.0) for _t, s, _f, _b in passes), passes[-1][1]['hit'])
     speed, off, height, hit = got[aero.LEAN]
-    report.check('leaning into the wind: its speed along the floor under 1 m/s',
+    report.check('leaning into the wind: the quad\'s speed along the floor under 1 m/s',
                  speed < 1.0 and 3.0 < off < 15.0 and hit is None,
                  '%.2f m/s and %.1f deg at the most' % (speed, off))
-    report.check('its height to the centimetre', height < 0.02, '%.3f m off at the most' % height)
-    report.check('with no lean left it: level, and gone with the wind',
+    report.check('the quad\'s height to the centimetre', height < 0.02, '%.3f m off at the most' % height)
+    report.check('with no lean left the quad: level, and gone with the wind',
                  got[0.0][0] > 2.0 and got[0.0][1] < 1.0,
                  '%.2f m/s and %.2f deg at the most' % got[0.0][:2])
 
@@ -282,7 +282,7 @@ def _figures(rows):
 
 def test_the_routine_is_flown_from_its_rows(report):
     """`aerobatics.CARD` on ideal rotors, a pass a row's payload and nothing above it: every
-    figure to its landing, nothing struck - held over its spot, turned on it, slid round its
+    figure to its landing, nothing struck - the quad held over its spot, turned on it, slid round its
     orbit and climbed it; over its back about its nose and about its wing, each caught level
     where it was tossed from; full tilt, and the burn stopped over the floor."""
     from tools.sim import streams
@@ -297,7 +297,7 @@ def test_the_routine_is_flown_from_its_rows(report):
                      ', struck %s' % flight.sky.state()['hit'] if flight.sky.state()['hit'] else ''))
     hover, turned, orbit, screw = (got[name][0] for name in (
         'hover', 'pirouette', 'orbit', 'corkscrew'))
-    report.check('held at %.1f m, turned on its spot, slid round its orbit banked, climbed it'
+    report.check('the quad held at %.1f m, turned on its spot, slid round its orbit banked, climbed it'
                  % aerobatics.HOVER_M,
                  abs(hover[4]['h'] - aerobatics.HOVER_M) < 0.02 and 1.8 < max(turned[2]) < 2.6
                  and max(turned[3]) < 0.1 and 20.0 < max(orbit[1]) < 35.0
@@ -307,11 +307,11 @@ def test_the_routine_is_flown_from_its_rows(report):
                      max(orbit[3]), screw[4]['h']))
     for name, catch in zip(('roll', 'flip'), got['catch']):
         over = got[name][0]
-        report.check('the %s: over its back, caught level over its spot at its height' % name,
+        report.check('the %s: over the quad\'s back, caught level over its spot at its height' % name,
                      max(over[1]) > 170.0 and catch[1][-1] < 2.0
                      and abs(catch[4]['h'] - aerobatics.HIGH['height']) < 0.05
                      and math.hypot(float(catch[4]['at'][0]), float(catch[4]['at'][2])) < 0.3,
-                     '%.0f deg off at the most; %.1f off, %.2f m up, %.2f m from its spot' % (
+                     '%.0f deg off at the most; %.1f off, %.2f m up, %.2f m from the quad\'s spot' % (
                          max(over[1]), catch[1][-1], catch[4]['h'],
                          math.hypot(float(catch[4]['at'][0]), float(catch[4]['at'][2]))))
     tilt, burn = got['full tilt'][0], got['burn'][0]
@@ -325,7 +325,7 @@ def test_the_routine_is_flown_from_its_rows(report):
 def test_the_course_is_flown_from_its_rows(report):
     """`course.CARD` among what stands, solid, a pass a row's payload: from the floor onto
     its grid, its laps and down - nothing struck, no propeller's tip nearer a gate's frame
-    than a quarter of a metre; and in the tour's air on its instruments."""
+    than a quarter of a metre; and in the tour's air on the quad's instruments."""
     from tools.sim import quad_race, streams
     for seed in (None, 3):
         flight = streams.Flight(None if seed is None else weather.air(seed),
@@ -336,7 +336,7 @@ def test_the_course_is_flown_from_its_rows(report):
                   math.sqrt(sum(float(c) ** 2 for c in s['vel'])))
                  for row in rows if row['name'] == 'lap' for _t, s, _l in row['passes']]
         miss, passes = quad_race.missed(flown) if flown else (math.inf, 0)
-        report.check('%s: its laps flown and landed, nothing struck' % (
+        report.check('%s: the quad\'s laps flown and landed, nothing struck' % (
             'still air' if seed is None else 'the tour\'s air'),
                      hit is None and rows[-1]['name'] == course.CARD[-1][0]
                      and len(laps) == course.LAPS and max(laps) < 16.5,

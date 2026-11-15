@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Its docks foreseen on its page (`machine.way.peek`): the lodge bed's long side and its foot.
+"""The robot's docks foreseen on its page (`machine.way.peek`): the lodge bed's long side and its foot.
 
-Its page draws each thing's faces its wayfinder reaches (`peek.told`) before F is said. Woken in the lodge and
-standing as it wakes, the bed offers its long side to the room and its foot: on the world's boxes (`physics.SIGHT`
-0) and on its own eyes as its page's worker runs them (`machine.process.worker.run`: its eyes, its vision and its
+The robot's page draws each thing's faces its wayfinder reaches (`peek.told`) before F is said. Woken in the lodge
+and standing as the robot wakes, the bed offers its long side to the room and its foot: on the world's boxes
+(`physics.SIGHT`
+0) and on the robot's own eyes as its page's worker runs them (`machine.process.worker.run`: its eyes, its vision and its
 planners each a process apart), its gaze looking round as it wakes."""
 import os
 import sys
@@ -13,7 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from tools.dev.focus import chosen
 from gynoid_kit import Report
 
-#: The seconds it stands as it wakes, its peeks asked anew each round.
+#: The seconds the robot stands as it wakes, its peeks asked anew each round.
 WAKE_S = 30.0
 
 
@@ -26,8 +27,9 @@ def _faces():
 
 
 def _woke(sight):
-    """[(x, z)] the bed's docks its page draws WAKE_S s after it woke in the lodge: on the world's boxes, or on its
-    eyes (`sight`) with its vision apart as its worker runs it; its planner and its peeks apart either way."""
+    """[(x, z)] the bed's docks the robot's page draws WAKE_S s after it woke in the lodge: on the world's
+    boxes, or on its eyes (`sight`) with its vision apart as its worker runs it; the
+    robot's planner and its peeks apart either way."""
     from machine.world import physics
     from machine.process import worker
     from machine.way import peek, planner
@@ -72,18 +74,19 @@ def _check(report, sight, label):
 
 
 def test_the_bed_offers_its_long_side_and_its_foot_on_the_worlds_boxes(report, _c=None):
-    """Its registry told the world's boxes (`physics.SIGHT` 0): the bed's long side and its foot both offered."""
+    """The robot's registry told the world's boxes (`physics.SIGHT` 0): the bed's long side and its foot both
+    offered."""
     _check(report, False, "on the world's boxes")
 
 
-def test_the_bed_offers_its_long_side_and_its_foot_on_its_eyes(report, _c=None):
-    """Its registry told by its own eyes as its page's worker runs them: the bed's long side and its foot both
-    offered, as on the world's boxes."""
-    _check(report, True, 'on its eyes')
+def test_the_bed_offers_its_long_side_and_its_foot_on_the_robots_eyes(report, _c=None):
+    """The robot's registry told by its own eyes as its page's worker runs them: the bed's
+    long side and its foot both offered, as on the world's boxes."""
+    _check(report, True, 'on the robot\'s eyes')
 
 
 ROSTER = (test_the_bed_offers_its_long_side_and_its_foot_on_the_worlds_boxes,
-          test_the_bed_offers_its_long_side_and_its_foot_on_its_eyes)
+          test_the_bed_offers_its_long_side_and_its_foot_on_the_robots_eyes)
 
 
 def main(argv=None):

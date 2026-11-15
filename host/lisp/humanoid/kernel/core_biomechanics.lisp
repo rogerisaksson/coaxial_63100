@@ -1,7 +1,7 @@
 ;; -----------------------------------------------------------------------------
 ;; MODULE 1.1: core_biomechanics
-;; SYNOPSIS: Its base: physical invariants, the anatomical contact manifolds, its collision capsules, the biped gait.
-;; -----------------------------------------------------------------------------
+;; SYNOPSIS: The robot's base: physical invariants, the anatomical contact manifolds, its collision capsules, the
+;; biped gait. -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.core
   (:export #:physical-invariants
            #:anatomical-manifold-registry

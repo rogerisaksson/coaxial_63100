@@ -17,7 +17,7 @@ the step that had just reset the board. Measured with the bench
 OCP at 300 mA; the reset was visible only because the thermal nodes had
 gone to zero.
 
-The uptime is not a threshold on anything (invariant 10): a counter that was
+The uptime is not a threshold on anything: a counter that was
 larger a minute ago and is smaller now says the board restarted, which is a
 fact about the board rather than a judgement about volts.
 

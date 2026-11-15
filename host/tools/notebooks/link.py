@@ -30,8 +30,8 @@ print('clients: %s, answered in %.2f s (connect timeout %.1f s)'
         ),
     section(
         'The wire\'s own counters',
-        md('USART3 on the probe, USART2 and UART5 on RS485. `t15/t35_ticks` in raw CYCCNT '
-           '(invariant 2); `for_others` = `bus_message` - `server_message`. `loopback`: '
+        md('USART3 on the probe, USART2 and UART5 on RS485. `t15/t35_ticks` in raw CYCCNT'
+           '; `for_others` = `bus_message` - `server_message`. `loopback`: '
            "four patterns back through RE-to-GND transceivers; the link's own port refuses."),
         code('''from coaxial.errors import DeviceStateError
 
@@ -68,7 +68,7 @@ print('echo: 100 round trips, %.3f ms each' % echo_ms)'''),
     section(
         'A reading with the front end off',
         md('AFE_ON off: mid-scale and 25.00 C; cooked readings refuse, raw codes answer '
-           'labelled (invariant 9). The rail is refcounted; `users` names the holders.'),
+           'labelled. The rail is refcounted; `users` names the holders.'),
         code('''print('before:', device.afe.state())
 try:
     device.analog.scan()

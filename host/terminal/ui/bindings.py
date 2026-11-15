@@ -27,7 +27,7 @@ REPEAT_S = 0.12
 
 def once(act):
     """`act` once a press: a key typed again within REPEAT_S of its last typing is its repeat - timed from its last
-    act, a held key acted every REPEAT_S, a held Space a new hop every 0.12 s in the air, and it fell."""
+    act, a held key acted every REPEAT_S, a held Space a new hop every 0.12 s in the air, and the robot fell."""
     def pressed(state, key, now):
         last, at = state.get('_last_action_key', (None, float('-inf')))
         state['_last_action_key'] = (key, now)

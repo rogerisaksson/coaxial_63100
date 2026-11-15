@@ -9,7 +9,7 @@ The drawing itself is `coaxial.draw.orientation`, which is pure and tested; this
 file is the loop, the screen and the cable.
 
 Nothing here judges an orientation: it shows the quaternion the part reported
-and the angles that follow from it (invariant 10).
+and the angles that follow from it.
 """
 import argparse
 import os
@@ -304,7 +304,8 @@ def parse_args(argv):
 
 def launch(args):
     """Everything before the first frame, the drawing's process started first: its card, meshes
-    and crew come up while this one opens the board. Its process closed where the start fails."""
+    and crew come up while this one opens the board. The drawing's process closed where the
+    start fails."""
     drawing = ahead.take(easel.__name__, 'render') if drawn.apart(args) else None
     # While the board opens, this process's own drawing readied where its card is warm: it draws
     # until its drawing's process is up.

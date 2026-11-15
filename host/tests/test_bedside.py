@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """At a seat's or a bed's edge (`machine.moves.bedside`; the kernel's bedside_*.lisp): the texts read whole, what meets a
-fixture behind it, a stool without a back, the bed's pendulum on its body, its roll held on the bed's line."""
+fixture behind the robot, a stool without a back, the bed's pendulum on its body, its roll held on the bed's
+line."""
 import math
 import os
 import re
@@ -14,9 +15,10 @@ from ground_kit import LANDMARKS, TOUCH, dense, laid, part, skin
 
 #: The bedside texts, lisp/humanoid/kernel/.
 TEXTS = ('bedside_and_stool_core.lisp', 'bedside_maneuver_specializers.lisp', 'bedside_choreography_patches.lisp')
-#: The texts' landmarks by the segment of its own that carries each.
+#: The texts' landmarks by the segment of the robot's own that carries each.
 CARRIED = {**LANDMARKS, 'shank-crural': 'shank', 'glenohumeral': 'upper_arm', 'cranial-vault': 'head'}
-#: Its capsules sampled this often along their axes, m; heights stepped, m; samples round a turn; a law pass, s.
+#: The robot's capsules sampled this often along their axes, m; heights stepped, m; samples round a turn; a law
+#: pass, s.
 STEP_M, RISE_M, TURN, PASS_S = 0.005, 0.01, 7200, 1e-3
 #: A sole's or toes' box as a lattice of this many a side; the stool's lean and the cot's elbow fold stepped, rad.
 LATTICE, LEAN_STEP, FOLD_STEP = 7, 1e-3, 0.01
@@ -45,8 +47,8 @@ def _keys(shot, stage):
 
 def test_the_texts_read_whole(report):
     """The texts read with the kernel: their stages; every manifold they name a patch; every landmark they probe, prop
-    or anchor on a segment of its own, those on no patch of its registry named; the stool, 3 s, the bed, 2 s, the roll;
-    the pendulum a quarter turn each way."""
+    or anchor on a segment of the robot's own, those on no patch of its registry named; the stool, 3 s, the bed, 2 s,
+    the roll; the pendulum a quarter turn each way."""
     from machine.texts import dsp, kernel
     from machine.body import mechatronics
     got, patches, plan, shots = kernel.read(), _patches(), _plan(), _shots()
@@ -57,7 +59,7 @@ def test_the_texts_read_whole(report):
             texts.append(f.read())
     named = {m for t in texts
              for m in re.findall(r':([a-z0-9-]+-(?:bilateral|continuum|lateral|sphinx))(?![a-z0-9-])', t)}
-    report.check('%d manifolds named, each a patch or a landmark of its own: %s' % (
+    report.check('%d manifolds named, each a patch or a landmark of the robot\'s own: %s' % (
         len(named), ', '.join(sorted(named - set(patches)))),
         all(m[:-len('-bilateral')] in CARRIED for m in named - set(patches)))
     stages = [n for t in texts for n in re.findall(r'\(def(?:primitive|modifier|patch) ([a-z0-9-]+)', t)]
@@ -77,8 +79,8 @@ def test_the_texts_read_whole(report):
             g['bed-datum']['cranial-capsule'])}
     landmark = {f: re.sub(r'-(l|r|bilateral)$', '', f) for f in used | frames}
     patched = {landmark[f] for f in frames}
-    report.check('probed, propped on, anchored: %s; on no patch of its registry it %s' % (
-        ', '.join('%s (it %s)' % (f, CARRIED[landmark[f]]) for f in sorted(used)),
+    report.check('probed, propped on, anchored: %s; on no patch of the robot\'s registry it %s' % (
+        ', '.join('%s (the robot %s)' % (f, CARRIED[landmark[f]]) for f in sorted(used)),
         ', '.join(sorted({CARRIED[landmark[f]] for f in used if landmark[f] not in patched}))),
         all(landmark[f] in CARRIED for f in used))
     turns = [(g['bed-pendulum']['direction'], g['bed-pendulum']['target-yaw-rotation-rad']) for g in shots[1:]]
@@ -96,11 +98,11 @@ def _face(name):
     return mid - half, mid + half
 
 
-def test_what_meets_a_fixture_behind_it(report):
-    """Standing, its skin's reach behind its hips by height (`bedside.behind`): heels, calves, thighs, buttocks. The
-    chairs' seat edges and the lodge bed's mattress over its frame meet its calves, on no patch of its own; an edge over
-    its knee its thighs' backs, the stool's probe. From each turn's standoff the stool and the bed meet it within the
-    text's seek."""
+def test_what_meets_a_fixture_behind_the_robot(report):
+    """Standing, the robot's skin's reach behind its hips by height (`bedside.behind`): heels, calves, thighs, buttocks.
+    The chairs' seat edges and the lodge bed's mattress over its frame meet the robot's calves, on no patch of the
+    robot's own; an edge over its knee its thighs' backs, the stool's probe. From each turn's standoff
+    the stool and the bed meet the robot within the text's seek."""
     import numpy as np
     from machine.moves import bedside
     from machine.body import figure
@@ -111,7 +113,7 @@ def test_what_meets_a_fixture_behind_it(report):
     first = of[np.argmax(reach, axis=1)]
     cuts = [0] + [k for k in range(1, len(first)) if first[k] != first[k - 1]] + [len(first)]
     runs = [(a, b) for a, b in zip(cuts[:-1], cuts[1:]) if np.isfinite(reach[a:b].max())]
-    report.check('behind its hips: %s' % '; '.join('%s %.2f-%.2f m, %.0f mm' % (
+    report.check('behind the robot\'s hips: %s' % '; '.join('%s %.2f-%.2f m, %.0f mm' % (
         first[a], heights[a], heights[b - 1], 1e3 * reach[a:b].max()) for a, b in runs),
         [first[a] for a, _b in runs] == ['foot', 'shank', 'thigh', 'pelvis', 'torso'])
     (h0, h1), (s0, s1), (t0, t1) = runs[:3]
@@ -120,12 +122,12 @@ def test_what_meets_a_fixture_behind_it(report):
              ('the low chair', floor.CHAIR_LOW_H - thick, floor.CHAIR_LOW_H), ('the lodge bed', *_face('bed')))
     met = [(name, lo, hi, of[int(np.argmax(each))], 1e3 * each.max())
            for (name, lo, hi), each in zip(faces, bedside.behind(points, radii, *zip(*[f[1:] for f in faces])))]
-    report.check('; '.join('%s %.2f-%.2f m meets it %s %.0f mm behind' % m for m in met),
+    report.check('; '.join('%s %.2f-%.2f m meets the robot %s %.0f mm behind' % m for m in met),
                  [m[3] for m in met] == ['shank'] * 3)
     patches, shots = _patches(), _shots()
     stool, bed = (_keys(g, 'xform-stand-and-turn-at-fixture') for g in shots[:2])
     thighs = next(n for n, p in patches.items() if set(p['frames']) == set(stool['probe-capsules']))
-    report.check('its calves %.2f-%.2f m on no patch; the stool probes its thighs %.2f-%.2f m, it %s' % (
+    report.check('its calves %.2f-%.2f m on no patch; the stool probes the robot\'s thighs %.2f-%.2f m, it %s' % (
         heights[s0], heights[s1 - 1], heights[t0], heights[t1 - 1], thighs),
         not any(f.startswith(':shank') for p in patches.values() for f in p['frames'])
         and bed['probe-capsules'] == (':shank-crural-l', ':shank-crural-r'))
@@ -133,13 +135,13 @@ def test_what_meets_a_fixture_behind_it(report):
     travel = [(n, 1e-3 * keys['standoff-clearance-mm'] + heel - r) for n, keys, r in (
         ('the stool', stool, reach[t0:t1].max(axis=1).min()), ('the bed', bed, 1e-3 * met[2][4]))]
     report.check('its heels %.0f mm behind; from the turn %s; the seek %.0f' % (
-        1e3 * heel, ', '.join('%s meets it in %.0f mm' % (n, 1e3 * t) for n, t in travel), 1e3 * seek),
+        1e3 * heel, ', '.join('%s meets the robot in %.0f mm' % (n, 1e3 * t) for n, t in travel), 1e3 * seek),
         all(t < seek for _n, t in travel))
 
 
 def _seated(bias=0.0, spine=0.0):
-    """Its figure on the kernel's canonical ischial origin, legs hung as the stool's hang sets them, its lumbar `bias`
-    rad more, its spine `spine` deg more."""
+    """The robot's figure on the kernel's canonical ischial origin, legs hung as the stool's hang sets them, its
+    lumbar `bias` rad more, its spine `spine` deg more."""
     from machine.texts import kernel
     seated = kernel.read()['canonical-posture-soa-atlas']['postures']['ischial-seated']['origin-q0']
     hang = kernel.node('xform-sit-on-chair-or-stool', 'limb-hang')['override-origin']
@@ -148,7 +150,8 @@ def _seated(bias=0.0, spine=0.0):
 
 
 def _seat(deg):
-    """(its centre's z, its buttocks' z from .. to, m) of its figure posed `deg`: its pelvis's lowest skin."""
+    """(the robot's centre's z, its buttocks' z from .. to, m) of the robot's figure posed `deg`: its pelvis's
+    lowest skin."""
     import numpy as np
     points, radii, of, centre = skin(deg)
     on = np.array([part(s) == 'pelvis' for s in of])
@@ -158,8 +161,8 @@ def _seat(deg):
 
 
 def _hung(talocrural):
-    """(kg m, kg m^2): its shank, foot and toes as built hung from its knee, its ankle at `talocrural` rad - their mass
-    times their centre's depth under it, their inertia about it."""
+    """(kg m, kg m^2): the robot's shank, foot and toes as built hung from its knee, its ankle at
+    `talocrural` rad - their mass times their centre's depth under it, their inertia about it."""
     import numpy as np
     from machine.body import build, figure
     placed, built = figure.frames(laid({'talocrural': talocrural}), (0.0, 0.0, 0.0), figure.IDENT), build.segments()
@@ -174,10 +177,10 @@ def _hung(talocrural):
 
 
 def test_a_stool_without_a_back(report):
-    """The rim's barrier (`bedside.halted`) at its capture point's gamma halts the slide as exp(-gamma t), never past.
-    Seated, legs hung, its centre is ahead of its buttocks, still at its spine's stop: it cannot lean off backward.
-    Its centre over the patch's stool, its ischia keep its rim's margin as far as the text leans it. Its shank hangs
-    at the text's frequency; on its toes it perches higher."""
+    """The rim's barrier (`bedside.halted`) at the robot's capture point's gamma halts the slide as exp(-gamma t),
+    never past. Seated, legs hung, the robot's centre is ahead of its buttocks, still at its spine's stop: it cannot
+    lean off backward. The robot's centre over the patch's stool, its ischia keep its rim's margin as far as
+    the text leans the robot. The robot's shank hangs at the text's frequency; on its toes it perches higher."""
     import numpy as np
     from machine.law import barrier
     from machine.moves import bedside
@@ -202,7 +205,7 @@ def test_a_stool_without_a_back(report):
     bias = kernel.node('enforce-backless-stool-rim-zcbf', 'seat-rim')['on-backless-stool-detected'][
         'self-balancing-lumbar-pitch-bias-rad']
     upright, biased, back = _seat(_seated()), _seat(_seated(bias)), _seat(_seated(spine=drives.TRAVEL['spine'][0]))
-    report.check('its centre %.0f mm ahead of its buttocks (%.0f long), %.0f leaning the text\'s %+.3f rad, %.0f at '
+    report.check('its centre %.0f mm ahead of the robot\'s buttocks (%.0f long), %.0f leaning the text\'s %+.3f rad, %.0f at '
                  'its spine\'s %g deg' % (1e3 * (upright[0] - upright[2]), 1e3 * (upright[2] - upright[1]),
                                           1e3 * (biased[0] - biased[2]), bias, 1e3 * (back[0] - back[2]),
                                           drives.TRAVEL['spine'][0]), upright[0] > upright[2] and back[0] > back[2])
@@ -211,14 +214,14 @@ def test_a_stool_without_a_back(report):
     leans = np.arange(0.0, 0.2, LEAN_STEP)
     inside = np.array([0.5e-3 * seat - (_seat(_seated(b))[0] - ischia) for b in leans])
     most = leans[inside >= margin].max()
-    report.check('its centre over a %.0f mm stool, its ischia %.1f mm inside its rim upright, %.1f leaning; its margin '
-                 '%.1f: it leans at most %.3f rad, the text %.3f' % (
+    report.check('its centre over a %.0f mm stool, the robot\'s ischia %.1f mm inside its rim upright, %.1f leaning; its margin '
+                 '%.1f: the robot leans at most %.3f rad, the text %.3f' % (
                      seat, 1e3 * inside[0], 1e3 * float(np.interp(bias, leans, inside)), 1e3 * margin, most, bias),
                  inside[0] >= margin and bias <= most)
     hang = kernel.node('xform-sit-on-chair-or-stool', 'limb-hang')
     moment, inertia = _hung(hang['override-origin']['talocrural'])
     swing, told = float(bedside.pendulum(moment, inertia)), hang['passive-pendulum-dynamics']['eigenfreq-hz']
-    report.check('its shank hangs %.3f kg m, %.4f kg m^2 about its knee: %.3f Hz, the text %.2f' % (
+    report.check('its shank hangs %.3f kg m, %.4f kg m^2 about the robot\'s knee: %.3f Hz, the text %.2f' % (
         moment, inertia, swing, told), abs(swing - told) < 5e-3)
     points, radii, of = dense(figure.stand(), STEP_M, LATTICE)
     toes = TERMS[('ankle', 'plantarflexion')]
@@ -226,11 +229,11 @@ def test_a_stool_without_a_back(report):
                          left_foot=-toes[3], right_foot=-toes[3]), STEP_M, LATTICE)
     up = (points[:, 1] - radii).min() - (raised[0][:, 1] - raised[1]).min()
     perch = (points[of == 'pelvis', 1] - radii[of == 'pelvis']).min()
-    report.check('its buttocks %.3f m up, on its toes at it %g deg stop %.3f' % (perch, toes[3], perch + up), up > 0.0)
+    report.check('its buttocks %.3f m up, on the robot\'s toes at it %g deg stop %.3f' % (perch, toes[3], perch + up), up > 0.0)
 
 
 def _deep():
-    """m: its hips in from a bed's edge sat its deepest, the edge at its calves."""
+    """m: the robot's hips in from a bed's edge sat its deepest, the edge at its calves."""
     import numpy as np
     points, radii, of, _c = skin(_seated())
     shank = np.array([part(x) == 'shank' for x in of])
@@ -238,8 +241,9 @@ def _deep():
 
 
 def _rolled(deg, side):
-    """(its centre's height over a hard floor, rolled from its back onto `side`, round a turn; its skin across the
-    floor from its centre at its back, side and front, (3, 2) m; the samples) of its figure posed `deg`."""
+    """(the robot's centre's height over a hard floor, rolled from its back onto `side`, round a turn; its skin
+    across the floor from its centre at its back, side and front, (3, 2) m; the samples) of its figure posed
+    `deg`."""
     import numpy as np
     from machine.world import groundwork
     points, radii, _of, centre = skin(deg)
@@ -252,8 +256,8 @@ def _rolled(deg, side):
 
 
 def _half(origin, fold=0.0):
-    """m: its half width lying on its back posed as the groundwork atlas's `origin`, its elbows `fold` rad more, and
-    on its side."""
+    """m: the robot's half width lying on its back posed as the groundwork atlas's `origin`, its elbows `fold` rad
+    more, and on its side."""
     import numpy as np
     from machine.texts import kernel
     posed = kernel.read()['groundwork-1jet-posture-atlas']['postures'][origin]['origin-q0']
@@ -262,8 +266,8 @@ def _half(origin, fold=0.0):
 
 
 def _stroke():
-    """m: its pelvis across its planted shoulders (the text's glenohumeral anchors, their joints' middle) at its
-    spine's lateral stop."""
+    """m: the robot's pelvis across its planted shoulders (the text's glenohumeral anchors, their joints'
+    middle) at its spine's lateral stop."""
     from machine.body import figure, drives
     at = [figure.frames(dict(figure.stand(), spine_roll=r), (0.0, 0.0, 0.0), figure.IDENT) for r in (
         0.0, drives.TRAVEL['spine_roll'][1])]
@@ -271,11 +275,11 @@ def _stroke():
     return abs(bent - straight)
 
 
-def test_the_bed_pendulum_on_its_body(report):
-    """Lying straight, on the lodge bed its pelvis lies between the pillow's clearance past its crown and its foot
-    less its legs. Sat its deepest on its side the pendulum lays it there: within the bed, inside the roll's margins
-    only on its line, within two strokes of its escape (one on a 0.9 m bed; the ratchet re-anchors). Its hip holds a
-    leg out straight."""
+def test_the_bed_pendulum_on_the_robots_body(report):
+    """Lying straight, on the lodge bed the robot's pelvis lies between the pillow's clearance past the robot's
+    crown and its foot less the robot's legs. Sat the robot's deepest on its side the pendulum lays the robot there:
+    within the bed, inside the roll's margins only on its line, within two strokes of the robot's escape (one on a
+    0.9 m bed; the ratchet re-anchors). The robot's hip holds a leg out straight."""
     import numpy as np
     from machine.body import build, figure, heat
     from machine.texts import kernel
@@ -284,14 +288,14 @@ def test_the_bed_pendulum_on_its_body(report):
     crown, soles = (points[:, 1] + radii).max(), -(points[:, 1] - radii).min()
     length, width = 2.0 * room.BED[2], 2.0 * room.BED[0]
     clear = kernel.node('specialize-with-bed-headboard-pillow-align', 'bed-datum')['headboard-wall-margin-m']
-    report.check('its crown %.3f m over its pelvis, its soles %.3f under: on the %.1f m bed its pelvis %.3f-%.3f m '
+    report.check('its crown %.3f m over the robot\'s pelvis, its soles %.3f under: on the %.1f m bed its pelvis %.3f-%.3f m '
                  'from its head' % (crown, soles, length, crown + clear, length - soles),
                  crown + clear < length - soles)
     deep, half = _deep(), _half('floor-supine-flat')[0]
     margin = _shots()[1]['bed-roll']['mattress-drop-off-barrier']['min-capsule-to-edge-margin-m']
     strokes = math.ceil((0.5 * width - deep) / _stroke())
-    report.check('sat its deepest its hips %.3f m in, %.3f off its line; on its back %.3f m wide, %.0f mm inside the '
-                 'edge, inside its %.0f mm margins within %.1f mm of the line; its stroke %.3f, %d to the line' % (
+    report.check('sat the robot\'s deepest its hips %.3f m in, %.3f off its line; on the robot\'s back %.3f m wide, %.0f mm inside the '
+                 'edge, inside its %.0f mm margins within %.1f mm of the line; the robot\'s stroke %.3f, %d to the line' % (
                      deep, 0.5 * width - deep, 2.0 * half, 1e3 * (deep - half), 1e3 * margin,
                      1e3 * (0.5 * width - margin - half), _stroke(), strokes),
                  deep > half and 0.5 * width - margin - half >= 0.0 and strokes <= 2)
@@ -302,15 +306,16 @@ def test_the_bed_pendulum_on_its_body(report):
         hip = placed['left_thigh'][0][2]
         out.append(9.81 * sum(built[n][0] * (figure.add(placed[n][0], figure.apply(placed[n][1], built[n][1]))[2] - hip)
                               for n in ('left_thigh', 'left_shank', 'left_foot', 'left_toes')))
-    report.check('a leg out straight %.1f N m at its hip, its knee hung %.1f; it holds %.1f' % (out[0], out[1], held),
+    report.check('a leg out straight %.1f N m at the robot\'s hip, its knee hung %.1f; it holds %.1f' % (out[0], out[1], held),
                  max(out) < held)
 
 
-def test_its_roll_held_on_the_bed(report):
-    """`bedside.drift` is R theta for a cylinder. Its roll wave's posture rolled from its back onto its right drifts
-    it the text's radius times the quarter turn. Its room on the bed at rest; the escape (`bedside.escape`) brings
-    it onto its line through that quarter in strokes of its own; the texts' strokes within its own at its shoulders; on the
-    cot its elbows folded as little as fits it between its margins."""
+def test_the_robots_roll_held_on_the_bed(report):
+    """`bedside.drift` is R theta for a cylinder. The robot's roll wave's posture rolled from its back onto its right
+    drifts it the text's radius times the quarter turn. The robot's room on the bed at rest; the escape (`bedside.escape`)
+    brings it onto its line through that quarter in strokes of the robot's own; the texts' strokes within the
+    robot's own at its shoulders; on the cot its elbows folded as little as fits it between its
+    margins."""
     import numpy as np
     from machine.moves import bedside
     from machine.texts import kernel
@@ -323,13 +328,13 @@ def test_its_roll_held_on_the_bed(report):
     told, barrier = (shots[1]['bed-roll'][k] for k in ('shrimp-counter-translation', 'mattress-drop-off-barrier'))
     h, _spans, theta = _rolled(_roll_postures()[2], -1.0)
     quarter = bedside.drift(h, theta)[TURN // 4]
-    report.check('its centre %.3f m up on its back, %.3f on its side; it drifts %.3f m the quarter: radius %.3f, the '
+    report.check('its centre %.3f m up on the robot\'s back, %.3f on its side; it drifts %.3f m the quarter: radius %.3f, the '
                  'text %.3f' % (h[0], h[TURN // 4], quarter, quarter / (0.5 * np.pi), told['effective-torso-radius-m']),
                  abs(told['effective-torso-radius-m'] - quarter / (0.5 * np.pi)) < 5e-4)
     half = (*_half('floor-supine-flat'), _half('floor-prone-flat')[0])
     width, margin = barrier['bed-width-m'], barrier['min-capsule-to-edge-margin-m']
     stray = [0.5 * width - margin - x for x in half]
-    report.check('on the %.1f m bed, its %.0f mm margins, it may stray %s mm on its back / side / front, %s wide' % (
+    report.check('on the %.1f m bed, its %.0f mm margins, the robot may stray %s mm on its back / side / front, %s wide' % (
         width, 1e3 * margin, ' / '.join('%.0f' % (1e3 * x) for x in stray),
         ' / '.join('%.0f' % (2e3 * x) for x in half)),
         width == 2.0 * room.BED[0] and min(stray) >= 0.0)
@@ -340,7 +345,7 @@ def test_its_roll_held_on_the_bed(report):
         v = float(bedside.escape(h[k], rate, off[-1], gain))
         off.append(off[-1] + dt * (h[k] * rate + v))
         scoot += dt * abs(v)
-    report.check('the escape at %g /s from %.0f mm off: %.1f mm after the quarter (%.2f s), its pelvis scooting '
+    report.check('the escape at %g /s from %.0f mm off: %.1f mm after the quarter (%.2f s), the robot\'s pelvis scooting '
                  '%.3f m, %d strokes of it %.0f mm' % (gain, 1e3 * off[0], 1e3 * abs(off[-1]), TURN // 4 * dt, scoot,
                                                         math.ceil(scoot / stroke), 1e3 * stroke),
                  abs(off[-1]) < 0.01 * off[0])
@@ -352,7 +357,7 @@ def test_its_roll_held_on_the_bed(report):
         'delta-angles'])[':cubital']
     room = 1e-3 * cot['cot-width-mm'] - 2.0 * narrow['min-capsule-to-edge-margin-m']
     folded, short = (2.0 * _half('floor-supine-flat', f)[0] for f in (fold, fold - FOLD_STEP))
-    report.check('the strokes %s mm, its own %.0f; on the %.0f mm cot its elbows %.2f rad more: %.0f mm wide, its %.0f '
+    report.check('the strokes %s mm, the robot\'s own %.0f; on the %.0f mm cot its elbows %.2f rad more: %.0f mm wide, its %.0f '
                  'between margins, %.0f a step less' % (', '.join('%.0f' % x for x in strokes), 1e3 * stroke,
                                                          cot['cot-width-mm'], fold, 1e3 * folded, 1e3 * room,
                                                          1e3 * short),
@@ -360,8 +365,8 @@ def test_its_roll_held_on_the_bed(report):
                  and folded <= room < short)
 
 
-ROSTER = [test_the_texts_read_whole, test_what_meets_a_fixture_behind_it, test_a_stool_without_a_back,
-          test_the_bed_pendulum_on_its_body, test_its_roll_held_on_the_bed]
+ROSTER = [test_the_texts_read_whole, test_what_meets_a_fixture_behind_the_robot, test_a_stool_without_a_back,
+          test_the_bed_pendulum_on_the_robots_body, test_the_robots_roll_held_on_the_bed]
 
 
 def main(argv=None):

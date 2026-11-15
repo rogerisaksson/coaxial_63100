@@ -169,7 +169,7 @@ typedef struct
 typedef struct
 {
   float rds_on;          /**< one FET at 25 C, IAUCN10S7N021 = 1.8 mOhm */
-  /** Its law in the junction: rds_on*(1 + a*d + b*d*d), d = Tj - 25 K. */
+  /** The on-resistance's law in the junction: rds_on*(1 + a*d + b*d*d), d = Tj - 25 K. */
   float rds_alpha;
   float rds_beta;
   float r_shunt;         /**< phase shunt, RU1||RU2 = 3.5 mOhm */

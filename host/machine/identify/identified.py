@@ -1,15 +1,15 @@
-"""Its corrections as identified, over its build: the least move that fits a campaign, kept, laid.
+"""The robot's corrections as identified over its build: the least move fitting a campaign, kept, laid.
 
     deltas = identified.correction(lay, body, Y, tau)   # {name: correction} on body's model
     deltas = identified.correction(lay, body, Y, tau, (Yw, tw))  # the walk's rows too, each share held out
-    identified.save(path, deltas, got)                  # kept as TOML; IDENTIFIED its law's
+    identified.save(path, deltas, got)                  # kept as TOML; IDENTIFIED the robot's law's
     identified.correct(body, identified.load(path))     # laid over its law's model, whole
 
 Each link's mass and first moment and each drive's armature and friction move; a link's
 inertia about its centre stays as built and follows them about its origin, so every link stays
 a body. Fitted across campaigns, each link's and each drive's share of the move is laid as far
 as it harms no drive on a campaign it was not fitted on (`shares`). `wbc.Body` lays IDENTIFIED
-over its law's model when the file is there.
+over the robot's law's model when the file is there.
 """
 import os
 import tomllib
@@ -22,7 +22,7 @@ from machine.identify.sysid import FRICTION, INERTIAL, following, laid, shifted,
 #: minimum retained link mass share (`peripherals.identify()['identified']`).
 _ident = peripherals.identify()['identified']
 UNITS, RIDGE, KEPT = dict(_ident['units']), _ident['ridge'], _ident['kept']
-#: Its corrections as identified, over its build (`save`, `load`, `correct`): its law's model
+#: The robot's corrections as identified, over its build (`save`, `load`, `correct`): its law's model
 #: reads them when the file is there (`wbc.Body`).
 IDENTIFIED = os.path.join(mechatronics.ROBOTS, mechatronics.ROBOT + '.identified.toml')
 
@@ -177,7 +177,7 @@ def correct(body, deltas):
     theta = truth(lay, m)
     for name, delta in deltas.items():
         if name not in lay['names']:
-            raise MachineError('no parameter %s of its own to correct' % name)
+            raise MachineError('no parameter %s of the robot\'s own to correct' % name)
         theta[lay['names'].index(name)] += delta
     touched = {name.rsplit('.', 1)[0] for name in deltas}
     links = [row for row in _links(lay, m, theta) if m.body(row[0]).name in touched]

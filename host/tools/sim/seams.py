@@ -3,7 +3,7 @@
 
     python tools/sim/seams.py
 
-Each covered part of its drawn shell (`coaxial.graphics.gynoid`, bare) against the clothes over
+Each covered part of the robot's drawn shell (`coaxial.graphics.gynoid`, bare) against the clothes over
 it (COVERED, a side's its own): the worst reach of its corners past a cloth's rings
 (`fit._excess`), m - a seam catches where a cloth is tighter than the shell beneath; a corner no
 cloth covers does not count. The cheeks stood 19 mm out of the jeans between the seat and the
@@ -56,7 +56,7 @@ def seams():
 
 
 def main():
-    print('its shell past its clothes standing, mm: ' + ', '.join(
+    print('its shell past the robot\'s clothes standing, mm: ' + ', '.join(
         '%s %+.0f' % (p, v * 1e3) for p, v in sorted(seams().items(), key=lambda kv: -kv[1])))
     return 0
 

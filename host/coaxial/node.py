@@ -32,7 +32,7 @@ ROT_J, ROT_B = 2e-5, 1e-5
 
 #: A rotor's start: its vector turned up to START times the record's crossover in START_S s -
 #: at 1.3 and 2 times it the bare rotor's swing about the vector had it under the crossover
-#: at the hand-over, one start in four. Its stop: STOP_S more than its ramp down takes.
+#: at the hand-over, one start in four. A rotor's stop: STOP_S more than its ramp down takes.
 START, START_S, STOP_S = 3.0, 0.4, 0.1
 
 #: A phase's axis every sixth of an electrical turn, rad. A ring is held on one: between two a

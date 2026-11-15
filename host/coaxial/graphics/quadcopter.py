@@ -1,13 +1,13 @@
 """The quad drawn: its frame, the 63100 cans on their coaxial boards, the propellers, in braille.
 
     lines = render(pose, rotors, 96, 40, lit=gpu.LitRaster())   # the GPU's lit raster
-    lines = render(pose, rotors, 96, 40)                        # its dots splatted here
+    lines = render(pose, rotors, 96, 40)                        # the quad's dots splatted here
 
 `pose` is `machine.aircraft.quad.Sky.state()`'s, its 'turn' and 'at'; `rotors` each rotor's (angle rad,
 speed rad/s, can C, board C[, sink C]), the can, its board and its heatsink painted their heat
 (`ansi.thermal_rgb`). A propeller slower than BLADES_RAD_S shows its blades; faster, the disc they
 sweep, its rim dotted where the frame does not cover it. The ground's grid to the horizon's edge,
-a pole marked each metre up and what stands about the course are its world
+a pole marked each metre up and what stands about the course are the quad's world
 (`coaxial.graphics.scenery`); the camera frames `reach` m about `centre`, SIGHT reaches off.
 """
 import math
@@ -345,7 +345,7 @@ def render(pose, rotors, width, height, yaw=30.0, pitch=18.0, reach=REACH, centr
            see='shell', lens=1.0, field=None):
     """The quad at `pose` on its `rotors`, `width` x `height` cells, `reach` m framed about
     `centre` (the quad's middle) from SIGHT reaches off through a `lens` that much nearer:
-    lines. `lit` a `gpu.LitRaster`, or None to splat its dots here; `world` False the quad
+    lines. `lit` a `gpu.LitRaster`, or None to splat the quad's dots here; `world` False the quad
     alone, nothing under it or about it; `field` what stands about it (`grounds`, or
     `airfield`); `gate` the course's gates stood too, the one of that number lit, and `line_`
     the line it asks through them; `thrusts` each rotor's, N, its arrow; `inset` cells {(row,

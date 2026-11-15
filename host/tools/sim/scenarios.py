@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Its scenarios in MuJoCo: a scene placed, commanded as a player would, judged by the world.
+"""The robot's scenarios in MuJoCo: a scene placed, commanded as a player would, judged by the world.
 
     python tools/sim/scenarios.py                    # every scenario on the relay, a table
     python tools/sim/scenarios.py wall chair         # those named; --shoves the shoves' polar
@@ -7,11 +7,11 @@
     python tools/sim/stunts.py                       # the takes' scenarios (STUNTS) against them
 
 A scenario is a scene (`floor.scenario`: a floor event, a chair, a bed) and its commands at their
-seconds through its worker's session as the page gives them. The referee reads the
-world's truth its law never sees: whether it fell, what bore it off its soles - the floor, a
-chair, a mattress, a wall -, its soles' loads, where its pelvis went, each segment's jerk (`JERKED`)
-through a 20 ms window, its 99th percentile and peak; a stunt's rows as the page records it, measured
-as its take is (`stunts.measured`).
+seconds through the robot's worker's session as the page gives them. The referee reads the
+world's truth the robot's law never sees: whether it fell, what bore it off its soles -
+the floor, a chair, a mattress, a wall -, its soles' loads, where its pelvis went, each
+segment's jerk (`JERKED`) through a 20 ms window, its 99th percentile and peak; a stunt's rows as the page
+records the robot, measured as its take is (`stunts.measured`).
 """
 import argparse
 import json
@@ -27,7 +27,7 @@ from tools.sim import stunts
 from tools.sim.player import PLAYS, SHOVE_S, SHOVES, STOP, WALK, played
 from tools.sim.staged import PLAYED_S, STUNTS
 
-#: What bears it, by the body it is: the props a scene places.
+#: What bears the robot, by the body it is: the props a scene places.
 BEARS = {'chair': 'chair', 'chair_low': 'chair', 'prop_bed': 'bed', 'wall': 'wall', 'tree': 'tree'}
 #: A goal held, s; jerk window, s; an obstacle met past, N; standing on after the last command, s.
 HELD_S, JERK_S, MET_N, STILL_S = 1.0, 0.02, 20.0, 6.0
@@ -41,12 +41,12 @@ def _walk(seconds, then=STILL_S):
 
 
 #: name: (scene, commands, seconds, goal, its number). A goal: 'met' (the obstacle touched and
-#: it stopped at it), 'past' m (its pelvis that far on), 'rose'/'sank' m (its pelvis that much
-#: higher or lower at the end), 'lay' (a bed bearing more of it than its soles do for HELD_S,
-#: by the world's contacts, and at the end more than the floor and its soles: a flat fall off it
-#: or a stand passed), 'sat' (so, and its soles bearing it at the end: risen), 'stands'
-#: (on its soles, a chair's seat or not), 'refused' (the say refused, naming its aim, its standing).
-#: The bed and the chair by their texts (stunts.md).
+#: the robot stopped at it), 'past' m (the robot's pelvis that far on), 'rose'/'sank' m (its pelvis
+#: that much higher or lower at the end), 'lay' (a bed bearing more of it than its soles do for
+#: HELD_S, by the world's contacts, and at the end more than the floor and its soles: a flat fall off
+#: it or a stand passed), 'sat' (so, and the robot's soles bearing it at the end: risen), 'stands' (on
+#: the robot's soles, a chair's seat or not), 'refused' (the say refused, naming its aim, the robot's
+#: standing). The bed and the chair by their texts (stunts.md).
 
 
 SCENARIOS = {
@@ -78,7 +78,7 @@ SCENARIOS = {
 }
 SCENARIOS.update({'play_' + n: ('flat', *played(k), 'stands', None) for n, k in PLAYS.items()})
 
-#: A shove's fall that is no failure: its head onto the floor slower than this, m/s (`player.SHOVES`).
+#: A shove's fall that is no failure: the robot's head onto the floor slower than this, m/s (`player.SHOVES`).
 FALL_M_S = 1.0
 
 SCENARIOS.update({key: (scene, plan, (PLAYED_S if start is None else start) + ref['seconds'] + STILL_S, 'stunt', key)
@@ -87,7 +87,7 @@ SCENARIOS.update({key: (scene, plan, (PLAYED_S if start is None else start) + re
 
 
 def placed(s, scene):
-    """`scene` laid round it in its session `s`: a floor event, or a chair or a bed set at it."""
+    """`scene` laid round the robot in its session `s`: a floor event, or a chair or a bed set at it."""
     from machine.process import worker
     worker.apply(s, {'scenario': scene})
 
@@ -106,34 +106,34 @@ def _row(g, world):
 
 def stunt_window(key, played=None):
     """(from, to) s of a stunt's measured rows: from its telling and the take's entering
-    (`takes.ENTER_S`) - told None, from the s `played` its joint program began -, for its take's seconds at its
-    size (`stunts.similar`)."""
+    (`takes.ENTER_S`) - told None, from the s `played` its joint program began -, for its take's seconds at the
+    robot's size (`stunts.similar`)."""
     ref, told = stunts.reference()[key], STUNTS[key][3]
     start = played if told is None else told + takes.ENTER_S
     return start, start + ref['seconds'] * stunts.similar(ref['leg'], 'time')
 
 
-def borne(world, its_own, kinds, force):
-    """({kind: N up}, {kind: N}) of what it touches now (`its_own` 2 a sole's body, 1 another of
-    its own): its soles ('soles'), and the rest by the body its contact is with (`kinds`, else
-    'floor') - what holds it up, the normal forces' upward parts (its shins on a chair's edge
-    pushed it 1.8 kN sideways), and the normal forces whole (a wall's push)."""
+def borne(world, robot_own, kinds, force):
+    """({kind: N up}, {kind: N}) of what the robot touches now (`robot_own` 2 a sole's body, 1 another of
+    its own): its soles ('soles'), and the rest by the body its contact is with
+    (`kinds`, else 'floor') - what holds it up, the normal forces' upward parts (its shins on a
+    chair's edge pushed it 1.8 kN sideways), and the normal forces whole (a wall's push)."""
     m, d, up, whole = world.model, world.data, {}, {}
     for i in range(d.ncon):
         c = d.contact[i]
         a, b = m.geom_bodyid[c.geom1], m.geom_bodyid[c.geom2]
-        if (its_own[a] > 0) == (its_own[b] > 0):
+        if (robot_own[a] > 0) == (robot_own[b] > 0):
             continue
-        mine, other = (a, b) if its_own[a] else (b, a)
+        mine, other = (a, b) if robot_own[a] else (b, a)
         world._mj.mj_contactForce(m, d, i, force)
-        kind = 'soles' if its_own[mine] > 1 else kinds.get(m.body_rootid[other], 'floor')
+        kind = 'soles' if robot_own[mine] > 1 else kinds.get(m.body_rootid[other], 'floor')
         up[kind] = up.get(kind, 0.0) + abs(float(force[0]) * float(c.frame[1]))
         whole[kind] = whole.get(kind, 0.0) + abs(float(force[0]))
     return up, whole
 
 
 def ran(name, wobble=0.0, laid=None, texts=None, record=None):
-    """{name, stood, fell_at, goal, met, went m, rose m, rolled deg (its pelvis about its way at
+    """{name, stood, fell_at, goal, met, went m, rose m, rolled deg (the robot's pelvis about its way at
     the end), speed m/s, bore {kind: share held}, ended {kind: N up at the end}, jerk}: laid turned
     `wobble` rad about up, of its texts `texts` where given (`worker.session`); `laid(s)` each pass after;
     `record` (NAME, from s, to s), its loop recorded the while (`watch.recorded`: recordings/NAME.jsonl)."""
@@ -155,7 +155,7 @@ def ran(name, wobble=0.0, laid=None, texts=None, record=None):
     if record:
         marks: list = [(record[1], {'record': record[0]}), (record[2], {'record': None})]
         plan = list(plan) + marks
-    # the lodge round it for its own scenes alone: its walls would end the longer walks
+    # the lodge round the robot for its own scenes alone: its walls would end the longer walks
     physics.ROOM, physics.SIGHT = float(scene == 'lodge'), 0.0
     told = [c['say'] for _at, c in plan if 'say' in c]
     s = worker.session(texts=texts)
@@ -170,8 +170,8 @@ def ran(name, wobble=0.0, laid=None, texts=None, record=None):
     world.data.qpos[3:7] = (q[0] * cw - q[2] * sw, q[1] * cw + q[3] * sw, q[2] * cw + q[0] * sw, q[3] * cw - q[1] * sw)
     world._mj.mj_forward(world.model, world.data)
     m, d = world.model, world.data
-    its_own = np.array([edge._rooted(m, b, world.pelvis) for b in range(m.nbody)], int)
-    its_own[[m.body(n).id for n in edge.INSOLES]] = 2
+    robot_own = np.array([edge._rooted(m, b, world.pelvis) for b in range(m.nbody)], int)
+    robot_own[[m.body(n).id for n in edge.INSOLES]] = 2
     kinds = {m.body(n).id: k for n, k in BEARS.items()}
     weight = float(s['g']['fr'][modal.WEIGHT])
     head, force = m.body('head').id, np.zeros(6)
@@ -210,7 +210,7 @@ def ran(name, wobble=0.0, laid=None, texts=None, record=None):
             told_at = g['t']
             rows.append(_row(g, world))
         if g['n'] % 10 == 0:
-            now, whole = borne(world, its_own, kinds, force)
+            now, whole = borne(world, robot_own, kinds, force)
             for kind, n in whole.items():
                 most[kind] = max(most.get(kind, 0.0), n)
             for kind, n in now.items():
@@ -240,8 +240,9 @@ def ran(name, wobble=0.0, laid=None, texts=None, record=None):
            'jerk': cut(lambda j: np.percentile(j, 99)), 'jerk_peak': cut(np.max),
            'refused': s.get('refused')}
     if goal == 'stunt':
-        # a told stunt judged to where a program of its joints began after its window opened (`began`, kept past the
-        # program's end), the next move's: the bed's sit, then its pull from the landed stage; the scoot's, its own
+        # a told stunt judged to where a program of the robot's joints began after its window opened (`began`, kept
+        # past the program's end), the next move's: the bed's sit, then its pull from the landed stage; the scoot's,
+        # its own
         cut = began or 0.0
         rows = rows if STUNTS[str(aim)][3] is None or cut < float(stunt_window(aim)[0] or 0.0) else [r for r in rows if float(r['t']) <= cut]
         out['moved'] = stunts.moved(rows, *stunt_window(aim, began or math.inf))
@@ -280,8 +281,8 @@ def judged(out):
 
 
 def ended(s):
-    """The recording on its session `s` ended (`watch.recorded`) where the run ended first - a fall before the
-    window's end -, its windows written before the run is summed."""
+    """The recording on the robot's session `s` ended (`watch.recorded`) where the run ended first - a fall
+    before the window's end -, its windows written before the run is summed."""
     import time
     from machine.process import watch
     scope = (s.get('recording') or {}).get('scope')
@@ -297,10 +298,10 @@ def main(argv=None):
     parser.add_argument('names', nargs='*', help='scenarios (all where none)')
     parser.add_argument('--one', help="one scenario, its line as JSON")
     parser.add_argument('--wobble', type=float, default=0.0, help='with --one: laid turned this rad')
-    parser.add_argument('--set', action='append', default=[], help='with --one: PATH:START:END=VALUE, a literal of its texts')
+    parser.add_argument('--set', action='append', default=[], help='with --one: PATH:START:END=VALUE, a literal of the robot\'s texts')
     parser.add_argument('--wobbles', action='store_true', help='each laid turned 0 and 2e-4 rad either way too')
     parser.add_argument('--shoves', help="the shoves' polar too, of these N (80, 200)")
-    parser.add_argument('--record', default=None, help='with --one: its loop recorded over --window, '
+    parser.add_argument('--record', default=None, help='with --one: the robot\'s loop recorded over --window, '
                                                        'recordings/NAME.jsonl (`watch.recorded`)')
     parser.add_argument('--window', default='0,30', help='with --record: the seconds recorded, from,to')
     args = parser.parse_args(argv)

@@ -1,9 +1,9 @@
 # Findings: the whole-body stack
 
-The whole-body stack (`machine/stack/wbc.py`) on its solver (`machine/stack/qp.py`),
-measured by `tools/sim/wbc.py` in a world without buses. The board's
-findings: [FINDINGS](../FINDINGS.md); its steps on the latent loop:
-[orthokinematics](orthokinematics.md), [wrench](wrench.md).
+The whole-body stack (`machine/stack/wbc.py`) on its solver
+(`machine/stack/qp.py`), measured by `tools/sim/wbc.py` in a world without
+buses. The board's findings: [FINDINGS](../FINDINGS.md); the robot's steps on
+the latent loop: [orthokinematics](orthokinematics.md), [wrench](wrench.md).
 
 ## Solver
 
@@ -241,14 +241,13 @@ broken by up to 1 600 (unit rows); at 80 changes a level the bounds hold
 ### The loop in the stack's own space
 
 The loop reformulated with the python stack's variables - every acceleration
-and each standing sole's corner forces in shares of its weight - the dynamics'
-undriven rows, the held joints and the standing soles exact as level 0, the
-levels under them in an orthonormal null-space basis cut per level, each
+and each standing sole's corner forces in shares of the robot's weight - the
+dynamics' undriven rows, the held joints and the standing soles exact as level
+0, the levels under them in an orthonormal null-space basis cut per level, each
 solved by Goldfarb and Idnani's dual active set (a bound in the span of those
 held moves the duals alone), with the stack's two rules: the levels below
 weighed 1e-3 into a level's flat directions, and a bound held with a dual over
-1e-2 kept as an equality below (1e-7 felled it at 38 N, 1e-1 felled the
-walk).
+1e-2 kept as an equality below (1e-7 felled it at 38 N, 1e-1 felled the walk).
 
 | Measure | Loop | The python stack |
 | --- | --- | --- |
@@ -262,7 +261,7 @@ walk).
 - What each change bought, measured on the loop's own walk: the stack's
   variables alone (the torque space left) quietened the arms' structure but
   fell at 4 steps; level 0 all but unregularised and the forces in shares of
-  its weight, 7 steps at 0.39 m/s; the null basis in place of the leaky
+  the robot's weight, 7 steps at 0.39 m/s; the null basis in place of the leaky
   projector, exact levels but an explosion where a bound's reduced row vanished;
   Goldfarb-Idnani, convergence but 6 steps; the tie-break, the arms following
   the trunk (shoulders 4 N m, 1 % at the clamp, where 10-20 N m at 16-42 %)
@@ -307,11 +306,11 @@ The loop's walk, 8 s at 0.5 m/s asked, with each inner loop under it
 Under 100 N the stack and the loop part at 1.08 s on the same state: the
 loop's head, neck and shoulders at their peaks (51 N m, the sign turning
 every 10 ms), its active set 34-41 bounds to the stack's 22-29, the turns
-unmet by 5-60 rad/s^2 - and it stays in double support on one sole's edge
+unmet by 5-60 rad/s^2 - and the robot stays in double support on one sole's edge
 where the stack steps. The stack's centre-of-pressure margins are soft (a
 slack each on the turns' level, weighed 1e3); the loop's were hard, so with
 the centre of pressure at its margin only the head and the arms were left
-to turn it. The margins soft the same way (WBC_S slacks), the
+to turn the robot. The margins soft the same way (WBC_S slacks), the
 band hard as before:
 
 | | Hard margins | Soft margins | Stack |
@@ -329,12 +328,12 @@ band hard as before:
   longer fight the margin every step.
 - The slacks' own non-negativity (ids 5000+) sits at zero whenever a margin
   is slack-free: left out of the bounds counted at their edge.
-- At 120 N it falls 7 of 8 where the stack 5: open.
-- The slacks' rows weigh sqrt(1e3) and set the level's scale, so its form
-  below enters the turns' level at a swinging sole's own weight where the
-  stack has it at 1e-3. Standing on one sole the loop meets 15 of 115
-  m/s^2 of a sole asked back, the stack 97. The slack scaled to a unit row
-  instead - the same problem, the stack's tie-break - it meets 93, and:
+- At 120 N the robot falls 7 of 8 where the stack 5: open.
+- The slacks' rows weigh sqrt(1e3) and set the level's scale, so the robot's
+  form below enters the turns' level at a swinging sole's own weight where the
+  stack has it at 1e-3. Standing on one sole the loop meets 15 of 115 m/s^2 of a
+  sole asked back, the stack 97. The slack scaled to a unit row instead - the
+  same problem, the stack's tie-break - it meets 93, and:
 
 | On the loop, PD under it | Slack rows at sqrt(1e3) | The slack scaled |
 | --- | --- | --- |
@@ -343,9 +342,9 @@ band hard as before:
 | WEP over the 100 N polar | 1.4 s | 21.1 s |
 | Three hops at 10 m/s^2 | 10.3 deg | 17.7 deg |
 
-- Its walk's economy on the loop is its form's weight on the turns' level,
-  not the margins' softness: the stack's own walk is 792 J/m. Not kept; the
-  hops at 14 and 18 m/s^2 fall either way.
+- The robot's walk's economy on the loop is its form's weight on the turns'
+  level, not the margins' softness: the stack's own walk is 792 J/m. Not kept;
+  the hops at 14 and 18 m/s^2 fall either way.
 - On the gearboxes with their play (drives.md, A printed box's play) the loop
   with its observer stands 8 of 8 at 100 N, the PD under it 2.
 - The loop's state was 1 174 KB in doubles (`wbc_stack_t`): the
@@ -385,8 +384,8 @@ lives in the acquisition ring while it ticks (`Board_DaqLend`: the ring 480 KB,
 lent idle and emptied; 471 + 448 KB never fit the AXI's 512), the body's 31 KB
 in DTCM. On Renode at its own 100 MIPS - its DWT counts virtual time, 4.75
 cycles an instruction - a tick is 124.9 M cycles cold and warm alike (4 passes,
-no bound held on the stand): 26.3 M instructions, 55 ms on the M7 at one a
-cycle against the 1 ms of a 1 kHz loop; the Release image 24.9 M, 52 ms. Its
+no bound held on the stand): 26.3 M instructions, 55 ms on the M7 at one a cycle
+against the 1 ms of a 1 kHz loop; the Release image 24.9 M, 52 ms. The image's
 torques are the host loop's within 1e-3 N m. The gap is the formulation's cost,
 not its memory: five dense levels over 71 variables, each relaying the levels
 below.
@@ -394,32 +393,30 @@ below.
 ## The Schlesinger transport against the support polygon
 
 The Hitchin bus's sliding-contact transport (TODO 16) run offline on 8 s of
-its walk: each insole patch a pole z_i = lever arm times exp(j bearing)
-about its CoM on the ground plane, its residue the patch's MuJoCo wrench in
-units of its weight (306 N; raw newtons diverge - the brackets are
-bilinear), d mu_i = 0.98 sum_j [mu_i, mu_j] Re d log(z_i - z_j) with
-se(3)* read as twists by the Plucker pairing ((m, f) <-> (f, m)), poles
-within 0.025 clamped, |d log| capped 0.2 a pass, Jacobi (updating in
-sequence broke the sum 24.5 N), re-seeded from the truth when the bearing
-set changes (72 windows, 7 928 passes). Measured: the sum of residues is
-conserved to 5e-13 N - the one hard guarantee, exact by antisymmetry; the
-transported allocation tracks the walk's true transfer no better than a
-frozen one (RMS 94.4 vs 91.5 N a patch, worst 305 vs 303) - walking's
-redistribution is willed, heel to toe and leg to leg, not isomonodromic -;
-and it knows no inequality: 35.7 % of transported patch wrenches sit
-outside the text's 0.65 cone (the truth 30.2 against that cone; the
-model's mu is 1.0), unilaterality unviolated here. So: no substitute for
-the support polygon - the polygon (the capture point in the hull,
-`errand._settled`; the cones) is the feasibility gate and stays; the
-transport is an allocator between feasible allocations while patches
-slide, under the gate, in place of a re-solved QP's jumping. In the loop
-(the python twin, `wrench._patch`'s split pinned as the transport carries
-it instead of as felt, exec-patched): the low chair's sit never holds two
-contacts on the seat (1 108 passes, max 1) - nothing to transport, outcome
-identical -; the bed's lie does (mattress max 3, 642 multi passes) and the
-transport chatters more than the felt pin on every patch - split change a
-pass p95 6.0 vs 4.6 N on the mattress, its worst spike 93 vs 47, hands 4.1
-vs 2.4 - the settle's redistribution is willed too, and the transport
-holds stale shares the re-seed then snaps. The felt pin stays; item 16's
-in-loop case needs the scoot's real sliding (item 13) and the text's whole
-composite (the twistor's J beside Re d log), not op 3 alone.
+the robot's walk: each insole patch a pole z_i = lever arm times exp(j bearing)
+about its CoM on the ground plane, its residue the patch's MuJoCo wrench
+in units of the robot's weight (306 N; raw newtons diverge - the brackets are
+bilinear), d mu_i = 0.98 sum_j [mu_i, mu_j] Re d log(z_i - z_j) with se(3)* read
+as twists by the Plucker pairing ((m, f) <-> (f, m)), poles within 0.025
+clamped, |d log| capped 0.2 a pass, Jacobi (updating in sequence broke the sum
+24.5 N), re-seeded from the truth when the bearing set changes (72 windows, 7
+928 passes). Measured: the sum of residues is conserved to 5e-13 N - the one
+hard guarantee, exact by antisymmetry; the transported allocation tracks the
+walk's true transfer no better than a frozen one (RMS 94.4 vs 91.5 N a patch,
+worst 305 vs 303) - walking's redistribution is willed, heel to toe and leg to
+leg, not isomonodromic -; and it knows no inequality: 35.7 % of transported
+patch wrenches sit outside the text's 0.65 cone (the truth 30.2 against that
+cone; the model's mu is 1.0), unilaterality unviolated here. So: no substitute
+for the support polygon - the polygon (the capture point in the hull,
+`errand._settled`; the cones) is the feasibility gate and stays; the transport
+is an allocator between feasible allocations while patches slide, under the
+gate, in place of a re-solved QP's jumping. In the loop (the python twin,
+`wrench._patch`'s split pinned as the transport carries it instead of as felt,
+exec-patched): the low chair's sit never holds two contacts on the seat (1 108
+passes, max 1) - nothing to transport, outcome identical -; the bed's lie does
+(mattress max 3, 642 multi passes) and the transport chatters more than the felt
+pin on every patch - split change a pass p95 6.0 vs 4.6 N on the mattress, its
+worst spike 93 vs 47, hands 4.1 vs 2.4 - the settle's redistribution is willed
+too, and the transport holds stale shares the re-seed then snaps. The felt pin
+stays; item 16's in-loop case needs the scoot's real sliding (item 13) and the
+text's whole composite (the twistor's J beside Re d log), not op 3 alone.

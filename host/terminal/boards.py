@@ -1,6 +1,6 @@
-"""Its boards on Renode: one of its buses mirrored onto emulated boards from a thread of its own.
+"""The robot's boards on Renode: one of its buses mirrored onto emulated boards by a thread of its own.
 
-The page never waits on a UART: `EmulatedLimb.sync` hands it its latest state; the thread writes
+The page never waits on a UART: `EmulatedLimb.sync` hands it the robot's latest state; the thread writes
 each held joint's angle to its board in turn, at the pace the bus answers, through the line's noise
 (`edge.LINE_BER`). A write lost is the next round's; a whole round lost is no longer sporadic: the
 limb's drives off."""
@@ -21,7 +21,7 @@ from tools.emu.protocol_emulator import BODIES
 
 class EmulatedLimb:
 
-    """One of its buses - a label of the stand-in's fleet (`coaxial.simulated.link`) - on boards
+    """One of the robot's buses - a label of the stand-in's fleet (`coaxial.simulated.link`) - on boards
     of its own on Renode (`emulator://`), in the body's world for it; what `port` asks of the
     emulator laid over that."""
 
@@ -55,7 +55,7 @@ class EmulatedLimb:
         self._shown.set()
 
     def badge(self, crc_err):
-        """The BUSES box's modbus row: its buses, its drives on Renode, the CRC errors and apart
+        """The BUSES box's modbus row: the robot's buses, its drives on Renode, the CRC errors and apart
         the emulated link's faults - a write timed out or refused -, SHUTDOWN past a round lost."""
         return ('%dx10M %d emu crc %d lnk %d' % (len(edge.LIMBS), len(self.rigs), crc_err, self.faults)
                 + ' SHUTDOWN' * bool(self.shutdown))

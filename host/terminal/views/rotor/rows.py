@@ -148,7 +148,7 @@ def status_rows(view):
             ('back-EMF', regime(view)),
             ('loops', loops or 'none - the drive is on its own'),
             # As the can and the bead turn on the page: positive is counter-clockwise, SHAFT
-            # ANGLE's dial's way. Its turns a row of their own: one row was 31
+            # ANGLE's dial's way. The travel's turns a row of their own: one row was 31
             # cells of the box's 27.
             ('travel', '%8.1f deg %s' % (gone, 'ccw' if speed >= 0.0 else 'cw')),
             ('', '%8.2f turns' % (gone / 360.0)),

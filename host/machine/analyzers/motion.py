@@ -2,13 +2,13 @@
 
 The spasm probes' and `told.Run.arms`' reduction: at each phase's end its fastest joint and how fast
 against its drive's rated speed; a joint past its drive's rating told as it happens, once a joint a
-phase, captured - no drive turns it so: it is thrown; a driven joint swung faster than its own walk
+phase, captured - no drive turns it so: it is thrown; a driven joint swung faster than the robot's own walk
 swings any (WALK_DEG_S), once a joint a phase, captured - a spasm, a jerk: no gait of its own asks it.
 The robot's toes, wrists and grippers no drive turns: a footfall throws its toes 870 deg/s.
 """
 
-#: The fastest its own walk swings a driven joint, deg/s: its knee over 8 s of a flat walk, 465.3, measured
-#: (`test_introspect`); a slip's arms 620, an obstacle's 1027, its bed's legs 422.
+#: The fastest the robot's own walk swings a driven joint, deg/s: its knee over 8 s of a flat walk, 465.3,
+#: measured (`test_introspect`); a slip's arms 620, an obstacle's 1027, its bed's legs 422.
 WALK_DEG_S = 466.0
 
 

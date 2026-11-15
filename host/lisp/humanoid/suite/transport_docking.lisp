@@ -28,8 +28,8 @@
     :duty-ramp [(get-duty source-gait) -> 1.00]
     :window-bars [0.0 -> bars])
 
-  ;; Align calcaneal nodes parallel to target fixture boundary; its face it docks at first
-  ;; (:short a bed's end, :long its side, :any whichever its walk reaches soonest)
+  ;; Align calcaneal nodes parallel to target fixture boundary; its face the robot docks at first
+  ;; (:short a bed's end, :long its side, :any whichever the robot's walk reaches soonest)
   (align-terminal-footprint
     :target-yaw-rad target-yaw-rad
     :sagittal-standoff-mm standoff-x-mm

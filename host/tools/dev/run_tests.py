@@ -93,8 +93,9 @@ def _options(argv):
     parser.add_argument('--only', help='named tests in the ollama suites, '
                                        'comma-separated: intent,picker')
     parser.add_argument('--structure', action='store_true',
-                        help='only the structure suite: imports, cycles, '
-                             'duplicate definitions, dead imports, shape. '
+                        help='the structure family (suites.STRUCTURES): imports, cycles, '
+                             'duplicate definitions, dead imports, shape, the tree, '
+                             'the mirrors, the wire. '
                              'Run it after editing anything under host/.')
     parser.add_argument('--match',
                         help='run only the live rows whose question contains '
@@ -138,7 +139,7 @@ def _options(argv):
     parser.add_argument('--python', action='append',
                         help="with --linux: this Python of host.yml's matrix alone (repeatable)")
     parser.add_argument('--arch', help="with --linux: the image's architecture - arm64 emulated (linux.py)")
-    parser.add_argument('--isa', help="with --linux: its cores' target there (COAXIAL_ISA), in place of host.yml's")
+    parser.add_argument('--isa', help="with --linux: the robot's cores' target there (COAXIAL_ISA), in place of host.yml's")
     parser.add_argument('--cpu', help='with --linux --arch arm64: the emulated processor (QEMU_CPU)')
     args = parser.parse_args(argv)
     if (args.python or args.arch or args.isa or args.cpu) and not args.linux:

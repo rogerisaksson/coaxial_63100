@@ -1,4 +1,4 @@
-"""Its leg's reach (`machine.body.reach`): its rows its figure's laid anew; what they hold, its stops
+"""The robot's leg's reach (`machine.body.reach`): its rows the robot's figure's laid anew; what they hold, its stops
 allow; a place landed stands in MuJoCo, either limb the one code; two feet's gap."""
 import importlib
 import math
@@ -12,19 +12,19 @@ from gynoid_kit import Report
 SIDES = ('left', 'right')
 
 
-def test_the_rows_are_its_figure(report):
-    """machine/body/reach_rows.py is what tools/cores/reach.py lays from its figure now."""
+def test_the_rows_are_the_robots_figure(report):
+    """machine/body/reach_rows.py is what tools/cores/reach.py lays from the robot's figure now."""
     from tools.cores import reach as laid
     with open(laid.PATH, encoding='utf-8') as f:
         on_disk = f.read()
-    report.check('the rows on disk are its figure laid anew', laid.render(laid.rows()) == on_disk,
+    report.check('the rows on disk are the robot\'s figure laid anew', laid.render(laid.rows()) == on_disk,
                  'python tools/cores/reach.py --write')
 
 
-def test_what_the_rows_hold_its_stops_allow(report):
+def test_what_the_rows_hold_the_robots_stops_allow(report):
     """Hips at random in a foot's frame, a third of them at the leg's length, where `land` draws
     a place in to: none the rows hold is past a stop (`figure.leg` against the compiled figure's
-    stops and the rods' strokes). Of what its stops allow the rows leave out a row's caution
+    stops and the rods' strokes). Of what the robot's stops allow the rows leave out a row's caution
     and, at the leg's length, the strip past the ankle's island."""
     from machine.body import reach
     from tools.cores import reach as laid
@@ -43,7 +43,7 @@ def test_what_the_rows_hold_its_stops_allow(report):
             past = max([past] + [max(limits[k][0] - q, q - limits[k][1])
                                  for k, q in zip(('knee', 'ankle', 'ankle_roll'), laid.bend(r))])
     report.check('no hip the rows hold is past a stop', past < 1e-6, '%.2g rad past at most' % past)
-    report.check('of what its stops allow the rows leave out under a twentieth',
+    report.check('of what the robot\'s stops allow the rows leave out under a twentieth',
                  held[0] > 4000 and lost[0] < 0.05 * held[0],
                  "%d of %d; at the leg's length %d of %d" % (lost[0], held[0], lost[1], held[1]))
 
@@ -113,8 +113,8 @@ def test_a_place_landed_stands_in_mujoco(report):
                  '%.2g m short, the knee %.2g rad off' % (shy, bent))
 
 
-def test_its_right_is_its_left_mirrored(report):
-    """The one code, a limb an index: its right's landing is its left's mirrored - the hip, the
+def test_the_robots_right_is_its_left_mirrored(report):
+    """The one code, a limb an index: the robot's right's landing is its left's mirrored - the hip, the
     want and the heading across."""
     from machine.body import reach
     rng, apart = random.Random(13), 0.0
@@ -128,7 +128,7 @@ def test_its_right_is_its_left_mirrored(report):
                                               ((-want[0][0], want[0][1], want[0][2]), -want[1]))
         apart = max(apart, abs(x + mx), abs(y - my), abs(z - mz), abs(m - mm),
                     abs(math.remainder(yaw + myaw, math.tau)))
-    report.check('its right lands as its left mirrored', apart < 1e-9, '%.2g apart at most' % apart)
+    report.check('its right lands as the robot\'s left mirrored', apart < 1e-9, '%.2g apart at most' % apart)
 
 
 def _edge(corners, step=0.004):
@@ -190,8 +190,8 @@ def test_its_scaled_builds_land_in_mujoco(report):
                      run.returncode == 0, (run.stdout + run.stderr)[-300:])
 
 
-ROSTER = [test_the_rows_are_its_figure, test_what_the_rows_hold_its_stops_allow,
-          test_a_place_landed_stands_in_mujoco, test_its_right_is_its_left_mirrored,
+ROSTER = [test_the_rows_are_the_robots_figure, test_what_the_rows_hold_the_robots_stops_allow,
+          test_a_place_landed_stands_in_mujoco, test_the_robots_right_is_its_left_mirrored,
           test_two_feet_clear_of_each_other, test_its_scaled_builds_land_in_mujoco]
 
 

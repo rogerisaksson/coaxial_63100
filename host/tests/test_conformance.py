@@ -440,7 +440,7 @@ def cal_tests(run):
     run.expect_exception('spanning the thermistor is refused - logarithmic',
                          bytes([0x6E, 3, 4, 4, 0, 0, 0x27, 0x10]), 0x6E, 0x04)
 
-    # It refused, so the record must be exactly what it was.
+    # The edit was refused, so the record must be exactly what it was.
     again = parse(b.request(bytes([0x6E, 3, 0])))
     run.check('a refused edit changed nothing',
               again is not None and again[3] and again[2] == data,
@@ -486,7 +486,7 @@ def map_tests(run):
     print('\n-- coil drives real hardware --')
     # AFE_ON powers the voltage reference, and that is the witness: with the
     # rail off every raw code is exact mid-scale and bit-frozen across reads
-    # (the reference is unpowered - invariant 9's mechanism, a physical fact of
+    # (the reference is unpowered - AFE_ON's mechanism, a physical fact of
     # the rail the coil drives); on, the NTC channel reads a live code
     # thousands of counts away, wiggling.
     def sampling(every_ms, settle_ms):

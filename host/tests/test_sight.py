@@ -1,9 +1,9 @@
-"""Its eyes (`machine.eyes.sight`; its stereo's depth held to the renderer's own in test_gaze): a look
+"""The robot's eyes (`machine.eyes.sight`; its stereo's depth held to the renderer's own in test_gaze): a look
 round, posed standing, into its map (`machine.eyes.voxels`), its occupied cells against the
 room's walls and things, the chair, the table and the bed told where they stand by what they afford
-it (`machine.way.affordance`), the bed's turn with it; a way to the chair planned round what it knows,
-clear of it all; the page's picture of its view (`coaxial.graphics.inset`); its way round the lodge's
-furniture walked through its corners (`machine.way.route`)."""
+the robot (`machine.way.affordance`), the bed's turn with it; a way to the chair planned round what the robot
+knows, clear of it all; the page's picture of the robot's view (`coaxial.graphics.inset`); its way
+round the lodge's furniture walked through its corners (`machine.way.route`)."""
 import math
 import sys
 import time
@@ -15,7 +15,7 @@ from tools.dev.focus import chosen
 from gynoid_kit import Report
 from machine.eyes import voxels
 
-#: A look round is LOOKS looks, its heading posed a turn about.
+#: A look round is LOOKS looks, the robot's heading posed a turn about.
 LOOKS = 25
 
 
@@ -38,13 +38,14 @@ def _stood(world, heading=0.0):
 
 
 def _head(world):
-    """The robot's head's pose as the world has it: it is posed, its estimate not running."""
+    """The robot's head's pose as the world has it: the robot is posed, its estimate not running."""
     hb = world.model.body('head').id
     return {'pos': np.array(world.data.xpos[hb]), 'quat': np.array(world.data.xquat[hb])}
 
 
 def _looked_round(world, eyes, keep):
-    """Its heading posed once about, a look each of LOOKS from its head's pose, matched by its stereo."""
+    """The robot's heading posed once about, a look each of LOOKS from its head's pose, matched by its
+    stereo."""
     for k in range(LOOKS):
         _stood(world, math.tau * k / LOOKS)
         keep.took(*eyes.stereo(world, _head(world)))
@@ -60,8 +61,9 @@ def _nearest(things, affords, at):
 
 
 def _told_as(things, at):
-    """What its map told where a thing stands, nearest first - its distance, height, half sizes, a seat, backed -:
-    a chair not told a chair on CI's runner (Mesa's renderer) said no more than that, never seen here."""
+    """What the robot's map told where a thing stands, nearest first - its distance, height, half sizes, a seat,
+    backed -: a chair not told a chair on CI's runner (Mesa's renderer) said no more than that, never seen
+    here."""
     import numpy as np
     from machine.way import affordance
     near = sorted(((math.hypot(t[1][0] - at[0], t[1][2] - at[1]), t) for t in things), key=lambda n: n[0])[:3]
@@ -70,10 +72,10 @@ def _told_as(things, at):
                      for d, t in near if d < 0.6) or 'nothing within 0.6 m'
 
 
-def test_its_map_is_the_room(report):
+def test_the_robots_map_is_the_room(report):
     """A look round, posed standing: nine in ten occupied cells within 0.15 m of a wall or a thing
-    of the room, a way to the chair found clear of what it knows; its view for the page hulls what it
-    told. What a thing is, the classifier's own (`test_its_kinds_from_their_boxes`): held to its
+    of the room, a way to the chair found clear of what the robot knows; its view for the page hulls what it
+    told. What a thing is, the classifier's own (`test_the_robots_kinds_from_their_boxes`): held to the robot's
     eyes' fragments the chair came and went with 0.05 px of its card's disparity against its CPU's."""
     from machine.world import room
     from machine.eyes import sight
@@ -95,11 +97,12 @@ def test_its_map_is_the_room(report):
 
         far = [away(*keep.map.centre(i, j)) for i, j in zip(*np.nonzero(occ))]
         near = sum(d <= 0.15 for d in far)
-        report.check('looked round it has a map', len(far) >= 100,
+        report.check('looked round the robot has a map', len(far) >= 100,
                      '%d cells from %d looks' % (len(far), keep.map.looks))
         report.check('nine in ten occupied cells lie within 0.15 m of a wall or a thing',
                      near >= 0.9 * len(far), '%d of %d' % (near, len(far)))
-        # its map's boxes and pieces kept from the look before where their voxels and sums are the same (`_once`)
+        # the robot's map's boxes and pieces kept from the look before where their voxels and sums are the same
+        # (`_once`)
         kept = keep.map.things()[0]
         keep.map._kept, keep.map._was = {}, {}
         anew = keep.map._segmented()[0]
@@ -114,11 +117,11 @@ def test_its_map_is_the_room(report):
         to = (room.CHAIR_AT[0], room.CHAIR_AT[1] - 0.6)
         way = sight.plan(keep.map.blocked(), at, to)
         clear = all(away(*p) >= voxels.RADIUS_M - voxels.CELL_M for p in way)
-        report.check('a way to the chair\'s target is found, its corners clear of what it knows by its radius',
+        report.check('a way to the chair\'s target is found, its corners clear of what the robot knows by its radius',
                      bool(way) and clear and math.dist(way[-1], to) < 0.5,
                      ' -> '.join('(%+.1f %+.1f)' % w for w in way) or 'none')
         seen = keep.view()
-        report.check('its view for the page is a picture with what it told hulled',
+        report.check('its view for the page is a picture with what the robot told hulled',
                      seen is not None and seen[0].shape == (sight.VIEW[1], sight.VIEW[0], 3)
                      and all(len(h) >= 3 for _k, _i, h in seen[1]),
                      '%d hulls: %s' % (len(seen[1]), ', '.join(k for k, _i, _h in seen[1])) if seen else 'none')
@@ -149,7 +152,7 @@ FURNITURE = (('chair', 'chair', 'CHAIR_AT', math.pi), ('low chair', 'chair', 'CH
 REACH_M, DRAWS = 0.7, 8
 
 
-def test_its_kinds_from_their_boxes(report):
+def test_the_robots_kinds_from_their_boxes(report):
     """The classifier (`machine.way.affordance`) on the room's own boxes (`world.props()`, the stand-in's look) laid
     anywhere: each piece of furniture moved up to 1 m, turned any way and sized 0.8-1.25 along the floor, told what
     it affords where it now stands, its size and its turn, a seat's facing turned with it."""
@@ -189,15 +192,15 @@ def test_its_kinds_from_their_boxes(report):
         body.close()
 
 
-#: Its map painted whole resolves finer than its eyes fill (`voxels.CELL_M`): at that neither chair was told,
-#: the chair's back 0.9 m wide on its 0.7 m seat, the low chair's none.
+#: The robot's map painted whole resolves finer than its eyes fill (`voxels.CELL_M`): at that neither
+#: chair was told, the chair's back 0.9 m wide on its 0.7 m seat, the low chair's none.
 PAINTED_M = 0.05
 
 
 def _painted(chart, props):
-    """`chart` (`voxels.Map`) painted with the boxes `props` (`world.props()`: kind, centre, half, turn) as its looks
-    would tell them filled: each voxel a box overlaps its kind's colour, hit and told - a face on a voxel's own face
-    not, as its eyes' points there fall in the next -; the rest seen through."""
+    """`chart` (`voxels.Map`) painted with the boxes `props` (`world.props()`: kind, centre, half, turn) as the
+    robot's looks would tell them filled: each voxel a box overlaps its kind's colour, hit and told - a face on a
+    voxel's own face not, as the robot's eyes' points there fall in the next -; the rest seen through."""
     i, j, k = np.meshgrid(np.arange(chart.nx), np.arange(chart.ny), np.arange(chart.nz), indexing='ij')
     at = np.stack([voxels.X_M[0] + (i + 0.5) * chart.voxel, voxels.FLOOR_M + (j + 0.5) * chart.voxel,
                    voxels.Z_M[0] + (k + 0.5) * chart.voxel], axis=-1)
@@ -247,11 +250,11 @@ def _apart(a, b):
     return max(max(to(p, b) for p in a), max(to(p, a) for p in b))
 
 
-def test_its_map_from_painted_furniture(report):
-    """Its map painted with the furniture as MuJoCo has it (`world.props()`, each box's voxels filled in its kind's
-    colour, the room seen through round them): its map's things and the classifier tell each piece what it affords,
-    its place and its convex hull on the floor - a chair's its seat's and its back's - within a voxel's diagonal of
-    MuJoCo's; the bed moved 0.9 m and turned 0.5 rad as well."""
+def test_the_robots_map_from_painted_furniture(report):
+    """The robot's map painted with the furniture as MuJoCo has it (`world.props()`, each box's voxels filled in
+    its kind's colour, the room seen through round them): the robot's map's things and the classifier tell each
+    piece what it affords, its place and its convex hull on the floor - a chair's its seat's and its back's -
+    within a voxel's diagonal of MuJoCo's; the bed moved 0.9 m and turned 0.5 rad as well."""
     from machine.way import affordance
     from machine.world import room
     from machine.eyes import sight
@@ -295,20 +298,21 @@ def _turned(yaw):
 
 
 def _walked_turn(curve):
-    """Its curve's fastest turn walked, rad/s: each sample's speed over the radius of the circle through
-    it and its neighbours."""
+    """The robot's curve's fastest turn walked, rad/s: each sample's speed over the radius of the circle
+    through it and its neighbours."""
     p = curve[:, :2]
     a, b, c = p[1:-1] - p[:-2], p[2:] - p[1:-1], p[2:] - p[:-2]
     k = 2.0 * np.abs(a[:, 0] * b[:, 1] - a[:, 1] * b[:, 0]) / np.maximum(np.hypot(*a.T) * np.hypot(*b.T) * np.hypot(*c.T), 1e-12)
     return float((curve[1:-1, 3] * k).max(initial=0.0))
 
 
-def test_its_way_walked_through(report):
-    """Its way to the chair's and the bed's stages from house.py's spots on the lodge's cells, costed and
+def test_the_robots_way_walked_through(report):
+    """The robot's way to the chair's and the bed's stages from house.py's spots on the lodge's cells, costed and
     opened before the dock's face (`route.costs`): every curve's samples lie in free cells, each walked
-    within its turn (`route.TURN`: its speed over the circle through it and its neighbours), its stops
-    the corners no arc rounds, most rounded, its stage last; to a walled-off goal and from inside a grown
-    prop its stops are `route.way`'s corners, no curve; a plan within a look of its eyes (`sight.LOOK_S`), timed."""
+    within its turn (`route.TURN`: its speed over the circle through it and its neighbours), the
+    robot's stops the corners no arc rounds, most rounded, its stage last; to a walled-off goal and from
+    inside a grown prop its stops are `route.way`'s corners, no curve; a plan within a look of the robot's
+    eyes (`sight.LOOK_S`), timed."""
     from machine.way import dock, furniture, route
     from machine.texts import maneuver
     from machine.world import physics
@@ -327,7 +331,7 @@ def test_its_way_walked_through(report):
         found = furniture.nearest(g, verb)
         laid = dock.docked(here, g['things'], floor, verb, found[6], maneuver.standoff(verb))
         # a way to no stage is none: walked to a NaN stage the suite died
-        report.check('%s docked from its start' % verb, laid is not None, 'stage %s' % ((laid or {}).get('stage'),))
+        report.check('%s docked from the robot\'s start' % verb, laid is not None, 'stage %s' % ((laid or {}).get('stage'),))
         if laid is None:
             continue
         to = laid['stage']
@@ -344,9 +348,9 @@ def test_its_way_walked_through(report):
             last = last and stops[-1] == to and stops == corners[len(corners) - len(stops):]
             rounded += len(corners) - len(stops)
             kept += len(stops) - 1
-    report.check("no curve's sample blocked past a free one, each walked within its turn", off == 0 and turned <= route.TURN + 1e-9,
+    report.check("no curve's sample blocked past a free one, each walked within the robot's turn", off == 0 and turned <= route.TURN + 1e-9,
                  '%d curves barred, %.3f rad/s of %.3f' % (off, turned, route.TURN))
-    report.check("its stops `way`'s corners no arc rounds, most rounded, its stage last", last and rounded > kept,
+    report.check("the robot's stops `way`'s corners no arc rounds, most rounded, its stage last", last and rounded > kept,
                  '%d corners rounded, %d kept' % (rounded, kept))
     report.check('a plan within a look (%.1f s)' % sight.LOOK_S, max(took) < sight.LOOK_S,
                  'median %.1f ms, most %.1f ms over %d plans' % (1e3 * float(np.median(took)), 1e3 * max(took), len(took)))
@@ -359,16 +363,16 @@ def test_its_way_walked_through(report):
     same = [(route.planned(p, 0.0, True, to_, c)[:2], route.way(p, to_, c)) for p, to_, c in (
         (edge_[0], route._centre(*goal), np.where(walled, np.inf, 1.0)), (edge_[1], (-0.35, 1.8), np.where(cells, np.inf, 1.0)))]
     (walled_, _w), (grown, way_) = same
-    report.check("to a walled-off goal `way`'s corners, no curve; from inside the chair's grown cells its stops the corners"
+    report.check("to a walled-off goal `way`'s corners, no curve; from inside the chair's grown cells the robot's stops the corners"
                  " no arc rounds, its curve out through its own cells", walled_[0] == _w and not len(walled_[1])
                  and grown[0] == way_[len(way_) - len(grown[0]):] and not route.barred(cells, [tuple(q) for q in grown[1][:, :2]]),
                  [(stops, len(curve), way) for (stops, curve), way in same])
 
 
-def test_its_things_fill_its_registry(report):
-    """Its things into its registry (`machine.eyes.registry`): looked round, each look the room's boxes (`world.props()`,
-    the stand-in's) seen from the head that looked, the chair (a seat with a back), the table (a seat) and the bed (a
-    bed) hold slots its buses take within 0.3 m of where they stand."""
+def test_the_robots_things_fill_its_registry(report):
+    """The robot's things into its registry (`machine.eyes.registry`): looked round, each look the room's boxes
+    (`world.props()`, the stand-in's) seen from the head that looked, the chair (a seat with a back), the table (a seat)
+    and the bed (a bed) hold slots its buses take within 0.3 m of where they stand."""
     from machine.world import physics, room
     from machine.eyes import registry, sight
     body, world = _room()
@@ -381,7 +385,7 @@ def test_its_things_fill_its_registry(report):
         kinds = sorted({b[0] for b in boxes})
         for name, affords, at in (('chair', 'chair', room.CHAIR_AT), ('table', 'seat', room.TABLE_AT), ('bed', 'bed', room.BED_AT)):
             found = _nearest(boxes, affords, at)
-            report.check('the %s holds a slot its buses take within 0.3 m of where it stands, a %s' % (name, affords),
+            report.check('the %s holds a slot the robot\'s buses take within 0.3 m of where it stands, a %s' % (name, affords),
                          found is not None and found[0] < 0.3,
                          '%s of %d slots, %s' % ('%.2f' % found[0] if found else 'none', len(boxes), kinds))
     finally:
@@ -389,8 +393,8 @@ def test_its_things_fill_its_registry(report):
         body.close()
 
 
-ROSTER = [test_its_map_is_the_room, test_its_way_walked_through,
-          test_its_kinds_from_their_boxes, test_its_map_from_painted_furniture, test_its_things_fill_its_registry]
+ROSTER = [test_the_robots_map_is_the_room, test_the_robots_way_walked_through,
+          test_the_robots_kinds_from_their_boxes, test_the_robots_map_from_painted_furniture, test_the_robots_things_fill_its_registry]
 
 
 def main(argv=None):

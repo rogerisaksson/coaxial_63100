@@ -58,16 +58,16 @@ print('\n'.join(tomllib.load(open(r'HOST_PATH\pyproject.toml', 'rb'))['build-sys
         }
     }
 
-    # Its eyes on a CUDA card (host/requirements-gpu.txt) are asked where a card's driver stands and
-    # never installed unasked: gigabytes a bench PC does not use.
+    # The robot's eyes on a CUDA card (host/requirements-gpu.txt) are asked where a card's driver
+    # stands and never installed unasked: gigabytes a bench PC does not use.
     $gpu = Join-Path $Host_ 'requirements-gpu.txt'
     if ($present -and (Test-Path $gpu) -and ($null -ne (Get-Tool 'nvidia-smi'))) {
         $lacks = Invoke-Host -Python $Python -Arguments ($probe + $gpu)
         if (($LASTEXITCODE -eq 0) -and [string]::IsNullOrWhiteSpace($lacks)) {
             Write-Item 'requirements-gpu' 'ok' 'all present'
         } else {
-            Write-Item 'requirements-gpu' 'missing' ('optional - its eyes on the card: ' + $lacks)
-            Add-Todo -Optional 'python -m pip install -r host/requirements-gpu.txt -c host/constraints.txt   (its eyes on the CUDA card here)'
+            Write-Item 'requirements-gpu' 'missing' ('optional - the robot''s eyes on the card: ' + $lacks)
+            Add-Todo -Optional 'python -m pip install -r host/requirements-gpu.txt -c host/constraints.txt   (the robot''s eyes on the CUDA card here)'
         }
     }
 

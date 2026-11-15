@@ -1,4 +1,4 @@
-"""The world's pass in C laid once (wbc_pass.c): its struct pointed at its arrays and MuJoCo's."""
+"""The world's pass in C laid once (wbc_pass.c): its struct pointed at the robot's arrays and MuJoCo's."""
 import ctypes
 
 from machine.body import dclink

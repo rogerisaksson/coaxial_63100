@@ -1,11 +1,11 @@
-"""Its mechanism without its shell: carbon tubes, drums, rods on ball joints, quick-releases.
+"""The robot's mechanism without its shell: carbon tubes, drums, rods on ball joints, quick-releases.
 
     parts = mechanism.parts()               # [(name, parent, joints, offset, rest, mesh)]
     parts = mechanism.parts(bare=True)      # motors, gearboxes, cranks, rods, balls: no body
     mechanism.posed(parts, placed, angles, frames)   # each crank's, pin's and rod's (turn, spot)
     layers = mechanism.wires(parts, frames)  # the kinematic stick figure: [(a, b, ink)], world
 
-Its skeleton's parts (`machine.body.skeleton`), each drive's drum (`drums`), each belt over its two
+The robot's skeleton's parts (`machine.body.skeleton`), each drive's drum (`drums`), each belt over its two
 pulleys; cranks, pins and rods posed each frame (`posed`), their parent '*'.
 """
 import math
@@ -39,7 +39,7 @@ PARTED = {'board': 'inv_', 'motor': 'drive_', 'gear': 'gear_'}
 #: clear either side of its quick-release, the collar in its polymer.
 BONE_INK, ROD_INK, BALL_INK, RIM = (200, 200, 206), (250, 150, 60), (255, 255, 255), 10
 RELEASE_GAP = 0.006
-#: On its shell a quick-release's band stands RELEASE_PROUD_M proud of it (`bands`).
+#: On the robot's shell a quick-release's band stands RELEASE_PROUD_M proud of it (`bands`).
 RELEASE_PROUD_M = 0.001
 
 #: A ball joint BALL_R round (its rod `linkage.ROD_R`, its plane `linkage.ROD_AT`); a belt's
@@ -136,7 +136,7 @@ def _bones():
 def parts(bare=False):
     """[(name, parent, joints, offset, rest, mesh)]: the segments as their bones, the drums, the
     quick-releases, each rod's ball joint on the segment it turns, and each crank, pin and rod
-    posed each frame (parent '*'); `bare` nothing of its body: each drive its motor and its
+    posed each frame (parent '*'); `bare` nothing of the robot's body: each drive its motor and its
     gearbox, and the linkages."""
     bones = _bones()
     if bare:
@@ -208,7 +208,7 @@ def parts(bare=False):
 
 
 def bands(meshes):
-    """[(name, parent, offset, mesh)]: on its shell, `meshes` {segment: mesh}, each limb's
+    """[(name, parent, offset, mesh)]: on the robot's shell, `meshes` {segment: mesh}, each limb's
     quick-release (`build.RELEASES`) a polymer band RELEASE_PROUD_M proud where the limb comes off."""
     from coaxial.model.blocks import numpy as np
     out = []
@@ -260,7 +260,7 @@ def _hub(kind, side):
 
 
 def belts(np, placed):
-    """[(a, b)]: each belt as drawn, world - its two pulleys' rims and its two runs, out to its
+    """[(a, b)]: each belt as drawn, world - its two pulleys' rims and its two runs, out to the robot's
     side, the drive's pulley on its axis, the joint's on the joint's."""
     out = []
     for side in ('left_', 'right_'):

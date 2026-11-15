@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""A human's sit as the reference: a sit's measures from joints' places, a take's or its own.
+"""A human's sit as the reference: a sit's measures from joints' places, a take's or the robot's own.
 
-A take, a recording and its rows read alike, as `normal` reads a walk.
+A take, a recording and the robot's rows read alike, as `normal` reads a walk.
 
     python tools/sim/seats.py TAKE.fbx [..]                   # the takes' measures, SEAT their band
-    python tools/sim/seats.py --recording REC.csv --from 22 --to 34   # its own on the page, the window s
+    python tools/sim/seats.py --recording REC.csv --from 22 --to 34   # the robot's own on the page, the window s
     python tools/sim/seats.py --sim chair_behind sit_chair    # its own here: a scene and the verb
     measures = seats.measured(times, joints)                  # {name: value}
 
@@ -108,7 +108,7 @@ def recorded(path, start, end):
 
 
 def simulated(scene, verb, seconds):
-    """(times, joints, flickers) of its sit here: `scene` laid, `verb` said, `seconds` followed;
+    """(times, joints, flickers) of the robot's sit here: `scene` laid, `verb` said, `seconds` followed;
     `flickers` how often a sole's load came and went past its soles' touch."""
     from machine.body import figure
     from machine.moves import leap

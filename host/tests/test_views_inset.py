@@ -1,4 +1,4 @@
-"""The picture in the viewport's corner: its frame, its eyes' labels, the quad's camera on its gimbal; the
+"""The picture in the viewport's corner: its frame, the robot's eyes' labels, the quad's camera on its gimbal; the
 atlas's leaves in panels on its viewport."""
 import math
 import sys
@@ -7,7 +7,7 @@ from tools.dev.focus import chosen
 from views_kit import Report, typed
 
 
-def test_its_eyes_picture_is_framed(report):
+def test_the_robots_eyes_picture_is_framed(report):
     """The picture in the viewport's corner (`coaxial.graphics.inset`): the instruments'
     frame whole round it - four corners, its title in the top edge, its note in the bottom one
     -, each hull's kind a label on it, none over another; nothing where the viewport has no
@@ -17,7 +17,8 @@ def test_its_eyes_picture_is_framed(report):
     from machine.eyes import sight
     wide, rows = sight.VIEW
     thumb = np.full((rows, wide, 3), 90, np.uint8)
-    # its picture's pixels (`stereo.W` x `stereo.H`): the hulls laid on a 320 x 240 one, scaled to its own
+    # the robot's picture's pixels (`stereo.W` x `stereo.H`): the hulls laid on a 320 x 240 one, scaled to its
+    # own
     s = sight.W / 320.0
     px = lambda pts: [(round(x * s), round(y * s)) for x, y in pts]
     box = px([(40, 60), (200, 60), (200, 200), (40, 200)])
@@ -39,7 +40,7 @@ def test_its_eyes_picture_is_framed(report):
                  and all(cells[at][1] == frame for at in ((top, left), (bottom, right),
                                                           (top + 1, left), (top + 1, right))),
                  '%s, %d by %d cells' % (corners, right - left + 1, bottom - top + 1))
-    report.check('its title in the top edge, what it has told in the bottom one',
+    report.check('its title in the top edge, what the robot has told in the bottom one',
                  inset.EYES in edges[0] and '%d told' % len(hulls) in edges[1], ' | '.join(edges))
     inside = [''.join(text[(r, c)] if text[(r, c)] != '▀' else ' '
                       for c in range(left + 1, right)) for r in range(top + 1, bottom)]
@@ -229,8 +230,8 @@ def test_figures_are_watched_from_beside_the_field(report):
                          seen, jumped, settled, chase['lens'], chase['yaw']))
 
 
-def test_balloons_stand_on_what_it_sees(report):
-    """Balloons on its drawing (`coaxial.graphics.balloons`): a point's cell (`gynoid.cells`) the
+def test_balloons_stand_on_what_the_robot_sees(report):
+    """Balloons on the robot's drawing (`coaxial.graphics.balloons`): a point's cell (`gynoid.cells`) the
     one `render` marks it in; each balloon framed over its thing, its key in the key's ink, its tip
     on the thing; a second meeting the first risen over it, its tail down behind it; one off the
     drawing or behind the eye none; lit, framed in the key's ink."""
@@ -266,11 +267,11 @@ def test_balloons_stand_on_what_it_sees(report):
 
 
 def test_the_atlas_leaves_are_panels(report):
-    """The atlas's leaves in panels on its viewport, framed as its eyes' picture (terminal/views/atlas/
-    leaves.py): the executive chosen, the tree names every key and no leaf; the branch nearest the viewport -
-    the least depth - the active panel, its key the one the panel beside marks - its key and name its title,
-    its heaviest leaf first -, the rest idle in a dim frame, the drawing's foot free; turned a quarter round,
-    the branches ranked anew."""
+    """The atlas's leaves in panels on its viewport, framed as the robot's eyes' picture
+    (terminal/views/atlas/ leaves.py): the executive chosen, the tree names every key and no leaf; the branch
+    nearest the viewport - the least depth - the active panel, its key the one the panel beside marks - its
+    key and name its title, its heaviest leaf first -, the rest idle in a dim frame, the drawing's foot free;
+    turned a quarter round, the branches ranked anew."""
     import re
     from terminal.views import show_atlas
     from terminal.views.atlas import leaves, panel, scene
@@ -312,8 +313,8 @@ def test_the_atlas_leaves_are_panels(report):
                  '%s -> %s' % (keyed[near], keyed[turned[0][1]]))
 
 
-ROSTER = (test_its_eyes_picture_is_framed, test_its_camera_rides_a_gimbal,
-          test_figures_are_watched_from_beside_the_field, test_balloons_stand_on_what_it_sees,
+ROSTER = (test_the_robots_eyes_picture_is_framed, test_its_camera_rides_a_gimbal,
+          test_figures_are_watched_from_beside_the_field, test_balloons_stand_on_what_the_robot_sees,
           test_the_atlas_leaves_are_panels)
 
 

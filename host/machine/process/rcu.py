@@ -1,20 +1,20 @@
-"""Its loop and a tuner apart with no lock between them: rings of its samples, a double bank of tables.
+"""The robot's loop and a tuner apart, lock-free: rings of its samples, a double bank of tables.
 
     link = rcu.Link.made(((width, slots), ..), cols, rows)  # the tuner's; link.name to hand on
-    link = rcu.Link.found(name)                    # its loop's, by that name
+    link = rcu.Link.found(name)                    # the robot's loop's, by that name
     link.tap(sample, ring)    # its loop: a sample onto a ring; full, dropped and counted
     got = link.drained(ring)  # the tuner: the ring's samples since its last, (n, width)
-    link.published(table)     # the tuner: a table into the bank its loop does not hold, then its sequence
-    seq, table = link.taken() # its loop: the table published since its last, copied, else None
+    link.published(table)     # the tuner: a table into the bank the robot's loop does not hold, then its sequence
+    seq, table = link.taken() # the robot's loop: the table published since its last, copied, else None
     link.said('laid', seq)    # one side's word: its loop's laid, the tuner's halt
 
 One block of shared memory in 64-byte lines: the header's words (HEADER) and a line a ring (RING),
 each word written by one side alone; each ring's slots; two banks a table each - a column's
-rows contiguous, each column on its own lines (SoA). The tuner writes the bank its loop does not hold,
+rows contiguous, each column on its own lines (SoA). The tuner writes the bank the robot's loop does not hold,
 then BANK, then SEQ; its loop copies the bank SEQ names, keeps it only where SEQ held through the copy
-(a seqlock), then writes TOOK: the tuner writes no bank before TOOK says its loop has the last one, so
+(a seqlock), then writes TOOK: the tuner writes no bank before TOOK says the robot's loop has the last one, so
 neither waits on the other. On x86-64 an aligned 8-byte store is atomic and stores are seen in order.
-Its loop's side is C (wbc/inc/wbc_rcu.h), the same words; the block locked in memory where the
+The robot's loop's side is C (wbc/inc/wbc_rcu.h), the same words; the block locked in memory where the
 system grants it (`link.locked`).
 """
 import ctypes
@@ -26,11 +26,11 @@ from machine.errors import MachineError
 #: A line, bytes; a word, bytes; words a line.
 LINE, WORD = 64, 8
 PER_LINE = LINE // WORD
-#: The header's words: the last taken and laid (its loop's); the last publication, its bank and rows,
+#: The header's words: the last taken and laid (the robot's loop's); the last publication, its bank and rows,
 #: a halt said, the banks' shape, the rings (the tuner's).
 HEADER = ('took', 'laid', 'seq', 'bank', 'rows', 'halt', 'cols', 'capacity', 'rings')
-#: A ring's line: its count written and its drops (its loop's), its count read, its shape (the tuner's),
-#: where its slots begin, words.
+#: A ring's line: its count written and its drops (the robot's loop's), its count read, its shape (the
+#: tuner's), where its slots begin, words.
 RING = ('head', 'dropped', 'tail', 'width', 'slots', 'at')
 H = {name: i for i, name in enumerate(HEADER)}
 R = {name: i for i, name in enumerate(RING)}
@@ -42,7 +42,7 @@ def _lines(words):
 
 
 def _core():
-    """wbc_rcu.c, its loop's side of the block, through the core's harness."""
+    """wbc_rcu.c, the robot's loop's side of the block, through the core's harness."""
     from tools.cores import wbc
     return wbc.library()
 
@@ -72,7 +72,8 @@ LOCKS = {'win32': _virtual_lock}
 
 class Link:
 
-    """One block of shared memory between its loop and a tuner: its header, rings and banks as views."""
+    """One block of shared memory between the robot's loop and a tuner: its header, rings and banks as
+    views."""
 
     def __init__(self, shm, owner):
         import numpy as np
@@ -116,7 +117,7 @@ class Link:
         return cls(shared_memory.SharedMemory(name=name), False)
 
     def tap(self, sample, ring=0):
-        """Its loop: `sample` onto `ring`, then its count; a full ring drops it and counts that."""
+        """The robot's loop: `sample` onto `ring`, then its count; a full ring drops it and counts that."""
         import numpy as np
         sample = np.ascontiguousarray(sample, np.float64)
         return bool(_core().wbh_rcu_tap(self.base, ring, sample.ctypes.data, len(sample)))
@@ -131,7 +132,7 @@ class Link:
         return got
 
     def published(self, table):
-        """The tuner: `table` (cols, n) into the bank its loop does not hold, then that bank named,
+        """The tuner: `table` (cols, n) into the bank the robot's loop does not hold, then that bank named,
         then the sequence on; False, nothing written, while its loop has not taken the last."""
         import numpy as np
         if self.h[H['took']] != self.h[H['seq']]:
@@ -148,13 +149,13 @@ class Link:
         return True
 
     def taken(self):
-        """Its loop: (its sequence, the table the tuner published since its last take, copied) - kept
-        where the sequence held through the copy -, its taking said; else None."""
+        """The robot's loop: (its sequence, the table the tuner published since the robot's last take,
+        copied) - kept where the sequence held through the copy -, its taking said; else None."""
         seq = _core().wbh_rcu_taken(self.base, self.table.ctypes.data, ctypes.byref(self.rows))
         return (int(seq), self.table[:, :self.rows.value].copy()) if seq else None
 
     def said(self, word, value):
-        """One side's header word written: its loop's `laid`, the tuner's `halt`."""
+        """One side's header word written: the robot's loop's `laid`, the tuner's `halt`."""
         self.h[H[word]] = value
 
     def word(self, name, ring=None):

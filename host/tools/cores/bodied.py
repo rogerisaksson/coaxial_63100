@@ -1,19 +1,19 @@
 """The robot's numpy compiled on its memory: numpy's own until its C is built and held, then the C.
 
-A function of its arrays, and of its body with its MuJoCo traced (`trace_mj`): each array it is
-given an extern, read and written in its own memory - a dict's float arrays too, an entry of it
-rebound written back into the array there; a number it is given traced; what else it is given or
-reads of its body a constant of the trace, the same objects or it stays numpy's.
+A function of the robot's arrays, and of its body with its MuJoCo traced (`trace_mj`): each array it is given an
+extern, read and written in its own memory - a dict's float arrays too, an entry of it rebound written back into
+the array there; a number it is given traced; what else it is given or reads of the body a constant of the trace,
+the same objects or it stays numpy's.
 
-    sense = bodied.on_body(wbc.sense, 'sense')               # its body first, the arrays at (1, 2)
+    sense = bodied.on_body(wbc.sense, 'sense')               # the body first, the arrays at (1, 2)
     felt = bodied.on_args(grip.felt, 'felt', (0, 1, 2, 3))   # the rest of its arguments constants
     ringed = bodied.on_shapes(fn, 'ringed', (0, 1))          # a Compiled a shape at (0, 1)
     s = sense(b, qpos, qvel)                                 # wbc.sense(b, qpos, qvel), bit for bit
 
-At its first call traced on copies - its body's a twin of it - and written in C; built in a thread,
-gcc's process its work; at the first call after, held bit for bit on copies at that call's
-arguments and fresh draws, its result and every argument after; then the C. Not held, it stays
-numpy's own, said once on stderr. A part laid anew takes one held (`kept`).
+At its first call traced on copies - the body's a twin of it - and written in C; built in a thread, gcc's
+process its work; at the first call after, held bit for bit on copies at that call's arguments and fresh draws,
+its result and every argument after; then the C. Not held, it stays numpy's own, said once on stderr. A part laid
+anew takes one held (`kept`).
 """
 import ctypes
 import sys
@@ -26,14 +26,14 @@ from tools.cores import emit, glue, held, kept, layout, quick, trace, trace_mj
 from tools.cores.glue import F64
 from tools.cores.wbc import address
 
-#: A trace or a hold no sooner than SPREAD_S after the last, any part's, s: nine traced in its law's
-#: first pass held it 47.6 ms.
+#: A trace or a hold no sooner than SPREAD_S after the last, any part's, s: nine traced in the law's first pass
+#: held it 47.6 ms.
 SPREAD_S = 0.005
 _LAST = [0.0]
 
 
 def on_body(fn, name, inputs=(1, 2), fresh=2, seed=1, body=0):
-    """`fn(..., b, ...)`, its body at `body`, the arrays at `inputs` (Compiled)."""
+    """`fn(..., b, ...)`, the body at `body`, the arrays at `inputs` (Compiled)."""
     return Compiled(fn, name, inputs, body, fresh, seed)
 
 
@@ -49,7 +49,7 @@ _PART: Any = quick.based()
 
 class Compiled(_PART):
 
-    """`fn` compiled on its memory: numpy's own until its C is held, then the C - called through its base's call (its
+    """`fn` compiled on the robot's memory, numpy's own till its C is held - called through its base's call (its
     Bound's runner where it fits, `slow` else)."""
 
     def __init__(self, fn, name, inputs, body, fresh, seed, sources=None):
@@ -68,7 +68,7 @@ class Compiled(_PART):
         return None if self.c is None else self.c.last
 
     def slow(self, *args, paced=True):
-        """Its call where its runner has nothing for it (none, or `args` not as traced): its glue on its C where `args`
+        """A part's call its runner has nothing for (none, or `args` not as traced): its glue on its C where `args`
         fit, numpy's else - traced, built and held as it goes."""
         c = self.c
         kept = None if c is None else c.fits(args)
@@ -141,7 +141,7 @@ class Compiled(_PART):
         return got is not None
 
     def _trace(self, args):
-        """Traced on copies - its body's a twin -, written in C, its build begun."""
+        """Traced on copies - the body's a twin -, written in C, its build begun."""
         given, twin, specs = list(args), None, []
         if self.body is not None:
             twin = given[self.body] = trace_mj.twin(args[self.body])
@@ -160,8 +160,8 @@ class Compiled(_PART):
 
     def _hold(self, c, args, twin):
         """`c` held bit for bit against `fn` on copies, at the call's arguments then `fresh` draws: its
-        result, its body's externs and every argument after - a draw numpy finds singular Parted, the
-        call's own numpy's LinAlgError."""
+        result, the body's externs and every argument after - a draw numpy finds singular Parted, the call's own
+        numpy's LinAlgError."""
         rng = np.random.default_rng(self.seed)
         if twin is not None:
             c.bind(twin)
@@ -204,9 +204,9 @@ def _lined(n):
 def _tree_in(prog, k, path, v, specs, top):
     """Argument `k`'s `v` at `path` as traced: an array or a float (or at the top a number) an extern
     over a copy of it in C's order, as `Bound.leaf` lays every array its C reads - traced in its own order, an
-    F-ordered array's views were baked transposed and read wrong, held apart and left numpy's (its gate's leave, ten
-    or eleven points under it as it lay, 93 us a law pass); a dict lazy (`Lazy`), a list of arrays its own of
-    each, its length pinned; anything else itself, pinned (`specs`)."""
+    F-ordered array's views were baked transposed and read wrong, held apart and left numpy's (the robot's gate's
+    leave, ten or eleven points under it as it lay, 93 us a law pass); a dict lazy (`Lazy`), a list of arrays its
+    own of each, its length pinned; anything else itself, pinned (`specs`)."""
     if isinstance(v, dict):
         return Lazy(prog, k, path, v, specs)
     if isinstance(v, (list, tuple)) and any(isinstance(x, (dict, list, tuple, np.ndarray)) for x in v):
@@ -224,7 +224,7 @@ def _tree_in(prog, k, path, v, specs, top):
 
 class Lazy(dict):
 
-    """A dict argument as traced: an entry made what `_tree_in` makes it as its code reads it, what
+    """A dict argument as traced: an entry made what `_tree_in` makes it as the code reads it, what
     it finds there or not pinned; read whole, every entry made and its keys pinned."""
 
     def __init__(self, prog, k, path, raw, specs):
@@ -356,11 +356,11 @@ class Shaped(dict):
 
 class Bound:
 
-    """A build's C on its memory: its workspace laid once; its body's externs, its model's, its data's
-    and MuJoCo's addresses where bound; its arguments' addressed at each call; fn's result laid back
-    of its output blocks, two laid once on 64-byte lines and written in turn - a result read a call on, or
-    handed back as the next call's argument, is never written under - called and read through `quick` where
-    it is built. A fresh block a call was 36.8 KB of new memory each law pass, written cold."""
+    """A build's C on the robot's memory: its workspace laid once; the body's externs, model's, data's and MuJoCo's
+    addresses where bound; its arguments' addressed at each call; fn's result laid back of its output blocks, two
+    laid once on 64-byte lines and written in turn - a result read a call on, or handed back as the next call's
+    argument, is never written under - called and read through `quick` where it is built. A fresh block a call was
+    36.8 KB of new memory each law pass, written cold."""
 
     def __init__(self, lib, cfn, prog, info, specs=(), body=None, sources=None):
         self.lib, self.cfn, self.prog, self.at, self.sources = lib, cfn, prog, body, sources or {}
@@ -407,7 +407,7 @@ class Bound:
         self.runner = quick.runner(self, np.linalg.LinAlgError)
 
     def bind(self, b):
-        """The robot's body `b` addressed - its externs, its model, its data."""
+        """The body `b` addressed - its externs, its model, its data."""
         arrays, self.model, self.data = trace_mj.bound(self.prog, b)
         for i, arr in arrays:
             self.words[i] = arr.ctypes.data
@@ -417,7 +417,7 @@ class Bound:
 
     def fits(self, args):
         """The arrays converted for this call, its arguments' externs addressed; None where `args` are
-        not as traced - its body not the one bound, a constant not the same, an array not its shape:
+        not as traced - the body not the one bound, a constant not the same, an array not its shape:
         its checks and its leaves' walk written out for this build (`glue.head`, `glue.walk`)."""
         if not self.head(args):
             return None

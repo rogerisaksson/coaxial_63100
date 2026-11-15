@@ -4,7 +4,7 @@ You operate in a deterministic, first-principles, Data-Oriented (DOD),
 cache-local, cyber-physical, cybernetic, codebase for embodied 6-DoF spatial
 navigation and dynamic body-schema/envelope feedback control. Electronics,
 bare-metal C11 firmware, and host-side control share strict bit-exact invariants.
-Do not assume static file structures; rely exclusively on the repositorys
+Do not assume static file structures; rely exclusively on the repository's
 live introspection tools and structural test suites as the sole source of
 topological truth.
 
@@ -22,7 +22,7 @@ deterministic, polymath and truthful Finite State Machine governed by Section 0.
 1. **NO SINGLE-TURN JUMP TO MUTATION:** You are physically prohibited from
    invoking any file-mutation tool (`Edit`, `Write`, `MultiEdit`,
    `NotebookEdit`, or file-writing shell redirections) in your first response
-   turn to a prompt. Turn 1 is strictly limited to **STATE 0** and **STATE 1**,
+   turn to a prompt. Turn 1 is strictly limited to **STATE 0** and **STATE 1**.
 2. **NO BATCHING `STATE 2` AND `STATE 3` ON UNPROVEN CAUSES:** You may not
    emit a `[STATE 2 GATE]` and invoke `Edit` or `Write` in the same turn
    unless the root cause is already empirically proven by tool output present
@@ -46,10 +46,15 @@ deterministic, polymath and truthful Finite State Machine governed by Section 0.
    company identifiers, client references, organizational headers, copyright
    banners, dates, or author attributions anywhere in the project, code,
    comments, documentation, or commit messages.
-8. **GENDERLESS:** The project deals only in machines. The robot is "it",
-   "its", "its own" and "itself", or "the robot" where a sentence opens on
-   it; never "she", "her", "hers" or "herself" in prose, comments, strings,
-   identifiers or commit messages. The gynoid's build names stay as they are.
+8. **MACHINES NAMED, GENDERLESS:** The project deals only in machines, each
+   named by its noun: the humanoid is "the robot" (the gynoid's build names
+   stay as they are), the crafts "the quad", "the helicopter", "the
+   ornithopter" and "the aerobat", anything else by its own name. A sentence
+   names the machine or thing at its first mention; "it", "its" and "itself"
+   only refer back to one named before them in the same sentence, and no
+   sentence opens on "It" or "Its" (`host/tools/dev/named.py`, held by
+   test_layout). Never "she", "her", "hers" or "herself" in prose, comments,
+   strings, identifiers or commit messages.
 
 ### New Machine Bootstrap (From Zero)
 
@@ -61,8 +66,8 @@ is set up by the repository's own setup, never by installs picked by hand:
    area (`machine`, `python`, `toolchain`, `emulator`, `ollama`, `linux`)
    checked, nothing fetched.
 2. Install it: `.\setup.ps1 -AllowScripts` (one yes for the whole plan;
-   `-Yes` none; `-SkipOllama`, `-SkipLinux` leave those areas out). It takes
-   Python as CI's matrix names it, the host's packages at the versions
+   `-Yes` none; `-SkipOllama`, `-SkipLinux` leave those areas out). The setup
+   takes Python as CI's matrix names it, the host's packages at the versions
    `host/constraints.txt` pins, the toolchain, the emulator, the model, WSL 2
    with the container engine and CI's runner images, then builds both
    firmware images and answers on the emulator. Installs that need an
@@ -135,7 +140,7 @@ Evaluate the prompt and working tree before invoking any tool:
     `--path A B`, `--json`) to see every layer from the terminal up to the
     shunts, each folder, file and symbol, and the ties between files.
   + Query the host file structure:
-    (`python -X utf8 docs/structure.py` `--files`) discover the source code
+    (`python -X utf8 docs/structure.py` `--files`) to discover the source code
     files
   + Query the host architecture mapper:
     (`python -X utf8 host/tools/dev/host_map.py` `--api`, `--layers`, `--deps`)
@@ -156,10 +161,10 @@ Evaluate the prompt and working tree before invoking any tool:
     (`python -X utf8 host/tools/dev/ci.py` `--green`: host.yml, firmware.yml
     and both, each its commit and how many commits HEAD is past it), check
     that commit out in a worktree and A/B the red suite there and here
-    through the relay (the probes' `--against TREE` likewise). The fault lies
-    in `git diff GREEN..HEAD`; where the span is long, bisect it with the
-    relay (`git bisect run`). Derive a cause from first principles only where
-    no green run covers the suite, and say so in the State 2 gate.
+    through the relay (`offered.py` and `wearing.py` by `--against TREE`).
+    The fault lies in `git diff GREEN..HEAD`; where the span is long, bisect
+    it with the relay (`git bisect run`). Derive a cause from first principles
+    only where no green run covers the suite, and say so in the State 2 gate.
   + Empirical Linux baseline (mandatory when CI is red, or a fault may differ
     between the operating systems: glibc, GCC, libm, MuJoCo's build, Mesa): the
     relay's selector runs the same gate here on Windows (default) or in local
@@ -167,8 +172,9 @@ Evaluate the prompt and working tree before invoking any tool:
     2 threads, 16 GB), a Python each, side by side
     (`python -X utf8 host/tools/dev/run_tests.py` `--linux` `[--python 3.12]`
     `[--file test_x.py]`, or `.\host\run_tests.ps1` `-Linux` `[-Scope ...]`).
-    Its images and engine come with `setup.ps1` (area `linux`). Reproduce a
-    Linux-only fault there, A/B against Windows on the same tree, before a fix.
+    The containers' images and engine come with `setup.ps1` (area `linux`).
+    Reproduce a Linux-only fault there, A/B against Windows on the same tree,
+    before a fix.
     First hold every host to the same modules: `test_depends`
     (`--file test_depends.py`, here and with `--linux`) checks that this host
     runs the versions `host/constraints.txt` pins (laid by
@@ -200,7 +206,7 @@ Evaluate the prompt and working tree before invoking any tool:
     and real-world performance related tasks are involved): Run the introspection
     tool (`python -X utf8 host/tools/sim/introspected.py` `--play`, `--at`,
     `--fields`) to discover the internal dynamics of the system.
-  + Empirical data aquisition baseline (mandatory when dynamics, locomotion, flight,
+  + Empirical data acquisition baseline (mandatory when dynamics, locomotion, flight,
     thermals, or UI are involved): execute the relevant simulation
     (`python -X utf8 host/tools/sim/told.py` `[scenario]` `--trace`), trace
     (`python -X utf8 host/tools/sim/trace.py` `SCENARIO FROM TO`), recording
@@ -218,25 +224,26 @@ Evaluate the prompt and working tree before invoking any tool:
     solutions captures (`python -X utf8 host/tools/sim/stunts.py` `[stunt]`,
     `--save`, `--against`).
   + AI in the loop, AIL (mandatory with keys, docking, locomotion near things or
-    its map's consistency): drive the robot about the lodge on its page's own keys
-    (`python -X utf8 host/tools/sim/ail.py drive` `--seeds N --jobs N`,
-    `--eyes`, `--stage K`), run a key script (`ail.py run SCRIPT.json`), and
-    replay the staged cases (`ail.py replay`). Faults are judged by the world's
-    truth and staged outside CI (`host/tools/sim/ail_staged/`). Cheap explorer
-    subagents write key scripts adversarially; AIL alone judges; the stronger
-    model fixes five staged clusters a round, then asks to continue. Every fix
-    widens the robot's margins and room to act, never narrows them.
+    the robot's map's consistency): drive the robot about the lodge on its
+    page's own keys (`python -X utf8 host/tools/sim/ail.py drive` `--seeds N
+    --jobs N`, `--eyes`, `--stage K`), run a key script (`ail.py run
+    SCRIPT.json`), and replay the staged cases (`ail.py replay`). Faults are
+    judged by the world's truth and staged outside CI
+    (`host/tools/sim/ail_staged/`). Cheap explorer subagents write key scripts
+    adversarially; AIL alone judges; the stronger model fixes five staged
+    clusters a round, then asks to continue. Every fix widens the robot's
+    margins and room to act, never narrows them.
   + Read only the relevant source files as identified by the mapper, test and
     runtime measurements, and other associated and relevant data.
-  + Use existing selective probes or tests, or create new, for use with the tools
-    (such as profilers, introspection, test suites), to establish reliable
+  + Use existing selective probes or tests, or create new, for use with the
+    tools (such as profilers, introspection, test suites), to establish reliable
     detectors and sieves for effectively discovering and rejecting solutions.
     Probes live in the repo, ensembles on the relay, `--against TREE` for an
-    A/B: `host/tools/sim/falls.py` (its falls by the world's truth: what
-    struck, how hard, its spasms), `offered.py` (F's errands walked into),
-    `wearing.py` (its wear filter's step response), `inertias.py` (its
-    figure's inertias as bits), `python -m tools.cores.orders` (numpy's
-    einsum orders on this processor).
+    A/B (`offered.py`, `wearing.py`): `host/tools/sim/falls.py` (the robot's
+    falls by the world's truth: what struck, how hard, its spasms),
+    `offered.py` (F's errands walked into), `wearing.py` (its wear filter's
+    step response), `inertias.py` (its figure's inertias as bits),
+    `python -m tools.cores.orders` (numpy's einsum orders on this processor).
 
 - **Exit Gate (Emit after receiving State 1 tool outputs):**
   `[STATE 1 GATE: Mapped=[...] Dirty=[...] Baseline=[numbers or N/A]]`
@@ -283,7 +290,7 @@ Evaluate the prompt and working tree before invoking any tool:
   + If `INTENT = READ_ONLY`: **HALT** immediately and present your analysis.
   + If any check is `NO`, unmeasured, or ambiguous: **HALT** and report the
     conflict to the user.
-  + Only if `INTENT = MUTATE` and all five `[INV-*]` checks are `YES` based on
+  + Only if `INTENT = MUTATE` and all `[INV-*]` checks are `YES` based on
     prior turn outputs may you enter **STATE 3**.
 
 ---

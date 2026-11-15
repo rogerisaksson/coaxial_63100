@@ -1,4 +1,4 @@
-"""Does host/ still hold together? Its imports, cycles, names, shape and docstrings, the token budget."""
+"""Does host/ still hold together? Imports, cycles, names, shape and docstrings, the token budget."""
 import ast
 import builtins
 import importlib
@@ -234,7 +234,7 @@ def test_no_unused_imports(r):
 
 def test_numpy_enters_behind_the_thread_cap(r):
     """numpy is imported at module level by the modules that step arrays - blocks.py,
-    machine/rig/cyclic.py, the whole-body loop's and the bank it reads, listed below - each capping OpenBLAS's thread pool
+    machine/rig/cyclic.py, the whole-body loop's and the bank it reads, listed below - each capping OpenBLAS's threads
     before importing it."""
     importers, uncapped = [], []
     for path, _text, tree in sources(beside=False):
@@ -274,16 +274,16 @@ def test_motor_imports_no_board(r):
             ', '.join(importers))
 
 
-#: Its motion pass: what `machine.law.motion` steps. It reads the world through `machine.senses.edge` alone.
+#: The robot's motion pass: what `machine.law.motion` steps, reading the world through `machine.senses.edge` alone.
 LAW = ('law/motion', 'law/se2', 'moves/leap', 'law/support', 'law/latent', 'law/impedance', 'law/modal', 'law/poise',
        'law/stride', 'law/treads', 'law/vault', 'law/rocker', 'senses/estimate', 'stack/wrench', 'stack/wbc', 'body/reach', 'senses/touch', 'senses/situation',
        'senses/borne', 'senses/grip')
-#: The robot's motion pass in C: its bindings and their sources name no world and no MuJoCo.
+#: The motion pass in C: its bindings and their sources name no world and no MuJoCo.
 LAW_C = tuple('tools/cores/%s.py' % m for m in ('motion', 'surety', 'touch', 'twist', 'wait', 'bedexit', 'scoot', 'brace'))
 LAW_C_SOURCES = tuple('wbc_%s.c' % m for m in ('imp', 'latched', 'poses', 'stride', 'poise', 'floor', 'surety', 'touch', 'twist', 'wait', 'anatomy', 'bedexit', 'scoot',
                                                  'brace', 'law', 'blas'))
-#: What its law may not name: the world, its truth, its ids, the writes that move it, the world's
-#: own modules. The robot's model posed is wbc.sense's and estimate.step's alone.
+#: What the robot's law may not name: the world, its truth, its ids, the writes that move it, the world's
+#: own modules; only wbc.sense and estimate.step pose the model.
 TRUTH = {'world', 'obstacle_ids', 'sill_ids', 'upper_ids', 'robot_ids', 'push_until', 'push_n',
          'xfrc_applied', 'qfrc_applied', 'mocap_pos', 'mocap_quat'}
 WORLDS, POSED = ('machine.world.physics', 'machine.world.floor', 'machine.world.room', 'machine.rig.buses'), {'sense', 'step'}
@@ -310,10 +310,10 @@ def _word(node):
     return None
 
 
-def test_its_law_reads_its_sensors_alone(r):
-    """Its law names no world, none of its truth or ids, no shove and none of its modules; only
-    its model's posing writes qpos or qvel. A chair moved under its mid-hop, obstacles found by
-    their ids and a shove's newtons choosing its reaction were in it once."""
+def test_the_robots_law_reads_its_sensors_alone(r):
+    """The robot's law names no world, none of its truth or ids, no shove and none of its modules; only the
+    model's posing writes qpos or qvel. A chair moved under the robot mid-hop, obstacles found by their ids and
+    the reaction a shove's newtons chose were in the law once."""
     named, posed = [], []
     for name in LAW:
         tree = ast.parse(open(os.path.join(HOST, 'machine', *name.split('/')) + '.py', encoding='utf-8').read())
@@ -335,9 +335,9 @@ def test_its_law_reads_its_sensors_alone(r):
         text = open(os.path.join(HOST, os.pardir, 'wbc', 'src', name), encoding='utf-8').read()
         named += ['%s %s' % (name, word) for word in ('mujoco', 'mjData', 'mjModel', 'world', 'xfrc')
                   if word in text]
-    r.check("its law names none of the world's state, its ids, its shove or its modules - nor its law in C",
+    r.check("the robot's law, in python or C, names none of the world's state, ids, shove or modules",
             not named, ', '.join(named[:6]))
-    r.check("only its model's posing (wbc.sense, estimate.step) writes qpos or qvel", not posed,
+    r.check("only the robot's model's posing (wbc.sense, estimate.step) writes qpos or qvel", not posed,
             ', '.join(posed[:6]))
 
 
@@ -349,11 +349,10 @@ MOVES = ('qpos', 'qvel', 'ctrl', 'xfrc_applied', 'qfrc_applied', 'mocap_pos', 'm
          'target', 'feed', 'rate', 'limit')
 
 
-def test_the_gym_moves_it_through_the_world_alone(r):
-    """The gym and the aircraft flight laws write none of the world's state or drive arrays
-    directly: a lay, a scene and a shove are the world's own calls (`physics.World.reset`, `.scenario`,
-    `.push`), and drives are told on their
-    10 Mbit/s RS485 Modbus RTU buses (`edge.LIMBS`, `edge.drive`, `CoaxialDrives`) alone."""
+def test_the_gym_moves_the_robot_through_the_world_alone(r):
+    """The gym and the aircraft flight laws write none of the world's state or drive arrays directly: a lay, a
+    scene and a shove are the world's own calls (`physics.World.reset`, `.scenario`, `.push`), and drives are told
+    on their 10 Mbit/s RS485 Modbus RTU buses (`edge.LIMBS`, `edge.drive`, `CoaxialDrives`) alone."""
     from machine.senses import edge
     from machine.body import figure
     from machine.rig import layouts, routines
@@ -407,8 +406,7 @@ def test_shape(r):
     long_ones, deep_ones = [], []
     for path, _, tree in sources():
         for node in ast.walk(tree):
-            # AsyncFunctionDef too: it is not a subclass of FunctionDef, and
-            # coaxial_mcp/server.py has three async handlers.
+            # AsyncFunctionDef too: it is not a subclass of FunctionDef, and coaxial_mcp/server.py has three async handlers.
             if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 continue
             lines = (node.end_lineno or node.lineno) - node.lineno + 1
@@ -459,7 +457,7 @@ ROSTER = (test_every_file_fits_a_reading, test_imports, test_no_undefined_names,
           test_reexports, test_stand_ins_answer_every_call, test_no_duplicate_definitions,
           test_no_unused_imports, test_numpy_enters_behind_the_thread_cap,
           test_machine_imports_no_board, test_motor_imports_no_board,
-          test_its_law_reads_its_sensors_alone, test_the_gym_moves_it_through_the_world_alone, test_shape,
+          test_the_robots_law_reads_its_sensors_alone, test_the_gym_moves_the_robot_through_the_world_alone, test_shape,
           test_documented, test_no_escaping_scars, test_twins_and_errand_rows)
 
 def main(argv=None):

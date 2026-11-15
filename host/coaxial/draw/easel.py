@@ -1,7 +1,7 @@
 """The board's attitude on an easel of its own: drawn in the process `terminal.ui.ahead` starts.
 
-Its crew and its frames' state - the held face, the exposure, the three frames' vote - are kept
-there from one ask to the next; the page asks a pose and shows the one asked a frame before,
+The process keeps its crew and its frames' state - the held face, the exposure, the three frames'
+vote - from one ask to the next; the page asks a pose and shows the one asked a frame before,
 its instruments on one core while the drawing takes another.
 """
 from coaxial.draw import orientation

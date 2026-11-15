@@ -1,24 +1,24 @@
-"""Its body identified of what it measures: each link's inertia and each drive's friction, fitted.
+"""The robot's body identified of what it measures: each link's inertia, each drive's friction, fitted.
 
-    lay = sysid.laid(body)                          # its links and the columns, on its law's model
+    lay = sysid.laid(body)                          # the robot's links and the columns, on its law's model
     ys, taus, touched = campaign.excite(world, ref) # its edge arrays and its drives' torques a step
     Y, tau = sysid.rows(lay, body, ys, taus, dt)    # the regressor of a campaign's edge arrays
     free = sysid.free(lay, ys, every)               # off the stand, the rows the model holds on
     Yb, fb = sysid.borne(lay, body, ys, dt, every)  # its pelvis's rows its insoles measure, standing
     base = sysid.base(lay, Y)                       # the combinations its torques tell apart
     got = sysid.identify(base, Y, tau)              # each one fitted, with what it is worth
-    identified.correction(lay, body, Y, tau)        # the least move of its build that fits it
+    identified.correction(lay, body, Y, tau)        # the least move of the robot's build that fits it
 
-Its drives' torques are linear in what moves it: each link's ten inertial parameters - mass,
+The robot's drives' torques are linear in what moves it: each link's ten inertial parameters - mass,
 first moment and inertia about its frame's origin - and each drive's armature, viscous and
-Coulomb friction: tau = Y(q, v, a) theta. Y is Newton-Euler down its tree from its pelvis, whose
-IMU gives turn, spin and specific force (gravity rides in it), its encoders each joint's angle
+Coulomb friction: tau = Y(q, v, a) theta. Y is Newton-Euler down the robot's tree from its pelvis,
+whose IMU gives turn, spin and specific force (gravity rides in it), the robot's encoders each joint's angle
 and rate, their differences the accelerations (`machine.senses.edge`); only its drives' rows are
-measured, so its pelvis's own parameters never show and what a link shares with its neighbours,
-or what a campaign never moves apart, comes out as a sum: `base` finds those sums numerically
-(Gautier) in the campaign's regressor, and `identify` fits them by least squares;
-`machine.identify.identified` moves its build the least that fits the campaign and lays it over its law's
-model. On the stand (`mjcf.STAND`) its pelvis is welded to the world and nothing touches its soles.
+measured, so its pelvis's own parameters never show and what a link shares with its neighbours, or
+what a campaign never moves apart, comes out as a sum: `base` finds those sums numerically (Gautier) in the
+campaign's regressor, and `identify` fits them by least squares; `machine.identify.identified` moves the
+robot's build the least that fits the campaign and lays it over the robot's law's model. On the stand
+(`mjcf.STAND`) the robot's pelvis is welded to the world and nothing touches its soles.
 """
 import math
 
@@ -42,14 +42,14 @@ LIMBS = ((('hip', 'knee', 'ankle', 'foot'), ('thigh', 'shank', 'foot', 'toes')),
 
 
 def laid(body):
-    """Its links and the columns, on its law's model, laid once: {bodies (its own, parents first),
-    parent (each one's place among them, the pelvis -1), span (each one's hinges' range in
-    hinge), hinge (every hinge dof, MuJoCo's order), jnt (each one's joint), above (body, hinge:
-    the hinge lies between the body and its pelvis), col (a MuJoCo body's ten columns' start, -1
-    not its own), drive (the drives' columns' start), driven (the drives' places among the hinges,
-    JOINTS' order), dof, joint (their dofs, their places in JOINTS), drives (their names), names
-    (every column's), qadr, vadr (JOINTS' in qpos and qvel), lo, hi (JOINTS' stops, rad), limb
-    (drive, JOINTS) and skin (drive, SKIN): its limb's}."""
+    """The robot's links and the columns, on its law's model, laid once: {bodies (its own,
+    parents first), parent (each one's place among them, the pelvis -1), span (each one's hinges' range in
+    hinge), hinge (every hinge dof, MuJoCo's order), jnt (each one's joint), above (body, hinge: the hinge
+    lies between the body and its pelvis), col (a MuJoCo body's ten columns' start, -1 not the robot's
+    own), drive (the drives' columns' start), driven (the drives' places among the hinges, JOINTS' order),
+    dof, joint (their dofs, their places in JOINTS), drives (their names), names (every column's), qadr, vadr
+    (JOINTS' in qpos and qvel), lo, hi (JOINTS' stops, rad), limb (drive, JOINTS) and skin (drive, SKIN): its
+    limb's}."""
     import numpy as np
     m = body.m
     bodies = np.array([b for b in range(m.nbody) if edge._rooted(m, b, body.pelvis)])
@@ -120,7 +120,7 @@ def following(mass, h):
 
 
 def truth(lay, m):
-    """theta as a model `m` has it: each body's mass, first moment and inertia about its origin
+    """theta as a model `m` has the robot: each body's mass, first moment and inertia about its origin
     in its own frame; each drive's armature, damping and friction loss."""
     import numpy as np
     theta = np.zeros(len(lay['names']))
@@ -146,9 +146,10 @@ _rotations = campaign.rotations
 
 
 def _state(lay, body, ys, dt, every, extra=None):
-    """(qpos, qvel, qacc, a0, wacc, at) of its edge arrays `ys` a step `dt` apart, every
-    `every`th: its turn, spin and specific force its IMU's, its joints its encoders'; a rate's
-    difference over the step its acceleration; what it does not measure - its hair, its hems
+    """(qpos, qvel, qacc, a0, wacc, at) of the robot's edge arrays `ys` a step `dt` apart, every
+    `every`th: its turn, spin and specific force its IMU's, its joints the robot's
+    encoders'; a rate's difference over the step its acceleration; what the robot does not measure - the
+    robot's hair, its hems
     - at rest unless `extra` is given; each motor's acceleration through its gearbox (QM) by
     differences over the steps about each sample, the armature's column - rigid, the joint's own."""
     import numpy as np
@@ -176,7 +177,7 @@ def _state(lay, body, ys, dt, every, extra=None):
 
 
 def rows(lay, body, ys, taus, dt, every=1, extra=None):
-    """(Y (N, driven, P), tau (N, driven)) of a campaign: `ys` (N + 1, SENSED) its edge arrays a
+    """(Y (N, driven, P), tau (N, driven)) of a campaign: `ys` (N + 1, SENSED) the robot's edge arrays a
     step `dt` apart, `taus` (N, JOINTS) its drives' torques over each step, every `every`th
     step kept (`_state`); a drive's row zero where it does not slide (STICK). Given no `extra`,
     its hems and its hair are integrated first (`campaign.hemming`) and ride in the regressor, a
@@ -257,12 +258,12 @@ def free(lay, ys, every=1, stop_deg=STOP_DEG):
 
 
 def borne(lay, body, ys, dt, every=1):
-    """(Y (N, 3, P), f (N, 3)) its pelvis's rows its insoles measure, standing: the floor's push
-    up on it, LEVER_M as a moment, and its moments about the point under its pelvis's origin
-    at its insoles' height, along the world's x and z, where a push along the floor turns
-    nothing - `f` what its insoles read, each one's pressure along its sole's normal at its
-    centre of pressure. The robot's weight and its moments: its pelvis's own mass and first moments,
-    which its drives' rows never show."""
+    """(Y (N, 3, P), f (N, 3)) the robot's pelvis's rows its insoles measure, standing: the floor's
+    push up on it, LEVER_M as a moment, and its moments about the point under the robot's pelvis's
+    origin at its insoles' height, along the world's x and z, where a push along the floor turns
+    nothing - `f` what its insoles read, each one's pressure along its sole's normal at its centre of
+    pressure. The robot's weight and its moments: the robot's pelvis's own mass and first moments, which the
+    robot's drives' rows never show."""
     return done(borning(lay, body, ys, dt, every))
 
 
@@ -307,11 +308,11 @@ def borning(lay, body, ys, dt, every=1):
 
 
 def hung(lay, body, ys, dt, pulls, every=1):
-    """(Y (N, 6, P), f (N, 6)) its pelvis's rows a load cell in its harness measures, hung: the
-    harness's force on it, world, LEVER_M as a moment, and its moment about its pelvis's
-    origin, world - `pulls` (N + 1, 6) what the cell reads a step (`World.pull`). Its pelvis's
-    own ten join the base parameters, its mass among them; its hems and its hair ride in the rows
-    as in `rows`, a sample zero where a pendulum's acceleration passes HEM_ACC_MAX."""
+    """(Y (N, 6, P), f (N, 6)) the robot's pelvis's rows a load cell in its harness measures, hung:
+    the harness's force on it, world, LEVER_M as a moment, and its moment about the robot's pelvis's
+    origin, world - `pulls` (N + 1, 6) what the cell reads a step (`World.pull`). The robot's pelvis's own ten
+    join the base parameters, its mass among them; its hems and its hair ride in the rows as in
+    `rows`, a sample zero where a pendulum's acceleration passes HEM_ACC_MAX."""
     import numpy as np
     extra = None
     if lay.get('hems'):
@@ -334,7 +335,7 @@ def base(lay, Y):
     each of `dep` a combination of them - `Y` (N, driven, P) its regressor (`rows`). Pivoted
     Cholesky on the scaled Gram matrix: the column standing clearest of the base so far taken
     next, down to INDEPENDENT of itself; of columns standing alike (TIE), the first - a sum
-    lands on the parent, its pelvis's own first."""
+    lands on the parent, the robot's pelvis's own first."""
     import numpy as np
     Y = Y.reshape(-1, Y.shape[-1])
     G = Y.T @ Y

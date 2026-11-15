@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
-"""The ortho-DSP suite's patches and the takes' modifiers played on its loop and measured.
+"""The ortho-DSP suite's patches and the takes' modifiers played on the robot's loop and measured.
 
-Measured by the converter that makes a modifier of a take (`tools/sim/identify.py`): what it
+Measured by the converter that makes a modifier of a take (`tools/sim/identify.py`): what the robot
 was told beside what it did, against its walk.
 
     python tools/sim/suite.py                       # the suite's patches, each on its scene, side by side
-    python tools/sim/suite.py TAKE.fbx [..]         # takes converted against its walk and played
+    python tools/sim/suite.py TAKE.fbx [..]         # takes converted against the robot's walk and played
     python tools/sim/suite.py --schedule            # the suite's 32 bars to its first refusal
-    rows, fell = suite.played(row, told, scene)     # its look's rows from SETTLE_S, its fall's s
+    rows, fell = suite.played(row, told, scene)     # the robot's look's rows from SETTLE_S, its fall's s
 
-A patch is voiced on its walk by `machine.texts.dsp`; told its twist and grip with its walk from 1 s,
-its row laid LAY_S in, after its walk's own (laid in their tick the two add, its rhythm's gain 2).
-Its walk itself is the reference, recorded the same way and identified once a run (REFERENCE): a
-take's modifier is its change off its walk, and its run's change off it is how much of the take
-it played (SHARE). A patch's world is its stages' (WORLDS); a schedule's morph waits for its
-lateral voice's crossing and the double support's lock (`machine.texts.patch`). Several items run as
-jobs side by side on the relay's batons (`tools.dev.focus`).
+A patch is voiced on the robot's walk by `machine.texts.dsp`; told its twist and grip with the robot's
+walk from 1 s, its row laid LAY_S in, after the robot's walk's own (laid in their tick the two add, the
+robot's rhythm's gain 2). The robot's walk itself is the reference, recorded the same way and identified once
+a run (REFERENCE): a take's modifier is its change off the robot's walk, and its run's change off it
+is how much of the take the robot played (SHARE). A patch's world is its stages' (WORLDS); a schedule's morph
+waits for the robot's lateral voice's crossing and the double support's lock (`machine.texts.patch`). Several
+items run as jobs side by side on the relay's batons (`tools.dev.focus`).
 """
 import argparse
 import json
@@ -28,7 +28,7 @@ sys.path.insert(0, HOST)
 
 from coaxial.model.blocks import numpy as np  # behind the OpenBLAS cap
 
-#: Its walk's settling, s, before rows are kept; a patch's row laid LAY_S in; a run's seconds; a
+#: The robot's walk's settling, s, before rows are kept; a patch's row laid LAY_S in; a run's seconds; a
 #: row kept every ROW_S.
 SETTLE_S, LAY_S, SECONDS, ROW_S = 4.0, 3.0, 20.0, 0.01
 #: The robot's walk identified, a run's: the reference every take and patch is measured against.
@@ -40,14 +40,14 @@ WORLDS = (('modulator-discrete-stairs', 'riser-z-mm', 'stairs', 'stairs_down'),
           ('modulator-continuous-slope', 'grade-angle-rad', 'slope', 'slope_down'),
           ('surface-low-mu-ice', None, 'ice', 'ice'), ('surface-granular-dissipative', None, 'snow', 'snow'),
           ('surface-stochastic-uneven', None, 'rug', 'rug'))
-#: What it is measured by: (section, measure) of `identify.identified`.
+#: What the robot is measured by: (section, measure) of `identify.identified`.
 MEASURES = (('clock', 'bpm'), ('coronal', 'track'), ('coronal', 'lfo'), ('sidechain', 'depth'),
             ('axial', 'thorax'), ('axial', 'arm'), ('axial', 'lag'), ('path', 'speed'), ('path', 'stride'),
             ('path', 'clearance'), ('path', 'height'), ('clock', 'vault-mm'))
 
 
 def scene_of(g):
-    """The scene a gait's stages lay it on, the last that has one: 'flat' where none."""
+    """The scene a gait's stages lay the robot on, the last that has one: 'flat' where none."""
     found = 'flat'
     for stage, keys in g.get('_trace', []):
         for name, key, up, down in WORLDS:
@@ -57,9 +57,9 @@ def scene_of(g):
 
 
 def played(row, told, scene, seconds=SECONDS, laid=None, texts=None):
-    """(its look's rows from SETTLE_S on, the s it fell at or None): its walk told `told` from
-    1 s - its twist and grip, a behaviour said -, `row` ({slot: value}) laid LAY_S in; `laid(s)`
-    each pass after, a schedule's hand; of its texts `texts` where given (`worker.session`)."""
+    """(the robot's look's rows from SETTLE_S on, the s it fell at or None): its walk told
+    `told` from 1 s - its twist and grip, a behaviour said -, `row` ({slot: value}) laid LAY_S in; `laid(s)`
+    each pass after, a schedule's hand; of the robot's texts `texts` where given (`worker.session`)."""
     from machine.law import gait
     from machine.texts import ortho, patch
     from machine.process import worker
@@ -91,7 +91,7 @@ def played(row, told, scene, seconds=SECONDS, laid=None, texts=None):
 
 
 def measured(rows):
-    """{section: {measure: value}} of its rows by the converter, the scalars alone."""
+    """{section: {measure: value}} of the robot's rows by the converter, the scalars alone."""
     from tools.sim import identify
     from tools.sim.fbx import joints
     got = identify.identified(identify.soa(*joints(rows)))
@@ -119,7 +119,7 @@ def _robot():
 
 
 def line(item):
-    """{item, told, it, ...} of one item: a suite patch by name or a take's FBX, voiced, played,
+    """{item, told, the robot, ...} of one item: a suite patch by name or a take's FBX, voiced, played,
     measured; refused by name where it cannot."""
     from machine.texts import dsp, voicing
     from machine.errors import MachineError
@@ -167,12 +167,14 @@ def _ref_full(ref):
 
 
 def share(take, robot, ref):
-    """How much of the take's change off its walk it played: 1 all, 0 none, nan where it has none."""
+    """How much of the take's change off the robot's walk it played: 1 all, 0 none, nan where it has
+    none."""
     return (robot - ref) / (take - ref) if take != ref else math.nan
 
 
 def table(lines, ref):
-    """The lines side by side: a column a measure, the take's (or what the patch asked) over its own."""
+    """The lines side by side: a column a measure, the take's (or what the patch asked) over the robot's
+    own."""
     head = '%-34s %6s %6s' % ('item', 'scene', 'fell') + ''.join('%15s' % m for _s, m in MEASURES)
     out = [head, '%-34s %6s %6s' % ('its walk', 'flat', '-') + ''.join(
         '%15.4g' % ref[s][m] for s, m in MEASURES)]
@@ -191,8 +193,8 @@ def table(lines, ref):
 
 
 def _step(seg, dry, fr, gym):
-    """A schedule's segment as its loop lays it, its walk `gym`'s: ('patch', from bar, to bar, row,
-    told) or ('morph', from bar, to bar, rows, span); a one-shot or a dwell, the gym's, refused."""
+    """A schedule's segment as the robot's loop lays it, the robot's walk `gym`'s: ('patch', from bar, to bar,
+    row, told) or ('morph', from bar, to bar, rows, span); a one-shot or a dwell, the gym's, refused."""
     from machine.texts import dsp, voicing
     from machine.errors import MachineError
     if len(seg) != 3:
@@ -206,8 +208,8 @@ def _step(seg, dry, fr, gym):
 def schedule(name='compile-omnidirectional-suite', also=lambda s: None, texts=None):
     """The suite's schedule `name` played to its first refusal - a one-shot or a dwell the gym's -
     on a flat floor, its worlds named, not laid: each patch's row at its bar, each morph's rows from
-    the lock past its crossing; `also(s)` each pass; of its texts `texts` where given. [(from bar,
-    to bar, what, laid at s or the refusal)] and its rows."""
+    the lock past its crossing; `also(s)` each pass; of the robot's texts `texts` where given. [(from bar,
+    to bar, what, laid at s or the refusal)] and the robot's rows."""
     from machine.texts import dsp, patch
     from machine.process import sprung, worker
     from machine.errors import MachineError
@@ -265,7 +267,7 @@ def schedule(name='compile-omnidirectional-suite', also=lambda s: None, texts=No
 
 def main(argv=None):
     """Items side by side on the relay, or one item's line as JSON (--one)."""
-    p = argparse.ArgumentParser(description='The ortho-DSP suite and the takes played on its loop.')
+    p = argparse.ArgumentParser(description='The ortho-DSP suite and the takes played on the robot\'s loop.')
     p.add_argument('items', nargs='*')
     p.add_argument('--one', action='store_true', help="one item's line as JSON, a relay job's")
     p.add_argument('--schedule', action='store_true')

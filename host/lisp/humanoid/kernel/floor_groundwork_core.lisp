@@ -59,7 +59,7 @@
 ;; -----------------------------------------------------------------------------
 (defstate groundwork-1jet-posture-atlas
   (:postures
-    ;; 1. TALL KNEELING (On its knees, trunk upright, hands free)
+    ;; 1. TALL KNEELING (On the robot's knees, trunk upright, hands free)
     (:posture :kneeling-tall-biped
       :coupled-manifold :anterior-tibial-bilateral
       :origin-q0
@@ -73,7 +73,7 @@
          :mode-sagittal-shift    (:coxofemoral +0.48 :l4-l5-lumbar +0.22 :c1-c2-atlas -0.35)
          :mode-pitch-attitude    (:coxofemoral +0.65 :l4-l5-lumbar +0.35 :c1-c2-atlas -0.80)))
 
-    ;; 2. KNEES WITH ARMS AND HANDS (On its knees, arms and hands on the floor)
+    ;; 2. KNEES WITH ARMS AND HANDS (On the robot's knees, arms and hands on the floor)
     (:posture :kneeling-quadruped-braced
       :coupled-manifold [:anterior-tibial-bilateral :ulnar-carpal-shove-bilateral]
       :origin-q0
@@ -88,7 +88,7 @@
          :mode-sagittal-shift    (:coxofemoral -0.55 :tibiofemoral -0.35 :glenohumeral +0.45)
          :mode-pitch-attitude    (:coxofemoral +0.40 :glenohumeral -0.45 :c1-c2-atlas -0.40)))
 
-    ;; 3. FLOOR BUTTOCKS ONLY (On its buttocks on the floor, legs straight or slightly bent ahead)
+    ;; 3. FLOOR BUTTOCKS ONLY (On the robot's buttocks on the floor, legs straight or slightly bent ahead)
     (:posture :floor-ischial-unbraced
       :coupled-manifold [:ischial-bilateral :posterior-femoral-bilateral]
       :origin-q0
@@ -102,7 +102,7 @@
          :mode-sagittal-shift    (:coxofemoral +0.45 :l4-l5-lumbar +0.32 :glenohumeral +0.45)
          :mode-pitch-attitude    (:coxofemoral +0.50 :l4-l5-lumbar +0.40 :c1-c2-atlas -0.75)))
 
-    ;; 4. FLOOR BUTTOCKS WITH ARMS AND HANDS (On its buttocks, hands and arms braced behind or beside)
+    ;; 4. FLOOR BUTTOCKS WITH ARMS AND HANDS (On the robot's buttocks, hands and arms braced behind or beside)
     (:posture :floor-ischial-carpal-tripod
       :coupled-manifold [:ischial-bilateral :ulnar-carpal-shove-bilateral]
       :origin-q0
@@ -116,7 +116,7 @@
          :mode-sagittal-shift    (:coxofemoral +0.65 :glenohumeral +0.55 :cubital -0.25)
          :mode-pitch-attitude    (:l4-l5-lumbar +0.35 :c7-t12-thoracic +0.30 :c1-c2-atlas -0.50)))
 
-    ;; 5. FLAT SUPINE ON BACK (Lying flat on its back)
+    ;; 5. FLAT SUPINE ON BACK (Lying flat on the robot's back)
     (:posture :floor-supine-flat
       :coupled-manifold :dorsal-supine-continuum
       :origin-q0
@@ -128,7 +128,7 @@
          :mode-sagittal-shift    (:coxofemoral +0.35 :l4-l5-lumbar +0.42 :c7-t12-thoracic +0.48)
          :mode-pitch-attitude    (:l4-l5-lumbar +0.25 :c7-t12-thoracic +0.55 :c1-c2-atlas +0.48)))
 
-    ;; 6. FLAT PRONE ON STOMACH (Lying flat on its stomach + Cobra/Sphinx press-up basis)
+    ;; 6. FLAT PRONE ON STOMACH (Lying flat on the robot's stomach + Cobra/Sphinx press-up basis)
     (:posture :floor-prone-flat
       :coupled-manifold [:ventral-prone-continuum :olecranon-ulnar-sphinx]
       :origin-q0

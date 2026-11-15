@@ -11,7 +11,7 @@ A limb is an index into LIMBS, its mirror there: whichever stands may land again
 is across to its limb's own side, up, along its toes; a hip's place in it is its ankle's roll
 and pitch and its knee, whatever the pelvis's turn - the foot flat or pitched, the same rows
 (tools/cores/reach.py). The hip's yaw's stops are told from the pelvis's heading, the pelvis
-level. Not in it: its legs above their soles clear of each other; a hip's roll and pitch, no
+level. Not in it: the robot's legs above their soles clear of each other; a hip's roll and pitch, no
 stop theirs; a foot landing pitched - `land` lays it flat.
 """
 import math
@@ -50,7 +50,7 @@ def over(limb, hip, ankle, turn):
 def margins(r, short=0.0):
     """(m inside the leg's length less `short`, m inside its stops: the ankle's roll's across,
     its pitch's and the knee's along) of a hip at `r` (`over`); negative, out by that. Under
-    the rows' first, U0 m up - sat on its heels -, out."""
+    the rows' first, U0 m up - sat on the robot's heels -, out."""
     x, y, z = r
     u = math.hypot(x, y)
     back, fore = _run(u)

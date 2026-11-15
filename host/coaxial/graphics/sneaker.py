@@ -1,4 +1,4 @@
-"""Its sneaker, size 37-38, drawn: the shoe and the toe cap as lofts along z, their gum soles.
+"""The robot's sneaker, size 37-38, drawn: the shoe and the toe cap as lofts along z, their gum soles.
 
     sneaker.feet(side)     # {side + '_foot': mesh, side + '_toes': mesh}
     sneaker.soles(side)    # [(name, parent, offset, mesh)]: the gum under each
@@ -8,7 +8,7 @@ the sole, flat ANKLE_H under the ankle, as the walk plants it - the collar round
 tongue over the instep, the laces down to the ball; the toe cap's from the ball, its sole sprung
 SPRING_M up at its tip `figure.TOE_M` ahead; its sole SOLE_M deep at the heel and at the ball
 (the drop), gum. A 38's: 237 long, 94 wide at the ball, 76 tall at the
-heel, 15 of toe spring, the sole 28 and 18. Its mass `build.HOLDS`, its grip and give
+heel, 15 of toe spring, the sole 28 and 18. The sneaker's mass `build.HOLDS`, its grip and give
 `machine.body.mjcf`, its sole's box `figure.CONTACTS`, its forefoot's bend `drives.TOE_K`. Built, the
 sole is printed in TPU with air pockets and the shoe goes over it, so nothing breaks.
 """

@@ -115,7 +115,7 @@ PROMPT_INK = (255, 196, 80)
 
 
 def badge(width, height, state):
-    """The viewport's corners: the tour's step and LLM command feed at its top, its balance
+    """The viewport's corners: the tour's step and LLM command feed at its top, the robot's balance
     strip under it, the interactive LLM prompt bar and what Space and F offer at its foot
     (`gym.prompt`)."""
     if width < 30 or height < 6:
@@ -205,7 +205,7 @@ chat_box = gym.chat_box
 
 
 def size_of(console, args, up=0.0, below=0):
-    """(width, height) of its drawing: the room beside the column, the rows the band, the bar, `up`
+    """(width, height) of the robot's drawing: the room beside the column, the rows the band, the bar, `up`
     of the help and the `below` its chat's drawer takes leave."""
     size = console.size if console.is_terminal else None
     width = args.width or max(24, room(size.width if size else 110))
@@ -249,7 +249,7 @@ def _joint_row(now, joint, label, shown):
 
 
 def _bus_row(now, name, joints):
-    """A bus's boards, each by its drive's load and heat: its wear's alarms are SERVICE's - red
+    """A bus's boards, each by its drive's load and heat: the robot's wear's alarms are SERVICE's - red
     here, a seat's and a fall's misread drift was taken for its buses' errors."""
     from machine.body import drives
     get = lambda k, j, d=0.0: float((now.get(k) or {}).get(j, d)) if now else d
@@ -275,8 +275,8 @@ def _bus_row(now, name, joints):
 
 
 def _tier_row(state, now, emu):
-    """The BUSES box's tier row: where its boards run - its own process's SIL, or a limb on Renode
-    -, its process paced to the wall (rt) or flat out (max), and how many times real time it
+    """The BUSES box's tier row: where the robot's boards run - its own process's SIL, or a limb on
+    Renode -, its process paced to the wall (rt) or flat out (max), and how many times real time it
     could run (`headroom`)."""
     where = 'renode %s' % emu.limb if emu else 'in-process sil'
     return '%s  %s %.1fx' % (where, 'max' if state.get('max') else 'rt', float((now or {}).get('headroom', 1.0)))
@@ -367,7 +367,7 @@ def scripted(state, keys):
 
 
 def _step_frame(state, dt):
-    """A frame's commands: the tour's due, what its keys hold (`humanoid_keys.frame`); the chase
+    """A frame's commands: the tour's due, what the robot's keys hold (`humanoid_keys.frame`); the chase
     camera eased behind it."""
     if gym.touring(state):
         state['tour'].step(state, dt)
@@ -380,8 +380,8 @@ def _step_frame(state, dt):
 
 
 def _draw_viewport(state, now, width, height, terminal):
-    """This frame's drawing of it - asked the frame before - and its own at `now` asked for the next
-    (`state['ahead']`, a frame ahead in its own process)."""
+    """This frame's drawing of the robot - asked the frame before - and its own at `now` asked for the
+    next (`state['ahead']`, a frame ahead in its own process)."""
     if now is None:
         return '\n'.join(' ' * width for _ in range(height))
     x, y, z = now['where']
@@ -416,7 +416,7 @@ def main(argv=None):
     parser.add_argument('--tour', action='store_true', help='start the autonomous room tour on launch')
     parser.add_argument('--prompt', default='', help='send an initial natural-language LLM prompt to the gynoid')
     parser.add_argument('--telemetry', type=int, default=0,
-                        help='serve its latent, impedance and wrench live on 127.0.0.1:PORT (machine.process.introspect)')
+                        help='serve the robot\'s latent, impedance and wrench live on 127.0.0.1:PORT (machine.process.introspect)')
     args, board_view = parser.parse_args(argv), stage()
     if args.telemetry:
         from machine.process import worker as _worker
@@ -480,7 +480,7 @@ def main(argv=None):
             state['ahead'].close()
         sys.stdout.write('\n')
         emu = state.get('emu')
-        closing([('body', 'stopped, its process ended'),
+        closing([('body', 'stopped, the robot\'s process ended'),
                  ('boards', emu.closed_note() if emu else 'none - every drive was simulated')], terminal, 0)
     return answer(leaving)
 

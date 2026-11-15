@@ -1,9 +1,9 @@
-"""What its suites on floors and beds share: its skin as points and its parts, its body laid."""
+"""What the robot's suites on floors and beds share: its skin as points and its parts, its body laid."""
 import math
 
 
-#: The texts' joints as its movements (`term_rows.TERMS`, or `ABSENT`): its trunk one joint, lumbar and thoracic
-#: summed.
+#: The texts' joints as the robot's movements (`term_rows.TERMS`, or `ABSENT`): its trunk one joint, lumbar and
+#: thoracic summed.
 MOVES = {'talocrural': ('ankle', 'dorsiflexion'), 'tibiofemoral': ('knee', 'flexion'),
          'coxofemoral': ('hip', 'flexion'), 'l4-l5-lumbar': ('trunk', 'flexion'),
          'c7-t12-thoracic': ('trunk', 'flexion'), 'glenohumeral': ('shoulder', 'flexion'),
@@ -16,8 +16,8 @@ MOVES = {'talocrural': ('ankle', 'dorsiflexion'), 'tibiofemoral': ('knee', 'flex
 
 #: A part within this of the floor touches it, m.
 TOUCH = 1e-3
-#: The texts' landmarks by the segment of its own that carries each; its wrist's patch its fist (its hands bear on their
-#: fists, `borne`).
+#: The texts' landmarks by the segment of the robot's own that carries each; its wrist's patch its fist (its hands bear
+#: on their fists, `borne`).
 LANDMARKS = {'calcaneus': 'foot', 'metatarsal-head': 'toes', 'femoral-diaphysis-dorsal': 'thigh',
              'femoral-diaphysis-ventral': 'thigh', 'ischial-tuberosity': 'pelvis', 'greater-trochanter': 'pelvis',
              'sacral': 'pelvis', 'iliac-anterior-spine': 'pelvis', 'l4-l5-lumbar': 'torso', 'c7-t12-thoracic': 'torso',
@@ -26,8 +26,8 @@ LANDMARKS = {'calcaneus': 'foot', 'metatarsal-head': 'toes', 'femoral-diaphysis-
 
 
 def laid(origin):
-    """{joint: deg} of its figure posed as a text's origin ({name: rad}): its hips, knees, ankles, shoulders and
-    elbows as told, both sides, else straight; a movement it lacks left out."""
+    """{joint: deg} of the robot's figure posed as a text's origin ({name: rad}): its hips, knees, ankles,
+    shoulders and elbows as told, both sides, else straight; a movement it lacks left out."""
     from machine.body import figure
     from machine.body.term_rows import ABSENT, TERMS
     deg = figure.stand()
@@ -49,9 +49,9 @@ def part(segment):
 
 
 def skin(deg, turn=None):
-    """(points (n, 3), radii (n,), their segments, its centre) of its figure posed `deg`, the pelvis at the origin
-    turned `turn`: each capsule of `figure.BODY` its two ends, each sole's and toes' box its corners at 0; its
-    fingers left out, its fists what its hands bear on."""
+    """(points (n, 3), radii (n,), their segments, the robot's centre) of its figure posed `deg`, the
+    pelvis at the origin turned `turn`: each capsule of `figure.BODY` its two ends, each sole's and toes' box its
+    corners at 0; the robot's fingers left out, its fists what its hands bear on."""
     import itertools
     import numpy as np
     from machine.body import figure
@@ -71,8 +71,9 @@ def skin(deg, turn=None):
 
 
 def dense(deg, step_m, lattice):
-    """(points, radii, parts) of its skin posed `deg`, its soles on the floor: a capsule of `figure.BODY` a sphere every
-    `step_m` along it, a sole's and toes' box a lattice at 0; its fingers left out."""
+    """(points, radii, parts) of the robot's skin posed `deg`, its soles on the floor: a capsule of
+    `figure.BODY` a sphere every `step_m` along it, a sole's and toes' box a lattice at 0; the robot's fingers left
+    out."""
     import itertools
     import numpy as np
     from machine.body import figure

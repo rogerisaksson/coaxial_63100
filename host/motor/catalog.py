@@ -23,10 +23,10 @@ RATINGS = {
 #: constant is an estimate, for the notebook to replace first. What comes
 #: from where:
 #:
-#:   poles   the sheet: 24N28P is 28 poles, 14 pairs. It is not derivable
-#:           from any torque measurement - see KT_NM_PER_AMP - and it sets
-#:           the whole electrical frequency, so it had to come from the
-#:           winding.
+#:   poles   the sheet: 24N28P is 28 poles, 14 pairs. The count is not
+#:           derivable from any torque measurement - see KT_NM_PER_AMP -
+#:           and it sets the whole electrical frequency, so it had to come
+#:           from the winding.
 #:   b       the sheet, arithmetic: 3.0 A at 44.4 V spins it at 190*44.4 =
 #:           8436 rpm, so 133 W of iron and friction against 883 rad/s is
 #:           0.151 N.m of drag, b = 1.71e-4. Copper at 3 A is 0.4 W, lost
@@ -62,9 +62,9 @@ PLATINUM_5230SL = Parameters(
 #: The machine behind the stand-in's drive device, not the
 #: 5230SL: its constants were picked so every commissioning step recovers a
 #: number it can be checked against, which is a different job from
-#: resembling the motor on the bench. It lives here rather than as literals
-#: on `SimulatedDrive` so that a third copy of a machine cannot drift away
-#: from the two above.
+#: resembling the motor on the bench. The machine lives here rather than as
+#: literals on `SimulatedDrive` so that a third copy of a machine cannot
+#: drift away from the two above.
 BENCH_MOTOR = Parameters(
     name='stand-in bench motor',
     r=0.05, ld=20e-6, lq=30e-6, lam=0.005, poles=7, j=2e-5, b=1e-5,
@@ -82,7 +82,7 @@ BENCH_MOTOR = Parameters(
 #: lambda from a KV goes as 1/P and the P cancels - so this document
 #: cannot tell you the pole count, and neither can any torque measurement.
 #: The observer needs P on its own, because electrical speed is P times
-#: mechanical. It came from the winding and not from any measurement of
+#: mechanical. P came from the winding and not from any measurement of
 #: torque: 24N28P is 28 poles, 14 pairs. Kt is unchanged by that - 1.5 *
 #: 14 * 0.00207 is the same 0.0435 as 1.5 * 7 * 0.00415 - which is the
 #: cancellation stated above, seen from the other side.

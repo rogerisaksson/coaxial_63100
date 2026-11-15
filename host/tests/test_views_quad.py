@@ -111,14 +111,14 @@ def test_the_page_flies_four_boards(report):
         report.skip('the flight', "the page drew %.1f frames a second, its flight's clock "
                     "%.0f %% behind the wall's" % (rate, 100.0 * behind))
         return
-    # Its spectator's frame of the sky holds the quad alone, a quarter of its height: 66 braille
+    # The page's spectator's frame of the sky holds the quad alone, a quarter of its height: 66 braille
     # cells in its flips, rolls and corkscrew, where the ground made 1 700-2 200.
     report.check('the quad drawn in the viewport, every frame',
                  min(f['cells'] for f in frames) >= 50, '%d braille cells at the least'
                  % min(f['cells'] for f in frames))
     early = [r for r in rows if r['name'] == first][:1]
     hard = [r for r in rows if r['name'] in ('full tilt', 'burn')]
-    report.check('flown from its first hover, no observer STABLE yet; no board tripped and '
+    report.check('the quad flown from its first hover, no observer STABLE yet; no board tripped and '
                  'nothing struck, full tilt and the burn into the boards\' throttle at most',
                  bool(early) and 'STABLE' not in early[0]['states']
                  and not any(r['tripped'] or r['name'] == 'crashed' for r in rows)
@@ -145,8 +145,8 @@ def test_the_page_flies_four_boards(report):
                  low >= 0.05 and bool(held) and abs(held[-1] - quad.FLOOR_M) <= 0.05,
                  'lowest %.3f m, held at last %.3f m' % (low, held[-1] if held else math.nan))
     sag = min((r['volts'] for r in tilt), default=math.nan)
-    # Its start: the first two seconds' middle, the rotors' spool to their idle in it. Its
-    # kilowatt a step's: 0.15 s of full tilt's two, a frame's read 814 W on CI.
+    # The bus's start: the first two seconds' middle, the rotors' spool to their idle in it. Full tilt's
+    # kilowatt a step's: 0.15 s of its two, a frame's read 814 W on CI.
     early = sorted(r['volts'] for r in rows if r['t'] - rows[0]['t'] <= 2.0)
     full = early[len(early) // 2]
     report.check('the bus droops a volt and more under full tilt\'s kilowatt, 63 V at its start',
@@ -159,7 +159,7 @@ def test_the_page_flies_four_boards(report):
     names = [name for name, _rows in spans(rows)]
     swap = names.index('swap') if 'swap' in names else len(names)
     spent = next((r for r in rows if r['left'] <= flightpack.RESERVE), None)
-    report.check('its pack spent in the air, the way down, a charged one on the floor, and its '
+    report.check('the quad\'s pack spent in the air, the way down, a charged one on the floor, and its '
                  'routine again',
                  spent is not None and spent['y'] > quad.FLOOR_M
                  and names[swap - 2:swap] == ['descend', 'land'] and rows[-1]['name'] == first
@@ -175,7 +175,7 @@ def test_the_page_flies_four_boards(report):
 def test_the_page_flies_its_course(report):
     """The page's course on its four stand-in boards, from the floor and back: flown from
     behind, its gates stood in the view, the one flown to next lit; every gate passed inside
-    its opening on each lap it flew; the boards to their ceiling at the most, none tripped;
+    its opening on each lap the quad flew; the boards to their ceiling at the most, none tripped;
     landed where it rose."""
     from machine.aircraft import course, grounds
     rows, frames, rate = paged(course.CARD, lambda flew, now: now in ('idle', 'cool', 'swap')
@@ -189,15 +189,15 @@ def test_the_page_flies_its_course(report):
         return
     floor = [f['cells'] for f in frames if f['name'] in ('idle', 'cool')][:5]
     aloft = [f['cells'] for f in frames if f['name'] == 'lap']
-    report.check('its world drawn about it on its laps: the gates, the trees, the houses',
+    report.check('the quad\'s world drawn about it on its laps: the gates, the trees, the houses',
                  bool(aloft) and bool(floor) and min(aloft) >= 300 and
                  sorted(aloft)[len(aloft) // 2] >= 600,
-                 '%d braille cells at the least and %d at the middle on its laps' % (
+                 '%d braille cells at the least and %d at the middle on the quad\'s laps' % (
                      min(aloft or [0]), sorted(aloft or [0])[len(aloft) // 2]))
     flew = laps[-1]['of'] if laps else 0
     gates = passes(rows)
     counted = [len(gates[g]) for g in range(1, len(grounds.GATES))]
-    report.check('every gate passed on each lap it flew inside its opening, a propeller\'s tip '
+    report.check('every gate passed on each lap the quad flew inside its opening, a propeller\'s tip '
                  '%.2f m clear of its frame, nothing struck' % CLEAR_M,
                  flew >= 1 and counted == [flew] * len(counted) and worst(gates) <= 0.0
                  and not any(r['name'] == 'crashed' for r in rows),
@@ -205,10 +205,10 @@ def test_the_page_flies_its_course(report):
                  'the wall\'s' % (flew, course.LAPS, counted, worst(gates), 100.0 * behind))
     ahead = {f['gate'] for f in frames if f['name'] == 'lap'}
     after = {f['gate'] for f in frames if f['name'] in ('descend', 'land')}
-    report.check('the gate lit: each in its turn on its laps, the first again on its way down',
+    report.check('the gate lit: each in its turn on the quad\'s laps, the first again on its way down',
                  ahead == set(range(len(grounds.GATES))) and after == {1},
-                 '%d of them on its laps, %s after' % (len(ahead), sorted(after)))
-    report.check('the boards to their ceiling at the most through its laps, raw; '
+                 '%d of them on the quad\'s laps, %s after' % (len(ahead), sorted(after)))
+    report.check('the boards to their ceiling at the most through the quad\'s laps, raw; '
                  'none tripped',
                  bool(laps) and max(r['soa'] for r in laps) <= 1.0
                  and not any(r['tripped'] for r in rows),
@@ -216,7 +216,7 @@ def test_the_page_flies_its_course(report):
                      max((r['soa'] for r in laps), default=math.nan),
                      100.0 * min((r['share'] for r in laps), default=math.nan)))
     down = [r for r in rows if r['name'] == 'land']
-    report.check('landed where it rose',
+    report.check('landed where the quad rose',
                  bool(down) and abs(down[-1]['y']) <= 0.01
                  and math.hypot(down[-1]['x'], down[-1]['z']) <= 0.3,
                  '%.3f m up, %.2f m off' % (down[-1]['y'], math.hypot(down[-1]['x'], down[-1]['z']))
@@ -286,7 +286,7 @@ def test_r_records_its_flight(report):
     report.check('while it records the drawing carries REC and its rows', corner.strip() == '● REC ⠙ 1', corner)
     from machine.process import commit
     sha = commit.head()
-    report.check('its file named with the commit it was made at',
+    report.check('the recording\'s file named with the commit it was made at',
                  sha is not None and held['recorded'].endswith('_%s.csv' % sha[:commit.SHORT]), held['recorded'])
     from terminal.ui.console import WHEEL_STEP
     zooms = []

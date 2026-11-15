@@ -190,7 +190,7 @@ class ChatCommands:
         fresh.options = dict(old.options)
         fresh.options.update(extra)
         try:
-            # Its own error text names the tag and how to pull it.
+            # The client's own error text names the tag and how to pull it.
             fresh.require_model()
         except OllamaError as exc:
             return str(exc)

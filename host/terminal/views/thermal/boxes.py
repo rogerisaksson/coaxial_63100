@@ -94,8 +94,8 @@ def ident_rows(ident, hint=None):
             rows.append(('cap' if name == 'capacity' else name,
                          '%.2f ±%.2f' % (scales[name], sigma[name])))
     # The room, identified beside the scales (MINOR 15): the board has no
-    # ambient sensor, so its rise is measured against this. Its hint, the
-    # bench's emoji pair, sits here rather than over the board.
+    # ambient sensor, so its rise is measured against this. The room's hint,
+    # the bench's emoji pair, sits here rather than over the board.
     if ident.get('ambient') is not None:
         kind = hint if hint is not None else room_hint(ident)
         rows.append(('room', Text('%.1f ±%.1f C   %s' % (

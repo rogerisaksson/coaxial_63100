@@ -1,4 +1,4 @@
-;; Its orthokinematic manifest: written by host/tools/cores/manifest.py, not by hand.
+;; The robot's orthokinematic manifest: written by host/tools/cores/manifest.py, not by hand.
 ;; Units: m, kg, s, N; a mode's unit m or rad, its mass kg, its stiffness N/m and damping
 ;; N s/m of that mass; a drive's peak N m at its joint, speed deg/s, its travel deg where it stops.
 (defrobot gynoid_mesomorph_medium_s95

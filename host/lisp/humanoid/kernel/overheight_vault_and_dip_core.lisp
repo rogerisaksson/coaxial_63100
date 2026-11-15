@@ -95,7 +95,7 @@
 (defprimitive drive-capstan-bevel-arm-vault
   [state &key (bevel-unweight-fraction 0.82)     ; Unload 82% of thigh normal force at the sharp edge!
               (bevel-half-width-mm 65.0)
-              (vault-clear-lift-mm 30.5)                 ; its lockout from the dip's origin
+              (vault-clear-lift-mm 30.5)                 ; the robot's lockout from the dip's origin
               (rowing-velocity-mps -0.18)]
   (-> state
       (execute-bevel-arch-vault-homotopy
@@ -110,7 +110,7 @@
         ;; Compress axial mode (-0.85 = elbow lockout lift) + negative sagittal shift (row back)
         :coupled-1jet-vault-trajectory
           (:atlas 'high-vault-1jet-posture-atlas
-           :lockout-axial-command -0.72                ; its elbow's -5 deg stop
+           :lockout-axial-command -0.72                ; the robot's elbow's -5 deg stop
            :posterior-row-sagittal-command -0.75
            :schlesinger-isomonodromic-transport true))))
 
@@ -147,7 +147,7 @@
 ;; -----------------------------------------------------------------------------
 (defprimitive drive-anterior-overhang-dip-descent
   [state &key (overhang-clearance-x-mm 55.0)     ; Clear buttocks 55mm in front of seat edge before lowering
-              (max-dip-lowering-z-mm 163.0)      ; Up to 235mm vertical arm-lowering travel! Its own 163
+              (max-dip-lowering-z-mm 163.0)      ; Up to 235mm vertical arm-lowering travel! The robot's own 163
               (descent-velocity-mps -0.16)
               (skim-dorsal-thigh-on-bevel true)]
   (-> state

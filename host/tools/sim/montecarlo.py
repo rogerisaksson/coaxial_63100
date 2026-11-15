@@ -9,7 +9,7 @@ same law the notebook runs) closes over the observer's own speed.
 
 A run: injection finds the rotor from a random error, a raised cosine to
 `TOP` of the link's no-load speed, a hold, a descent to rest under
-injection again. Its cost is one number, `sigma_theta + speed_err +
+injection again. A run's cost is one number, `sigma_theta + speed_err +
 10 trip`: the truth angle error in radians rms after the lock, the
 speed error over the top speed rms, and a stage drop. The plant is never
 what the controller was told, so the cost is a robustness figure. A sweep's

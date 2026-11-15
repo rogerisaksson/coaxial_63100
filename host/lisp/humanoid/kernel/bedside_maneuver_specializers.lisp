@@ -75,14 +75,14 @@
 (defmodifier xform-sit-on-chair-or-stool
   [state &key (slide-speed-mps 0.15) (use-carpal-hand-boost true)]
   (-> state
-      (modulate-kinematic-reachability :max-leg-reach-mm 845.0)          ; its leg, hip to sole
+      (modulate-kinematic-reachability :max-leg-reach-mm 845.0)          ; the robot's leg, hip to sole
       (enforce-backless-stool-rim-zcbf :rim-safety-margin-mm 38.0 :auto-detect-missing-backrest true)
       (xform-somatic-sit-ingress)
       (specialize-for-overheight-seat :direction :ingress :slide-speed-mps slide-speed-mps)
       (when-modifier use-carpal-hand-boost
         (specialize-with-carpal-seat-boost :max-arm-push-share 0.22))
       (specialize-posture-dangling-crural-hang :passive-ankle-droop-rad -0.24
-                                               :pendulum-natural-freq-hz 0.93)))  ; its shank's swing
+                                               :pendulum-natural-freq-hz 0.93)))  ; the robot's shank's swing
 
 ;; 2. Stand Up from Normal Chair, Overheight Chair, or Backless Stool
 (defmodifier xform-stand-from-chair-or-stool

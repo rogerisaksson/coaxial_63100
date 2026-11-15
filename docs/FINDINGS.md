@@ -16,12 +16,12 @@ table under [Subjects](#subjects).
   first (the link within its noise 25 ms after the rail): CALFACT 989-1068,
   one count boot to boot, no wide code. Phase zeros moved 448-539 codes, 3 A:
   every board re-zeroed.
-- Self test's image CRC over 0x08000000-`_etext`: bus fault at 0x08200000
-  since the image runs from D2 SRAM; taken from the vector table now. Its
-  PCSEL count included the injected group's rank 2; the group arms on a
-  cleared PCSEL and counts its three.
+- Self test's image CRC over 0x08000000-`_etext`: bus fault at 0x08200000 since
+  the image runs from D2 SRAM; taken from the vector table now. The self test's
+  PCSEL count included the injected group's rank 2; the group arms on a cleared
+  PCSEL and counts its three.
 - HAL only ORs PCSEL: ADC3 PCSEL read 0xC03, four channels live. Every read
-  path clears it (invariant 6).
+  path clears it.
 - Phase noise floor, AFE on: 0.35-0.41 A rms per phase.
 - A suite borrowing the AFE rail flips another suite's AFE row, ~1 run in 3.
 - MCU die through `__LL_ADC_CALC_TEMPERATURE`: whole degrees, under an
@@ -84,11 +84,11 @@ table under [Subjects](#subjects).
 | 53.8 | 14.6 | 8.2 |
 | 60.8 | 17.7 | 9.2 |
 
-- In the rig's free air at 23.9 V (`dry_heat.py --cool`): 7.35 K at 50 kHz
-  and 3.84 at 25, 60 s each; 301 s at 50 kHz 36.65 to 50.97 C, the
-  model's still air 12.7 K from idle for its 14.3. Its cooldown 7.04 K over
-  55 s and 9.20 over 250 (rms 0.06 K), half its way back in 71 s where the
-  model's still air has 140: 5.1 K/W on the board's 49 J/K against 8.33.
+- In the rig's free air at 23.9 V (`dry_heat.py --cool`): 7.35 K at 50 kHz and
+  3.84 at 25, 60 s each; 301 s at 50 kHz 36.65 to 50.97 C, the model's still air
+  12.7 K from idle for its 14.3. The board's cooldown 7.04 K over 55 s and 9.20
+  over 250 (rms 0.06 K), half its way back in 71 s where the model's still air
+  has 140: 5.1 K/W on the board's 49 J/K against 8.33.
 
 - The unmodified board arms with the break in circuit: AFE_ON low, PE15 high
   at once, the latch's low cleared (op 5), MOE. 300 s and twenty 60 s runs,
@@ -97,8 +97,8 @@ table under [Subjects](#subjects).
   keepalive latch holds a few hundred microseconds.
 - STO chain modelled from `sto.asc` (`world_sto.c`):
   + Nominal pilot: Clevel settles at 2.86 V, under the interlock's 3.0 V; D10
-    clamps the pump at RESET's 0.8 Cinj. It needs 2.0 V now, Q10A releasing
-    at 1.55 V. Cinj's 3.70 V exceeds VDDA on PC1 and reads full scale.
+    clamps the pump at RESET's 0.8 Cinj. The interlock needs 2.0 V now, Q10A
+    releasing at 1.55 V. Cinj's 3.70 V exceeds VDDA on PC1 and reads full scale.
   + Clean bus: releases from ~0.9 V at 5 kHz (`sto.asc`'s note: 0.7); TP67
     tops at 0.52 V against U16B's 0.543: no high cutoff (the note: off from
     2.2 V). With its 1.8 V CMNOISE TP67 reaches 0.547 V at 2.2 V for ~1 us,
@@ -120,7 +120,7 @@ table under [Subjects](#subjects).
   -O0 the ISR 10 040 cycles = 21 us > the 20 us period. I-cache on, -O2: 6
   756; with the polynomial sin/cos: 2 922 on target.
 - D-cache off: the record is read back through a pointer; .data/.bss in DTCM.
-  Sample path from ITCM (~30 K Debug, 27 K Release).
+  Sample path from ITCM (33 K Debug, 32 K Release).
 - An edited linker script did not relink until `LINK_DEPENDS` was set.
 - ADC3's interrupt (`tools/target/hot.py`, Release): 93
   functions, 4 504 instructions, 436 conditional branches, 69 divides.
@@ -243,7 +243,8 @@ Six firmware defects, no hardware fault:
   broadcast's settle counts from the frame's last bit (`Transport.on_wire`);
   Renode's adapter spaced them itself.
 - After `go` the application wakes as a console on the ST-Link's port:
-  `from_bootloader` polled binary for 5 s. It hands over first.
+  `from_bootloader` polled binary for 5 s; now it hands the console over
+  first.
 - Unassigned, the bootloader handed over unit 247, the blank nodes': the
   application answered there and `open()` took it for a bootloader; a warm
   reset renamed an assigned node. `boot_hand_over`: this run's assign, a warm
@@ -264,48 +265,52 @@ Six firmware defects, no hardware fault:
 | --- | --- |
 | A woman's walk as the metric: the band, walks off it, the take | [findings/normal.md](findings/normal.md) |
 | Feet: passive toes, the sole's give, the push-off | [findings/feet.md](findings/feet.md) |
-| Its eyes: the stereo, the map it keeps, ways round its things | [findings/sight.md](findings/sight.md) |
+| The robot's eyes: the stereo, the map it keeps, ways round its things | [findings/sight.md](findings/sight.md) |
 | Kinematics: the figure's recipes, dual quaternions, the seams | [findings/kinematics.md](findings/kinematics.md) |
 | The whole-body stack: its solver, standing, shoves, the loop in C | [findings/wbc.md](findings/wbc.md) |
 | Leap on the stack: which soles stand from one pass, a hop stood | [findings/leap.md](findings/leap.md) |
-| Orthokinematics, the one way it moves: text, a latent loop, the stride, the walk | [findings/orthokinematics.md](findings/orthokinematics.md) |
+| Orthokinematics, the one way the robot moves: text, a latent loop, the stride, the walk | [findings/orthokinematics.md](findings/orthokinematics.md) |
 | The whole body's step without an active set: 21 unknowns, four solves | [findings/wrench.md](findings/wrench.md) |
-| What its law senses: edge, estimate, insoles | [findings/sensing.md](findings/sensing.md) |
-| Its body identified | [findings/identification.md](findings/identification.md) |
-| Its scenarios as a player commands them | [findings/scenarios.md](findings/scenarios.md) |
-| Its errands: its way to a chair, a bed, the door, its dock, its stunt | [findings/errands.md](findings/errands.md) |
-| Its errands from every spot of the lodge's floor, four headings | [findings/spots.md](findings/spots.md) |
-| Its lie on the floor: the legs' refusal, the fall window let go, the rise | [findings/lie.md](findings/lie.md) |
-| Its loop's latent, impedance and wrench served live to a debugger or the local model | [findings/introspect.md](findings/introspect.md) |
-| The stairs told it: footholds, its height over the incline, the climb | [findings/stairs.md](findings/stairs.md) |
-| Its place: the glazed mountain lodge, its scene, its drawing | [findings/lodge.md](findings/lodge.md) |
-| The mocap takes as its scenarios, each judged against its take | [findings/stunts.md](findings/stunts.md) |
+| What the robot's law senses: edge, estimate, insoles | [findings/sensing.md](findings/sensing.md) |
+| The robot's body identified | [findings/identification.md](findings/identification.md) |
+| The robot's scenarios as a player commands them | [findings/scenarios.md](findings/scenarios.md) |
+| The robot's errands: its way to a chair, a bed, the door, its dock, its stunt | [findings/errands.md](findings/errands.md) |
+| The robot's errands from every spot of the lodge's floor, four headings | [findings/spots.md](findings/spots.md) |
+| The robot's lie on the floor: the legs' refusal, the fall window let go, the rise | [findings/lie.md](findings/lie.md) |
+| The robot's lie on the bed: the closed chains' step, the release, the plan through the robot's dynamics, the take's pull | [findings/lie_bed.md](findings/lie_bed.md) |
+| The robot's loop's latent, impedance and wrench served live to a debugger or the local model | [findings/introspect.md](findings/introspect.md) |
+| The stairs told the robot: footholds, its height over the incline, the climb | [findings/stairs.md](findings/stairs.md) |
+| The robot's place: the glazed mountain lodge, its scene, its drawing | [findings/lodge.md](findings/lodge.md) |
+| The mocap takes as the robot's scenarios, each judged against its take | [findings/stunts.md](findings/stunts.md) |
+| A take made a move of the robot's own: its G-code, the puppet, a stage of the robot's text | [findings/puppet.md](findings/puppet.md) |
 | The takes as a sequencer's score: beats, voices, a gait's pattern | [findings/sequencer.md](findings/sequencer.md) |
-| The autotuner on its texts, offline and at runtime: reach, step, its loop linked | [findings/autotuner.md](findings/autotuner.md) |
-| Support, whatever bears it: a seat, a bed, a knee on the floor | [findings/support.md](findings/support.md) |
+| The autotuner on the robot's texts, offline and at runtime: reach, step, its loop linked | [findings/autotuner.md](findings/autotuner.md) |
+| Support, whatever bears the robot: a seat, a bed, a knee on the floor | [findings/support.md](findings/support.md) |
 | The board's thermal: the network, the camera, the observer, the envelope | [findings/thermal.md](findings/thermal.md) |
-| Its floor's grip: felt as a sole slides, told, its law bounded by it | [findings/grip.md](findings/grip.md) |
-| Its situation read from its sensors | [findings/situation.md](findings/situation.md) |
-| Its jerk through transitions against its steady walk, and its sources | [findings/jerk.md](findings/jerk.md) |
-| The anti-spasm insert, its master bus: each stage on it | [findings/insert.md](findings/insert.md) |
+| The robot's floor's grip: felt as a sole slides, told, its law bounded by it | [findings/grip.md](findings/grip.md) |
+| The robot's situation read from its sensors | [findings/situation.md](findings/situation.md) |
+| The robot's jerk through transitions against its steady walk, and its sources | [findings/jerk.md](findings/jerk.md) |
+| The anti-spasm insert, the robot's master bus: each stage on it | [findings/insert.md](findings/insert.md) |
 | Build, buses, falls, drawing, clothes | [findings/body.md](findings/body.md) |
-| Its pace against real time: MuJoCo's step, its law in C, the page's tiers | [findings/pace.md](findings/pace.md) |
+| The robot's pace against real time: MuJoCo's step, its law in C, the page's tiers | [findings/pace.md](findings/pace.md) |
 | Drives: motors, gearboxes, inverters, sizing | [findings/drives.md](findings/drives.md) |
-| Each drive's demand on its loop, the chair's stunts against it | [findings/demand.md](findings/demand.md) |
+| Each drive's demand on the robot's loop, the chair's stunts against it | [findings/demand.md](findings/demand.md) |
 | One stack for every drive: demand, candidates, stacks as built | [findings/stacks.md](findings/stacks.md) |
 | The drive and its observers: stand-in, emulator, native://, rotor pages | [findings/drive.md](findings/drive.md) |
 | QUAD: frame, law, routine, course, tuner | [findings/quad.md](findings/quad.md) |
 | The air every craft flies: its kinds, gusts, eddies | [findings/air.md](findings/air.md) |
-| The helicopter, the ornithopter: governed, geared | [findings/aircraft.md](findings/aircraft.md) |
+| The helicopter, the ornithopter, the aerobat: one core, governed, geared | [findings/aircraft.md](findings/aircraft.md) |
 | The aerobat: its wing, its propeller, its routine, its field | [findings/aerobat.md](findings/aerobat.md) |
 | The envelope in flight: a climb, a hover, what a board may carry | [findings/envelope.md](findings/envelope.md) |
 | Flown from compiled streams: the core, the rotors' reach, upsets, the power loop | [findings/streams.md](findings/streams.md) |
 | Renode, native:// and CI: the emulated image, peripherals, speed | [findings/emulation.md](findings/emulation.md) |
 | Host pages, tooling, suites, the local model's runner | [findings/host.md](findings/host.md) |
-| Its law compiled from its numpy: numpy's orders, its parts, their time and memory | [findings/compiler.md](findings/compiler.md) |
+| The terminal's pages and what they draw | [findings/pages.md](findings/pages.md) |
+| The robot's law compiled from its numpy: numpy's orders, its parts, their time and memory | [findings/compiler.md](findings/compiler.md) |
 | The dual-domain kernel: its momentum observer, its steps, its tests in the lodge | [findings/kernel.md](findings/kernel.md) |
-| Its seat: where a sit lands it, the Coulomb slide as its step's ask, a seat as two points | [findings/seat.md](findings/seat.md) |
-| The hitch on its hands: from the chair's edge onto its seat, what moved its hips 0 | [findings/hitch.md](findings/hitch.md) |
+| The robot's seat: where a sit lands it, the Coulomb slide as its step's ask, a seat as two points | [findings/seat.md](findings/seat.md) |
+| The robot's rise from the seat: the lean onto its soles, its pelvis on the seat, its hands hitched from the edge | [findings/seat_rise.md](findings/seat_rise.md) |
+| The hitch on the robot's hands: from the chair's edge onto its seat, what moved the robot's hips 0 | [findings/hitch.md](findings/hitch.md) |
 
 ## Ruled Out
 

@@ -1,20 +1,21 @@
-"""Its eyes' pictures laid on its epipolar planes however its eyes turn: a row a plane through both.
+"""The robot's pictures laid on epipolar planes however its eyes turn: a row a plane through both.
 
-    laid = epipolar.Laid(left_R, right_R)                     # its eyes' turns in its head's frame, as it holds them
+    laid = epipolar.Laid(left_R, right_R)                     # the robot's eyes' turns in its head's frame, as it holds them
     left, right = laid.warped(a, 0), laid.warped(b, 1)        # each eye's picture on the planes, (H, W, ..) as it was
     kept &= laid.kept(disp)                                    # matches lying on both eyes' pictures
     xyz = epipolar.points(rows, cols, disp, laid.beta, laid.fv)   # (n, 3) in `laid.E`, the left eye its origin
     left, right, disp, kept, laid = epipolar.matched(a, b, left_R, right_R)   # a look laid and matched
 
-Its stereo matches rows (`stereo.disparity`): a parallel pair's rows are its planes through both eyes, a turned eye's
-are not - turned 17 deg across its median depth was 8 % off, 50 deg 32 %; its eyes 0.5 deg cross-eyed and held a
-parallel pair, 37 %. A plane is a row here (`Laid`): its angle about the line between its eyes the arctangent of its
-row's height off the middle over `fv`; along it a column the tangent of its bearing off its left eye's gaze (`beta`)
-over F - where its eyes look square to the line between them, unsquinted, each pixel where it was. Each eye's picture
-is laid by its turn as it holds it - its gaze through its pushrods and each eye's squint as its calibration told it
-and its pictures since (`sight.Eyes.stereo`, `squint`) -, so a squint it knows is no misfit of its rows. A match's
-point lies on its row's plane where its bearings from both eyes meet: its distance off their line the baseline over
-their tangents' gap, along it that times the left's (`points`).
+The robot's stereo matches rows (`stereo.disparity`): a parallel pair's rows are its planes through both eyes, a
+turned eye's are not - turned 17 deg across the robot's median depth was 8 % off, 50 deg 32 %; its eyes 0.5
+deg cross-eyed and held a parallel pair, 37 %. A plane is a row here (`Laid`): its angle about the line between the
+robot's eyes the arctangent of its row's height off the middle over `fv`; along it a column the tangent of its
+bearing off the robot's left eye's gaze (`beta`) over F - where its eyes look square to the line between
+them, unsquinted, each pixel where it was. Each eye's picture is laid by its turn as the robot holds it - the robot's
+gaze through its pushrods and each eye's squint as its calibration told it and the robot's
+pictures since (`sight.Eyes.stereo`, `squint`) -, so a squint it knows is no misfit of its rows. A
+match's point lies on its row's plane where its bearings from both eyes meet: its distance off their line the
+baseline over their tangents' gap, along it that times the left's (`points`).
 """
 import math
 
@@ -22,15 +23,18 @@ from machine.eyes.stereo import BASELINE_M, FOVY_DEG, H, W, WINDOW, _array_dispa
 
 #: The robot's eyes' focal length, px (`sight.focal`).
 F = (H / 2.0) / math.tan(math.radians(FOVY_DEG) / 2.0)
-#: The line from its left eye to its right in its head's frame at rest: its right (`gimbal.cameras`' places).
+#: The line from the robot's left eye to its right in its head's frame at rest: its right (`gimbal.cameras`'
+#: places).
 LINE = (-1.0, 0.0, 0.0)
 #: A pixel's place on an eye's picture in fixed point, a 2^BITS'th of a pixel: integers on the card and the CPU.
 BITS = 5
-#: Its eyes' pictures are drawn FINE times finer each way (`sight.Eyes.see`), a pixel of the planes the mean of the
-#: FINE x FINE of them where it falls - a sensor's pixel takes its area: laid bilinear from a picture a pixel a point,
-#: each eye's picture blurred by its own place within a pixel, its matches' ninth decile 1.9 % off against 1.3 %.
+#: The robot's eyes' pictures are drawn FINE times finer each way (`sight.Eyes.see`), a pixel of the planes the mean
+#: of the FINE x FINE of them where it falls - a sensor's pixel takes its area: laid bilinear from a picture a pixel a
+#: point, each eye's picture blurred by its own place within a pixel, the robot's matches' ninth decile 1.9 % off
+#: against 1.3 %.
 FINE = 2
-#: The finer picture's areas a pixel of its own wide each, (rows, columns): one at each of its pixels but the last FINE - 1.
+#: The finer picture's areas a pixel of the robot's own wide each, (rows, columns): one at each of its pixels
+#: but the last FINE - 1.
 _AREAS = (FINE * H - FINE + 1, FINE * W - FINE + 1)
 
 
@@ -61,13 +65,14 @@ def turn(w):
 
 class Laid:
 
-    """Its eyes' pictures laid on its epipolar planes: the planes' frame `E` (3, 3) in its head's - x along the line
-    from its left eye to its right (`line`, its eyes' build's: `B` m long), z back, square to it under its eyes' mean
-    gaze, each eye's turn off it its half (Bouguet's) -, that gaze's bearing off square `beta` rad, the rows' focal
-    length `fv` px (F times its cosine: a row as high as an eye's pixel where it looks); each eye's picture's places of
-    the planes' pixels in fixed point (`at`, (rows, columns) (H, W) each) and whether they lie on it (`on`), its four
-    pixels' flat places and weights a pixel of the planes (`_four`) - laid on array module `xp`, the card's where one
-    answers (`matched`), `at` and `on` read on the CPU."""
+    """The robot's eyes' pictures laid on its epipolar planes: the planes' frame `E` (3, 3) in the
+    robot's head's - x along the line from its left eye to its right (`line`, the robot's
+    eyes' build's: `B` m long), z back, square to it under the robot's eyes' mean gaze, each eye's turn off it
+    its half (Bouguet's) -, that gaze's bearing off square `beta` rad, the rows' focal length `fv` px (F times
+    its cosine: a row as high as an eye's pixel where the robot looks); each eye's picture's places of the
+    planes' pixels in fixed point (`at`, (rows, columns) (H, W) each) and whether they lie on it (`on`), its
+    four pixels' flat places and weights a pixel of the planes (`_four`) - laid on array module `xp`, the
+    card's where one answers (`matched`), `at` and `on` read on the CPU."""
 
     def __init__(self, left_R, right_R, line=None, xp=None):
         np = _np()
@@ -155,10 +160,10 @@ class Laid:
 
 
 def points(rows, cols, disp, beta, fv, B=BASELINE_M):
-    """(n, 3) each pixel's point at its disparity in the planes' frame (`Laid.E`), the left eye its origin, its eyes `B`
-    m apart: on its row's plane where its bearings from both eyes meet. Square to its eyes' line (`beta` 0, `fv` F) a
-    parallel pair's, B times its pixel's offsets over its disparity - a disparity under a thousandth of a pixel its
-    thousandth."""
+    """(n, 3) each pixel's point at its disparity in the planes' frame (`Laid.E`), the left eye its origin, the robot's
+    eyes `B` m apart: on its row's plane where its bearings from both eyes meet. Square to the robot's eyes' line
+    (`beta` 0, `fv` F) a parallel pair's, B times its pixel's offsets over its disparity - a disparity under a
+    thousandth of a pixel its thousandth."""
     np = _np()
     t = (H / 2.0 - rows) / fv
     c = 1.0 / np.sqrt(1.0 + t * t)
@@ -169,11 +174,12 @@ def points(rows, cols, disp, beta, fv, B=BASELINE_M):
 
 
 def matched(left, right, left_R, right_R, line=None):
-    """(left, right, disparity, kept, laid) of a look: both eyes' pictures `left`, `right` (H, W, 3) laid on its
-    planes by its eyes' turns `left_R`, `right_R` in its head's frame as it holds them and the `line` from its left
-    eye's middle to its right's (`Laid`), matched (`stereo.disparity`'s) where both lie (`Laid.kept`) - laid and matched
-    on the card where one answers (`stereo.card`), else on the CPU, CI's: laid on the CPU beside the card's match a
-    look's rays and warps were 386 ms of its 782 -; each returned on the CPU."""
+    """(left, right, disparity, kept, laid) of a look: both eyes' pictures `left`, `right` (H, W, 3) laid on
+    the robot's planes by its eyes' turns `left_R`, `right_R` in its head's frame as the robot
+    holds them and the `line` from its left eye's middle to its right's (`Laid`), matched
+    (`stereo.disparity`'s) where both lie (`Laid.kept`) - laid and matched on the card where one answers
+    (`stereo.card`), else on the CPU, CI's: laid on the CPU beside the card's match a look's rays and warps
+    were 386 ms of its 782 -; each returned on the CPU."""
     xp = card() or _np()
     laid = Laid(left_R, right_R, line, xp)
     a, b = laid._warped(left, 0), laid._warped(right, 1)

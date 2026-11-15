@@ -1,17 +1,17 @@
-"""Its whole body's step without an active set: a fixed run of small solves, masks and clips.
+"""The robot's whole body's step without an active set: a fixed run of small solves, masks and clips.
 
     out = wrench.step(body, s, ask)         # `wbc.step`'s ask in, its {tau, qacc, bears, ..} out
 
-Twenty-one unknowns: six a sole - its wrench where it stands, its acceleration where not - and its
+Twenty-one unknowns: six a sole - its wrench where it stands, its acceleration where not - and the robot's
 upper body's nine accelerations; three a contact (`machine.senses.borne`): the force on a segment that bears
 it, its point held still, kinetic friction where it is felt sliding as its text allows (`ask['slide']`,
 `rounds.pushed`), under `ask['fz_cap']` and a slider's `ask['slid_cap']`; one surface's segments a
 patch, split as felt. Every joint follows: a leg through its sole, the pelvis by the six base rows.
-One weighted least squares - its centre of mass, the turns, a swing, the posture, its standing knees,
-its height, its angular momentum - ROUNDS times, each wrench clipped into its sole's bounds and the
-clipped pinned for the next; striding, what the floor cannot give goes to its inertia (`_taken`). A
-drive the ask takes past its clamp is pinned at it and the rest solved round it, ROUNDS times at most.
-wbc_step.c is it in C bit for bit; the board's wbc_wrench.c still shrinks the ask as one (docs/findings/wrench.md).
+One weighted least squares - the robot's centre of mass, the turns, a swing, the posture, its standing
+knees, its height, its angular momentum - ROUNDS times, each wrench clipped into its sole's bounds
+and the clipped pinned for the next; striding, what the floor cannot give goes to the robot's inertia (`_taken`). A
+drive the ask takes past its clamp is pinned at it and the rest solved round it, ROUNDS times at most. wbc_step.c
+is it in C bit for bit; the board's wbc_wrench.c still shrinks the ask as one (docs/findings/wrench.md).
 """
 import os
 
@@ -26,26 +26,27 @@ from machine.stack.wbc import CONTACT_K, HEIGHT_BAND, HELD_K, MOMENTUM_K, MU, PO
 
 
 #: A leg's solve's damping: at 1e-3 a swung leg straight at the knee was asked 17 000 rad/s^2, at 0.05
-#: it left the floor 8 mm where 20.
+#: the robot left the floor 8 mm where 20.
 DAMP = 0.02
-#: Rounds more, at most, for an answer past its height's band after them.
+#: Rounds more, at most, for an answer past the robot's height's band after them.
 PAST = 2
-#: The rows' weights. Its centre of mass along the floor, m/s^2, all but exact - sat (`ask['sat']`) as its turns',
-#: its balance its trunk's and hips' (`xform-balance-biped-to-seated`): all but exact there its trunk could not come to
-#: its pitch without moving it, and sat back 30-50 deg, its spine flexed 50 deg where its aim was -7 -; the turns and a
-#: swinging sole, rad/s^2 and m/s^2 - the sole at a third of the turns the walk fell at its 7th
-#: step -; its standing knees' posture, rad/s^2 - at 1, 60 N felled its 2 times of 8 -; the
-#: posture, its height, its angular momentum (N m), a swinging knee's fold, a buffer; a
-#: wrench's parts in shares of its weight, a sole's acceleration left alone, a pinned part.
+#: The rows' weights. The robot's centre of mass along the floor, m/s^2, all but exact - sat (`ask['sat']`) as the
+#: robot's turns', its balance its trunk's and hips' (`xform-balance-biped-to-seated`): all but exact
+#: there its trunk could not come to its pitch without moving it, and sat back 30-50 deg, the robot's spine
+#: flexed 50 deg where its aim was -7 -; the turns and a swinging sole, rad/s^2 and m/s^2 - the sole at a third of the
+#: turns the walk fell at its 7th step -; the robot's standing knees' posture, rad/s^2 - at 1, 60 N felled its
+#: 2 times of 8 -; the posture, its height, its angular momentum (N m), a swinging knee's fold, a
+#: buffer; a wrench's parts in shares of its weight, a sole's acceleration left alone, a pinned part.
 W_COM, W_TURN, W_SWING, W_KNEE, W_POSTURE, W_HEIGHT, W_MOMENT = 1000.0, 30.0, 30.0, 3.0, 1.0, 1.0, 0.3
 W_FOLD, W_STOP, W_PART, W_AIR, W_PIN = 3.0, 30.0, 0.1, 1e-3, 1e5
-#: Its rows' groups in the order they are laid: what `got['rows_free']` tells each one's weighted residual by.
+#: The robot's rows' groups in the order they are laid: what `got['rows_free']` tells each one's weighted
+#: residual by.
 GROUPS = ('com', 'height', 'turns', 'posture', 'swing', 'knee', 'fold', 'stop', 'momentum', 'spare')
-#: Striding, a standing sole's wrench kept in the projection's metric, of its share of its weight:
-#: its soles pushed against each other change its motion by nothing; unkept the faces were met through
-#: it - 926 N along one sole, -906 the other - till a sole pulled and both were let go, 11 times in 12 s
-#: of its walk. At 10 none, its walk 418 J/m, 2.53 off a woman's (412, 2.61); at 30 2.84; at 100 let go
-#: 187 times.
+#: Striding, a standing sole's wrench kept in the projection's metric, of its share of the robot's weight:
+#: its soles pushed against each other change its motion by nothing; unkept the faces were met
+#: through it - 926 N along one sole, -906 the other - till a sole pulled and both were let go, 11 times in 12
+#: s of the robot's walk. At 10 none, the robot's walk 418 J/m, 2.53 off a woman's (412, 2.61); at 30 2.84; at
+#: 100 let go 187 times.
 W_KEEP = 3.0
 #: A solve with no answer is solved again with this share of its largest diagonal on its free unknowns:
 #: falling on a ramp, two bearing points 16 mm apart left the rounds' matrix rank 21 of 27 (cond 2.9e19),
@@ -59,14 +60,14 @@ _EYE3, _EYE6, _EYE_NU, _UP = np.eye(3), np.eye(6), np.eye(NU), np.array([0.0, 1.
 PASSIVE = np.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0])
 _UPPER_IDX = 12 + np.arange(len(UPPER))
 _UPPER_ROWS = _EYE_NU[12:NU]
-#: Its arms' rows `ask['hold']` times the posture's, else the step pitched its trunk by them: shoulders
-#: 130 deg at 939 deg/s sitting, 255 at 1 633 lying back; hands' jerk 15-21 000 m/s^3 seated, 1 400-1 800
-#: walking. Not kept: all upper drives at W_TURN (4 800-6 700, 900; pelvis rolled 3 deg, a woman's 5;
-#: walk 2.75 off, 2.55); the arms alone (a crouch's spine folded, fell).
+#: The robot's arms' rows `ask['hold']` times the posture's, else the step pitched its trunk by them:
+#: shoulders 130 deg at 939 deg/s sitting, 255 at 1 633 lying back; hands' jerk 15-21 000 m/s^3 seated, 1
+#: 400-1 800 walking. Not kept: all upper drives at W_TURN (4 800-6 700, 900; pelvis rolled 3 deg, a woman's
+#: 5; walk 2.75 off, 2.55); the arms alone (a crouch's spine folded, fell).
 ARMED = np.array([float(DRIVEN[i].endswith(('shoulder', 'elbow'))) for i in UPPER])
-#: Each upper drive's side, its left 0 and its right 1, -1 neither: an arm whose hand bears is held by its contact,
-#: as a pressing contact's point is, not by its rows - held by both, the first hand down drove its trunk round 8 cm
-#: at the other's and lifted it 5 cm off the seat.
+#: Each upper drive's side, the robot's left 0 and its right 1, -1 neither: an arm whose hand bears is held
+#: by its contact, as a pressing contact's point is, not by its rows - held by both, the first hand down drove the
+#: robot's trunk round 8 cm at the other's and lifted it 5 cm off the seat.
 SIDES = np.array([0 if DRIVEN[i].startswith('left_') else 1 if DRIVEN[i].startswith('right_') else -1 for i in UPPER])
 
 
@@ -103,18 +104,20 @@ def _maps(b, s, ask, want):
         f, cols = s['feet'][k], act[leg]
         twist = f['J6'] @ v
         if not ask['stance'][k] and k not in swing:
-            # let go: an open chain (`machine.moves.emancipation`), each joint on its posture as the swing's row asks it,
-            # what its foot rests on holding it (`borne.read`), its own weight in its dynamics; its hip's acceleration
-            # given, a squat's let-go hips pressed its soles and stood it up off its hands on the floor; its knee and
-            # ankle hanging, its heels held on the floor and its hips' extension lifted its pelvis 0.157 -> 0.25 m.
-            # Not let go, on its posture
+            # let go: an open chain (`machine.moves.emancipation`), each joint on its posture as the swing's
+            # row asks it, what its foot rests on holding it (`borne.read`), its own weight in the robot's
+            # dynamics; its hip's acceleration given, a squat's let-go hips pressed the robot's soles and
+            # stood it up off its hands on the floor; its knee and ankle hanging, the robot's
+            # heels held on the floor and its hips' extension lifted its pelvis 0.157 -> 0.25
+            # m. Not let go, on its posture
             hung = float(bool(let_go[k]))
             kp, kd, freed = ask.get('open', (0.0, 0.0, np.zeros(2)))
             opened = freed[k] * (kp * (np.asarray(ask['posture'])[leg] - s['q'][leg]) - kd * v[cols]) / np.diag(M)[cols]
             opened = opened + (1.0 - freed[k]) * want[leg]
             # hung off a seat (`ask['hang']`, its share): its knee and ankle as gravity swings them, damped at the
-            # kernel's pendulum (`ask['hang_rate']`) - asked so, its drives hold none of it and what its foot rests
-            # on bears its own weight; held on its chain instead its toes pressed a low chair's floor at 133 N
+            # kernel's pendulum (`ask['hang_rate']`) - asked so, the robot's drives hold none of it and what its
+            # foot rests on bears its own weight; held on its chain instead its toes pressed a low chair's floor at
+            # 133 N
             passive = -h[cols] / np.diag(M)[cols] - float(ask.get('hang_rate', 0.0)) * v[cols]
             opened = opened + (float(ask.get('hang', (0.0, 0.0))[k]) * PASSIVE) * (passive - opened)
             t0[cols] = want[leg] * (1.0 - hung)
@@ -134,7 +137,7 @@ def _maps(b, s, ask, want):
         asked[k] = 1.0
         t0[cols] = -inv @ f['dJv']
         E[cols, 6 * k:6 * k + 6] = inv
-    # the joints no drive holds by their own rows of its dynamics
+    # the joints no drive holds by their own rows of the robot's dynamics
     passive = getattr(b, 'passive', None)
     if passive is None:
         passive = np.array([i >= 6 and i in b.free for i in range(n)])
@@ -156,9 +159,9 @@ def _residual(R0, rhs, first, grouped):
 def _rounds(H0, g0, held, bears, lo, hi, geo, stride):
     """(The unknowns, the first, floor-unbounded answer) for the rows' normal matrix `H0` and
     right-hand side `g0` (R^T c), the contacts'
-    `held` rows (`bears`, N up), its height's band `lo` to `hi`: the rounds, then the stride. `geo`: (nu, k3,
-    moment, part, up, lift, mass, grounded, stance, frames, edges, mu, caps, slips, give - the share of a contact's
-    push its own to plan); `stride`: (strides, its kinetic metric)."""
+    `held` rows (`bears`, N up), the robot's height's band `lo` to `hi`: the rounds, then the stride. `geo`: (nu,
+    k3, moment, part, up, lift, mass, grounded, stance, frames, edges, mu, caps, slips, give - the share of a
+    contact's push the robot's own to plan); `stride`: (strides, its kinetic metric)."""
     nu, k3, moment, part, up, lift, mass, grounded, stance, frames, edges, mu, cap, slips, give = geo
     strides, kinetic = stride
     pinned, at, band, edge, first = np.zeros(nu), np.zeros(nu), 0.0, 0.0, np.zeros(nu)
@@ -172,8 +175,8 @@ def _rounds(H0, g0, held, bears, lo, hi, geo, stride):
         else:
             Hr, gr = H0, g0
         # a clipped force is held by a row, W_PIN its weight's share; a clipped moment is its
-        # value and its height at its band's edge is met, the rest solved round them: as rows
-        # of W_PIN they were 1e7 on the diagonal, and what its soles share came 0.6 N m apart
+        # value and the robot's height at its band's edge is met, the rest solved round them: as rows
+        # of W_PIN they were 1e7 on the diagonal, and what the robot's soles share came 0.6 N m apart
         # from one solve to another
         hard, soft = pinned * moment, (W_PIN * pinned * (1.0 - moment) * part) ** 2
         s_t, rhs_s = np.zeros((nu, nu)), soft * at
@@ -190,7 +193,7 @@ def _rounds(H0, g0, held, bears, lo, hi, geo, stride):
         u, way = _solved(K, np.array([free * (gr + rhs_s - H @ (hard * at)) + hard * at, up]).T, free).T
         u = u + band * (edge - up @ u) / (up @ way + 1.0 - band) * way
         first = u.copy() if done == 0 else first
-        # its height's band: past an edge, held to it
+        # the robot's height's band: past an edge, held to it
         ay = float(lift @ u) / mass - G
         past = min(max(ay, lo), hi) + G
         band, edge = max(band, grounded * float(abs(past - G - ay) > 1e-9)), edge + (1.0 - band) * (past - edge)
@@ -202,9 +205,9 @@ def _rounds(H0, g0, held, bears, lo, hi, geo, stride):
         else:
             pinned = np.maximum(pinned, moved)
         done += 1
-        # an answer past its height's band after the rounds - a contact let go in the last, its
+        # an answer past the robot's height's band after the rounds - a contact let go in the last, its
         # solve never held to it - is held to its edge: off a mattress's edge the step planned 145
-        # N up of its 358 asked and the edge took 309 along its normal, 23 deg ahead
+        # N up of the robot's 358 asked and the edge took 309 along its normal, 23 deg ahead
         ay = float(lift @ at) / mass - G
         if (done == rounds < ROUNDS + PAST and not strides
                 and grounded * abs(min(max(ay, lo), hi) - ay) > 1e-9):
@@ -218,9 +221,10 @@ def _rounds(H0, g0, held, bears, lo, hi, geo, stride):
 
 
 def step(b, s, ask):
-    """{tau, qacc, bears, cop, over, slack, held, scale, soles_free, soles, rows_free}: `ask` as `wbc.step` takes it;
-    `strides` how far it strides (0 none), its balance then its landings', not its rows'; `scale` what its drives
-    carry of it; each sole's six unknowns in the first answer, the floor unbounded, and in the last; each GROUPS' residual."""
+    """{tau, qacc, bears, cop, over, slack, held, scale, soles_free, soles, rows_free}: `ask` as `wbc.step`
+    takes it; `strides` how far the robot strides (0 none), its balance then its landings',
+    not its rows'; `scale` what its drives carry of it; each sole's six unknowns in the first
+    answer, the floor unbounded, and in the last; each GROUPS' residual."""
     contacts = s.get('contacts', ())
     stance = np.array([float(bool(k)) for k in ask['stance']])
     n, M, h, v, feet, act, mass = b.n, s['M'], s['h'], s['v'], s['feet'], b.act, b.mass
@@ -232,7 +236,7 @@ def step(b, s, ask):
     T, E, t0, a6, asked = _maps(b, s, ask, want)
     if k3:
         E, a6 = np.hstack([E, np.zeros((n, k3))]), np.concatenate([a6, np.zeros(k3)])
-    # the base's rows of its dynamics: A base = Gm u - M_b E u - d
+    # the base's rows of the robot's dynamics: A base = Gm u - M_b E u - d
     Gm = np.zeros((6, nu))
     Gm[:, :6] = feet[0]['J6'][:, :6].T * stance[0]
     Gm[:, 6:12] = feet[1]['J6'][:, :6].T * stance[1]
@@ -275,7 +279,7 @@ def step(b, s, ask):
     lay(np.diag(swung), a6, W_SWING + (W_STILL - W_SWING) * np.concatenate([np.repeat(resting, 6), np.zeros(nu - 12)]), group=4)
     knees, left = act[KNEES], -float(stance @ full0[act[KNEES]])
     # the knees' rows damped against the posture's rate: against still, a push's knees were held
-    # at 0.2 of their clamp and its height at its band's floor
+    # at 0.2 of their clamp and the robot's height at its band's floor
     knee_rate = np.asarray(ask.get('knee_rate', (0.0, 0.0)), float)
     lay(stance @ full[knees], float(stance @ (want[KNEES] + POSTURE_KD[1] * knee_rate)) + left, W_KNEE * grounded, left, group=5)
     for k, (knee, rate, acc) in sorted(ask.get('fold', {}).items()):
@@ -310,7 +314,7 @@ def step(b, s, ask):
             tau = tau - f['J6'][:, act].T @ (stance[k] * u[6 * k:6 * k + 6])
         return tau, qdd
 
-    # the ask's answer, and nothing's: every acceleration 0, its weight borne, by the same rows
+    # the ask's answer, and nothing's: every acceleration 0, the robot's weight borne, by the same rows
     whole, first = _rounds(H0, R0.T @ np.concatenate(rhs), [(S, r) for S, r, _r0 in still], felt,
                     a[1] - HEIGHT_BAND, a[1] + HEIGHT_BAND, geo, stride)
     limit, lo, hi = box(b, ask)

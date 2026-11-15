@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Its body identified of its edge alone (`machine.identify.sysid`, `machine.identify.identified`): the regressor against MuJoCo's inverse
+"""The robot's body identified of its edge alone (`machine.identify.sysid`, `machine.identify.identified`): the regressor against MuJoCo's inverse
 dynamics; a campaign on the stand reading its drives' friction and armature and its links; a
-payload in its hand found; its corrections laid over its law's model and judged on a fresh
+payload in its hand found; its corrections laid over the robot's law's model and judged on a fresh
 campaign; a world built 15 % off the figure read back; its rotors and its gearboxes' wind-up
 and play on the boxed world; hung in a harness. Off the stand: test_sysid_live."""
 import os
@@ -24,7 +24,7 @@ STATES, APART = 40, 1e-9
 #: relay's watchdog is 300 s a suite), and every how many steps its rows are read (100 Hz: at
 #: 50 a hip yaw's friction came out 28 % off).
 SECONDS, SHORT, EVERY = 48.0, 24.0, 10
-#: What its hand carries in the second campaign, kg.
+#: What the robot's hand carries in the second campaign, kg.
 PAYLOAD_KG = 0.5
 #: How far a drive's Coulomb friction and its armature may sit from the world's, of themselves;
 #: its viscous friction, N m s/rad; a residual a drive, N m; a payload's shift of a first
@@ -65,7 +65,7 @@ def _off(world, c, seed, keep=False):
 
 
 def _states(b, rng):
-    """(qpos, qvel, qacc) at STATES random states within its stops, the pelvis anywhere."""
+    """(qpos, qvel, qacc) at STATES random states within the robot's stops, the pelvis anywhere."""
     m, mj = b.m, b.mj
     qpos, qvel, qacc = np.zeros((STATES, m.nq)), rng.normal(size=(STATES, m.nv)), rng.normal(size=(STATES, m.nv))
     quat = rng.normal(size=(STATES, 4))
@@ -78,7 +78,7 @@ def _states(b, rng):
 
 
 def test_the_regressor_is_mujocos(report, c):
-    """Y theta, theta the model's own, is MuJoCo's inverse dynamics on its drives' rows at random
+    """Y theta, theta the model's own, is MuJoCo's inverse dynamics on the robot's drives' rows at random
     states - the Coulomb columns aside, which no model without constraints has."""
     from machine.identify import regressor, sysid
     b, lay = c['body'], c['lay']
@@ -101,7 +101,7 @@ def test_the_regressor_is_mujocos(report, c):
 
 
 def _campaign(c, seed, world=None, seconds=SECONDS, hung=False):
-    """A campaign on the stand, or `hung` in the harness where the stand would hold it, its
+    """A campaign on the stand, or `hung` in the harness where the stand would hold the robot, its
     load cell's six rows after the drives': (Y, tau, touched, world)."""
     from machine.identify import campaign, sysid
     if hung:
@@ -147,19 +147,19 @@ def test_the_regressor_in_c_is_its_numpy_s(report, c):
                                                       float(np.abs(got - want).max())))
 
 
-def test_its_drives_and_links_are_read(report, c):
-    """On the stand, a limb at a time, nothing touching it: each drive's Coulomb friction and
+def test_the_robots_drives_and_links_are_read(report, c):
+    """On the stand, a limb at a time, nothing touching the robot: each drive's Coulomb friction and
     viscous damping as the world has them, the armatures a swing tells apart, each drive's
     residual small, the trusted base parameters mostly the model's."""
     _read(report, c, False)
 
 
-def test_hung_in_a_harness_it_reads_as_on_the_stand(report, c):
-    """Hung in a harness (`World.hang`: springs on its pelvis's place and turn), its pelvis 8 cm
-    down on it and bouncing under its limbs, a robot's rig: every drive read as on the stand,
-    and a load cell in the harness (`sysid.hung`) adds its pelvis's ten base parameters, its
-    mass among them. Without it the bounce tells no mass from its first moment - 237 base
-    parameters as on the stand, 110 trusted for 101, 70 within 10 % for 69."""
+def test_hung_in_a_harness_the_robot_reads_as_on_the_stand(report, c):
+    """Hung in a harness (`World.hang`: springs on the robot's pelvis's place and turn), its pelvis 8
+    cm down on it and bouncing under the robot's limbs, a robot's rig: every drive read as on the stand, and a
+    load cell in the harness (`sysid.hung`) adds its pelvis's ten base parameters, its mass
+    among them. Without it the bounce tells no mass from its first moment - 237 base parameters as on the
+    stand, 110 trusted for 101, 70 within 10 % for 69."""
     _read(report, c, True)
 
 
@@ -182,12 +182,12 @@ def _read(report, c, hung):
         within = (got['trusted'] & (np.abs(got['theta'] - true) / np.maximum(np.abs(true), 1e-9) < 0.1)).sum()
         within_alone = (told['trusted'] & (err_alone < 0.1)).sum()
         mass = got['names'].index('pelvis.m')
-        report.check('the load cell adds its pelvis\'s ten base parameters, its mass within 0.1 %%: %d of %d within 10 %% for %d of %d by the drives alone'
+        report.check('the load cell adds the robot\'s pelvis\'s ten base parameters, its mass within 0.1 %%: %d of %d within 10 %% for %d of %d by the drives alone'
                      % (within, got['trusted'].sum(), within_alone, told['trusted'].sum()),
                      len(base['ind']) == len(alone['ind']) + 10 and abs(got['theta'][mass] / true[mass] - 1.0) < 1e-3
                      and within > within_alone,
-                     '%d and %d base parameters, its mass %.3f for %.3f kg' % (len(base['ind']), len(alone['ind']), got['theta'][mass], true[mass]))
-    report.check('nothing touched it through %.0f s%s' % (SECONDS, ', hung %.0f mm down' % (
+                     '%d and %d base parameters, the robot\'s mass %.3f for %.3f kg' % (len(base['ind']), len(alone['ind']), got['theta'][mass], true[mass]))
+    report.check('nothing touched the robot through %.0f s%s' % (SECONDS, ', hung %.0f mm down' % (
         1e3 * (mjcf.STAND_M - world.data.qpos[1])) if hung else ''), touched == 0, '%d steps' % touched)
     report.check('%d base parameters of %d columns, condition %.1e' % (len(base['ind']), len(lay['names']), got['condition']),
                  got['condition'] > 1e-6)
@@ -218,7 +218,7 @@ def _read(report, c, hung):
 
 
 def _payload(c):
-    """The payload's campaign, once: (base, got, Y, tau, touched, world), PAYLOAD_KG in its left
+    """The payload's campaign, once: (base, got, Y, tau, touched, world), PAYLOAD_KG in the robot's left
     hand."""
     from machine.identify import sysid
     if 'payload' not in c:
@@ -232,13 +232,13 @@ def _payload(c):
 
 
 def test_a_payload_is_found(report, c):
-    """PAYLOAD_KG in its left hand: the first moments it moves - its forearm's, its upper
-    arm's, its trunk's - shift as the world's do."""
+    """PAYLOAD_KG in the robot's left hand: the first moments it moves - the robot's forearm's, the robot's
+    upper arm's, its trunk's - shift as the world's do."""
     from machine.identify import sysid
     lay = c['lay']
     base, got, _Y, _tau, touched, world = _payload(c)
     was, now = sysid.projected(base, sysid.truth(lay, c['body'].m)), sysid.projected(base, sysid.truth(lay, world.model))
-    report.check('nothing touched its carrying it', touched == 0, '%d steps' % touched)
+    report.check('nothing touched the robot\'s carrying it', touched == 0, '%d steps' % touched)
     for name in MOVED:
         k = got['names'].index(name)
         shift, seen = now[k] - was[k], got['theta'][k] - was[k]
@@ -247,9 +247,9 @@ def test_a_payload_is_found(report, c):
                      '%.0f %% off, uncertainty %.1f %%' % (100 * abs(seen - shift) / abs(shift), 100 * got['uncertainty'][k]))
 
 
-def test_its_corrections_are_laid_over_its_build(report, c):
-    """The payload's campaign as the least move of its build that fits it, saved, read back and
-    laid over a fresh model of its law: on a third campaign carrying the payload its residual
+def test_the_robots_corrections_are_laid_over_its_build(report, c):
+    """The payload's campaign as the least move of the robot's build that fits it, saved, read back and
+    laid over a fresh model of the robot's law: on a third campaign carrying the payload its residual
     falls where the payload is and rises nowhere."""
     from machine.identify import identified, sysid
     from machine.stack import wbc
@@ -266,14 +266,14 @@ def test_its_corrections_are_laid_over_its_build(report, c):
             applied = identified.correct(fresh, back)
         except Exception as refusal:
             applied = []
-            report.check('laid over its law\'s model', False, str(refusal)[:200])
-    report.check('laid over its law\'s model whole: %d links and drives corrected' % len(applied),
+            report.check('laid over the robot\'s law\'s model', False, str(refusal)[:200])
+    report.check('laid over the robot\'s law\'s model whole: %d links and drives corrected' % len(applied),
                  len(applied) >= 20 and 'left_forearm' in applied and 'left_upper_arm' in applied)
     Y, tau, _touched, world = _campaign(c, 3, world, SHORT)
     rms = {label: sysid.misfit(Y, tau, sysid.truth(lay, model)) for label, model in (('nominal', c['body'].m), ('corrected', fresh.m))}
     names = lay['drives']
     arm = [k for k, n in enumerate(names) if n.startswith(('left_shoulder', 'left_elbow'))]
-    report.check('on its arm\'s drives the residual falls to under half: %s' % ', '.join(
+    report.check('on the robot\'s arm\'s drives the residual falls to under half: %s' % ', '.join(
         '%.2f -> %.2f' % (rms['nominal'][k], rms['corrected'][k]) for k in arm),
                  (rms['corrected'][arm] < 0.5 * rms['nominal'][arm]).all())
     worse = rms['corrected'] - rms['nominal']
@@ -299,7 +299,7 @@ def test_a_world_off_the_figure_is_read_back(report, c):
     err = np.abs(got['theta'] - true) / np.maximum(np.abs(true), 1e-9)
     f = {n: err[k] for k, n in enumerate(got['names']) if n.endswith('.f')}
     arm = {n: err[k] for k, n in enumerate(got['names']) if n.endswith('.J') and kind(n[:-2]) in ARMATURES}
-    report.check('nothing touched it on the world %.0f %% off' % (100 * OFF), touched == 0, '%d steps' % touched)
+    report.check('nothing touched the robot on the world %.0f %% off' % (100 * OFF), touched == 0, '%d steps' % touched)
     report.check('every drive\'s Coulomb friction read back within %.0f %%' % (100 * FRICTION),
                  max(f.values()) < FRICTION, 'worst %.1f %%, median %.1f %%' % (100 * max(f.values()), 100 * np.median(list(f.values()))))
     report.check('the armatures a swing tells apart within %.0f %%' % (100 * FRICTION),
@@ -314,12 +314,12 @@ def test_a_world_off_the_figure_is_read_back(report, c):
                  'build %.3f, corrected %.3f, world %.3f N m rms a drive' % (rms['build'], rms['corrected'], rms['world']))
 
 
-def test_its_gearboxes_are_read(report, c):
+def test_the_robots_gearboxes_are_read(report, c):
     """On the world with its gearboxes (`physics.BOXED`), the campaign's arrays low-passed both
     ways, each drive's armature read at its motor's encoder; each rotor's inertia on the steps
     inside its play, within ROTOR on every drive; each box's wind-up and play from its two
     encoders on BOXES within FRICTION - at the campaign's phases drawn with seed 1: drawn with 6
-    it touched itself 83 steps and the head's wind-up came 24 % off."""
+    the robot touched itself 83 steps and the head's wind-up came 24 % off."""
     from machine.identify import campaign, sysid
     from machine.body.drives import kind
     lay = c['lay']
@@ -338,7 +338,7 @@ def test_its_gearboxes_are_read(report, c):
     armature = np.array([got['theta'][got['names'].index(j + '.J')] for j in driven])
     rotor = world.boxes.j[joint]
     read = campaign.boxes(c['body'], ys, taus, physics.STEP_S, armature)
-    report.check('nothing touched it on the boxed world', touched == 0, '%d steps' % touched)
+    report.check('nothing touched the robot on the boxed world', touched == 0, '%d steps' % touched)
     named = [i for i, j in enumerate(driven) if kind(j) in BOXES]
     arm = np.abs(armature[named] - rotor[named]) / rotor[named]
     report.check('every rotor\'s armature read positive at the motors\' encoders, the hip yaws\' within %.0f %%' % (100 * FRICTION),
@@ -377,11 +377,11 @@ def test_a_motor_is_read_off_its_rows(report, _c):
                  and abs(got['offset'] - c0) < 0.05 * c0 and abs(got['f']) < 1e-3 and got['gaps'] == 6)
 
 
-ROSTER = (test_the_regressor_is_mujocos, test_the_regressor_in_c_is_its_numpy_s, test_its_drives_and_links_are_read,
+ROSTER = (test_the_regressor_is_mujocos, test_the_regressor_in_c_is_its_numpy_s, test_the_robots_drives_and_links_are_read,
           test_a_payload_is_found,
-          test_its_corrections_are_laid_over_its_build, test_a_world_off_the_figure_is_read_back,
-          test_its_gearboxes_are_read, test_a_motor_is_read_off_its_rows,
-          test_hung_in_a_harness_it_reads_as_on_the_stand)
+          test_the_robots_corrections_are_laid_over_its_build, test_a_world_off_the_figure_is_read_back,
+          test_the_robots_gearboxes_are_read, test_a_motor_is_read_off_its_rows,
+          test_hung_in_a_harness_the_robot_reads_as_on_the_stand)
 
 
 def main(argv=None):

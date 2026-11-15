@@ -12,7 +12,7 @@ static const double REG = 1e-6, REG0 = 1e-10;
     directions its rows leave flat (machine.stack.qp.stack); not on level 0, the exact rows. */
 static const double LOWER = 1e-3;
 /** A bound held with a dual over HOLD stays held below its level (machine.stack.qp.stack's rule):
-    at 1e-7 a 38 N shove from behind felled it, at 1e-1 the walk fell; 1e-3 and 1e-2 hold
+    at 1e-7 a 38 N shove from behind felled the robot, at 1e-1 the walk fell; 1e-3 and 1e-2 hold
     both, 80 N too. */
 static const double HOLD = 1e-2;
 /** The active set: at most MAXIT steps a level a tick; a bound over by more than TOL is broken,

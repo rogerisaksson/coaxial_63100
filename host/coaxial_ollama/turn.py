@@ -377,7 +377,7 @@ class ChatTurn:
                 self, 'Answer the question in words now. The tool output is '
                 'already on screen - do not repeat it.',
                 'the reading above is all that came back - ask again.')
-        # It knew exactly what to do and did not do it.
+        # The model knew exactly what to do and did not do it.
         if (replies.NAMED_TOOL.search(turn.answer)
                 and turn.nudges < Turn.NUDGE_LIMIT):
             turn.nudges += 1
@@ -436,7 +436,7 @@ class ChatTurn:
         if name in LINK_TOOLS:
             self._note_link(turn, text)
         if name == 'link_diagnose' and not failed:
-            # Its checklist is on screen from the trace below.
+            # link_diagnose's checklist is on screen from the trace below.
             turn.diagnosed = True
         if name in toolmod.CODE_CALLS:
             # A failed build, or a --confirm the operator declined, is a fact

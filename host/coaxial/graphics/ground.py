@@ -69,9 +69,9 @@ _BACKDROP_STATIC = {}
 #: The floor's polylines per (window size, scroll step), flat or to be rolled.
 _RUNS = {}
 
-#: THE FAN MOVES WITH THE RUNGS. Its lines are dashed, DASH of each spacing lit from a
-#: rung outward, and the dashes scroll toward the camera with the rungs: the floor reads
-#: as travelled, not drawn.
+#: THE FAN MOVES WITH THE RUNGS. The fan's lines are dashed, DASH of each spacing lit
+#: from a rung outward, and the dashes scroll toward the camera with the rungs: the floor
+#: reads as travelled, not drawn.
 #: Past DASHED spacings the fan runs solid into the haze - dashes there are under a dot
 #: row and shimmer. The fan's dots are cast once a window size; a step keeps its dashes.
 DASH = 0.5

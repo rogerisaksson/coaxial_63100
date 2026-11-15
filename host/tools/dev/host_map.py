@@ -9,12 +9,12 @@ The cheapest way into host/:
     python tools/dev/host_map.py --layers        # which package imports which, counted
     python tools/dev/host_map.py --deps coaxial  # each module's host imports
 
-Then where to go. Its moves are found as puppets - sensed phases on the servos played in a scene in memory,
-a take's G-code danced there, the stroke a figure solves - in tools/sim/puppet.py (its findings in
-docs/findings/stunts.md, the takes' G-code by tools/sim/gcode.py); its loop is seen live by
-machine.process.introspect (docs/findings/introspect.md) and traced a pass at a time by tools/sim/trace.py
-and tools/sim/told.py; the relay runs a suite by file (.\\run_tests.ps1 -Scope test_x.py), the linter the
-changed files (python tools/dev/lint.py --changed, each file within tools/dev/token_budget.py's cap).
+Then where to go. The robot's moves are found as puppets - sensed phases on the servos played in a scene in
+memory, a take's G-code danced there, the stroke a figure solves - in tools/sim/puppet.py (its findings in
+docs/findings/puppet.md, the takes' G-code by tools/sim/gcode.py); the robot's loop is seen live by
+machine.process.introspect (docs/findings/introspect.md) and traced a pass at a time by tools/sim/trace.py and
+tools/sim/told.py; the relay runs a suite by file (.\\run_tests.ps1 -Scope test_x.py), the linter the changed
+files (python tools/dev/lint.py --changed, each file within tools/dev/token_budget.py's cap).
 """
 import argparse
 import ast

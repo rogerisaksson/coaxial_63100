@@ -45,7 +45,7 @@ static cmd_status_t h_thermal_state(wr_t *out)
   wr_u32(out, th.seen_ms_ago);
   wr_u32(out, th.steps);
 
-  /* MINOR 13, appended (invariant 3): each leg's FET junction over its node
+  /* MINOR 13, appended: each leg's FET junction over its node
      in centi-kelvin - what the datasheet's 175 C is against - and the rotor
      speed the air paths were evaluated at. */
   for (uint8_t leg = 0U; leg < 3U; leg++)
@@ -157,7 +157,7 @@ static cmd_status_t h_thermal_budget(wr_t *out)
   wr_u8(out, b.throttling ? 1U : 0U);
   wr_u8(out, b.tripped ? 1U : 0U);
   wr_u32(out, b.trips);
-  /* MINOR 11, appended (invariant 3). */
+  /* MINOR 11, appended. */
   wr_i32(out, (int32_t)(b.derate * PPM_PER_UNIT));
   for (uint8_t i = 0U; i < (uint8_t)BOARD_THERMAL_NODES; i++)
   {
@@ -347,7 +347,7 @@ static cmd_status_t h_thermal_ident(wr_t *out)
   wr_u32(out, id.updates);
   wr_u32(out, 0UL);                /* saves: none, the board keeps nothing */
   wr_u32(out, 0xFFFFFFFFUL);       /* since a save: never */
-  /* MINOR 15, appended (invariant 3): the room as identified, centi-C, and
+  /* MINOR 15, appended: the room as identified, centi-C, and
      its sigma in centi-kelvin. */
   wr_i32(out, (int32_t)(id.ambient_c * CENTI_PER_UNIT));
   wr_i32(out, (int32_t)(id.ambient_sigma_k * CENTI_PER_UNIT));

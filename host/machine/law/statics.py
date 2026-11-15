@@ -1,8 +1,8 @@
-"""Its statics of what is sensed standing: its frame, the mass each mode moves, its rest vector.
+"""The robot's standing statics, as sensed: its frame, the mass each mode moves, its rest vector.
 
-Laid once, before its loop runs (modal's FRAME, `ortho`'s parameters).
+Laid once, before the robot's loop runs (modal's FRAME, `ortho`'s parameters).
 
-    fr = statics.frame(y, mass, limb, trunk, arm, forearm, knee, dt)  # its statics, once (`sprung`)
+    fr = statics.frame(y, mass, limb, trunk, arm, forearm, knee, dt)  # the robot's statics, once (`sprung`)
     rest = statics.rest(fr)                                         # its rest vector (`latent.state`)
 """
 import os
@@ -50,12 +50,12 @@ def frame(y, mass, limb, trunk, arm, forearm, knee, dt):
 
 
 def masses(mass, limb, trunk, arm, forearm):
-    """The mass each mode moves, kg, of its own, a limb's, its trunk's, an arm's and a forearm's."""
+    """The mass each mode moves, kg, of the robot's own, a limb's, its trunk's, an arm's and a forearm's."""
     return np.array([mass, mass, limb, trunk, mass, limb, limb, trunk, trunk, arm, limb, arm, forearm])
 
 
 def rest(fr):
-    """Its rest vector (`ortho`'s parameters): every target 0, each mode's spring and damper,
+    """The robot's rest vector (`ortho`'s parameters): every target 0, each mode's spring and damper,
     its rhythm off at 1 Hz, its ZMP in its support polygon, its yaw momentum free, what bears its
     unsaid - its soles alone then (`observer.weighed`), nothing capped (`somatic.asked`)."""
     floor = REST_K * fr[OMEGA], fr[OMEGA] + REST_K

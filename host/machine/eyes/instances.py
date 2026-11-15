@@ -1,19 +1,20 @@
-"""Its looks' objects: a segmenter's masks on the card, each boxed from its stereo's points under it.
+"""The robot's looks' objects: segmenter masks on the card, each boxed from its stereo points under it.
 
-    seg = instances.segmenter()                     # None unless SEGMENT, a card and torch: its map's things alone
+    seg = instances.segmenter()                     # None unless SEGMENT, a card and torch: the robot's map's things alone
     masks = seg(left)                               # (n, H, W) bool, each object its picture shows
     objects = instances.boxes(masks, look, chart)   # [(kind, centre, half, R)] each mask's, `sight.Look`'s points
     things = instances.merged(things, objects, chart)   # its map's things, each object in place of those it is
 
 The segmenter is a Mask R-CNN (torchvision's ResNet-50 FPN v2 on COCO, BSD): its masks, not its classes - this
-room's chairs and its table were COCO's umbrellas, its stool a chair, its bed alone a bed -; what a thing is its
-classifier tells from its box (`classes`). Its backbone a TensorRT engine at half precision, built once a card and
-kept beside torch's weights (2.2 ms against torch's 10.0 at 480 x 640, its five maps 1-2 % off), its heads torch's;
-without TensorRT torch's own. A mask is one the model holds SCORE likely or more, the same object's lesser masks
-under any class dropped by the model's own overlap (`nms_thresh`), a pixel its where the mask's is over half, eroded
-a pixel round: on an object's rim its stereo's window mixes it with what is behind. Its box is its points' PERCENT
-along the text's axes of their footprint (`voxels.fitted`) and up: on the renderer's depth a seat's top 0.40 and
-0.48 m for 0.397 and 0.47, its map's 0.48 and 0.58.
+room's chairs and its table were COCO's umbrellas, its stool a chair, its bed alone a bed -; what a thing is
+the robot's classifier tells from its box (`classes`). The segmenter's backbone a TensorRT engine at half
+precision, built once a card and kept beside torch's weights (2.2 ms against torch's 10.0 at 480 x 640, its
+five maps 1-2 % off), its heads torch's; without TensorRT torch's own. A mask is one the model holds SCORE
+likely or more, the same object's lesser masks under any class dropped by the model's own overlap
+(`nms_thresh`), a pixel its where the mask's is over half, eroded a pixel round: on an object's rim the
+robot's stereo's window mixes it with what is behind. An object's box is its points' PERCENT along the text's
+axes of their footprint (`voxels.fitted`) and up: on the renderer's depth a seat's top 0.40 and 0.48 m for
+0.397 and 0.47, the robot's map's 0.48 and 0.58.
 """
 import collections
 import importlib
@@ -23,13 +24,14 @@ import sys
 from machine.eyes import voxels
 from machine.eyes.stereo import ENV, H, W, _np
 
-#: The switch: 1 boxes its looks' objects (`segmenter`). Off, its map's things alone: on its stereo's points
-#: (320 x 240, SAD) a low chair's mask took its seat and back as one box 0.87 m high, a table's, its stool's
-#: 0.8 m long with the floor behind it, a bench's - its map told it a stool -, the chair none; the table alone a table.
+#: The switch: 1 boxes the robot's looks' objects (`segmenter`). Off, the robot's map's things alone: on its
+#: stereo's points (320 x 240, SAD) a low chair's mask took its seat and back as one box 0.87 m high, a table's, its
+#: stool's 0.8 m long with the floor behind it, a bench's - the robot's map told it a stool -, the chair none; the
+#: table alone a table.
 SEGMENT = 'COAXIAL_SEGMENT'
 #: A mask kept where the segmenter holds it more likely than not.
 SCORE = 0.5
-#: Its picture at the segmenter's least size (480 rows): the backbone's one input, px (rows, columns).
+#: The robot's picture at the segmenter's least size (480 rows): the backbone's one input, px (rows, columns).
 IN = (max(H, 480), max(H, 480) * W // H)
 #: A box: its points' percentiles along each axis, the outlying 2 % each end cut.
 PERCENT = (2.0, 98.0)
@@ -40,8 +42,8 @@ _SEG = {}
 
 
 def segmenter():
-    """Its segmenter (`Segmenter`) on the card, laid at its first ask; None unless SEGMENT is 1, where `COAXIAL_GPU`
-    is 0, no card answers or torch is not there - its map's things alone then."""
+    """The robot's segmenter (`Segmenter`) on the card, laid at its first ask; None unless SEGMENT is 1, where
+    `COAXIAL_GPU` is 0, no card answers or torch is not there - the robot's map's things alone then."""
     if 'seg' not in _SEG:
         _SEG['seg'] = None
         if os.environ.get(SEGMENT, '0') == '1' and os.environ.get(ENV, '1') != '0':
@@ -51,8 +53,8 @@ def segmenter():
                     _SEG['seg'] = Segmenter()
             except ImportError:
                 pass
-            except Exception as e:      # its weights not to be had, a card that refuses it: its map's things alone
-                print('its segmenter: none (%s: %s), its map alone' % (type(e).__name__, e), file=sys.stderr)
+            except Exception as e:      # its weights not to be had, a card that refuses it: the robot's map's things alone
+                print('the robot\'s segmenter: none (%s: %s), its map alone' % (type(e).__name__, e), file=sys.stderr)
     return _SEG['seg']
 
 
@@ -112,7 +114,7 @@ def _engine(torch, backbone):
                 graph) else None
             del parser, network, builder
         except Exception as e:      # an export or a build the engine's versions refuse: torch's backbone instead
-            print('its segmenter: no TensorRT engine (%s: %s), torch\'s backbone' % (type(e).__name__, e), file=sys.stderr)
+            print('the robot\'s segmenter: no TensorRT engine (%s: %s), torch\'s backbone' % (type(e).__name__, e), file=sys.stderr)
             return None
     if blob is None:
         return None
@@ -147,10 +149,10 @@ def _backbone(torch, blob):
 
 
 def boxes(masks, look, chart):
-    """[(kind, centre, half, R)] of each mask's object among a look's points (`sight.Look`: its pixels, places and
-    colours) its map would take (`voxels.Map.add`'s, NEAR_M to FAR_M off its eye, FLOOR_M to CEIL_M up): its kind the
-    palette's whose lit line its pooled colour lies nearest (`voxels.lit`), as its map tells a thing's; its box `box`'s;
-    a mask with fewer than HITS of them none."""
+    """[(kind, centre, half, R)] of each mask's object among a look's points (`sight.Look`: its pixels, places
+    and colours) the robot's map would take (`voxels.Map.add`'s, NEAR_M to FAR_M off its eye, FLOOR_M
+    to CEIL_M up): its kind the palette's whose lit line its pooled colour lies nearest (`voxels.lit`), as the
+    robot's map tells a thing's; its box `box`'s; a mask with fewer than HITS of them none."""
     np = _np()
     xyz, away = look.xyz, np.linalg.norm(look.xyz - look.seen.at, axis=1)
     ok = (xyz[:, 1] > voxels.FLOOR_M) & (xyz[:, 1] < voxels.CEIL_M) & (away > voxels.NEAR_M) & (away < voxels.FAR_M)
@@ -164,8 +166,8 @@ def boxes(masks, look, chart):
 
 
 def box(p):
-    """(centre, half sizes, turn 3x3) of points `p` (n, 3), upright as its map's: PERCENT of them within it along the
-    text's axes of their footprint (`voxels.fitted`) and up."""
+    """(centre, half sizes, turn 3x3) of points `p` (n, 3), upright as the robot's map's: PERCENT of them within it
+    along the text's axes of their footprint (`voxels.fitted`) and up."""
     np = _np()
     m = p[:, ::2].mean(axis=0)
     xz = p[:, ::2] - m
@@ -193,10 +195,11 @@ def _within(box_, x, z, slack):
 
 
 def merged(things, objects, chart):
-    """[(kind, centre, half, R, id, clear)] its map's `things` (`voxels.Map.things`) with each of `objects` (`boxes`)
-    in place of those of them it is - a thing whose footprint's middle lies in the object's, a cell round, its top
-    within a cell of the object's -: the object the id of the nearest it replaces, once, else none (0); clear where
-    its map saw through a voxel of the layer over its top within its footprint, as its map's surfaces are."""
+    """[(kind, centre, half, R, id, clear)] the robot's map's `things` (`voxels.Map.things`) with each of `objects`
+    (`boxes`) in place of those of them it is - a thing whose footprint's middle lies in the object's, a cell round,
+    its top within a cell of the object's -: the object the id of the nearest it replaces, once, else none (0); clear
+    where the robot's map saw through a voxel of the layer over its top within its footprint, as the robot's map's
+    surfaces are."""
     np = _np()
     out, used = list(things), set()
     for ob in objects:
@@ -211,7 +214,8 @@ def merged(things, objects, chart):
 
 
 def _clear(ob, top, chart):
-    """1.0 where its map saw through a voxel of the layer over `top` within object `ob`'s footprint, 0.0 else."""
+    """1.0 where the robot's map saw through a voxel of the layer over `top` within object `ob`'s footprint, 0.0
+    else."""
     np = _np()
     j = int(np.floor((top - voxels.FLOOR_M) / chart.voxel)) + 1
     if not 0 <= j < chart.ny:

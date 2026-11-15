@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Its stand on the whole-body stack (`machine.stack.wbc`) in a world without buses: still, and shoved.
+"""The robot's stand on the whole-body stack (`machine.stack.wbc`) in a bus-free world: still, shoved.
 
     python tools/sim/wbc.py                      # 10 s still: drift, pressure, effort, its cost
     python tools/sim/wbc.py --polar 60 80 100    # a shove from each of 8 ways a force, the relay
-    python tools/sim/wbc.py --one 80 90 -v       # one: N and way (0 its left, 90 ahead), traced
+    python tools/sim/wbc.py --one 80 90 -v       # one: N and way (0 the robot's left, 90 ahead), traced
     ... --no-wep                                 # no war emergency power
     ... --core | --wrench                        # the loop in C | the step without an active set
     ... --core --wrench                          # that step in C (wbc_wrench.c)
 
-A shove is `sprung.SHOVE_S` on the trunk at AT_S; it has stood if to the end its pelvis keeps
-within HELD_DEG of upright and nothing but its soles touches the floor. Its ask is the capture
+A shove is `sprung.SHOVE_S` on the trunk at AT_S; the robot has stood if to the end its pelvis keeps
+within HELD_DEG of upright and nothing but its soles touches the floor. The robot's ask is the capture
 point's law (`law`) or a caller's; its steps are its latent loop's (`machine.process.sprung`).
 """
 import argparse
@@ -35,7 +35,7 @@ ESO_WO = 100.0
 #: The centre of mass's creep along the floor, mm/s, over a stand's last CREEP_S.
 CREEP_S = 2.0
 
-#: The ways a polar shoves from, deg: 0 its left, 90 ahead.
+#: The ways a polar shoves from, deg: 0 the robot's left, 90 ahead.
 WAYS = tuple(range(0, 360, 45))
 
 #: The drives' PD round the stack's reference and war emergency power, as the loop has them.
@@ -60,7 +60,7 @@ def law(s, st, mid):
 
 
 def state(s):
-    """Standing where it stands: its height, its posture and its turns kept."""
+    """Standing where the robot stands: its height, its posture and its turns kept."""
     return {'height': float(s['com'][1]), 'posture': s['q'].copy(),
             'turns': tuple(t['quat'].copy() for t in s['turns'])}
 
@@ -77,14 +77,15 @@ def loads(world, force):
     return out
 
 
-def touched(world, ours, its_own):
-    """The first of its bodies but its soles (`ours`) that the floor or a thing on it touches -
-    anything not its own (`its_own`) -, or None; its parts on each other are not counted."""
+def touched(world, ours, robot_own):
+    """The first of the robot's bodies but its soles (`ours`) that the floor or a thing on it
+    touches - anything not the robot's own (`robot_own`) -, or None; its parts on each other are not
+    counted."""
     d, m = world.data, world.model
     for a, b in d.contact.geom[:d.ncon].tolist():
         one, two = int(m.geom_bodyid[a]), int(m.geom_bodyid[b])
         for mine, other in ((one, two), (two, one)):
-            if mine in ours and other not in its_own:
+            if mine in ours and other not in robot_own:
                 return m.body(mine).name
     return None
 
@@ -139,8 +140,8 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, at=AT_S,
     now = [world.data.time]
     world.clock = lambda: now[0]
     m = world.model
-    its_own = {i for i in range(m.nbody) if _under(m, i, m.body('pelvis').id)}
-    ours = its_own - {m.body(seg[0]).id for seg in SEGMENTS if seg[0].endswith(('_foot', '_toes'))}
+    robot_own = {i for i in range(m.nbody) if _under(m, i, m.body('pelvis').id)}
+    ours = robot_own - {m.body(seg[0]).id for seg in SEGMENTS if seg[0].endswith(('_foot', '_toes'))}
     s = wbc.sense(body, world.data.qpos, world.data.qvel)
     home = s['com'].copy()
     esos = [parts.Eso(float(s['M'][d, d]), ESO_WO) for d in body.act] if inner == 'eso' else []
@@ -162,7 +163,7 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, at=AT_S,
         except MachineError as exc:
             failed = '%s at %.3f s' % (exc, now[0])
             break
-        # its first pass cold, its own (`cold_us`); the rest hot, a pass's mean (`us`)
+        # the robot's first pass cold, its own (`cold_us`); the rest hot, a pass's mean (`us`)
         cold, cost = (time.perf_counter() - t0, cost) if not passes else (cold, cost + time.perf_counter() - t0)
         passes += 1
         world.feed[body.driven] = _torques(esos, world, body, out)
@@ -190,7 +191,7 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, at=AT_S,
         drift = max(drift, float(np.linalg.norm((s['com'] - home)[[0, 2]])))
         if settled is None and now[0] >= seconds - CREEP_S:
             settled = s['com'][[0, 2]].copy()
-        down = down or touched(world, ours, its_own)
+        down = down or touched(world, ours, robot_own)
         if trace and passes % 25 == 0:
             _trace(now[0], '-', s, home, tilt, out, body, worst)
         if tilt > HELD_DEG or s['com'][1] < 0.5 * home[1] or down:
@@ -208,7 +209,7 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, at=AT_S,
 
 
 def _trace(now, phase, s, home, tilt, out, body, worst):
-    """A row of the stand's trace: where it is, the soles' centres of pressure, the drive
+    """A row of the stand's trace: where the robot is, the soles' centres of pressure, the drive
     nearest its clamp, the stack's worst slack, and the loop's bounds at their edge."""
     import numpy as np
     share = np.abs(out['tau'] / body.top)
@@ -227,7 +228,7 @@ def _torques(esos, world, body, out):
     """The drives' torques this pass: the stack's, less what each observer sees of its drive's
     own disturbance; the inertia each observer scales by the loop's own, where it gives it. An
     observer reads its board's encoder (`physics.WOUND`): on the joint it took the gearbox's
-    play for 84 N m of disturbance and it fell standing."""
+    play for 84 N m of disturbance and the robot fell standing."""
     import numpy as np
     from machine.world import physics
     if not esos:
@@ -270,7 +271,7 @@ def polar(forces, wep=True, spread=1, core=False, inner='pd', wrench=False):
 def main(argv=None):
     global ESO_WO
     from machine.process import placed
-    # its cost timed where its loop is (`placed`): a cache group of its own, this thread on one core
+    # the cost timed where the robot's loop is (`placed`): a cache group of its own, this thread on one core
     placed.placed(True)
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--polar', nargs='*', type=float, metavar='N')

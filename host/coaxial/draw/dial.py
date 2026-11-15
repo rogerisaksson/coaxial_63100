@@ -203,7 +203,7 @@ def _sub_fixed(sx, sy, r, span, band, which):
     """What sub-dial `which` puts at (sx, sy) off its centre: ('seg', which, k)
     for its k-th segment - lit or not is the reading's - a notch at a band edge,
     _UNDER for the rest of its disc, which the needle passes under, or None off
-    it. Its scale runs SUB_ARC clockwise from its lower left."""
+    it. The sub-dial's scale runs SUB_ARC clockwise from its lower left."""
     sr = math.hypot(sx, sy)
     if sr > r + 1.0 + NOTCH:
         return None

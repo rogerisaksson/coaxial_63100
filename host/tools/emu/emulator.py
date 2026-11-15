@@ -206,13 +206,13 @@ class Emulator:
         composed = os.path.join(WORK, 'run_%d.resc' % self.port)
         with open(composed, 'w', encoding='utf-8') as f:
             f.write('\n'.join(self.script()) + '\n')
-        # Its own config and monitor history: Renode rewrites the history after every command,
+        # A limb's own config and monitor history: Renode rewrites the history after every command,
         # and a body's limbs sharing %APPDATA%'s collided - an IOException, the limb gone.
         config = os.path.join(WORK, 'renode_%d.config' % self.port)
         with open(config, 'w', encoding='utf-8') as f:
             f.write('[general]\nhistory-path = %s\n'
                     % os.path.join(WORK, 'history_%d' % self.port))
-        # Its log beside them, what Renode said as it went (CI's Release runs); the last run's
+        # The log beside them, what Renode said as it went (CI's Release runs); the last run's
         # alone kept (`probes.swept`)
         own = os.path.join(WORK, 'renode_%d.log' % self.port)
         self._own, self.log = self.log in (None, own), self.log or own
@@ -427,7 +427,7 @@ class Limb(Emulator):
                         'sysbus WriteDoubleWord 0x%08X 0x%08X' % (HAND_AT + 8,
                                                                   unit | unit << 8 | flags << 16)]
             out += ['sysbus WriteDoubleWord 0x%08X 0x%08X' % (UID_AT, 0x63100000 | unit),
-                    # Its own board within the tolerances: the front end's errors drawn from
+                    # Each board within the tolerances: the front end's errors drawn from
                     # its UID.
                     '%s NoiseSeed %d' % (worlds.AFE, 0x63100000 | unit)]
         for unit in range(1, self.nodes + 1):

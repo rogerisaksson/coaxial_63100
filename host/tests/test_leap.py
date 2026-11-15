@@ -1,6 +1,6 @@
 """Leap on the stack (`machine.moves.leap`): which soles stand told from one pass - each as it bears,
-an unloaded one beside one that bears or with it at rest; a landing under it within its leg's
-reach; the loop in C meeting an airborne sole's ask as the python stack does; a hop stood on both;
+an unloaded one beside one that bears or with the robot at rest; a landing under it within the robot's
+leg's reach; the loop in C meeting an airborne sole's ask as the python stack does; a hop stood on both;
 forward leaps from standing and in-stride scaled by hold charge."""
 import math
 import sys
@@ -13,9 +13,9 @@ PRESSED, LIGHT = 300.0, 0.0
 ON, NEAR, UP = 0.0, 0.001, 0.02
 
 
-def test_its_soles_stand_as_they_bear(report):
+def test_the_robots_soles_stand_as_they_bear(report):
     """`leap.standing` of one pass: at rest on the floor both stand before either bears, and an
-    unloaded one beside one that bears whatever its speed; bearing nothing as it rises both
+    unloaded one beside one that bears whatever the robot's speed; bearing nothing as it rises both
     leave in the one pass, a millimetre over the floor; as it falls none stands until one
     bears; one bearing alone stands at every speed of its own; a sole the ask swings never."""
     from machine.moves.leap import standing
@@ -26,19 +26,19 @@ def test_its_soles_stand_as_they_bear(report):
                  rest == both and beside == [both] * 4, 'at rest %s, beside %s' % (rest, beside))
     left = standing(both, (LIGHT, LIGHT), (NEAR, NEAR), 0.6)
     fell = standing(both, (LIGHT, LIGHT), (NEAR, UP), -0.8)
-    report.check('bearing nothing as it rises both leave in the one pass; as it falls none stands',
+    report.check('bearing nothing as the robot rises both leave in the one pass; as it falls none stands',
                  left == fell == (False, False), 'rising %s, falling %s' % (left, fell))
     first = standing(both, (30.0, LIGHT), (ON, NEAR), -0.8)
     alone = [standing(both, (PRESSED, LIGHT), (ON, UP), v) for v in (-0.8, 0.05, 0.1, 0.11, 0.3, 0.8)]
-    report.check('one that bears stands at every speed of its own, the other with it once on the floor',
+    report.check('one that bears stands at every speed of the robot\'s own, the other with it once on the floor',
                  first == both and alone == [(True, False)] * 6, 'the second beside it %s, alone %s' % (first, alone))
     swung = standing((True, False), (PRESSED, PRESSED), (ON, ON), 0.0)
     report.check('a sole the ask swings is never stood on', swung == (True, False), '%s' % (swung,))
 
 
-def test_a_landing_is_under_it_within_reach(report):
-    """`leap.landing` from a hip over a floor, its centre of mass still or moving: the sole
-    asked flat, falling as it falls, its ankle within its leg's reach (`reach.margins`); still,
+def test_a_landing_is_under_the_robot_within_reach(report):
+    """`leap.landing` from a hip over a floor, the robot's centre of mass still or moving: the sole
+    asked flat, falling as it falls, its ankle within the robot's leg's reach (`reach.margins`); still,
     under its centre of mass by its own way off it."""
     from machine.body import figure, reach
     from machine.moves import leap
@@ -57,14 +57,14 @@ def test_a_landing_is_under_it_within_reach(report):
                 off_by = max(off_by, abs(at[0] - com[0] - way[0]), abs(at[2] - com[2] - way[1]))
             if speed != vcom or acc != (0.0, -leap.G, 0.0) or quat != (1.0, 0.0, 0.0, 0.0):
                 worst = -1.0
-    report.check('a landing is flat, falls as it falls, and is within its reach', worst > -1e-9,
+    report.check('a landing is flat, falls as the robot falls, and is within its reach', worst > -1e-9,
                  '%d asks, %.1f mm inside at the least' % (asks, worst * 1e3))
-    report.check('still, a sole lands under its centre of mass by its own way off it', off_by < 1e-9,
+    report.check('still, a sole lands under the robot\'s centre of mass by its own way off it', off_by < 1e-9,
                  '%.2g m off' % off_by)
 
 
 def _airborne():
-    """(body, s, ask, names): its crouch lifted off the floor, rising 0.7 m/s, its knees going
+    """(body, s, ask, names): the robot's crouch lifted off the floor, rising 0.7 m/s, its knees going
     out 4.7 rad/s as at a take-off, no sole standing, each asked to its landing, no turn."""
     import numpy as np
     from machine.body import figure
@@ -115,7 +115,8 @@ def test_forward_leap_scales_with_charge(report):
     """`leap.hop_charge`, `leap.standing_leap`, `leap.stride_leap` and `leap.update_leap_charge`:
     Space hold duration in [5 ms, 250 ms] maps to [0, 1]; standing jump scales vertical preload
     and throw; in-stride leap (`ballistic.bound`) dips by the text's countermovement, its push waiting
-    on its dip, its hold and its drive as it had them (the charge is the standing jump's)."""
+    on the robot's dip, its hold and its drive as it had them (the charge is the
+    standing jump's)."""
     import numpy as np
     from machine.texts import kernel, ortho, takes
     from machine.law import latent, modal, se2
@@ -154,19 +155,19 @@ def test_forward_leap_scales_with_charge(report):
     z, per = latent.Z.start, modal.AXIAL_M * fr[modal.HIPS_BY]
     r = np.frombuffer(leap.stride_leap(fr, turns, now, 'walk')[0], latent.WIRE)
     dip, drive = float((r['p'][0, z + modal.AXIAL] - now[z + modal.AXIAL]) * per), latent.AMP.start + modal.DRIVE
-    report.check('in-stride leap dipped by the text\'s countermovement, %.0f mm, its push waiting on its dip and ending '
+    report.check('in-stride leap dipped by the text\'s countermovement, %.0f mm, its push waiting on the robot\'s dip and ending '
                  'straight, its hold and its drive as it had them' % (1e3 * told),
                  abs(dip - told) < 1e-6 and bool(r['flags'][1] & ortho.RISE) and abs(r['p'][-3, z + modal.AXIAL] - leap.STRAIGHT) < 1e-6
                  and bool(np.all(np.isnan(r['p'][:, z + modal.SAGITTAL]))) and bool(np.all(r['p'][:-1, drive] == now[drive])),
                  'dip %.3f m, %d rows' % (dip, len(r)))
 
 
-def test_it_jumps_high_on_both_feet_from_standing(report):
-    """Standing still, told `hop` with 5 ms (`charge=0.0`) vs 250 ms (`charge=1.0`), it leaves
+def test_the_robot_jumps_high_on_both_feet_from_standing(report):
+    """Standing still, told `hop` with 5 ms (`charge=0.0`) vs 250 ms (`charge=1.0`), the robot leaves
     and lands on both soles (`SS -- SS`) without falling; held, its flight, its soles' clearance
     and its rise from the crouch grow, within a stride of its spot (a sole's length is the DOD,
     docs/todo/scenarios.md). The flight's seconds and the clearance are the drives' (`leap.pushed`):
-    0.17 s and 11 mm at 2/3 of the knees' clamp, its legs long in flight."""
+    0.17 s and 11 mm at 2/3 of the knees' clamp, the robot's legs long in flight."""
     from machine.law import stride
     from machine.process import worker
     stats = {}
@@ -202,36 +203,36 @@ def test_it_jumps_high_on_both_feet_from_standing(report):
                  % (a0, c0, dy0 * 1e3, dz0, st0, a1, c1, dy1 * 1e3, dz1, st1))
 
 
-def test_it_hops_and_stands(report):
-    """A hop on the python stack (`tools.sim.hop`): it leaves the floor with both soles at once,
+def test_the_robot_hops_and_stands(report):
+    """A hop on the python stack (`tools.sim.hop`): the robot leaves the floor with both soles at once,
     is airborne a tenth of a second or more with 15 mm under them, lands on both and stands."""
     from tools.sim import hop
     out = hop.hop()
-    report.check('thrown, it leaps, lands and stands',
+    report.check('thrown, the robot leaps, lands and stands',
                  out['stood'] and out['leaps'] == 1 and out['air_s'] >= 0.1 and out['clear_mm'] >= 15.0,
-                 '%.3f s, %.1f mm under its soles, landed %d N, tilt %.1f deg'
+                 '%.3f s, %.1f mm under the robot\'s soles, landed %d N, tilt %.1f deg'
                  % (out['air_s'], out['clear_mm'], out['landed_n'], out['tilt']))
     report.check('its soles leave together and stand again', out['stances'] == 'SS -- SS', out['stances'])
 
 
-def test_it_hops_on_the_loop(report):
+def test_the_robot_hops_on_the_loop(report):
     """The same on the loop in C, and three in a row: each leapt, each landed, stood."""
     from tools.sim import hop
     for hops in (1, 3):
         out = hop.hop(hops=hops, core=True)
         seen = out['stances'].split()
-        report.check('on the loop in C it leaps %d, lands and stands' % hops,
+        report.check('on the loop in C the robot leaps %d, lands and stands' % hops,
                      out['stood'] and out['leaps'] == hops and out['air_s'] >= 0.1 * hops
                      and out['clear_mm'] >= 15.0 and seen[:2] == ['SS', '--'] and seen[-1] == 'SS',
-                     '%.3f s, %.1f mm under its soles, landed %d N, tilt %.1f deg, %s'
+                     '%.3f s, %.1f mm under the robot\'s soles, landed %d N, tilt %.1f deg, %s'
                      % (out['air_s'], out['clear_mm'], out['landed_n'], out['tilt'], out['stances']))
 
 
-def test_it_leaps_in_stride_and_walks_on(report):
-    """Walking (0.69 m/s) and running (1.40 m/s), told `hop` at mid-stride (`t = 2.0 s`), it
+def test_the_robot_leaps_in_stride_and_walks_on(report):
+    """Walking (0.69 m/s) and running (1.40 m/s), told `hop` at mid-stride (`t = 2.0 s`), the robot
     gathers onto both soles, leaps forward with both soles off the floor (`air >= 0.15 s`,
     `>= 45 mm` clearance), leaps further - its longest flight's span, lift-off to touch-down - when Space
-    is held 250 ms vs 5 ms and when running vs walking, lands and continues its gait. Measured, its
+    is held 250 ms vs 5 ms and when running vs walking, lands and continues its gait. Measured, the robot's
     longest flight: walk 0.13 -> 0.13 m, run 0.27 -> 0.27 - in stride the hold's charge has no lever
     yet (`ballistic.bound`), a held leap held to no shorter than a tap's."""
     from machine.process import sprung, worker
@@ -279,11 +280,11 @@ def test_it_leaps_in_stride_and_walks_on(report):
 HELD_S, FIRST_REPEAT_S, REPEAT_GAP_S, FRAME_S = 1.2, 0.3, 0.033, 0.05
 
 
-def test_the_pages_held_space_lands_it(report):
+def test_the_pages_held_space_lands_the_robot(report):
     """Space held on the HUMANOID page as a terminal types it, through the page's own keys (`humanoid_keys.PAD`), its
-    frames charging it (`_hop_held`) and hearing what it does: one hop said, its charge rising, none while it is under
-    way; on its loop as the page lays it it lands on both soles and stands. A held Space said a new hop every 0.12 s
-    in its flight and felled it (a recording on the page)."""
+    frames charging the robot (`_hop_held`) and hearing what it does: one hop said, its charge rising, none
+    while it is under way; on the robot's loop as the page lays it the robot lands on both soles and stands. A held
+    Space said a new hop every 0.12 s in the robot's flight and felled it (a recording on the page)."""
     from types import SimpleNamespace as SN
     from machine.process import sprung, worker
     from terminal.ui import bindings
@@ -323,9 +324,9 @@ RUN_S, LEAP_AT_S, STOP_S = 6.0, 3.0, 4.0
 
 
 def test_the_pages_run_leap_and_stop(report):
-    """Shift+W held on the HUMANOID page as a terminal types it (`humanoid_keys.steered` each frame, its twist the
-    page's), Space typed as it runs, the keys let go: on its loop as the page lays it it runs, leaps with both soles
-    off the floor, stops and stands - no fall, one hop said."""
+    """Shift+W held on the HUMANOID page as a terminal types it (`humanoid_keys.steered` each frame, the robot's
+    twist the page's), Space typed as it runs, the keys let go: on its loop as the page lays it the
+    robot runs, leaps with both soles off the floor, stops and stands - no fall, one hop said."""
     from types import SimpleNamespace as SN
     from machine.process import sprung, worker
     from terminal.ui import bindings
@@ -363,10 +364,10 @@ def test_the_pages_run_leap_and_stop(report):
         said == ['hop'] and airs >= 1 and went > 2.0 and s['fallen_at'] is None and sprung.doing(s['g']) in ('stand', 'rest'))
 
 
-ROSTER = [test_its_soles_stand_as_they_bear, test_a_landing_is_under_it_within_reach,
+ROSTER = [test_the_robots_soles_stand_as_they_bear, test_a_landing_is_under_the_robot_within_reach,
           test_the_loop_meets_an_airborne_soles_ask, test_forward_leap_scales_with_charge,
-          test_it_jumps_high_on_both_feet_from_standing, test_it_hops_and_stands,
-          test_it_hops_on_the_loop, test_it_leaps_in_stride_and_walks_on, test_the_pages_held_space_lands_it,
+          test_the_robot_jumps_high_on_both_feet_from_standing, test_the_robot_hops_and_stands,
+          test_the_robot_hops_on_the_loop, test_the_robot_leaps_in_stride_and_walks_on, test_the_pages_held_space_lands_the_robot,
           test_the_pages_run_leap_and_stop]
 
 

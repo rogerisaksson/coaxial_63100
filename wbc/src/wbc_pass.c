@@ -1,8 +1,8 @@
-/** wbc_pass.c - a pass of its world on the host, its arrays laid once (wbc.h): its drives told as
-    machine.law.drives tells them, its world's torques and their meters as machine.world.physics steps
-    them, its IMU, encoders, soles and skin as machine.senses.edge reads them, its drives' heat as
-    machine.body.heat keeps it - numpy's arithmetic operation for operation, its clip and its pairwise
-    sum, so a pass is the same bit for bit. Portable C11. */
+/** wbc_pass.c - a pass of the robot's world on the host, its arrays laid once (wbc.h): the robot's drives told as
+    machine.law.drives tells them, its world's torques and their meters as
+    machine.world.physics steps them, its IMU, encoders, soles and skin as machine.senses.edge
+    reads them, its drives' heat as machine.body.heat keeps it - numpy's arithmetic operation
+    for operation, its clip and its pairwise sum, so a pass is the same bit for bit. Portable C11. */
 #include "wbc_pass.h"
 #include "wbc_np.h"
 
@@ -23,7 +23,7 @@ void wbc_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, double y
   {
     p->sb[i] = 0.0;
   }
-  /* its knees' spring: back from straight, and against folding back past it */
+  /* the robot's knees' spring: back from straight, and against folding back past it */
   for (int k = 0; k < 2; k++)
   {
     const int    j = p->knee[k];
@@ -95,12 +95,13 @@ void wbc_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, double y
       p->ref_q[i] = npclip(p->ref_q[i], p->q_lo[i], p->q_hi[i]);
     }
     /* less its inertia's share of what the jerk's clip cut: its observer, told the clipped ask,
-       pushed against the rest - a jamb's touch yielded its arm 0.24 rad where 0.55 */
+       pushed against the rest - a jamb's touch yielded the robot's arm 0.24 rad where 0.55 */
     p->feed[i] = (((wbc_bus_slew(p->bus, i, dt, p->tau[i] * ys) + p->sb[i]) - p->jeff[i] * eso2[i]) - b_pas * qvel)
                  - p->jeff[i] * (asked - qa);
     p->limit[i] = (p->hold[i] > 0.0 ? (wb ? p->wep_lim[i] : p->wep[i]) : p->clamp_j[i]) * p->release[i];
   }
-  /* the master bus insert (wbc_bus.c): its torque command through the tank, the zero crossing, the slew */
+  /* the master bus insert (wbc_bus.c): the robot's torque command through the tank, the zero crossing, the
+   * slew */
   for (int i = 0; i < n; i++)
   {
     p->feed[i] = wbc_bus_feed(p->bus_k, p->bus, i, dt, p->y[p->qd_at + p->joints[i]], p->feed[i],
@@ -115,7 +116,7 @@ void wbc_pass_tick(wbc_tick_t *t, double dt, double now, double wo, double limp)
   const int     n = p->n;
   double        held = 0.0;
 
-  /* its holds read before the step spends them: 1 where any is not none (`hold.any()`) */
+  /* the robot's holds read before the step spends them: 1 where any is not none (`hold.any()`) */
   for (int i = 0; i < n; i++)
   {
     held = (p->hold[i] != 0.0) ? 1.0 : held;
@@ -332,14 +333,15 @@ void wbc_pass_contacts(wbc_contacts_t *c, int ncon, const char *pos, const doubl
     const double *frame = (const double *)(row + c->off_frame);
     const int     dim = *(const int *)(row + c->off_dim), adr = *(const int *)(row + c->off_efc);
     const int     b0 = c->gb[geom[0]], b1 = c->gb[geom[1]];
-    const int     h0 = c->its_own[b0], h1 = c->its_own[b1];
+    const int     h0 = c->robot_own[b0], h1 = c->robot_own[b1];
     const int     mine = h0 ? b0 : b1;
     const double  sign = h0 ? -1.0 : 1.0;
     const double *r = c->xmat + 9 * mine, *xp = c->xpos + 3 * mine;
     double        force[3], rel[3], f0, af0;
     int           k;
 
-    /* a contact between a body of its own and one not; its force its rows of the solver's */
+    /* a contact between a body of the robot's own and one not; its force its rows of the solver's
+     * */
     if (h0 == h1)
     {
       continue;
@@ -385,7 +387,8 @@ void wbc_pass_contacts(wbc_contacts_t *c, int ncon, const char *pos, const doubl
       {
         c->touch[3 * k + j] += (r[j] * push[0] + r[3 + j] * push[1]) + r[6 + j] * push[2];
         c->felt_at[3 * k + j] += ((af0 * r[j]) * rel[0] + (af0 * r[3 + j]) * rel[1]) + (af0 * r[6 + j]) * rel[2];
-        /* the contact's normal into it (MuJoCo's frame's first, from the first geom to the second), its frame */
+        /* the contact's normal into the robot (MuJoCo's frame's first, from the first geom to the second), its
+         * frame */
         c->felt_nrm[3 * k + j] += af0 * (((r[j] * frame[0] + r[3 + j] * frame[1]) + r[6 + j] * frame[2]) * sign);
       }
       c->felt_n[k] += af0;
@@ -407,7 +410,7 @@ int wbc_pass_tapped(const wbc_contacts_t *c, int ncon, const char *pos, const do
     const char *row = pos + (size_t)i * (size_t)c->stride;
     const int  *geom = (const int *)(row + c->off_geom);
     const int   dim = *(const int *)(row + c->off_dim), adr = *(const int *)(row + c->off_efc);
-    const int   h0 = c->its_own[c->gb[geom[0]]], h1 = c->its_own[c->gb[geom[1]]];
+    const int   h0 = c->robot_own[c->gb[geom[0]]], h1 = c->robot_own[c->gb[geom[1]]];
     double     *x = out + (size_t)n * (size_t)width;
 
     if (h0 == h1 || adr < 0)

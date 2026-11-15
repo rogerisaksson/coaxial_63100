@@ -6,7 +6,7 @@
 
 A retro set's switch: on, a dot flashed, drawn out to a line, the picture unfolded from it; off, the
 picture folded to the line, the line drawn in to a dot, the dot gone. On the alternate screen
-throughout: the shell underneath is never written. Its text is read off the console (Win32
+throughout: the shell underneath is never written. The shell's text is read off the console (Win32
 `ReadConsoleOutputCharacterW`); where none can be read the tube opens on black.
 """
 import ctypes

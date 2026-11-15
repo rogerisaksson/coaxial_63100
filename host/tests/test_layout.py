@@ -172,7 +172,7 @@ def _reached(path, headers, seen):
 def test_null_has_its_header(r):
     """A source naming NULL, or offsetof, reaches a header ISO C defines it in. MinGW's and newlib's
     <math.h> and <stdint.h> bring them and glibc's do not: ctrl_loop.c built here and for the
-    part, and on CI's host no core did - 29 suites crashed, the emulator's among them -; its
+    part, and on CI's host no core did - 29 suites crashed, the emulator's among them -; the robot's
     glue's offsetof (quick_part.c) built here, and on CI's host its glue stayed python."""
     from tools.dev import target_map
     dirs = target_map.DIRS + ('wbc', 'aero')
@@ -344,6 +344,16 @@ def test_no_dates_in_the_tree(r):
     r.check('the tree\'s text holds no dates', not dated, '; '.join(dated[:4]))
 
 
+def test_prose_names_its_machines(r):
+    """CLAUDE.md's rule 8: no sentence in prose opens on It or Its - the robot, a craft or the thing
+    a sentence speaks of named instead (tools/dev/named.py)."""
+    from tools.dev import named
+    opened = ['%s:%d' % (path, text.count('\n', 0, offset) + 1)
+              for path, text in sorted(named.read().items()) for offset, _ in named.opened(path, text)]
+    r.check('no prose sentence opens on It or Its (tools/dev/named.py)', not opened,
+            '%d: %s' % (len(opened), '; '.join(opened[:4])))
+
+
 def test_every_suite_runs(r):
     """Every tests/test_*.py is a suite a run names (`tools/dev/suites.py`): four in no list
     never ran, three of them red."""
@@ -408,10 +418,10 @@ def test_docs_name_only_the_tree(r):
             not gone, '; '.join(gone[:4]))
 
 
-def test_its_structs_carry_no_padding(r):
-    """Each C struct its python mirrors through ctypes carries no implicit padding - its fields' sizes sum to its size,
-    an int left over an explicit `spare`, a tail past whole cache lines a named field -, each mirror held to its C's
-    size as its library lays it."""
+def test_the_robots_structs_carry_no_padding(r):
+    """Each C struct the robot's python mirrors through ctypes carries no implicit padding - its fields' sizes sum to
+    its size, an int left over an explicit `spare`, a tail past whole cache lines a named field -, each mirror held to
+    its C's size as its library lays it."""
     import ctypes
     import importlib
     from tools.cores.build import find_cc
@@ -437,10 +447,10 @@ def test_its_structs_carry_no_padding(r):
 ROSTER = (test_target_briefs, test_emulation_is_transparent, test_null_has_its_header,
           test_counts_are_measured, test_notebooks_are_papers, test_notebooks_are_their_sources,
           test_a_paper_is_run_again_where_its_code_changed, test_the_readme_is_its_sources,
-          test_no_dates_in_the_tree,
+          test_no_dates_in_the_tree, test_prose_names_its_machines,
           test_every_suite_runs, test_a_crash_names_its_test, test_a_suite_cut_short_keeps_its_seconds,
           test_docs_name_only_the_tree,
-          test_its_structs_carry_no_padding)
+          test_the_robots_structs_carry_no_padding)
 
 def main(argv=None):
     """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""

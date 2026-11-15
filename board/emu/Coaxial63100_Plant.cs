@@ -12,8 +12,9 @@
 // its observer is judged by: the duties, MOE, the legs' mean squares, the link and the shaft ten
 // times a virtual second, the NTC's element and the two dies written into the front end.
 // `Thermal` false leaves the three to the monitor. The stage is driven while MOE is set and the
-// gate drivers' supply, the STO chain's +15V7 (Coaxial63100_STO.cs), stands over their UVLO. It
-// hangs on TIM1_CH1, PE9, and follows TIM1 (Coaxial63100_TIM1.cs) through what is written to it.
+// gate drivers' supply, the STO chain's +15V7 (Coaxial63100_STO.cs), stands over their UVLO. The
+// plant hangs on TIM1_CH1, PE9, and follows TIM1 (Coaxial63100_TIM1.cs) through what is written
+// to it.
 
 using System;
 using System.Linq;

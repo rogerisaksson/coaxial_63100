@@ -1167,7 +1167,7 @@ def test_docs(report):
     report.check('heading matching is loose enough to be usable',
                  docmod.docs(doc='MODELS', section=deep.lower()) == body)
 
-    # The AFE number is the one a weak model invents. It has to be findable.
+    # The AFE number is the one a weak model invents, so it has to be findable.
     hits = docmod.docs(find='25.00')
     report.check('search reaches the AFE-off number', 'FINDINGS' in hits
                  or 'HARDWARE' in hits or 'CLAUDE' in hits)

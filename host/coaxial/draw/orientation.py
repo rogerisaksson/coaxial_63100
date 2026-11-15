@@ -10,7 +10,7 @@ from machine.rig import ansi
 
 #: The board, in units of its own outer radius: 100 mm across, a 10 mm bore
 #: through the middle, 1.6 mm thick. Proportions, not a measurement - the
-#: drawing is a shape, and invariant 10 applies to it too.
+#: drawing is a shape, and holds no value expected of it.
 OUTER = 1.0
 BORE = 0.10
 HALF_THICKNESS = 0.016
@@ -175,7 +175,7 @@ def facing(q):
 #: half-width, angular half-width in degrees, height). Angles run counter
 #: clockwise from +X, so the first quadrant is the top right and the second
 #: the top left. Positions are the layout's, in board radii - a drawing, not
-#: a fabrication output, and invariant 10 applies here too.
+#: a fabrication output, and nothing expected of it.
 COMPONENTS = [
     # Three phase connectors at the top, straddling the first and second
     # quadrants, out at the rim where the motor's leads reach them.
@@ -481,10 +481,10 @@ def _fit(cols, rows, zoom=1.0, model=None):
 
 
 #: Where the board's centre sits down the attitude page, as a share of
-#: its height (cy = height * LIFT). It sat above the frame's middle so
-#: the model cleared the horizon line instead of sitting on it, and
-#: came down a row at a time: 0.36 was the fit, 0.39 and 0.42 sat
-#: high, and dead centre.
+#: its height (cy = height * LIFT). The centre sat above the frame's
+#: middle so the model cleared the horizon line instead of sitting on
+#: it, and came down a row at a time: 0.36 was the fit, 0.39 and 0.42
+#: sat high, and dead centre.
 #: A constant, not a fit per frame: the sphere's centre stays put while
 #: the board tilts, so it never reads as translating.
 LIFT = 0.5

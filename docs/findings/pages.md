@@ -8,29 +8,29 @@ The terminal's pages and what they draw. The host's other findings:
 - HUMANOID rendered under `--keys` (a key a frame, `tools/render/page.py`):
   O turns the view, X puts it at the other side, Shift+W runs it at 0.90
   m/s, W+A walks it an arc the chase follows, C has it down with `[F]
-  #201 stand` offered, the chair scene offers `[F] sit chair` at 0.8 m. Its
+  #201 stand` offered, the chair scene offers `[F] sit chair` at 0.8 m. The robot's
   process ran at 0.2-0.3 of real time on four cores, 8-10 frames a second.
   A frame at 15 a second showed the same state again 65 times in 235, the
-  rest 0.036 s of its time apart with 0.022 of spread, its process at 0.7 of
-  real time in slices of 0.05 s (`terminal/views/playback.py`).
-- HUMANOID's balloons (`gym.offered`, `coaxial.graphics.balloons`): from its
-  lay in the lodge facing +z the door 3.6 m at 12 deg, the bed 2.5 m at 45,
-  the chair 1.7 m at 62 - F1 go out, F2 lie down, F3 sit -, at 150 x 44 the
+  rest 0.036 s of the robot's time apart with 0.022 of spread, its process at
+  0.7 of real time in slices of 0.05 s (`terminal/views/playback.py`).
+- HUMANOID's balloons (`gym.offered`, `coaxial.graphics.balloons`): from the
+  robot's lay in the lodge facing +z the door 3.6 m at 12 deg, the bed 2.5 m at
+  45, the chair 1.7 m at 62 - F1 go out, F2 lie down, F3 sit -, at 150 x 44 the
   bed behind the docked eyes and its balloon at their edge. Numbered nearest
-  first, F alone sent it from (0.12, 0.28) to the chair 56 deg aside, not
-  the door ahead, and it fell at 5.19 s (scenarios item 10): numbered by
-  its turn to them, F alone keeps what it faces. Lying on the bed it one
-  offer read F where three had read F1-F3, and backing to it the door at its
-  sight's edge came and went four times in 1.5 s: one alone is F1 too, a
+  first, F alone sent the robot from (0.12, 0.28) to the chair 56 deg aside, not
+  the door ahead, and it fell at 5.19 s (scenarios item 10): numbered by its
+  turn to them, F alone keeps what it faces. Lying on the bed the robot one
+  offer read F where three had read F1-F3, and backing to it the door at the
+  robot's sight's edge came and went four times in 1.5 s: one alone is F1 too, a
   thing once seen kept till its scene or its epoch is laid anew.
 - The crafts' pages flew on a `Feed` thread in the page's process and drew
   the newest of its 20 ms steps: on a 200 x 56 truecolor terminal 13.4-18.7
   frames a second, gaps p95 80-115 ms, the longest 484-639, the flight's
   Python sharing the GIL with a frame's 3D (16-33 ms) and rich's update
-  (21-28 ms). Run apart as its own is (`machine.process.apart`,
+  (21-28 ms). Run apart as the robot's own is (`machine.process.apart`,
   `quad/flying.py`) and played back no further than 0.15 s behind what it said,
-  a frame 0.1 s of its time at the most: 18.7-19.3 frames a second, p95 66-77 ms,
-  the longest 75-89, its time on at the wall's (1.00). HUMANOID on the same
+  a frame 0.1 s of its time at the most: 18.7-19.3 frames a second, p95 66-77
+  ms, the longest 75-89, its time on at the wall's (1.00). HUMANOID on the same
   loop: 17.2.
 - Played back at a frame's start, the flight reached the terminal 35-80 ms
   later, rich's update 24 ms and 51 at p95 - a collection of the whole heap
@@ -51,17 +51,17 @@ The terminal's pages and what they draw. The host's other findings:
   On its course lap at 12.6 m/s the craft on screen is off smooth motion
   0.04 dots (0.38 at p95), its path in the world 9 mm at p95; the chase
   holds it 15 dots off the middle, 43 at p95.
-- HUMANOID drew a frame every 68 ms, its motion on screen 0.59-1.07 of its
-  speed: its playback eased to its process's ratio and caught up after it.
-  Held to what the page shows (`apart.LEAD_S`) and played back steady
-  (`Playback.steady`, as the flights are): 0.92-1.03, its wear window's
-  passes a slowing, not a burst. Its frame was 57 ms: its room's edges 413
-  `line` calls (13 ms; `props.lines` an ink a call), the braille's runs a
-  scan of every cell, rich 20. Its 3D drawn a frame ahead in a process of its
-  own (`terminal.ui.ahead`, the flights' too), the viewport two passes
-  flatter (`Marquee` centres, `Chrome` takes the rate): a frame every 36.6 ms
-  (27.3 a second), what is left rich's layout of its instruments (12 ms);
-  the flights 33.8 (29.6), on the cap.
+- HUMANOID drew a frame every 68 ms, its motion on screen 0.59-1.07 of
+  its speed: the robot's playback eased to its process's ratio and
+  caught up after it. Held to what the page shows (`apart.LEAD_S`) and played
+  back steady (`Playback.steady`, as the flights are): 0.92-1.03, the robot's
+  wear window's passes a slowing, not a burst. The robot's frame was 57 ms: its
+  room's edges 413 `line` calls (13 ms; `props.lines` an ink a call), the
+  braille's runs a scan of every cell, rich 20. The robot's 3D drawn a frame
+  ahead in a process of its own (`terminal.ui.ahead`, the flights' too), the
+  viewport two passes flatter (`Marquee` centres, `Chrome` takes the rate): a
+  frame every 36.6 ms (27.3 a second), what is left rich's layout of the robot's
+  instruments (12 ms); the flights 33.8 (29.6), on the cap.
 - HUMANOID's R crashed the page at once with no traceback
   kept; headless it took R and saved 97 rows then, and R starting, three
   states and R saving is test_views_humanoid.py's. The
@@ -69,7 +69,7 @@ The terminal's pages and what they draw. The host's other findings:
   flex then; delta, delta_d and ahead) reads a block of
   another layout - a page is restarted after a pull.
 - THERMAL OBSERVER said `AFE off` with AFE_ON high: no reading yet, the first
-  sample is 30 s after opening. It says which now.
+  sample is 30 s after opening. The page says which now.
 - THERMAL OBSERVER and the side columns, a review's 29 findings against the
   refit:
   + `--switch` armed a real board with the break bypassed; now AFE_ON off,
@@ -100,24 +100,24 @@ The terminal's pages and what they draw. The host's other findings:
   ms; the menu's turntable 64 -> 13 ms at 52x18. BOARD ATTITUDE 66 -> 64 ms
   a frame at 200x60: its ground (32 ms) and paint (15) are the frame now.
 - BOARD ATTITUDE, 150x44 on native://: 10.4 -> 29.6 fps turning (ANGLE 29.7).
-  Its frame was Python cell by cell - the face's paint 30 ms, the floor 16,
-  the shadow map 4 a new bin; on arrays now, bit for bit (test_paint,
+  The page's frame was Python cell by cell - the face's paint 30 ms, the floor
+  16, the shadow map 4 a new bin; on arrays now, bit for bit (test_paint,
   test_ground, 157 frames A/B), drawn in a process of its own a frame ahead
-  (`ahead`, `easel`), the page's own work 21 ms, rich 14-18 of it. Its feed
-  asked a frame: 19 -> 27 new poses a second of 29.6 frames, the rest a read
-  past a frame (25 ms beside the page, 14 alone). Its start: one preload file
-  for the machine's trees left each other's pages cold (decimates 1.5 s,
-  outline 1.0), a file a stamp now; the drawing's process 1.9 s cold, 1.5 of
-  it wgpu's C types cffi parses in every process; a daemon, it decimates a
+  (`ahead`, `easel`), the page's own work 21 ms, rich 14-18 of it. The page's
+  feed asked a frame: 19 -> 27 new poses a second of 29.6 frames, the rest a
+  read past a frame (25 ms beside the page, 14 alone). The page's start: one
+  preload file for the machine's trees left each other's pages cold (decimates
+  1.5 s, outline 1.0), a file a stamp now; the drawing's process 1.9 s cold, 1.5
+  of it wgpu's C types cffi parses in every process; a daemon, it decimates a
   cold preload itself (a pool stopped the bench's page). On the bench from the
   front page 2.3 -> 0.9 s: the board's open 0.49 (the AFE's settle 0.3), its
   parts 0.10 (the map 0.25), the rotation vector 0.12, the first frame 0.15,
-  drawn here on the warm card till the process is up, 2.1 s on, the exposure
-  and vote carried; by name, the card cold, 2.5 s. Its drawing kept from the
-  terminal's start (`AHEAD`), a named page's before the loader's imports:
-  by name 1.9 s, from the front page 0.9 s its own process's first frame.
-  The crew's decimates had
-  dropped the bore's keep: a missing preload drew the two holes.
+  drawn here on the warm card till the process is up, 2.1 s on, the exposure and
+  vote carried; by name, the card cold, 2.5 s. The page's drawing kept from the
+  terminal's start (`AHEAD`), a named page's before the loader's imports: by
+  name 1.9 s, from the front page 0.9 s its own process's first frame. The
+  crew's decimates had dropped the bore's keep: a missing preload drew the two
+  holes.
 - The front page's model was drawn at inner height - 2 inside a 1-column
   padding: a blank row top and bottom, a column each wall. Now the box's
   full inside (checked at 90x28, 120x36, 200x60).
@@ -142,9 +142,9 @@ The terminal's pages and what they draw. The host's other findings:
 - A shaded cell keeps 0.4 of its dots at the least (`lit.braille`, 0.40 + 0.60
   of its light against the blue noise): on 0.04 + 0.96 of its light to the
   1.5 the crafts' mid-grey shells and the gynoid's clothes read as clouds of
-  points beside the glTF and FBX models they were judged against. Its jeans
-  (70, 98, 150), 0.062-0.068 m a thigh where 0.072-0.088, 0.052 m a hem where
-  0.074; its shoulders' rings 0.118 m at 0.344 m where 0.14.
+  points beside the glTF and FBX models they were judged against. The robot's
+  jeans (70, 98, 150), 0.062-0.068 m a thigh where 0.072-0.088, 0.052 m a hem
+  where 0.074; its shoulders' rings 0.118 m at 0.344 m where 0.14.
 - The helicopter after the T-REX 700 beside the repo: its canopy a 0.57 m
   teardrop over the frames, red over black; a loft's fourth number drops a
   ring, and the lime canopy had sat under the frames, unseen from the side.
@@ -167,13 +167,12 @@ The terminal's pages and what they draw. The host's other findings:
 
 - The terminal's keys from one table (`terminal/ui/bindings.py`): HUMANOID's
   bound in five places, each page its own way; where they met, the arrows
-  lifted its view and paged the column, Esc in its prompt left the page, F's
-  choice outlived the keys after it, the rotor's keys took lower case alone,
-  SESSION's + - were unbound. At 150 x 44 the 13 pages open with the column
-  a rail - its arrow breathing with the screen's sweep, a key's ink to (28,
-  191, 191) and back over 5 s -, the front page's panels up (no Tab);
-  HUMANOID's pairs ran 194 cells, the terminal's at the bar's right end now,
-  the page's cut before them. Esc over HUMANOID showed a small second front
-  page; now the front page, the band its page's name alone. Folded, BOARD
-  ATTITUDE drew the open column's 106, chat, render a 24 column; now
-  `taskbar.room`, 141.
+  lifted the robot's view and paged the column, Esc in its prompt left
+  the page, F's choice outlived the keys after it, the rotor's keys took lower
+  case alone, SESSION's + - were unbound. At 150 x 44 the 13 pages open with the
+  column a rail - its arrow breathing with the screen's sweep, a key's ink to
+  (28, 191, 191) and back over 5 s -, the front page's panels up (no Tab);
+  HUMANOID's pairs ran 194 cells, the terminal's at the bar's right end now, the
+  page's cut before them. Esc over HUMANOID showed a small second front page;
+  now the front page, the band its page's name alone. Folded, BOARD ATTITUDE
+  drew the open column's 106, chat, render a 24 column; now `taskbar.room`, 141.

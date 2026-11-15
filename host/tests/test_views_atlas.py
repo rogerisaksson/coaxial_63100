@@ -52,10 +52,10 @@ def test_the_nearest_child_past_the_keys(report):
                  past and held == past, '%d of %d turns past the keys' % (held, past))
 
 
-def test_the_mirror_closes_its_loop(report):
-    """The mirror's flows come back (tools/dev/atlas_flow.py): what its pass ends with, the world, to what its
-    edge reads the next - the loop closed -, and the wire's readings from their handler to the host's end;
-    in the mirror the loop marked (↺) on a key's panel; a dot runs each flow on its lane, on in half a second."""
+def test_the_mirror_closes_the_robots_loop(report):
+    """The mirror's flows come back (tools/dev/atlas_flow.py): what the robot's pass ends with, the world, to what
+    its edge reads the next - the loop closed -, and the wire's readings from their handler to the host's end; in
+    the mirror the loop marked (↺) on a key's panel; a dot runs each flow on its lane, on in half a second."""
     from terminal.ui import bindings
     from terminal.views import show_atlas
     from terminal.views.atlas import mirror, scene
@@ -64,7 +64,7 @@ def test_the_mirror_closes_its_loop(report):
     back = [(tree.id[a], tree.id[b], label) for a, b, kind, label in atlas_flow.flows(tree)
             if atlas_flow.KINDS[kind] == 'feedback']
     loop = ('host/machine/world/physics.py', 'host/machine/senses/edge.py', 'world')
-    report.check("its loop closed through the world to its edge, the wire's readings back to the host",
+    report.check("the loop closed through the world to its edge, the wire's readings back to the host",
                  loop in back and any(b.startswith('host/') and a.startswith('comms/') for a, b, _l in back),
                  '%d flows back' % len(back))
     state = show_atlas.opened(tree)
@@ -84,10 +84,10 @@ def test_the_mirror_closes_its_loop(report):
 
 
 def test_the_mirror_faces_what_flows(report):
-    """The atlas's mirror (atlas/mirror.py, atlas_flow.py): its pass and the wire flow, each of its pass's words
-    made by a function the tree holds; M faces the world of the nodes the tree names at the node open - its
-    children, those above it, the layers - that a flow joins, none other drawn, each written as the tree
-    writes it, its key before, framed whole, a flow's word with where it is made; M back: the tree as seen."""
+    """The atlas's mirror (atlas/mirror.py, atlas_flow.py): the robot's pass and the wire flow, each of the pass's
+    words made by a function the tree holds; M faces the world of the nodes the tree names at the node open - its
+    children, those above it, the layers - that a flow joins, none other drawn, each written as the tree writes it,
+    its key before, framed whole, a flow's word with where it is made; M back: the tree as seen."""
     from terminal.ui import bindings
     from terminal.views import show_atlas
     from terminal.views.atlas import mirror, scene
@@ -110,7 +110,7 @@ def test_the_mirror_faces_what_flows(report):
     rows = {''.join(cells.get((c, r), ' ')[0] for c in range(show_atlas.sized(state)[0])) for r in range(show_atlas.sized(state)[1])}
     unkeyed = [k for n, k in keys.items() if n in joined and not any('%s %s' % (k, scene.short(tree, n)) in r for r in rows)]
     law = next(n for n in joined if scene.short(tree, n) == 'law/')
-    report.check('the flows, its words made in the tree; M: the nodes the tree names that a flow joins, none other, '
+    report.check('the flows, the pass\'s words made in the tree; M: the nodes the tree names that a flow joins, none other, '
                  'keyed as the tree keys them, faced whole; a word by where it is made',
                  {(0, 'heard'), (0, 'read'), (1, 'CMD')} <= said and min(made.values()) >= 0 and set(over['at']) == joined
                  and set(over['flat']['nodes'].tolist()) == joined and not unkeyed
@@ -123,12 +123,11 @@ def test_the_mirror_faces_what_flows(report):
 
 
 def test_the_mirror_lays_the_flow_out(report):
-    """The mirror's schematic at the trunk and at each layer (atlas/mirror.py, schematic.py): its loop's
-    stages round a rectangle in its order - its first half along the top left to right, the rest back along
-    the bottom -, each joined to the next by what passes or comes back, the last to the first; the wire's
-    asks each to a column on the right but one that closes a loop; on a drawing framed whole every lane's
-    cell a line or a head or what the lane carries, no name on a lane, every node named, every lane of its
-    pass's words written; the lanes crossing counted."""
+    """The mirror's schematic at the trunk and each layer (atlas/mirror.py, schematic.py): the loop's stages round
+    a rectangle in its order - its first half along the top left to right, the rest back along the bottom -, each
+    joined to the next by what passes or comes back, the last to the first; the wire's asks each to a column on the
+    right but one that closes a loop; on a drawing framed whole each lane's cell a line or a head or what the lane
+    carries, no name on a lane, every node named, every lane of the pass's words written; the crossings counted."""
     from terminal.ui import bindings
     from terminal.views import show_atlas
     from terminal.views.atlas import detail, mirror, scene, schematic
@@ -175,18 +174,18 @@ def test_the_mirror_lays_the_flow_out(report):
         unnamed += ['%s: %s' % (where, name) for *_at, name, ink, node in over['texts']
                     if node is not None and ink in (scene.NAME, scene.TOLD) and not any(name in row for row in rows)]
         crossed[where] = _crossed(over['lanes'])
-    report.check("its loop round its rectangle in its order, closed; the asks to the right but a loop's",
+    report.check("the loop round its rectangle in its order, closed; the asks to the right but a loop's",
                  looped and all(looped) and not any(onward), '%d loops; %s' % (len(looped), [o for o in onward if o]))
-    report.check('every lane a line, a head or what it carries, no name on one; every node named, its words '
+    report.check('every lane a line, a head or what it carries, no name on one; every node named, the pass\'s words '
                  'written; the crossings counted', not smudged and not unnamed and not unsaid,
                  '%s smudged, %s unnamed, %s unsaid; crossings %s' % (
                      smudged[:3], unnamed[:3], unsaid[:3], ', '.join('%s %d' % kv for kv in crossed.items())))
 
 
 def test_the_mirror_zooms_and_pans(report):
-    """The mirror's camera (atlas/mirror.py, show_atlas.py): zoomed in, every lane still reaches its nodes -
+    """The mirror's camera (atlas/mirror.py, show_atlas.py): zoomed in, each lane still reaches its nodes -
     its ends where they stand from their signs, in the terminal's cells, a node open aside -, two line cells
-    at least behind every head; zoomed out no farther than its framing; an arrow moves its flat world, never
+    at least behind each head; zoomed out no farther than its framing; an arrow moves its flat world, never
     turns it; the node nearest the viewport one - lit in it, named on top and in the panel where room is kept
     for it -, the panel's room kept or not."""
     import io
@@ -227,7 +226,7 @@ def test_the_mirror_zooms_and_pans(report):
                 behind += [next((k for k, c in enumerate(seq[1:]) if cells.get(c, ' ')[0] in heads), len(seq) - 1)] \
                     if head is not None and zoom == 0 else []
     drawn(150, 44, ['-'] * 8)
-    report.check('zoomed in every lane reaching its nodes, two line cells behind a head; out no farther than framed',
+    report.check('zoomed in each lane reaching its nodes, two line cells behind a head; out no farther than framed',
                  not loose and min(behind) >= 2 and distances == sorted(distances, reverse=True)
                  and state['cam']['distance'] == distances[0], '%d loose ends, %d cells at least behind a head; '
                  'distances %s' % (len(loose), min(behind), ' '.join('%.2f' % d for d in distances)))
@@ -330,7 +329,7 @@ def test_the_mirror_opens_nearer(report):
                  '%d cells within, ends off %s; inks %s' % (len(within), off[:3], [sorted(i) for i in inks]))
 
 
-ROSTER = (test_the_nearest_child_past_the_keys, test_the_mirror_closes_its_loop, test_the_mirror_faces_what_flows,
+ROSTER = (test_the_nearest_child_past_the_keys, test_the_mirror_closes_the_robots_loop, test_the_mirror_faces_what_flows,
           test_the_mirror_lays_the_flow_out, test_the_mirror_zooms_and_pans, test_the_mirror_tells_more_nearer,
           test_the_mirror_opens_nearer)
 

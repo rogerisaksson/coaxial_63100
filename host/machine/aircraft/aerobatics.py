@@ -4,7 +4,7 @@
     name, row = aerobatics.fly(route, now, holds)    # the card's row for now, eased in
     payload = aerokin.step(law, row, frame, dt, pull)    # that row flown: aero/'s payload
 
-Spent - its pack, its boards' envelopes - the routine comes down from wherever it is and waits
+Spent - the quad's pack, its boards' envelopes - the routine comes down from wherever it is and waits
 on the floor until it is fit.
 """
 import math
@@ -13,7 +13,7 @@ from typing import Any
 from machine.aircraft import quad
 from machine.aircraft.quad import FLOOR_M, HOVER_M
 
-#: A figure a row of setpoints: height, m over the floor, and the pace it may go there at, m/s,
+#: A figure a row of setpoints: height, m over the floor, and the pace the quad may go there at, m/s,
 #: come to and stopped from in a second; climb and push, that height's own rate and pull, m/s
 #: and m/s^2 - a row's none, its easing's on the way to it; speed along its heading and slide
 #: across it, m/s, surge and sway a pull along and across it over what those speeds' change
@@ -31,17 +31,17 @@ HOVER = _ST['hover']
 SKY = _ST['sky']
 #: The lift off the floor: the hover come to at any pace, on all the rotors have.
 LAUNCH = _ST['launch']
-#: The stop over the floor, from wherever it is: let fall, burned, held. It falls free, half
-#: its weight on the rotors - 13 m/s, blown 10-13 m off in a gusty wind -, and its burn
+#: The stop over the floor, from wherever the quad is: let fall, burned, held. The quad falls free,
+#: half its weight on the rotors - 13 m/s, blown 10-13 m off in a gusty wind -, and its burn
 #: begins the rotors' spool before the stop on all they have: at the mark in four winds of
 #: four. And on the floor: let fall half a metre under it, the skids down and the rotors at
 #: their idle.
 STOP = _ST['stop']
 DOWN = _ST['down']
-#: A turn on its spot, as the discs' drag turns it.
+#: A turn of the quad on its spot, as the discs' drag turns it.
 PIROUETTE = _ST['pirouette']
-#: An orbit: slid ORBIT_M_S round the point ORBIT_M ahead of its nose, its nose on it, banked 25
-#: degrees, a lap LAP_S. Mixed with a hover it keeps its circle - both its slide and its turn
+#: An orbit: slid ORBIT_M_S round the point ORBIT_M ahead of the quad's nose, its nose on it, banked
+#: 25 degrees, a lap LAP_S. Mixed with a hover it keeps its circle - both its slide and its turn
 #: are as much of theirs - and eased in and out alike it is as many laps as its seconds.
 ORBIT_M, ORBIT_M_S = _KIN['horizontal']['orbit_radius'], _KIN['horizontal']['orbit_speed']
 ORBIT = _ST['orbit']
@@ -50,16 +50,16 @@ LAP_S = math.tau * ORBIT_M / ORBIT_M_S
 TOP_M = _KIN['envelope']['top_height']
 CORKSCREW = _ST['corkscrew']
 UNWIND = _ST['unwind']
-#: Over its spot at the top. A toss: the sky's row at a pace; at that pace it turns over, about
-#: its nose or about its wing, and is caught where it was tossed from.
+#: The quad over its spot at the top. A toss: the sky's row at a pace; at that pace the quad turns
+#: over, about its nose or about its wing, and is caught where it was tossed from.
 HIGH = _ST['high']
 TOSS = _ST['toss']
 ROLL = _ST['roll']
 FLIP = _ST['flip']
-#: Pressed on the floor, its height asked this far under it, m: the skids down, the rotors
+#: Pressed on the floor, the quad's height asked this far under it, m: the skids down, the rotors
 #: bearing all but a twentieth of it - where a landing ends and a lift begins.
 PRESSED = _ST['pressed']
-#: Down to the stop's mark over its spot from wherever it is, at a pace.
+#: Down to the stop's mark over the quad's spot from wherever it is, at a pace.
 OVER = _ST['over']
 
 #: The routine: (name, row, seconds on it at least, seconds eased into it, what it waits for
@@ -70,7 +70,7 @@ OVER = _ST['over']
 CARD = quad.MANIFEST['routines']['quadcopter']
 #: `spent` among what holds takes the routine to its flight's row of this name, the next before
 #: one that waits to be fit - but from one that waits to be fit, on the floor already, and from
-#: one that gives its own row: a line ends itself (`aircraft.course`: where it is on it, things
+#: one that gives its own row: a line ends itself (`aircraft.course`: where the quad is on it, things
 #: stand under it).
 SPENT_TO = 'descend'
 

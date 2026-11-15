@@ -1,8 +1,8 @@
-"""A process beside its loop's: a module of this tree served on its own, asks pickled down its stdin.
+"""A process beside the robot's loop: a module of this tree served apart, asks pickled down its stdin.
 
-Its page's worker is daemonic and may have no children of multiprocessing's (`machine.process.apart`): what it runs
-beside itself is a subprocess, `python -m module`, its stdout its answers' alone. Its planner, its camera's
-map and its vision run so (`machine.way.planner`, `machine.eyes.camera`, `machine.eyes.vision`).
+The robot's page's worker is daemonic and may have no children of multiprocessing's (`machine.process.apart`): what
+it runs beside itself is a subprocess, `python -m module`, its stdout its answers' alone. The robot's planner, its
+camera's map and its vision run so (`machine.way.planner`, `machine.eyes.camera`, `machine.eyes.vision`).
 
     aside = Aside('machine.eyes.vision', 'its vision')   # spawned at its first ask, or `start` sooner
     aside.send(ask); answer = aside.recv()          # an answer waited for
@@ -34,7 +34,7 @@ class Aside:
         self.module, self.name, self.process, self.into, self.out = module, name, None, None, None
 
     def start(self):
-        """Its process spawned, where it is not yet; itself."""
+        """The process spawned, where it is not yet; itself."""
         if self.process is None:
             p = subprocess.Popen([sys.executable, '-m', self.module], stdin=subprocess.PIPE,
                                  stdout=subprocess.PIPE, cwd=HOST)
@@ -53,7 +53,7 @@ class Aside:
             raise MachineError('%s took no ask: %s' % (self.name, e)) from e
 
     def recv(self):
-        """Its next answer, waited for; raises once it has ended."""
+        """The process's next answer, waited for; raises once it has ended."""
         assert self.out is not None
         try:
             return pickle.load(self.out)
@@ -61,7 +61,7 @@ class Aside:
             raise MachineError(self.ended()) from e
 
     def heard(self, answers):
-        """Its answers onto the queue `answers` as they come, None once it has ended, by a thread of its own."""
+        """The process's answers onto the queue `answers` as they come, None once it has ended, by a thread of its own."""
         threading.Thread(target=_heard, args=(self.out, answers), daemon=True).start()
 
     def ended(self):
@@ -69,7 +69,7 @@ class Aside:
         return '%s ended, exit code %s' % (self.name, self.process.wait() if self.process is not None else None)
 
     def close(self, wait=1.0):
-        """Its process ended: a None sent, its stdin closed, `wait` s for it to end, then killed."""
+        """The process ended: a None sent, its stdin closed, `wait` s for it to end, then killed."""
         if self.process is None:
             return
         assert self.into is not None
@@ -85,7 +85,7 @@ class Aside:
 
 def _heard(out, answers):
     """`out`'s answers onto `answers` as they come; None once it has ended. Not an Aside's method: a thread
-    holding its owner kept its pipe open and its process alive, 105 of its planners beside 28 runs."""
+    holding its owner kept its pipe open and its process alive, 105 of the robot's planners beside 28 runs."""
     try:
         while True:
             answers.put(pickle.load(out))
@@ -94,9 +94,9 @@ def _heard(out, answers):
 
 
 def _said(out, answer):
-    """`answer` pickled onto `out`: whether it was heard. Its asker gone - its worker ended with an ask in flight,
-    its pipe's reader closed - the write is refused: what is left unsaid goes to the null device, not into a
-    traceback at this process's end."""
+    """`answer` pickled onto `out`: whether it was heard. The asker gone - the robot's worker ended with an ask in
+    flight, its pipe's reader closed - the write is refused: what is left unsaid goes to the null device, not into
+    a traceback at this process's end."""
     try:
         pickle.dump(answer, out, protocol=pickle.HIGHEST_PROTOCOL)
         out.flush()
@@ -109,9 +109,9 @@ def _said(out, answer):
 
 
 def serve(answer, ready=SILENT):
-    """This process a module served: `ready` said first where given, then each ask off stdin answered on stdout,
-    pickled; None, stdin's end or its asker gone (`_said`) ends it. Its prints go to stderr: its stdout is its
-    answers'. Placed a core apart from its others (`placed`)."""
+    """This process a module served: `ready` said first where given, then each ask off stdin answered on
+    stdout, pickled; None, stdin's end or its asker gone (`_said`) ends it. This process's prints go to
+    stderr: its stdout is its answers'. Placed a core apart from the robot's others (`placed`)."""
     placed.placed()
     out, inp, sys.stdout = sys.stdout.buffer, sys.stdin.buffer, sys.stderr
     if ready is not SILENT and not _said(out, ready):

@@ -1,8 +1,9 @@
 """The robot's scoot on the floor in C through ctypes (wbc_scoot.c), bit for bit.
 
-`machine.moves.scoot`'s `laid` and `step` on its tables, the move its loop plays (`machine.process.joints.MOVES`).
+`machine.moves.scoot`'s `laid` and `step` on its tables, the move the robot's loop plays
+(`machine.process.joints.MOVES`).
 
-    state = scoot.laid(q_deg, t)                                                     # from where it sits
+    state = scoot.laid(q_deg, t)                                                     # from where the robot sits
     scoot.step(state, cmd, q_deg, t, dt, pitch, hands, left, right, back, turn, heading)    # cmd laid over
 """
 import ctypes
@@ -13,7 +14,7 @@ import numpy as np
 from machine.moves import scoot as py
 from tools.cores import wbc
 
-#: What its loop gives a pass beyond its pose (`machine.moves.scoot.SENSED`).
+#: What the robot's loop gives a pass beyond its pose (`machine.moves.scoot.SENSED`).
 SENSED = py.SENSED
 P, Q, M, S = len(py.PHASES), len(py.PARTS), len(py.JOINT), len(py.ORDER)
 
@@ -76,7 +77,8 @@ def laid(q_deg, t):
 
 
 def step(state, cmd, q_deg, t, dt, pitch, hands, left, right, back, turn, heading):
-    """`machine.moves.scoot.step` in C on `state` and `cmd` (contiguous float64, laid over in place) and its senses."""
+    """`machine.moves.scoot.step` in C on `state` and `cmd` (contiguous float64, laid over in place) and the robot's
+    senses."""
     lib, tables = _laid()
     return lib.wbh_scoot_step(ctypes.byref(tables), state.ctypes.data, cmd.ctypes.data, dt, pitch, hands, left, right,
                               back, turn, heading)

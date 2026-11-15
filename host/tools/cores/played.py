@@ -1,12 +1,12 @@
-"""A move of its own on its boards in C (wbc_sil_played): its step and its joints told in one call.
+"""The robot's own move on its boards in C (wbc_sil_played): its step and its joints told in one call.
 
     p['pass'] = played.laid(g, world, p)    # as `joints.played` begins a move: its struct, the pass, its senses
     done = played.passed(p['pass'], t, dt, senses)
 
-`machine.process.joints.played`'s move pass - the move's step on its angles in degrees (`tools.cores.bedexit`, `scoot`,
-`sensed`), then its joints' setpoints in radians and its clamps through its boards' drive (`edge.bound`'s) -
-numpy's degrees, radians and takes operation for operation (test_tick): rising off the bed 47 of its 79 us a pass
-were two Python-wrapped C calls and the arrays between them.
+`machine.process.joints.played`'s move pass - the move's step on the robot's angles in degrees (`tools.cores.bedexit`,
+`scoot`, `sensed`), then its joints' setpoints in radians and the robot's clamps through its boards' drive
+(`edge.bound`'s) - numpy's degrees, radians and takes operation for operation (test_tick): rising off the bed 47 of its
+79 us a pass were two Python-wrapped C calls and the arrays between them.
 """
 import ctypes
 import functools
@@ -22,7 +22,8 @@ FIELDS = {'tools.cores.bedexit': 'exit', 'tools.cores.scoot': 'scoot', 'tools.co
 
 class Played(ctypes.Structure):
 
-    """wbc_played_t: a move playing on its boards, pointing at its edge, its clamps and the move's own arrays."""
+    """wbc_played_t: a move playing on the robot's boards, pointing at its edge, its clamps and the move's own
+    arrays."""
 
     _fields_ = [('exit', _vp), ('scoot', _vp), ('sensed', _vp), ('state', _vp), ('cmd', _vp), ('y', _vp), ('q_at', _i),
                 ('nq', _i), ('n', _i), ('spare', _i), ('idx', _vp), ('clamp', _vp), ('feed', _vp), ('kp', _vp), ('target', _vp),
@@ -43,8 +44,9 @@ def typed():
 
 def laid(g, world, p):
     """(its address, the pass, the struct, its senses' buffer and address) for the move `p` plays (`joints.played`):
-    its edge's angles, its clamps, the move's state, command, joints, feed, stiffness and buffers, its world's boards;
-    None where its move is not one of its C moves or its boards are not laid."""
+    the robot's edge's angles, its clamps, the move's state, command, joints, feed, stiffness and buffers, the
+    robot's world's boards; None where its move is not one of the robot's C moves or its boards are not
+    laid."""
     import inspect
     from machine.senses import edge
     field = FIELDS.get(getattr(inspect.getmodule(p['move']), '__name__', ''))

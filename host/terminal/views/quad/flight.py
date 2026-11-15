@@ -5,10 +5,10 @@
     for clock, frame in passed(rotors, sky, route, law, flight, clock, dt):   # a pass, its steps
         ...
 
-`CARD` is what the page flies, flight after flight: the routine (machine.aircraft.aerobatics), its boards
-and their observers warmed on it, then the course (machine.aircraft.course). A step is its card's row
-made a payload (machine.aircraft.aerokin) and the core's passes on it (aero/), each rotor's loop after
-the thrust it is given.
+`CARD` is what the page flies, flight after flight: the routine (machine.aircraft.aerobatics), the quad's
+boards and their observers warmed on it, then the course (machine.aircraft.course). A step is the quad's
+card's row made a payload (machine.aircraft.aerokin) and the core's passes on it (aero/), each rotor's loop
+after the thrust it is given.
 """
 import ctypes
 import math
@@ -41,7 +41,7 @@ SPEED_HZ, LOOP_HZ = 3.0, 1000
 #: A rotor's speed is come to no faster than this, rad/s^2 - its loop's own slew (`pull.slew`).
 SPOOL_RAD_S2 = pull.slew(pull.I_WEP)
 
-#: A rotor is asked no slower than this while it flies, rad/s: its idle.
+#: A rotor is asked no slower than this while the quad flies, rad/s: its idle.
 LEAST_RAD_S = quad.IDLE_RAD_S
 
 #: A rotor is started on this current, A, its vector turned up to the idle over this long, s.
@@ -71,7 +71,7 @@ ROWS = int(round(TICK_S * LOOP_HZ))
 #: Struck, a flight is over: its stage this, its rotors stopped and the wreck left for CRASH_S.
 CRASHED, CRASH_S = 'crashed', 4.0
 
-#: What it struck, in words (`quad.Sky.hit`); a gate by its number.
+#: What the craft struck, in words (`quad.Sky.hit`); a gate by its number.
 STRUCK = {'tree': 'into a tree', 'house': 'into a house', 'car': 'into a car',
           'mast': 'into the mast', 'floor': 'on the floor'}
 
@@ -94,7 +94,7 @@ def arm(rig, clock=1, warm_s=100.0, room='bench', rotor_m=pull.ROTOR):
         from terminal.views.quad import flying
         return flying.arm_emulated(rig, clock, warm_s, room, rotor_m)
     board = rig.board
-    # Its heat on the flight's clock from here: on the wall's until the first pass, four boards
+    # The board's heat on the flight's clock from here: on the wall's until the first pass, four boards
     # armed took a run's own seconds of it, and a flight run again was another.
     board.thermal.fast_forward(0.0)
     # In its rotor's wash, and the stand-in's truth laid on that: the observer and the board it
@@ -233,7 +233,7 @@ def step(rotors, sky, route, law, flight, clock, dt):
     thrust it is given within what its board holds, the frame in MuJoCo in the flight's air
     among what stands - the course's gates for its flights alone. The burn's row falls
     first; where the card waits to be fit a spent pack is changed and the boards cool.
-    Struck (`quad.Sky.hit`), it is CRASHED: its rotors stopped (`fallen`), and CRASH_S on the
+    Struck (`quad.Sky.hit`), the quad is CRASHED: its rotors stopped (`fallen`), and CRASH_S on the
     frame on its spot and its flight begun again."""
     cells, core, frame = flight['cells'], flight['core'], sky.state(False)
     have, spent, fit = shell(flight, rotors)

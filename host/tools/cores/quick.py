@@ -6,7 +6,7 @@
     run = quick.runner(b)                # run(args): Bound b's whole call in C, MISS or SLOW where it is not
     class Compiled(quick.based()): ...   # a part called in C: its Bound's runner, its `slow` where that misses
 
-Its law's parts are handed fresh arrays every pass, 207 leaves a law pass: walked in Python each was
+The robot's law's parts are handed fresh arrays every pass, 207 leaves a law pass: walked in Python each was
 0.8 us of the 12 us a part's glue took, its C 7 us; ctypes' call 1 us over its eight pointers. A part's
 call - its head's checks, its walk, its C and its result's views - one call in C (quick_run.c): six
 layers of Python a call were 6 us of glue, 160 us a law pass. Built once a source with the host's
@@ -28,7 +28,8 @@ import numpy as np
 from tools.cores import build
 from tools.cores.arrays import address
 
-#: The extension's sources, beside this: its walk and calls, its runner, its step's call (`tools.cores.step`).
+#: The extension's sources, beside this: its walk and calls, its runner, the robot's step's call
+#: (`tools.cores.step`).
 SOURCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'quick.c')
 SOURCES = tuple(os.path.join(os.path.dirname(SOURCE), name)
                 for name in ('quick.c', 'quick_run.c', 'quick_step.c', 'quick_part.c'))
@@ -216,7 +217,7 @@ class Called:
         return self.slow(*args, **kw)
 
     def slow(self, *args, **kw):
-        """Its call where its runner has nothing for it: its class's."""
+        """A part's call its runner has nothing for: its class's."""
         raise NotImplementedError
 
 

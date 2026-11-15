@@ -8,7 +8,7 @@ The HIGH leg switches at the duty; the LOW leg and the third sit at
 zero, which with MOE set is the low-side FET on - so a load between
 the two sees the DC link for `duty` of every period. The pulse lasts
 as long as the second compare write takes to land: 15.5 ms measured,
-~780 cycles at 50 kHz. It was 110 ms through rig.write(),
+~780 cycles at 50 kHz. The pulse was 110 ms through rig.write(),
 whose arm check and period lookup were three state reads at 31 ms
 each. From protocol 2.8 the board counts the pulse itself: --on
 rides as a period count with the duty write and the update ISR zeroes
@@ -18,8 +18,8 @@ not 93-108. Older firmware gets the link-timed train unchanged.
 Like switch.py it turns the AFE off and bypasses the STO break before
 arming - on this bench board AFE_ON high takes the supply off the gate
 drivers - and reads no current: measuring and switching are mutually
-exclusive here. It prints the gate state after the pulse and after the
-disarm, so a fault latch, an overrun or a gate short shows.
+exclusive here. The tool prints the gate state after the pulse and after
+the disarm, so a fault latch, an overrun or a gate short shows.
 """
 import argparse
 import time

@@ -30,8 +30,8 @@ powershell -ExecutionPolicy Bypass -File .\setup.ps1   # pull, check, install, b
 ```
 
 **Look.** On the front page pick a page by its letter: the motor controller
-turns a demo rotor, the humanoid walks. Q quits a page, ESC returns to the
-front page.
+turns a demo rotor, the humanoid walks. Q leaves the terminal, ESC returns to
+the front page.
 
 **Run.** Open a paper in [notebook_examples/](notebook_examples/README.md)
 and Run All: each runs as it stands, on the firmware's own image or on the
@@ -62,10 +62,11 @@ Renode; `-Check` only reports.
 
 `.\system_terminal.ps1 adc -Simulated` opens one page with no cable; `-Frames N`
 ends it after N frames. The 3D pages raster on the GPU where a card answers
-(wgpu); `COAXIAL_GPU=0` keeps them on the CPU. Its C cores are built for this
-host's processor (`-march=native`); `COAXIAL_ISA=avx`, `avx2`, `avx512`, `sve2`
-or `sme2` builds them for that target instead (`host/tools/cores/build.py`).
-`run_tests.py --linux --arch arm64 --isa sme2` runs the gate on an emulated Arm.
+(wgpu); `COAXIAL_GPU=0` keeps them on the CPU. The robot's C cores are built for
+this host's processor (`-march=native`); `COAXIAL_ISA=avx`, `avx2`, `avx512`,
+`sve2` or `sme2` builds them for that target instead
+(`host/tools/cores/build.py`). `run_tests.py --linux --arch arm64 --isa sme2`
+runs the gate on an emulated Arm.
 
 </details>
 
@@ -248,7 +249,7 @@ it has.
 
 | Folder | What it holds |
 | --- | --- |
-| `core/`, `drivers/`, `cmake/` | CubeMX's generated code, ST's HAL, the toolchain files |
+| `core/`, `drivers/`, `cmake/` | CubeMX's generated code, the HAL, the toolchain files |
 | `board/`, `comms/` | the hardware layer; the Modbus map and the device operations |
 | the cores | portable C11, each built for the target and for this host (section 8) |
 | `host/` | the Python host and its suites (`host/tests/`) |
@@ -307,8 +308,8 @@ push; a red run leaves its log's tail as a comment on its commit.
 ## 8 Inside: the board and the firmware
 
 Three phase shunts, the DC link and an NTC through the analogue front end,
-sampled on TIM1 at 50 kHz; the gate drivers supplied by the STO chain. Its
-schematic and layout: [Coaxial-63100 on CircuitMaker](https://workspace.circuitmaker.com/Projects/Details/RogerIsakssonLehtipalo/Coaxial-63100).
+sampled on TIM1 at 50 kHz; the gate drivers supplied by the STO chain.
+The board's schematic and layout: [Coaxial-63100 on CircuitMaker](https://workspace.circuitmaker.com/Projects/Details/RogerIsakssonLehtipalo/Coaxial-63100).
 
 <details><summary>The front end, the gate stage, the parts, the link</summary>
 

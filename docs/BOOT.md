@@ -12,8 +12,8 @@ on a node is versioned. On the bench board over the ST-Link's port;
 - An image is named by size and CRC-32, never by a version. `erase` offers
   one. A node whose RAM or store already holds it keeps it: verified at
   once, nothing streamed.
-- The store is flash. It is written only when `seal` asks to persist and
-  it holds another image. Its seal word is programmed last, so a store
+- The store is flash, written only when `seal` asks to persist and it
+  holds another image; its seal word is programmed last, so a store
   interrupted anywhere holds nothing.
 - Nothing runs unverified. At reset the bootloader recomputes the CRC over
   RAM (a warm reset) or over the store before copying it, then jumps.
@@ -29,9 +29,9 @@ on a node is versioned. On the bench board over the ST-Link's port;
 | 0x081E0000 | 128 K | calibration record (bank 2 sector 7) |
 | 0x30000000 | 288 K | RUN: D2 SRAM1..3, where the application is linked and runs |
 
-- The application fits: 201 K Debug, 135 K Release. The app
-  uses no D2 SRAM otherwise. The bootloader enables its clocks and leaves
-  them on through the jump.
+- The application fits: 219 K Debug, 205 K Release. The app uses no D2 SRAM
+  otherwise. The bootloader enables its clocks and leaves them on through the
+  jump.
 - Image: `boot_header_t` at +0x400 ('CXAP', size = linker `_app_size`,
   version, type). Valid = SP in DTCM, thumb reset vector inside RUN, magic
   and type match, size in range.
@@ -41,8 +41,8 @@ on a node is versioned. On the bench board over the ST-Link's port;
 
 ## What a node knows
 
-- Type: compiled in (`BOOT_BOARD`; pins differ per type). Only
-  `coaxial_63100` has a pin table.
+- Type: compiled in (`BOOT_BOARD`, a pin table a type): `coaxial_63100`
+  and `coaxial_63020`, the same pins.
 - Unique id: 96 bits at `UID_BASE`.
 - Handed to the app in the **handover slot** (`boot_hand_t`, top 32 B of
   DTCM, NOLOAD in both linker scripts): unit, position, flags, and the size
@@ -139,16 +139,16 @@ store/records/<bus>/<position>.record
 ## Tests
 
 - `test_boot_core.py`: the C core on byte-array flash and RAM via gcc and
-  ctypes. It covers the store, a warm reset, a power cycle, a torn store,
-  the slot's identity.
+  ctypes: the store, a warm reset, a power cycle, a torn store, the slot's
+  identity.
 - `test_boot_client.py`: the host's own `Boot` client byte for byte through
   `boot_pdu`, a running node reloaded through `load`, the front door's step.
 - `test_boot.py`: the master against `SimulatedBoot` / `SimulatedSegment`,
   persist, and the image cut from an ELF.
-- `test_structure` holds PROTOCOL.md's device 11 table to both servers.
+- `test_protocol_doc` holds PROTOCOL.md's device 11 table to both servers.
 
 ## Open (bench)
 
 10 Mbit on the bench adapter; a power cycle (PWR_CR3 on a fresh supply, the
 store alone, unit 1); D2 SRAM execution speed against flash; erase time per
-sector; what a real collision looks like; a `coaxial_63020` pin table.
+sector; what a real collision looks like.

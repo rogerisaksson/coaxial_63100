@@ -1,4 +1,4 @@
-"""What the suites of its C cores share: its poses drawn, results told apart in numpy's order."""
+"""What the suites of the robot's C cores share: its poses drawn, results told apart in numpy's order."""
 
 
 def apart(got, want):

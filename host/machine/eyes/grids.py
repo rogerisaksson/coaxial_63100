@@ -1,4 +1,4 @@
-"""Its grids' cells grown and joined, its points' hulls: of numpy alone, nothing of its own read.
+"""The robot's grid cells grown and joined, its points' hulls: of numpy alone, nothing of its own read.
 
     wider = grids.grown(cells, r)             # each set cell and those within r of it
     groups = grids.joined(on, offsets)        # [(index arrays)] the set cells' connected groups, lowest first
@@ -40,7 +40,7 @@ def joined(on, offsets):
 def joined_by(codes, offsets):
     """[(value, index arrays)] the connected groups of each value's cells of `codes` (integers, -1 none), value by
     value and each value's lowest first - `joined(codes == value)` a value at a time, in one union-find: a full grid's
-    a value was most of its picture's lumps."""
+    a value was most of the robot's picture's lumps."""
     import numpy as np
     at = np.flatnonzero(codes >= 0)
     if not len(at):

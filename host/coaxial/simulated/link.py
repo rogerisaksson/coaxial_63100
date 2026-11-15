@@ -4,7 +4,7 @@ from coaxial.comm import protocol
 from coaxial.errors import DeviceStateError
 from machine.rig.roles import Endpoint
 
-#: RTU's silences above 19 200 baud in the part's raw DWT cycles at 475 MHz (invariant 2):
+#: RTU's silences above 19 200 baud in the part's raw DWT cycles at 475 MHz:
 #: t1.5 750 us, t3.5 1750 us.
 T15_TICKS, T35_TICKS = 356250, 831250
 

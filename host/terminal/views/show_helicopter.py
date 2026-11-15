@@ -4,8 +4,8 @@ A 2 kg single-main-rotor 3D helicopter (`machine.aircraft.helicopter`) on two st
 on the mast and `TAIL` on the boom), each armed on the master's pilot and running sensorless on the
 63100 outrunner's model; the two on one 63 V pack; the airframe in MuJoCo under signed collective
 pitch, cyclic swashplate hub moments, main-rotor reaction torque and tail-rotor anti-torque
-(`terminal.views.helicopter.flight`). It flies flight after flight: first its 3D aerobatics routine
-- hover, fast pirouette, banked funnel, climbing spiral, half-flip to sustained negative-collective
+(`terminal.views.helicopter.flight`). The helicopter flies flight after flight: first its 3D aerobatics
+routine - hover, fast pirouette, banked funnel, climbing spiral, half-flip to sustained negative-collective
 inverted hover and inverted pirouette, elevator tic-tocs, 3D piro-flip, axial roll, full-tilt
 skyrocket punch-out, and collective burn stop 10 cm over the floor -, viewed from a side RC-pilot
 perspective that zooms slightly to follow while keeping contact with the horizon, and then two laps
@@ -31,7 +31,7 @@ NEAR_M, CHASE_M, YAW, PITCH = 0.76, 2.2, 52.0, 18.0
 
 
 def look(camera, law, row, frame, chased, dt):
-    """The helicopter camera `dt` s on, `(reach, centre)`: its spectator during its figures,
+    """The helicopter camera `dt` s on, `(reach, centre)`: the helicopter's spectator during its figures,
     behind its heading on the gate course (`show_quad.look`)."""
     return quad_look(camera, law, row, frame, chased, dt, near_m=NEAR_M, chase_m=CHASE_M, base_yaw=YAW,
                      chase_pitch=PITCH, build=heli_gfx.heli_mesh, sight=heli_gfx.SIGHT)

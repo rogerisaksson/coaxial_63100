@@ -1,7 +1,7 @@
 """The helicopter's form, a T-REX 700's, measured off a model 1.74 units across its rotor.
 
 The model's axes: y up from the ground under its skids, z aft from the mast, x toward the tail
-rotor's side. The page draws it (`coaxial.graphics.helicopter`) at the boom's length, on the
+rotor's side. The page draws the helicopter (`coaxial.graphics.helicopter`) at the boom's length, on the
 skids the sky stands it on.
 """
 
@@ -15,7 +15,7 @@ SWASH, HUB, GRIPS = (0.37, 0.03), (0.465, 0.03), (0.028, 0.066, 0.016)
 BLADE, TAIL_CHORD = (0.07, 0.046, 0.010), 0.035
 
 #: The canopy, nose to back: (z, bottom, top, half-width); open below from z -0.24 on, its
-#: bottom there its sides' lower edge. Its window ahead of WINDOW's z (z, y, slope) over the line
+#: bottom there its sides' lower edge. The canopy's window ahead of WINDOW's z (z, y, slope) over the line
 #: from there falling to the nose.
 CANOPY = (
     (-0.426, 0.158, 0.158, 0.0), (-0.42, 0.147, 0.169, 0.019), (-0.40, 0.126, 0.191, 0.036),

@@ -1,4 +1,4 @@
-/** wbc_bedexit.c - its way out of a bed over its end (wbc_move.h): machine.moves.bedexit's laid and step on its
+/** wbc_bedexit.c - the robot's way out of a bed over its end (wbc_move.h): machine.moves.bedexit's laid and step on its
     tables, numpy's and Python's arithmetic operation for operation (wbc_np.h), every branch a select. */
 #include "wbc_move.h"
 #include "wbc_np.h"

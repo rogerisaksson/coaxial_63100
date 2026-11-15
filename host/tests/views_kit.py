@@ -85,7 +85,8 @@ def ansi_plain(text):
 
 
 def looked_round(scanner, now):
-    """`scanner` shown what its eyes' view holds (`VisionScanner.seen`) turned a full turn where `now` has it."""
+    """`scanner` shown what the robot's eyes' view holds (`VisionScanner.seen`) turned a full turn where `now`
+    has it."""
     import math
     from terminal.views.scanner import ACROSS
     for k in range(int(math.ceil(math.tau / ACROSS))):

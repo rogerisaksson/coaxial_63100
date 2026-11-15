@@ -1,31 +1,31 @@
-"""Its map of the room's things (lie_group_slam_core.lisp): 256 slots of what its looks told it.
+"""The robot's map of the room's things (lie_group_slam_core.lisp): 256 slots, what its looks told it.
 
     slots = registry.laid()                     # the text's 256 slots, none taken
     registry.seen(slots, looks, head, t)        # a look's things matched or new, each slot's salience moved
     registry.passed(slots, head, dt)            # between looks: movables diffused, blind spots swollen
-    props = registry.boxes(slots)               # the things its buses take, as boxes (kind, centre, half, R)
+    props = registry.boxes(slots)               # the things the robot's buses take, as boxes (kind, centre, half, R)
 
-A look's things are its eyes' or their stand-in (`world.props()`), each a box: a kind - its class (`classes.of`, the
-text's `:semantic-class`), a matched slot taking the look's -, a centre, half
-sizes, a rotation, and its eyes' an id and whether the space over it is seen clear (`sight.told`: a thing's
-id the look before's where they share voxels; a surface's top clear, a structure's unknown, a prop's
-clear) - a look's thing with a live slot's id is its, the slot's box the look's; of them those its eyes'
-frustum shows any of (`sight`'s: NEAR_M to FAR_M, FOVY_DEG high and W / H as wide, DOWN_DEG under its head's
-z) at the box's point nearest its eye. A slot (SLOT): its
-kind, centre, half sizes and rotation, its position's variance (a look's cell squared, `sight.CELL_M`),
-its salience (log-odds), its velocity, when it was last seen and whether in its frustum, its blind
-spot's swell, its drift. A thing matches the live slot of its kind nearest it in the Wasserstein
-metric between Gaussians at their centres with their half sizes for widths - |dc|^2 + |dh|^2, the slot's
-centre where its velocity carries it - over the slot's and the look's variances, within the text's gate
-(`assimilate-semantic-quadrics`, chi2 5.99, GATE), and is filtered in (a Kalman gain of the variances);
-a match +0.85, a slot in the frustum and not matched -0.22 a look, out of it 0 while its blind
-spot is kept (45 s, `specialize-with-blindspot-memory-persistence`) and -0.22 past that; a thing with no
-slot within the gate takes a free slot, else the least salient's; a slot under -3.5 is pruned. A
-movable's variance (a class not STRUCTURAL) grows 0.45 mm^2/s between looks; a slot out of its frustum
-swells 1.5 mm/s to 120 mm, a match resets it. A slot's drift is its looks' moves from its centre over
-the variances, summed - the still model's evidence against it -; past the text's chi2 (16.27,
-`specialize-with-dynamic-agent-bifurcation`) the thing is moving: its velocity its move from its last
-look over the time, its slot at each look, its variance the look's. Its buses take the slots at 1.8 (`specialize-with-affordance-field-projection`); 2.2 confirms.
+A look's things are the robot's eyes' or their stand-in (`world.props()`), each a box: a kind - its class
+(`classes.of`, the text's `:semantic-class`), a matched slot taking the look's -, a centre, half sizes, a
+rotation, and the robot's eyes' an id and whether the space over it is seen clear (`sight.told`: a thing's id
+the look before's where they share voxels; a surface's top clear, a structure's unknown, a prop's clear) - a
+look's thing with a live slot's id is its, the slot's box the look's; of them those the robot's eyes' frustum
+shows any of (`sight`'s: NEAR_M to FAR_M, FOVY_DEG high and W / H as wide, DOWN_DEG under its head's
+z) at the box's point nearest its eye. A slot (SLOT): its kind, centre, half sizes and rotation, its
+position's variance (a look's cell squared, `sight.CELL_M`), its salience (log-odds), its velocity, when it
+was last seen and whether in the robot's frustum, its blind spot's swell, its drift. A thing matches the live
+slot of its kind nearest it in the Wasserstein metric between Gaussians at their centres with their half sizes
+for widths - |dc|^2 + |dh|^2, the slot's centre where its velocity carries it - over the slot's and the look's
+variances, within the text's gate (`assimilate-semantic-quadrics`, chi2 5.99, GATE), and is filtered in (a
+Kalman gain of the variances); a match +0.85, a slot in the frustum and not matched -0.22 a look, out of it 0
+while its blind spot is kept (45 s, `specialize-with-blindspot-memory-persistence`) and -0.22 past that; a
+thing with no slot within the gate takes a free slot, else the least salient's; a slot under -3.5 is pruned. A
+movable's variance (a class not STRUCTURAL) grows 0.45 mm^2/s between looks; a slot out of the robot's frustum
+swells 1.5 mm/s to 120 mm, a match resets it. A slot's drift is its looks' moves from its centre over the
+variances, summed - the still model's evidence against it -; past the text's chi2 (16.27,
+`specialize-with-dynamic-agent-bifurcation`) the thing is moving: its velocity its move from its last look
+over the time, its slot at each look, its variance the look's. The robot's buses take the slots at 1.8
+(`specialize-with-affordance-field-projection`); 2.2 confirms.
 """
 import math
 import os
@@ -48,7 +48,7 @@ _LAYOUT = kernel.read()['spatial-object-soa-registry']['memory-layout']
 SLOTS, ALIGN = int(_LAYOUT['max-tracked-objects']), int(_LAYOUT['align-bytes'])
 CELL2 = CELL_M * CELL_M
 #: The association's gate, chi2; a match's, a miss's and a frustum-empty miss's log-odds; the salience
-#: a thing is confirmed at, pruned under, taken by its buses from.
+#: a thing is confirmed at, pruned under, taken by the robot's buses from.
 GATE = _LAW['gate-threshold']
 HIT, MISS = _LAW['occupancy-bayes-law']['on-frustum-match'], _LAW['occupancy-bayes-law']['on-frustum-empty-miss']
 CONFIRM, PRUNE = _LAW['occupancy-bayes-law']['confirm-salience-thresh'], _LAW['occupancy-bayes-law']['prune-salience-floor']
@@ -67,7 +67,7 @@ SLOT = (('on', 'f8', ()), ('kind', 'i4', ()), ('centre', 'f8', (3,)), ('half', '
         ('var', 'f8', ()), ('salience', 'f8', ()), ('vel', 'f8', (3,)), ('last', 'f8', (3,)), ('seen_at', 'f8', ()),
         ('swell', 'f8', ()), ('drift', 'f8', ()), ('moving', 'f8', ()), ('shown', 'f8', ()), ('id', 'i8', ()),
         ('clear', 'f8', ()))
-#: Its eyes' half angles' tangents, up and across; their look down its head's z, rad; their axis and
+#: The robot's eyes' half angles' tangents, up and across; their look down its head's z, rad; their axis and
 #: their up in its head's frame.
 TAN_UP = math.tan(math.radians(FOVY_DEG) / 2.0)
 TAN_ACROSS = TAN_UP * W / H
@@ -117,7 +117,7 @@ def _frame(q):
 
 
 def _eye(head):
-    """(its eye's place, its head's rotation) of `head` {pos, quat}."""
+    """(the robot's eye's place, its head's rotation) of `head` {pos, quat}."""
     R = _frame(head['quat'])
     return np.asarray(head['pos']) + R @ np.asarray(EYES), R
 
@@ -129,7 +129,8 @@ def nearest(centre, half, R, eye):
 
 
 def shown(points, eye, R):
-    """(n,) whether each of `points` lies in its eyes' frustum, its eye at `eye`, its head's rotation `R`."""
+    """(n,) whether each of `points` lies in the robot's eyes' frustum, its eye at `eye`, its head's rotation
+    `R`."""
     v = (np.asarray(points).reshape(-1, 3) - eye) @ R
     depth, up = v @ AXIS, v @ UP
     return (depth >= NEAR_M) & (depth <= FAR_M) & (np.abs(up) <= depth * TAN_UP) & (np.abs(v[:, 0]) <= depth * TAN_ACROSS)
@@ -140,8 +141,8 @@ CORNERS = np.array([[sx, sy, sz] for sx in (-1.0, 1.0) for sy in (-1.0, 1.0) for
 
 
 def seen_of(centre, half, R, eye, turn):
-    """(n,) whether each box shows in its eyes' frustum: any of its corners, its centre or its point nearest
-    its eye in it - a table top's near edge under its view, its far edge in it."""
+    """(n,) whether each box shows in the robot's eyes' frustum: any of its corners, its centre or its point
+    nearest the robot's eye in it - a table top's near edge under the robot's view, its far edge in it."""
     if not len(centre):
         return np.zeros(0, bool)
     corners = centre[:, None, :] + np.einsum('nij,ncj->nci', R, CORNERS * half[:, None, :])
@@ -168,17 +169,18 @@ def _core(r):
 
 
 def warm():
-    """Its C built and loaded, numpy's sums read (`tools.cores.registry`): a process's first look not kept waiting."""
+    """The registry's C built and loaded, numpy's sums read (`tools.cores.registry`): a process's first look not kept waiting."""
     from tools.cores import registry as c_registry
     c_registry.laid(_rows({}))
 
 
 def seen(slots, looks, head, t, everywhere=False, kept=None, changed=None):
-    """`slots` by a look's things `looks` at `t` s, its `head` {pos, quat}: each thing by its class (`classes.of`,
-    `stacked.classed`) into the slot it matches or a new one, every live slot's salience moved, the pruned let go;
-    `everywhere`, the look shows the whole room (the stand-in's, the world's own boxes), else what its eyes' frustum
-    shows. In C past its classes (`_seen_c`), numpy's own below for a twin; its boxes kept on `kept` and restacked where
-    `changed` (the rows not the same objects as the last look's, its vision apart's), else stacked whole."""
+    """`slots` by a look's things `looks` at `t` s, the robot's `head` {pos, quat}: each thing by its class
+    (`classes.of`, `stacked.classed`) into the slot it matches or a new one, every live slot's salience moved,
+    the pruned let go; `everywhere`, the look shows the whole room (the stand-in's, the world's own boxes),
+    else what the robot's eyes' frustum shows. In C past its classes (`_seen_c`), numpy's own below for a
+    twin; its boxes kept on `kept` and restacked where `changed` (the rows not the same objects as the last
+    look's, the robot's vision apart's), else stacked whole."""
     r, kinds = slots['rows'], slots['kinds']
     boxes, dirty = (stacked.stack(looks), True) if changed is None else stacked.restacked(kept, looks, changed)
     names, centre, half, R, ids, clear = boxes
@@ -276,7 +278,8 @@ def _matched(slots, live, best, matched, known, names, centre, half, R, clear, t
 
 
 def _missed(slots, live, matched, t, eye, turn):
-    """The live slots no thing matched: shown as its frustum holds them, their salience moved; the pruned let go."""
+    """The live slots no thing matched: shown as the robot's frustum holds them, their salience moved; the pruned
+    let go."""
     r = slots['rows']
     on, salience, seen_at = r['on'], r['salience'], r['seen_at']
     rest = live[~matched]
@@ -290,7 +293,7 @@ def _missed(slots, live, matched, t, eye, turn):
 
 
 def passed(slots, head, dt):
-    """`slots` `dt` s on between looks, its `head` {pos, quat}: a movable's variance diffused, a slot
+    """`slots` `dt` s on between looks, the robot's `head` {pos, quat}: a movable's variance diffused, a slot
     out of its frustum swollen toward SWELL_M - in C (`tools.cores.registry`), numpy's own below for a twin."""
     r, kinds = slots['rows'], slots['kinds']
     live = np.flatnonzero(r['on'])
@@ -310,17 +313,17 @@ def passed(slots, head, dt):
 
 def boxes(slots, least=TAKEN):
     """[(kind, centre, half sizes, rotation, its slot, clear over it, its swell)] of the slots at `least`
-    salience: its buses' things, as `world.props()` gives them, each named by its slot, its route grown
-    by the swell (`route.blocked`): its blind spot's, and a mover's wake - its floor speed over a look
-    (`sight.LOOK_S`), where it can be before it looks again. Beside the door's swinging panel a
-    hairline corridor opened and closed with it: threading it it brushed the panel, stumbled out at
+    salience: the robot's buses' things, as `world.props()` gives them, each named by its slot, the robot's
+    route grown by the swell (`route.blocked`): its blind spot's, and a mover's wake - its floor speed over a
+    look (`sight.LOOK_S`), where it can be before the robot looks again. Beside the door's swinging panel a
+    hairline corridor opened and closed with it: threading it the robot brushed the panel, stumbled out at
     1.12 m/s and fell at the deck's rail; waked, it pushes square till the panel stands still."""
     return things(*boxed(slots, least))
 
 
 def boxed(slots, least=TAKEN):
     """`boxes`' parts as arrays and lists - kinds, centres, half sizes, rotations, slots, clears, swells -: what
-    its vision's process sends its own (`machine.eyes.vision`), laid as things there (`things`)."""
+    the robot's vision's process sends its own (`machine.eyes.vision`), laid as things there (`things`)."""
     from machine.eyes import sight
     r, kinds = slots['rows'], slots['kinds']
     taken = np.flatnonzero((r['on'] > 0.0) & (r['salience'] >= least))
@@ -331,7 +334,7 @@ def boxed(slots, least=TAKEN):
 
 
 def things(kinds, centre, half, R, taken, clear, swell):
-    """`boxed`'s parts as its things (`Things`): a tuple each, its arrays kept beside them."""
+    """`boxed`'s parts as the robot's things (`Things`): a tuple each, its arrays kept beside them."""
     laid = Things(zip(kinds, _tuples(centre), _tuples(half), _tuples(R), taken, clear, swell))
     laid.arrays = (centre, half, R)
     return laid
@@ -351,8 +354,8 @@ def keyed(things):
 class Things(list):
 
     """`boxes`'s things, their centres, half sizes and rotations kept as arrays beside them (`schema.room`); a
-    plain list pickled - its page is sent the things, not the arrays: their numbers Python's floats, the same values,
-    its state's pickle 1.35 -> 0.21 ms."""
+    plain list pickled - the robot's page is sent the things, not the arrays: their numbers Python's floats, the same
+    values, its state's pickle 1.35 -> 0.21 ms."""
 
     #: (centres, half sizes, rotations) as `things` laid them.
     arrays: tuple

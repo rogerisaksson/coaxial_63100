@@ -1,4 +1,4 @@
-"""Orthokinematics' texts: compiled to rows, what is no text refused, and its law's code branchless."""
+"""Orthokinematics' texts: compiled to rows, non-texts refused, and the robot's law's code branchless."""
 import ast
 import math
 import os
@@ -28,7 +28,7 @@ def test_a_text_compiles_to_rows(report):
                  '%d bytes, ids %s' % (len(tables['']), [r[0] for r in stream]))
     p = stream[1][4:]
     k, d, amp, phase = (p[at:at + n] for at in (ortho.K, ortho.D, ortho.AMP, ortho.PHASE))
-    report.check('102: blended 800 ms; axial 0.25; lateral 1 200 N/m and 15 N s/m; its rhythm on at 1.1 Hz',
+    report.check('102: blended 800 ms; axial 0.25; lateral 1 200 N/m and 15 N s/m; the robot\'s rhythm on at 1.1 Hz',
                  stream[1][1:4] == (0, 800, 0) and same(p[:n], (0.25,) + (nan,) * (n - 1))
                  and same(k, (nan, 1200.0) + (nan,) * (n - 2)) and same(d, (nan, 15.0) + (nan,) * (n - 2))
                  and same(amp, (nan, 0.35, 0.4) + (nan,) * (n - 3))
@@ -36,29 +36,29 @@ def test_a_text_compiles_to_rows(report):
                  and same(p[ortho.GAIN:ortho.YAW + 1], (1.0, 1.1, nan, nan))
                  and same(p[ortho.DUCK], (nan,) * 3), '%s' % (stream[1][:4],))
     pre, go, rest = ortho.rows(tables['hop_asymmetric'])
-    report.check('the hop: pre_load at 0 ms, propulsion at 400, its rest at 550 blended 200',
+    report.check('the hop: pre_load at 0 ms, propulsion at 400, the robot\'s rest at 550 blended 200',
                  phases['hop_asymmetric'] == ('pre_load', 'propulsion')
                  and (pre[1], go[1], rest[1:4]) == (0, 400, (550, ortho.REST_MS, ortho.REST)),
                  '%s %s %s' % (pre[:4], go[:4], rest[:4]))
-    report.check('pre_load: compressed 0.8, shifted 0.5, upright; 4 500 N/m, 25 N s/m; its rhythm off',
+    report.check('pre_load: compressed 0.8, shifted 0.5, upright; 4 500 N/m, 25 N s/m; the robot\'s rhythm off',
                  same(pre[4:4 + n], (0.8, 0.5, nan, 0.0) + (nan,) * (n - 4))
                  and pre[4 + ortho.K] == 4500.0 and pre[4 + ortho.D] == 25.0 and pre[4 + ortho.GAIN] == 0.0)
-    report.check('propulsion: extended -1.0 at MAX_SYS_K undamped, its ZMP in its support polygon',
+    report.check('propulsion: extended -1.0 at MAX_SYS_K undamped, the robot\'s ZMP in its support polygon',
                  go[4] == -1.0 and go[4 + ortho.K] == ortho.SYMBOLS['MAX_SYS_K'] and go[4 + ortho.D] == 0.0
                  and go[4 + ortho.ZMP] == 1.0, 'stiffness %g' % go[4 + ortho.K])
-    its_own, named = ortho.compiled(_lisp('gynoid_mesomorph_medium'))
+    robot_own, named = ortho.compiled(_lisp('gynoid_mesomorph_medium'))
     base_t, base_p = ortho.compiled(_lisp('gait_base'))
     post_t, post_p = ortho.compiled(_lisp('postures_base'))
     stunt_t, stunt_p = ortho.compiled(_lisp('motion'))
     report.check('lisp/humanoid/gynoid_mesomorph_medium.lisp compiles: its walk and its behaviours',
-                 len(its_own['']) == 5 * ortho.ROW.size and ortho.compiled() == (its_own, named)
-                 and base_t[''] == its_own[''] and set(base_p) < set(post_p) < set(stunt_p) < set(named)
+                 len(robot_own['']) == 5 * ortho.ROW.size and ortho.compiled() == (robot_own, named)
+                 and base_t[''] == robot_own[''] and set(base_p) < set(post_p) < set(stunt_p) < set(named)
                  and ortho.rows(post_t['hop'])[1][4 + ortho.K] == 20000.0
-                 and ortho.rows(its_own['hop'])[1][4 + ortho.K] == 21800.0
+                 and ortho.rows(robot_own['hop'])[1][4 + ortho.K] == 21800.0
                  and set(named) >= {'crouch', 'weight_shift', 'bow', 'hop', 'one_sole',
                                     'strafe_right', 'turn_right', 'circle_walk', 'hop_up_chair'},
                  ', '.join(named))
-    sl, sr = ortho.rows(its_own['strafe_left'])[0], ortho.rows(its_own['strafe_right'])[0]
+    sl, sr = ortho.rows(robot_own['strafe_left'])[0], ortho.rows(robot_own['strafe_right'])[0]
     oo_t, oo_p = ortho.compiled(
         '(deftrait t1 (latent_targets (mode_axial_compression 0.2) (mode_lateral_shift 0.5))'
         ' (cpg_override (halt_oscillators)))'

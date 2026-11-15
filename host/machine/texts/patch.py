@@ -1,19 +1,19 @@
-"""A transition on its loop: a patch's lisp read as forms, a morph as rows, when it may begin.
+"""A transition on the robot's loop: a patch's lisp read as forms, a morph as rows, when it may begin.
 
     forms = patch.forms(text)                     # lists, vectors as tuples, keywords, numbers
     for tok, start, end in patch.spans(text): ..  # each token where it stands
     wire, span = patch.morph(dry, wet, bands, clock)  # contiguous curve rows on the bar grid
-    at = patch.crossing(st, now)                  # its lateral voice's next zero crossing, s
+    at = patch.crossing(st, now)                  # the robot's lateral voice's next zero crossing, s
     span = patch.window(st)                       # its double support, s, to wait in for the lock
     ok = patch.locked(y, fr, a)                   # both soles stand, the ZMP asked in their boxes
 
-A patch's lisp is evaluated and voiced on its row by `machine.texts.dsp`. A morph is two bars of rows a
-sixteenth apart (GRID), each saying every moved slot at its time - the dry plus the wet's change
-on its band's curve over the band's window - and the clock on its own, contiguous curve samples
-(`ortho.CURVE`) its loop draws as one Catmull-Rom; its times run on the clock as it slews. A bar
-is a stride, its clock's turn. Measured on it (findings/sequencer.md): the dry and the wet at
-once, by a linear crossfade at any phase of the stride or by the morph locked to the crossing,
-stand alike; the rock voice stiffened for the heel's transient felled it alone.
+A patch's lisp is evaluated and voiced on the robot's row by `machine.texts.dsp`. A morph is two bars of rows
+a sixteenth apart (GRID), each saying every moved slot at its time - the dry plus the wet's change on its
+band's curve over the band's window - and the clock on its own, contiguous curve samples (`ortho.CURVE`) the
+robot's loop draws as one Catmull-Rom; its times run on the clock as it slews. A bar is a stride, the robot's
+clock's turn. Measured on the robot (findings/sequencer.md): the dry and the wet at once, by a linear
+crossfade at any phase of the stride or by the morph locked to the crossing, stand alike; the rock voice
+stiffened for the heel's transient felled it alone.
 """
 import math
 import re
@@ -121,7 +121,7 @@ def morph(dry, wet, bands, clock, bars=2.0):
 
 
 def crossing(st, now):
-    """The time of its lateral voice's next zero crossing, s: its clock's angle and the voice's
+    """The time of the robot's lateral voice's next zero crossing, s: its clock's angle and the voice's
     phase carried at its rhythm's rate (`latent` THETA, PHASE, HZ)."""
     from machine.law import latent
     hz = float(st[latent.NOW][latent.HZ])
@@ -130,16 +130,17 @@ def crossing(st, now):
 
 
 def window(st):
-    """The double support past each crossing, s: pi - 2 stride.PHI_W of its clock's turn (its lateral
-    voice 108 deg past its drive's, pi - PHI_W; measured its soles both stand 0 to 0.6 rad past it)."""
+    """The double support past each crossing, s: pi - 2 stride.PHI_W of the robot's clock's turn (the robot's
+    lateral voice 108 deg past its drive's, pi - PHI_W; measured its soles both stand 0 to 0.6
+    rad past it)."""
     from machine.law import latent
     return (math.pi - 2.0 * stride.PHI_W) / (math.tau * float(st[latent.NOW][latent.HZ]))
 
 
 def locked(y, fr, a):
-    """Whether a transition may begin now: both soles stand and the ZMP its law asks (its centre of
-    mass less its asked acceleration over omega squared) lies in their boxes (`poise.boxes`: a sole
-    less poise.MARGIN_M round it). Its capture point runs ahead of them walking, never in them."""
+    """Whether a transition may begin now: both soles stand and the ZMP the robot's law asks (the robot's
+    centre of mass less its asked acceleration over omega squared) lies in their boxes (`poise.boxes`: a sole
+    less poise.MARGIN_M round it). The robot's capture point runs ahead of them walking, never in them."""
     from machine.law import poise
     rot = fr[modal.ROT].reshape(3, 3)
     c = rot @ y[modal.COM]

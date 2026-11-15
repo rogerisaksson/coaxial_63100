@@ -5,8 +5,8 @@
     for clock, frame in passed(rotors, sky, route, law, flight, clock, dt):
         ...
 
-`CARD` is what the page flies: the 3D aerobatics routine (`machine.aircraft.helicopter`), its two 63100
-drives (`MAIN` on the mast and `TAIL` on the boom) and their thermal observers warmed on it, then
+`CARD` is what the page flies: the 3D aerobatics routine (`machine.aircraft.helicopter`), the helicopter's two
+63100 drives (`MAIN` on the mast and `TAIL` on the boom) and their thermal observers warmed on it, then
 the 16-gate course (`machine.aircraft.course`).
 """
 from machine.aircraft import aerobatics, aerokin, course, flightpack, helicopter, pull, sweep, weather
@@ -102,7 +102,7 @@ def begun(law, flight, craft=helicopter):
 
 
 def throttled(rotor, speed):
-    """A rotor its law asks `speed`, rad/s: cut where asked none - its loop off, its bridge off
+    """A rotor the craft's law asks `speed`, rad/s: cut where asked none - its loop off, its bridge off
     (`_step_drives`), run down on its propeller's drag -, spun from rest (`spun`) where a cut one
     is asked to turn."""
     if speed <= 0.0 and not rotor['cut']:

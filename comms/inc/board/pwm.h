@@ -56,7 +56,7 @@ void Board_PwmDisable(void);
 
 bool Board_PwmIsEnabled(void);
 
-/** Is the break latched? It is nFAULT arriving through TIM1_BKIN. */
+/** Is the break latched? The break is nFAULT arriving through TIM1_BKIN. */
 bool Board_PwmFault(void);
 
 /** Disconnect TIM1's break input, for bench work with the gate drivers

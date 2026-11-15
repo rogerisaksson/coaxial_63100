@@ -1,4 +1,4 @@
-"""Static meta-compiler for fieldbus, thermal SOA, cooling, harness, eyes, world and sysid.
+"""Static meta-compiler for the robot's fieldbus, thermal SOA, cooling, harness, eyes, world and sysid.
 
     b = peripherals.bus()         # fieldbus wire timing, SEA observer share and wear window
     t = peripherals.thermal()     # board SOA derating and trip recovery envelope

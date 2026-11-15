@@ -1,4 +1,4 @@
-/** wbc_surety.c - its directional surety field (wbc_imp.h): machine.law.surety.field on its law's
+/** wbc_surety.c - the robot's directional surety field (wbc_imp.h): machine.law.surety.field on its law's
     arrays, numpy's and Python's arithmetic operation for operation (wbc_np.h). Portable C11, the
     host's alone. */
 #include "wbc_imp.h"
@@ -8,7 +8,8 @@
 
 #define PI 3.14159265358979323846
 
-/** The robot's pelvis's tilt from upright as its IMU has it, deg (machine.senses.edge.tilt). */
+/** The robot's pelvis's tilt from upright as its IMU has it, deg
+ * (machine.senses.edge.tilt). */
 static double tilt_deg(const double *q)
 {
   const double s = pow(q[1], 2.0) + pow(q[3], 2.0);

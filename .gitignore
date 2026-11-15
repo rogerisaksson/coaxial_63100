@@ -2,7 +2,7 @@
 # cube-cmake writes per-preset trees here; everything in it is regenerated.
 build/
 out/
-# its recordings (`introspect.RECORDINGS`): a page's R, a gate's windows. Each carries the commit
+# The robot's recordings (`introspect.RECORDINGS`): a page's R, a gate's windows. Each carries the commit
 # it was made at (machine/process/commit.py); the pre-commit removes them all.
 recordings/
 cmake-build-*/
@@ -47,7 +47,7 @@ htmlcov/
 # ---- bench output ----------------------------------------------------------
 # Captures stay on the bench machine. They are one board on one bench on one
 # day, and a reader cannot tell that from a file in a repo - which is the same
-# reason invariant 10 keeps thresholds out. host/tools/bench/analyze_phase_log.py
+# reason no test holds a threshold. host/tools/bench/analyze_phase_log.py
 # takes a path, so nothing here needs them checked in.
 *.csv
 # The BOM is not a measurement log: it is the authority on what is

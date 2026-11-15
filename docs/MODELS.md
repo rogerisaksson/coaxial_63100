@@ -2,7 +2,7 @@
 
 The local model with the board's tools: `host/coaxial_ollama/`,
 `host/board_chat.ps1` (+ `board_chat/`), `host/dbg.py`, tools in
-`host/coaxial_mcp/`. Its measured failure modes are in FINDINGS.
+`host/coaxial_mcp/`. The model's measured failure modes are in FINDINGS.
 
 ## Picking and pulling
 
@@ -45,16 +45,16 @@ pulled answers.
 ### The robot's prompt (`coaxial_ollama/gynoid.py`)
 
 The HUMANOID page's prompt in the operator's own words: the page's model
-(`gynoid.MODELS`, else the chat's DEFAULT_MODEL) picks one row of its catalog
-(`machine.texts.says`, every row generated from the code that plays it - errands,
-stunts, behaviours, gaits, takes, the tour), held to the rows by a JSON
-Schema enum, null when nothing fits, the mocap takes named after its own
-rows and chosen only when asked for. Asked off the page's thread, the plan
-sent as it lands (`gym.drain_plan`); loaded off it as the page opens and at
-`/`, held 5 min, released as the page closes; a smoke run loads nothing.
+(`gynoid.MODELS`, else the chat's DEFAULT_MODEL) picks one row of the robot's
+catalog (`machine.texts.says`, every row generated from the code that plays it -
+errands, stunts, behaviours, gaits, takes, the tour), held to the rows by a JSON
+Schema enum, null when nothing fits, the mocap takes named after the robot's own
+rows and chosen only when asked for. Asked off the page's thread, the plan sent
+as it lands (`gym.drain_plan`); loaded off it as the page opens and at `/`, held
+5 min, released as the page closes; a smoke run loads nothing.
 
 Measured on 20 prompts in Swedish and English, and the eight of
-`tests/test_live_gynoid.py` judged on its loop:
+`tests/test_live_gynoid.py` judged on the robot's loop:
 
 | Tag | GB on the card | Warm s | Cold s | Right of 20 | Loop |
 | --- | --- | --- | --- | --- | --- |
@@ -69,12 +69,12 @@ Measured on 20 prompts in Swedish and English, and the eight of
 
 No better: a fits flag before the op, the kinds beside the lines, the request
 put in English first, repeat_penalty 1.0 or 1.05 (the same 20 answers).
-With the takes in one list its walk came out running_forward and 'stand up
-from the chair' sit_to_stand. 'buga' and Swedish 'spring' missed on every
+With the takes in one list the robot's walk came out running_forward and 'stand
+up from the chair' sit_to_stand. 'buga' and Swedish 'spring' missed on every
 model; hop's line was its specialization's header ('propulsion spring
 specialization') till `says` passed over a self-extending behaviour.
-strands-decider needs MLX. The live suite's first run found the catalog's
-errand command carrying a documentation placeholder for `at` into its loop.
+strands-decider needs MLX. The live suite's first run found the catalog's errand
+command carrying a documentation placeholder for `at` into the robot's loop.
 
 ## Daemon and client
 
@@ -107,12 +107,11 @@ lines); the fixed words are `words.py`.
 ### SYSTEM and tools
 
 ~70-token SYSTEM prompt; every line answers a measured failure
-(`test_ollama_prompt.py`). Hints join only with their tools. Tool sets
-(`SETS`): read, code, pins, build, docs, all, none; re-sent every turn
-(runner ~1390 tokens, read ~560, none ~110). A non-`REPEATABLE` tool
-repeated in a turn is refused. `run_command` = argv allowlist
-(`sandbox.Shell`); `run_python` = persistent `sandbox.Scope`. Output
-clipped at 4000 chars.
+(`test_ollama_prompt.py`). Hints join only with their tools. Tool sets (`SETS`):
+read, code, pins, build, motion, docs, all, none; re-sent every turn (runner
+~1390 tokens, read ~560, none ~110). A non-`REPEATABLE` tool repeated in a turn
+is refused. `run_command` = argv allowlist (`sandbox.Shell`); `run_python` =
+persistent `sandbox.Scope`. Output clipped at 4000 chars.
 
 ### Slash commands and prose orders
 
@@ -139,14 +138,15 @@ clipped at 4000 chars.
 - `runner.py` drives `coaxial_ollama/plans/bringup.yaml`: tasks with limits
   judged in Python; a `report` tool called once, last, with a board tool behind
   it.
-- MCP (`python -m coaxial_mcp --port COMx`, stdio): board_info,
-  analog_read, docs, self_test, imu, angle, orientation, afe_power,
-  devices, digital_read, gpio_pin, gpio_port, test_gate, thermal, link.
-  `coaxial_ollama.tools` adds run_python, run_command, build_firmware,
-  run_tests, link_diagnose, report. `docs` = index / section (clip 4000,
-  1200 terse) / find (12 hits with chapter).
-- `run_tests.py -m auto` asks `pick_tests.py` for the model's pick, held
-  inside the tier; the path map settles cheap changes without the model.
+- MCP (`python -m coaxial_mcp --port COMx`, stdio): board_info, analog_read,
+  docs, self_test, imu, angle, orientation, afe_power, devices, digital_read,
+  gpio_pin, gpio_port, test_gate, thermal, program, link. `coaxial_ollama.tools`
+  adds run_python, run_command, build_firmware, run_tests, link_diagnose,
+  report. `docs` = index / section (clip 4000, 1200 terse) / find (12 hits with
+  chapter).
+- `run_tests.py --smart` asks `pick_tests.py` for the model's pick
+  (`--model`, auto by default), held inside the tier; the path map settles
+  cheap changes without the model.
 
 ## What the models did
 

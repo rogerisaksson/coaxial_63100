@@ -1,14 +1,14 @@
-"""The anti-spasm insert's numbers laid as its master bus (anti_spasm_supervisor.lisp).
+"""The anti-spasm insert's numbers laid as the robot's master bus (anti_spasm_supervisor.lisp).
 
-    k = supervisor.insert()           # {node: {param: value}}: the master insert on its nominal, as written
+    k = supervisor.insert()           # {node: {param: value}}: the master insert on the robot's nominal, as written
     supervisor.checked(g)             # a gait's insert against the one it runs: refused by name where it differs
     laid = supervisor.bus(names, rate)        # its numbers and state, a driven joint each (wbc_bus.c)
 
-The insert's stages on its loop, its numbers its text's: its ask's jerk and its torque command's slew
-soft-clipped, the command through the tank (wbc_bus.c, at its drives' 1 kHz pass); the joints'
-buffers before their stops in its step (`wrench`). Open (docs/todo/scenarios.md): the velocity gate,
-the D low-pass, the damped least squares, the zero crossing's bridge, the handover, the contact
-comparators. A node of the suite is its joints of its kind (NODE_KINDS).
+The insert's stages on the robot's loop, its numbers its text's: the robot's ask's jerk and its torque
+command's slew soft-clipped, the command through the tank (wbc_bus.c, at its drives' 1 kHz pass); the
+joints' buffers before their stops in its step (`wrench`). Open (docs/todo/scenarios.md): the velocity
+gate, the D low-pass, the damped least squares, the zero crossing's bridge, the handover, the contact
+comparators. A node of the suite is the robot's joints of its kind (NODE_KINDS).
 """
 import ctypes
 import functools
@@ -23,7 +23,7 @@ from machine.body import drives
 from machine.stack import wbc
 from machine.errors import MachineError
 
-#: The suite's nodes as its joints' kinds (`drives.kind`).
+#: The suite's nodes as the robot's joints' kinds (`drives.kind`).
 NODE_KINDS = {':coxofemoral': ('hip_yaw', 'hip_roll', 'hip'), ':tibiofemoral': ('knee',), ':talocrural': ('ankle',),
               ':l4-l5-lumbar': ('spine',), ':glenohumeral': ('shoulder',), ':cubital': ('elbow',),
               ':c1-c2-atlas': ('neck', 'head')}
@@ -63,7 +63,7 @@ class State(ctypes.Structure):
 
 @functools.lru_cache(maxsize=1)
 def insert():
-    """{node: {param: value}} of the master insert on its nominal manifold, as the suite reads it."""
+    """{node: {param: value}} of the master insert on the robot's nominal manifold, as the suite reads it."""
     from machine.texts import dsp
     got = dsp.read(dsp.SUITE)
     g = dsp.value(['->', 'nominal-biped-manifold', ['master-anti-spasm-insert']], got)
@@ -78,12 +78,12 @@ def named(node, param):
 
 
 def checked(g):
-    """Gait `g`'s insert against the one it runs (`insert`): a param said otherwise refused by name."""
+    """Gait `g`'s insert against the one the robot runs (`insert`): a param said otherwise refused by name."""
     for node, params in insert().items():
         said = g.get(node)
         if said is not None and said != params:
             differs = sorted(p for p in set(said) | set(params) if said.get(p) != params.get(p))
-            raise MachineError('refused: %s %s - its master insert says %s' % (
+            raise MachineError('refused: %s %s - the robot\'s master insert says %s' % (
                 node, ', '.join('%s %r' % (p, said.get(p)) for p in differs), ', '.join('%r' % params.get(p) for p in differs)))
 
 
@@ -104,7 +104,7 @@ def low_pass(hz, rate):
 
 def high_pass(hz, rate):
     """(b, a): a second-order Butterworth high-pass at `hz` on samples `rate` Hz apart, bilinear, prewarped.
-    A window of one band-pass biquad (Q 0.5 about 14.5 Hz) let its stride's 1.8 Hz through at -12 dB:
+    A window of one band-pass biquad (Q 0.5 about 14.5 Hz) let the robot's stride's 1.8 Hz through at -12 dB:
     its walk's own 4.5 W, the tank at its floor in 2.6 s of it."""
     c = math.tan(math.pi * hz / rate)
     norm = 1.0 / (1.0 + math.sqrt(2.0) * c + c * c)
@@ -118,7 +118,7 @@ def joints_of(nodes, names):
 
 
 def constants(rate):
-    """The bus's numbers (Bus) of the insert's text, its drives' pass `rate` Hz."""
+    """The bus's numbers (Bus) of the insert's text, the robot's drives' pass `rate` Hz."""
     k = insert()
     _formed(k)
     tank = k['energy-tank']
@@ -159,17 +159,17 @@ def reset(laid):
     s.energy, s.power, s.primed = insert()['energy-tank']['initial-energy-joules'], 0.0, 0
 
 
-#: A low end before the model's: the knee's straight lock, its singularity, rad. Left to its drive
+#: A low end before the model's: the knee's straight lock, its singularity, rad. Left to the robot's drive
 #: pass's knee spring alone, 9 of 11 shoves from behind, weaves and chairs fell.
 LOCKS = {'knee': 0.0}
 
 
 def buffers(names, stops):
     """((driven index, stop, side: 1 a low end, -1 a high), ..), (width, stiffness, damping, reach):
-    the insert's buffers before the stops `stops` ({index: (lo, hi)}, its body's) of the driven
+    the insert's buffers before the stops `stops` ({index: (lo, hi)}, the robot's body's) of the driven
     joints `names` its nodes are, critically damped as its text says, each engaged as far again as
-    its spring takes to stop an approach (speed x reach, 1/(e w)): at its width alone its jump's
-    neck met it at 13 rad/s and ran 0.36 rad past. A joint with none has none: at its law's room,
+    its spring takes to stop an approach (speed x reach, 1/(e w)): at its width alone the robot's jump's
+    neck met it at 13 rad/s and ran 0.36 rad past. A joint with none has none: at the robot's law's room,
     its shoulders' rows threw a jump's landing 0.35 m on."""
     b = insert()['joint-boundary']
     k = b['boundary-repulsion-stiffness']

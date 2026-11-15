@@ -1,4 +1,4 @@
-"""The commit its recordings are made at: HEAD of the checkout their folder sits in (`head`)."""
+"""The commit the robot's recordings are made at: HEAD of the checkout their folder sits in (`head`)."""
 import os
 import subprocess
 

@@ -94,8 +94,8 @@
 ;; Walk (Fr < 0.25) <-> Brisk Walk (0.25..0.45) <-> Double-Time (0.45..0.75) <-> Run (> 0.75)
 ;; -----------------------------------------------------------------------------
 (defprimitive modulate-froude-pendulum-slip-homotopy
-  [state &key (target-velocity-mps 1.218)        ; its walk at the text's Froude 0.179 (1.25)
-              (leg-reference-length-m 0.845)]    ; its hip over its soles (0.89)
+  [state &key (target-velocity-mps 1.218)        ; the robot's walk at the text's Froude 0.179 (1.25)
+              (leg-reference-length-m 0.845)]    ; the robot's hip over its soles (0.89)
   (let [froude-num (/ (* target-velocity-mps target-velocity-mps)
                       (* 9.80665 leg-reference-length-m))]
     (-> state
@@ -110,11 +110,11 @@
             (:froude-crossover-window [0.35 0.52]
              :walk-vault-phase-rad 3.14159
              :slip-bounce-phase-rad 0.00000
-             :sprangmarsch-apex-clamp-mm 26.6)   ; Keep vertical bounce low during the double-time march! Its own (28.0)
+             :sprangmarsch-apex-clamp-mm 26.6)   ; Keep vertical bounce low during the double-time march! The robot's own (28.0)
           ;; 3. Brisk-Walk Transverse Pelvic Yaw Stride Extension (Replaces premature flight):
           :pelvic-yaw-stride-booster
             (:active-froude-window [0.22 0.50]
-             :max-axial-pelvic-yaw-rad 0.22      ; +140mm effective stride length in Brisk Walk! Its own +83, hips 190 apart
+             :max-axial-pelvic-yaw-rad 0.22      ; +140mm effective stride length in Brisk Walk! The robot's own +83, hips 190 apart
              :counter-rotate-thoracic-arm-pump true)))))
 
 ;; -----------------------------------------------------------------------------
@@ -125,7 +125,7 @@
 ;; -----------------------------------------------------------------------------
 (defprimitive conserve-aerial-centroidal-momentum
   [state &key (raibert-velocity-gain 0.14)
-              (pre-touchdown-leg-retraction-rate-mps -0.438)]  ; at its size (-0.45)
+              (pre-touchdown-leg-retraction-rate-mps -0.438)]  ; at the robot's size (-0.45)
   (-> state
       (bind-zero-wrench-flight-connection
         :activation-condition (:sum-of-manifold-weights-below 0.05)
@@ -149,7 +149,7 @@
 ;; WITHOUT triggering tangential foot slip or inverter overvoltage High-Z trips!
 ;; -----------------------------------------------------------------------------
 (defprimitive govern-mu-and-regen-braking-horizon
-  [state &key (target-terminal-velocity-mps 1.169) ; at its size (1.20)
+  [state &key (target-terminal-velocity-mps 1.169) ; at the robot's size (1.20)
               (max-regen-bus-voltage-v 57.5)
               (min-cwc-shear-margin-ratio 0.82)]
   (-> state
@@ -171,7 +171,7 @@
           (:min-braking-steps 6
            :boost-cadence-bpm-scale 1.35         ; Fast, short, flat-footed stutter steps!
            :zero-strike-pitch-angle true
-           :limit-per-step-dv-mps 0.341))))      ; at its size (0.35)
+           :limit-per-step-dv-mps 0.341))))      ; at the robot's size (0.35)
 
 ;; -----------------------------------------------------------------------------
 ;; 5. STRETCH-SHORTENING CYCLE (SSC) BALLISTIC IMPULSE ENGINE (JUMPS & LEAPS)
@@ -181,9 +181,9 @@
 ;; -----------------------------------------------------------------------------
 (defprimitive drive-stretch-shortening-ballistic-impulse
   [state &key (launch-topology :bilateral-in-phase) ; :bilateral-in-phase (two-footed jump) | :unilateral-split-leap (leap)
-              (target-apex-height-dz-mm 207.0)   ; its knees' launch from its crouch (320.0)
+              (target-apex-height-dz-mm 207.0)   ; the robot's knees' launch from its crouch (320.0)
               (target-horizontal-span-dx-mm 0.0)
-              (countermovement-depth-mm 175.6)   ; at its size (185.0)
+              (countermovement-depth-mm 175.6)   ; at the robot's size (185.0)
               (arm-flywheel-assist true)]
   (-> state
       (execute-ssc-ballistic-launch
@@ -198,7 +198,8 @@
         ;; Phase 2: Concentric Triple-Extension with Back-EMF Proximal-to-Distal Handoff
         ;; As knee velocity dq_knee approaches Back-EMF saturation, shifts peak power
         ;; demand down to the ankle plantarflexors (`:talocrural` + `:metatarsal-equinus`)!
-        ;; Its own: its knees leave at 15.8 of their 16.8 rad/s, 2.03 m/s; its ankles reach 2.15 m/s at most.
+        ;; The robot's own: its knees leave at 15.8 of their 16.8 rad/s, 2.03 m/s; its ankles reach 2.15 m/s
+        ;; at most.
         :phase-2-concentric-launch
           (:takeoff-angle-law :ballistic-parabola-solver
            :bemf-aware-proximal-to-distal-sequencing true

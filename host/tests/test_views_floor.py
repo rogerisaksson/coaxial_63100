@@ -5,9 +5,10 @@ from tools.dev.focus import chosen
 from views_kit import Report, looked_round, typed
 
 
-def test_its_horizon(report):
-    """Z draws its horizon from its law's reading, which its state carries: an externality each,
-    the floor a leg reaches and the room its law allows it, each arm's band; Z cycles the modes."""
+def test_the_robots_horizon(report):
+    """Z draws the robot's horizon from its law's reading, which its state carries: an
+    externality each, the floor a leg reaches and the room its law allows it, each arm's band; Z
+    cycles the modes."""
     import math
     import numpy as np
     from coaxial.graphics import gynoid, horizon
@@ -18,7 +19,7 @@ def test_its_horizon(report):
     from terminal.views import humanoid_keys, viewpoint
     z3 = np.zeros(27)
     seen = sprung.state(sprung.laid(every=3), z3, z3, 0.0, 1.0, None)['horizon']
-    report.check('its state: centre of mass, capture point under it, soles, both standing, its shoulders\' range',
+    report.check('its state: centre of mass, capture point under it, soles, both standing, the robot\'s shoulders\' range',
                  abs(seen['xi'][0] - seen['com'][0]) < 0.02 and abs(seen['xi'][1] - seen['com'][2]) < 0.02
                  and len(seen['soles']) == 2 and seen['stance'] == (1.0, 1.0) and seen['shoulder'][0] < 0.0 < seen['shoulder'][1], seen)
     hip = (0.095, 0.80, 0.0)
@@ -28,7 +29,7 @@ def test_its_horizon(report):
     on = all(min(reach.margins(reach.over(0, hip, (0.98 * (a[0] - hip[0]) + hip[0], floor + ANKLE_H, 0.98 * (a[2] - hip[2]) + hip[2]),
                                           turn))) >= 0.0 for a, _b in ring)
     straight = horizon.reachable(0, (0.095, ANKLE_H + reach.THIGH + reach.SHANK, 0.0), 0.0)
-    report.check('the floor its left leg reaches from a hip 0.80 m up, a double support\'s: a ring of %d, as far as %.2f m, '
+    report.check('the floor the robot\'s left leg reaches from a hip 0.80 m up, a double support\'s: a ring of %d, as far as %.2f m, '
                  'each point within its stops; from a straight leg\'s, under its sole' % (len(ring), far),
                  len(ring) == horizon.RING_N and 0.2 < far < stride.REACH_M and on
                  and max(math.hypot(a[0] - 0.095, a[2]) for a, _b in straight) < 0.1)
@@ -36,7 +37,7 @@ def test_its_horizon(report):
     report.check("an arm's band: two arcs of %d and their ends, the outer the arm's length from the shoulder" % horizon.RING_N,
                  len(arm) == 2 * horizon.RING_N + 2 and abs(math.dist(arm[0][0], (0.148, 1.345, 0.0)) - (horizon.UPPER_ARM + horizon.FOREARM)) < 1e-9)
     xs = [pt[0] for seg in horizon.room((0.0, 0.0), (-0.1, 0.0), 1.0, 0.0) for pt in seg]
-    report.check("the left sole's room: REACH_M about its centre of mass, APART_M past the right",
+    report.check("the left sole's room: REACH_M about the robot's centre of mass, APART_M past the right",
                  abs(max(xs) - stride.REACH_M) < 1e-9 and abs(min(xs)) < 1e-9 and not horizon.room(
                      (0.0, 0.0), (0.5, 0.0), 1.0, 0.0), (min(xs), max(xs)))
     now = {'heading': 0.0, 'where': (0.0, 0.855, 0.0), 'turn': (1, 0, 0, 0), 'angles': {},
@@ -126,8 +127,8 @@ def test_surface_arrows_setpoint_actual_and_landing_zones(report):
                  != gynoid.render(b0['angles'], 64, 28, colour=False, arrows=(nw_fast, held('W', (1.4, 0.0, 0.0)))))
 
 
-def test_balloons_on_what_it_sees(report):
-    """Each thing it has seen a balloon's offer, the one it faces first (`gym.offered`), keyed
+def test_balloons_on_what_the_robot_sees(report):
+    """Each thing the robot has seen a balloon's offer, the one it faces first (`gym.offered`), keyed
     F1 on - one alone too; a chair's seat and back one thing, a mattress out of its reach none,
     what bears it alone; turned away still offered, laid anew forgotten -; F opens the choice, a
     digit within `console.HOLD_WINDOW_S` says that one at its thing, F again or the window lapsed
@@ -146,9 +147,9 @@ def test_balloons_on_what_it_sees(report):
     unseen = gym.offered(st)
     looked_round(st['scanner'], st['now'])
     shown = [(key, verb) for key, verb, *_rest in gym.offered(st)]
-    report.check('before a look round the door ahead alone: the bed and the chair aside its eyes have not shown',
+    report.check('before a look round the door ahead alone: the bed and the chair aside the robot\'s eyes have not shown',
                  [o[1] for o in unseen] == ['exit_door'], unseen)
-    report.check('looked round, the door ahead, the bed and the chair aside it has seen, the one it faces first, '
+    report.check('looked round, the door ahead, the bed and the chair aside the robot has seen, the one it faces first, '
                  'F1 F2 F3',
                  shown == [('F1', 'exit_door'), ('F2', 'lie_bed'), ('F3', 'sit_chair')]
                  and gym.prompt(st) == '[F1] exit door  [F2] lie bed  [F3] sit chair', (shown, gym.prompt(st)))
@@ -166,7 +167,7 @@ def test_balloons_on_what_it_sees(report):
     st['now'] = dict(st['now'], heading=math.pi)
     behind = [(key, verb) for key, verb, *_rest in gym.offered(st)]
     st['now'] = dict(st['now'], epoch=1)
-    report.check('turned away, what it has seen still offered, each at its key; laid anew, none of it',
+    report.check('turned away, what the robot has seen still offered, each at its key; laid anew, none of it',
                  behind == shown and gym.offered(st) == [], behind)
     st['now'] = {'where': (0.0, 0.9, 0.2), 'heading': 0.0, 'props': room + [
         ('chair', (0.0, 0.43, 0.88), (0.22, 0.02, 0.22), up), ('chair', (0.0, 0.65, 1.10), (0.22, 0.2, 0.02), up)]}
@@ -177,7 +178,7 @@ def test_balloons_on_what_it_sees(report):
     far = gym.offered(st)
     st['now'] = dict(st['now'], props=[('bed', (0.0, 0.08, 0.6), (0.45, 0.08, 0.95), up)])
     near = gym.offered(st)
-    report.check('a chair ahead, seat and back, one thing first; a mattress out of its reach none, in it lie_floor',
+    report.check('a chair ahead, seat and back, one thing first; a mattress out of the robot\'s reach none, in it lie_floor',
                  [o[1] for o in ahead] == ['sit_chair', 'exit_door', 'lie_bed', 'sit_chair'] and abs((ahead[0][3] or (1.0,))[0]) < 1e-9
                  and far == [] and [o[1] for o in near] == ['lie_floor'], (ahead, far, near))
 
@@ -190,8 +191,8 @@ def test_balloons_on_what_it_sees(report):
     sc.identified(dict(sitting, where=(1.5, 0.9, 0.2), heading=0.0, doing=None))
     seated, unseen = balloons_of(sitting, sc), balloons_of(dict(sitting, props=[]), scanner.VisionScanner())
     crouched = balloons_of({'where': (0.0, 0.7, 0.0), 'heading': 0.0, 'doing': gym.CROUCHED, 'props': []}, None)
-    report.check("seated, the chair under it seen before it sat, facing away, its rise there, its balloon on it; "
-                 "on a seat its eyes know no thing of, none; crouched on the floor, its rise, no balloon",
+    report.check("seated, the chair under the robot seen before it sat, facing away, its rise there, its balloon on it; "
+                 "on a seat the robot's eyes know no thing of, none; crouched on the floor, its rise, no balloon",
                  seated[0] == [('rise_chair', (1.5, 0.45, 0.8))] and 'F1 rise chair' in seated[1]
                  and unseen == ([], '') and crouched == ([('stand', None)], ''), (seated, unseen, crouched))
     st.update(now={'where': (0.0, 0.9, 0.2), 'heading': 0.0, 'props': room}, scanner=scanner.VisionScanner())
@@ -206,12 +207,12 @@ def test_balloons_on_what_it_sees(report):
     mid = tuple(round(sum(c) / len(rings)) for c in zip(*rings.values()))
     tip = chr(drawn.get(mid, (32, 0))[0])
     spoked = sum(0x2800 < code < 0x2900 for _at, (code, _ink) in drawn.items())
-    report.check("its errand's docks a ring each on the viewport, the one laid filled, the bed's balloon's "
+    report.check("the robot's errand's docks a ring each on the viewport, the one laid filled, the bed's balloon's "
                  'tip between them, a line of dots to each', sorted(rings) == sorted('○◉') and tip in '▾◂▸'
                  and spoked > 0, (rings, mid, tip, spoked))
 
 
-ROSTER = (test_its_horizon, test_surface_arrows_setpoint_actual_and_landing_zones, test_balloons_on_what_it_sees)
+ROSTER = (test_the_robots_horizon, test_surface_arrows_setpoint_actual_and_landing_zones, test_balloons_on_what_the_robot_sees)
 
 
 def main(argv=None):

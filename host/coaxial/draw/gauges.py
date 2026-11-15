@@ -107,7 +107,7 @@ def bar(share, cells, cls=SOA_OK, tip=MARK, colour=True):
 #: One scale for every thermometer on every page, degrees C: the motor
 #: page's switch tubes, its NTC and its winding, the thermal observer's
 #: tubes, the session's levels. A drawing scale, not a limit - the board
-#: judges nothing by it (invariant 10) and the colours carry the real
+#: judges nothing by it and the colours carry the real
 #: ceilings. From -35 so a winter bench starts on the tube rather than
 #: under it, to 130 so a node at the record's highest ceiling (125) is
 #: seen short of the top.

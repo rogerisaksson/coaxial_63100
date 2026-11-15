@@ -47,7 +47,7 @@ RAIL_ABOVE = 0.98
 #: the level three dots tall at dot resolution, the empty scale in the
 #: track's grey, the centre of a bipolar channel marked, the burst's
 #: extremes as full-height ticks and the held peaks as a single top dot.
-#: It was `█` on `─` with `╵` and `│` for the marks - a third drawing
+#: The bar was `█` on `─` with `╵` and `│` for the marks - a third drawing
 #: convention on a terminal whose other pages draw in braille, and the
 #: bench asked for one instrument on every page.
 

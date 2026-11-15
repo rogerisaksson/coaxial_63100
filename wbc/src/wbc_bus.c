@@ -1,4 +1,4 @@
-/** wbc_bus.c - the master bus insert's stages (wbc_bus.h): its ask's jerk and its law's torque
+/** wbc_bus.c - the master bus insert's stages (wbc_bus.h): the robot's ask's jerk and its law's torque
     command's slew soft-clipped, the command passed through the tank. No branch: masks and clips.
     Portable C11. */
 #include "wbc_bus.h"
@@ -6,8 +6,8 @@
 
 #include <math.h>
 
-/* x soft-clipped at lim, its knee 6 dB under it: x itself to half of lim, a cubic from there
-   meeting lim flat, C2 at the knee. Its knee at zero, a hop's push lost 5 % at its drive's own jerk */
+/* x soft-clipped at lim, its knee 6 dB under it: x itself to half of lim, a cubic from there meeting
+   lim flat, C2 at the knee. The knee at zero, a hop's push lost 5 % at its drive's own jerk */
 static double softclip(double x, double lim)
 {
   const double knee = 0.5 * lim, w = 1.5 * (lim - knee), a = fabs(x);
@@ -64,14 +64,15 @@ double wbc_bus_feed(const wbc_bus_k *k, wbc_bus_t *b, int i, double dt, double q
   b->sign[i] = s + (double)(s == 0.0) * b->sign[i];
   b->power += p;
   /* the passivity controller: on a parasitic oscillation, the detector's - the command's band rolled
-     back, the damping injected; released over recover_s - its drives are pure torque, no P gain of
-     their own. Tripped by the tank at its floor too, a hop's push drained it in 30 ms, every drive
-     rolled back and it rose 669 mm off one sole */
+     back, the damping injected; released over recover_s - the robot's drives are pure torque, no P
+     gain of their own. Tripped by the tank at its floor too, a hop's push drained it in 30 ms, every
+     drive rolled back and the robot rose 669 mm off one sole */
   trip = (double)(b->count[i] >= k->reversals);
   b->alpha[i] = npmax(trip, b->alpha[i] - dt / k->recover_s);
   gain = b->alpha[i] * (1.0 - k->rollback);
   cmd = (feed - gain * t) - ((b->alpha[i] * k->inject) * damping) * qd;
-  /* what the bus changed of the command, for its drive's observer to know what moved its rotor */
+  /* what the bus changed of the command, for the robot's drive's observer to know what moved its
+   * rotor */
   b->given[i] = cmd - feed;
   return cmd;
 }

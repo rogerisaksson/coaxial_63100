@@ -23,19 +23,19 @@ class Sky(hsky.Sky):
         self._rest_pose()
 
     def _rest_pose(self):
-        """On its wheels at the runway's end, its nose up the runway."""
+        """The aerobat on its wheels at the runway's end, its nose up the runway."""
         cy, sy = math.cos(0.5 * RUNWAY_RAD), math.sin(0.5 * RUNWAY_RAD)
         cx, sx = math.cos(0.5 * PITCH_REST), math.sin(0.5 * PITCH_REST)
         self.data.qpos[3:7] = (cy * cx, cy * sx, sy * cx, -sy * sx)
         self._mj.mj_forward(self.model, self.data)
 
     def reset(self):
-        """On its wheels at the spot, still, nothing struck."""
+        """The aerobat on its wheels at the spot, still, nothing struck."""
         super().reset()
         self._rest_pose()
 
     def step(self, command, dt, air=None):
-        """Step `dt` s under `command` `(w_prop, w_vect, _, elev, ail, rud)`: its propeller's pitch
+        """Step `dt` s under `command` `(w_prop, w_vect, _, elev, ail, rud)`: the aerobat's propeller's pitch
         fixed, its thrust its speed's through its inflow, its surfaces in its slipstream."""
         (w_p, w_v), (_pitch, elev, ail, rud), (wx, wy, wz), along, vh = self._unpack_and_wind(command, air)
         self.lift, self.share = K_THRUST * w_p * w_p, _aero_inflow(along, vh, w_p)

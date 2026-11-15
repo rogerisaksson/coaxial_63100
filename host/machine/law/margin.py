@@ -1,12 +1,12 @@
-"""The insert's phase margin (`monitor-discrete-phase-margin`): its loop's return ratio, locked in.
+"""The insert's phase margin (`monitor-discrete-phase-margin`): the robot's return ratio, locked in.
 
     probe = margin.laid()                    # the text's probe frequencies and window, at rest
     d = margin.injected(probe, t, amps)      # the probe's sine at `t`, `amps` N m: its frequency's turn
-    margin.step(probe, u, c, t, dt)          # a pass: the torque its drive was given (u), its loop's own (c)
+    margin.step(probe, u, c, t, dt)          # a pass: the torque the robot's drive was given (u), its loop's own (c)
     got = margin.read(probe)                 # {hz, gain_db, phase_deg, margin_deg}: L = -C / U at each
     kd, gamma = margin.derated(got)          # the text's rollback of K_d and the barrier's gamma
 
-The loop broken at its drive's torque, the probe's sine injected there (u = c + d). Its frequencies
+The loop broken at the robot's drive's torque, the probe's sine injected there (u = c + d). The probe's frequencies
 in turn, each DWELL_S; a quadrature lock-in on the one whose turn it is: u and c each times cos and
 sin of 2 pi f t, each product through a first-order leak of the text's window (`demod-window-ms`),
 taken as its turn ends - the four at once beat 7-8 Hz apart through that leak, 9 % of each in the
@@ -48,8 +48,8 @@ def injected(probe, t, amps):
 
 
 def step(probe, u, c, t, dt):
-    """`probe` a pass of `dt` s on: `u` the torque its drive was given at `t`, `c` its loop's own; a
-    turn ended, its phasors taken and the next's begun at rest."""
+    """`probe` a pass of `dt` s on: `u` the torque the robot's drive was given at `t`, `c` its loop's
+    own; a turn ended, its phasors taken and the next's begun at rest."""
     k = _turn(t)
     if k != probe['turn']:
         probe['taken'][probe['turn']] = (complex(*probe['u']), complex(*probe['c']))

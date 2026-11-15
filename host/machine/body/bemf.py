@@ -1,12 +1,12 @@
-"""Its drives' torque bounds under their back-EMF (`update-asymmetric-bemf-bounds`) by speed, volts.
+"""The robot's drives' torque bounds under back-EMF (`update-asymmetric-bemf-bounds`) by speed, volts.
 
     lo, hi = bemf.bounds(dq, volts, peak)    # each driven joint's (DRIVEN's order), N m, at speeds `dq`
 
 The text's quadrant law: tau within [max(-peak, min(0, K (-V m - E dq))), min(peak, max(0, K (V m -
-E dq)))], K = kt / R a joint's torque a volt across its winding, E its back-EMF a rad/s, V its DC
+E dq)))], K = kt / R a joint's torque a volt across its winding, E its back-EMF a rad/s, V the robot's DC
 link's volts, m the space vector's linear reach (`svpwm-modulation-limit`) - its boards' current
 loops' own law (`buses`): motoring the back-EMF takes from the supply, braking it adds. The peak
-whoever asks: its law's its clamp or its war emergency power's (`shrunk.box`), none past the
+whoever asks: the robot's law's its clamp or its war emergency power's (`shrunk.box`), none past the
 volts' own. A pair of drives on one joint is taken as one, its torque and back-EMF the joint's.
 """
 import os
@@ -26,7 +26,7 @@ DRIVEN = tuple(j for j in JOINTS if drives.passive(j) is None)
 K = np.array([drives.kt(j) / drives.of(j)[1].r for j in DRIVEN], float)
 E = np.array([drives.emf(j) for j in DRIVEN], float)
 PEAK = np.array([drives.peak(j) for j in DRIVEN], float)
-#: The share of its link's volts a phase reaches.
+#: The share of the robot's link's volts a phase reaches.
 REACH = kernel.node('update-asymmetric-bemf-bounds', 'bemf-envelope')['svpwm-modulation-limit']
 
 

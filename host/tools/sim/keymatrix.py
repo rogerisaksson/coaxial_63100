@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""Every handover between its keys, judged as its analyzers judge it: one key held, the next on.
+"""Each handover between the robot's keys, judged as its analyzers judge it: one key held, the next on.
 
     python tools/sim/keymatrix.py                       # every ordered pair at each phase on the relay: sums, bad rows
     python tools/sim/keymatrix.py --one FROM TO HELD    # one run here, its row as JSON
 
-A run on the flat floor: its key FROM (`player.KEYS`) held HELD s from 1 s, TO held TO_S, then none STILL_S -
-HELDS press TO at other phases of its stride. Judged from TO's press: its fall, its stumbles (`support.stumble`),
-its surety's least, its soles' heaviest load of its weight, its drift across its heading past what TO asks (m/s,
-its most) and its yaw rate's wobble about what TO asks (rad/s, its spread over TO's last second).
+A run on the flat floor: the robot's key FROM (`player.KEYS`) held HELD s from 1 s, TO held TO_S, then none
+STILL_S - HELDS press TO at other phases of its stride. Judged from TO's press: the robot's fall, the robot's
+stumbles (`support.stumble`), its surety's least, its soles' heaviest load of its weight,
+the robot's drift across its heading past what TO asks (m/s, its most) and the robot's yaw rate's wobble
+about what TO asks (rad/s, its spread over TO's last second).
 """
 import argparse
 import json
@@ -19,7 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 #: The robot's keys as a player holds them (`player.KEYS`), none the last.
 KEYS = ('w', 'wa', 'wd', 'a', 's', 'q', 'e', 'W', '-')
-#: FROM held this long, s: TO pressed at three phases of its stride; TO held, s; none after, s.
+#: FROM held this long, s: TO pressed at three phases of the robot's stride; TO held, s; none after, s.
 HELDS, TO_S, STILL_S = (2.5, 2.7, 2.9), 2.5, 3.0
 
 

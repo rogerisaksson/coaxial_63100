@@ -1,4 +1,4 @@
-/** wbc_sensed.c - its moves whose phases end by what it senses (wbc_move.h): machine.moves.sensed's laid and step on
+/** wbc_sensed.c - the robot's moves whose phases end by what it senses (wbc_move.h): machine.moves.sensed's laid and step on
     a move's tables, numpy's and Python's arithmetic operation for operation (wbc_np.h), every branch a select. */
 #include "wbc_move.h"
 #include "wbc_np.h"

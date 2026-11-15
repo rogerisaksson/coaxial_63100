@@ -1,12 +1,12 @@
 # Findings: demand
 
-Each drive's demand on its loop against its parts - the scenes, the chair's
-stunts; the drives themselves in [drives](drives.md).
+Each drive's demand on the robot's loop against its parts - the scenes, the
+chair's stunts; the drives themselves in [drives](drives.md).
 
-`tools/sim/demand.py`: each drive's amps, speed and heat on its loop as the
-page runs it, a share of its parts' limits - its board's amps (48.4 A a U8,
-its winding's top), what it holds for ever, its gearbox's momentary torque,
-its no-load speed at 48 V, a node's span to its ceiling. Worst of the sides.
+`tools/sim/demand.py`: each drive's amps, speed and heat on the robot's loop as
+the page runs it, a share of its parts' limits - its board's amps (48.4 A a U8,
+its winding's top), what it holds for ever, its gearbox's momentary torque, its
+no-load speed at 48 V, a node's span to its ceiling. Worst of the sides.
 
 | Scene | Drive | Peak, of its amps | Passes past 2/3, % | rms, of what it holds | Gearbox | Speed | Heat |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -24,28 +24,29 @@ its no-load speed at 48 V, a node's span to its ceiling. Worst of the sides.
 | 38 N, 8 ways, stood 8 | knee | 0.12 | 0 | 0.08 | 0.10 | 0.01 | 0.11 |
 | 80 N, 8 ways, stood 5 | ankle pair | 0.22 | 0 | 0.14 | 0.18 | 0.02 | 0.11 |
 
-- Its rms, its speeds and its heat are inside 2/3 everywhere; its peaks are
-  not: walking and hopping its hips, knees and spine are at their clamps.
-- The chair's stunts against its knees (108 N m at the board's amps, 128 the
-  gearbox's momentary; 31.1 kg, thigh 0.39 and shank 0.38 m, two legs, the hip
-  over the ankle): down off the seat (0.45 m and a 0.05 m hop, 3.1 m/s), a
+- The robot's rms, its speeds and its heat are inside 2/3 everywhere; its peaks
+  are not: walking and hopping its hips, knees and spine are at their clamps.
+- The chair's stunts against the robot's knees (108 N m at the board's amps, 128
+  the gearbox's momentary; 31.1 kg, thigh 0.39 and shank 0.38 m, two legs, the
+  hip over the ankle): down off the seat (0.45 m and a 0.05 m hop, 3.1 m/s), a
   constant force over its best absorption (0.30 m) peaks at 125 N m a knee at
   its deepest, 108 deg; held at 108 N m throughout, its force falling as the
-  knee bends, the knees take 219 J a radian, 344 over 20-110 deg against the
-  275 the drop brings - met only at their peak, none of the 50 % margin. Up
-  onto it (2.2 m/s at take-off from a 0.17 m push begun at 90 deg) 101 N m at
-  the push's start, 0.93. Speed binds neither: the board's amps hold to
-  0.93 of a knee's 960 deg/s.
+  knee bends, the knees take 219 J a radian, 344 over 20-110 deg against the 275
+  the drop brings - met only at their peak, none of the 50 % margin. Up onto it
+  (2.2 m/s at take-off from a 0.17 m push begun at 90 deg) 101 N m at the push's
+  start, 0.93. Speed binds neither: the board's amps hold to 0.93 of a knee's
+  960 deg/s.
 - The peaks are the loop's own torques: past 2/3, its feed alone is past it
   in every pass, the PD under it never half the torque.
-- The performance build (`machine/humanoids/gynoid_mesomorph_medium_performance.toml`:
-  the U12 II KV120 - 7.9 N m at 48 V, 4.5 kW, 778 g - on box A for the
-  spine, hips, knees and ankles, 3.7 kg more; its text extended): its hop
-  asks its hips 144 A, 1.44 of their amps, the knees 114 A, 1.15, where its own
-  asks 76 A, 1.58, and the spine 1.11; the box 0.93 of its momentary where
-  1.33; its standing jump rises 0.03 legs on it for 0.01, 0.01 of flight
-  either way, the human's 0.55 and 0.91. The hop's ask is the law's, past
-  any drive: a jump needs its throw laid from what the drives give.
+- The performance build
+  (`machine/humanoids/gynoid_mesomorph_medium_performance.toml`: the U12 II
+  KV120 - 7.9 N m at 48 V, 4.5 kW, 778 g - on box A for the spine, hips, knees
+  and ankles, 3.7 kg more; the robot's text extended): its hop asks its
+  hips 144 A, 1.44 of their amps, the knees 114 A, 1.15, where the robot's own
+  asks 76 A, 1.58, and the spine 1.11; the box 0.93 of its momentary where 1.33;
+  the robot's standing jump rises 0.03 legs on it for 0.01, 0.01 of flight
+  either way, the human's 0.55 and 0.91. The hop's ask is the law's, past any
+  drive: a jump needs its throw laid from what the drives give.
 - Walking, a hip's are its leg's lift: the pass its sole goes from standing
   to swinging the sole is asked 33 m/s^2 at once, bearing 50 N still; the
   hip gives -108 N m for 15 ms, the knee 80, then 10 to 20 as before.
@@ -53,29 +54,34 @@ its no-load speed at 48 V, a node's span to its ceiling. Worst of the sides.
 - On the bench's scenarios (`demand.py --scenarios`) the hips, knees and
   spine reach 1.45-1.58 of their board's amps and 1.2-1.34 of their gearbox's
   momentary torque: a twist from a key grants a held drive 1.45x its clamp,
-  past its parts' peak, where its text's walk gets its peak. Its rms, speeds
-  and heat stay under 2/3 but in the turns' play (knee rms 0.85, heat 0.87).
+  past its parts' peak, where the robot's text's walk gets its peak. The robot's
+  rms, speeds and heat stay under 2/3 but in the turns' play (knee rms 0.85,
+  heat 0.87).
 - The turns need it: in a right turn the inside sole's heel is asked up
   0.3 rad by the other's landing (0.1 straight), falls behind the ask, and its
-  load goes 265 -> 34 N; it saturates its hips 0.43 s with both soles bare.
-  Without the grant the turns' play and the weave fall at every wobble; granted
-  to every driver, its walk's head goes 38 mm aside (35) and strikes 455 N.
-- What unloads it: the turn reversed (left to right), its centre of mass goes
-  0.145 -> 0.410 m across from the new inside foot in 0.54 s, its hip's roll
-  0.09 -> 0.50 rad, its yaw held near 0 (posed where it is: no change); the
-  outside foot lands at 5.94 s, after the stance has let go. Its drives are
-  under half their clamps until then: a step landed too late, not a weak leg.
-- Its rhythm hurried by its capture point's run sideways (off the standing
-  sole's edge, as e^(omega t), due before a stance's width) never acts on its
-  plain walk (0 of 6 666 passes); in the reversed turn it quickened every mode
-  with the swing, its pelvis's turn among them, and it spun 1.9 rad and fell.
-  A swing's timing needs a clock of its own, apart from its rhythm's angle.
-- With each swing's own clock the turns hold without the grant (13 of 13 wobbles),
-  the turnabout too and better (13, against 7 granted: saturation damps what its
-  law over-asks there); the weave falls at 4 of 13 without it, at 1 granted only
-  while a swing leads or its capture point is past a lone standing sole's own
-  side - never in its plain walk, 0 of 6 666 passes. Granted by the gait under
-  way, whoever said it: the bench as before, walking 80 N shoves 28 of 32.
+  load goes 265 -> 34 N; the robot saturates its hips 0.43 s with both
+  soles bare. Without the grant the turns' play and the weave fall at every
+  wobble; granted to every driver, the robot's walk's head goes 38 mm aside (35)
+  and strikes 455 N.
+- What unloads it: the turn reversed (left to right), the robot's centre of mass
+  goes 0.145 -> 0.410 m across from the new inside foot in 0.54 s, its hip's
+  roll 0.09 -> 0.50 rad, its yaw held near 0 (posed where it is: no change); the
+  outside foot lands at 5.94 s, after the stance has let go. The stance leg's
+  drives are under half their clamps until then: a step landed too late, not a
+  weak leg.
+- The robot's rhythm hurried by its capture point's run sideways (off
+  the standing sole's edge, as e^(omega t), due before a stance's width) never
+  acts on its plain walk (0 of 6 666 passes); in the reversed turn it
+  quickened every mode with the swing, the robot's pelvis's turn among them, and
+  the robot spun 1.9 rad and fell. A swing's timing needs a clock of its own,
+  apart from the robot's rhythm's angle.
+- With each swing's own clock the turns hold without the grant (13 of 13
+  wobbles), the turnabout too and better (13, against 7 granted: saturation
+  damps what the robot's law over-asks there); the weave falls at 4 of 13
+  without it, at 1 granted only while a swing leads or the robot's capture point
+  is past a lone standing sole's own side - never in its plain walk, 0
+  of 6 666 passes. Granted by the gait under way, whoever said it: the bench as
+  before, walking 80 N shoves 28 of 32.
 - The standing jump's push at 2/3 of the knees' clamp (108 N m) through the
   knee's lever to the leg's line at the human's crouch (0.31 m): 466 N, 5.2
   m/s^2 net for 0.34 s, take-off 1.74 m/s ideal and 1.5-1.65 realized; his

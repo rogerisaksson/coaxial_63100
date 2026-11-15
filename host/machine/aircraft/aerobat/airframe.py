@@ -62,7 +62,7 @@ DIVE_M_S = _AB_CFG['dive_m_s']
 #: and a full pack's volts, as the page's drives have it.
 ROTOR = pull.Rotor(*pull.ROTOR[:4], pull.CAN_J + PROP_INERTIA, pull.ROTOR.b, K_DRAG)
 W_TOP = pull.ceiling(flightpack.open_volts(1.0), pull.I_MAX, ROTOR)
-#: Its course on all it has: on 1.5 g its climb to the hoop had 0.5 and it struck gate 2 in a
+#: The aerobat's course on all it has: on 1.5 g its climb to the hoop had 0.5 and it struck gate 2 in a
 #: gusty air of eight.
 PULL_MAX = COURSE_SPHERE = K_THRUST / MASS_KG * W_TOP ** 2
 #: The tail in the propeller's wash (`slipstream`): its surfaces' moments a pascal, as quick at

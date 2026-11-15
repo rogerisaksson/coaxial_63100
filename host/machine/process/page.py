@@ -1,6 +1,6 @@
-"""Its state as its page hears it: its stage, modes, horizon and things; its tilt as the world has it.
+"""The robot's state as its page hears it: stage, modes, horizon, things; its tilt as the world has it.
 
-    now = page.state(g, torque, power, watts, ratio, fallen_at)     # `sprung.state`: what its page is said
+    now = page.state(g, torque, power, watts, ratio, fallen_at)     # `sprung.state`: what the robot's page is said
     page.tilt(g), page.staged(g, fallen_at)                          # deg off upright; fallen, air, walk, stand
 """
 import math
@@ -11,17 +11,17 @@ from machine.moves import leap
 from machine.senses import situation
 from machine.texts import ortho
 
-#: Its stage (`staged`): walking past WALK_M_S, or with a sole off the floor within STEP_S; fallen, it lies
-#: RECOVER_S before a new epoch is laid (`worker`).
+#: The robot's stage (`staged`): walking past WALK_M_S, or with a sole off the floor within STEP_S; fallen, it
+#: lies RECOVER_S before a new epoch is laid (`worker`).
 WALK_M_S, STEP_S, RECOVER_S = 0.1, 1.0, 3.0
 
 
 def named(g):
-    """Its things by what each is, the one thing each is of and the buildings they make (`classes.read`), told anew only
-    as they change: the page names none - 59 things took 12 ms a scan there; keyed by `registry.keyed`."""
+    """The robot's things by what each is, the one thing each is of and the buildings they make (`classes.read`), told
+    anew only as they change: the page names none - 59 things took 12 ms a scan there; keyed by `registry.keyed`."""
     from machine.eyes import registry
     things = g['things']
-    if g.get('_named_of') is not things:     # the same list its things are as last keyed: nothing writes into them
+    if g.get('_named_of') is not things:     # the same list the robot's things are as last keyed: nothing writes into them
         key = registry.keyed(things)
         if g.get('_named', (None,))[0] != key:
             g['_named'] = (key,) + classes.read(things)
@@ -30,15 +30,16 @@ def named(g):
 
 
 def tilt(g):
-    """Its pelvis's tilt from upright, deg, as the world has it: the referee's, not its law's."""
+    """The robot's pelvis's tilt from upright, deg, as the world has it: the referee's, not the robot's
+    law's."""
     q = g['world'].data.qpos
     return math.degrees(math.acos(max(-1.0, min(1.0, 1.0 - 2.0 * float(q[4] ** 2 + q[6] ** 2)))))
 
 
 def staged(g, fallen_at):
-    """Its stage as measured: fallen; in the air, neither sole bearing `leap.TOUCH_N`; walking,
+    """The robot's stage as measured: fallen; in the air, neither sole bearing `leap.TOUCH_N`; walking,
     its pelvis faster than WALK_M_S or a sole off the floor within STEP_S; else standing. Read off
-    its gait's amplitude it said stand at 0.9 m/s."""
+    the robot's gait's amplitude it said stand at 0.9 m/s."""
     if fallen_at is not None:
         return 'fallen'
     if max(g['loads']) < leap.TOUCH_N:
@@ -49,16 +50,19 @@ def staged(g, fallen_at):
 
 
 def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None, headroom=1.0):
-    """Its state as the page hears it: stage, modes, joint torque/power/temp, physical velocity, and
-    its law's horizon - its centre of mass, its capture point, its soles, which stand (world),
-    its shoulders' range; `ratio` its pace to the wall, `headroom` its process's flat out."""
+    """The robot's state as the page hears it: stage, modes, joint torque/power/temp, physical velocity, and
+    the robot's law's horizon - its centre of mass, its capture point, its soles,
+    which stand (world), its shoulders' range; `ratio` its pace to the wall, `headroom` the
+    robot's process's flat out."""
     import numpy as np
     from machine.law import latent, modal
     from machine.body.figure import JOINTS
     world, out, d, hd = g['world'], g['out'], g['world'].data, float(g['heading'])
-    # its modes compiled (`motion.laid`'s g['modes']): numpy's read was 204 us of the 607 a state is said in
+    # the robot's modes compiled (`motion.laid`'s g['modes']): numpy's read was 204 us of the 607 a state is
+    # said in
     z = g.get('modes', modal.read)(g['y'], g['fr'], g['a'][modal.STANCE])[0]
-    # its angles at once: numpy's degrees math.degrees' product by 180/pi, each joint's read and turned were 17 us
+    # the robot's angles at once: numpy's degrees math.degrees' product by 180/pi, each joint's read and turned
+    # were 17 us
     angles = dict(zip(JOINTS, np.degrees(d.qpos[world.qadr[:len(JOINTS)]]).tolist()))
     shoulder = g.get('_shoulder_at')
     if shoulder is None:

@@ -339,8 +339,8 @@ def framed(scene_, cam=None, room=None):
 @functools.lru_cache(maxsize=2)
 def robot(tree):
     """The page whose system runs the robot's streams (atlas_flow.makers): the dataflow drawn where none is chosen."""
-    its_own = {tree.up[n] for n in atlas_flow.makers(tree).values() if n >= 0}
-    return next(p for p, files in systems(tree).items() if its_own <= files)
+    robot_own = {tree.up[n] for n in atlas_flow.makers(tree).values() if n >= 0}
+    return next(p for p, files in systems(tree).items() if robot_own <= files)
 
 
 def system(tree, app):

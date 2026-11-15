@@ -53,8 +53,8 @@ GAUGE_CELLS = 20
 PAGE_CYCLE_ON_S, PAGE_CYCLE_OFF_S = 120.0, 240.0
 PAGE_CYCLE_AMPS = 30.0 * math.sqrt(2.0)
 
-#: How often the page asks for the identification, seconds. It moves once
-#: a sample - every thirty seconds on the board.
+#: How often the page asks for the identification, seconds. The
+#: identification moves once a sample - every thirty seconds on the board.
 IDENT_EVERY_S = 5.0
 
 

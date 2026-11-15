@@ -4,9 +4,10 @@ is past, what the floor cannot give taken.
     at, moved = rounds.bounded(u, frames, stance, edge, mu)   # each standing sole's wrench in its cone
     at, kept = rounds.pushed(u, bears, cap, slips)            # each contact's force pressing, in its pyramid
     at, out, to = rounds.faced(u, frames, stance, edge, mu)   # the faces a sole's wrench is past
-    at = rounds.taken(u0, metric, up, frames, stance, edge, band, grounded, mu)  # striding, its inertia's share
+    at = rounds.taken(u0, metric, up, frames, stance, edge, band, grounded, mu)  # striding, the robot's inertia's share
 
-The unknowns (`machine.stack.wrench`): each leg's six (hip to sole), its upper body's, then each contact's three.
+The unknowns (`machine.stack.wrench`): each leg's six (hip to sole), the robot's upper body's, then each
+contact's three.
 """
 import os
 
@@ -18,9 +19,9 @@ from machine.body import drives
 from machine.body.figure import BALL, HEEL, JOINTS, SOLE_HALF
 from machine.stack.wbc import MU, G
 
-#: Among the driven joints: each leg's six, hip to sole; each knee; the rest, its upper body's.
+#: Among the driven joints: each leg's six, hip to sole; each knee; the rest, the robot's upper body's.
 DRIVEN = [j for j in JOINTS if drives.passive(j) is None]
-#: Among the driven joints: each leg's six, hip to sole; each knee; the rest, its upper body's.
+#: Among the driven joints: each leg's six, hip to sole; each knee; the rest, the robot's upper body's.
 LEGS = [[DRIVEN.index(side + k) for k in ('hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll')]
         for side in ('left_', 'right_')]
 KNEES = [leg[3] for leg in LEGS]
@@ -68,12 +69,12 @@ def bounded(u, frames, stance, edge=(0.0, 0.0), mu=(MU, MU)):
 
 
 def pushed(u, bears, cap=np.inf, slips=None, give=1.0):
-    """`u` with each contact's force (world, after the soles' and its upper body's unknowns)
+    """`u` with each contact's force (world, after the soles' and the robot's upper body's unknowns)
     pressing, no more than GROW_N over what it `bears` now (N up, one a contact) nor `cap` (N, one a
-    contact or one for all), of that `give` its own to plan (none where what bears it carries it as
-    felt, `wrench.step`), and in its friction's pyramid - a point sliding (`slips`: each one's
-    (sliding, its slip along the world's x and z, m/s), `wrench._patch`) has its friction the
-    kinetic one against its slip, given -, and which parts moved."""
+    contact or one for all), of that `give` the robot's own to plan (none where what bears it carries
+    the robot as felt, `wrench.step`), and in its friction's pyramid - a point sliding (`slips`: each one's
+    (sliding, its slip along the world's x and z, m/s), `wrench._patch`) has its friction the kinetic one
+    against its slip, given -, and which parts moved."""
     k = len(bears)
     if not k:
         return u.copy(), np.zeros(len(u))
@@ -113,13 +114,13 @@ def faced(u, frames, stance, edge=(0.0, 0.0), mu=(MU, MU)):
 
 
 def taken(u0, metric, up, frames, stance, edge, band, grounded, mu):
-    """Striding, what the floor cannot give its inertia takes: `u0`, the rows' answer with the
+    """Striding, what the floor cannot give the robot's inertia takes: `u0`, the rows' answer with the
     floor unbounded, brought to the faces its soles' wrenches are past by the least change in
     `metric` - its kinetic energy's, a swinging sole's ask held. Traded among the rows, a row
-    a joint, its head was the cheapest moment about it and nodded 46 deg a stride; its
+    a joint, the robot's head was the cheapest moment about it and nodded 46 deg a stride; its
     centre of mass held as well, its trunk pitched 9 to 10 deg, or it was down at 12 s. A
     face is a part of a sole's wrench its share of the sole's push, about the sole's own
-    axes; its height's `band` is decided before the faces - after them a throw's soles,
+    axes; the robot's height's `band` is decided before the faces - after them a throw's soles,
     asked to pull by its knees' rows, pressed nothing - and gives where a cone and it cannot
     both be met."""
     Gi = np.linalg.inv(metric)

@@ -124,8 +124,9 @@ NTC_CAMPAIGN_RESIDUAL_K = (MEASURED['switching']['ntc']
                               + NTC_SEES_DRIVERS * DRIVER_RISE_SWITCHING))
 
 #: The rise `board_to_ambient` was measured at, K: the passive state's 1.2 W.
-#: It and `board_capacity` are the network's only clean measurements;
-#: `to_board` is a spreading resistance in the laminate, a few K/W.
+#: `board_to_ambient` and `board_capacity` are the network's only clean
+#: measurements; `to_board` is a spreading resistance in the laminate, a
+#: few K/W.
 BOARD_CAL_RISE_K = 10.0
 
 #: Radiation's share of the board's loss at that rise: 30-40 % for passive

@@ -12,12 +12,12 @@ board's findings: [FINDINGS](../FINDINGS.md).
   models' pacing a fifth at most. The M7 runs translate-arm-experimental,
   1.17.0 the latest release: the tty defaults to native://, Renode stays the
   proof.
-- The image's MPU: tlib keeps no TLB entry for a page inside an
-  enabled region whose subregion is disabled and walks the MPU on every access
-  there; CubeMX's 4 GB region (SRD 0x87) spans ITCM, DTCM and D2 SRAM. Its
-  enable masked on the bus: idle 8.2 -> 1.4 wall s a virtual s at 100 MIPS,
-  23 -> 5.2 at 475; the drive 43-62 -> 18-22; 8 idle boards in one Renode
-  37-49 -> 390 M instructions a wall second. On in the suites only.
+- The image's MPU: tlib keeps no TLB entry for a page inside an enabled region
+  whose subregion is disabled and walks the MPU on every access there; CubeMX's
+  4 GB region (SRD 0x87) spans ITCM, DTCM and D2 SRAM. The region's enable
+  masked on the bus: idle 8.2 -> 1.4 wall s a virtual s at 100 MIPS, 23 -> 5.2
+  at 475; the drive 43-62 -> 18-22; 8 idle boards in one Renode 37-49 -> 390 M
+  instructions a wall second. On in the suites only.
   + Under the drive half is the A1335 loop (20 -> 10.7 held): 128 k packets a
     virtual second, ~45 register accesses each, its 1 us settles spinning on
     CYCCNT; the quantum no factor there.
@@ -313,3 +313,5 @@ board's findings: [FINDINGS](../FINDINGS.md).
   echo alone unanswered (NoReplyError), the next answered; the nodes counted
   +7 +5 +3 and +3 +5 +1 comm errors for one, +7 +3 +9 and +9 +3 +5 for three
   in a row, against +0 +0 +0 in a clean run.
+- Since: 5 runs of 5 the applications paper trips the emulator - the lane's
+  stop once, the two joints' poses four times.

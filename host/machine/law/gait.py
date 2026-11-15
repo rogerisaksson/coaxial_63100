@@ -1,13 +1,13 @@
 """The robot's standard gait and its modifiers: one walk, moved by named amounts, no gait a special.
 
-    row = gait.modified(roll=0.86)   # one row (ortho.ROW) over its walk: its list's amplitude up 0.86
+    row = gait.modified(roll=0.86)   # one row (ortho.ROW) over the robot's walk: its list's amplitude up 0.86
     std = gait.standard()            # the walk's parameters as the lisp's streams fold (stand, sway, step, walk)
 
 A modifier is a named amount on one of the walk's parameters (MODIFIERS): its pace, its stride
 (the drive's amplitude), the arms' swing, its sway, the pelvis's roll and turn, the soles' rock,
-its crouch, its lean, its width. Laid over the walk it is on, a row says the moved parameters
+its crouch, its lean, its width. Laid over the walk the robot is on, a row says the moved parameters
 alone, the standard's value and the amount; the rest stays the walk's. A gait take is its amounts
-(`takes.amounts`), a word of its movement language (`tools.sim.normal`) an amount: a woman's
+(`takes.amounts`), a word of the robot's movement language (`tools.sim.normal`) an amount: a woman's
 catwalk is roll +0.86, and so modified its walk is named a catwalk - its pelvis rolls 18.8 deg
 for the take's 23.3 (sequencer.md). The patch and its modulation, docs/architecture/synth.md.
 """
@@ -25,14 +25,14 @@ MODIFIERS = {'pace': ortho.HZ, 'stride': ortho.AMP + modal.DRIVE, 'swing': ortho
 STREAMS = ('stand', 'sway', 'step', 'walk')
 #: A modified row's sequence id, after the texts' streams (200-205) and a take's rows (300).
 ROW_ID = 301
-#: A modified row's blend, s: the half period of its leg's swing, a take's entering too.
+#: A modified row's blend, s: the half period of the robot's leg's swing, a take's entering too.
 BLEND_S = math.pi * math.sqrt(modal.LEG_M / modal.G)
 
 
 def said(gym=None):
-    """The walk's parameters (`ortho.P`) of its gym's entries `gym` (else its files', `sprung.entries`):
-    each as the last of the walk's streams that says it, nan where none does - its loop keeps what
-    it had there, its rest (`statics.rest`) from a stand."""
+    """The walk's parameters (`ortho.P`) of the robot's gym's entries `gym` (else its files',
+    `sprung.entries`): each as the last of the walk's streams that says it, nan where none does - the robot's
+    loop keeps what it had there, its rest (`statics.rest`) from a stand."""
     import numpy as np
     from machine.law import latent
     from machine.process import sprung
@@ -52,7 +52,7 @@ def standard():
 
 
 def modified(blend_s=BLEND_S, **amounts):
-    """One row (`ortho.ROW`) over its walk, blended over `blend_s`: each named modifier's
+    """One row (`ortho.ROW`) over the robot's walk, blended over `blend_s`: each named modifier's
     parameter at the standard's value plus its amount, the rest unsaid."""
     std = standard()
     p = [math.nan] * ortho.P

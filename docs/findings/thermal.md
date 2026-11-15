@@ -23,14 +23,13 @@ docs/architecture/thermals.md). The board's other findings:
   on a board at 33; now the NTC 33.2 for 33.5, the room 21.6. Under the drive,
   sampled as rank 3 on ADC3 with 810.5 cycles (~9 us) sample time in the 20 us
   period, latched into `board_sync_sample_t.mcu_die`.
-- Refit on the board, record laminate 21 J/K, dry and blind:
-  120 s at 53.8 V observer NTC 57.85 C for the thermistor's 57.90 (rise 25.4
-  K for 24.3); 300 s at 23.9 V 51.9 for 50.1 (19.1 for 17.4). Thirty seconds
-  on it runs 4 K over, for the anchor to take. Its room: 35-43 C in a room of
-  22 on that record, 21.6 on the default 49 J/K. Idle two hours, AFE_ON off
-  but for reads: UNCERTAIN, the air's scale at its floor 0.25,
-  the capacity's 2.09 (44 J/K; the transient's 49), room 33.4 C, the board's
-  own 33.
+- Refit on the board, record laminate 21 J/K, dry and blind: 120 s at 53.8 V
+  observer NTC 57.85 C for the thermistor's 57.90 (rise 25.4 K for 24.3); 300 s
+  at 23.9 V 51.9 for 50.1 (19.1 for 17.4). Thirty seconds on it runs 4 K over,
+  for the anchor to take. The observer's room: 35-43 C in a room of 22 on that
+  record, 21.6 on the default 49 J/K. Idle two hours, AFE_ON off but for reads:
+  UNCERTAIN, the air's scale at its floor 0.25, the capacity's 2.09 (44 J/K; the
+  transient's 49), room 33.4 C, the board's own 33.
 - The stand-in's load is its balanced `load_cycle`: 569ae47's turning vector
   walked the heat U, V, W, the hottest leg 9 times in 16 s.
 - Tour on an emulated board's world (`coaxial.model.rooms`): thermal page on
@@ -52,7 +51,7 @@ docs/architecture/thermals.md). The board's other findings:
 - SOA to that sheet (Rev 1.2):
   + A leg is judged on its FETs' junction: its node plus each FET's half of
     its watts through R_th,JC, Z_th at 100 ms (the envelope's slice) 0.68,
-    against 175 C. Its node against 125 C left 44 K unused.
+    against 175 C. The leg's node against 125 C left 44 K unused.
   + Rds(on) second order on Fig. 8: 5.55e-3/K and 1.78e-5/K^2, within 1.2 %
     from -55 to 175 C; the 0.78 %/K was 5.7 % off.
   + The 2EDL8034 sits 8-13 mm from its FETs on the leg's patch; the patch's
@@ -98,13 +97,13 @@ docs/architecture/thermals.md). The board's other findings:
   C die, which the anchor took. Read after the settle now, never without the
   reference.
 - Squaring one synced sample per step aliased; `Board_SyncMeanSquare`
-  accumulates per leg in counts. Its slope was taken over one code, where the
-  record's integer gain trim truncates to nothing: the observer's I^2 never
-  saw a channel's gain. Over 32 768 codes now.
-- The stand-in's losses were `phase_power`'s (no duty, link, dead time,
-  tempco); now `thermal_power_estimate`'s, mirrored in
-  `coaxial.model.thermal` and held to the C. Its held vector turned the
-  current's size, not the phases: one leg heated.
+  accumulates per leg in counts. The mean square's slope was taken over one
+  code, where the record's integer gain trim truncates to nothing: the
+  observer's I^2 never saw a channel's gain. Over 32 768 codes now.
+- The stand-in's losses were `phase_power`'s (no duty, link, dead time, tempco);
+  now `thermal_power_estimate`'s, mirrored in `coaxial.model.thermal` and held
+  to the C. The stand-in's held vector turned the current's size, not the
+  phases: one leg heated.
 - With the tempco a leg has no equilibrium past 28 K/W x P x 0.78 %/K = 1: 60
   A rms held ran one away before the winding warmed. The stand-in's setters
   wrote its live network and the identification's next update undid them;

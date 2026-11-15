@@ -1,6 +1,6 @@
-"""Its leg's reach over its foot as static arrays: written by host/tools/cores/reach.py, not by hand."""
+"""A leg's reach over its foot as static arrays: written by host/tools/cores/reach.py, not by hand."""
 
-#: Each limb's mirror, its left's and its right's: across is to a limb's own side.
+#: Each limb's mirror, the robot's left's and its right's: across is to a limb's own side.
 LIMBS = (1.0, -1.0)
 #: Thigh and shank, m.
 THIGH, SHANK = 0.39, 0.38

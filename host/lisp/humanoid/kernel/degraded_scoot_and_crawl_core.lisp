@@ -4,9 +4,9 @@
 ;;         Cancellation, Seated Butt-Scoot & Prone Leopard Low-Crawl Physics
 ;; REQUIRES: ortho_dsp_somatic_substrate.lisp, canonical_posture_bundle.lisp,
 ;;           terrestrial_multimodal_gaits.lisp, prior_regularized_observer.lisp
-;; Its own: fitted to its body (`machine.moves.crawl`, test_crawl): its hip turns out 25 deg at its stop, its shoulders do not
-;; abduct; a drive in High-Z still holds its gearbox's backdrive (1.2-2.2 N m, `drives.backdrive`). None of it on
-;; its loop.
+;; The robot's own: fitted to its body (`machine.moves.crawl`, test_crawl): its hip turns out 25 deg at its
+;; stop, the robot's shoulders do not abduct; a drive in High-Z still holds its gearbox's backdrive (1.2-2.2 N m,
+;; `drives.backdrive`). None of it on the robot's loop.
 ;; =============================================================================
 (defpackage :ortho-dsp.degraded-crawl-core
   (:use :ortho-dsp.core
@@ -30,8 +30,8 @@
 ;; 1. ACTUATOR HEALTH & FAULT-MODE SOA MASK (1 kHz HARDWARE TELEMETRY)
 ;; Tracks live authority alpha_i in [0..1] and fault topology per joint/limb.
 ;; Nominal operation has authority == 1.0 and mode == :healthy-closed-loop.
-;; Its own: its 63100's gates off is :high-z-freewheel - its joint then turns against its gearbox's backdrive alone.
-;; -----------------------------------------------------------------------------
+;; The robot's own: its 63100's gates off is :high-z-freewheel - its joint then turns against its
+;; gearbox's backdrive alone. -----------------------------------------------------------------------------
 (defstate actuator-health-soa-mask
   (:memory-layout
     :num-limb-chains 4                       ; [:hind-left, :hind-right, :fore-left, :fore-right]
@@ -46,12 +46,12 @@
 ;; 2. LOW-CRAWL & SCOOT SOMATIC MANIFOLD EXTENSIONS
 ;; Adds the Medial Tibial/Epicondyle Frog-Piston patch used when pushing with
 ;; the inside of the leg flattened against the ground during Prone Low-Crawl!
-;; Its own: on its shank, 380 mm knee to ankle, its capsule 50 mm round.
+;; The robot's own: on its shank, 380 mm knee to ankle, its capsule 50 mm round.
 ;; -----------------------------------------------------------------------------
 (defcontact-patch low-crawl-manifold-extensions
   (:patch :medial-crural-frog-piston
     :frames          [:medial-condyle-l :medial-malleolus-l :medial-condyle-r :medial-malleolus-r]
-    :local-normal    [0.0 1.0 0.0]           ; Medial side of knee/shin faces [0,0,1] when hip externally rotated 75 deg! Its own 25 deg
+    :local-normal    [0.0 1.0 0.0]           ; Medial side of knee/shin faces [0,0,1] when hip externally rotated 75 deg! The robot's own 25 deg
     :cop-bounds-mm   (:x [-180.0 180.0] :y [-45.0 45.0])
     :default-mu      0.78
     :unilateral-fz   true))
@@ -68,7 +68,7 @@
       :origin-q0
         (:calcaneus 0.00 :talocrural +0.22 :tibiofemoral 1.32 :coxofemoral 1.38
          :iliac-coronal 0.00 :l4-l5-lumbar +0.12 :c7-t12-thoracic +0.18
-         :glenohumeral -0.38 :glenohumeral-abduct 0.00 :cubital 0.55 :c1-c2-atlas -0.10) ; its shoulders do not abduct (0.28)
+         :glenohumeral -0.38 :glenohumeral-abduct 0.00 :cubital 0.55 :c1-c2-atlas -0.10) ; the robot's shoulders do not abduct (0.28)
       :modal-basis-columns
         ;; 1. Axial Compression: Presses hands and active heel(s) down to unweight the buttocks!
         (:mode-axial-compression (:glenohumeral -0.42 :cubital -0.52
@@ -85,9 +85,9 @@
       :origin-q0
         (:calcaneus 0.00 :talocrural +0.35       ; Dorsiflex ankle so medial big-toe/arch grips floor!
          :tibiofemoral 1.15                      ; Flex knee 66 deg out to the side
-         :coxofemoral 0.78 :coxofemoral-abduct 0.88 :coxofemoral-ext-rot 0.436 ; 75 deg frog turnout flat to floor! Its own 25 deg, its hip yaw's stop (1.31)
+         :coxofemoral 0.78 :coxofemoral-abduct 0.88 :coxofemoral-ext-rot 0.436 ; 75 deg frog turnout flat to floor! The robot's own 25 deg, its hip yaw's stop (1.31)
          :iliac-coronal 0.00 :l4-l5-lumbar -0.05 :c7-t12-thoracic +0.08
-         :glenohumeral +1.65 :glenohumeral-abduct 0.00 :cubital 1.45 ; Forearms flat in front of chest; its shoulders do not abduct (0.65)
+         :glenohumeral +1.65 :glenohumeral-abduct 0.00 :cubital 1.45 ; Forearms flat in front of chest; the robot's shoulders do not abduct (0.65)
          :c1-c2-atlas -0.42 :c1-c2-atlas-yaw 0.52) ; Head low, chin cleared to side, eyes forward!
       :modal-basis-columns
         ;; 1. Axial Compression: Shifts load between ventral belly sled and elbows/inner-knees:
@@ -107,7 +107,7 @@
 ;;                               sets its active propulsive wrench bound to 0 N.
 ;;   - `:mechanically-jammed` -> Zeroes column in J_c; uses locked limb as a
 ;;                               passive rigid skid or hook if geometry permits!
-;; Its own: a freewheeling joint of its own keeps its backdrive's friction in c_f.
+;; The robot's own: a freewheeling joint of its own keeps its backdrive's friction in c_f.
 ;; -----------------------------------------------------------------------------
 (defprimitive partition-fault-tolerant-dynamics
   [state &key (health-mask 'actuator-health-soa-mask)
@@ -142,12 +142,12 @@
         :sled-pivot-patches [:ischial-bilateral :ventral-prone-continuum]
         :compensation-mechanisms
           ;; A. Diagonal Coupling: Boost stroke & force on the arm opposite the working leg
-          ;;    Its own: its hands 148 mm off its midline, its heel 30 mm once shifted, pushing as an arm (1.45)
+          ;;    The robot's own: its hands 148 mm off its midline, its heel 30 mm once shifted, pushing as an arm (1.45)
           ((:when allow-contralateral-arm-overdrive
              :boost-ipsilateral-to-fault-arm-gain 1.20)
            ;; B. Centerline Foot/Knee Placement: Plant the single working heel/knee closer to
            ;;    the sagittal midline so its push vector passes through the sled's CoM!
-           ;;    Its own: its heel 95 mm off its midline, its hips' half width
+           ;;    The robot's own: its heel 95 mm off its midline, its hips' half width
            (:when allow-diagonal-foot-vectoring
              :shift-working-hindlimb-toward-midline-mm 65.0)
            ;; C. Lateral Spine C-Arch Counter-Torque:
@@ -166,7 +166,7 @@
         :health-source 'actuator-health-soa-mask
         :strategy towing-strategy
         ;; 1. Pelvic/Thoracic Roll Tilt: Tilt 12.5 deg onto the healthy hip/buttock so the
-        ;;    broken side is lifted 35mm clear of floor friction! Its own 35.6 mm, its far hip 163 mm across
+        ;;    broken side is lifted 35mm clear of floor friction! The robot's own 35.6 mm, its far hip 163 mm across
         :unweight-roll-bias-rad coronal-unweight-tilt-rad
         ;; 2. Proximal Hip Sling: If only the knee/ankle actuator is broken but the hip
         ;;    (`:coxofemoral`) still works, hold the thigh slightly abducted/elevated:

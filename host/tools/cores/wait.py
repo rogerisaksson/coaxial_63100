@@ -1,4 +1,4 @@
-"""The rows of its table that wait or wake it, in C through ctypes (wbc_wait.c), bit for bit.
+"""The rows of the robot's table that wait or wake it, in C through ctypes (wbc_wait.c), bit for bit.
 
     k, ask = motion.laid()
     waits = wait.laid(k, a, out, y, fr, st)                      # machine.law.waits.held_rows, risen_rows, woken_rows
@@ -6,7 +6,7 @@
     shift, first, prop_until = waits.risen(tab, t, dt, prop_until)
     shift, first = waits.borne(tab, t, dt)                       # machine.law.waits.borne_rows
     shift, first = waits.played(tab, t, dt)                      # machine.law.waits.played_rows
-    waits.latched(tab, t, dt)                                    # machine.law.waits.latched_rows: its vector in st
+    waits.latched(tab, t, dt)                                    # machine.law.waits.latched_rows: the robot's vector in st
     pairs, held_s, prop_until = waits.backs(tab, t, dt, held_s, prop_until)   # those of a law pass in one call
     waits.woken(tab, t, dt)                                      # its rhythm woken in st
 """
@@ -20,7 +20,7 @@ from tools.cores import motion as c_motion, wbc
 
 class Wait(ctypes.Structure):
 
-    """wbc_wait_t: its table's layout, the waits' constants, numpy's BLAS."""
+    """wbc_wait_t: the robot's table's layout, the waits' constants, numpy's BLAS."""
 
     _fields_ = ([(name, ctypes.c_int) for name in ('table', 'at', 'vals_z', 'said_z', 'vals_gain', 'said_gain', 'st_to_z',
                                                    'contact', 'vals_amp', 'said_phase', 'vals_phase', 'st_now_gain',
@@ -66,7 +66,7 @@ def _typed():
 
 class Waits:
 
-    """The waits in C on its law's arrays, pointed at once; its table given at each, rows at most
+    """The waits in C on the robot's law's arrays, pointed at once; its table given at each, rows at most
     `rows` (wbc_wait.c's), an empty one a laid row read nowhere."""
 
     def __init__(self, k, a, out, y, fr, st):
@@ -94,7 +94,7 @@ class Waits:
 
     def _table(self, tab):
         if len(tab) > self.rows:
-            raise ValueError('wbc_wait.c lays %d rows at most, its table has %d' % (self.rows, len(tab)))
+            raise ValueError('wbc_wait.c lays %d rows at most, the robot\'s table has %d' % (self.rows, len(tab)))
         return wbc.pointer(tab) if len(tab) else self.at[5]
 
     def held(self, tab, t, dt, held_s):
@@ -129,9 +129,10 @@ class Waits:
         return tuple(self.got[:2].tolist())
 
     def backs(self, tab, t, dt, held_s, prop_until):
-        """(((shift, first) of held, risen, landed, sunk and borne), held_s, prop_until): its table's waits of a
-        law pass in their order and its latch after them in one call (wbc_wait_backs), `tab`'s times shifted in place
-        and its vector latched in `st` as each alone does - six calls of its law's pass were 45 us of it."""
+        """(((shift, first) of held, risen, landed, sunk and borne), held_s, prop_until): the robot's table's waits
+        of a law pass in their order and its latch after them in one call (wbc_wait_backs), `tab`'s times
+        shifted in place and its vector latched in `st` as each alone does - six calls of its law's
+        pass were 45 us of it."""
         self.all[10], self.all[11] = held_s, prop_until
         self.backs_c(self.k, self.wp, self._table(tab), len(tab), self.at[0], self.at[1], self.at[2], self.at[3],
                      self.at[4], t, dt, self.ap)
@@ -139,16 +140,17 @@ class Waits:
         return tuple(zip(got[0:10:2], got[1:10:2])), got[10], got[11]
 
     def latched(self, tab, t, dt):
-        """`machine.law.waits.latched_rows`: its vector latched in `st` where it is by the rows of `tab` due."""
+        """`machine.law.waits.latched_rows`: the robot's vector latched in `st` where it is by the rows of `tab`
+        due."""
         self.latched_c(self.k, self.wp, self._table(tab), len(tab), self.at[2], self.at[3], self.at[0], self.at[4], t,
                        dt)
 
     def woken(self, tab, t, dt):
-        """`machine.law.waits.woken_rows`: its rhythm woken in `st` by the rows of `tab` due."""
+        """`machine.law.waits.woken_rows`: the robot's rhythm woken in `st` by the rows of `tab` due."""
         self.woken_c(self.k, self.wp, self._table(tab), len(tab), self.at[4], t, dt)
 
 
 def laid(k, a, out, y, fr, st):
-    """The waits on modal's `a`, the latent `out`, modal's `y` and `fr`, its latent `st`; `k` the ask's
-    (`tools.cores.motion.laid`)."""
+    """The waits on modal's `a`, the latent `out`, modal's `y` and `fr`, the robot's latent `st`; `k` the
+    ask's (`tools.cores.motion.laid`)."""
     return Waits(k, a, out, y, fr, st)

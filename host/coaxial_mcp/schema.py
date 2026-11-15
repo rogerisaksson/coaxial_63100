@@ -101,8 +101,8 @@ TOOLS = [
     },
     {
         'name': 'afe_power',
-        'description': 'Analog front end switch. It also powers the ADC reference, so readings are meaningless with it off.',
-        'description_terse': 'Front end switch. It also powers the ADC reference.',
+        'description': 'Analog front end switch. The switch also powers the ADC reference, so readings are meaningless with it off.',
+        'description_terse': 'Front end switch. The switch also powers the ADC reference.',
         'inputSchema': {
             'type': 'object',
             'properties': {'action': {'enum': ['on', 'off', 'toggle', 'read']}},

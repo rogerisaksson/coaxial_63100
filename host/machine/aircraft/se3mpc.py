@@ -184,8 +184,8 @@ class Mppi:
     (throttle 0-1, the three surfaces -1-1) noised by `sigma` and correlated `ar` along the
     horizon, each weighed by exp(-cost / lam), lam the cost a `share` of them come within. Asked a
     place, a speed, the belly's and the nose's directions and the tail's lowest point a step; held
-    off the floor but at the tail and the wheels, the surfaces within half where it can, the least
-    thrust that does it."""
+    off the floor but at the tail and the wheels, the surfaces within half where the plane can, the
+    least thrust that does it."""
 
     #: The cost's weights in mppi.h's order.
     W = dict(x=4.0, y=400.0, z=4.0, speed=1.0, belly=8.0, nose=8.0, spin=0.05, reserve=60.0, touch=4e4,

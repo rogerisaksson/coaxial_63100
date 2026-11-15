@@ -1,12 +1,12 @@
 """The robot's numpy compiled to C and held bit for bit against numpy's own run of it.
 
-Traced on its arrays (`trace`), written in C (`emit`), built once a source; held on the arrays it
+Traced on the robot's arrays (`trace`), written in C (`emit`), built once a source; held on the arrays it
 was traced on, then on fresh ones.
 
     fn_c = held.compiled(fn, args, inputs, 'name')        # fn_c(*arrays at `inputs`) its C
     fn_c = held.batched(fn, args, inputs, 'regressor')    # the same over any number of states
     fn_c = held.batched(fn, args, inputs, 'regressor', made_of=(module, lay))   # found again untraced
-    fn_c = bodied.on_body(wbc.sense, 'sense')             # fn(b, *arrays) on its body (`bodied`)
+    fn_c = bodied.on_body(wbc.sense, 'sense')             # fn(b, *arrays) on the robot's body (`bodied`)
 """
 import ctypes
 import functools
@@ -25,7 +25,7 @@ from tools import REPO
 from tools.cores import build, emit, layout, orders, trace, trace_mj, trace_np
 from tools.cores.wbc import FLAGS, INCLUDES
 
-#: Generated C as its chain's library is built, at -O3: a loop nest a statement, numpy's arithmetic
+#: Generated C as the robot's chain's library is built, at -O3: a loop nest a statement, numpy's arithmetic
 #: the same at every level (ISO C contracts nothing), the regressor 8.0 -> 5.95 ms at 400 states.
 GENERATED = FLAGS + ('-O3',)
 #: The states a batched build is traced and held on, at most: numpy's orders read and its bits held
@@ -121,7 +121,7 @@ def building(source, name, matmul, solves=False):
 
 def _builds():
     """This process's builds one after another, while any are queued - the glue's extension first
-    (`quick`), so a part held is called through it and no build of it waits in its loop."""
+    (`quick`), so a part held is called through it and no build of it waits in the robot's loop."""
     from tools.cores import quick
     quick.module()
     heads = build.headers(INCLUDES)

@@ -6,10 +6,10 @@
     dofs no drive holds, the held joints at rest, the standing soles still. Then by priority,
     least squares in the null space of the levels above and under every bound - each drive's
     load (its torque from the dynamics' row) within its clamp as derated (its peak under war
-    emergency power where it ran near its clamp), its vertical acceleration within its band, each
-    corner pressing inside its friction pyramid, each sole's centre of pressure inside its
-    margin, a joint short of its stop - by an active set (wbc_solve.c). A pair's rods share
-    loads as machine.stack.wbc._currents has it. machine.stack.wbc's levels and bounds, deterministic
+    emergency power where it ran near its clamp), the robot's vertical acceleration within its band,
+    each corner pressing inside its friction pyramid, each sole's centre of pressure inside its
+    margin, a joint short of its stop - by an active set (wbc_solve.c). A pair's rods share loads as
+    machine.stack.wbc._currents has it. machine.stack.wbc's levels and bounds, deterministic
     (docs/findings/wbc.md). */
 #include "wbc.h"
 #include "wbc_solve.h"
@@ -96,8 +96,8 @@ static void bound(wbc_stack_t *s, int kind, int id, const double a[WBC_V], doubl
   s->ineq++;
 }
 
-/** Every bound this tick: the drives' loads, its vertical acceleration within HEIGHT_BAND of
-    its ask, each standing sole's corners pressing inside their pyramids (world axes, the floor
+/** Every bound this tick: the drives' loads, the robot's vertical acceleration within HEIGHT_BAND
+    of its ask, each standing sole's corners pressing inside their pyramids (world axes, the floor
     level) and its centre of pressure inside its margin, each stop LIMIT_S ahead. */
 static void lay_bounds(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N],
                        const wbc_ask_t *ask)
@@ -405,7 +405,7 @@ static void lay_level(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N],
       const int link = t ? wbc_trunk : 0;
       double    drift[6], wdot[3];
 
-      /* A turn of all zeros is unasked: with no sole standing there is nothing to turn it
+      /* A turn of all zeros is unasked: with no sole standing there is nothing to turn the robot
          against, and asked it spun its legs to hold its trunk still. */
       if ((ask->turn[t][0] == 0.0) && (ask->turn[t][1] == 0.0) && (ask->turn[t][2] == 0.0)
           && (ask->turn[t][3] == 0.0))
@@ -474,7 +474,8 @@ static void lay_level(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N],
     }
   }
 
-  /* Level 4, its form: its height, the angular momentum, the posture, the torques, the forces. */
+  /* Level 4, the robot's form: its height, the angular momentum, the posture, the torques, the
+   * forces. */
   if (level == 4)
   {
     if (s->nst)

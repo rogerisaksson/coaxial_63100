@@ -11,7 +11,7 @@
 
 The run, at RUN_G of gravity: the wing bears the weight at ALPHA_RAD, so fast (`Wing.rotate`);
 the tail comes up at TAIL_UP of it, the nose to CLIMB_RAD over ALPHA_RAD once the wheels are
-off, the climb on the wing until it is airborne at AIRBORNE_M, the hover's brake from there
+off, the climb on the wing until the plane is airborne at AIRBORNE_M, the hover's brake from there
 (`Wing.runway`). Wing-borne - nose first through the air at the wing's speed - the nose goes
 on the air and over it by the angle the wing needs for what is asked across the path, no more
 than ALPHA_MAX, its back rolled to that; leant against the air as a hover, the wing's 1.5 g
@@ -172,7 +172,7 @@ class Wing:
                 -self.arm * self.fin * (q * ux + qd * self.arm * wz))
 
 
-#: On its wheels, WHEELS_M of its rest, it rolls along them and grips across them: GRIP of its
+#: The plane on its wheels, WHEELS_M of its rest, rolls along them and grips across them: GRIP of its
 #: load at the most, its slip across taken back over GRIP_S.
 GRIP, GRIP_S, WHEELS_M = _WB['grip'], _WB['grip_s'], _WB['wheels_m']
 
@@ -213,7 +213,7 @@ def wing_substep(sky, lift, wx, wy, wz, dk, ab0, ab1, ab2):
 
 
 def run(wing, core, v_fwd, h, yaw, rate, up=math.inf):
-    """The run on its wheels: `(r_des, w_ff, f_des)` for `core` going `v_fwd` m/s along `yaw`,
+    """The plane's run on its wheels: `(r_des, w_ff, f_des)` for `core` going `v_fwd` m/s along `yaw`,
     `h` m over its rest; rotated by the wing's speed it asks the climb - CLIMB_RAD, `up` m/s at
     the most - and stays rotated, its tail wheel holding it at its rest till it lifts; the tail
     clear of the floor before."""
@@ -230,18 +230,18 @@ def run(wing, core, v_fwd, h, yaw, rate, up=math.inf):
     return r_des, (0.0, rate, 0.0), f_run
 
 
-#: The flare's sink asked: its height over FLARE_S, TOUCH_M_S at the least.
+#: The flare's sink asked: the plane's height over FLARE_S, TOUCH_M_S at the least.
 FLARE_S, TOUCH_M_S = _WB['flare_s'], _WB['touch_m_s']
 
 
 def flare(wing, v_fwd, h, v, yaw, rate, r11):
-    """The flare and roll-out at `v_fwd` through the air along its heading: `(r_des, w_ff, f_des)`
-    pitching up as `1 / v_fwd^2` to HARRIER_RAD, its sink as its height asks (FLARE_S, TOUCH_M_S);
-    on its wheels its tail up as the run has it at its speed, its wing off them: three-point at
-    10.5 m/s the wing bore it 34-55 m."""
+    """The flare and roll-out at `v_fwd` through the air along the plane's heading:
+    `(r_des, w_ff, f_des)` pitching up as `1 / v_fwd^2` to HARRIER_RAD, its sink as its height
+    asks (FLARE_S, TOUCH_M_S); on its wheels its tail up as the run has it at its speed, its wing
+    off them: three-point at 10.5 m/s the wing bore it 34-55 m."""
     g, m = wing.gravity, wing.mass
     # The lift a radian, `q` its lift slope's already: counted twice, and the path's angle added
-    # to the nose where it is the wing's own, it touched at 0.64 m/s at 7-10 deg.
+    # to the nose where it is the wing's own, the plane touched at 0.64 m/s at 7-10 deg.
     q_fl = wing.q * wing.area * max(1.0, v_fwd * v_fwd)
     sink = max(TOUCH_M_S, h / FLARE_S)
     a_fl = min(HARRIER_RAD, max(0.0, m * max(0.0, g - 6.0 * (sink + v)) / q_fl + math.atan2(v, max(1.0, v_fwd))))
@@ -256,7 +256,7 @@ def plane(wing, turn, acc, u, w, want_up, knife=0.0, roll=0.0):
     """Wing-borne `w` (0 a hover, 1 at the wing's speed) through the air `u` asked `acc`: the
     nose `want_up` blended onto the air and over it by the wing's angle, and the wing's whole
     attitude `r_des`, its back to what is asked across the path - little asked, where it is.
-    `knife` 1 (-1) rolls it a quarter turn about the nose, its left (right) wing where its back
+    `knife` 1 (-1) rolls the plane a quarter turn about the nose, its left (right) wing where its back
     was: a knife-edge, its span up, the side's plate at the slip `rho S v^2 sin b = need cos b -
     along sin b` bearing what is asked up, the wing what is asked across - the span rolled to
     all of it, a gusty course's asks across rocked its belly 0.07-0.86 in a second; `roll` rad/s
@@ -283,7 +283,7 @@ def plane(wing, turn, acc, u, w, want_up, knife=0.0, roll=0.0):
     along = sum(acc[a] * v_hat[a] for a in range(3))
     perp = [acc[a] - along * v_hat[a] for a in range(3)]
     size = math.sqrt((perp[0] * perp[0] + perp[1] * perp[1]) + perp[2] * perp[2])
-    # Its back across the path as it is; asked under it, it pushes - a plane does not roll
+    # The plane's back across the path as it is; asked under it, it pushes - a plane does not roll
     # onto its back to go down - else its back comes round to what is asked.
     cr, sr = math.cos(0.5 * math.pi * knife), math.sin(0.5 * math.pi * knife)
     back = [sr * turn[a][0] - cr * turn[a][2] for a in range(3)]
@@ -339,7 +339,7 @@ def plane(wing, turn, acc, u, w, want_up, knife=0.0, roll=0.0):
     across_n = math.sqrt((across[0] * across[0] + across[1] * across[1]) + across[2] * across[2])
     k_lat = 0.35 * k_w + 0.65 * k_side if abs(roll) > 1e-6 else k_w
     a_cross = min(ALPHA_MAX, across_n / max(k_lat, 1e-9)) / (across_n or 1.0)
-    # Asked to slow, a propeller pulling one way, it pulls up: its speed goes into height until
+    # Asked to slow, a propeller pulling one way, the plane pulls up: its speed goes into height until
     # the hover's law has it; coasting on it ran 45 m into a tree.
     alpha = max(alpha, (1.0 - kh) * ALPHA_MAX * min(1.0, max(0.0, -sign_w * along) / wing.gravity))
     nose = [math.cos(alpha) * v_hat[a] + math.sin(alpha) * d[a] + kh * a_cross * across[a] for a in range(3)]

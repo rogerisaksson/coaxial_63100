@@ -41,7 +41,7 @@ HOVER = """(stream_inject (sequence_id 1) (blend_duration 0ms)
   (task_constraints (maintain_altitude %gm)))"""
 
 #: The upsets: the rotors' axis this far off up, degrees, the frame turning about it this fast,
-#: rad/s. It stands with its axis within STOOD_DEG of where it settles and every rate under
+#: rad/s. The quad stands with its axis within STOOD_DEG of where it settles and every rate under
 #: STOOD_RAD_S. A payload is caught (`flown`) where its axis has stood near the one asked,
 #: every rate under CAUGHT_RAD_S, for CAUGHT_S.
 TILTS, TURNS, UPSET_M, STOOD_DEG, STOOD_RAD_S = (30.0, 90.0, 150.0), (0.0, 6.0, 9.0), 5.0, 3.0, 0.5

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Its identification off the stand, on its law: its model held to its walk on a world off the figure;
+"""The robot's identification off the stand, on its law: its model held to its walk on a world off the figure;
 standing on its insoles, its weight and its moments."""
 import sys
 
@@ -11,18 +11,18 @@ from machine.body import mjcf
 from machine.world import physics
 from test_sysid import EVERY, OFF, SHORT, _campaign, _off
 
-#: Its walk on the world off the figure, s, its first SPLIT_S s a campaign's rows and the rest the
+#: The robot's walk on the world off the figure, s, its first SPLIT_S s a campaign's rows and the rest the
 #: judge's; of what the world's own model takes off the build's misfit in the mean, what a
 #: correction takes - 0.57 here, 0.62 on CI's Linux, where of the build's whole it took 17 and 10
-#: %: the platform's arithmetic moves the floor no model takes; its stand swaying, s.
+#: %: the platform's arithmetic moves the floor no model takes; the robot's stand swaying, s.
 WALK_S, SPLIT_S, TAKEN, STAND_S = 10.0, 5.5, 0.5, 8.0
-#: Its insoles' rows against the world's own model: its weight within this of itself, the moments
+#: The robot's insoles' rows against the world's own model: its weight within this of itself, the moments
 #: within this of their swing or ABOUT_NM, N m - a sway's moment across 1.9 N m, along 18.
 WEIGHT, SWUNG, ABOUT_NM = 0.01, 0.05, 0.35
 
 
 def _run(c, command, seconds, off):
-    """Its run on the gym's world, `command` heard at 1 s, built `off` the figure or not: (ys, taus,
+    """The robot's run on the gym's world, `command` heard at 1 s, built `off` the figure or not: (ys, taus,
     s) its edge arrays and its drives' torques a step, the session."""
     from machine.senses import edge
     from machine.process import worker
@@ -46,12 +46,12 @@ def _run(c, command, seconds, off):
     return ys, taus, s
 
 
-def test_its_model_holds_on_its_walk(report, c):
-    """On the world OFF of the figure it walks; on its walk's rows the model holds on, the world's
-    own model fits the trunk's; a correction from the stand's campaign and the walk's first half
-    takes TAKEN of what the world's own model takes off the build's misfit on the second half, in
-    the mean, and adds none to any drive - from the stand alone it rose on its legs: its pelvis
-    still there, masses and first moments never stand apart."""
+def test_the_robots_model_holds_on_its_walk(report, c):
+    """On the world OFF of the figure the robot walks; on its walk's rows the model holds on, the
+    world's own model fits the trunk's; a correction from the stand's campaign and the walk's first half takes
+    TAKEN of what the world's own model takes off the build's misfit on the second half, in the mean, and adds
+    none to any drive - from the stand alone it rose on the robot's legs: its pelvis still there,
+    masses and first moments never stand apart."""
     from machine.identify import identified, sysid
     from machine.stack import wbc
     lay = c['lay']
@@ -73,11 +73,11 @@ def test_its_model_holds_on_its_walk(report, c):
     driven = lay['drives']
     trunk = [i for i, j in enumerate(driven) if j in ('spine_roll', 'spine', 'waist')]
     legs = [i for i, j in enumerate(driven) if j.endswith(('_hip', '_knee'))]
-    report.check("the world's own model holds on the trunk's rows of its walk within 2.0 N m, %d-%d rows read a drive" % (read.min(), read.max()),
+    report.check("the world's own model holds on the trunk's rows of the robot's walk within 2.0 N m, %d-%d rows read a drive" % (read.min(), read.max()),
                  rms['world'][trunk].max() < 2.0, 'worst %.3f N m; the hips\' and knees\' %.2f, the edge\'s differences' % (
                      rms['world'][trunk].max(), rms['world'][legs].mean()))
     build, both, own = rms['build'].mean(), rms['both'].mean(), rms['world'].mean()
-    report.check('corrected on the stand and its walk\'s first half, the misfit on its second half falls %.2f of the way to the world\'s own: build %.3f, corrected %.3f, world %.3f N m' % (
+    report.check('corrected on the stand and the robot\'s walk\'s first half, the misfit on its second half falls %.2f of the way to the world\'s own: build %.3f, corrected %.3f, world %.3f N m' % (
         (build - both) / (build - own), build, both, own),
                  build - both >= TAKEN * (build - own), 'from the stand alone %.3f, its legs %.2f for %.2f' % (
                      rms['stand'].mean(), rms['stand'][legs].mean(), rms['build'][legs].mean()))
@@ -85,8 +85,8 @@ def test_its_model_holds_on_its_walk(report, c):
     report.check('and rises nowhere by more than 0.4 N m', worse.max() < 0.4, 'worst +%.2f N m, %s' % (worse.max(), driven[int(np.argmax(worse))]))
 
 
-def test_its_weight_and_its_moments_are_read(report, c):
-    """Standing on its law and swaying, its insoles' three rows (`sysid.borne`) are the world's
+def test_the_robots_weight_and_its_moments_are_read(report, c):
+    """Standing on the robot's law and swaying, its insoles' three rows (`sysid.borne`) are the world's
     own model's - its weight within WEIGHT of itself, the moments within SWUNG of their swing -,
     and beside the stand's campaign they add its pelvis's own to the base parameters: its mass,
     and a first moment of its pelvis within TRUST of itself."""
@@ -97,10 +97,10 @@ def test_its_weight_and_its_moments_are_read(report, c):
     pred = Yb @ sysid.truth(lay, s['g']['world'].model)
     apart = np.sqrt(np.mean((pred - fb) ** 2, axis=0))
     weight = c['body'].mass * 9.81 * sysid.LEVER_M
-    report.check('swaying %.0f s its insoles read its weight %.1f for %.1f N, %.3f N m rms apart at %.1f m' % (
+    report.check('swaying %.0f s the robot\'s insoles read its weight %.1f for %.1f N, %.3f N m rms apart at %.1f m' % (
         STAND_S, fb[:, 0].mean() / sysid.LEVER_M, weight / sysid.LEVER_M, apart[0], sysid.LEVER_M),
                  s['fallen_at'] is None and apart[0] < WEIGHT * weight)
-    report.check('and its moments about the point under its pelvis within %.0f %% of their swing or %.1f N m: %.2f and %.2f N m rms on %.1f and %.1f' % (
+    report.check('and its moments about the point under the robot\'s pelvis within %.0f %% of their swing or %.1f N m: %.2f and %.2f N m rms on %.1f and %.1f' % (
         100 * SWUNG, ABOUT_NM, apart[1], apart[2], fb[:, 1].std(), fb[:, 2].std()),
                  (apart[1:] < np.maximum(SWUNG * fb[:, 1:].std(axis=0), ABOUT_NM)).all())
     Y, tau, _touched, _world = _campaign(c, 2, seconds=SHORT)
@@ -111,14 +111,14 @@ def test_its_weight_and_its_moments_are_read(report, c):
     true = sysid.projected(both, sysid.truth(lay, c['body'].m))
     k = got['names'].index('pelvis.m') if 'pelvis.m' in got['names'] else None
     moments = [i for i, n in enumerate(got['names']) if n.startswith('pelvis.h') and got['trusted'][i]]
-    report.check('beside the stand\'s campaign they add its pelvis\'s own to the base parameters, %d -> %d: its mass %.2f for %.2f kg, %d first moment trusted' % (
+    report.check('beside the stand\'s campaign they add the robot\'s pelvis\'s own to the base parameters, %d -> %d: its mass %.2f for %.2f kg, %d first moment trusted' % (
         len(alone['ind']), len(both['ind']), got['theta'][k] if k is not None else 0.0, c['body'].mass, len(moments)),
                  k is not None and abs(got['theta'][k] - true[k]) < 0.01 * true[k] and len(moments) >= 1
                  and all(abs(got['theta'][i] - true[i]) < sysid.TRUST * abs(true[i]) for i in moments),
                  ', '.join('%s %.3f for %.3f' % (got['names'][i], got['theta'][i], true[i]) for i in moments))
 
 
-ROSTER = (test_its_model_holds_on_its_walk, test_its_weight_and_its_moments_are_read)
+ROSTER = (test_the_robots_model_holds_on_its_walk, test_the_robots_weight_and_its_moments_are_read)
 
 
 def main(argv=None):

@@ -1,21 +1,21 @@
-"""Its harness: its pelvis hung where it was by springs on its place and its turn, and its load cell.
+"""The robot's harness: its pelvis hung where it was by springs on place and turn, and its load cell.
 
-    w = harness.wrench(d, np, hung, pelvis)    # the harness's wrench on its pelvis, world (6,)
-    f = harness.pull(d, np, hung, pelvis)      # its load cell: force N and moment N m about its pelvis
+    w = harness.wrench(d, np, hung, pelvis)    # the harness's wrench on the robot's pelvis, world (6,)
+    f = harness.pull(d, np, hung, pelvis)      # its load cell: force N and moment N m about the robot's pelvis
 
-`hung` (place (3,), turn (4,) w, x, y, z) where `World.hang` caught it; `pelvis` its pelvis's body
+`hung` (place (3,), turn (4,) w, x, y, z) where `World.hang` caught the robot; `pelvis` its pelvis's body
 in `d`, MuJoCo's data; `np` the world's numpy.
 """
 
 from machine.body import peripherals
 
-#: Its harness (`World.hang`, derived in `peripherals.harness()`): N/m and N s/m on its pelvis's place,
-#: N m/rad and N m s/rad on its turn.
+#: The robot's harness (`World.hang`, derived in `peripherals.harness()`): N/m and N s/m on its
+#: pelvis's place, N m/rad and N m s/rad on its turn.
 HANG = peripherals.harness()
 
 
 def wrench(d, np, hung, pelvis):
-    """The harness's wrench on its pelvis, world: twice the vector part of turn * conj(q) is the
+    """The harness's wrench on the robot's pelvis, world: twice the vector part of turn * conj(q) is the
     small turn from q to turn."""
     at, turn = hung
     q, w = d.qpos[3:7], d.xmat[pelvis].reshape(3, 3) @ d.qvel[3:6]
@@ -24,7 +24,7 @@ def wrench(d, np, hung, pelvis):
 
 
 def pull(d, np, hung, pelvis):
-    """What a load cell in the harness reads: its force on its pelvis, world, N, and its moment
-    about its pelvis's origin, world, N m."""
+    """What a load cell in the harness reads: its force on the robot's pelvis, world, N, and its moment
+    about the robot's pelvis's origin, world, N m."""
     w = wrench(d, np, hung, pelvis)
     return np.r_[w[:3], w[3:] + np.cross(d.xipos[pelvis] - d.xpos[pelvis], w[:3])]

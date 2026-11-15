@@ -1,4 +1,4 @@
-"""Its step's answer within its drives (wbc_shrunk.c): shrunk to its clamps, clipped to its bounds."""
+"""The robot's step's answer within its drives (wbc_shrunk.c): shrunk to clamps, clipped to bounds."""
 import os
 
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
@@ -8,9 +8,10 @@ import numpy as np
 
 def box(b, ask):
     """(limit, lo, hi) each drive's this step, N m: its clamp - its WEP's where granted - as derated,
-    its ask shrunk as one to it; its torque's bounds within its back-EMF's (`machine.body.bemf`: `ask['lo']`,
-    `ask['hi']`, 0 within both), each drive clipped to them. Shrunk as one to them, a fast joint's
-    falling motoring bound took its whole ask down and felled its charged run leap's landing."""
+    the robot's ask shrunk as one to it; its torque's bounds within its back-EMF's (`machine.body.bemf`:
+    `ask['lo']`, `ask['hi']`, 0 within both), each drive clipped to them. Shrunk as one to them, a fast
+    joint's falling motoring bound took the robot's whole ask down and felled its charged run leap's
+    landing."""
     limit = (b.wep if ask.get('wep') else b.clamp) * np.asarray(ask.get('derate', 1.0))
     return limit, np.maximum(-limit, ask.get('lo', -np.inf)), np.minimum(limit, ask.get('hi', np.inf))
 

@@ -1,8 +1,9 @@
-"""Its gaze and its stereo through it (`machine.eyes.gaze`, `gimbal`, `epipolar`, `squint`): its eyes turned and
-placed as built - squinted, their pushrods' shares and play, their levers - and as its calibration told it them;
-the stereo's depth held to the renderer's own looking ahead and turned across and down; its squint told from its
-pictures look by look as its gaze turns and turns back; its front looked round once and its gaze held at rest; a
-way's places scanned in turn, a place fixed wherever it stands, its gaze let go; its walk to its dock led by its way."""
+"""The robot's gaze and its stereo through it (`machine.eyes.gaze`, `gimbal`, `epipolar`, `squint`): the robot's eyes turned and
+placed as built - squinted, their pushrods' shares and play, their levers - and as its calibration told the
+robot them; the stereo's depth held to the renderer's own looking ahead and turned across and down; its squint
+told from its pictures look by look as its gaze turns and turns back; its front looked round
+once and its gaze held at rest; a way's places scanned in turn, a place fixed wherever it stands, the
+robot's gaze let go; its walk to its dock led by its way."""
 import itertools
 import math
 import sys
@@ -12,8 +13,8 @@ import numpy as np
 from tools.dev.focus import chosen
 from gynoid_kit import Report
 
-#: The gazes its stereo is held to the renderer's depth at, (yaw, pitch) deg: ahead, across both ways to its
-#: eyes' reach, and down; out to STEREO_M, the room's depth.
+#: The gazes the robot's stereo is held to the renderer's depth at, (yaw, pitch) deg: ahead, across both ways
+#: to its eyes' reach, and down; out to STEREO_M, the room's depth.
 GAZES, STEREO_M = ((0, 0, 0), (17, 0, 0), (-35, 0, 0), (50, 0, 0), (-50, 25, 0), (17, 25, 0), (0, 35, 0), (0, 10, 6)), 4.0
 
 
@@ -41,14 +42,14 @@ def _angle(R):
 
 
 def _head(world):
-    """The robot's head's pose as the world has it: it is posed, its estimate not running."""
+    """The robot's head's pose as the world has it: the robot is posed, its estimate not running."""
     hb = world.model.body('head').id
     return {'pos': np.array(world.data.xpos[hb]), 'quat': np.array(world.data.xquat[hb])}
 
 
 def _squinted(world, eyes):
-    """deg (3,): its right eye's turn off its left's as it holds them (`sight.Eyes.held`, its squint told) past their
-    turn as built and played (`world.gimbals`), in its frame."""
+    """deg (3,): the robot's right eye's turn off its left's as it holds them (`sight.Eyes.held`, the
+    robot's squint told) past their turn as built and played (`world.gimbals`), in its frame."""
     from machine.eyes import gimbal
     hl, hr = (gimbal.eye(s, eyes.held[s], True) for s in ('left', 'right'))
     Rl, Rr = (gimbal.eye(s, world.gimbals[s]) for s in ('left', 'right'))
@@ -57,8 +58,8 @@ def _squinted(world, eyes):
 
 
 def _errors(eyes, world, a, disp, kept, laid):
-    """(n,) its points' distances off its left eye against the renderer's along the pixel of its left eye's picture
-    each lies on (`laid.at`), relative, out to STEREO_M."""
+    """(n,) the robot's points' distances off its left eye against the renderer's along the pixel of its left eye's
+    picture each lies on (`laid.at`), relative, out to STEREO_M."""
     from machine.eyes import epipolar, stereo
     rows, cols = np.nonzero(kept)
     rng = np.linalg.norm(epipolar.points(rows, cols, disp[rows, cols], laid.beta, laid.fv, laid.B), axis=1)
@@ -71,9 +72,10 @@ def _errors(eyes, world, a, disp, kept, laid):
 
 
 def test_the_stereo_holds_to_the_depth(report):
-    """Its eyes turned by its gaze, each as built and played (`gaze.aimed`), their pictures laid by its eyes as it
-    holds them and matched (`sight.Eyes.stereo`): its depth against the renderer's on the pixels kept, ahead and
-    turned; at rest the card's disparity against the CPU's; held a parallel pair, unsquinted, it holds not."""
+    """The robot's eyes turned by its gaze, each as built and played (`gaze.aimed`), their pictures laid
+    by its eyes as it holds them and matched (`sight.Eyes.stereo`): its depth against the
+    renderer's on the pixels kept, ahead and turned; at rest the card's disparity against the CPU's; held a
+    parallel pair, unsquinted, it holds not."""
     from machine.eyes import epipolar, gaze, gimbal, sight, stereo
     body, world = _room()
     try:
@@ -85,31 +87,32 @@ def test_the_stereo_holds_to_the_depth(report):
             pictured, disp, kept = eyes.stereo(world, _head(world), gz)
             a, b, laid = pictured.left, pictured.right, eyes.laid
             err = _errors(eyes, world, a, disp, kept, laid)
-            report.check('looking %+d deg across, %+d down, %d converged: its depth within 3 %% of the renderer\'s at the '
+            report.check('looking %+d deg across, %+d down, %d converged: the robot\'s depth within 3 %% of the renderer\'s at the '
                          'median, 10 %% at the ninth decile, a twentieth of its pixels or more kept' % gz_deg,
                          len(err) >= 0.05 * kept.size and np.median(err) < 0.03 and np.percentile(err, 90) < 0.10,
                          'median %.1f %%, 90th %.1f %%, %d kept' % (100 * np.median(err), 100 * np.percentile(err, 90), len(err)))
             if gz_deg == (0, 0, 0):
                 (disp_, kept_), (c_disp, c_kept) = stereo.disparity(a, b), stereo.cpu_disparity(a, b)
                 most = float(np.max(np.abs(disp_[kept_ & c_kept] - c_disp[kept_ & c_kept])))
-                report.check('the card\'s disparity agrees with the CPU\'s within 0.05 px on 99 %% of its laid pixels',
+                report.check('the card\'s disparity agrees with the CPU\'s within 0.05 px on 99 %% of the robot\'s laid pixels',
                              (kept_ == c_kept).mean() > 0.99 and most < 0.05,
                              '%.2f %% agree, max %.4f px' % (100.0 * (kept_ == c_kept).mean(), most))
             if gz_deg == (17, 0, 0):
                 raw, square = eyes.see(world), gimbal.turned(gz[:2]) @ gimbal.mounted()
                 held = epipolar.matched(raw.left, raw.right, square, square)
                 err = _errors(eyes, world, *held[:1], *held[2:])
-                report.check('held a square pair, unsquinted, turned 17 deg across: its depth off past 5 % at the median',
+                report.check('held a square pair, unsquinted, turned 17 deg across: the robot\'s depth off past 5 % at the median',
                              np.median(err) > 0.05, 'median %.1f %%' % (100 * np.median(err)))
     finally:
         body.close()
 
 
-def test_its_squint_told_from_its_pictures(report):
-    """Its gaze turned and turned back, its pushrods' play crossing at each turn (`gimbal.played`), a look a gaze held
-    twice: its squint told look by look from its pictures (`squint.Squint`), its depth within 3 % of the renderer's at
-    the median at every look - its first at a gaze too -, its right eye's turn off its left's as it holds it within
-    0.05 deg of theirs as built and played after each."""
+def test_the_robots_squint_told_from_its_pictures(report):
+    """The robot's gaze turned and turned back, its pushrods' play crossing at each turn (`gimbal.played`), a
+    look a gaze held twice: its squint told look by look from its pictures (`squint.Squint`), the
+    robot's depth within 3 % of the renderer's at the median at every look - its first at a gaze too -, the robot's
+    right eye's turn off its left's as it holds it within 0.05 deg of theirs as built and played after
+    each."""
     from machine.eyes import gaze, sight
     body, world = _room()
     try:
@@ -123,16 +126,16 @@ def test_its_squint_told_from_its_pictures(report):
             worst, off = max(worst, float(np.median(err))), max(off, float(np.abs(_squinted(world, eyes)).max()))
         report.check('its depth within 3 % of the renderer\'s at the median at every look, its first at a gaze too',
                      worst < 0.03, 'at most %.1f %%' % (100 * worst))
-        report.check('its right eye\'s turn off its left\'s as it holds it within 0.05 deg of theirs as built after each',
+        report.check('its right eye\'s turn off the robot\'s left\'s as it holds it within 0.05 deg of theirs as built after each',
                      off < 0.05, 'at most %.3f deg' % off)
     finally:
         body.close()
 
 
-def test_its_eyes_as_built_and_told(report):
-    """Its eyes' cameras turned and placed by its gaze each as built and played (`gimbal.eye`, `gimbal.place`): its
-    squint more across the further it looks, its pushrods' shares; its calibration's eyes within its share of how they
-    are built off square (`gimbal.CHURCH`)."""
+def test_the_robots_eyes_as_built_and_told(report):
+    """The robot's eyes' cameras turned and placed by its gaze each as built and played (`gimbal.eye`,
+    `gimbal.place`): its squint more across the further it looks, its pushrods' shares; the
+    robot's calibration's eyes within its share of how they are built off square (`gimbal.CHURCH`)."""
     from machine.eyes import gaze, gimbal
     body, world = _room()
     try:
@@ -153,9 +156,9 @@ def test_its_eyes_as_built_and_told(report):
                 built, held = (gimbal.eye(side, gimbal.angles(side, gz, t), t) for t in (False, True))
                 told = max(told, _angle(held.T @ built) / max(abs(gimbal.CHURCH[side]) * _angle(square.T @ built), 1e-12))
             off[gz_deg] = _angle(gimbal.eye('left', gimbal.angles('left', gz)).T @ gimbal.eye('right', gimbal.angles('right', gz)))
-        report.check('its eyes\' cameras look and sit as its gaze turns each as built and played', worst < 1e-6,
+        report.check('its eyes\' cameras look and sit as the robot\'s gaze turns each as built and played', worst < 1e-6,
                      'within %.1e' % worst)
-        report.check('its eyes squint more looking 50 deg across than ahead (its pushrods\' shares)',
+        report.check('its eyes squint more looking 50 deg across than ahead (the robot\'s pushrods\' shares)',
                      off[(50, 0, 0)] > off[(0, 0, 0)] + math.radians(0.3),
                      '%.2f deg ahead, %.2f at 50' % (math.degrees(off[(0, 0, 0)]), math.degrees(off[(50, 0, 0)])))
         report.check('its calibration tells each eye within its share of how it is built off square, every gaze',
@@ -165,13 +168,14 @@ def test_its_eyes_as_built_and_told(report):
 
 
 def _g():
-    """A gaze's world: its head 1.5 m up at the room's middle, looking along its z; no look yet."""
+    """A gaze's world: the robot's head 1.5 m up at the room's middle, looking along its z; no look yet."""
     return {'t': 0.0, 's': {'head': {'pos': np.array([0.0, 1.5, 0.0]), 'quat': np.array([1.0, 0.0, 0.0, 0.0])}}}
 
 
 def _looked(g, until, dt=1.0 / 120.0):
-    """[(its gaze, whether its eyes stood on what they looked at)] of each look LOOK_S apart till `until` s, its eyes
-    settled (`gaze.settled`), its servos moved each `dt` as its vision moves them (`vision.look`, its refresh)."""
+    """[(the robot's gaze, whether its eyes stood on what they looked at)] of each look LOOK_S apart till `until` s,
+    its eyes settled (`gaze.settled`), its servos moved each `dt` as its vision moves them (`vision.look`, its
+    refresh)."""
     from machine.eyes import gaze, sight
     out, last = [], -math.inf
     while g['t'] < until:
@@ -184,28 +188,28 @@ def _looked(g, until, dt=1.0 / 120.0):
     return out
 
 
-def test_its_gaze_explores_then_holds(report):
-    """Waking, what it has not seen where it stands: each sector its eyes reach (`gaze.SECTORS`) looked at once, a
-    look each where its saccade landed, then its gaze held at rest - its eyes do not wander."""
+def test_the_robots_gaze_explores_then_holds(report):
+    """Waking, what the robot has not seen where it stands: each sector its eyes reach (`gaze.SECTORS`) looked at
+    once, a look each where its saccade landed, then its gaze held at rest - its eyes do not wander."""
     from machine.eyes import gaze, sight
     g = _g()
     head = g['s']['head']
     reach = {s for s in gaze.SECTORS if gaze._reached(head, gaze._shown(head, s))}
     looks = _looked(g, (len(reach) + 6) * sight.LOOK_S)
     off = [gz for gz, _there in looks if max(abs(v) for v in gz[:2]) > 1e-9]
-    report.check('each sector its eyes reach looked at once, a look each', g['_gaze']['seen'] >= reach and len(off) == len(reach),
+    report.check('each sector the robot\'s eyes reach looked at once, a look each', g['_gaze']['seen'] >= reach and len(off) == len(reach),
                  '%d of %d sectors seen, %d looks off rest' % (len(g['_gaze']['seen'] & reach), len(reach), len(off)))
     rest = looks[len(off):]
-    report.check('then its gaze held at rest', bool(rest) and all(max(abs(v) for v in gz[:2]) < 1e-9 for gz, _t in rest)
+    report.check('then the robot\'s gaze held at rest', bool(rest) and all(max(abs(v) for v in gz[:2]) < 1e-9 for gz, _t in rest)
                  and not g['_gaze']['exploring'], '%d looks at rest' % len(rest))
 
 
-def test_its_saccades_and_fixations(report):
-    """Its eyes from one fixation to the next as a person's: a saccade's time the main sequence's no shorter than its
-    servos turn (`gaze.saccade`), its pace a minimum jerk's (its peak 1.875 of its mean), no look in its flight
-    (`gaze.settled`); a fixation held on its world point as its head sways as its walk sways it - across 8.2 deg at
-    2.40 Hz, down 5.3 -, its gaze off it no more than its head turns in a refresh; its vergence to a point 0.8 m off
-    within its lag (TAU)."""
+def test_the_robots_saccades_and_fixations(report):
+    """The robot's eyes from one fixation to the next as a person's: a saccade's time the main sequence's no shorter
+    than its servos turn (`gaze.saccade`), its pace a minimum jerk's (its peak 1.875 of its mean), no look in
+    its flight (`gaze.settled`); a fixation held on its world point as the robot's head sways as its walk
+    sways it - across 8.2 deg at 2.40 Hz, down 5.3 -, the robot's gaze off it no more than the robot's head turns in
+    a refresh; its vergence to a point 0.8 m off within its lag (TAU)."""
     from machine.eyes import gaze
     g, dt = _g(), 1.0 / 120.0
     gaze.rest(g)
@@ -221,7 +225,7 @@ def test_its_saccades_and_fixations(report):
     pace = np.degrees(np.hypot(*np.diff(np.array(trail), axis=0).T)) / dt
     a = math.degrees(math.hypot(*np.subtract(trail[-1], trail[0])))
     T = gaze.saccade(math.radians(a))
-    report.check('its saccade the main sequence\'s time, no shorter than its servos turn, its peak a minimum jerk\'s',
+    report.check('its saccade the main sequence\'s time, no shorter than the robot\'s servos turn, its peak a minimum jerk\'s',
                  abs(flying * dt - T) <= dt and abs(pace.max() / (a / T) - 1.875) < 0.05,
                  '%.1f deg in %.0f ms (%.0f asked), peak %.0f deg/s = %.3f of its mean' % (a, 1e3 * flying * dt, 1e3 * T, pace.max(), pace.max() / (a / T)))
     slip, sway = [], []
@@ -237,8 +241,8 @@ def test_its_saccades_and_fixations(report):
         sway.append(math.degrees(abs(yaw)))
         g['t'] += dt
     turned_most = math.degrees(math.radians(4.1) * 2.0 * math.pi * 2.40) * dt
-    report.check('a fixation held on its world point as its head sways, off it no more than its head turns in a refresh',
-                 max(slip) <= turned_most * 1.01, 'off %.2f deg at most against %.2f a refresh, its head %.1f deg' % (max(slip), turned_most, max(sway)))
+    report.check('a fixation held on its world point as the robot\'s head sways, off it no more than the robot\'s head turns in a refresh',
+                 max(slip) <= turned_most * 1.01, 'off %.2f deg at most against %.2f a refresh, the robot\'s head %.1f deg' % (max(slip), turned_most, max(sway)))
     gaze.fix(g, (0.0, 1.45, 0.8))
     g['s']['head'] = _g()['s']['head']
     want, t0, half, was = gaze.toward(g['s']['head'], (0.0, 1.45, 0.8))[2], g['t'], None, g['_gaze']['at'][2]
@@ -264,9 +268,9 @@ def _quatted(R):
     return gaze._quat(R)
 
 
-def test_its_gaze_scans_then_fixes(report):
+def test_the_robots_gaze_scans_then_fixes(report):
     """Told a way, each of its places looked at HELD looks in turn, scanned a look after the last; a place fixed held
-    as its head moves; let go, at rest."""
+    as the robot's head moves; let go, at rest."""
     from machine.eyes import gaze, sight
     g = _g()
     gaze.rest(g)
@@ -279,7 +283,7 @@ def test_its_gaze_scans_then_fixes(report):
     head = g['s']['head']
     at = [sum(1 for gz, there in looks if there and max(abs(a - b) for a, b in zip(gz[:2], gaze.toward(head, p)[:2])) < 1e-6)
           for p in places]
-    report.check('each place of its way looked at HELD looks, in turn, scanned a look after the last',
+    report.check('each place of the robot\'s way looked at HELD looks, in turn, scanned a look after the last',
                  at == [gaze.HELD] * len(places) and scanned is not None,
                  'looks a place %s, scanned at look %s of %d' % (at, scanned, len(looks)))
     gaze.fix(g, (2.0, 0.4, 1.0))
@@ -287,27 +291,29 @@ def test_its_gaze_scans_then_fixes(report):
     _looked(g, g['t'] + 1.0)
     held = gaze.moved(g)
     want = gaze.toward(g['s']['head'], (2.0, 0.4, 1.0))
-    report.check('a place fixed held as its head moves, its vergence within its lag',
+    report.check('a place fixed held as the robot\'s head moves, its vergence within its lag',
                  max(abs(a - b) for a, b in zip(held[:2], want[:2])) < 1e-6 and abs(held[2] - want[2]) < 1e-3,
                  'gaze %s, the place %s deg' % (np.round(np.degrees(held), 2).tolist(), np.round(np.degrees(want), 2).tolist()))
     gaze.rest(g)
     _looked(g, g['t'] + 1.0)
     at = gaze.moved(g)
-    report.check('let go, its gaze at rest, its vergence within its lag', max(abs(v) for v in at[:2]) < 1e-9 and abs(at[2]) < 1e-3,
+    report.check('let go, the robot\'s gaze at rest, its vergence within its lag', max(abs(v) for v in at[:2]) < 1e-9 and abs(at[2]) < 1e-3,
                  '%s' % (at,))
 
 
 def _curve(pts, pace=1.0):
-    """(n, 4) a way through `pts` [(x, z)] as its planner's curve has it: x, z, its length walked to each, its pace."""
+    """(n, 4) a way through `pts` [(x, z)] as the robot's planner's curve has it: x, z, its length walked to each, the
+    robot's pace."""
     pts = np.asarray(pts, float)
     s = np.r_[0.0, np.cumsum(np.linalg.norm(np.diff(pts, axis=0), axis=1))]
     return np.column_stack([pts, s, np.full(len(pts), pace)])
 
 
-def test_its_gaze_leads_its_walk(report):
-    """Walking its way to its dock (`gaze.fix` led by a way): its gaze on its dock while a look at it shows the ground
-    its way takes it to `lead` s on; where it shows it not - its way round, its dock beside it -, that ground HELD
-    looks between its dock's HELD, in turn."""
+def test_the_robots_gaze_leads_its_walk(report):
+    """Walking the robot's way to its dock (`gaze.fix` led by a way): its gaze on its dock
+    while a look at it shows the ground the robot's way takes it to `lead` s on; where it shows it not - the
+    robot's way round, its dock beside it -, that ground HELD looks between its dock's HELD, in
+    turn."""
     from machine.eyes import gaze, sight
     g = _g()
     g['s']['feet'] = [{'sole': np.zeros(3)}, {'sole': np.zeros(3)}]
@@ -321,17 +327,18 @@ def test_its_gaze_leads_its_walk(report):
                if max(abs(a - b) for a, b in zip(gz[:2], gaze.toward(head, (0.0, 0.0, lead))[:2])) < 1e-6 else 'else')
               for gz, _there in looks]
         runs[name] = [(k, sum(1 for _ in grp)) for k, grp in itertools.groupby(on)]
-    report.check('its way ahead in its dock\'s view: its gaze on its dock throughout',
+    report.check('its way ahead in the robot\'s dock\'s view: its gaze on its dock throughout',
                  [k for k, _n in runs['straight']] == ['dock'], '%s' % runs['straight'])
-    report.check('its way round, its dock beside it: its dock and its way\'s ground `lead` s on, HELD looks each in turn',
+    report.check('its way round, the robot\'s dock beside it: its dock and its way\'s ground `lead` s on, HELD looks each in turn',
                  len(runs['round']) >= 4 and all(n == gaze.HELD for _k, n in runs['round'][:-1])
                  and [k for k, _n in runs['round']] == ['dock', 'ground'] * (len(runs['round']) // 2) + ['dock'] * (len(runs['round']) % 2),
                  '%s' % runs['round'])
 
 
 def _walked(g, until, dt=1.0 / 120.0):
-    """[(the time, its anchor)] at each look LOOK_S apart till `until` s, its head walked each `dt` by its twist asked
-    (`g['twist']`: ahead, to its left, turning) along its heading, its servos moved as its vision moves them."""
+    """[(the time, the robot's anchor)] at each look LOOK_S apart till `until` s, its head walked each `dt` by its
+    twist asked (`g['twist']`: ahead, to its left, turning) along its heading, its servos moved as its vision moves
+    them."""
     from machine.eyes import gaze, sight
     out, last = [], -math.inf
     while g['t'] < until:
@@ -349,10 +356,11 @@ def _walked(g, until, dt=1.0 / 120.0):
     return out
 
 
-def test_its_gaze_follows_its_walk(report):
-    """Walking with no errand (its twist asked): its gaze on the ground it walks onto HELD looks on, held there as it
-    walks up to it, a saccade on once a look there shows that ground no more - a sawtooth, each anchor ahead of the
-    last -; on a turn's arc, on it; stood, let go to rest, and past NEAR_M from where it explored, exploring anew."""
+def test_the_robots_gaze_follows_its_walk(report):
+    """Walking with no errand (the robot's twist asked): its gaze on the ground it walks onto HELD
+    looks on, held there as it walks up to it, a saccade on once a look there shows that ground no more - a
+    sawtooth, each anchor ahead of the last -; on a turn's arc, on it; stood, let go to rest, and past NEAR_M from
+    where the robot explored, exploring anew."""
     from machine.eyes import gaze, sight
     g = _g()
     g['s']['feet'] = [{'sole': np.zeros(3)}, {'sole': np.zeros(3)}]
@@ -361,7 +369,7 @@ def test_its_gaze_follows_its_walk(report):
     anchors = [a for _t, a in looks]
     starts = [a for k, a in enumerate(anchors) if a is not None and (k == 0 or a != anchors[k - 1])]
     T = gaze.HELD * sight.LOOK_S
-    report.check('walking ahead, its gaze on the ground it walks onto HELD looks on, each anchor ahead of the last',
+    report.check('walking ahead, the robot\'s gaze on the ground it walks onto HELD looks on, each anchor ahead of the last',
                  len(starts) >= 3 and all(b[2] > a[2] for a, b in zip(starts, starts[1:]))
                  and all(abs(a[0]) < 1e-9 and abs(a[1]) < 1e-9 for a in starts),
                  '%d anchors, z %s m' % (len(starts), [round(a[2], 2) for a in starts]))
@@ -371,18 +379,18 @@ def test_its_gaze_follows_its_walk(report):
     for _ in range(n):
         x, z, a = x + T / n * math.sin(a + 0.2 * T / n), z + T / n * math.cos(a + 0.2 * T / n), a + 0.4 * T / n
     arc = gaze._anchored(g)
-    report.check('on a turn\'s arc, its anchor where the arc takes it', arc is not None and math.hypot(arc[0] - x, arc[2] - z) < 1e-3,
-                 'anchor (%.3f, %.3f), its arc (%.3f, %.3f)' % (arc[0], arc[2], x, z) if arc else 'none')
+    report.check('on a turn\'s arc, the robot\'s anchor where the arc takes it', arc is not None and math.hypot(arc[0] - x, arc[2] - z) < 1e-3,
+                 'anchor (%.3f, %.3f), the robot\'s arc (%.3f, %.3f)' % (arc[0], arc[2], x, z) if arc else 'none')
     g['twist'] = (0.0, 0.0, 0.0)
     _walked(g, g['t'] + 1.0)
     st = g['_gaze']
-    report.check('stood, its anchor let go and its gaze exploring anew where it stands', st['anchor'] is None and st['exploring'],
+    report.check('stood, the robot\'s anchor let go and its gaze exploring anew where it stands', st['anchor'] is None and st['exploring'],
                  'anchor %s, exploring %s' % (st['anchor'], st['exploring']))
 
 
-ROSTER = [test_the_stereo_holds_to_the_depth, test_its_squint_told_from_its_pictures, test_its_eyes_as_built_and_told,
-          test_its_gaze_explores_then_holds, test_its_saccades_and_fixations, test_its_gaze_scans_then_fixes,
-          test_its_gaze_leads_its_walk, test_its_gaze_follows_its_walk]
+ROSTER = [test_the_stereo_holds_to_the_depth, test_the_robots_squint_told_from_its_pictures, test_the_robots_eyes_as_built_and_told,
+          test_the_robots_gaze_explores_then_holds, test_the_robots_saccades_and_fixations, test_the_robots_gaze_scans_then_fixes,
+          test_the_robots_gaze_leads_its_walk, test_the_robots_gaze_follows_its_walk]
 
 
 def main(argv=None):

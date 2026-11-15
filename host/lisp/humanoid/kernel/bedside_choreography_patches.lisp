@@ -23,7 +23,8 @@
   (-> base-gait
       (transducer-viscoelastic-flat)
       (xform-balance-biped-zmp)
-      ;; Stand by stool, turn 180 deg, brush its thighs' backs against its edge over its knee:
+      ;; Stand by stool, turn 180 deg, brush the robot's thighs' backs against its edge over the
+      ;; robot's knee:
       (xform-stand-and-turn-at-fixture :turn-yaw-rad 3.14159 :standoff-clearance-mm 35.0
                                        :probe-capsules [:femoral-diaphysis-dorsal-l :femoral-diaphysis-dorsal-r])
       ;; Vault onto toes, slide thighs onto stool, halt at centroid via rim-ZCBF, balance core:

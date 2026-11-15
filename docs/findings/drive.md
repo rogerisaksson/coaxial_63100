@@ -85,10 +85,10 @@ rotor's pages and their demos. The board's findings:
 | the weight came from the estimate: noise past w_hi handed over to a back-EMF of nothing, which read back the feed-forward | from the fundamental's abs(E) / lambda (2 ms): the core's case 2 243 -> 130 rad/s |
 | the demodulator differenced currents each turned into its own frame: 12 A of the align's d current fed 4.4 of each correction back, a pole off, the demo's first up backwards to -527 rpm | stationary differences along the injection's axis: +-0.04 rad through it |
 
-- Commissioning backed the injection to 20 dB after the filter: native's 0.057
-  V left 2.5 rad an update, noise wrapped flat. It stops where an update keeps
-  pi/6 now: 0.585 V on the record's noise, 30 rpm sd at rest; the demo's
-  innovation near zero 1.08 -> 0.25 rad, its first up forward.
+- Commissioning backed the injection to 20 dB after the filter: native's 0.057 V
+  left 2.5 rad an update, noise wrapped flat. Commissioning stops where an
+  update keeps pi/6 now: 0.585 V on the record's noise, 30 rpm sd at rest; the
+  demo's innovation near zero 1.08 -> 0.25 rad, its first up forward.
 - A/B against the stand-in over the demo (tools/dev/ab.py, then the drive's
   state every 50 board ms through a cycle on all three): the can's
   wobble was the low-speed estimate before the three fixes above and the
@@ -156,19 +156,19 @@ rotor's pages and their demos. The board's findings:
   rest with no injection it is lost under w_lo.
 - From rest on the injection, a 63100 and its propeller asked 30 A: the
   estimate ran 2.8 rad ahead in 20 ms and the rotor spun back to -44 rad/s
-  before it locked. Its gains laid for that spool (l1 0.18, l2 444) ran the
-  estimate to 1 026 rad/s in 5 ms and tripped. Started as a stepper, the
-  vector turned to 86 rad/s on 15 A in 0.4 s: 0.003 rad off at the
-  hand-over.
-- A bare rotor (b 1e-5) armed sensorless at rest: the estimate half a turn
-  off at 7 rest angles of 9, as it and the rotor happened to lie. Aligned on
-  a standing vector first, a quarter turn off and then on it, the rotor swung
-  0.9-1.06 rad about it and 2 starts of 12 were half a turn off still. Its
-  vector turned up as a stepper's, sensorless past the crossover: at 1.3 and
-  2 times w_hi the swing had the rotor under the crossover at the hand-over,
-  4 and 3 starts of 12 half a turn off there; at 3 times, none of 12. Braked
-  to rest on its estimate, to 3 000 rpm and back: within 0.04 rad at rest,
-  never backwards (`motion.started`).
+  before it locked. The observer's gains laid for that spool (l1 0.18,
+  l2 444) ran the estimate to 1 026 rad/s in 5 ms and tripped. Started as a
+  stepper, the vector turned to 86 rad/s on 15 A in 0.4 s: 0.003 rad off at
+  the hand-over.
+- A bare rotor (b 1e-5) armed sensorless at rest: the estimate half a turn off
+  at 7 rest angles of 9, as it and the rotor happened to lie. Aligned on a
+  standing vector first, a quarter turn off and then on it, the rotor swung
+  0.9-1.06 rad about it and 2 starts of 12 were half a turn off still. The
+  drive's vector turned up as a stepper's, sensorless past the crossover: at 1.3
+  and 2 times w_hi the swing had the rotor under the crossover at the hand-over,
+  4 and 3 starts of 12 half a turn off there; at 3 times, none of 12. Braked to
+  rest on its estimate, to 3 000 rpm and back: within 0.04 rad at rest, never
+  backwards (`motion.started`).
 - Armed sensorless onto a rotor left turning, the first pass read 10 A: a
   rotor node turns it down as a stepper before its stage goes down.
 - The voltage limit scaled d and q alike, and at it the field's current left
@@ -250,12 +250,13 @@ rotor's pages and their demos. The board's findings:
   and speed regulator's previous speed are initialized from current velocity to
   prevent step derivative spikes into the feedforward term. Across 400 starts
   from any rest angle, zero faults.
-- Observer chain at extreme spool (81 000 rad/s²): the dual observer's PLL integrator
-  limits maximum tracking acceleration to $K_i = 8000$ rad/s² before slipping poles.
-  Once handed over (`o->valid == true`), the observer speed and blend transition to
-  `flux_omega` when it exceeds the lagging PLL speed. Blend reaches 1.0 and RMS angle
-  error remains < 30 deg electrical through the spool up to 3760 rad/s, while cold
-  starts (`o->valid == false`) remain strictly in dual mode requiring handover.
+- Observer chain at extreme spool (81 000 rad/s²): the dual observer's PLL
+  integrator limits maximum tracking acceleration to $K_i = 8000$ rad/s² before
+  slipping poles. Once handed over (`o->valid == true`), the observer speed and
+  blend transition to `flux_omega` when it exceeds the lagging PLL speed. Blend
+  reaches 1.0 and RMS angle error remains < 30 deg electrical through the spool
+  up to 3760 rad/s, while cold starts (`o->valid == false`) remain strictly in
+  dual mode requiring handover.
 - Device 12, the board's loop (MINOR 20): a joint's feedback
   loaded as slots, rows of 0.8 s at 20 and -20 deg, 100 Hz on the stand-in:
   within 0.05 deg, the last held. Four legs with `node_hz=100`: the squat's
@@ -272,3 +273,6 @@ legs 2-10 K under the world's, HEAD's firmware too. Inverting only the miss
 grown since the last sample moved the identification's air scale off its
 tuning (0.90 against 0.5 after four cycles). A sample was also folded in on
 every slice of a poll: once now.
+
+- After the refit (dbdc5c0d) the NTC anchor inverts a standing miss x1.8 at
+  short periods (`tools/bench/power_check.py` at 1-5 s).

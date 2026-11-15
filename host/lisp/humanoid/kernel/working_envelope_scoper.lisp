@@ -4,10 +4,11 @@
 ;;         Condensation, Dense SoA Compaction & RCU Dynamic Capability Loader
 ;; REQUIRES: ortho_dsp_somatic_substrate.lisp, ortho_dsp_cognitive_autonomy.lisp,
 ;;           canonical_posture_bundle.lisp
-;; Its own (`machine.senses.observer`, wbc_gmo.c): its momentum observer's working set a law pass - its split over the
-;; unknowns that can push (every point's, a hinge's on its stop, a touch found), its touches searched among the pairs
-;; staged within the preload distance, restaged once a capsule's end has moved a quarter of it -, the same bits as
-;; its whole set. Its figure: 39 dofs, 21 driven, 8 manifolds, 24 points pushing 54 ways, 44 capsules, 737 pairs.
+;; The robot's own (`machine.senses.observer`, wbc_gmo.c): its momentum observer's working set a law pass -
+;; its split over the unknowns that can push (every point's, a hinge's on its stop, a touch found), its touches
+;; searched among the pairs staged within the preload distance, restaged once a capsule's end has moved a quarter of
+;; it -, the same bits as the robot's whole set. The robot's figure: 39 dofs, 21 driven, 8 manifolds, 24 points
+;; pushing 54 ways, 44 capsules, 737 pairs.
 ;; =============================================================================
 (defpackage :ortho-dsp.envelope-scoper
   (:use :ortho-dsp.core
@@ -38,8 +39,8 @@
 ;; Pre-allocates the full capacity once at `init()`, but restricts 1 kHz execution
 ;; to the compacted slice counts [n_act_dofs, m_act_manifolds, p_act_capsules,
 ;; k_act_kernels] in the active bank.
-;; Its own: its observer's arena is wbc_gmo_t, laid once - 113 unknowns, 1024 pairs -, a pass's set its `live` of
-;; `lives` and its pairs' `list` of `listed`.
+;; The robot's own: its observer's arena is wbc_gmo_t, laid once - 113 unknowns, 1024 pairs -, a pass's
+;; set its `live` of `lives` and its pairs' `list` of `listed`.
 ;; -----------------------------------------------------------------------------
 (defstate working-envelope-soa-descriptor
   (:memory-layout
@@ -68,12 +69,13 @@
 ;; Computes the reachable 1-Jet neighborhood E(X_0, dT) around the live operating
 ;; point X_0 = (q_0, dq_0, w_manifolded, Fr, d_obstacles) and marks capabilities
 ;; for LOADING (entering horizon) or FREEING/EVICTION (leaving horizon).
-;; Its own: its capsules' pairs, staged within `manifold-preload-distance-mm` (`gmo.horizon`) by a sphere about each;
-;; no speed bound is needed, a capsule's end moved a quarter of it restages them. Its points all stay: blind,
-;; those off its soles join its split where its soles cannot bear it (10 pushes a pass walking), none evicted.
-;; Its shield's 13 pairs lie 4-12 within influence every law pass (median 10, sat 12): none to cull. Its law's
-;; parts gated by their activity (`machine.law.composer`): each at rest its rest, the same bits - its melt off
-;; its soles' share, its wayfinder's gauge without an errand, its counterweight with no leg asked released.
+;; The robot's own: its capsules' pairs, staged within `manifold-preload-distance-mm` (`gmo.horizon`) by a
+;; sphere about each; no speed bound is needed, a capsule's end moved a quarter of it restages them. The robot's
+;; points all stay: blind, those off its soles join its split where its soles cannot bear it (10 pushes a pass
+;; walking), none evicted. The robot's shield's 13 pairs lie 4-12 within influence every law pass (median 10, sat
+;; 12): none to cull. The robot's law's parts gated by their activity (`machine.law.composer`): each at rest its
+;; rest, the same bits - the robot's melt off its soles' share, its wayfinder's gauge without an
+;; errand, its counterweight with no leg asked released.
 ;; -----------------------------------------------------------------------------
 (defprimitive evaluate-operating-point-horizon
   [state &key (descriptor 'working-envelope-soa-descriptor)
@@ -110,8 +112,8 @@
 ;; during supine rest) is freed from the active set, folds its 6D spatial
 ;; inertia tensor I_child into its parent body via Adjoint transformation!
 ;; Keeps 100% exact CoM & Poinsot inertia while shrinking M(q) from N -> N_act!
-;; Its own: none folded: its arms swing and its legs stride as it walks, so a frozen subtree's momentum is not its own;
-;; its chain's M and h are 23 of its observer's 257 us.
+;; The robot's own: none folded: its arms swing and its legs stride as it walks, so a frozen subtree's momentum is not
+;; its own; its chain's M and h are 23 of its observer's 257 us.
 ;; -----------------------------------------------------------------------------
 (defprimitive condense-dormant-kinematic-subtrees
   [state &key (descriptor 'working-envelope-soa-descriptor)
@@ -130,8 +132,9 @@
 ;; Packs only the loaded manifolds (M_act), loaded DOFs (N_act), and loaded
 ;; capsule pairs (P_act) into contiguous SIMD registers so the 1 kHz QP and
 ;; Khatib projector never touch unallocated/dormant rows.
-;; Its own: its observer's split gathered onto its working set (wbc_gmo.c `scoped`): 58 of 113 unknowns walking, its
-;; normal matrix and its active set over them in their order; its step (`machine.stack.wrench`) has no QP to pack.
+;; The robot's own: its observer's split gathered onto its working set (wbc_gmo.c `scoped`): 58 of 113
+;; unknowns walking, its normal matrix and its active set over them in their order; the robot's step
+;; (`machine.stack.wrench`) has no QP to pack.
 ;; -----------------------------------------------------------------------------
 (defprimitive compact-active-soa-working-slices
   [state &key (descriptor 'working-envelope-soa-descriptor)]
@@ -148,9 +151,9 @@
 ;; Stages newly loaded capabilities into Shadow Bank B, pre-seeds filter and
 ;; integrator states from the live kinematic state (bumpless transfer), and
 ;; swaps Bank B -> Bank A atomically at the next PLL phase zero-crossing!
-;; Its own: staged within its law's own pass, one thread, so laid as it is swapped, the same bits either side: a
-;; capsule's end moved past a quarter of its envelope restages its pairs that pass, no zero-crossing waited for.
-;; The double bank (`machine.process.rcu`) is its tuner's.
+;; The robot's own: staged within its law's own pass, one thread, so laid as it is swapped, the same
+;; bits either side: a capsule's end moved past a quarter of the robot's envelope restages its pairs
+;; that pass, no zero-crossing waited for. The double bank (`machine.process.rcu`) is the robot's tuner's.
 ;; -----------------------------------------------------------------------------
 (defprimitive stage-and-swap-rcu-capability-bank
   [state &key (descriptor 'working-envelope-soa-descriptor)
@@ -171,7 +174,8 @@
 
 ;; -----------------------------------------------------------------------------
 ;; 6. MASTER DYNAMIC WORKING-ENVELOPE SCOPER MODIFIER
-;; Its own: read for its envelope (`kernel.said`); its working set follows from its state each pass.
+;; The robot's own: read for its envelope (`kernel.said`); the robot's working set follows from the
+;; robot's state each pass.
 ;; -----------------------------------------------------------------------------
 (defmodifier xform-dynamic-working-envelope-scoper [state]
   (-> state
@@ -190,8 +194,8 @@
 
 ;; =============================================================================
 ;; COMPOSABLE OPERATING-POINT SPECIALIZERS (PLUG-IN EXTENSIONS)
-;; Its own: none pinned: its working set follows from its state - a seat's points join its split as they did.
-;; =============================================================================
+;; The robot's own: none pinned: its working set follows from its state - a seat's points join its split as
+;; they did. =============================================================================
 
 ;; 1. Flat-Floor Bipedal Cruise Minimal Scope (~60 us 1 kHz Tick Time!)
 ;; Unloads all non-plantar manifolds (`ischial`, `dorsal`, `ventral`, `trochanter`,
@@ -242,8 +246,9 @@
 ;; When resting in bed (`:dorsal-supine`) or seated calmly, unloads the stereo
 ;; wayfinder, swing-chord guards, and whole-body limb QP; condenses the skeleton
 ;; down to the 3-IMU Prior Observer +active weight-shift prober (< 18 us/tick!).
-;; Its own: its eyes, its camera and its map rest while its step's clamps are told its drives as zeros (limp,
-;; `se2.limp`), waking as one rises (`vision.look`, `machine.law.composer`): a bed's lie rested 6.5 of its 16 s.
+;; The robot's own: its eyes, its camera and its map rest while its step's
+;; clamps are told its drives as zeros (limp, `se2.limp`), waking as one rises (`vision.look`,
+;; `machine.law.composer`): a bed's lie rested 6.5 of its 16 s.
 (defmodifier specialize-scope-recumbent-hibernation [state]
   (-> state
       (xform-dynamic-working-envelope-scoper)

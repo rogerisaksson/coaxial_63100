@@ -18,19 +18,20 @@ share. A drive's heat: [thermals](thermals.md). Findings:
 | `host/tools/sim/` | the drive core on this host: montecarlo, observer_run |
 | `host/tools/cores/drive.py` | the drive core's ctypes harness |
 
-## machine/
+## machine/body, rig, senses
 
 | Module | Is |
 | --- | --- |
-| drives | two motors as bought, one box, one board; each joint's drive and where it sits, the parts its build's file names |
-| mechatronics | the parts library (`library/`: motors, gearboxes, inverters) and a robot's build of it (`robots/`), as TOML |
-| servos | each drive kind's servo - peak, stiffness, damping, armature - of its build's file |
-| gearbox | each drive's gearbox: the rotor free across its play, the box wound up past it, the link turned |
-| linkage | the transmissions off a joint's axis: the ankle's rods, the trunk roll's four-bar, spurs, belts |
-| rtu | Modbus RTU: CRC-16, a pass's frames |
-| buses | the boards on a bus a limb, a process each in lockstep with the world over a shared block, the host's frames bytes on a socket a bus |
-| edge | the 5 extremity 10 Mbit/s RS485 Modbus RTU SIL buses (`LIMBS`, `BAUD`), the line's noise and bursts (`noise`, `burst`), a bus refusing past its horizon its drives off (`held`, `off`) |
-| layouts | the live bus and software diagrams (`bus_layout_svg`, `software_layout_svg`) |
+| body/drives | two motors as bought, one box, one board; each joint's drive and where it sits, the parts the robot's build's file names |
+| body/mechatronics | the parts library (`library/`: motors, gearboxes, inverters, materials, world) and the robot's build of it (`humanoids/`), as TOML |
+| body/servos | each drive kind's servo - peak, stiffness, damping, armature - derived by `machine.body.compile` from subtree inertias, gravity levers and actuator stacks, the build's `[servo]` over them |
+| body/gearbox | each drive's gearbox: the rotor free across its play, the box wound up past it, the link turned |
+| body/linkage | the transmissions off a joint's axis: the ankle's rods, the trunk roll's four-bar, spurs, belts |
+| body/structural | static compliance of the robot's skeleton, linkages and carbon ankle leaf |
+| rig/rtu | Modbus RTU: CRC-16, a pass's frames |
+| rig/buses | the boards on a bus a limb, a process each in lockstep with the world over a shared block, the host's frames bytes on a socket a bus |
+| senses/edge | the 5 extremity 10 Mbit/s RS485 Modbus RTU SIL buses (`LIMBS`, `BAUD`), the line's noise and bursts (`noise`, `burst`), a bus refusing past the robot's horizon its drives off (`held`, `off`) |
+| rig/layouts | the live bus and software diagrams (`bus_layout_svg`, `software_layout_svg`) |
 
 ## Extremity RS485 Modbus RTU Bus Topology
 

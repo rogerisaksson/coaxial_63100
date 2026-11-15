@@ -90,7 +90,7 @@ def test_analog_read(report):
     report.check('AFE off carries the same banner a real board would print',
                  'AFE OFF' in off_text)
     report.check('and the codes underneath are mid-scale/zero, per '
-                 'invariant 9 - not refused, not invented past that',
+                 'AFE_ON off - not refused, not invented past that',
                  '32768' in off_text and '0.0' in off_text, off_text[:200])
 
     # Flat, not merely centred.
@@ -601,7 +601,7 @@ def test_scaling(report):
                  (bus.r_top, bus.r_bottom) == (49900.0, 2200.0),
                  '%.0f/%.0f' % (bus.r_top, bus.r_bottom))
     report.check('full scale is 78.15 V - 24 % over the 63 V rating, and '
-                 'deliberate (invariant 11)',
+                 'deliberate',
                  abs(bus.volts(65535) - 78.15) < 0.01,
                  '%.3f V' % bus.volts(65535))
 

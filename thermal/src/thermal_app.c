@@ -16,9 +16,9 @@
 static const float APP_LAMINATE_AIR[THERMAL_APPS] = { 1.0f, 1.0f, 3.0f, 1.0f, 1.0f,
                                                       0.06f, 0.08f, 1.0f };
 
-/** Its forced gain per sqrt(krpm): behind the stator a third of the stator's; in the wash
-    1.9 - a hover's 1 470 rpm at 2.5 K/W, the slipstream going as the rotor's speed and h as
-    its root; sealed none; the oil stirred. */
+/** The laminate's forced gain per sqrt(krpm): behind the stator a third of the stator's;
+    in the wash 1.9 - a hover's 1 470 rpm at 2.5 K/W, the slipstream going as the rotor's
+    speed and h as its root; sealed none; the oil stirred. */
 static const float APP_LAMINATE_FORCED[THERMAL_APPS] = { 0.3f, 1.9f, 0.0f, 0.3f, 0.3f,
                                                          0.2f, 0.2f, 0.3f };
 

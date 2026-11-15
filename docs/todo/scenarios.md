@@ -2,337 +2,131 @@
 
 Each a test in MuJoCo: placed, commanded as a player would, judged by no
 fall, its goal reached and its jerk (`tools/sim/scenarios.py`; those that hold
-in `test_scenarios`, 20 of 31 at every wobble now:
-[scenarios](../findings/scenarios.md)). In order: each a mechanism, the scenes it
-serves its DOD; none an entry a case.
+in `test_scenarios`: [scenarios](../findings/scenarios.md)). In order: each a
+mechanism, the scenes it serves its DOD; none an entry a case.
 
-1. **Its support, whatever bears it** (`machine.senses.borne`): a segment the skin
-   feels pushed up is in its support region, grounds it, and is a contact of
-   its whole-body step. A prop counts, and spans its support, by its share
-   of its weight up to 0.15 of it, whole from there (by the share alone a
-   brush of the bed's frame at the dock stepped it over its edge); its soles
-   lifted by the seat's excess stay so, a human's seated feet down open
-   (stunts.md). Met: the chair by the suite's patches (`machine.texts.maneuver`),
-   risen at the dock 13-14 of 14 ([sequencer](../findings/sequencer.md)). The
-   bed by its text is out of the held scenes: a 27 deg recline, the bed 0.39
-   of it to its soles' 0.61 - the step splits its weight evenly over three
-   contacts where the legs should give it - and the page's lie wants 0.45; on
-   the page it throws its arms to -109 deg, drops it onto the bed and calls
-   its fallen 2.7 s later, rolled 180 deg. Its patches wait on a step that
-   lets a borne point roll (sequencer.md). Open: the
-   sit by the take collapses from its landing (stunts.md: its centre of mass
-   released past the soles, the landing's sole swung up by the clearance, the
-   knees folded to the told axial, the pelvis's pitch task given to the
-   arms); a lie needs a trunk that does not roll (reclined 57 deg it rolled
-   90 at 2e-4 rad) and a shuffle onto the bed (the human's hips go back 1.07
-   legs); no rise from the bed stands it (bed_rise); the chair's sit by the
-   take perches on its edge (hips 0.16 legs back where 0.48); the floor
-   mattress, told to lie it crouches, its pelvis
-   at 0.763 m after 12 s (4), and lain on the bare floor the referee calls a
-   fall;
-   `wbc_wrench.c` without contacts. DOD: chair, soft bed, floor mattress and
-   floor, down and up, no fall called; reclined and risen from the errand's
-   dock (aligned, its heels 0.05 m from the edge, its pelvis 0.14 m onto the
-   mattress, the recline somersaults it: its soles unloaded, the bed's share
-   0.74 to 0.31, pitch -84 deg; its height estimate 0.15 m up after 17 s of
-   turning and backing), then the bed lengthwise, its soles on the mattress
+1. **The robot's support, whatever bears it** (`machine.senses.borne`): a
+   segment the skin feels pushed up is in its support region, grounds it
+   and is a contact of its whole-body step; the board's step (`wbc_wrench.c`)
+   knows its soles alone. The floor's rise: item 14. DOD: chair, soft bed,
+   floor mattress and floor, down and up, no fall called; the bed lain
+   lengthwise from the errand's dock, its soles on the mattress, and risen
    (test_errands).
-2. **Weight handed over, never switched**: a sole's share of its support
-   continuous in its height's reading, its support region and its step's
-   bounds, where a flag now. `tools/sim/jerk.py` against its steady walk
-   (head 597, hands 1398-1840 m/s^3): a start 1.4, strafes 2.9, turns 3.8, a
-   spin 4.4, the chair 11.6, a hop down 11.1, the weave 17.9. Left: a sole let
-   go at 60 N on its toes as the other takes 715 N (turns, the weave); the
-   weave's hurried swing asking a hip 10.7 times its clamp, its balance's
-   ask shrunk with it; a seat's touch flickering as it rises; a hop's
-   landing, its shrink the neck's; a row's blend stepping its asks; its head
-   and arms flung for its turns, seated and at a takeoff, where a seat's
-   points give no moment (jerk.md); the switch at 0.15 of its weight gone
-   (stunts.md): seated on the bed by the take its hands' jerk 17 000 to
-   1 800; rising from the chair by the take 18 000 and a fall at 2.7 m/s; a
-   stride's first passes, nothing pinned, the C step's two-sole solve 2.2e-2
-   N m off the python's (judged by its accelerations and loads since).
-   DOD: every segment's peak through stand, walk, turn, strafe, back, stop,
-   sit, rise, hop no higher than in its steady walk; a test holds it.
+2. **Weight handed over, never switched**: a sole's share of the robot's
+   support continuous in its height's reading, its support region and its
+   step's bounds, where a flag now. Where its support flickers the robot's
+   step makes its head and arms the lever: a sole let go on its toes, a
+   hurried swing past a hip's clamp, a seat's touch flickering as it rises,
+   a hop's landing, a row's blend stepping its asks, its head flung at a
+   spin's stop, reversing and seated (`tools/sim/jerk.py`,
+   [jerk](../findings/jerk.md)). DOD: every segment's peak through stand,
+   walk, turn, strafe, back, stop, sit, rise, hop no higher than in its
+   steady walk; a test holds it.
 3. **A landing on what is there**: a swinging sole that meets something
-   raises its swings by its height, one that meets nothing reaches on down; a
-   sliding one lowers the friction it asks. Met at 13 of 13 wobbles: the
-   sill, the rug, the hole, asphalt; snow 11, a slide unread (grip.md). The floor
-   ahead a plane of its standing soles' pitch (`modal.under`): up a ramp it
-   lands where it aims, down at its top; past a crest or down a descent a
-   swing hangs 6-27 cm over the floor. Measured and not kept (scenarios.md,
-   blind on a flight): a sole standing by its load alone, a swing held at an
-   edge till its toes clear it, the floor's rise read from its landings, a
-   late swing lowering it - each took a held scene. Up the stairs told it
-   climbs the flight and stands on the landing (stairs.md), at its walk's
-   0.54 s step where the takes climb at 0.6-0.7 s: the climb's rhythm is still
-   the impedance's. A sequencer on its loop (asked), begun: a take said at
-   its beats, its voices its own, a gait take's pattern fitted
-   ([sequencer](../findings/sequencer.md)); the loop's lingo a synthesizer's,
-   a term a thing ([synth](../architecture/synth.md)): a tread a note at its
-   pitch, a told floor a clip, each note's amounts the steering table's
-   coordinate (se2's grid, the rise its fourth axis, in rebuild), the
-   reading-side climb (`floor_mean`) going with it. The takes' flight (0.21
-   rise) with the walk's knees at 168 of 171 N m and 21-23 rad/s (no-load
-   16.8), fallen on the fifth tread; the performance build's on the third,
-   its swing gated against the riser; the walk's modifiers (pace, stride,
-   lean) each fall its sooner (stairs.md). Left:
-   its centre of mass running on past a lone standing sole while the next
-   swing is late, the common root on every descent; the first step down a
-   flight, nothing told, a drop. DOD: stairs of 0.15 x 0.30 m up and down, a
-   slope of 10 deg up, down and across; 3 times in 4 each.
+   raises its swings by its height, one that meets nothing reaches on down,
+   a sliding one lowers the friction it asks. The floor ahead a plane of the
+   robot's standing soles' pitch (`modal.under`): past a crest or down a
+   descent a swing hangs over the floor; on every descent its centre of mass
+   runs on past a lone standing sole while the next swing is late; the first
+   step down a flight, nothing told, a drop; its climb's rhythm the
+   impedance's, not the takes' ([stairs](../findings/stairs.md)). DOD:
+   stairs of 0.15 x 0.30 m up and down, a slope of 10 deg up, down and
+   across; 3 times in 4 each.
 4. **The robot's floor identified, a text over the general law**: what its
    standing soles meet - slip and sink under their load - read from its
-   sensors against what its law assumes (friction 0.6 in its step, a rigid
-   floor) and estimated as data; outside that envelope a surface's text
-   (lisp) laid over the general law's: the friction its step asks, its
-   rhythm, its step's length, its stiffness - no branch in the law. Skates:
-   a sole's room a line along its blade, free along it, held across it. As
-   it is: its grip felt as a sole slides (`machine.senses.grip`) or told, its
-   centre of mass, its going, its landings and its step's cones bounded by
-   it outside its envelope, a situation's text capping its rhythm under its
-   grip (`situations.lisp`, situation.md: seven read, one laying caps); the
-   ice read 0.103 and the slick patch 0.065 a
-   pass after a sole meets them, kept 30 s and handed to each landing sole:
-   told or unaware it crosses both, and snow, at every wobble (grip.md).
-   Left: a floor its soles never slide on - asphalt, snow - read from what
-   its holding soles use alone; its insoles reading their normal load alone
-   (scenarios.md, blind on a flight); skates. DOD: on skates it stands 10 s
-   and goes 2 m by strides across its blades.
-5. **Reachable landings ahead**: where each limb lands before its capture
-   point is past it, read from its reach (`machine.body.reach`); none, its height
-   lowered and a limb set to meet the fall, knees then hands, head off the
-   floor. 80 N met: standing 32 of 32, walking 28 (forward-aside 5 of 8).
-   200 N: standing 14 of 32 stand or fall soft, walking 21; the rest strike
-   its head at 1.1-4.5 m/s. DOD: 200 N falls with the head under 1 m/s.
-6. **One jump** (`machine.moves.leap`, `terminal.views.humanoid_keys`): takeoff
-   from the height and distance to land - a hop's landing said with it, its
-   throw parameterized continuously by `Space` hold duration (`5 ms` to `250 ms`
-   -> `charge` in `[0, 1]`). Met: the walking and running forward leaps (`5 ms`
-   vs `250 ms`) against flight-time, dual-sole clearance and distance in
-   `test_leap.py`; the standing jump's push from the drives (stunts.md:
-   take-off 1.5-1.65 m/s, rise 0.49 legs of the human's 0.55 from the
-   crouch, 0.015 m over its stand, two-footed off and down, standing at
-   3.9 widths). Left: its crouch taps its soles off - its law asks its
-   standing soles to move (`SOLE_ACC` 0.4-1.3 m/s^2 a law pass), its ankles
-   answer a sole at a time (left -6.6 to +10.3 N m, right -6.1), each sole
-   off 2-4 ms in turn, a flight read crouching; the held jump lands a sole
-   first and steps 0.59 m away since its pose is laid within its stops,
-   0.24 of the stride's 0.30 before, a 1e-9 rad nudge flipping its stances
-   (test_leap). The robot's soles clear 11 mm, its legs long in flight; it
-   lands 0.32 m ahead in the bench's scene, in place in the page's; the
-   legs 0.5 axial short of straight as it leaves (the apex over its
-   stand); the surety's phase read kept for the seats (stunts.md); the
-   chair's two texts reach no hop yet (scenarios.md);
-   off and onto a 0.45 m seat its knees work at 0.93-1.0 of their peak, past the
-   drives' 50 % margin (demand.md) - the seat's height or the knees' drives to
-   decide. DOD: down from a chair, two-footed up onto one (0.45 m), in place;
-   landed standing.
-7. **The drives for it**: a gait under way, a swing led or its capture point
-   past a lone standing sole grants a held drive 1.45x its clamp, past its
-   parts' peak. Without it the turns hold and the turnabout better (13 of 13,
-   7 granted); the weave falls at 4 of 13 (demand.md). DOD: each scenario's
-   peak, rms, speed and heat under 2/3 of its parts.
-8. **The takes as its moves** (`tools/sim/stunts.py`, `scenarios.STUNTS`):
-   each of the 31 takes a scenario - its scene, its told as a player would,
-   its rows measured as the take is (lengths in legs, times in sqrt(leg/g))
-   and judged within a sole's length, its list, its arm's cone and one
-   natural time of the take's, its head no lower than the human's and under
-   1 m/s if it falls. A posture's take is told as its own rows (axial,
-   sagittal and pitch read off the take, the rest its balance's, the trunk's
-   pitch off its stand; stunts.md): 5 of 31 met - the slick patch, the ice, the
-   kneel down and up, the rise from a crouch -, the backflip and the run to
-   it refused for want of a text, 24 short, 185.3 widths off in all (the
-   sit onto the chair 0.4, the rise from it 7.6, fallen at 2.2 m/s, the
-   runs and jogs 47 by their patterns, its stride without flight at
-   1.3-2.0 m/s where the takes go 1.9-4.5); a take said at its beats, the
-   squats and the dance on the legs and the trunk alone, a gait take as
-   amounts on its one standard gait (`machine.law.gait`: pace, stride, swing,
-   sway, roll, turn, rock, crouch, lean, width; a catwalk is roll +0.86,
-   sequencer.md); the score's reach ends there,
-   the rest the law's (the seats, the lie, the jumps' throw, the runs'
-   flight and the brake at speed, the falls) or no mode of its own (the
-   yawn's overhead arms, both heels up). Left of the one gait: the lisp's
-   gaits beside the walk (trip, jog, ballistic_walk, stairs_walk, ice_walk,
-   slope_walk) are specials of the kind the modifiers replace - their
-   amounts into the steering table's rows, one walk under them; the width
-   amount moves nothing, the stride laying each landing its own side
-   (`stride.meets`). The runway patch (lisp/humanoid/runway.lisp) plays on it
-   but its 42 mm track: its landings hold 81-95 mm with the centre's sway
-   cut, and the sway kept it falls (sequencer.md) - the catwalk's line
-   wants the stance's lateral reach (the trunk's roll taking the swing's
-   reaction) before its track. DOD: the runway patch's wet, track and all,
-   26 bars standing, the feet never into each other passing. The ortho-DSP
-   suite and the takes as its modifiers play on its walk (`machine.texts.dsp`,
-   `tools/sim/suite.py`, sequencer.md): its trunk, arms and roll within
-   10-20 % of a take's, its stride 0.76 m and 118 BPM where the takes stride
-   1.0-1.2 m at 98-110. DOD: three of the pack's walks at their tempo and
-   stride within 10 %, 20 s standing.
-   Open by mechanism: its hands' jerk 7 700-20 900 m/s^3 where its walk's is
-   1 400-1 800 through the sit, the rise, the dance and the bed - the
-   whole-body step's upper joints at W_POSTURE 1 against W_COM 1000 make it
-   arms the lever when its support flickers; weighed as its turn they stop,
-   but the walk's pelvis roll goes with them and, the arms alone, the spine
-   folds instead (item 2); the shoves and the
-   step's edge put its head on the floor at 1.1-1.8 m/s where a human sits
-   down or catches himself (item 5); the sit's hips 0.06-0.56 back run to
-   run where 0.48, the bed's edge and lying (item 1); the chair's hops and
-   the standing jump's landing (item 6); W at 0.93 m/s where a jog
-   is 2.0 and a run 4.5, S at 0.19 where 1.3 - by their patterns the jog
-   take 6.0 widths and the run 20.5 at 1.3-2.0 m/s, its stride without
-   flight, and a stop from 1.3 m/s falls as the sprint and moves
-   plays fall at their stops and turns (the brake's row ends the stride
-   in 500 ms with its capture point past the front sole, no step comes,
-   sequencer.md); the run's leap holds 0.57 m for a
-   tap's 0.48 and the running jump falls: the brake, the gather and the
-   leap (`leap.stride_hop`, `stride_leap`, tuned to 0.86 m/s) laid from the
-   drives at its speed first, as the standing jump's push is (item 3) - the
-   leap so laid (scratch/stride_leap_from_drives.patch, stunts.md) stands a
-   tap on the walk and the run landing on the other leg, 9 cm up and no
-   flight at one knee's 2/3 clamp, and a hold saturates the knee and falls:
-   the one stack's knees or the performance build, and test_leap's stride
-   checks re-based on what the drives give, to decide; at 1.8 Hz its stance
-   chatters and it falls; the dance's bounce of 0.38
-   legs felling it when streamed; a lean back of 13 deg standing met with
-   3.7; the stairs takes on their own flight (0.21 x 0.225 m) climbed 0.3 m low
-   on knees at their drive's limit and fallen at the top, ended and travel within
-   (stairs.md, item 3). No spasm: each segment's jerk no higher than
-   its steady walk's (item 2). The take's
-   human and it by similarity: lengths by the legs' ratio, times and speeds
-   by its root, masses and forces by its cube, normative for a woman of its
-   size (`figure.MASS_KG` at 165 cm). One evaluation to iterate while a
-   parameter of its own or of the loop is tuned (`stunts.evaluate`): how far
-   each stunt is off its take in the measures' widths, the total, saved and
-   diffed run to run; kinematic in its body's units, the drives' demand
-   beside it, never in it, so a motor or a ratio changed alters what it
-   reaches, not what a score or a parameter means. Where the drives fall
-   short of a flip or a jump, a "performance" drivetrain config beside the
-   one stack, the demand measured first (demand.md): laid - the U12 II KV120
-   on box A for its spine, hips, knees and ankles
-   (`machine/humanoids/gynoid_mesomorph_medium_performance.toml`) -, its
-   standing jump rose 0.03 legs on it where 0.01: the hop's ask was the
-   law's, 1.44 of the U12's amps at the hips; from the drives it rises
-   0.43-0.51 legs of the human's 0.55 on its own stack (stunts.md). DOD: 31
-   of 31 met at every wobble, each stunt's jerk within its walk's.
-9. **Its place a glazed mountain lodge** (asked, pictures given): built and
-   drawn (`machine.world.room`, scene 'lodge', [lodge](../findings/lodge.md)):
-   the timber walls, the glass gable and its door, the snowy roof, the deck
-   with its rail, the stone step and terrace, the loft stair; the wooden
-   stair down the slope on the door's line. Open: the descent falls as item
-   3's stairs do (`lodge_down` 11.2 s; stairs_down 3.4); the loft stair and
-   the stone step walked by no scene; the pictures' snow on the ground, the
+   sensors against what its law assumes (its step's friction, a rigid floor)
+   and estimated as data; outside that envelope a surface's text
+   (`situations.lisp`) laid over the general law's - the friction its step
+   asks, its rhythm, its step's length, its stiffness -, no branch in the
+   law ([grip](../findings/grip.md)). Left: a floor its soles never slide on
+   (asphalt, snow) read from what its holding soles use alone; its insoles
+   reading their normal load alone; skates, a sole's room a line along its
+   blade. DOD: on skates the robot stands 10 s and goes 2 m by strides
+   across its blades.
+5. **Reachable landings ahead**: where each limb lands before the robot's
+   capture point is past it, read from its reach (`machine.body.reach`);
+   none, its height lowered and a limb set to meet the fall - knees, then
+   hands, the head off the floor ([body](../findings/body.md)). DOD: 200 N
+   falls with the head under 1 m/s (`tools/sim/falls.py`).
+6. **One jump** (`machine.moves.leap`, `terminal.views.humanoid_keys`):
+   takeoff from the height and distance to land, its throw by `Space`'s
+   hold. The chair's two texts reach no hop; off and onto a 0.45 m seat the
+   robot's knees work at their peak, past the drives' 50 % margin - the
+   seat's height or the knees' drives to decide
+   ([demand](../findings/demand.md)). DOD: down from a chair, two-footed up
+   onto one (0.45 m), in place; landed standing.
+7. **The drives for it**: in the turns' play and the weave the robot's
+   hips, knees and spine ask past 2/3 of their parts, a held drive granted
+   its peak past its clamp (`ask['wep']`, `machine.stack.shrunk`)
+   ([demand](../findings/demand.md)). DOD: each scenario's peak, rms, speed
+   and heat under 2/3 of its parts (`tools/sim/demand.py`).
+8. **The takes as the robot's moves** (`tools/sim/stunts.py`,
+   `scenarios.STUNTS`): each take a scenario, told as a player would, its
+   rows measured as the take's and judged within a sole's length, its list,
+   its arm's cone and one natural time, its head no lower than the human's
+   and under 1 m/s if it falls ([stunts](../findings/stunts.md)). Short of
+   them: the seats, the lie, the jumps' throw, the runs' flight and their
+   brake at speed, the falls, the yawn's overhead arms; the lisp's gaits
+   beside the walk (trip, jog, ballistic_walk, stairs_walk, ice_walk) not
+   yet amounts on its one walk (`machine.law.gait`). DOD: every take met at
+   every wobble, each stunt's jerk within its walk's; the runway patch
+   (`lisp/humanoid/runway.lisp`) wet, track and all, 26 bars standing, the
+   feet never into each other passing; three of the pack's walks
+   (`machine.texts.dsp`, `tools/sim/suite.py`) at their tempo and stride
+   within 10 %, 20 s standing.
+9. **The robot's place a glazed mountain lodge** (asked, pictures given;
+   `machine.world.room`, [lodge](../findings/lodge.md)): the descent down
+   the wooden stair falls as item 3's stairs do; the loft stair and the
+   stone step walked by no scene; the pictures' snow on the ground, the
    valley's horizon and the gable's glass over the eaves undrawn. DOD:
-   lodge_down and a climb of the loft stair held in test_scenarios; its
-   sight telling its door and its glass; the ground snowed and the valley
-   drawn beyond the rail.
-10. **An errand from every spot** (`tools/sim/house.py`, its way round the
-    furniture `route`): said from every spot (120 runs a verb, risen and
-    stood 3 s) the chair 89, 24 down; the bed 74, 34 down
-    ([errands](../findings/errands.md)). Open: the chair's rise leaves it
-    going on past its soles; sat up on the bed the hand-written swing_out
-    throws its trunk forward or back, and the chair's rise from its edge
-    waits on soles that never take it; turning and backing in
-    the 1 m before the table its hands touch the loft - a half turn in place
-    creeps its 0.18 m -; docking
-    takes 19 s; a curve through a corner fits its arc from 2-3 of 27
-    turning ways. None is free of a spasm: its arms at its stop in 60
-    chair errands of 336 (a stride's brake; 232 at 0.5 s), its neck seated and
-    reclining, its head the step's pitch counterweight on a seat that gives
-    it none - the anti-spasm insert its master bus
-    ([synth](../architecture/synth.md)), its open stages item 14 -; the dock
-    the suite's (`pivot-single-anchor-arc`) where tour's turn in place and
-    back fell 13; the chair's sit held laid at its dock 30 of 50. DOD: the
-    chair's, the bed's and the door's errands from every pose it sees them
-    from and said from every spot, no fall, no spasm. Its bed's rise 69 of
-    336 after the stride's brake, 93 before: its dock moved with STOP_M.
-11. **Its head's spasms left** ([jerk](../findings/jerk.md)): its neck let go
-    through a brake, a stop nods 1-4 deg; left: a spin's stop through a stand
-    34 deg (53 before), 36 mid-gait in reverse and moves, 106 seated (the
-    seat's two points give no pitch, its head its counterweight). DOD: its neck
-    within `_Q_LIM` through every scene, its errands and scenes as they are.
-12. **Its soles' friction a pyramid along them** (found): its step clips a
-    sole's force to mu along the world's x and z (`wbc_rounds.c`,
-    `machine.stack.wrench`'s `bounded`, `faced`, `_taken`; `pushed`, `wbc_cone.c`,
-    `wbc_stack.c` alike): walking straight 45 or 135 deg off them its head's
-    and pelvis's peaks are 2 250-2 500 and 1 140-1 270 m/s^3, 0, 90 and 180 deg
-    off 570-600 and 530-560 - MuJoCo's own pyramid felled it on its diagonal
-    once (`mjcf.CONE`). Along each sole's floor axes, the C alone, the
-    diagonals' are the axes' (577, 547). DOD: its walk the same every way, the
+   lodge_down and a climb of the loft stair held in test_scenarios; the
+   ground snowed and the valley drawn beyond the rail.
+10. **An errand from every spot** (`tools/sim/house.py`,
+    `machine.way.route`): said from every spot of the lodge's floor the
+    robot's chair and bed errands fall or spasm - the chair's rise leaves
+    it going on past its soles; sat up on the bed swing_out throws its
+    trunk; turning and backing before the table its hands touch the loft;
+    its arms at its stop, its neck seated and reclining; the bed's dock
+    turns on its start's last bits ([spots](../findings/spots.md),
+    [errands](../findings/errands.md)). DOD: the chair's, the bed's and the
+    door's errands from every pose the robot sees them from and said from
+    every spot, the page's prompt among them, no fall, no spasm; the
+    viewport's bed errand 11 of 11 starts 1e-4 rad apart, the chair's 5 of 5
+    (`tools/sim/offered.py`).
+11. **The robot's soles' friction a pyramid along them**: its step clips a
+    sole's force to mu along the world's x and z (`machine.stack.rounds`'
+    `bounded`, `pushed`, `faced`, `taken`; `wbc_rounds.c`, `wbc_cone.c`,
+    `wbc_stack.c` alike), so its walk differs by heading
+    ([jerk](../findings/jerk.md)). DOD: its walk the same every way, the
     python twin bit for bit, no scene lost.
-13. **The bed's dock a coin's toss** (found): the viewport's lie_bed errand
-    lies in 3 of 11 starts 1e-4 rad apart, before its neck's brake and after
-    (test_errands' one passes by its start alone, CI's Linux red): it backs
-    39 deg off the bed's normal - `settle` sidesteps it past 45 deg alone, the
-    side's own end at its list (0.15 rad) - and stopped at its edge is turned
-    those 39 deg back at once and tips onto it. A stride's look-ahead in its
-    backing steer, the back ended in `settle`, the sidestep entered at its list:
-    the chair's dock 0 of 5. DOD: 11 of 11, the chair's 5 of 5 kept.
-14. **The anti-spasm insert's open stages** ([synth](../architecture/synth.md),
-    [insert](../findings/insert.md)): its velocity gate - under its encoders' step
-    (0.05 rad/s at 1 kHz), it shut a seated drive's rate and its chair's rise
-    ended on 0.78 of its soles -; its damped least squares on a swung leg - its
-    walk 2.63 off where 2.49, its head aside 48 where its form's 35; with it its
-    heel's cap must be a woman's at lift (36.2 deg), which fells the charged run
-    leap -; its D
-    low-pass at 42 Hz, its zero crossing's
-    bridge and its C2 85 ms handover each alone felled its walking a right turn
-    (replay walk_turn_right_at_0.69, 8.4-8.9 s at every nudge; the base stands
-    to 13.5 s); the handover lagged its step's regime while its ask switched,
-    both soles let go. Its Schmitt comparators on its soles - held
-    through a sole's unloading, its step pushes on it as it leaves (insert) -
-    (on its support off them, done). Red as on main: the walk leap's 0.38 m at
-    no charge, the run leap's landing at full (after it its law asks it
-    down 4-6 m/s^2 on one sole on its ball; its knee's lock buffered, it
-    sinks), snow at +0.0002. DOD: each on its loop at its text's numbers,
-    every suite as
-    green as the base.
-15. **A refused frame resent** (found): `wbc_sil_drive` drops
-    `wbc_sil_transceive`'s return - a frame a board refuses is not resent in
-    its pass, and the bus's boards before it applied it; none refused in
-    46 000 frames a bus in-process, none through the page's worker's sit,
-    rise, 400 N shove and slide off a seat; Renode's link faults (a write
-    timed out or refused) its badge's own count. DOD: a refused frame resent
-    within its pass, a bus's boards all or none.
-16. **Wear alarms off a seat and a fall** (found): sat on the lodge's chair its
-    wear filter named waist.kt 4.3 s in, and spine, spine_roll and waist
-    friction and kt as it slid off - the seat's and the fall's forces read as
-    drift; the bus strip drew them red as bus faults (it no longer does).
-    DOD: no alarm through the chair's sit, rise and a shove's fall.
-17. **A seat higher than its shins** (found): the chair's top 0.47 m, the bed's
-    0.44, its thighs' underside at the knee 0.383 (8.7 and 5.7 cm under). Flat
-    footed a thigh meets the edge before its buttocks are on it (the slide off
-    the chair, errands.md). A human goes on its toes before it sits, or takes
-    the seat with its hands and draws itself onto it. The suite's bed lands
-    its hips on its soft edge and it tips off it, 0 of 23 (errands). DOD: a
-    seat over its
-    shins taken from its toes - its heels up by what its ankle reaches of the
-    excess, lowered once it bears it -, both buttocks a buttock's length on;
-    the chair's sit 0 of 336 down or unborne (5 and 8 now).
-18. **The lie as a floor primitive**: lie_floor and rise_floor route
-    through the suite's patches and refuse the floor mattress by name (lie
-    findings: its pelvis 0.132 under its legs' 0.299) till item 13's deep
-    landing; the crouch stub is deleted; the lying-down spasm found and
-    fixed - fallen, the loop drove on and the rest law fought the ground
-    (1 658 deg/s, 3 793 N supine), its drives let go now (`edge.off`, the
-    STO's). The robot lies down where it stands now (lie
-    findings: kneel, tip past statics with the ZMP let go, floor_rest limp
-    - pelvis 0.198, 0-1 deg/s, no reset; the mattress scenario 'sank' 3 of
-    3, the lie test in errands). Left: the tidy supine (it lands a heap,
-    pitch -122, folded over its heels - the recline to flat and the bed's
-    'lay' bar, rolled within LIST); the rise (below pelvis 0.51 the
-    compression pattern binds at the ankle's -45 deg; the heels-up
-    redistribution - the kernel's :metatarsal-equinus-bilateral manifold -
-    or a tibial kneeling bus, with item 13's landing); the grippers' 894
-    deg/s snap at a say's first pass. DOD: laid supine it rises to a
-    stand, 3 of 3; the lie flat, rolled within LIST.
-19. **The robot's posture a 1-jet a manifold** (asked; the kernel's
+12. **The anti-spasm insert's open stages** ([synth](../architecture/synth.md),
+    [insert](../findings/insert.md), [kernel](../findings/kernel.md)): off the
+    robot's loop - its velocity gate, its damped least squares on a swung leg
+    (the heel's cap a woman's at lift with it), its D low-pass at 42 Hz, its
+    zero crossing's bridge, its C2 85 ms handover and its Schmitt comparators
+    on its soles; each alone, tried, felled a walk, a turn, a leap or a seat.
+    DOD: each on its loop at its text's numbers, every suite as green as the
+    base.
+13. **Wear alarms off a seat and a fall**: the robot's wear filter
+    (`machine.identify.wear`) reads a seat's and a fall's forces as its
+    drives' drift and names it - sat on the lodge's chair, sliding off it
+    ([identification](../findings/identification.md)). DOD: no alarm through
+    the chair's sit, rise and a shove's fall.
+14. **The lie as a floor primitive** ([lie](../findings/lie.md)): told to,
+    the robot lies down where it stands and rests limp (`se2.LIMP`); a rise
+    from the floor is refused by its legs' reach (`machine.texts.maneuver`):
+    below a pelvis of 0.51 m the compression pattern binds the ankle at
+    -45 deg - the heels-up redistribution (the kernel's
+    :metatarsal-equinus-bilateral manifold) or a tibial kneeling bus. DOD:
+    laid supine the robot rises to a stand, 3 of 3; the lie flat, rolled
+    within LIST.
+15. **The robot's posture a 1-jet a manifold** (asked; the kernel's
     `canonical_posture_bundle.lisp`): `modal.poses` lays its legs as what
-    bears it holds them (`latent.MANIFOLDED`) - its soles, side and back the
-    crouch's column, a seat its thigh (`modal.seat`) -, a let-go leg's hang
-    (`HUNG`) in it; sat, the ask's hip and ankle 6-8 deg off its legs where
-    25-29 ([support](../findings/support.md); test_postures). Left: the
-    soles' share (0.15 sat) asks the crouch of legs the seat and the floor
-    hold together; `HUNG` adds its pelvis's pitch where the seat's chain
-    subtracts it; the atlas's origins and columns are its text's, its law
-    reads none. DOD: sat, the ask's legs within 1 deg of its own; a let-go
-    thigh level; no scene lost.
+    bears it holds them (`latent.MANIFOLDED`) - soles, side and back the
+    crouch's column, a seat its thigh (`modal.seat`), a let-go leg an open
+    chain (`machine.moves.emancipation`); sat, its ask's hip and ankle stand
+    off its legs, the soles' share asking a crouch of legs the seat and the
+    floor hold together; the atlas's origins and columns its text's, read by
+    no law ([support](../findings/support.md)). DOD: sat, the ask's legs
+    within 1 deg of its own (test_postures); a let-go thigh level; no scene
+    lost.

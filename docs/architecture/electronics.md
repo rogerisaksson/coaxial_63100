@@ -9,7 +9,7 @@ measured: [HARDWARE](../HARDWARE.md); the layers above:
 ## The board layer
 
 `board/src/`, a file a part, its API a header each under
-`comms/inc/board/`.
+`comms/inc/board/` (board_sto.c's in power.h).
 
 | File | Is |
 | --- | --- |
@@ -19,7 +19,7 @@ measured: [HARDWARE](../HARDWARE.md); the layers above:
 | board_sto.c | what the board can see of the Safe Torque Off chain |
 | board_power.c | reference-counted rails |
 | board_io.c | discrete I/O: AFE_ON and PE15, the console-mode request; the parts it answers `0x6D` from |
-| board_angle.c | the Allegro A1335 on SPI4 |
+| board_angle.c | the A1335 on SPI4 |
 | board_imu.c | the BNO08X on SPI2: bytes only, no meaning |
 | board_drive.c | the control law on this hardware, once a PWM period |
 | board_ctrl.c | the board's loop: ctrl_loop's, its angle the A1335's, its guard the IRQ's |
@@ -31,7 +31,7 @@ measured: [HARDWARE](../HARDWARE.md); the layers above:
 | board_selftest.c | what the board can prove about itself |
 | board_mem.c | memcpy and memset a word a turn, from ITCM |
 
-## Its stand-ins
+## The board layer's stand-ins
 
 ```text
 board/fake/     the API on the host, neutral, under comms/, board_cal.c and
@@ -71,8 +71,9 @@ coaxial/simulated/  the stand-in, same reply shapes as the board; acquire/
                 world/src's each, these their edges
 ```
 
-- Stand-in: five buses (AX, LL, RL, LA, RA), four nodes each; reports
-  proto 2.23, firmware "simulated". `test_parity.py` holds it to the board.
+- Stand-in: five buses (AX, LL, RL, LA, RA), four nodes each; reports proto 2.24
+  (the board 2.36), firmware "simulated". `test_parity.py` holds it to the
+  board.
 - The stand-in is the emulated world's reference: `tools/dev/ab.py` runs a
   page on both, a process a page, and marks a read missing, a range apart
   over the board seconds both cover, or a number the physics rules out;

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Walk to run, a brake, a jump and a leap (`machine.moves.ballistic`; the kernel's ballistic_*.lisp): the texts read
-whole, their regimes on its leg, its run's stance on its knees, its jumps and leap from its drives, its brake on a
-floor's friction and its DC link."""
+whole, their regimes on the robot's leg, its run's stance on its knees, its jumps and leap from its drives, its
+brake on a floor's friction and its DC link."""
 import math
 import os
 import re
@@ -31,7 +31,7 @@ def _on(form):
 
 
 def _regime(regime):
-    """(m/s, BPM, the stance's share of a stride) of a regime on its leg."""
+    """(m/s, BPM, the stance's share of a stride) of a regime on the robot's leg."""
     from machine.moves import ballistic
     g = _on(['xform-continuous-velocity-spectrum', ':regime', regime])
     morph = g['froude-homotopy']
@@ -43,7 +43,7 @@ def _regime(regime):
 def test_the_texts_read_whole(report):
     """The texts read with the kernel: four postures, each an origin and three columns; every manifold they name a
     patch; their stages; the schedule's walk, morphs, double-time, leap, run, brake, walk and jump; the brisk walk's
-    leap held on its world's obstacle ahead."""
+    leap held on the robot's world's obstacle ahead."""
     from machine.texts import dsp, kernel
     from machine.body import mechatronics
     got, plan = kernel.read(), _plan()
@@ -74,22 +74,23 @@ def test_the_texts_read_whole(report):
     brisk = plan[2][2]
     gate = brisk['_gates'][0]
     apex = brisk['ssc-launch']['desired-apex-z-m']
-    report.check('the brisk walk\'s leap held on its world (%s): its apex a law of the obstacle ahead' % gate[1].name,
+    report.check('the brisk walk\'s leap held on the robot\'s world (%s): its apex a law of the obstacle ahead' % gate[1].name,
                  isinstance(gate[1], dsp.Law) and isinstance(apex, dsp.Law) and 'ssc-launch' in gate[2]
         and 'query-upcoming-obstacle-height-z' in str(apex))
 
 
-def test_its_regimes_on_its_leg(report):
-    """Each regime's Froude number on its leg and the duty the text's Hermite map gives it: double support walking,
-    flight running. Its run's stance: one sole bears its weight over a step through a stance of its share (a
-    half-sine's peak), its knee holds it at the run origin's bend within its peak."""
+def test_the_robots_regimes_on_its_leg(report):
+    """Each regime's Froude number on the robot's leg and the duty the text's Hermite map gives it: double support
+    walking, flight running. The robot's run's stance: one sole bears its weight over a step through a
+    stance of its share (a half-sine's peak), the robot's knee holds it at the run origin's bend within its
+    peak."""
     from machine.moves import ballistic
     from machine.body import drives, figure
     from machine.texts import kernel
     from machine.law import somatic
     rows = [(r, *_regime(r)) for r in REGIMES]
     fr = [float(ballistic.froude(v, somatic.LEG_M)) for _r, v, _b, _d in rows]
-    report.check('on it %.3f m leg: %s' % (somatic.LEG_M, '; '.join(
+    report.check('on the robot %.3f m leg: %s' % (somatic.LEG_M, '; '.join(
         '%s %.2f m/s %.1f BPM Fr %.3f duty %.3f' % (r[1:], v, b, f, d) for (r, v, b, d), f in zip(rows, fr))),
         all(a < b for a, b in zip(fr, fr[1:])) and rows[0][3] > 0.5 > rows[-1][3])
     _r, _v, bpm, beta = rows[-1]
@@ -101,18 +102,18 @@ def test_its_regimes_on_its_leg(report):
     knee = kernel.read()['ballistic-1jet-posture-atlas']['postures']['locomotion-slip-run']['origin-q0']['tibiofemoral']
     reach = math.sqrt(figure.THIGH ** 2 + figure.SHANK ** 2 + 2.0 * figure.THIGH * figure.SHANK * math.cos(knee))
     lever = figure.THIGH * figure.SHANK * math.sin(knee) / reach
-    report.check('its run: a %.0f ms step, %.0f ms stance, %.0f ms flight; a sole peaks at %.0f N, its knee %.1f N m '
+    report.check('the robot\'s run: a %.0f ms step, %.0f ms stance, %.0f ms flight; a sole peaks at %.0f N, its knee %.1f N m '
                  'at the origin\'s %.2f rad (peak %.1f)' % (1e3 * step, 1e3 * stance, 1e3 * flight, peak,
                                                           peak * lever, knee, drives.peak('left_knee')),
                  flight > 0.0 and peak * lever < drives.peak('left_knee'))
 
 
-def test_its_jumps_and_leap_from_its_drives(report):
-    """Each jump's apex the text asks its knees' launch from its crouch (`ballistic.launch`): it leaves where its
-    back-EMF ends the push, its knees near their no-load speed; its ankles' heel rise, the text's handoff, reaches a
-    little past it before their rotors are spun. Its broad jump at the text's angle, the platform under its apex by
-    its margin, the leap one knee's from its stance at its double-time march, the gap leap's floor its apex less
-    its margin."""
+def test_the_robots_jumps_and_leap_from_its_drives(report):
+    """Each jump's apex the text asks the robot's knees' launch from its crouch (`ballistic.launch`): the robot
+    leaves where its back-EMF ends the push, its knees near their no-load speed; its ankles'
+    heel rise, the text's handoff, reaches a little past it before their rotors are spun. The robot's broad jump
+    at the text's angle, the platform under its apex by its margin, the leap one knee's from its stance at the
+    robot's double-time march, the gap leap's floor its apex less its margin."""
     from machine.moves import ballistic
     from machine.body import drives, figure
     from machine.texts import kernel
@@ -131,13 +132,13 @@ def test_its_jumps_and_leap_from_its_drives(report):
         angle = math.atan2(4.0 * h, x)
         apex, span = ballistic.parabola(v * math.sin(angle), v * math.cos(angle))
         rows.append((name, depth, v, t, w, h, x, float(apex), float(span)))
-    report.check('its jumps: %s; its ankles reach %.2f m/s' % ('; '.join(
+    report.check('the robot\'s jumps: %s; its ankles reach %.2f m/s' % ('; '.join(
         '%s from %.0f mm leaves at %.2f m/s in %.0f ms, knees %.1f of %.1f rad/s: %.0f up %.0f ahead (told %.0f, %.0f)'
         % (n, 1e3 * d, v, 1e3 * t, w, no_load, 1e3 * a, 1e3 * s, 1e3 * h, 1e3 * x)
         for n, d, v, t, w, h, x, a, s in rows), ankle),
         all(abs(a - h) < 1e-3 and abs(s - x) < 1e-3 and w > 0.9 * no_load for _n, _d, _v, _t, w, h, x, a, s in rows))
     up = platform['touchdown-datum']['expected-delta-z-mm']
-    report.check('its platform %.0f mm, %.0f under its apex' % (up, 1e3 * platform['ssc-launch']['desired-apex-z-m'] - up),
+    report.check('the platform %.0f mm, %.0f under the robot\'s apex' % (up, 1e3 * platform['ssc-launch']['desired-apex-z-m'] - up),
                  0.0 < up < 1e3 * platform['ssc-launch']['desired-apex-z-m'])
     leap = shots[0]['ssc-launch']
     v, _t, _w = ballistic.launch(leap['phase-1-countermovement']['crouch-depth-m'], legs=1.0)
@@ -151,10 +152,11 @@ def test_its_jumps_and_leap_from_its_drives(report):
                  and abs(1e3 * span - 1e3 * leap['desired-range-x-m']) < 1.0)
 
 
-def test_its_brake(report):
-    """From its run to the walk the brake asks: each step's stance brakes it by its cap of the floor's friction
-    (`ballistic.braked`, `ballistic.steps`) - within the text's two steps on a dry floor and its soles' own, its
-    stutter's steps on a slick one -; what its speed gives its DC link over two steps under what its packs take."""
+def test_the_robots_brake(report):
+    """From the robot's run to the walk the brake asks: each step's stance brakes it by its cap of the
+    floor's friction (`ballistic.braked`, `ballistic.steps`) - within the text's two steps on a dry floor and the
+    robot's soles' own, its stutter's steps on a slick one -; what the robot's speed gives its DC link over
+    two steps under what its packs take."""
     from machine.moves import ballistic
     from machine.body import dclink, figure
     from machine.texts import kernel
@@ -168,21 +170,21 @@ def test_its_brake(report):
     stutter = min(float(ballistic.braked(0.35, cap, 60.0 / bpm / low['boost-cadence-bpm-scale'])),
                   low['limit-per-step-dv-mps'])
     slick = int(ballistic.steps(v, walk, stutter))
-    report.check('%.2f to %.2f m/s at %.1f BPM: %d steps at mu 0.65, %d at its soles\' %.2f (at most %d); %d stutter '
+    report.check('%.2f to %.2f m/s at %.1f BPM: %d steps at mu 0.65, %d at the robot\'s soles\' %.2f (at most %d); %d stutter '
                  'steps at 0.35 (at least %d)' % (v, walk, bpm, dry[0], dry[1], mu, high['max-braking-steps'], slick,
                                                   low['min-braking-steps']),
                  max(dry) <= high['max-braking-steps'] and slick >= low['min-braking-steps'])
     energy = 0.5 * figure.mass() * (v * v - walk * walk)
     watts = energy / (dry[0] * 60.0 / bpm)
     taken = dclink.CHARGE_A * dclink.ONSET_V
-    report.check('it %.0f J over %d steps, %.0f W; its packs take %.0f W at %.1f V, the brake\'s ceiling %.1f under '
+    report.check('the stop: %.0f J over %d steps, %.0f W; the robot\'s packs take %.0f W at %.1f V, the brake\'s ceiling %.1f under '
                  'its clamp %.1f' % (energy, dry[0], watts, taken, dclink.ONSET_V, brake['bus-voltage-ceiling-v'],
                                      dclink.CLAMP_V),
                  watts < taken and dclink.ONSET_V < brake['bus-voltage-ceiling-v'] < dclink.CLAMP_V)
 
 
-ROSTER = [test_the_texts_read_whole, test_its_regimes_on_its_leg, test_its_jumps_and_leap_from_its_drives,
-          test_its_brake]
+ROSTER = [test_the_texts_read_whole, test_the_robots_regimes_on_its_leg, test_the_robots_jumps_and_leap_from_its_drives,
+          test_the_robots_brake]
 
 
 def main(argv=None):

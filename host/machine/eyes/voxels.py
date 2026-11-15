@@ -1,31 +1,29 @@
-"""Its map of the room in voxels: its surfaces and structures told as boxes, each with its turn.
+"""The robot's map of the room in voxels: surfaces and structures told as boxes, each with its turn.
 
-What its looks put there, in its estimate's frame.
+What the robot's looks put there, in its estimate's frame.
 
     chart = voxels.Map(palette)                  # CELL_M voxels over the room's floor, FLOOR_M to CEIL_M
     cells = chart.add(xyz, rgb, eye)             # one look's points and their colours; the rays' voxels freed
     things, labels = chart.things()              # (kind, centre, half, R, id, clear) each, a voxel's thing in labels
-    chart.blocked()                              # the floor's cells it may not stand in, its radius round
+    chart.blocked()                              # the floor's cells the robot may not stand in, its radius round
 
-A voxel is a thing from TOLD looks with HITS points in it, hit more often than seen through; its kind
-the `palette`'s whose body colour its chromaticity lies nearest, the light's white added (the
-dichromatic model: a highlight lies on the line from a kind's chroma to grey, so a lit timber wall
-stays timber and a grey patch its neighbours'). A top is an occupied voxel seen through above with
-nothing standing in the layer above round it - its normal up, a hole in a wall's face none -, or by one
-with nothing over it and its points level (`_segmented`); a
-surface the 4-connected tops of one level, a structure the 26-connected rest - joined apart over
-and under a surface within its footprint a voxel round: what stands on a seat is not what holds it
-up -, each wall one, a chair's seat a surface, its back and its legs structures; a part of a
-structure whose colour differs from
-the structure's past the three-sigma test on its own pixels (`SIGMA`) a thing of its own - the door
-in the glass gable, a chair's back against a wall; a structure resting on nothing, neither the floor's
-layer nor under a surface, a stray left out. A surface's kind its pooled colour's, a structure's the kind
-most of its voxels have, its test read on those; a thing's box the floor its voxels' points cover, its axes
-(its turn) and extents those corners', its height its voxels', a surface's top its points' (`_box`), a
-structure in pieces till no box claims floor further than a voxel from its cells (`_pieces`); its
-id the one of the thing it shares most voxels with at the look before, else new (`machine.eyes.registry`);
-`clear` 1.0 where the space over its top is seen through - a surface's -, 0.0 a structure's, its top
-unknown (`machine.way.affordance`). Nothing here reads the world's geometry.
+A voxel is a thing from TOLD looks with HITS points in it, hit more often than seen through; its kind the
+`palette`'s whose body colour its chromaticity lies nearest, the light's white added (the dichromatic
+model: a highlight lies on the line from a kind's chroma to grey, so a lit timber wall stays timber and a
+grey patch its neighbours'). A top is an occupied voxel seen through above with nothing standing in the
+layer above round it - its normal up, a hole in a wall's face none -, or by one with nothing over it and
+its points level (`_segmented`); a surface the 4-connected tops of one level, a structure the
+26-connected rest - joined apart over and under a surface within its footprint a voxel round: what stands
+on a seat is not what holds it up -, each wall one, a chair's seat a surface, its back and its legs
+structures; a part of a structure whose colour differs from the structure's past the three-sigma test on
+its own pixels (`SIGMA`) a thing of its own - the door in the glass gable, a chair's back against a wall;
+a structure resting on nothing, neither the floor's layer nor under a surface, a stray left out. A
+surface's kind its pooled colour's, a structure's the kind most of its voxels have, its test read on
+those; a thing's box the floor its voxels' points cover, its axes (its turn) and extents those corners',
+its height its voxels', a surface's top its points' (`_box`, `_pieces`); its id the one of the thing it
+shares most voxels with at the look before, else new (`machine.eyes.registry`); `clear` 1.0 where the
+space over its top is seen through - a surface's -, 0.0 a structure's, its top unknown
+(`machine.way.affordance`). Nothing here reads the world's geometry.
 """
 import math
 import os
@@ -38,13 +36,13 @@ from machine.body import figure
 from machine.eyes.grids import convex, grown, joined as _joined
 from machine.world import room
 
-#: Its map: CELL_M voxels over the room's floor (X_M, Z_M), FLOOR_M to CEIL_M high; a voxel is a thing
-#: from TOLD looks with HITS points in it, NEAR_M to FAR_M from the eye; its own radius, inflating what
-#: it plans round (`figure.WIDE_HALF` and half a cell).
+#: The robot's map: CELL_M voxels over the room's floor (X_M, Z_M), FLOOR_M to CEIL_M high; a voxel is a thing from
+#: TOLD looks with HITS points in it, NEAR_M to FAR_M from the eye; its own radius, inflating what it plans round
+#: (`figure.WIDE_HALF` and half a cell).
 CELL_M, X_M, Z_M, FLOOR_M, CEIL_M = 0.1, (-3.5, 3.5), (-2.0, 5.0), 0.08, 2.3
 HITS, TOLD, NEAR_M, FAR_M = 3, 2, 0.7, 3.5
 RADIUS_M = figure.WIDE_HALF + 0.5 * CELL_M
-#: What it may not stand in: a thing over its ankle and under the doorway's top - it steps over
+#: What the robot may not stand in: a thing over its ankle and under the doorway's top - it steps over
 #: lower, walks under higher, pushes the door aside (`route.blocked`).
 STAND_M = (figure.ANKLE_H, 2.0 * room.DOOR[1])
 #: The 26 neighbours' offsets in a voxel grid, one of each pair.
@@ -78,7 +76,7 @@ def lit(c, means):
 
 class Map:
 
-    """Its voxels, `voxel` m a side: each's hits, looks that told it, looks through it, its colour."""
+    """The voxels, `voxel` m a side: each's hits, looks that told it, looks through it, its colour."""
 
     def __init__(self, palette, voxel=CELL_M, after=None):
         self.means_of, self.names, self.voxel = dict(palette), list(palette), voxel
@@ -92,7 +90,7 @@ class Map:
         self.top = np.full(shape, -np.inf)              # each voxel's highest point told, m
         self.moments = np.zeros(shape + (7,))           # each voxel's points' count and sums: x, x^2, z, z^2, y, y^2
         self.looks, self._made = 0, None
-        # ids after `after`'s: its registry matches by id
+        # ids after `after`'s: the registry matches by id
         self._labels, self._ids, self._next = None, [], 1 if after is None else after._next
         self._kept, self._was = {}, {}                  # this look's boxes and pieces by what they are of, the last's
 
@@ -111,9 +109,9 @@ class Map:
         return i, j, k, inside
 
     def add(self, xyz, rgb, eye):
-        """One look into the map: the points `xyz` (n, 3, its estimate's frame) with their colours `rgb`
-        (n, 3) standing between FLOOR_M and CEIL_M, NEAR_M to FAR_M from `eye`; the voxels their rays
-        crossed, free. (n,) each point's voxel in the map's flat order, -1 off it."""
+        """One look into the map: the points `xyz` (n, 3, the estimate's frame) with their colours `rgb` (n, 3)
+        standing between FLOOR_M and CEIL_M, NEAR_M to FAR_M from `eye`; the voxels their rays crossed, free. (n,)
+        each point's voxel in the map's flat order, -1 off it."""
         away = np.linalg.norm(xyz - eye, axis=1)
         ok = (xyz[:, 1] > FLOOR_M) & (xyz[:, 1] < CEIL_M) & (away > NEAR_M) & (away < FAR_M)
         self._seen_through(eye, xyz[ok])
@@ -132,11 +130,11 @@ class Map:
         return flat
 
     def _seen_through(self, eye, xyz, step=0.8):
-        """The voxels each ray from `eye` crossed short of its point by a voxel, `step` voxels a sample, up to
-        the first its map holds occupied - a ray grazing along a wall it has seen stops at it -, counted
-        free once a look; a sample over the highest point a voxel was told (`top`) not through it: a ray over a
-        seat's top in its voxel's air passes what the seat is - a chair's seat 4 cm thick low in its 0.1 m layer,
-        seen from 2.7 m, read as seen through and its seat gone from its map."""
+        """The voxels each ray from `eye` crossed short of its point by a voxel, `step` voxels a sample, up to the
+        first the map holds occupied - a ray grazing along a wall the robot has seen stops at it -, counted free
+        once a look; a sample over the highest point a voxel was told (`top`) not through it: a ray over a seat's
+        top in its voxel's air passes what the seat is - a chair's seat 4 cm thick low in its 0.1 m layer, seen
+        from 2.7 m, read as seen through and its seat gone from the map."""
         step, d = step * self.voxel, xyz - eye
         far = np.linalg.norm(d, axis=1)
         n = int(np.ceil(far.max() / step)) if len(far) else 0
@@ -293,15 +291,15 @@ class Map:
                                   self._kind(piece)[0] if kind is None else kind, piece[1])) for piece in self._pieces(at)]
 
     def _pieces(self, at):
-        """A structure's voxels `at` (index arrays) in pieces, each halved across its footprint's long axis at
-        its mean till its box (`_box`) claims no floor further than a voxel from the cells its voxels stand
-        in. A surface is told whole: its holes are what its eyes missed of a face seen from above. Of its voxels'
-        places alone: kept from its last look where they are the same (`_once`)."""
+        """A structure's voxels `at` (index arrays) in pieces, each halved across its footprint's long axis at its
+        mean till its box (`_box`) claims no floor further than a voxel from the cells its voxels stand in. A
+        surface is told whole: its holes are what the eyes missed of a face seen from above. Of its voxels' places
+        alone: kept from the last look where they are the same (`_once`)."""
         return self._once(('pieces',) + tuple(a.tobytes() for a in at), lambda: self._halved(at))
 
     def _once(self, key, told):
-        """`told()` by `key` - all it is of, to the byte - from its last look's where it was told there, else told now;
-        kept a look on: a thing its look did not reach is of the very voxels and sums it was."""
+        """`told()` by `key` - all it is of, to the byte - from the last look's where it was told there, else told
+        now; kept a look on: a thing the look did not reach is of the very voxels and sums it was."""
         got = self._kept.get(key)
         if got is None:
             got = self._kept[key] = self._was[key] if key in self._was else told()
@@ -339,10 +337,11 @@ class Map:
 
     def _box(self, i, k, j_lo, j_hi, kind, j=None, surface=False):
         """A thing's box of its voxels - in the cells (i, k), levels j_lo to j_hi, each's `j` (j_lo all without) -:
-        its footprint the floor its voxels' points cover, each's mean -+ root 3 sd along x and z (a uniform cover's)
-        held to its cell, its axes the text's fit (`fitted`); its height its levels', a surface's top its points' mean.
-        Of its voxels' places and their points' sums alone: kept from its last look where they are the same (`_once`) -
-        told anew each look its 91 boxes were 51 ms of it, most of things its look had not reached."""
+        its footprint the floor its voxels' points cover, each's mean -+ root 3 sd along x and z (a uniform
+        cover's) held to its cell, its axes the text's fit (`fitted`); its height its levels', a surface's top its
+        points' mean. Of its voxels' places and their points' sums alone: kept from the last look where they are
+        the same (`_once`) - told anew each look the 91 boxes were 51 ms of it, most of things the look had not
+        reached."""
         sums = self.moments[i, np.full(len(i), j_lo) if j is None else j, k]
         key = ('box', i.tobytes(), k.tobytes(), j_lo, j_hi, kind, None if j is None else j.tobytes(), surface, sums.tobytes())
         return self._once(key, lambda: self._boxed(i, k, j_lo, j_hi, kind, surface, sums))
@@ -367,7 +366,7 @@ class Map:
         return (self.names[kind], (float(c[0]), 0.5 * (lo + hi), float(c[1])), (extent[0], 0.5 * (hi - lo), extent[1]), R)
 
     def blocked(self):
-        """The floor's cells it may not stand in: a voxel of a thing within STAND_M over the floor, a
+        """The floor's cells the robot may not stand in: a voxel of a thing within STAND_M over the floor, a
         door's not, grown by its radius; made once a look."""
         things, labels = self.things()
         j = np.arange(self.ny)

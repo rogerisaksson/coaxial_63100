@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
-"""Its numpy compiled to C beside numpy's own (`tools.cores.trace`, `emit`, `held`, `bodied`).
+"""The robot's numpy compiled to C beside numpy's own (`tools.cores.trace`, `emit`, `held`, `bodied`).
 
-numpy's reductions, selections, comparisons and its ties of zeros; its state carried on in place;
-its sensing on its body over random configurations - every array it returns, its data and its
-scratch after, bit for bit, its time and numpy's -; its law's compiled parts at every pass of it as
-it walks; each of the tracer's numpy (RULES), power's fast paths and a singular solve as numpy
-runs them, a part a shape, a method not held left numpy's.
-The regressor's: test_sysid; its law's hand ports: test_ported. Where numpy's arithmetic is not
-this C's (`law.exact_host`), what is not held stays numpy's own."""
+numpy's reductions, selections, comparisons and its ties of zeros; the robot's state carried on in place; its
+sensing on its body over random configurations, bit for bit, its time and numpy's; its law's compiled parts at
+every pass of it as it walks; each of the tracer's numpy (RULES), power's fast paths and a singular solve as numpy
+runs them, a part a shape, a method not held left numpy's. The regressor's: test_sysid; the robot's law's hand
+ports: test_ported. Where numpy's arithmetic is not this C's (`law.exact_host`), what is not held stays numpy's own."""
 import math
 import os
 import sys
@@ -22,7 +20,7 @@ from machine.aircraft import aerobat, helicopter, ornithopter, quad, wingborne
 from gynoid_kit import Report
 from cores_kit import apart
 
-#: Configurations its sensing is held at; the passes of its walk it is held over, its law every third.
+#: Configurations the robot's sensing is held at; the passes of its walk it is held over, its law every third.
 POSES, PASSES = 40, 3000
 #: The robot's data's arrays and its body's scratch compared after each.
 DATA = ('qpos', 'qvel', 'xpos', 'xmat', 'xquat', 'cdof', 'qfrc_bias', 'qfrc_passive', 'subtree_com')
@@ -30,7 +28,7 @@ SCRATCH = ('_M', '_jp', '_jr', '_am')
 
 
 def _configurations(b, rng):
-    """(qpos, qvel): a free joint anywhere and turned anyhow, a hinge within its range, its speeds drawn."""
+    """(qpos, qvel): a free joint anywhere and turned anyhow, a hinge within its range, the robot's speeds drawn."""
     m, free = b.m, int(b.mj.mjtJoint.mjJNT_FREE)
     for _ in range(POSES):
         q, v = np.zeros(m.nq), np.zeros(m.nv)
@@ -47,9 +45,9 @@ def _configurations(b, rng):
 
 
 def _numpys(x, y, m):
-    """numpy's sums along each axis, contiguous and strided, full, its mean, min, max and initial,
-    its products; where, clip, nan_to_num, isnan, its comparisons and logic, its norms; an array of
-    its scalars; a tie of zeros at its maximum and minimum, the sign arctan2 reads."""
+    """numpy's sums along each axis, contiguous and strided, full, mean, min, max and initial, products;
+    where, clip, nan_to_num, isnan, comparisons and logic, norms; an array of the robot's scalars; a tie of
+    zeros at its maximum and minimum, the sign arctan2 reads."""
     with np.errstate(invalid='ignore'):
         roots = np.sqrt(x)
     zero = np.minimum(x, 0.0) * 0.0
@@ -64,7 +62,7 @@ def _numpys(x, y, m):
 
 
 def _carried(st, seen, w, dt):
-    """Its state carried on in place: an array written into, a dict's entry added to and one rebound,
+    """The robot's state carried on in place: an array written into, a dict's entry added to and one rebound,
     a number traced, a constant `dt`, a dict's list pinned."""
     seen[:, :-1], seen[:, -1] = seen[:, 1:].copy(), st['v'][st['ids']] * w
     st['x'] += st['v'] * dt
@@ -72,8 +70,8 @@ def _carried(st, seen, w, dt):
     return st['x'].sum() * w
 
 
-def test_its_state_in_place_in_c(report, c):
-    """`_carried` compiled on its memory (`bodied.on_args`) beside numpy's over 20 calls on copies of
+def test_the_robots_state_in_place_in_c(report, c):
+    """`_carried` compiled on the robot's memory (`bodied.on_args`) beside numpy's over 20 calls on copies of
     one state: its result and every array of its state, bit for bit, the rebound entry the same array."""
     from tools.cores import bodied, trace
     from tools.cores.orders import same
@@ -111,8 +109,8 @@ def test_numpys_reductions_and_selections_in_c(report, c):
         report.check("numpy's reductions, selections and ties of zeros in C bit for bit", False, str(e)[:300])
 
 
-def test_its_sensing_in_c_is_its_numpys(report, c):
-    """`wbc.sense` compiled on its body beside its numpy on a body of its own, over random
+def test_the_robots_sensing_in_c_is_its_numpys(report, c):
+    """`wbc.sense` compiled on the robot's body beside its numpy on a body of its own, over random
     configurations: every array it returns, its data and its scratch after, bit for bit."""
     from machine.stack import wbc
     from tools.cores import bodied, motion, trace, trace_mj
@@ -123,7 +121,7 @@ def test_its_sensing_in_c_is_its_numpys(report, c):
     try:
         shape = sense.wait(b, *configurations[0]).prog.shape
     except (trace.Untraced, AssertionError, RuntimeError, OSError) as e:
-        report.check("its sensing in C held, or numpy's own here", not motion.exact_host(), str(e)[:200])
+        report.check("the robot's sensing in C held, or numpy's own here", not motion.exact_host(), str(e)[:200])
         return
     bad = 0
     for q, v in configurations:
@@ -136,7 +134,7 @@ def test_its_sensing_in_c_is_its_numpys(report, c):
         for q, v in configurations * 25:
             f(b, q, v)
         spent[key] = 1e6 * (time.perf_counter() - t) / (25 * len(configurations))
-    report.check("its sensing in C is its numpy's bit for bit over %d configurations" % len(configurations),
+    report.check("the robot's sensing in C is its numpy's bit for bit over %d configurations" % len(configurations),
                  not bad, "%d apart; %.0f us a call, numpy's %.0f" % (bad, spent['C'], spent['numpy']))
 
 
@@ -152,9 +150,9 @@ def _arrays(args):
 
 
 def _beside(real, fn, twin, tally, at=0):
-    """`real` (Compiled) as its motion pass calls it, built and held at its first call, beside `fn` on
-    copies - its body's `twin` at `at`, its state its own -: its result and its arguments after, bit for
-    bit (`tally`)."""
+    """`real` (Compiled) as the robot's motion pass calls it, built and held at its first call, beside `fn` on
+    copies - the robot's body's `twin` at `at`, its state its own -: its result and arguments after, bit for bit
+    (`tally`)."""
     from tools.cores import trace, trace_mj
 
     def called(*args):
@@ -177,11 +175,10 @@ def _beside(real, fn, twin, tally, at=0):
     return called
 
 
-def test_its_law_in_c_as_it_walks(report, c):
-    """Its motion's compiled parts - its estimate, its sensing, its grip's feel and floor, its
-    situation, its drive's cap, its ask's poses, its sensing flat (`motion.laid`) -
-    at every pass of its motion over PASSES of its walk, built at their first and held there, each
-    beside its numpy on copies."""
+def test_the_robots_law_in_c_as_it_walks(report, c):
+    """The robot's motion's compiled parts - its estimate, its sensing, its grip's feel and floor, its situation,
+    its drive's cap, its ask's poses, its sensing flat (`motion.laid`) - at every pass of its motion over PASSES of
+    its walk, built at their first and held there, each beside its numpy on copies."""
     from machine.senses import estimate, grip, situation, touch
     from machine.law import modal, motion
     from machine.stack import wbc
@@ -201,9 +198,9 @@ def test_its_law_in_c_as_it_walks(report, c):
     for name, tally in tallies.items():
         n, bad, why = tally[0], tally[1], tally[2] or reals[name].why
         if why is not None:
-            report.check("its law's %s in C held, or numpy's own here" % name, not c_motion.exact_host(), str(why)[:200])
+            report.check("the robot's law's %s in C held, or numpy's own here" % name, not c_motion.exact_host(), str(why)[:200])
         else:
-            report.check("its law's %s in C is its numpy's bit for bit at %d of its law's passes walking" % (name, n),
+            report.check("the robot's law's %s in C is its numpy's bit for bit at %d of its law's passes walking" % (name, n),
                          n >= PASSES // 3 - 1 and not bad, '%d apart' % bad)
 
 
@@ -239,14 +236,13 @@ def test_aircraft_substeps_in_c_are_their_numpys(report, c):
                      not bad and comp.c is not None, '%d apart' % bad)
 
 
-#: A constant at matmul, C-ordered: its transpose numpy's TRANS operand, a strided view of it copied
-#: for gemm at matrix @ matrix and numpy's own loop at matrix @ vector; and one solved against.
+#: A constant at matmul, C-ordered, laid as `_laid` says; and one solved against (`_solved`).
 PHI = np.random.default_rng(23).normal(size=(5, 5))
 GRAM = PHI @ PHI.T + np.eye(5)
 
 
 def _equals(x, y):
-    """== and != of its arrays and of a float: where they tie, the zeros' signs and nan apart."""
+    """== and != of the robot's arrays and of a float: where they tie, the zeros' signs and nan apart."""
     return np.where(x == y, x, y), (x != 0.0) * 1.0, (y == y) * 1.0
 
 
@@ -289,27 +285,27 @@ def _within_ulp(a, b):
 
 
 def _powers(x, y, e):
-    """numpy's ** at its fast paths and C's pow at 3 and 1.5; to a number of its state, to an exponent
+    """numpy's ** at its fast paths and C's pow at 3 and 1.5; to a number of the robot's state, to an exponent
     each element's, of a number; a reciprocal."""
     return (x ** 2, x ** -1, x ** 0.5, x ** 2.0, x ** -1.0, x ** 0, x ** 1.0, x ** 3, np.abs(x) ** 1.5,
             np.power(x, 0.5), x ** e, np.abs(x) ** y, 2.0 ** y, np.reciprocal(y))
 
 
 def _fills(x, s):
-    """np.full and np.full_like of a fill of its state, a number and a row broadcast; of a constant."""
+    """np.full and np.full_like of a fill of the robot's state, a number and a row broadcast; of a constant."""
     return (np.full(3, s), np.full((2, 9), x[0]), np.full_like(x, s), np.full_like(x, x[1]) * x,
             np.full((2, 2), 1.5) + s)
 
 
 def _laid(x):
-    """matmul's operands as numpy 2.5 lays them: a constant's transpose (gemm's TRANS, gemv's), a strided
-    constant and a strided view of its own copied for gemm, a strided constant numpy's own loop at a vector."""
+    """matmul's operands as numpy 2.5 lays them: a constant's transpose (gemm's TRANS, gemv's), a strided constant
+    and a strided view of the robot's own copied for gemm, a strided constant numpy's own loop at a vector."""
     return PHI @ x @ PHI.T, x @ PHI[:, ::2], PHI.T @ x[:, 0], PHI[:, ::2].T @ x[:, 1], x[:, ::2].T @ PHI
 
 
 def _nothing(x, e, m):
     """Reductions over none: a sum from zero, a min and a max from their initial, any and all, along an
-    axis of none and across it; beside its array."""
+    axis of none and across it; beside the robot's array."""
     return (e.sum(), e.min(initial=1.5), m.max(axis=0, initial=-2.0), m.any(axis=1), e.any(), e.all(),
             x.sum() + e.sum())
 
@@ -343,7 +339,7 @@ def test_the_tracers_numpy_in_c(report, c):
 
 
 def _raised(x, e, a, b):
-    """x to a power of its state - the fast paths by its value as it runs -, of its base; a solve."""
+    """x to a power of the robot's state - the fast paths by its value as it runs -, of its base; a solve."""
     return x ** e, np.power(e, x), np.linalg.solve(a, b)
 
 
@@ -419,31 +415,31 @@ def _unheld(x, s):
 
 
 def _from_state(x, s):
-    """A reduction from an initial of its state."""
+    """A reduction from an initial of the robot's state."""
     return x.min(initial=s)
 
 
 def test_a_method_not_held_leaves_numpy(report, c):
-    """`_unheld` and `_from_state` on its memory (`bodied.on_args`): Untraced at their trace, no
+    """`_unheld` and `_from_state` on the robot's memory (`bodied.on_args`): Untraced at their trace, no
     AttributeError or ValueError - numpy's own result each call, said once on stderr."""
     import contextlib
     import io
     from tools.cores import bodied, trace
     from tools.cores.orders import same
     x = np.random.default_rng(37).normal(size=6)
-    for label, fn in (('a method not held', _unheld), ('a reduction from its state', _from_state)):
+    for label, fn in (('a method not held', _unheld), ('a reduction from the robot\'s state', _from_state)):
         said = io.StringIO()
         part = bodied.on_args(fn, fn.__name__[1:], (0, 1))
         with contextlib.redirect_stderr(said):
             got = [part(x, 0.5, paced=False) for _ in range(3)]
-        report.check("%s leaves its part numpy's own, said once" % label,
+        report.check("%s leaves the robot's part numpy's own, said once" % label,
                      all(same(g, fn(x, 0.5)) for g in got) and part.c is None and isinstance(part.why, trace.Untraced)
                      and not isinstance(part.why, AttributeError) and said.getvalue().count('stays numpy') == 1,
                      '%s; %r' % (type(part.why).__name__, said.getvalue().strip()[:120]))
 
 
-ROSTER = (test_numpys_reductions_and_selections_in_c, test_its_state_in_place_in_c, test_its_sensing_in_c_is_its_numpys,
-          test_its_law_in_c_as_it_walks, test_aircraft_substeps_in_c_are_their_numpys, test_the_tracers_numpy_in_c,
+ROSTER = (test_numpys_reductions_and_selections_in_c, test_the_robots_state_in_place_in_c, test_the_robots_sensing_in_c_is_its_numpys,
+          test_the_robots_law_in_c_as_it_walks, test_aircraft_substeps_in_c_are_their_numpys, test_the_tracers_numpy_in_c,
           test_powers_and_a_singular_solve_as_numpy_runs_them, test_a_part_a_shape, test_a_method_not_held_leaves_numpy)
 
 

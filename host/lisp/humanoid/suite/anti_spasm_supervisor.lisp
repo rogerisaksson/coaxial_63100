@@ -36,9 +36,11 @@
       ;; Hard slew-rate & jerk limiter on output torque command (dTau/dt, d2Tau/dt2)
       (limit-torque-transients
         :max-torque-slew-nmps :drive-current-loop ; each drive's peak x 2 pi x its current loop's bandwidth:
-                                          ; 850 N m/s felled its walk, its law asks hips 10 kN m/s at p99
+                                          ; 850 N m/s felled the robot's walk, its law asks hips 10 kN
+                                          ; m/s at p99
         :max-jerk-radps3 :drive-current-loop ; each drive's slew over its rotor's inertia: 12000
-                                          ; ramped its law's 3 ms asks out - on stilts, 465 J/m
+                                          ; ramped the robot's law's 3 ms asks out - on stilts, 465
+                                          ; J/m
         :clip-topology :cubic-soft-knee)))
 
 ;; -----------------------------------------------------------------------------
@@ -95,8 +97,8 @@
         :torque-deadzone-window-nm 0.85
         :crossing-slew-attenuation 0.35   ; Slow down torque reversal across the gear/tendon gap
         :co-contraction-bias-nm :none)))  ; one reversible drive a joint, both ways: no antagonist to
-                                          ; pull against; 1.2 N m in the command's sign sat it on one
-                                          ; sole and it fell rising from the chair
+                                          ; pull against; 1.2 N m in the command's sign sat the robot
+                                          ; on one sole and it fell rising from the chair
 
 ;; -----------------------------------------------------------------------------
 ;; 5. PORT-HAMILTONIAN PASSIVITY OBSERVER / CONTROLLER (ENERGY-TANK LIMITER)

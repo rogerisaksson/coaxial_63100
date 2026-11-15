@@ -5,16 +5,18 @@ host/
   motor/            a PMSM: model, catalog, loads, identification; imports nothing here
   machine/          the executive: actuators over IO nodes, programs, any board family
   coaxial/          the Coaxial63100 inverter; Coaxial63100 (rig.py) is the front door
-  coaxial_mcp/      MCP server: the board as fourteen tools over stdio
+  coaxial_mcp/      MCP server: the board as sixteen tools over stdio
   coaxial_ollama/   the local-model runner, and what dbg.py drives
   board_chat.ps1    preflight + prompt loop; board_chat/ holds its parts
   dbg.py            the prompt loop one layer down: /py and /sh cost no tokens
   testline/         production line: plans and their limits
   examples/         read_board.py (measure, judge nothing),
                     pytest_production_line.py (where limits belong)
-  tests/            twenty-five suites; run_tests.ps1 is the interface
+  tests/            the suites, a script each; run_tests.ps1 is the interface
   terminal/         python -m terminal: the front page, pages/, views/ (show_*.py)
-  tools/            scripts by function: dev target bench thermal render sim notebooks
+  tools/            scripts by function: dev target bench thermal render sim cores emu notebooks
+  lisp/             the robot's and the crafts' texts: humanoid/, aircraft/
+  gcode/            the takes as G-code (`machine.texts.gcode`)
   data/             run transcripts, created on first run
 ```
 
@@ -30,13 +32,13 @@ for board in boards:
 disconnect(boards)
 ```
 
-`Coaxial63100` is the front door for one board - the AFE preflight, the
-supply put back as found, the subsystems by name (`.daq`, `.imu`, `.angle`,
-`.thermal`, `.gates`, `.drive`). Its example is in [../README.md](../README.md);
-the notebooks are `../notebook_examples/`. `pip install -e host/` makes the
-packages importable anywhere and hands out `coaxial`, `coaxial-dbg` and
-`coaxial-mcp` as commands; `pyproject.toml` reads its dependencies from
-`requirements.txt`, so the two cannot drift. From a shell:
+`Coaxial63100` is the front door for one board - the AFE preflight, the supply
+put back as found, the subsystems by name (`.daq`, `.imu`, `.angle`, `.thermal`,
+`.gates`, `.drive`). The front door's example is in
+[../README.md](../README.md); the notebooks are `../notebook_examples/`.
+`pip install -e host/` makes the packages importable anywhere and hands out
+`coaxial`, `coaxial-dbg` and `coaxial-mcp` as commands; `pyproject.toml` reads
+its dependencies from `requirements.txt`, so the two cannot drift. From a shell:
 
 ```text
 python -m coaxial all
@@ -80,8 +82,8 @@ run is refused until somebody clears it by hand.
 
 `daq.enable()` powers AFE_ON, which powers the converter's REFERENCE and
 not only the signal path: off, every channel reads exact mid-scale and the
-NTC exactly 25.00 C - plausible, and not a measurement. It is on the
-acquisition rather than on `afe` because the rail is REFERENCE COUNTED -
+NTC exactly 25.00 C - plausible, and not a measurement. The enable is on
+the acquisition rather than on `afe` because the rail is REFERENCE COUNTED -
 taken here it is released when the session closes, Ctrl+C included, while
 `board.afe.on()` takes one that nothing gives back.
 
@@ -113,12 +115,12 @@ bench without it: `columns()` is a dict of plain lists, which is what
 `DataFrame` takes anyway.
 
 `notebook_examples/motion.ipynb` needs no board at all: the 5230SL and an
-APC20x10E from rest to 6717 rpm and back on a raised-cosine profile, the
-power budget split into propeller, iron, copper and the rotor's own borrowed
-energy, and the model laid back over Hobbywing's 22-point thrust stand. It
+APC20x10E from rest to 6717 rpm and back on a raised-cosine profile, the power
+budget split into propeller, iron, copper and the rotor's own borrowed energy,
+and the model laid back over the maker's 22-point thrust stand. The notebook
 then closes `coaxial.model.blocks`'s chain over the same motor - reference,
-d-axis probe, speed PI, current PI - and `identify` (`motor.sysid`) pulls R,
-Ld, Lq and lambda back out of the run, uncertainties attached.
+d-axis probe, speed PI, current PI - and `identify` (`motor.sysid`) pulls R, Ld,
+Lq and lambda back out of the run, uncertainties attached.
 
 `notebook_examples/drive.ipynb` compiles the firmware's own control law and
 searches its tuning against thousands of drawn plants across the 23-63 V link
@@ -166,7 +168,7 @@ RECORDS. With a broker in the path that is the BROKER'S ring, and every
 client on it - another process, another thread, a view and a chat session
 at once - reads that one ring from its own cursor without taking records
 from the others. A reader lapped by the writer is told how many it lost in
-`buffered()['lost']`; a gap nobody counted is the one outcome a shared ring
+`buffered['lost']`; a gap nobody counted is the one outcome a shared ring
 must not have.
 
 `catalogue()` is the board's own list - analog channels and sampled pins
@@ -181,7 +183,7 @@ firmware the rows are listed and refused with the reason.
 queue it fills, so the loop body costs the link nothing. Every read answers
 its own backlog, so pacing costs no extra round trip. `daq.buffered` is
 both ends: `{'host', 'peak', 'dropped', 'backlog', 'reads', 'records',
-'rate'}`.
+'rate', 'lost', 'cursor'}`.
 
 ## Two rules the library keeps
 
@@ -190,36 +192,35 @@ both ends: `{'host', 'peak', 'dropped', 'backlog', 'reads', 'records',
 list knows every board in it answered.
 
 **Scaling comes from the board.** Every conversion lives in the calibration
-record (`0x6E` device 3, invariant 7 in [../CLAUDE.md](../CLAUDE.md));
-`board.analog.scaling()` reads it and the cooked reads use it. `NtcParams`
-and `DividerParams` (`scaling.py`) override it for a fixture with a
-calibrated meter - an argument, not new firmware.
+record (`0x6E` device 3); `board.analog.scaling()` reads it and the cooked reads
+use it. `NtcParams` and `DividerParams` (`scaling.py`) override it for a fixture
+with a calibrated meter - an argument, not new firmware.
 
 ## Tests
 
 ```text
 .\run_tests.ps1                 # ~25 % of every check, the default
 .\run_tests.ps1 -All            # the gate
-.\run_tests.ps1 -Structure      # does host/ still hold together - 4 s
+.\run_tests.ps1 -Structure      # the structure family: host/, the tree, the mirrors, the wire
 python examples/read_board.py   # the board, read end to end
 ```
 
-The suites and their sizes are listed in [../CLAUDE.md](../CLAUDE.md#commands).
-A missing cable is not a failing suite: every one opens through
-`open_session()` and falls back to the stand-in.
+The suites are `tests/`, their work `tests/work.json`. A missing cable is not a
+failing suite: every one opens through `open_session()` and falls back to the
+stand-in.
 
 ## MCP server
 
 ```text
 python -m coaxial_mcp --port COM4        # stdio JSON-RPC
-python tests/test_mcp.py                 # 46 checks, drives it over stdio
+python -X utf8 tools/dev/run_tests.py --file test_mcp.py   # drives it over stdio
 ```
 
-`../.mcp.json` registers it for this workspace. Fourteen tools, not one per
+`../.mcp.json` registers it for this workspace. Sixteen tools, not one per
 firmware command, because the whole tool list is re-read on every turn:
 `board_info`, `docs`, `self_test`, `analog_read`, `afe_power`, `devices`,
 `digital_read`, `imu`, `angle`, `orientation`, `gpio_pin`, `gpio_port`,
-`test_gate`, `link`.
+`test_gate`, `thermal`, `program`, `link`.
 
 Results are dense fixed-column text rather than JSON. Measured on the
 seven-tool server, the same seven-channel reading:
@@ -250,7 +251,7 @@ shell:
 ```text
 python -m coaxial_ollama --plan coaxial_ollama/plans/bringup.yaml
 python -m coaxial_ollama --ask "what does the NTC read right now?"
-python tests/test_ollama_tools.py    # 218 checks: no board, no ollama
+python -X utf8 tools/dev/run_tests.py --file test_ollama_tools.py   # no board, no ollama
 ```
 
 The model measures; it is never told the limit and never asked for a
@@ -286,7 +287,7 @@ Where the tokens went, measured on this tree:
 | `dbg --tools none` | ~110 |
 
 Five choices, no magic: a seventy-token system prompt, a tool subset
-(`--tools read|code|pins|build|docs|all|none`), `--words` capping the
+(`--tools read|code|pins|build|motion|docs|all|none`), `--words` capping the
 answer, `think` off where the model supports it, and old tool results
 stubbed to their first line. Cost is tracked, not printed: `/cost` and
 `/ctx` show it, `--budget N` stops the session there.

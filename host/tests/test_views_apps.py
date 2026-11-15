@@ -23,10 +23,10 @@ def drawn_lit(laid):
 
 def test_each_page_comes_to_its_own(report):
     """The atlas's ties from symbol to symbol (tools/dev/atlas_calls.py) take a page's `run` to what it calls,
-    none to the menu that starts every page nor to what a module imported runs as a script: its pass's makers all
-    the robot's, its law, stack and senses its own alone; the crafts' own the flyers' and theirs alone, none of them
-    coming to its law; each craft's loop - the tick its view gives its runner, the sky and law it steps -
-    in its system (terminal/views/atlas/apps.py, tools/dev/atlas_flow.py)."""
+    none to the menu that starts every page nor to what a module imported runs as a script: the robot's pass's
+    makers all the robot's, its law, stack and senses its own alone; the crafts' own the flyers' and
+    theirs alone, none of them coming to its law; each craft's loop - the tick its view gives its runner,
+    the sky and law it steps - in its system (terminal/views/atlas/apps.py, tools/dev/atlas_flow.py)."""
     import ast
     from terminal.views.atlas import apps, scene
     from tools.dev import atlas_calls, atlas_flow, atlas_tree
@@ -36,13 +36,13 @@ def test_each_page_comes_to_its_own(report):
     menu = any('host/terminal/menu.py::main' in keys for keys in reached.values())
     makers = {tree.up[n] for n in atlas_flow.makers(tree).values() if n >= 0}
     own = {scene.short(tree, f): {scene.short(tree, p) for p in ps} for f, ps in served.items()}
-    its_own = {f: own[f] for f in ('law/', 'stack/', 'senses/')}
+    robot_own = {f: own[f] for f in ('law/', 'stack/', 'senses/')}
     crafts = own.get('aircraft/', set())
-    report.check("a page's run to what it calls, none to the menu; its pass's makers the robot's, its law, "
+    report.check("a page's run to what it calls, none to the menu; the robot's pass's makers the robot's, its law, "
                  "stack and senses its own alone", sum(map(len, tree.calls.values())) > 10000 and not menu
-                 and makers <= systems[robot] and all(ps == {'humanoid.py'} for ps in its_own.values()),
-                 '%d ties; menu reached %s; its own %s' % (sum(map(len, tree.calls.values())), menu, its_own))
-    report.check("the crafts' own the flyers' alone, none of them coming to its law",
+                 and makers <= systems[robot] and all(ps == {'humanoid.py'} for ps in robot_own.values()),
+                 '%d ties; menu reached %s; the robot\'s own %s' % (sum(map(len, tree.calls.values())), menu, robot_own))
+    report.check("the crafts' own the flyers' alone, none of them coming to the robot's law",
                  crafts == {scene.short(tree, p) for p in flyers}
                  and not any(f in systems[p] for p in flyers for f, ps in served.items() if robot in ps and len(ps) == 1),
                  'aircraft/ %s' % sorted(crafts))
@@ -112,8 +112,8 @@ def test_the_tree_grows_as_a_tree(report):
     the flyers' on aircraft/ -, a page's own on its twig, the page at its tip; no pillar of layers; grown as a tree
     - each bough out of its stem at its step, along the stem's way there, the leader straight on, each other with
     its chord at Murray's angle, round the stem by the golden angle from the last -, in the world: three-
-    dimensional, the same from every side. Its keys the nodes named in view, the nearest the middle first, in
-    reading order, PGDN the next, a turn of the view taking them anew; the folders grown in a zoom key's step
+    dimensional, the same from every side. The atlas's keys the nodes named in view, the nearest the middle first,
+    in reading order, PGDN the next, a turn of the view taking them anew; the folders grown in a zoom key's step
     nearer than the frame; a page's key lighting its way, its folders and the forks on its way named; BKSP back to
     the terminal; A the layers and back."""
     import math
@@ -261,11 +261,11 @@ def test_the_tree_grows_as_a_tree(report):
 
 def test_the_dataflow_draws_one_system(report):
     """D turns the page to one system's dataflow (show_atlas.py, atlas/apps.py, atlas/mirror.py), titled DATAFLOW
-    and the system, each its own loop the same way: with none chosen the robot's - its pass and what comes back of
-    it, the wire -, every flow between its files, a node opening to its parts alone, the robot's executive to its
-    folders, no craft's; D again the next page's, each craft's the tick its view flies - the aerobat's on its own
-    sky and law, handed on to the helicopter's tick -, none of its pass; a branch chosen, its pages' together;
-    M back to the tree."""
+    and the system, each its own loop the same way: with none chosen the robot's - its pass and what comes
+    back of it, the wire -, every flow between its files, a node opening to its parts alone, the robot's executive
+    to its folders, no craft's; D again the next page's, each craft's the tick its view flies - the
+    aerobat's on its own sky and law, handed on to the helicopter's tick -, none of the robot's pass; a branch
+    chosen, its pages' together; M back to the tree."""
     from terminal.ui import bindings
     from terminal.views import show_atlas
     from terminal.views.atlas import apps, nested, scene
@@ -297,7 +297,7 @@ def test_the_dataflow_draws_one_system(report):
         seen[name] = (set(loop) <= set(flow) and not streams & set(flow) and show_atlas.placed(state)['reach'] == theirs
                       and all(a in theirs and b in theirs for a, b, _k, _l in flow), len(flow))
     sky = {tree.id[n] for a, b, _k, _l in ticks['host/terminal/views/aerobat/flight.py::flown'] for n in (a, b)}
-    report.check("D again each craft's: the loop of the tick its view flies, none of its pass, every flow between "
+    report.check("D again each craft's: the loop of the tick its view flies, none of the robot's pass, every flow between "
                  "its files - the aerobat's on its own sky", sorted(seen) == sorted(FLYERS) and all(ok for ok, _n in seen.values())
                  and 'host/machine/aircraft/aerobat/sky.py' in sky and 'host/machine/aircraft/helicopter/sky.py' not in sky,
                  str(seen))

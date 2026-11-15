@@ -15,8 +15,8 @@ def built():
 
 
 def opened(depth):
-    """(the atlas's tree, the page's state, [the nodes opened]): the robot chosen (`down_to`), the heaviest of its
-    folders keyed opened in the tree, then for each depth more its first child keyed that holds any."""
+    """(the atlas's tree, the page's state, [the nodes opened]): the robot chosen (`down_to`), the heaviest of the
+    robot's folders keyed opened in the tree, then for each depth more its first child keyed that holds any."""
     from terminal.ui import bindings
     from terminal.views import show_atlas
     from terminal.views.atlas import subtree

@@ -1,7 +1,7 @@
-"""Its drives' pass whole in C (wbc_pass_tick): its surety, the step, its clamps, its WEP in one call.
+"""The robot's drives' pass whole in C (wbc_pass_tick): its surety, the step, clamps, WEP in one call.
 
-    g['tick'] = tick.laid(g, hop_k, wep_s, wep_fill)    # on its law's laid g: its drives and surety field
-    motion.drives(g, dt, g['tick'][:2])                 # a pass, its rest told it (`se2.limp`)
+    g['tick'] = tick.laid(g, hop_k, wep_s, wep_fill)    # on the robot's law's laid g: its drives and surety field
+    motion.drives(g, dt, g['tick'][:2])                 # a pass, the robot's rest told it (`se2.limp`)
 
 `machine.law.motion.drives_twin`'s arithmetic, Python's floats and numpy's arrays operation for operation (test_tick):
 its python was 32 us a 1 kHz pass, 24 of them around its two C calls.
@@ -18,7 +18,8 @@ _d, _vp = ctypes.c_double, ctypes.c_void_p
 
 class Tick(ctypes.Structure):
 
-    """wbc_tick_t: its drives' pass, pointing at its law's arrays, its drives' step and its surety field."""
+    """wbc_tick_t: the robot's drives' pass, pointing at its law's arrays, its drives' step and its
+    surety field."""
 
     _fields_ = [('drives', _vp), ('imp', _vp), ('field', _vp), ('rng', _vp), ('kept', _vp), ('limit', _vp),
                 ('hop_k', _d), ('wep_s', _d), ('wep_fill', _d), ('surety', _d), ('left', _d), ('vec', _d * 5)]
@@ -36,8 +37,9 @@ def _typed():
 
 
 def laid(g, hop_k, wep_s, wep_fill):
-    """(its address, the pass, the struct, its surety's vec viewed) on its law's laid `g`: its drives' step
-    (`g['drives']`), surety field (`g['surety_field']`), setpoints' ranges, the step's clamps and those told."""
+    """(its address, the pass, the struct, its surety's vec viewed) on the robot's law's laid `g`: its drives'
+    step (`g['drives']`), surety field (`g['surety_field']`), setpoints' ranges, the step's clamps and those
+    told."""
     p, kept, _step = g['drives']
     imp, field, _s = g['surety_field'].laid
     t = Tick(drives=ctypes.addressof(p), imp=imp, field=field, rng=wbc.pointer(g['rng']),

@@ -1,6 +1,6 @@
-/** wbc_stride.c - under the ask (wbc_imp.h): machine.law.modal's reading of it, machine.law.stride's
-    beat, landings, rocks and heels - numpy's arithmetic operation for operation (wbc_np.h). Its soles'
-    boxes and stance are wbc_poise.c's. Portable C11, the host's alone. */
+/** wbc_stride.c - under the ask (wbc_imp.h): machine.law.modal's reading of the robot, machine.law.stride's
+    beat, landings, rocks and heels - numpy's arithmetic operation for operation (wbc_np.h). The
+    robot's soles' boxes and stance are wbc_poise.c's. Portable C11, the host's alone. */
 #include "wbc_imp.h"
 #include "wbc_stride.h"
 #include "wbc_np.h"
@@ -21,7 +21,7 @@ void wbc_imp_shares(const wbc_imp_t *k, const double stance[2], double bears[2])
   }
 }
 
-/** machine.law.modal.shortened: its axial compression and its rate. */
+/** machine.law.modal.shortened: the robot's axial compression and its rate. */
 void wbc_imp_shortened(const wbc_imp_t *k, const double len[2], const double rate[2], const double *fr,
                       const double stance[2], double axial[2])
 {
@@ -32,7 +32,7 @@ void wbc_imp_shortened(const wbc_imp_t *k, const double len[2], const double rat
   axial[1] = -wbc_dot(&k->blas, w, 1, rate, 1, 2) / (k->axial_m * fr[k->f_hips_by]);
 }
 
-/** machine.law.modal.under: the floor under each sole's middle, its rise along its way. */
+/** machine.law.modal.under: the floor under each sole's middle, its rise along the robot's way. */
 double wbc_imp_under(const wbc_imp_t *k, const double *y, const double *fr, const double stance[2], double floors[2])
 {
   const double rr[2] = {fr[k->f_rot], fr[k->f_rot + 2]};
@@ -60,8 +60,9 @@ double wbc_imp_under(const wbc_imp_t *k, const double *y, const double *fr, cons
   return rise;
 }
 
-/** machine.law.modal.reading: its modes and their rates as it is, its legs (each hip from its
-    ankle (2, 3), its length, that's rate), its turns and their rates (3, 2). */
+/** machine.law.modal.reading: the robot's modes and their rates as it is, its legs
+    (each hip from its ankle (2, 3), its length, that's rate), the robot's turns and their rates (3,
+    2). */
 void wbc_imp_reading(const wbc_imp_t *k, const double *y, const double *fr, const double stance[2], double *z,
                     double *zd, double leg[2][3], double len[2], double lrate[2], double turn[3][2],
                     double spun[3][2])
@@ -251,7 +252,8 @@ void wbc_imp_meets(const wbc_imp_t *k, const double xi[2], const double c[3], co
     const double m0 = xi[0] - ((k->land_share * ((cruise * step_s) / (grown - 1.0)) - led) + 0.0 * k->limbs[b]);
     const double m1 = xi[1] - ((-led_lat) - (k->limbs[b] * wide) / (grown + 1.0));
 
-    /* its own side of the other sole as that sole was planted, on its way as it lay then (machine.law.stride.meets) */
+    /* its own side of the other sole as that sole was planted, on the robot's way as it lay then
+     * (machine.law.stride.meets) */
     meet[b][0] = c[0] + npclip(m0 - c[0], -reach, reach);
     {
       const double side = flat[1 - b][1] + (flat[1 - b][0] - meet[b][0]) * tan(planted[1 - b]);
@@ -376,7 +378,7 @@ void wbc_imp_vaults(const wbc_imp_t *k, const double leg[2][3], const double len
                     double hips_by, double low, const double high[2], const double reach_h[2], const double duck[2],
                     const double heeled[2], const double striding[2], double asked, double kp, double kd, double risen[2])
 {
-  /* and only while its drive is asked: none asked, the leg rolls over on the arc */
+  /* and only while the robot's drive is asked: none asked, the leg rolls over on the arc */
   const double     push = 1.0 - (double)(fabs(asked) <= k->tiny);
   const wbc_view_t lv = {&leg[0][0], 3, 1}, av = {along, 1, 1};
   double           las[2];

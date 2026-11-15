@@ -37,17 +37,16 @@ ten times the flight's:
 - A rotor's speed for a current without its own friction (0.49 N m of 2.04
   at 612 rad/s): asked 659 where it held 612, the tilt had no rotor to
   answer with and stood 19 deg off late in the climb.
-- A board's loop winds no further than its drive carries of the current it
-  asks: the clamp with its derate, and what the link's volts leave
-  (`drive_room`, `machine.aircraft.pull.room`'s); `SpeedPI`'s sum and its drag's
-  current, and `PI`'s sum, stay inside that (`ctrl_loop_step`). Wound, full tilt's loops
-  asked 58-62 A of boards holding 45-49: a rotor's ask fell 39 rad/s in
-  0.18 s before its current did, the four 5.2-10.5 A apart and the frame
-  9.4-15.2 deg off at the most in six airs; told, 4.4-5.9 A and 8.3-12.4
-  deg in eight. On 44 V, asked 60 rad/s past its link's top, a rotor's
-  current fell 0.42 s after its ask began to, the ask 66 rad/s under its
-  speed; told, 0.12 s, the ask 20 over it yet. The laps wind none: their
-  race is the same to its last digit.
+- A board's loop winds no further than its drive carries of the current it asks:
+  the clamp with its derate, and what the link's volts leave (`drive_room`,
+  `machine.aircraft.pull.room`'s); `SpeedPI`'s sum and its drag's current, and
+  `PI`'s sum, stay inside that (`ctrl_loop_step`). Wound, full tilt's loops
+  asked 58-62 A of boards holding 45-49: a rotor's ask fell 39 rad/s in 0.18 s
+  before its current did, the four 5.2-10.5 A apart and the frame 9.4-15.2 deg
+  off at the most in six airs; told, 4.4-5.9 A and 8.3-12.4 deg in eight. On 44
+  V, asked 60 rad/s past its link's top, a rotor's current fell 0.42 s after its
+  ask began to, the ask 66 rad/s under its speed; told, 0.12 s, the ask 20 over
+  it yet. The laps wind none: their race is the same to its last digit.
 
 ## The race on it
 
@@ -103,8 +102,8 @@ against the law on a stand-in (`test_quad_pull.py`):
   takes 20 % of its charge where 8, 67 A at the most, the bus to 57.5 V;
   the routine 12 %, full tilt 129 A and 56.3 V.
 - A lap turns its rotors 517 rad/s at the most, their currents at the clamp
-  in their spools: it is flown on their reach, not their top. Its plan's
-  pull is the clamp's, 703.3 rad/s on any charge, and a row's reach the
+  in their spools: it is flown on their reach, not their top. The lap's
+  plan's pull is the clamp's, 703.3 rad/s on any charge, and a row's reach the
   link's. Planned on the pack's top it slowed as the pack emptied: 14.6 and
   15.1 s, 15.2 and 15.5 from 60 %.
 - The race on it, 12 flights: 28.94 where 29.09, a gate's frame 0.05-0.18 m
@@ -141,10 +140,11 @@ they looked ahead with (`quad.Sky.ahead`, a second world).
   0.6-0.8 s a flight, SOA 0.60-0.68.
 - The power loop's catch (204) on WEP's clamp: 70 A where 61, over to 171
   degrees where 164, caught in 0.50 s where 0.46.
-- Toasty, 45 C: boards configure their thermal situation and idle warm-up in room
-  ambient before lifting; warmed at idle on the floor, steady-state hold is 57.7 A,
-  under the 60 A flight clamp. `flight.shell` fit evaluates False, holding the frame
-  safely cooling on the floor instead of lifting into a dive strike.
+- Toasty, 45 C: boards configure their thermal situation and idle warm-up in
+  room ambient before lifting; warmed at idle on the floor, steady-state hold is
+  57.7 A, under the 60 A flight clamp. `flight.shell` fit evaluates False,
+  holding the frame safely cooling on the floor instead of lifting into a dive
+  strike.
 
 ## The lift and the burn
 

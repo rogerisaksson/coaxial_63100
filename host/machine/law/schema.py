@@ -1,19 +1,21 @@
-"""Its shield (proprioceptive_body_schema.lisp): capsules' ECBF on each other; the room's boxes.
+"""The robot's shield (proprioceptive_body_schema.lisp): capsule ECBF on each other; the room's boxes.
 
-    posture, held = schema.shielded(body, near, s, ask, volts)    # its posture holding each near pair's ECBF
+    posture, held = schema.shielded(body, near, s, ask, volts)    # the robot's posture holding each near pair's ECBF
     boxes = schema.room(props)                                    # the room's boxes, laid once a refresh
 
-Its posture's ask (its law's lowest row, `wbc.POSTURE_KD`: the null space of its balance and its steps)
-is held to h'' + k_d h' + k_p h >= 0 on each pair of its capsules (`machine.body.capsules`) within the text's
-influence (`specialize-with-nullspace-limb-retraction`), h its clearance less its floor and its braking
-distance v^2 / (2 a) within the cocoon's horizon - v its closing speed, a the most its drives' braking
-bounds (`machine.body.bemf`) can open it by through its mass matrix -, on the pair's evading joints, least in
-its mass's metric, each within its drive's peak; what they cannot is the shield's spill.
+The robot's posture's ask (its law's lowest row, `wbc.POSTURE_KD`: the null space of the robot's
+balance and its steps) is held to h'' + k_d h' + k_p h >= 0 on each pair of its capsules
+(`machine.body.capsules`) within the text's influence (`specialize-with-nullspace-limb-retraction`), h its
+clearance less its floor and its braking distance v^2 / (2 a) within the cocoon's horizon - v its closing
+speed, a the most the robot's drives' braking bounds (`machine.body.bemf`) can open it by through the robot's
+mass matrix -, on the pair's evading joints, least in its mass's metric, each within its drive's peak;
+what they cannot is the shield's spill.
 
-The room: each prop a box (`world.props()` through its map, `machine.eyes.registry`), its wayfinder's gauge's
-(`machine.way.wayfinder`). Its arms' ECBF against them through their elbows alone (the text's limb synergy
-it has) spared no strike at a doorway's jamb and halved its shoulder's yield after it: not held; the
-text's holds its trunk by its balance bus and its legs by its footholds.
+The room: each prop a box (`world.props()` through the robot's map, `machine.eyes.registry`), its wayfinder's
+gauge's (`machine.way.wayfinder`). The robot's arms' ECBF against them through their elbows alone (the text's
+limb synergy it has) spared no strike at a doorway's jamb and halved its shoulder's yield after
+it: not held; the text's holds the robot's trunk by its balance bus and its legs by the
+robot's footholds.
 """
 import os
 
@@ -32,23 +34,23 @@ _SHIELD = kernel.node('xform-universal-spatial-awareness', 'ecbf-shield')
 KP, KD = _SHIELD['position-gain-kp'], _SHIELD['velocity-gain-kd']
 #: A pair's clearance past its floor under which the shield holds it, m.
 INFLUENCE = RETRACTION['activation-distance-m']
-#: A shortfall's weight against its posture's change in its mass's metric, kg: what its evading joints
+#: A shortfall's weight against the robot's posture's change in its mass's metric, kg: what its evading joints
 #: cannot meet within their peaks is left as the shield's spill.
 SPILL_KG = 1e6
 #: The braking distance's horizon, s (`extrude-velocity-braking-cocoon`).
 HORIZON = kernel.node('xform-universal-spatial-awareness', 'braking-cocoon')['lookahead-s']
-#: The bands' refresh, s: its things read so often.
+#: The bands' refresh, s: the robot's things read so often.
 REFRESH_S = 1.0 / kernel.node('configure-foliated-sdf-bands', 'sdf-bands')['refresh-rate-hz']
 
 
 def room(props):
     """{centre (C, 3), half (C, 3), R (C, 3, 3)} of the room's boxes `props` (`world.props()`'s: kind,
-    centre, half sizes, rotation), laid once per list: its things change at REFRESH_S, its law passes
+    centre, half sizes, rotation), laid once per list: the robot's things change at REFRESH_S, its law passes
     oftener; its registry's things (`registry.Things`) laid off the arrays they keep. Laid to a doubling's
     capacity C - the least power of two that holds them, the last of them told again for the rest: a gap among
-    them is a least and an any (`wayfinder.gap`), the same with a box told twice, and its gauge's C is one a
-    capacity where it was one a count - its eyes' things told 25 counts in a door errand, each traced and held anew,
-    15 ms."""
+    them is a least and an any (`wayfinder.gap`), the same with a box told twice, and the robot's gauge's C is one a
+    capacity where it was one a count - the robot's eyes' things told 25 counts in a door errand, each traced and
+    held anew, 15 ms."""
     if _LAID.get('of') is not props:
         if getattr(props, 'arrays', None) is not None:
             centre, half, R = props.arrays[:3]
@@ -67,7 +69,7 @@ _LAID: dict = {}
 
 
 def braking(J, M, act, dq, volts):
-    """The most each row of `J` can be opened by, m/s^2: its drives' bounds at their speeds `dq` on
+    """The most each row of `J` can be opened by, m/s^2: the robot's drives' bounds at their speeds `dq` on
     `volts` (`bemf.bounds`) through its mass matrix `M`, each drive at the bound that opens it."""
     lo, hi = bemf.bounds(dq, volts, bemf.PEAK)
     C = np.linalg.solve(M, J.T)[act].T
@@ -75,9 +77,9 @@ def braking(J, M, act, dq, volts):
 
 
 def _evaded(M, J, act, free, short):
-    """(x, held): the change on its evading joints `free` of `act` and each row's spill meeting `short`
-    through `J`, least in its mass's metric `M`, each joint within its drive's peak over its own
-    inertia; the rows `qp.solve` held, x zeros where none meets it."""
+    """(x, held): the change on the robot's evading joints `free` of `act` and each row's spill meeting
+    `short` through `J`, least in its mass's metric `M`, each joint within its drive's peak over its
+    own inertia; the rows `qp.solve` held, x zeros where none meets it."""
     k, f = len(short), len(free)
     Jf, Mf = J[:, act[free]], M[np.ix_(act[free], act[free])]
     top = np.asarray(bemf.PEAK)[free] / np.diag(Mf)
@@ -89,13 +91,14 @@ def _evaded(M, J, act, free, short):
 
 
 def shielded(body, near, s, ask, volts, shield_=None):
-    """(its posture's ask, {d, h, which, held, spill}): `ask['posture']` changed on the text's evading
+    """(the robot's posture's ask, {d, h, which, held, spill}): `ask['posture']` changed on the text's evading
     joints of the pairs within INFLUENCE of their floors (EVADES), least in its mass's metric, each
     joint within its drive's peak over its own inertia, so that each pair keeps h'' + KD h' + KP h >= 0
     - h its clearance less its floor and its braking distance -, what it cannot its spill (m/s^2);
     `near` every pair's clearance and its Jacobian at `s` (`capsules.felt`); each pair's clearance,
     the near ones' h, the pairs it held. Every pair's h and shortfall at once (`shield`, `shield_` its C,
-    `machine.law.motion.laid`); a near one short, the QP's (`_shielded`), else its posture as asked."""
+    `machine.law.motion.laid`); a near one short, the QP's (`_shielded`), else the robot's posture as
+    asked."""
     act, posture = body.act, np.asarray(ask['posture'], float)
     which = np.flatnonzero(near['d'] - FLOOR < INFLUENCE)
     h, short = (shield if shield_ is None else shield_)(near['d'], near['J'], s['M'], s['v'], s['q'], posture, volts,
@@ -108,8 +111,9 @@ def shielded(body, near, s, ask, volts, shield_=None):
 
 
 def shield(d, J, M, v, q, posture, volts, act):
-    """Each pair's h and its ECBF's shortfall (`_shielded`'s), of arrays alone: its drives' braking bounds
-    (`bemf.bounds`) through its mass matrix, the pair's closing speed, its posture's want on its joints `act`."""
+    """Each pair's h and its ECBF's shortfall (`_shielded`'s), of arrays alone: the robot's drives' braking
+    bounds (`bemf.bounds`) through its mass matrix, the pair's closing speed, its posture's want
+    on its joints `act`."""
     back, peak = bemf.E * v[act], _PEAK
     lo = np.maximum(-peak, np.minimum(0.0, bemf.K * (-(bemf.REACH * volts) - back)))
     hi = np.minimum(peak, np.maximum(0.0, bemf.K * (bemf.REACH * volts - back)))

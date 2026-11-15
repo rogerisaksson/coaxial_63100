@@ -1,6 +1,6 @@
-/** wbc_world.c - its world's steps on the host (wbc_world.h): World.advance's arithmetic between MuJoCo's steps,
-    its gearboxes' with it, numpy's operation for operation and its own tanh; MuJoCo's contacts read off its data
-    through its own headers. The host's alone. */
+/** wbc_world.c - the robot's world's steps on the host (wbc_world.h): World.advance's arithmetic between MuJoCo's steps,
+    its gearboxes' with it, numpy's operation for operation and its own tanh; MuJoCo's contacts read off
+    its data through its own headers. The host's alone. */
 #include "wbc_world.h"
 #include "wbc_np.h"
 
@@ -139,7 +139,7 @@ void wbc_world_before(wbc_steps_t *s, double since)
   }
 }
 
-/* dclink.step: the link a step on under its drives' torques at their joints' speeds */
+/* dclink.step: the link a step on under the robot's drives' torques at their joints' speeds */
 static void linked(wbc_steps_t *s)
 {
   const wbc_world_t *p = s->pass;

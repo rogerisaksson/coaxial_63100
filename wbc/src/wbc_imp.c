@@ -1,4 +1,4 @@
-/** wbc_imp.c - its modes' springs on its body (wbc_imp.h): machine.law.impedance.ask, machine.law.modal's
+/** wbc_imp.c - the robot's modes' springs on its body (wbc_imp.h): machine.law.impedance.ask, machine.law.modal's
     reading under it (wbc_stride.c, wbc_poise.c, wbc_poses.c, wbc_floor.c, wbc_swing.c), numpy's arithmetic operation for
     operation (wbc_np.h) - the ask the same bit for bit. Portable C11, the host's alone. */
 #include "wbc_imp.h"
@@ -44,7 +44,8 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   wbc_mv(&k->blas, rot, 3, 3, y + k->y_vhead, vh);
   om = sqrt(k->g / npmax(c[2] - fr[k->f_floor], k->low_m));
   om2 = pow(om, 2.0);
-  /* how far round its rhythm a limb swings this pass: its drive's pace within its going's band (stride.swings) */
+  /* how far round the robot's rhythm a limb swings this pass: its drive's pace within its going's band
+   * (stride.swings) */
   phi_w = wbc_imp_swing_w(k, sway[k->drive], turns, a[k->a_going]);
   wbc_mm3(&k->blas, y + k->y_vsole, 2, rot, 1, &shod[0][0]);
   wbc_mm3(&k->blas, y + k->y_sole, 2, rot, 1, &sr[0][0]);
@@ -58,9 +59,9 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   xi[1] = c[1] + v[1] / om;
   wbc_imp_boxes(k, flat, edge0, tilt, low, high);
   rise = wbc_imp_under(k, y, fr, stood, floors);
-  /* what bears it off its soles, on its support's comparator (wbc_latched.c) */
+  /* what bears the robot off its soles, on its support's comparator (wbc_latched.c) */
   propped = wbc_imp_latched(k, y, fr, rot, a, plo, phig);
-  /* the lift's own rhythm is its stride's clearance */
+  /* the lift's own rhythm is the robot's stride's clearance */
   {
     const double beat = psi[k->lift];
 
@@ -78,7 +79,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   {
     up[b] = k->limbs[b] * s.ref[k->lift];
   }
-  /* its capture point past the soles that stood steps it; still, past those not lifting */
+  /* the robot's capture point past the soles that stood steps it; still, past those not lifting */
   still = 1.0 - npclip(sqrt(wbc_dot(&k->blas, sway, 1, sway, 1, n)) / k->tiny, 0.0, 1.0);
   edge0[0] = 0.0 * a[k->a_edge];
   edge0[1] = 0.0 * a[k->a_edge + 1];
@@ -173,12 +174,14 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     limbs[b] = npmax(stepping, off[b]);
   }
   cruise = wbc_imp_cruises(k, way, sway[k->drive], turns, a[k->a_going], phi_w);
-  /* its soles land for its cruise while its drive is asked, for none once it is let go (machine.law.impedance) */
+  /* the robot's soles land for its cruise while its drive is asked, for none once it is let go
+   * (machine.law.impedance) */
   pace = cruise * (double)(fabs(asked[k->drive]) > k->tiny);
   lat_dc = stepping * lat0;
   across = 2.5 * lat_dc;
-  /* still, its head's speed past its centre of mass's, shrunk where it is small, and its
-     height's spring lifted by what its speed off its rhythm's asks */
+  /* still, the robot's head's speed past its centre of mass's, shrunk where it is small,
+     and the robot's height's spring lifted by what its speed off its rhythm's asks
+     */
   {
     const double dv2 = pow((v[0] - cruise) - k->half_m * s.rate[k->sagittal], 2.0)
                        + pow((v[1] - across) - fr[k->f_w0] * s.rate[k->lateral], 2.0);
@@ -218,7 +221,8 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
       s.hands[6 * m + i] = k->hands[6 * m + i] * fr[k->f_unit + m];
     }
   }
-  /* its limbs' places as its modes ask them; their sum's acceleration is its centre of mass's */
+  /* the robot's limbs' places as its modes ask them; their sum's acceleration is its centre of
+   * mass's */
   npein(n, s.hands, zdd, e, k->blas.einsum[1]);
   both[0] = ((0.0 + e[0]) + e[3]) / 2.0;
   both[1] = ((0.0 + e[1]) + e[4]) / 2.0;
@@ -247,13 +251,14 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     wbc_imp_stands(k, zmp, xi, low, high, om, out[k->o_held], up_h, swaying, beat4, bears3, y[k->y_vcom + 1],
                    y[k->y_prop] * fr[k->f_weight], stood, prop, propped, stance);
   }
-  /* a leg let go as its release has it (machine.moves.emancipation): its foot then a contact (machine.senses.borne) */
+  /* a leg let go as the robot's release has it (machine.moves.emancipation): its foot then a contact
+   * (machine.senses.borne) */
   for (int b = 0; b < 2; b++)
   {
     stance[b] *= 1.0 - a[k->a_let_go + b];
   }
   grounded = npmax(npmax(stance[0], stance[1]), propped);
-  /* it flies: thrown, none standing, going up or no sole lying on the floor (swing.flew) */
+  /* the robot flies: thrown, none standing, going up or no sole lying on the floor (swing.flew) */
   for (int b = 0; b < 2; b++)
   {
     lies[b] = (double)((y[k->y_lowest + b] - floors[b] <= k->touch_m) && (shod[b][2] >= -k->rest_m_s));
@@ -295,7 +300,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
       a[k->a_settle + 6 * b + 3 + j] = rr[b][j];
     }
   }
-  /* up as its height's spring asks of its standing legs' length */
+  /* up as the robot's height's spring asks of its standing legs' length */
   len2[0] = len[0] + adj[0];
   len2[1] = len[1] + adj[1];
   wbc_imp_shortened(k, len2, lrate, fr, stance, axial);
@@ -329,7 +334,8 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
                  duck, rocked, striding, asked[k->drive], s.kp[ax], s.kd[ax], risen);
   smax = npmax(stance[0], stance[1]);
   {
-    /* its standing legs' geometry sets its height only while nothing else bears it (machine.law.impedance) */
+    /* the robot's standing legs' geometry sets its height only while nothing else bears it
+     * (machine.law.impedance) */
     const double upright = smax * (1.0 - propped);
 
     lifted = ((upright * wbc_dot(&k->blas, bears, 1, risen, 1, 2)) / fr[k->f_hips_by]) - ((1.0 - upright) * k->axial_m) * pressed;
@@ -338,7 +344,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   com[1] = grounded * along[1] + (1.0 - grounded) * k->falls[1];
   com[2] = grounded * npclip(lifted, -k->g, k->throw_m_s2) + (1.0 - grounded) * k->falls[2];
   wbc_imp_lates(k, phi, turns, stepping, phi_w, late);
-  /* what a sole met its swings clear, for a turn of its rhythm */
+  /* what a sole met the robot's swings clear, for a turn of its rhythm */
   a[k->a_raise] -= ((fr[k->f_dt] * turns) / (2.0 * PI)) * a[k->a_raise];
   for (int b = 0; b < 2; b++)
   {
@@ -358,8 +364,9 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     }
   }
   wbc_imp_swings(k, y, fr, v, om, shod, floors, rise, &s, clear, stance, pace, grounded, propped, loose, frame);
-  /* aloft its stride is the sole's further on its swing; thrown - its support asked none - the sole's that was off
-     as the other left the floor with its centre going up, kept till one stands (stride.flown) */
+  /* aloft the robot's stride is the sole's further on its swing; thrown - the robot's support asked none - the
+     sole's that was off as the other left the floor with its centre going up, kept till one stands
+     (stride.flown) */
   {
     double flown[2];
 
@@ -369,7 +376,8 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
       strides[b] = limbs[b] * npmax(grounded, flown[b]);
     }
   }
-  /* the sole that trails it hangs: nothing asked of it along its way, up the floor's alone and never down (swing.hung) */
+  /* the sole that trails it hangs: nothing asked of it along the robot's way, up the floor's alone and never down
+   * (swing.hung) */
   for (int b = 0; b < 2; b++)
   {
     const double hang = npmaximum(s.kp[k->free_by[2]] * (lift2[b] - (y[k->y_lowest + b] - floors[b])) - s.kd[k->free_by[2]] * shod[b][2] + k->g, 0.0);
@@ -410,8 +418,9 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     /* its height's ask on over a swing's rise too, a sole that is no swing whole (stride.eased) */
     const double ease = npclip(u[b] / k->rise_u, 0.0, 1.0);
     const double eased = (1.0 - off[b]) + off[b] * (((ease * ease) * ease) * (10.0 + ease * (6.0 * ease - 15.0)));
-    /* thrown, the sole that leads its stride lands at the floor's speed: its landing carried on as long as its
-       height has left to fall at its centre's speed up, and it damped to the floor (swing.hung) */
+    /* thrown, the sole that leads the robot's stride lands at the floor's speed: its landing carried on as
+       long as its height has left to fall at the robot's centre's speed up, and it damped to the floor
+       (swing.hung) */
     const double leads = flew * strides[b];
     const double left = npmax((v[2] + sqrt(v[2] * v[2] + (2.0 * k->g) * npmax(y[k->y_lowest + b] - floors[b], 0.0))) / k->g, k->soon_s);
 
@@ -438,7 +447,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   for (int b = 0; b < 2; b++)
   {
     /* a swing's pitch asked by how far up its rise it is, a sole that is no swing whole (stride.eased); the
-     * sole that trails its stride aloft hangs level (swing.hung) */
+     * sole that trails the robot's stride aloft hangs level (swing.hung) */
     const double ease = npclip(u[b] / k->rise_u, 0.0, 1.0);
     const double eased = (1.0 - off[b]) + off[b] * (((ease * ease) * ease) * (10.0 + ease * (6.0 * ease - 15.0)));
     const double level = 1.0 - trails[b];

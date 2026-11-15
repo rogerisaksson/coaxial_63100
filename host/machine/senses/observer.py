@@ -1,27 +1,29 @@
 """The robot's generalized momentum observer: the external force on it, blind.
 
-    obs = momentum.laid(body)              # its patches' points laid once, the observer at rest
+    obs = momentum.laid(body)              # the robot's patches' points laid once, the observer at rest
     observer.felt(obs, y, dt)              # each drive pass: its drives' torques taken (`edge.TAU`)
     observer.step(obs, s, qpos, dt)        # each law pass on its law's sense and estimate: r, its patches
     obs['r'], obs['normal']                # the external force on its dofs; each manifold's, N (MANIFOLDS)
 
-The residual of its momentum over a law pass, M (v - v') / dt + h - S'tau - its pelvis's linear
-acceleration its IMU's, tau its drives' mean over it and their friction -, low-passed at the kernel's bandwidth
-(`configure-momentum-observer`), is J'f: the external force on it and what its body does to itself. Split by least
-squares over pushes alone (wbc_gmo.c, Lawson-Hanson), so it always sums to its whole body's balance and nothing pulls:
+The residual of the robot's momentum over a law pass, M (v - v') / dt + h - S'tau - its pelvis's linear
+acceleration its IMU's, tau its drives' mean over it and their friction -, low-passed at the kernel's
+bandwidth (`configure-momentum-observer`), is J'f: the external force on the robot and what its body does to
+itself. Split by least squares over pushes alone (wbc_gmo.c, Lawson-Hanson), so it always sums to the robot's whole
+body's balance and nothing pulls:
 - its registry's points (`anatomical-manifold-registry`): a sole's four corners in its law's pyramid (`wbc.MU`), its
   seat, thighs and palms pressed up its IMU's vertical, the rest along their own normals;
-- a joint on its stop pushed off it; two of its capsules touching pushed apart;
+- a joint on its stop pushed off it; two of the robot's capsules touching pushed apart;
 - a joint's row within its friction's band read as friction (`collapse-static-equilibrium-innovation`);
-- a point off its soles its comparator has not felt joining only where its soles cannot bear it;
+- a point off the robot's soles its comparator has not felt joining only where its soles cannot bear it;
 - its hands on a floor bearing it in the same pyramid;
-- what none of it can tell, its soles their last pass's and the rest gravity's prior over its points
+- what none of it can tell, the robot's soles their last pass's and the rest gravity's prior over its points
   (`regularize-manifold-simplex-with-priors`): upright, low and still bears, its weight's share each; a point
   moving past its grip's slip neither shares nor is free (`gate-supports-by-stillness`), its speed the least of
-  its own and against its text's slide (`slide`, `motion`): the floor scoot's stroke slid its seat at 0.62 m/s,
-  its seat weighed 0 under its told 0.41 and its legs stood it up off it.
-The floor scoot's squat, its knees on their stops (17-25 N m) and its thighs on its belly (330-760 N): a sole a free
-wrench read 72-143 N on its butt with none there and its soles pulling to -1 365 N. Blind: no skin, no load cell.
+  its own and against the robot's text's slide (`slide`, `motion`): the floor scoot's stroke slid its seat at 0.62 m/s,
+  its seat weighed 0 under its told 0.41 and the robot's legs stood it up off it.
+The floor scoot's squat, the robot's knees on their stops (17-25 N m) and its thighs on its belly (330-760 N): a
+sole a free wrench read 72-143 N on its butt with none there and its soles pulling to -1 365 N. Blind: no skin, no
+load cell.
 """
 import functools
 import os
@@ -41,10 +43,10 @@ from tools.cores.wbc import address
 #: The robot's manifolds, the registry's; its forefeet's, of its soles' points.
 MANIFOLDS = tuple(kernel.read()['anatomical-manifold-registry'])
 EQUINUS = MANIFOLDS.index('metatarsal-equinus-bilateral')
-#: Its drives' friction its loss (`drives.backdrive`, as its model has it) times tanh(v / SLIP_RAD_S)
-#: (the text's Stribeck). Measured on MuJoCo's: 0.42 of the loss at 3-10 mrad/s, 0.65 at 10-30, 0.85 at
-#: 30-100, 0.97 past; unmodelled, its soles' 1.8 m s^-2 walking read 19.5 N light and its seat 44 N
-#: borne, modelled 3.3 and 27.
+#: The robot's drives' friction its loss (`drives.backdrive`, as the robot's model has it) times tanh(v /
+#: SLIP_RAD_S) (the text's Stribeck). Measured on MuJoCo's: 0.42 of the loss at 3-10 mrad/s, 0.65 at 10-30,
+#: 0.85 at 30-100, 0.97 past; unmodelled, the robot's soles' 1.8 m s^-2 walking read 19.5 N light and its seat
+#: 44 N borne, modelled 3.3 and 27.
 SLIP_RAD_S = 0.03
 _UP, _BACK = (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)
 #: The robot's soles alone bearing it, as its rows' manifolds weigh (`ortho.MANIFOLDS`).
@@ -70,7 +72,7 @@ def _behind(part, k):
 
 
 def _thigh():
-    """A thigh's underside where the seat's patch ends ahead of the buttocks (`cop-bounds-mm`), on its
+    """A thigh's underside where the seat's patch ends ahead of the buttocks (`cop-bounds-mm`), on the robot's
     thigh's capsule, sat: pressed up from behind it."""
     r, mid = _capsule('thigh', 0)
     ahead = kernel.read()['anatomical-manifold-registry']['ischial-bilateral']['cop-bounds-mm']['x'][1] / 1e3
@@ -78,7 +80,7 @@ def _thigh():
 
 
 def _hip(x):
-    """A hip's outermost point on its pelvis, its trochanter's pad (`figure.PADS`), `x` 1 the left."""
+    """A hip's outermost point on the robot's pelvis, its trochanter's pad (`figure.PADS`), `x` 1 the left."""
     _p, axis, radius, toward, size, _w = [p for p in PADS if p[0] == 'pelvis'][-1]
     c = pad(axis, radius, toward, size, x)
     return (c[0] + x * size, c[1], c[2])
@@ -97,10 +99,10 @@ def _forearm():
 #: its segment, the point, its outward normal, in the segment's frame. Each sole's corners
 #: (`wbc.CORNERS`); the toes' underside; each buttock's; each thigh's
 #: back where the seat's patch ends ahead of the buttocks and the back's begins below the sacrum -
-#: its own, and sat pressed up its pelvis (the seat's), lain pressed along its back (the back's) -;
-#: each hip's side, pressed in; the sacrum, the lumbar and thoracic back and the skull's, pressed
-#: forward; each palm's heel, pressed up its arm, a brace's or a shove's; each forearm's front by its
-#: wrist, pressed back, a shove's.
+#: its own, and sat pressed up the robot's pelvis (the seat's), lain pressed along its back (the
+#: back's) -; each hip's side, pressed in; the sacrum, the lumbar and thoracic back and the skull's, pressed
+#: forward; each palm's heel, pressed up its arm, a brace's or a shove's; each forearm's front by its wrist,
+#: pressed back, a shove's.
 _SEAT, _LAIN = ('ischial-bilateral', 'pelvis', _UP), ('dorsal-supine-continuum', 'pelvis', _BACK)
 POINTS = tuple((((m, seg if frame is None else frame, n if axis is None else axis),) if isinstance(m, str) else m,
                 seg, p, n) for m, frame, axis, seg, p, n in (
@@ -123,14 +125,15 @@ POINTS = tuple((((m, seg if frame is None else frame, n if axis is None else axi
      'right_hand', _PALM, _UP),
     ('ulnar-carpal-shove-bilateral', None, None, 'left_forearm', _forearm(), (0.0, 0.0, -1.0)),
     ('ulnar-carpal-shove-bilateral', None, None, 'right_forearm', _forearm(), (0.0, 0.0, -1.0))))
-#: Its soles' segments, their corners pressing in its law's pyramid. Its other points press along one direction: in
-#: a pyramid its butt's and thighs' friction read its chair's sit 0 N on its soles bearing 110-130, its toes' its
-#: forefeet 142 N off walking.
+#: The robot's soles' segments, their corners pressing in its law's pyramid. The robot's other points press along
+#: one direction: in a pyramid its butt's and thighs' friction read its chair's sit 0 N on its soles bearing
+#: 110-130, its toes' its forefeet 142 N off walking.
 SOLED = ('left_foot', 'right_foot')
 
 
 def _pyramid(n):
-    """Its law's pyramid's four edges about the normal `n`: n and MU along its two tangents either way."""
+    """The robot's law's pyramid's four edges about the normal `n`: n and MU along its two tangents either
+    way."""
     n = np.asarray(n, float)
     t1 = np.cross(n, (1.0, 0.0, 0.0) if abs(n[0]) < 0.5 else (0.0, 1.0, 0.0))
     t1 /= np.linalg.norm(t1)
@@ -139,27 +142,28 @@ def _pyramid(n):
 
 
 PYRAMID = _pyramid(_UP)
-#: Gravity's prior where its rows cannot tell (the kernel's text): its tie-break, of its split's largest curvature;
-#: a point's pushes' cosine with the vertical in it; its height over its lowest point in it, m. Tied to none, its
-#: straight legs read 17 N on its butt standing and its hips' sides squeezed 231-899 N.
+#: Gravity's prior where the robot's rows cannot tell (the kernel's text): its tie-break, of the robot's split's
+#: largest curvature; a point's pushes' cosine with the vertical in it; its height over the robot's lowest point in
+#: it, m. Tied to none, the robot's straight legs read 17 N on its butt standing and its hips' sides squeezed
+#: 231-899 N.
 _PRIOR = 'regularize-manifold-simplex-with-priors'
 FLOOR, UPRIGHT_COS, REACH_M = (kernel.said(_PRIOR, k) for k in ('min-prior-floor-mg-ratio', 'gravity-alignment-beta',
                                                                 'height-reach-m'))
 #: A support stands still: a point moving past this, m/s, takes no prior share and is not free (the kernel's
-#: `gate-supports-by-stillness`): a hand it lifts or a sole in swing does not bear it.
+#: `gate-supports-by-stillness`): a hand the robot lifts or a sole in swing does not bear it.
 STILL_M_S = kernel.said('gate-supports-by-stillness', 'support-slip-mps')
-#: The manifolds whose points bear on a support under it, pressed up the world's vertical (its IMU's), not their
-#: segment's: its palms' along its arm read 0 N of their 120-158 sat on the floor leaning back.
+#: The manifolds whose points bear on a support under the robot, pressed up the world's vertical (its IMU's),
+#: not their segment's: its palms' along its arm read 0 N of their 120-158 sat on the floor leaning back.
 UPRIGHT = ('ischial-bilateral', 'posterior-femoral-bilateral', 'palmar-carpal-bilateral')
-#: Its hands on a floor bear it as its soles do, in its law's pyramid up the vertical: pressing up alone, the floor
-#: scoot's strokes read their 171-248 N on its seat, its 0 N.
+#: The robot's hands on a floor bear it as its soles do, in its law's pyramid up the
+#: vertical: pressing up alone, the floor scoot's strokes read their 171-248 N on its seat, its 0 N.
 HANDED = ('palmar-carpal-bilateral',)
 #: Each point's pushes: its pyramid's edges, else its normal.
 EDGES = tuple(PYRAMID if seg in SOLED or sh[0][0] in HANDED else (_UP,) if sh[0][0] in UPRIGHT else (n,)
               for sh, seg, _p, n in POINTS)
 
 
-#: Its rows' manifolds (`ortho.MANIFOLDS`) among the observer's; the text's comparators on each,
+#: The robot's rows' manifolds (`ortho.MANIFOLDS`) among the observer's; the text's comparators on each,
 #: of its weight (`latch-hysteretic-contact`): engaged at, released under, held below that long,
 #: none released before so long engaged; its weights' slews up and down, a second
 #: (`bind-wrench-driven-homotopy`).
@@ -171,10 +175,11 @@ UP, DOWN = (kernel.said('bind-wrench-driven-homotopy', k) for k in ('slew-rate-u
 
 
 def said(told):
-    """`told` (`latent.MANIFOLDED`) as its law takes it: each manifold's share of what is told; nothing told
-    (its rest), its soles alone. Told anew only as `told`'s bits change (`_SAID`), a copy each read: its law's
-    pass, its legs' gate and settle and its referee read it of the same `told`, four times a law pass; traced
-    (`tools.cores.trace`, a compiled part's), numpy's expression as it reads."""
+    """`told` (`latent.MANIFOLDED`) as the robot's law takes it: each manifold's share of what is told;
+    nothing told (the robot's rest), its soles alone. Told anew only as `told`'s bits change
+    (`_SAID`), a copy each read: the robot's law's pass, its legs' gate and settle and the robot's
+    referee read it of the same `told`, four times a law pass; traced (`tools.cores.trace`, a compiled
+    part's), numpy's expression as it reads."""
     if type(told) is not np.ndarray:
         total = told.sum()
         return np.where(total > 0.0, told / np.maximum(total, TINY), SOLES)
@@ -192,8 +197,8 @@ _SAID: list = [None, None]
 @functools.cache
 def parts(m):
     """Each manifold's bodies of `m` (ROWS' order): its points' segments (POINTS), a whole arm where one of its
-    segments is among them (`touch.ARMS`), and their children: lain back onto its forearm, its hands told, it was
-    called fallen."""
+    segments is among them (`touch.ARMS`), and their children: lain back onto the robot's forearm, the robot's
+    hands told, it was called fallen."""
     found = [{m.body(seg).id for shares, seg, _p, _n in POINTS if MANIFOLDS[r] in {s[0] for s in shares}} for r in ROWS]
     arms = [{m.body(edge.SKIN[i]).id for i in arm} for arm in touch.ARMS]
     found = [ids.union(*(arm for arm in arms if arm & ids)) for ids in found]
@@ -206,11 +211,11 @@ def unborne(m, on, down):
 
 
 def weighed(obs, told, weight, dt):
-    """(its rows' manifolds,) what bears it as its law takes it, `dt` s on: each manifold its
-    rows tell weighed as told where its comparator (ENGAGE, RELEASE, DWELL_S, BLANK_S) feels it -
-    its normal force of its `weight` -, gated up at UP and down at DOWN a second; what a manifold
-    not felt was told, its soles'. Nothing told (its rest), its soles alone; told, they bear it as
-    told; a seat pulled away weighs nothing at once."""
+    """(the robot's rows' manifolds,) what bears it as its law takes it, `dt` s on: each
+    manifold the robot's rows tell weighed as told where its comparator (ENGAGE, RELEASE, DWELL_S,
+    BLANK_S) feels it - its normal force of the robot's `weight` -, gated up at UP and down at DOWN a second;
+    what a manifold not felt was told, its soles'. Nothing told (the robot's rest), its soles alone;
+    told, they bear it as told; a seat pulled away weighs nothing at once."""
     told = said(told)
     n = obs['normal'][ROWS] / weight
     latched = obs['latched']
@@ -228,9 +233,9 @@ def weighed(obs, told, weight, dt):
 
 
 def skin(world, y):
-    """(MANIFOLDS,) its skin's push on each manifold, N, the truth its observer is blind to: each
-    segment's touch (`edge.TOUCH`) along each of its points' manifolds' normals (POINTS), once a
-    segment and normal."""
+    """(MANIFOLDS,) the robot's skin's push on each manifold, N, the truth its observer is blind to:
+    each segment's touch (`edge.TOUCH`) along each of its points' manifolds' normals (POINTS), once a segment
+    and normal."""
     pushed, m, xmat = y[edge.TOUCH].reshape(-1, 3), world.model, world.data.xmat
     world_of = lambda seg: xmat[m.body(seg).id].reshape(3, 3) @ pushed[edge.SKIN.index(seg)]
     out, seen = np.zeros(len(MANIFOLDS)), set()
@@ -241,7 +246,8 @@ def skin(world, y):
             along = float(force @ (xmat[m.body(frame).id].reshape(3, 3) @ np.array(axis)))
             out[MANIFOLDS.index(manifold)] += 0.0 if key in seen else max(0.0, along)
             seen.add(key)
-    # its forefeet: its toes' push and of each sole's the share its touch's centre has gone to its ball
+    # the robot's forefeet: its toes' push and of each sole's the share its touch's centre has gone to
+    # its ball
     at = y[edge.AT].reshape(-1, 3)
     for side in ('left', 'right'):
         foot, toes = edge.SKIN.index(side + '_foot'), edge.SKIN.index(side + '_toes')
@@ -252,10 +258,11 @@ def skin(world, y):
 
 
 def named(g):
-    """Its observer this pass, named: by manifold (MANIFOLDS) its normal force and its skin's (`skin`), N;
-    by its rows' (`ortho.MANIFOLDS`) what is told, what it weighs, latched and its gate (`weighed`); each
-    point pushing or with gravity's prior on it - its manifold, segment, place, push and prior, N, speed,
-    m/s, gated -; the corners its barrier holds it over (`barrier.barred`)."""
+    """The robot's observer this pass, named: by manifold (MANIFOLDS) its normal force and the robot's skin's
+    (`skin`), N; by its rows' (`ortho.MANIFOLDS`) what is told, what it weighs, latched and its
+    gate (`weighed`); each point pushing or with gravity's prior on it - its manifold, segment, place, push
+    and prior, N, speed, m/s, gated -; the corners the robot's barrier holds it over
+    (`barrier.barred`)."""
     obs, rows = g['observer'], len(ortho.MANIFOLDS)
     normal, truth = obs['normal'], skin(g['world'], g['sense'])
     pushes = np.add.reduceat(obs['f'][:obs['pushes']], obs['cols'])
@@ -271,30 +278,31 @@ def named(g):
 
 
 def bearing(obs):
-    """(k, 3) the points that press on a manifold its comparator feels, world: what bears it besides
+    """(k, 3) the points that press on a manifold the robot's comparator feels, world: what bears it besides
     its soles."""
     pushed = np.add.reduceat(obs['f'][:obs['pushes']], obs['cols']) > 0.0
     return obs['points'][obs['skin'] & (obs['latched'] > 0.5)[obs['row']] & pushed]
 
 
-#: Its IMU's quaternion, its specific force and its drives' torques: bytes into its edge's array.
+#: The robot's IMU's quaternion, its specific force and the robot's drives' torques: bytes into its
+#: edge's array.
 _QUAT, _ACCEL, _TAU = (8 * part.start for part in (edge.QUAT, edge.ACCEL, edge.TAU))
 
 
 def felt(obs, y, dt):
-    """A drive pass `dt` of its edge's array `y` into the law pass's sums: its drives' torques, its
+    """A drive pass `dt` of the robot's edge's array `y` into the law pass's sums: its drives' torques, its
     pelvis's acceleration (its IMU's specific force turned to the world, gravity added)."""
     at = address(y)
     obs['felt'](obs['at'], at + _QUAT, at + _ACCEL, at + _TAU, dt)
 
 
 def step(obs, s, qpos, dt):
-    """A law pass on its law's sense `s` (`wbc.sense`) at its estimate `qpos`: r, f and each
-    manifold's normal force, a point off its soles not felt - none of its manifolds latched by its
-    comparator (`weighed`) - joining the split only where its soles and what it feels cannot bear it;
-    its drives' sums emptied."""
+    """A law pass on the robot's law's sense `s` (`wbc.sense`) at its estimate `qpos`: r, f and each
+    manifold's normal force, a point off its soles not felt - none of its manifolds latched by the
+    robot's comparator (`weighed`) - joining the split only where its soles and what it feels
+    cannot bear it; its drives' sums emptied."""
     latched = obs['latched'].tobytes()
-    if obs['gated_of'][0] != latched:     # its gate of its comparator's latches alone: told anew as they change
+    if obs['gated_of'][0] != latched:     # the robot's gate of its comparator's latches alone: told anew as they change
         obs['gated'][:] = ~obs['soled'] & (obs['latch_of'] @ (obs['latched'] > 0.5) == 0.0)
         obs['gated_of'][0] = latched
     v, base, u = s['v'], obs['base'], obs['u']
@@ -312,10 +320,10 @@ _HEEL = 2 * len(EDGES[0])
 
 
 def forefoot(f, feet):
-    """(its forefeet's push (`metatarsal-equinus-bilateral`), each sole's and its toes' push (2,)), N, of
-    the points' forces `f` - each foot's first corner's and toes' columns `feet`: the forefeet each toes'
-    and of each sole's push the share its centre of pressure has gone from the sole's middle to its ball,
-    its ball's corners' push less its heel's."""
+    """(the robot's forefeet's push (`metatarsal-equinus-bilateral`), each sole's and its toes' push (2,)), N,
+    of the points' forces `f` - each foot's first corner's and toes' columns `feet`: the forefeet each toes'
+    and of each sole's push the share its centre of pressure has gone from the sole's middle to its ball, its
+    ball's corners' push less its heel's."""
     out, soles = 0.0, np.zeros(2)
     for k, (sole, toes) in enumerate(feet):
         heel, ball = f[sole:sole + _HEEL].sum(), f[sole + _HEEL:sole + 2 * _HEEL].sum()

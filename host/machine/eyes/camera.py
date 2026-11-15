@@ -1,15 +1,17 @@
 """The robot's fake camera: its eye's frames shot and its map kept in a process of its own.
 
-A look's frame (`sight.Eyes.stereo`) its two eyes drawn and matched on the card - its stereo's disparity, not
-the renderer's depth (`sight.Eyes.shot`'s) -; its map and its things (`sight.Keep`); both off its loop, in `python -m
-machine.eyes.camera` - a process beside its own (`machine.process.aside`) -, on its model as its world holds it (MuJoCo's
-binary, sent as its camera starts: its renderer laid beside its laying) posed as its world's last step
-left it (POSES) and laid as its scene lays it (PLACED): the same pixels, its renderer drawing the same looks in turn.
-Shot in its loop, a look's two renders were 17 ms of it and its frame 615 KB down the pipe. A look's things reach it
-a look later, LOOK_S, whatever the wall's pace: its loop waits on the camera only when it is slower than that.
+A look's frame (`sight.Eyes.stereo`) the robot's two eyes drawn and matched on the card - its stereo's
+disparity, not the renderer's depth (`sight.Eyes.shot`'s) -; its map and its things (`sight.Keep`);
+both off the robot's loop, in `python -m machine.eyes.camera` - a process beside its own
+(`machine.process.aside`) -, on its model as its world holds it (MuJoCo's binary, sent as the
+robot's camera starts: its renderer laid beside the robot's laying) posed as its world's last step
+left it (POSES) and laid as the robot's scene lays it (PLACED): the same pixels, its renderer drawing the same
+looks in turn. Shot in the robot's loop, a look's two renders were 17 ms of it and its frame 615 KB down the
+pipe. A look's things reach the robot a look later, LOOK_S, whatever the wall's pace: its loop waits
+on the camera only when it is slower than that.
 
-    cam = Camera(world)                  # its eyes and its map apart, its model sent them as they boot
-    cam.ready()                          # its renderer laid: waited for once, before its first pass (`worker.readied`)
+    cam = Camera(world)                  # the robot's eyes and its map apart, its model sent them as they boot
+    cam.ready()                          # its renderer laid: waited for once, before the robot's first pass (`worker.readied`)
     cam.look(world, t, head)             # LOOK_S apart: the last look's things taken, this one's world sent
     things = cam.told()                  # [(kind, centre, half, turn, id, clear)] as `sight.told`'s
     t, head, gz = cam.shown              # the time, its head and its gaze they were shot at, a look before
@@ -24,20 +26,23 @@ from machine.process import aside, placed
 from machine.eyes import sight
 from machine.errors import MachineError
 
-#: What MuJoCo's scene reads of its world's data as its eyes draw it (`sight.Eyes`): its bodies', geoms', sites',
-#: cameras', lights' and tendons' poses as its world's last step left them - copied into a data of their own, the
-#: same pixels.
+#: What MuJoCo's scene reads of the robot's world's data as its eyes draw it (`sight.Eyes`): the robot's
+#: bodies', geoms', sites', cameras', lights' and tendons' poses as its world's last step left them -
+#: copied into a data of their own, the same pixels.
 POSES = ('xpos', 'xquat', 'xmat', 'geom_xpos', 'geom_xmat', 'site_xpos', 'site_xmat', 'cam_xpos', 'cam_xmat',
          'light_xpos', 'light_xdir', 'ten_wrapadr', 'ten_wrapnum', 'wrap_obj', 'wrap_xpos', 'ten_length')
-#: What its scene's laying writes into its model as it runs (`floor.lay`): its geoms' sizes and places.
+#: What the robot's scene's laying writes into its model as it runs (`floor.lay`): its geoms'
+#: sizes and places.
 PLACED = ('geom_size', 'geom_pos')
-#: What its map apart says once warm (`main`): no things, no view, no looks, no floor - its own till its first look's reach it.
+#: What the robot's map apart says once warm (`main`): no things, no view, no looks, no floor - its own till
+#: its first look's reach it.
 READY = ([], None, 0, None)
 
 
 class _Posed:
 
-    """Its model as its world sent it (MuJoCo's binary) and a data of its own, posed as each look says; its eyes on it."""
+    """The robot's model as its world sent it (MuJoCo's binary) and a data of its own, posed as each look says;
+    the robot's eyes on it."""
 
     def __init__(self, binary):
         mujoco = importlib.import_module('mujoco')
@@ -46,9 +51,10 @@ class _Posed:
         self.eyes = sight.Eyes(self)
 
     def shot(self, poses, placed, head, gz=(0.0, 0.0), held=None):
-        """A look's frame of its world posed and laid so: its two eyes drawn and matched on the card, laid by its
-        servos' gaze `gz` as it holds its eyes at it (`held`, `sight.Eyes.stereo`) - its stereo's own disparity,
-        the renderer's depth never its own (`truth`)."""
+        """A look's frame of the robot's world posed and laid so: its two eyes drawn and matched on the
+        card, laid by its servos' gaze `gz` as it holds its eyes at it (`held`,
+        `sight.Eyes.stereo`) - the robot's stereo's own disparity, the renderer's depth never its own
+        (`truth`)."""
         for name, a in poses.items():
             getattr(self.data, name)[...] = a
         for name, a in placed.items():
@@ -57,16 +63,16 @@ class _Posed:
 
 
 def main():
-    """Its eyes and its map apart (`aside.serve`): its model first - its renderer laid and its stereo's card started on
-    blank pictures (`sight.Eyes.warmed`), no frame drawn - and READY said, then each look's world - its poses and its
-    laying - shot (`_Posed.shot`) and taken into its map (`sight.Keep.took`), its things, its view and its looks said
-    back. No frame before its first look: the card's multisampling tells a frame's pixels by the frames drawn before it
-    and the wall's time between them - 6 to 17 of a frame's a least bit off, the same scene; none without it -, so one
-    drawn here moved its door errand's end. Its card's start moves no frame and no match - the same to the bit over
-    40 frames - but its second look is its own 0.5 s sooner, and by the wall's time, as by its loop's pace, its eyes'
-    frames tell its errands' ends."""
-    # on a cache group of its eyes' own, its map and frames laid and warm there (`placed`): moved among every core but
-    # its loop's its thread crossed caches 16 times in 40 looks, each look 4.5 % slower
+    """The robot's eyes and its map apart (`aside.serve`): its model first - its renderer laid and the
+    robot's stereo's card started on blank pictures (`sight.Eyes.warmed`), no frame drawn - and READY said, then each
+    look's world - its poses and its laying - shot (`_Posed.shot`) and taken into the robot's map (`sight.Keep.took`),
+    its things, its view and its looks said back. No frame before the robot's first look: the card's multisampling
+    tells a frame's pixels by the frames drawn before it and the wall's time between them - 6 to 17 of a frame's a
+    least bit off, the same scene; none without it -, so one drawn here moved the robot's door errand's end. The
+    robot's card's start moves no frame and no match - the same to the bit over 40 frames - but its second look is its
+    own 0.5 s sooner, and by the wall's time, as by its loop's pace, its eyes' frames tell its errands' ends."""
+    # on a cache group of the robot's eyes' own, its map and frames laid and warm there (`placed`): moved
+    # among every core but its loop's its thread crossed caches 16 times in 40 looks, each look 4.5 % slower
     placed.placed(cache=True)
     keep, kept = sight.Keep(), {}
 
@@ -86,44 +92,46 @@ def main():
 
 class Camera:
 
-    """Its fake camera on a world: its eyes and its map apart (`main`, this tree's own), its world's poses sent each
-    look; `looks` the looks its map has taken, as the last told says."""
+    """The robot's fake camera on a world: its eyes and its map apart (`main`, this tree's own), its world's poses
+    sent each look; `looks` the looks its map has taken, as the last told says."""
 
     def __init__(self, world):
         self._told_q = queue.Queue()
-        self._aside = aside.Aside('machine.eyes.camera', "its camera's map apart").start()
+        self._aside = aside.Aside('machine.eyes.camera', "the robot's camera's map apart").start()
         self._aside.heard(self._told_q)
-        # no look in flight, its map apart's READY owed: its things its own till its first look's reach it; a look laid onto
-        # its floor (`sight.Keep.took`) its own to take once (`fixed`)
+        # no look in flight, the robot's map apart's READY owed: its things the robot's own till its
+        # first look's reach it; a look laid onto its floor (`sight.Keep.took`) its own
+        # to take once (`fixed`)
         self.looked_at, self.sent, self.things, self.seen, self.looks, self.fix = None, False, [], None, 0, None
         self.shot, self.shown, self._ready = None, None, True
-        # its model sent by a thread of its own, its write the first down the pipe (`_said`): its map apart booting, its
-        # 3 MB written here held its laying till it read them
+        # the robot's model sent by a thread of its own, its write the first down the pipe (`_said`): the robot's map
+        # apart booting, its 3 MB written here held the robot's laying till it read them
         warm = (_binary(world.model), None, None, None, None, None, False)
         self._warming = threading.Thread(target=self._aside.send, args=(warm,), daemon=True)
         self._warming.start()
 
     def ready(self):
-        """Its map apart booted and its model's renderer laid there (`main`), its READY taken: waited for once, before
-        its first pass (`worker.readied`) or at its second look; itself."""
+        """The robot's map apart booted and its model's renderer laid there (`main`), its READY taken: waited
+        for once, before the robot's first pass (`worker.readied`) or at its second look; itself."""
         if self._ready:
             self._told()
             self._ready = False
         return self
 
     def due(self, now):
-        """Whether a look is due at `now`: its first, or LOOK_S after its last."""
+        """Whether a look is due at `now`: the robot's first, or LOOK_S after its last."""
         return self.looked_at is None or not now - self.looked_at < sight.LOOK_S
 
     def look(self, world, now, head, gz=(0.0, 0.0), held=None, waited=True, unfloor=False):
-        """A look LOOK_S after the last at `now`: the last one's things taken - waited for while its map
-        takes it, its READY first after its first look, which waits on none: waited on there, its map apart's boot,
-        its renderer's laying and its first shot held its first world second 3 s and more -, `shown` the (time, head,
-        gaze) they were shot at, none before a look's; this one's world sent to be shot from its `head` {pos, quat}
-        as its estimate has it at its gaze `gz`, its gimbals as it holds them (`held`, `gaze.held`); whether one
-        was. Not `waited` - its eyes not its own (SIGHT 0: its registry on the world's boxes, its camera its page's view
-        alone) -, nothing is waited for: what its map apart has said is taken, and a look still in flight leaves this
-        one's world unsent, its looks due as ever (`_drained`)."""
+        """A look LOOK_S after the last at `now`: the last one's things taken - waited for while the robot's
+        map takes it, its READY first after the robot's first look, which waits on none: waited on there, the
+        robot's map apart's boot, its renderer's laying and its first shot held the robot's first world second
+        3 s and more -, `shown` the (time, head, gaze) they were shot at, none before a look's; this one's
+        world sent to be shot from its `head` {pos, quat} as its estimate has it at the
+        robot's gaze `gz`, its gimbals as it holds them (`held`, `gaze.held`); whether one was.
+        Not `waited` - the robot's eyes not its own (SIGHT 0: its registry on the world's boxes, its camera
+        its page's view alone) -, nothing is waited for: what its map apart has said is taken, and a look
+        still in flight leaves this one's world unsent, its looks due as ever (`_drained`)."""
         if not self.due(now):
             return False
         if not waited and self._drained():
@@ -140,8 +148,8 @@ class Camera:
         return True
 
     def _drained(self):
-        """Whether a look is still in flight, what its map apart has said taken without a wait - its READY first,
-        then a look's things, view and looks."""
+        """Whether a look is still in flight, what the robot's map apart has said taken without a wait - its
+        READY first, then a look's things, view and looks."""
         while True:
             try:
                 told = self._told_q.get_nowait()
@@ -156,8 +164,8 @@ class Camera:
             self.sent = False
 
     def _told(self):
-        """The look in flight's things, view and looks - its map apart's READY first -; raises if it ended
-        without them."""
+        """The look in flight's things, view and looks - the robot's map apart's READY first -; raises if it
+        ended without them."""
         told = self._told_q.get()
         if told is None:
             raise MachineError(self._aside.ended())
@@ -168,7 +176,7 @@ class Camera:
         self._aside.send(frame)
 
     def _warmed(self):
-        """Its warm ask written whole (`__init__`): a write after it its own, not amid it."""
+        """The robot's warm ask written whole (`__init__`): a write after it its own, not amid it."""
         if self._warming is not None:
             self._warming.join()
             self._warming = None
@@ -177,8 +185,8 @@ class Camera:
         return self.things
 
     def fixed(self):
-        """The last look laid onto its floor (`sight.Keep.took`: fix, information, eye, its grey's fit), once: None after
-        it is taken."""
+        """The last look laid onto the robot's floor (`sight.Keep.took`: fix, information, eye, its grey's fit), once:
+        None after it is taken."""
         fix, self.fix = self.fix, None
         return fix
 
@@ -192,7 +200,8 @@ class Camera:
 
 
 def _binary(model):
-    """`model` as MuJoCo's binary (mj_saveModel): its model whole, its textures too, as its world holds it now."""
+    """`model` as MuJoCo's binary (mj_saveModel): the robot's model whole, its textures too, as the robot's world
+    holds it now."""
     import numpy as np
     mujoco = importlib.import_module('mujoco')
     buf = np.empty(mujoco.mj_sizeModel(model), np.uint8)

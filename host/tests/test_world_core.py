@@ -343,7 +343,7 @@ def test_a_library_outlives_only_its_process(report, _lib):
 
 def test_a_header_beside_its_source_builds_anew(report, _lib):
     """The builder's digest (tools.cores.build.cached): a header beside a source, in no include folder, is read by
-    its build - aero_bits.h by its native board's -, so changed it is another library."""
+    its build - aero_bits.h by the robot's native board's -, so changed it is another library."""
     import tempfile
     from contextlib import suppress
     from tools.cores.build import cached
@@ -365,8 +365,8 @@ def test_a_header_beside_its_source_builds_anew(report, _lib):
 
 
 def test_mujoco_s_version_is_a_flag(report, _lib):
-    """The builder's MuJoCo flags (tools.cores.build.mujoco_headers): its headers' version is one, so its whole-body
-    core, which reads MuJoCo's data through them, is built anew as a pull moves MuJoCo's pin."""
+    """The builder's MuJoCo flags (tools.cores.build.mujoco_headers): its headers' version is one, so the robot's
+    whole-body core, which reads MuJoCo's data through them, is built anew as a pull moves MuJoCo's pin."""
     from tools.cores.build import mujoco_headers
     flags = mujoco_headers()
     if not flags:
