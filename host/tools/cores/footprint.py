@@ -227,10 +227,10 @@ def text(rows):
         lines += ['#: %s: each band from the floor up, its reach about its pelvis along each direction, m.' % what,
                   '%s = (' % name] + ['    %s,' % (row,) for row in _rows(rows[name])] + [')']
     for name in ('LEFT', 'RIGHT'):
-        lines += ['#: A turn in place to it %s by each of TURN_DEG and its settling: each band, its reach about it' % name.lower(),
+        lines += ['#: A turn in place to its %s by each of TURN_DEG and its settling: each band, its reach about its' % name.lower(),
                   "#: pelvis's place and heading as it began, m.", '%s = (' % name]
         lines += ['    (%s),' % ''.join('\n        %s,' % (row,) for row in _rows(h)) for h in rows[name]]
-        lines += [')', "#: Its pelvis's end after each, forward and left of where it began, m.",
+        lines += [')', "#: The robot's pelvis's end after each, forward and left of where it began, m.",
                   'CARRY_%s = %r' % (name, rows['CARRY_' + name]),
                   '#: The most an end lay off that mean, m.', 'SPREAD_%s = %r' % (name, rows['SPREAD_' + name]),
                   '#: The most seconds each took from its word to still.', 'TOOK_%s = %r' % (name, rows['TOOK_' + name])]

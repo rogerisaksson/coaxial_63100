@@ -16,17 +16,18 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 
-def parts():
+def parts(lib=None):
     """[(part, count)] of its purchased parts, the drives first."""
-    from machine.body import drives, linkage, skeleton
+    from machine.body import drives, linkage, mechatronics, skeleton
     from machine.body.figure import JOINTS
     from tools.sim import members
+    gearboxes = (mechatronics.library() if lib is None else lib)['gearboxes']
     out = collections.Counter()
     driven = [j for j in JOINTS if not drives.passive(j)]
     for j in driven:
         frame, box, inverter = drives.STACKS[drives.kind(j)]
         out['motor %s KV %.0f' % (frame, drives.KV[frame])] += 1
-        out['gearbox %s, 1:%.0f' % (box, drives.RATIO)] += 1
+        out['gearbox %s, 1:%.0f' % (box, float(gearboxes[box]['ratio']))] += 1
         out['inverter %d mm' % round(1e3 * drives.INVERTERS[inverter][0])] += 1
     rows = [(m, members.judge(*m)) for m in members.members()]
     for (name, _kind, length, *_rest, r), _j in members.tubes(rows):

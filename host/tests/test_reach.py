@@ -174,7 +174,10 @@ def test_its_scaled_builds_land_in_mujoco(report):
     tests_dir = os.path.dirname(os.path.abspath(__file__))
     host = os.path.dirname(tests_dir)
     py_path = host + os.pathsep + tests_dir
-    probe = ('import math, sys; from machine.body import figure, footprint; import test_reach; '
+    probe = ('import math, sys; from machine.body import figure, footprint; '
+             'from tools.cores import reach as laid_r; import test_reach; '
+             'laid = laid_r.rows(); '
+             'assert abs(laid["U0"] - 0.10 * figure.SCALE) < 1e-9 and abs(laid["DU"] - 0.005 * figure.SCALE) < 1e-9; '
              'assert abs(footprint.BAND_M - %r * figure.SCALE) < 1e-12; '
              'assert abs(footprint.took(180.0) - %r * math.sqrt(figure.SCALE)) < 1e-12; '
              'sys.exit(test_reach.main(["a_place_landed_stands_in_mujoco", "two_feet_clear_of_each_other"]))'

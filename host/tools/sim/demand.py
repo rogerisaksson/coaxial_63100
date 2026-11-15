@@ -53,8 +53,9 @@ def meter(world):
     """`world`'s drives laid to be metered a pass at a time (`ticked`): their parts' limits and
     what they have been asked so far."""
     import numpy as np
-    from machine.body import drives, heat
+    from machine.body import drives, heat, mechatronics
     from machine.body.figure import JOINTS
+    gearboxes = mechatronics.library()['gearboxes']
     names, first, second, sign = laid(world)
     joints = [JOINTS[i] for i in first]
     sizes = [drives.of(j)[1] for j in joints]
@@ -64,7 +65,8 @@ def meter(world):
             'free': np.radians([drives.speed(j) if world.driven[i] else 1.0 for i, j in enumerate(JOINTS)]),
             'board': np.array([s.amps for s in sizes]),
             'holds': np.array([heat.held(j)[0] / drives.kt(j) for j in joints]),
-            'box': np.array([s.kt_motor * drives.RATIO * s.efficiency / s.shock for s in sizes]),
+            'box': np.array([s.kt_motor * float(gearboxes[drives.STACKS[drives.kind(j)][1]]['ratio'])
+                             * s.efficiency / s.shock for j, s in zip(joints, sizes)]),
             **{k: np.zeros(len(names)) for k in ('peak', 'square', 'fast', 'spent', 'often')}}
 
 

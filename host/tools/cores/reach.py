@@ -32,7 +32,7 @@ NOTICE = "Its leg's reach over its foot as static arrays: written by host/tools/
 
 #: The rows: the hip from U0 m up in its leg's plane, DU apart; a row scanned SCAN_M apart, its
 #: run's ends bisected.
-U0, DU, SCAN_M = 0.10, 0.005, 0.001
+U0, DU, SCAN_M = round(0.10 * figure.SCALE, 6), round(0.005 * figure.SCALE, 6), round(0.001 * figure.SCALE, 6)
 LENGTH = THIGH + SHANK
 
 

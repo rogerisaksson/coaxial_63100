@@ -59,11 +59,12 @@ def _sits(kind):
         ', its inverter on the %s' % board[0].replace('_', ' ') if board else '')
 
 
-def text():
+def text(lib=None, rows=None):
     """The page."""
-    from machine.body import drives, heat, servos
+    from machine.body import drives, heat, mechatronics, servos
     from machine.body.figure import JOINTS
-    rows = types()
+    gearboxes = (mechatronics.library() if lib is None else lib)['gearboxes']
+    rows = types() if rows is None else rows
     driven = [j for j in JOINTS if not drives.passive(j)]
     out = ['# Dimensions', '',
            'The gynoid\'s axes by drive type: %d driven on %d type%s, %d without a drive.'
@@ -76,23 +77,25 @@ def text():
            '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |']
     for name, (frame, box, inverter), kinds in rows:
         size = drives.size(kinds[0])
+        b_spec = gearboxes[box]
+        box_ratio, box_j = float(b_spec['ratio']), float(b_spec['input_j_share'])
         rotor, stack = drives.FRAMES[frame][:2]
         count = sum(1 for j in driven if drives.kind(j) in kinds)
         # one on its own axis, alone on its joint: the type's numbers at its gearbox's output
-        plain = next((k for k in kinds if drives.ratio(_joint(k)) == drives.RATIO
+        plain = next((k for k in kinds if drives.ratio(_joint(k)) == box_ratio
                       and drives.motors(_joint(k)) == 1), kinds[0])
-        lever = drives.ratio(_joint(plain)) / drives.RATIO * drives.motors(_joint(plain))
+        lever = drives.ratio(_joint(plain)) / box_ratio * drives.motors(_joint(plain))
         long = sum(length for _part, _r, length in size.parts) + (
             drives.tall(_joint(plain)) if plain in drives.BOARDS else 0.0)
         out.append('| %s | %d | %.0f x %.0f mm, KV %.0f | %.0f mm, 1:%.0f | %d mm, %.0f A | '
                    '%.0f x %.0f | %.2f | %.0f | %.0f | %.0f | %.3f |' % (
                        name, count, rotor * 1e3, stack * 1e3, size.kv, drives.BOXES[box] * 1e3,
-                       drives.RATIO, round(1e3 * drives.INVERTERS[inverter][0]), size.rated,
-                       max(size.diameter, 2e3 * size.board[1] / 1e3) * 1e3, long * 1e3,
+                       box_ratio, round(1e3 * drives.INVERTERS[inverter][0]), size.rated,
+                       max(size.diameter, 2.0 * size.board[1]) * 1e3, long * 1e3,
                        size.mass + size.board[0], drives.peak(_joint(plain)) / lever,
                        heat.held(_joint(plain))[0] / lever,
-                       size.kv * drives.PACK_V * 6.0 / drives.RATIO,
-                       (1.0 + drives.GEAR_J) * size.rotor * drives.RATIO ** 2))
+                       size.kv * drives.PACK_V * 6.0 / box_ratio,
+                       (1.0 + box_j) * size.rotor * box_ratio ** 2))
     out += ['',
             "A stack its inverter's disc, its outrunner and its gearbox on one axis; kg",
             "with the inverter. Peak at the gearbox's output at the inverter's amps;",

@@ -309,8 +309,72 @@ def test_its_manifest_is_its_build(r):
     r.check('its performance build is no weaker than its own at any drive', bool(its_own) and not weaker, weaker)
 
 
+def test_static_compiler_and_generators(r):
+    """`mechatronics.compiled` caches by SHA-256 and rebuilds on change; generators honour per-box
+    ratios and lay `term_rows.py`, `footprint_rows.py` and `wbc_model.h` verbatim."""
+    import tempfile
+    from machine.body import footprint_rows, mechatronics
+    from machine.stack import wbc
+    from tools.cores import footprint, model, terms
+    from tools.sim import bom, dimensions
+    key = '_test_gen_%d' % os.getpid()
+    cache_file = os.path.join(mechatronics.CACHE, key + '.json')
+    calls = 0
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            src = os.path.join(tmp, 'spec.toml')
+            with open(src, 'w', encoding='utf-8') as f:
+                f.write('k = 1\n')
+
+            def build_it():
+                nonlocal calls
+                calls += 1
+                return {'n': calls, 'pair': (1.5, 2.5)}
+
+            first = mechatronics.compiled(key, (src,), build_it)
+            second = mechatronics.compiled(key, (src,), build_it)
+            mechatronics._COMPILED.pop(key, None)
+            reloaded = mechatronics.compiled(key, (src,), build_it)
+            with open(src, 'w', encoding='utf-8') as f:
+                f.write('k = 22\n')
+            rebuilt = mechatronics.compiled(key, (src,), build_it)
+        r.check('mechatronics.compiled caches tuples on disk and rebuilds on SHA-256 change',
+                calls == 2 and first == second == reloaded and isinstance(reloaded['pair'], tuple)
+                and rebuilt['n'] == 2, (calls, reloaded, rebuilt))
+    finally:
+        mechatronics._COMPILED.pop(key, None)
+        if os.path.exists(cache_file):
+            os.remove(cache_file)
+
+    lib = mechatronics.library()
+    multi = dict(lib, gearboxes=dict(lib['gearboxes'],
+                                     A=dict(lib['gearboxes']['A'], ratio=50.0, input_j_share=0.08),
+                                     B=dict(lib['gearboxes']['B'], ratio=40.0, input_j_share=0.06)))
+    dim_multi = dimensions.text(multi, [('U12', ('U12', 'A', 'coaxial_63100'), ['knee']),
+                                        ('U8', ('U8', 'B', 'coaxial_63100'), ['hip_yaw'])])
+    bom_multi = dict(bom.parts(multi))
+    r.check('dimensions and bom honour each gearbox\'s own ratio and rotor inertia share',
+            '84 mm, 1:50' in dim_multi and '64 mm, 1:40' in dim_multi
+            and bom_multi.get('gearbox B, 1:40', 0) > 0, (dim_multi[:240], bom_multi.get('gearbox B, 1:40')))
+
+    with open(terms.PATH, encoding='utf-8') as f:
+        terms_disk = f.read()
+    with open(footprint.PATH, encoding='utf-8') as f:
+        fp_disk = f.read()
+    fp_dict = {k: getattr(footprint_rows, k) for k in (
+        'K', 'BAND_M', 'TURN_DEG', 'STEP_M', 'STAND', 'WALK', 'BACK', 'SIDE', 'LEFT', 'RIGHT',
+        'CARRY_LEFT', 'SPREAD_LEFT', 'TOOK_LEFT', 'CARRY_RIGHT', 'SPREAD_RIGHT', 'TOOK_RIGHT')}
+    b = wbc.Body()
+    hdr, _src = model.render(model.links(b), b, stand=([0.0] * 12, [0.0] * (b.n - 6)))
+    with open(model.HEADER, encoding='utf-8') as f:
+        hdr_disk = f.read()
+    r.check('terms, footprint and wbc_model.h match their generators\' output',
+            terms.render(terms.rows()) == terms_disk and footprint.text(fp_dict) == fp_disk and hdr == hdr_disk)
+
+
 ROSTER = (test_subsystem_calls_resolve, test_limits_live_in_one_file, test_mirrors_agree,
-          test_dimensions_page_is_the_drives, test_its_manifest_is_its_build)
+          test_dimensions_page_is_the_drives, test_its_manifest_is_its_build,
+          test_static_compiler_and_generators)
 
 def main(argv=None):
     """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""
