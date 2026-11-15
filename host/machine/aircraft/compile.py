@@ -148,9 +148,12 @@ def _runtime_configs(env, crafts, mot, inv, ar, can_j, g):
     ar_wing = float(ae['wing_span_m']) / float(ae['wing_chord_m'])
     m_ae, orb_v = float(ae['mass_kg']), float(ar['orbit_m_s'])
     kf = float(round(20.0 * m_ae * g, -1))
+    n_s, n_p = int(fp['series']), int(fp.get('parallel', 1))
+    fp_ah = float(fp.get('ah', round(n_p * float(fp['cell_ah']), 4)))
+    fp_ohm = float(fp.get('ohm', round(n_s * float(fp['cell_ohm']) / n_p + float(fp.get('lead_ohm', 0.0)), 6)))
     return {
         'defaults': (float(qc['mass_kg']) * g, orb_v),
-        'pack': {'cells': int(fp['series']), 'ah': float(fp['ah']), 'ohm': float(fp['ohm']),
+        'pack': {'cells': n_s, 'ah': fp_ah, 'ohm': fp_ohm,
                  'reserve': float(fp['reserve']), 'cell_v': tuple((float(a), float(b)) for a, b in fp['cell_v'])},
         'pull': {'rotors': int(qc['rotors']), 'can_j': can_j, 'prop_j': float(qc['prop_kgm2']),
                  'r': float(mot['ohm']), 'lq': float(mot['lq_h']),

@@ -153,7 +153,21 @@ def compiled(key: str, paths, builder) -> dict[str, Any]:
     return payload
 
 
-def _resolve(raw):
+def _scale_inverter(base, over, merged):
+    if 'amps' in over and float(base.get('amps', 0.0)) > 0.0:
+        s_i = float(over['amps']) / float(base['amps'])
+        if 'switch_q_c' not in over and 'switch_q_c' in base:
+            merged['switch_q_c'] = round(float(base['switch_q_c']) * s_i, 12)
+        if 'switch_j_k' not in over and 'switch_j_k' in base:
+            merged['switch_j_k'] = round(float(base['switch_j_k']) * s_i, 6)
+        if 'flight_amps' not in over and 'flight_amps' in base:
+            merged['flight_amps'] = round(float(base['flight_amps']) * s_i, 2)
+        if 'wep_amps' not in over and 'wep_amps' in base:
+            merged['wep_amps'] = min(float(merged['amps']), round(float(base['wep_amps']) * s_i, 2))
+    return merged
+
+
+def _resolve(raw, part=None):
     out = {}
 
     def one(name):
@@ -161,7 +175,10 @@ def _resolve(raw):
             return out[name]
         cfg = raw[name]
         if isinstance(cfg, dict) and 'extends' in cfg:
-            out[name] = _merged(one(cfg['extends']), {k: v for k, v in cfg.items() if k != 'extends'})
+            base = one(cfg['extends'])
+            over = {k: v for k, v in cfg.items() if k != 'extends'}
+            merged = _merged(base, over)
+            out[name] = _scale_inverter(base, over, merged) if part == 'inverters' else merged
         else:
             out[name] = dict(cfg) if isinstance(cfg, dict) else cfg
         return out[name]
@@ -173,7 +190,14 @@ def _resolve(raw):
 
 def library():
     """{part: {name: its data}} of every part in the library."""
-    return {part: _resolve(_toml(os.path.join(LIBRARY, part + '.toml'))) for part in PARTS}
+    return {part: _resolve(_toml(os.path.join(LIBRARY, part + '.toml')), part) for part in PARTS}
+
+
+def primary_inverter(rbt=None, lib=None) -> str:
+    """Name of the highest-current inverter across `rbt['stacks']`."""
+    r = robot() if rbt is None else rbt
+    lb = library() if lib is None else lib
+    return max((s[2] for s in r['stacks'].values()), key=lambda n: float(lb['inverters'][n]['amps']))
 
 
 def materials():

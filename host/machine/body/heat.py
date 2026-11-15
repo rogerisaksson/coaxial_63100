@@ -24,7 +24,7 @@ from machine.body import drives, mechatronics, peripherals
 
 _env = mechatronics.environment()
 _mat = mechatronics.materials()
-_inv = mechatronics.library()['inverters'][drives.STACKS['knee'][2]]
+_inv = mechatronics.library()['inverters'][mechatronics.primary_inverter()]
 _TH = peripherals.thermal()
 _COOL = peripherals.cooling()
 

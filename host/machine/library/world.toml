@@ -11,11 +11,13 @@ mu_dry = 0.80
 kinetic_share = 0.75
 joint_damping = 0.3
 
-# High-discharge 15S LiPo flight battery pack (`machine.aircraft.flightpack`).
+# High-discharge 15S1P LiPo flight battery pack (`machine.aircraft.flightpack`).
 [flight_pack]
 series = 15
-ah = 1.0
-ohm = 0.04
+parallel = 1
+cell_ah = 1.0
+cell_ohm = 0.0024
+lead_ohm = 0.004
 reserve = 0.20
 cell_v = [[0.0, 3.30], [0.05, 3.50], [0.2, 3.70], [0.5, 3.85], [0.9, 4.05], [1.0, 4.20]]
 

@@ -40,7 +40,7 @@ def _build_peripherals():
         'wear_window_s': float(math.ceil(4.0 / walk_hz)),
     }
 
-    inv_k_name = rbt['stacks']['knee'][2]
+    inv_k_name = mechatronics.primary_inverter(rbt, lib)
     inv_k = lib['inverters'][inv_k_name]
     t_sw, t_lam, tj_max = float(inv_k['ceiling_c'][0]), float(inv_k['ceiling_c'][1]), float(inv_k['tj_max_c'])
     sw_jk = float(inv_k['switch_j_k'])

@@ -47,4 +47,3 @@ amps = 50.0
 flight_amps = 35.0
 wep_amps = 50.0
 kg = 0.12
-switch_q_c = 1.0e-6

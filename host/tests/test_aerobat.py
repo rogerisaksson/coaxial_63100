@@ -207,21 +207,41 @@ def test_aeroblocks_static_scaling(report):
                  and abs(mr['k_drag'] / mr_base['k_drag'] - 32.0) < 1e-6
                  and abs(mr['k_cyclic'] / mr_base['k_cyclic'] - 32.0) < 1e-6
                  and abs(tr['k_thrust'] / tr_base['k_thrust'] - 16.0) < 1e-6)
-    report.check('flapping wings and monoplane surfaces scale thrust, drag, cd_induced and moments',
+    report.check('flapping wings and monoplane surfaces scale thrust, drag, prop_inertia, cd_induced and moments',
                  abs(fw['k_thrust'] / fw_base['k_thrust'] - 8.0) < 1e-6
                  and abs(fw['k_drag'] / fw_base['k_drag'] - 16.0) < 1e-6
                  and abs(fw['k_roll'] / fw_base['k_roll'] - 8.0) < 1e-6
                  and abs(surf['k_thrust'] / as_base['k_thrust'] - 16.0) < 1e-6
+                 and abs(surf['prop_inertia'] / as_base['prop_inertia'] - 32.0) < 1e-6
                  and abs(surf['k_roll'] / as_base['k_roll'] - 4.0) < 1e-6
                  and abs(surf['k_pitch'] / as_base['k_pitch'] - 1.5 * elev_ratio) < 1e-6
                  and surf['cd_induced'] < as_base['cd_induced'])
     vt = aeroblocks.kv_block([['use', 'vertical_climb_brake'], ['climb_speed', 6.5]],
                              aeroblocks.KIN_BLOCKS['vertical'], c, None, None, blocks, 'vertical')
+    gov_b, obs_b = blocks['heli_3d_governor'][1], blocks['eso_3d_observers'][1]
+    env_b, hor_b = blocks['standard_arena_envelope'][1], blocks['orbit_circle'][1]
+    gov = aeroblocks.kv_block([['use', 'heli_3d_governor'], ['tail_speed', 2.0 * gov_b['tail_speed']]],
+                              aeroblocks.DYN_BLOCKS['governor'], c, aeroblocks.DYN_REQUIRED['governor'], None, blocks,
+                              'governor')
+    obs = aeroblocks.kv_block([['use', 'eso_3d_observers'], ['turn_bandwidth', 2.0 * obs_b['turn_bandwidth']]],
+                              aeroblocks.DYN_BLOCKS['observers'], c, aeroblocks.DYN_REQUIRED['observers'], None, blocks,
+                              'observers')
+    env = aeroblocks.kv_block([['use', 'standard_arena_envelope'], ['hover_height', 2.0 * env_b['hover_height']],
+                               ['hover_lean', 12.0]],
+                              aeroblocks.KIN_BLOCKS['envelope'], c, None, None, blocks, 'envelope')
+    hor = aeroblocks.kv_block([['use', 'orbit_circle'], ['orbit_radius', 4.0 * hor_b['orbit_radius']]],
+                              aeroblocks.KIN_BLOCKS['horizontal'], c, None, None, blocks, 'horizontal')
     from machine.aircraft.aerobat import airframe as aa
     from machine.aircraft.helicopter import airframe as ha
     from machine.aircraft.ornithopter import airframe as oa
-    report.check('Glauert edgewise wake floor equals 2 * climb_speed across vertical blocks and airframes',
+    report.check('Glauert wake floor, governor, ESO, envelope and horizontal spot gains scale statically',
                  vt['wake_floor'] == 13.0
+                 and abs(gov['tail_ratio'] - 2.0 * gov_b['tail_ratio']) < 1e-6
+                 and abs(obs['wind_bandwidth'] - 2.0 * obs_b['wind_bandwidth']) < 1e-6
+                 and abs(obs['wind_regularization'] - 0.5 * obs_b['wind_regularization']) < 1e-6
+                 and abs(env['top_height'] - 2.0 * env_b['top_height']) < 1e-6 and env['sky_lean'] == 12.0
+                 and abs(hor['spot_kp'] - 0.25 * hor_b['spot_kp']) < 1e-6
+                 and abs(hor['spot_kd'] - 0.5 * hor_b['spot_kd']) < 1e-6
                  and ha.WAKE_FLOOR_M_S == 2.0 * ha.KINEMATICS['vertical']['climb_speed']
                  and oa.WAKE_FLOOR_M_S == 2.0 * oa.KINEMATICS['vertical']['climb_speed']
                  and aa.WAKE_FLOOR_M_S == 2.0 * aa.KINEMATICS['vertical']['climb_speed'])

@@ -165,13 +165,22 @@ def test_heterogeneous_inverter_and_gearbox_derivations(report, _lib):
     report.check('DC-link housekeeping + switching sum matches driven joints',
                  abs(dclink.laid()['house_w'] - len(dclink.DRIVEN) * (heat.HOUSEKEEPING_W + heat.SWITCHING_W)) < 1e-9
                  and drives.zeta('left_knee') == drives.BOX_ZETA and drives.zeta('left_foot') == 0.0)
+    from machine.aircraft import flightpack
     from machine.body import compile as body_compile, gearbox, mjcf, peripherals, structural
+    raw_inv = mechatronics._toml(os.path.join(mechatronics.LIBRARY, 'inverters.toml'))
+    raw_w = mechatronics._toml(os.path.join(mechatronics.LIBRARY, 'world.toml'))
     report.check('passive armatures, backlash stops and mesh smoothing generalize per stack',
                  mjcf._passive_j('left_wrist') == mjcf.PASSIVE_J
                  and mjcf._held_deg('left_gripper') == mjcf.HELD_DEG
                  and structural.FLEX_DEG == 0.5 * drives.BACKLASH_DEG
                  and gearbox.MESH_RAD_S > 0.0 and body_compile.ENC_RAD > 0.0
                  and peripherals.identify()['wear']['unit']['kt'] > 0.0)
+    report.check('MOSFET die charge/capacitance and flight pack resistance derive from construction',
+                 'switch_q_c' not in raw_inv['coaxial_63050']
+                 and abs(inv50['switch_q_c'] - 1.0e-6) < 1e-12 and abs(inv50['switch_j_k'] - 0.175) < 1e-9
+                 and mechatronics.primary_inverter() == 'coaxial_63100'
+                 and not ({'ah', 'ohm'} & set(raw_w['flight_pack']))
+                 and abs(flightpack.PACK_AH - 1.0) < 1e-9 and abs(flightpack.PACK_OHM - 0.04) < 1e-9)
 
 
 ROSTER = (test_the_mirror_lays_what_the_c_lays, test_the_air_is_the_cs,

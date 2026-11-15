@@ -486,9 +486,10 @@ def _mount_k_w(disc_m):
 
 CLOTH_AIR = dict(_BUILD['cloth'])
 STATOR_J_K = {k: float(m.get('stator_j_k', round(_CP_HOUS * m['kg']))) for k, m in _LIB['motors'].items()}
-_REF_AMPS = INVERTERS[STACKS['knee'][2]][1]
+_PRIMARY_INV = mechatronics.primary_inverter(_BUILD, _LIB)
+_REF_AMPS = INVERTERS[_PRIMARY_INV][1]
 MOUNT_BY_INV = {k: _mount_k_w(v[0]) for k, v in INVERTERS.items()}
-MOUNT_K_W, OFF_MOUNT_K_W = MOUNT_BY_INV[STACKS['knee'][2]]
+MOUNT_K_W, OFF_MOUNT_K_W = MOUNT_BY_INV[_PRIMARY_INV]
 
 
 def cloth_air(joint=None):

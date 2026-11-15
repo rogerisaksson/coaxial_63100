@@ -101,7 +101,7 @@ def _derive_surfaces(out, inherited, explicit):
                 {'wing_span_m': out['wing_span'], 'wing_chord_m': out['wing_chord']})
     if 'prop_radius' in explicit and inherited.get('prop_radius', 0.0) > 0.0:
         _scale_pow(out, inherited, explicit, out['prop_radius'] / inherited['prop_radius'],
-                   (('blade_pitch', 1), ('k_thrust', 4), ('k_drag', 5)))
+                   (('blade_pitch', 1), ('k_thrust', 4), ('k_drag', 5), ('prop_inertia', 5)))
     for k, triggers, keys, lim in (
             ('k_pitch', ('stab_area', 'tail_arm', 'elevator_limit'), ('stab_area', 'tail_arm'), 'elevator_limit'),
             ('k_roll', ('wing_span', 'wing_chord', 'wing_area', 'aileron_limit'), ('wing_area', 'wing_span'),
@@ -123,15 +123,18 @@ def _derive_main_rotor(out, inherited, explicit):
     if 'radius' in explicit and inherited.get('radius', 0.0) > 0.0:
         _scale_pow(out, inherited, explicit, out['radius'] / inherited['radius'],
                    (('blade_pitch', 1), ('k_thrust', 4), ('k_drag', 5)))
-    if not any(k in explicit for k in ('radius', 'cyclic_limit', 'inflow_j0', 'k_thrust')):
-        return
-    if 'k_cyclic' in explicit or 'k_cyclic' not in inherited:
-        return
-    c0 = (inherited.get('k_thrust', 0.0) * math.tan(inherited.get('cyclic_limit', 0.0))
-          * inherited.get('inflow_j0', 0.0) * inherited.get('radius', 0.0))
-    if c0 > 0.0:
-        c1 = out['k_thrust'] * math.tan(out['cyclic_limit']) * out['inflow_j0'] * out['radius']
-        out['k_cyclic'] = inherited['k_cyclic'] * (c1 / c0)
+    if ('cyclic_limit' in explicit or 'collective_limit' in explicit) and 'cyclic_drag_share' not in explicit:
+        c_cy0, c_co0 = inherited.get('cyclic_limit', 0.0), inherited.get('collective_limit', 0.0)
+        if c_cy0 > 0.0 and c_co0 > 0.0 and out.get('collective_limit', 0.0) > 0.0 and 'cyclic_drag_share' in inherited:
+            out['cyclic_drag_share'] = (inherited['cyclic_drag_share']
+                                        * ((out['cyclic_limit'] / out['collective_limit']) / (c_cy0 / c_co0)) ** 2)
+    if any(k in explicit for k in ('radius', 'cyclic_limit', 'inflow_j0', 'k_thrust')):
+        if 'k_cyclic' not in explicit and 'k_cyclic' in inherited:
+            c0 = (inherited.get('k_thrust', 0.0) * math.tan(inherited.get('cyclic_limit', 0.0))
+                  * inherited.get('inflow_j0', 0.0) * inherited.get('radius', 0.0))
+            if c0 > 0.0:
+                c1 = out['k_thrust'] * math.tan(out['cyclic_limit']) * out['inflow_j0'] * out['radius']
+                out['k_cyclic'] = inherited['k_cyclic'] * (c1 / c0)
 
 
 def _derive_tail_rotor(out, inherited, explicit):
@@ -151,6 +154,32 @@ def _derive_cooling(out, inherited, explicit):
                    (('sink_capacity', 1),))
 
 
+def _derive_governor(out, inherited, explicit):
+    if ('main_speed' in explicit or 'tail_speed' in explicit) and 'tail_ratio' not in explicit:
+        m0, t0 = inherited.get('main_speed', 0.0), inherited.get('tail_speed', 0.0)
+        if m0 > 0.0 and t0 > 0.0 and out.get('main_speed', 0.0) > 0.0 and 'tail_ratio' in inherited:
+            out['tail_ratio'] = inherited['tail_ratio'] * (out['tail_speed'] / out['main_speed']) / (t0 / m0)
+
+
+def _derive_observers(out, inherited, explicit):
+    if 'turn_bandwidth' in explicit and inherited.get('turn_bandwidth', 0.0) > 0.0:
+        _scale_pow(out, inherited, explicit, out['turn_bandwidth'] / inherited['turn_bandwidth'],
+                   (('pull_bandwidth', 1), ('wind_bandwidth', 1)))
+    if ('wind_bandwidth' in explicit or 'turn_bandwidth' in explicit) and 'wind_regularization' not in explicit:
+        w0, w1 = inherited.get('wind_bandwidth', 0.0), out.get('wind_bandwidth', 0.0)
+        if w0 > 0.0 and w1 > 0.0 and 'wind_regularization' in inherited:
+            out['wind_regularization'] = inherited['wind_regularization'] * w0 / w1
+
+
+def _derive_envelope(out, inherited, explicit):
+    if 'hover_height' in explicit and inherited.get('hover_height', 0.0) > 0.0:
+        _scale_pow(out, inherited, explicit, out['hover_height'] / inherited['hover_height'],
+                   (('high_height', 1), ('top_height', 1)))
+    if 'hover_lean' in explicit and 'sky_lean' not in explicit:
+        if inherited.get('hover_lean', 0.0) > 0.0 and 'sky_lean' in inherited:
+            out['sky_lean'] = inherited['sky_lean'] * out['hover_lean'] / inherited['hover_lean']
+
+
 def _derive_vertical(out, _inherited, explicit):
     if 'settle_kd' not in explicit and 'settle_kp' in out:
         out['settle_kd'] = 2.0 * out['settle_kp']
@@ -158,9 +187,17 @@ def _derive_vertical(out, _inherited, explicit):
         out['wake_floor'] = 2.0 * out['climb_speed']
 
 
-def _derive_horizontal(out, _inherited, explicit):
+def _derive_horizontal(out, inherited, explicit):
     if 'lap_duration' not in explicit and 'orbit_radius' in out and out.get('orbit_speed', 0.0) > 0.0:
         out['lap_duration'] = math.tau * out['orbit_radius'] / out['orbit_speed']
+    if 'orbit_radius' in explicit and 'spot_kp' not in explicit:
+        r0, r1 = inherited.get('orbit_radius', 0.0), out.get('orbit_radius', 0.0)
+        if r0 > 0.0 and r1 > 0.0 and 'spot_kp' in inherited:
+            out['spot_kp'] = inherited['spot_kp'] * r0 / r1
+    if ('spot_kp' in explicit or 'orbit_radius' in explicit) and 'spot_kd' not in explicit:
+        k0, k1 = inherited.get('spot_kp', 0.0), out.get('spot_kp', 0.0)
+        if k0 > 0.0 and k1 > 0.0 and 'spot_kd' in inherited:
+            out['spot_kd'] = inherited['spot_kd'] * math.sqrt(k1 / k0)
 
 
 _BLOCK_DERIVERS = {
@@ -171,6 +208,9 @@ _BLOCK_DERIVERS = {
     'aero_surfaces': _derive_surfaces,
     'rigid_body': _derive_rigid_body,
     'cooling': _derive_cooling,
+    'governor': _derive_governor,
+    'observers': _derive_observers,
+    'envelope': _derive_envelope,
     'vertical': _derive_vertical,
     'horizontal': _derive_horizontal,
 }
