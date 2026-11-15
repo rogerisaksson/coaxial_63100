@@ -1,17 +1,23 @@
-"""The power stage's numbers, in one importable place."""
+"""The power stage's numbers, in one importable place: the library's inverter, its bench's beside it."""
 import math
 
-FSW = 50e3                    #: TIM1 centre-aligned, ARR 2375 (HARDWARE.md)
+from machine.body import mechatronics
+
+#: The board as the parts library states it (`machine/library/inverters.toml`): what a sheet or
+#: the layout gives is read there, never stated twice.
+_INV = mechatronics.library()['inverters']['coaxial_63100']
+
+FSW = float(_INV['pwm_hz'])    #: TIM1 centre-aligned, ARR 2375 (HARDWARE.md)
 TS = 1.0 / FSW
 
 T_DEAD = 63.2e-9              #: DTG 15: 33.7 ns shot through dry, 42 did not
 T_DEAD_SIM = 65.4e-9          #: the simulation's worst corner
 T_MIN_PULSE = 105e-9          #: 25 ticks: TPW 40 ns + DTG 15 -> 0.53 % duty
 GATE_UVLO_V = 7.5             #: the 2EDL8034's (motor_inverters/half_bridge/2EDL8034F5.lib)
-V_FRAC = 0.95                 #: of the link the modulator may use
+V_FRAC = mechatronics.v_frac(_INV)    #: of the link the modulator may use
 
 # IAUCN10S7N021, from the vendor VDMOS model in half_bridge.asc.
-RDS_ON = 1.8e-3
+RDS_ON = float(_INV['rds_ohm'])
 
 #: Junction to case, K/W. `datasheets/mosfet/IAUCN10S7N021-Datasheet.pdf`
 #: Rev 1.2 p.4, maximum - the only figure the sheet gives for it.
@@ -21,7 +27,7 @@ RDS_ON = 1.8e-3
 #: FET's 9 W over a period, 6.2 K. The envelope judges a leg on it against
 #: T_J_MAX (`thermal.judged`): a 125 C ceiling on the copper left 44 K of the
 #: sheet unused.
-RTH_JC = 0.69
+RTH_JC = float(_INV['rth_jc'])
 
 #: Junction to ambient, K/W, typical. Same sheet, and the conditions
 #: matter: "device on 2s2p FR4 PCB defined in accordance with JEDEC
@@ -38,7 +44,10 @@ RTH_JA_JEDEC = 25.9
 
 #: The junction limit the sheet states, degrees C: a leg's ceiling in the
 #: calibration record (invariant 10), judged on the junction.
-T_J_MAX = 175.0
+T_J_MAX = float(_INV['tj_max_c'])
+#: Its nodes' ceilings, degrees C: the switches' copper, the laminate, the stator and the winding.
+CEILING_SWITCH_C, CEILING_LAMINATE_C, CEILING_STATOR_C, CEILING_WINDING_C = (
+    float(c) for c in _INV['ceiling_c'])
 CJO, M, VJ = 15.6e-9, 0.45, 0.7    #: output capacitance at 0 V, and its law
 CGS, QG, RG = 5.48e-9, 81e-9, 2.2
 
@@ -47,7 +56,7 @@ L_LOOP = 4e-9                 #: power loop, tight layout: 0.25 nH/mm over
 Q_RING = 1.0                  #: ASSUMED crisp damping - TODO 6 is the scope
                               #: trace that replaces this
 
-SHUNT = 3.5e-3                #: two WSHM28187L000FEA in parallel
+SHUNT = float(_INV['shunt_ohm'])    #: two WSHM28187L000FEA in parallel
 AFE_V_PER_A = 15.909e-3       #: 4.5455 V/V x 3.5 mohm (HARDWARE.md, traced)
 AFE_DELAY = 60e-9             #: sense chain group delay, from the AFE sim
 AFE_A_PER_COUNT = 3.3 / 65536 / AFE_V_PER_A    #: 3.2 mA at 16 bits

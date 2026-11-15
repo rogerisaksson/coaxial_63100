@@ -244,7 +244,7 @@ FORCED = dict([(n, 0.3) for n in LAMINATE]
               + [('stator', 0.5), ('rotor', 1.0)])
 #: Junction over node per watt: R_th,JC for a leg's FETs, 0.5 K at 0.13 W for
 #: the A1335's die; the MCU's reads its package (bench).
-RTH_DIE = dict([(n, 0.69) for n in DRIVERS]
+RTH_DIE = dict([(n, inverter.RTH_JC) for n in DRIVERS]
                + [('mcu', 0.0), ('afe', 3.8)])
 
 CFG = {
@@ -518,8 +518,9 @@ IDENT_MARGIN_FLOOR = 0.80
 #: reference plus margin x span (`ceiling_of`); a board's own live in its
 #: record (cal op 0).
 CEILING_REF_C = 25.0
-CEILING_DEFAULT_C = 125.0
-CEILING_C = dict([(n, 105.0) for n in LAMINATE] + [(n, 120.0) for n in MOTOR]
+CEILING_DEFAULT_C = inverter.CEILING_SWITCH_C
+CEILING_C = dict([(n, inverter.CEILING_LAMINATE_C) for n in LAMINATE]
+                 + [(n, inverter.CEILING_STATOR_C) for n in MOTOR]
                  + [(n, inverter.T_J_MAX) for n in DRIVERS])
 
 

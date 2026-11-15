@@ -9,12 +9,14 @@ STRUCTURE = 'test_structure.py'
 ATLAS = 'test_atlas.py'
 #: Orthokinematics' texts: compiled to rows, what is no text refused, its law's code branchless (test_ortho's once).
 ORTHO_TEXTS = 'test_ortho_texts.py'
+#: The static meta-compiler held to itself: one source a number, a build anew its cache, similarity (machine.body.compile).
+METACOMPILER = 'test_metacompiler.py'
 
 #: The structure family, first in every run: host/ holding together, the tree's shape, the
 #: firmware and the host agreeing - one 17 k-token file before; every path on the atlas's trunk;
-#: its texts compiling and its law's code branchless.
+#: its texts compiling and its law's code branchless; what its specs state compiled the same twice.
 STRUCTURES = (STRUCTURE, 'test_layout.py', 'test_mirrors.py', 'test_wire_shapes.py',
-              'test_wire_requests.py', 'test_protocol_doc.py', ATLAS, ORTHO_TEXTS)
+              'test_wire_requests.py', 'test_protocol_doc.py', ATLAS, ORTHO_TEXTS, METACOMPILER)
 #: Suites with prior CI or local regressions, scheduled right after structural checks so a regression stops the run at once:
 #: what GitHub's last host run left red is laid at its head at every commit (tools/dev/ci.py, the pre-commit).
 FAILED_FIRST = ('test_native.py', 'test_scenarios.py', 'test_sysid_live.py', 'test_mirrors.py',

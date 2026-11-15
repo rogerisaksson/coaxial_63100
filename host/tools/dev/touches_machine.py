@@ -2,9 +2,9 @@
 from tools.dev.suites import (AERO_CORE, BALLISTIC, BEDSIDE, BUSES, CAMERA, COMPILED, CONTROLLER, CRAWL,
                               CTRL_CORE, CYCLIC, DSP, ERRANDS, FLOOR, FOURS, GATE, GROUNDWORK,
                               GYNOID, INTROSPECT, KERNEL, LEAP, MPPI_CORE, NATIVE_SYSID, ORTHO, PORTED, BORNE, REGISTRY,
-                              POSTURES, QUADS, REACH, RENDER, REPLAYS, SAYS, SCENES, SHIELD,
+                              POSTURES, QUADS, REACH, RENDER, REPLAYS, SAYS, SCENES, SENSORLESS, SHIELD,
                               SIGHT, SITUATION, STREAMS, STRUCTURE, SUBSTRATE, SWEEP, SYSID, SYSID_LIVE,
-                              TERMS, TUNE, VAULT, WAYFINDER, WBC, WBC_CORE, WEAR, WRENCH, TICK, PLACED)
+                              TERMS, THERMAL, TUNE, VAULT, WAYFINDER, WBC, WBC_CORE, WEAR, WRENCH, TICK, PLACED)
 
 #: machine/'s rows of the path map (`touches.TOUCHES`) in its order: a module's before its folder's.
 MACHINE = (
@@ -31,7 +31,8 @@ MACHINE = (
     ('host/machine/aircraft/se3mpc.py',        (MPPI_CORE, 'test_aerobat.py', STRUCTURE)),
     ('host/machine/aircraft/gimbal.py',        QUADS),
     ('host/machine/way/tour.py',                   (STRUCTURE, 'test_views_humanoid.py')),
-    ('host/machine/library/',                  (STRUCTURE, 'test_mirrors.py', GYNOID, ORTHO, WBC, WRENCH)),
+    ('host/machine/library/',                  (STRUCTURE, 'test_mirrors.py', GYNOID, ORTHO, WBC, WRENCH,
+                                                SENSORLESS, THERMAL)),
     ('host/machine/humanoids/',                   (STRUCTURE, 'test_mirrors.py', WEAR, GYNOID, ORTHO, WBC, WRENCH)),
     ('host/machine/identify/sysid.py',                  (STRUCTURE, SYSID, SYSID_LIVE, NATIVE_SYSID)),
     ('host/machine/identify/regressor.py',              (STRUCTURE, SYSID, SYSID_LIVE, NATIVE_SYSID, WEAR)),
