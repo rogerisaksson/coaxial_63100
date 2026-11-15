@@ -164,9 +164,8 @@ def test_the_tree_grows_as_a_tree(report):
         for j, k in enumerate(order_, steps - len(kids) + 1):
             at, way = growth.along(stem, j / steps)
             off['step'] = max(off['step'], math.dist(at, grown[k][0]), math.dist(way, grown[k][1]))
-            chord = np.subtract(growth.along(grown[k], 1.0)[0], grown[k][0])
-            chord /= np.linalg.norm(chord)
-            angle = math.acos(min(1.0, float(chord @ np.array(way))))
+            chord, ahead = np.subtract(growth.along(grown[k], 1.0)[0], grown[k][0]), np.array(way)
+            angle = math.atan2(float(np.linalg.norm(np.cross(chord, ahead))), float(chord @ ahead))
             off['murray'] = max(off['murray'], abs(angle - growth.murray(above, held(k))), angle * (k == leader))
             if angle > 1e-6:   # its way round the stem in the stem's own frame there (growth.lean)
                 side, other = np.array(growth.lean(way, 0.0)), np.array(growth.lean(way, math.pi / 2))
@@ -286,31 +285,29 @@ def test_the_dataflow_draws_one_system(report):
                  and 'aircraft/' not in {scene.short(tree, n) for n in over['marks']},
                  '%d flows, %d parts open, strays %s' % (len(over['flow']), len(parts), strays[:4]))
     streams = {f for f in atlas_flow.flows(tree) if f[2] == passed}
-    ticks, seen = atlas_flow.ticks(tree), {}
-    for _ in FLYERS:
+    ticks, order, seen, ok = atlas_flow.ticks(tree), apps.ordered(tree), {}, True
+    flyers, flown = {page_of(tree, f): f for f in FLYERS}, 'host/terminal/views/%s/flight.py::flown'
+    for p in order[order.index(robot) + 1:] + order[:order.index(robot) + 1]:
         bindings.act_on(show_atlas.PAD, ['d'], state)
-        title, flow = show_atlas.titled(state, None, 100), show_atlas.placed(state)['flow']
-        page = next(page_of(tree, f) for f in FLYERS if apps.named(tree, page_of(tree, f)) in title)
-        name = tree.id[page].split('/')[-1][:-3]
-        loop = ticks['host/terminal/views/%s/flight.py::flown' % name]
-        theirs = apps.systems(tree)[page]
-        seen[name] = (set(loop) <= set(flow) and not streams & set(flow) and show_atlas.placed(state)['reach'] == theirs
-                      and all(a in theirs and b in theirs for a, b, _k, _l in flow), len(flow))
-    sky = {tree.id[n] for a, b, _k, _l in ticks['host/terminal/views/aerobat/flight.py::flown'] for n in (a, b)}
-    report.check("D again each craft's: the loop of the tick its view flies, none of the robot's pass, every flow between "
-                 "its files - the aerobat's on its own sky", sorted(seen) == sorted(FLYERS) and all(ok for ok, _n in seen.values())
-                 and 'host/machine/aircraft/aerobat/sky.py' in sky and 'host/machine/aircraft/helicopter/sky.py' not in sky,
-                 str(seen))
+        ok &= (state['app'], show_atlas.titled(state, None, 100)) == (p, 'DATAFLOW ' + apps.named(tree, p))
+        if p in flyers:
+            laid, own = show_atlas.placed(state), apps.systems(tree)[p]
+            flow = laid['flow']
+            seen[flyers[p]] = (set(ticks[flown % flyers[p]]) <= set(flow) and not streams & set(flow)
+                               and laid['reach'] == own and all(a in own and b in own for a, b, *_ in flow), len(flow))
+    sky = {tree.id[n] for a, b, *_ in ticks[flown % 'aerobat'] for n in (a, b)}
+    report.check("D again each craft's: the loop of the tick its view flies, none of the robot's pass, every flow "
+                 "between its files - the aerobat's on its own sky", ok and sorted(seen) == sorted(FLYERS)
+                 and all(ok_ for ok_, _n in seen.values()) and 'host/machine/aircraft/aerobat/sky.py' in sky
+                 and 'host/machine/aircraft/helicopter/sky.py' not in sky, str(seen))
     bindings.act_on(show_atlas.PAD, ['m'], state)
-    back = not state['mirror']
-    held = apps.clades(tree)['pages']
-    quad = page_of(tree, 'quad')
+    back, held, quad = not state['mirror'], apps.clades(tree)['pages'], page_of(tree, 'quad')
     craft = next((b for b, ps in held.items() if quad in ps and len(ps) == len(FLYERS)), None)
     down_to(state, craft)
     bindings.act_on(show_atlas.PAD, ['d'], state)
     together = frozenset().union(*(apps.systems(tree)[p] for p in held.get(craft, ())))
     flow = set(show_atlas.placed(state)['flow'])
-    loops = all(set(ticks['host/terminal/views/%s/flight.py::flown' % f]) <= flow for f in FLYERS)
+    loops = all(set(ticks[flown % f]) <= flow for f in FLYERS)
     report.check("M back to the tree; a branch chosen, its pages' dataflow together, each one's loop",
                  back and state['app'] == craft and show_atlas.placed(state)['reach'] == together and loops
                  and show_atlas.titled(state, None, 100) == 'DATAFLOW aircraft/', show_atlas.titled(state, None, 100))
