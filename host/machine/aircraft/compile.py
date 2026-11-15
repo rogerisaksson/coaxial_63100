@@ -106,6 +106,7 @@ def _control_and_traj_blocks(crafts, inv, ar, can_j, rot_max_nm, rho, g, amb, en
                                           'top_height': ar['ae_top_m']}),
         'vertical_climb_brake': ('vertical', {'climb_speed': float(ar['climb_m_s']),
                                               'descent_speed': float(ar['descent_m_s']),
+                                              'wake_floor': 2.0 * float(ar['climb_m_s']),
                                               'settle_kp': settle_kp, 'settle_kd': 2.0 * settle_kp}),
         'orbit_circle': ('horizontal', {'orbit_radius': orb_r, 'orbit_speed': orb_v,
                                         'lap_duration': math.tau * orb_r / orb_v,

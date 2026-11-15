@@ -49,7 +49,7 @@ DYN_MODES = _sp('attitude_pitch attitude_roll attitude_yaw pitch_rate roll_rate'
 KIN_BLOCKS = {
     'envelope': _sp('floor_height hover_height high_height top_height least_pull '
                     'hover_lean sky_lean'),
-    'vertical': _sp('climb_speed descent_speed settle_kp settle_kd'),
+    'vertical': _sp('climb_speed descent_speed wake_floor settle_kp settle_kd'),
     'horizontal': _sp('orbit_radius orbit_speed lap_duration spot_kp spot_kd'),
     'oscillator': ('tictoc_frequency', 'tictoc_amplitude'),
     'hold': _sp('height_tol speed_tol spot_tol tilt_tol'),
@@ -102,14 +102,15 @@ def _derive_surfaces(out, inherited, explicit):
     if 'prop_radius' in explicit and inherited.get('prop_radius', 0.0) > 0.0:
         _scale_pow(out, inherited, explicit, out['prop_radius'] / inherited['prop_radius'],
                    (('blade_pitch', 1), ('k_thrust', 4), ('k_drag', 5)))
-    for k, triggers, keys in (
-            ('k_pitch', ('stab_area', 'tail_arm'), ('stab_area', 'tail_arm')),
-            ('k_roll', ('wing_span', 'wing_chord', 'wing_area'), ('wing_area', 'wing_span')),
-            ('k_yaw', ('fin_area', 'tail_arm'), ('fin_area', 'tail_arm'))):
+    for k, triggers, keys, lim in (
+            ('k_pitch', ('stab_area', 'tail_arm', 'elevator_limit'), ('stab_area', 'tail_arm'), 'elevator_limit'),
+            ('k_roll', ('wing_span', 'wing_chord', 'wing_area', 'aileron_limit'), ('wing_area', 'wing_span'),
+             'aileron_limit'),
+            ('k_yaw', ('fin_area', 'tail_arm', 'rudder_limit'), ('fin_area', 'tail_arm'), 'rudder_limit')):
         if any(t in explicit for t in triggers) and k not in explicit and k in inherited:
-            denom = inherited.get(keys[0], 0.0) * inherited.get(keys[1], 0.0)
+            denom = inherited.get(keys[0], 0.0) * inherited.get(keys[1], 0.0) * math.sin(inherited.get(lim, 0.0))
             if denom > 0.0:
-                out[k] = inherited[k] * (out[keys[0]] * out[keys[1]]) / denom
+                out[k] = inherited[k] * (out[keys[0]] * out[keys[1]] * math.sin(out[lim])) / denom
 
 
 def _derive_rotors(out, inherited, explicit):
@@ -153,6 +154,8 @@ def _derive_cooling(out, inherited, explicit):
 def _derive_vertical(out, _inherited, explicit):
     if 'settle_kd' not in explicit and 'settle_kp' in out:
         out['settle_kd'] = 2.0 * out['settle_kp']
+    if 'wake_floor' not in explicit and 'climb_speed' in out:
+        out['wake_floor'] = 2.0 * out['climb_speed']
 
 
 def _derive_horizontal(out, _inherited, explicit):

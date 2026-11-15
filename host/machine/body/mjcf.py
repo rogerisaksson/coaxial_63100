@@ -16,7 +16,16 @@ _HEM, _HAIR, _LACE = _GARM['hem'], _GARM['hair'], _GARM['lace']
 _SOLE = _ELAST['sole']
 
 #: Undriven spring armature, kg m^2, and held-joint stop half-width, deg (`drives.passive`).
-PASSIVE_J = round(0.5 * drives.size('wrist').mass * (0.5 * drives.size('wrist').diameter) ** 2, 4)
+def _passive_j(joint):
+    sz = drives.of(joint)[1]
+    return round(0.5 * sz.mass * (0.5 * sz.diameter) ** 2, 4)
+
+
+def _held_deg(joint):
+    return float(drives._box(joint)['backlash_deg'])
+
+
+PASSIVE_J = _passive_j('left_wrist')
 HELD_DEG = float(drives.BACKLASH_DEG)
 
 #: Pelvis weld stand height and stiffness time constant for system identification (`peripherals.world`).
@@ -170,11 +179,12 @@ def _joint(joint, axis, sign):
     stop, spring = drives.TRAVEL.get(kind(joint)), drives.passive(joint)
     if spring:
         stiffness, _damp, rest = spring
-        stop = (rest - HELD_DEG, rest + HELD_DEG) if stiffness is None else stop
+        hd = _held_deg(joint)
+        stop = (rest - hd, rest + hd) if stiffness is None else stop
     axes = {'x': (1, 0, 0), 'y': (0, 1, 0), 'z': (0, 0, 1)}
     return '<joint name="%s" axis="%g %g %g" armature="%g"%s%s/>' % (
         (joint,) + tuple(sign * v for v in axes[axis]) + (
-            PASSIVE_J if spring else
+            _passive_j(joint) if spring else
             SERVO[kind(joint)][3] + REFLECTED * (drives.armature(joint) - SERVO[kind(joint)][3]),
             ' limited="true" range="%g %g"' % stop if stop else '',
             ' stiffness="%g" springref="%g" damping="%g"' % (spring[0], spring[2], spring[1])

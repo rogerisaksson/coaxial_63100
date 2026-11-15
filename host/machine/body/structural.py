@@ -5,14 +5,14 @@ from machine.body import linkage, mechatronics, skeleton
 
 _MAT, _BUILD, _LIB = mechatronics.materials(), mechatronics.robot(), mechatronics.library()
 _SOLIDS, _SHELL = _MAT['solids'], _BUILD['shell']
-_GBOX = _LIB['gearboxes'][_BUILD['stacks']['knee'][1]]
+_MIN_BACKLASH_DEG = min(float(_LIB['gearboxes'][s[1]]['backlash_deg']) for s in _BUILD['stacks'].values())
 #: Materials (`materials.toml`): (E GPa, G GPa, allowable MPa).
 CARBON, HM_CARBON, ROD, PAHT_CF, STEEL = (
     tuple(float(x) for x in _SOLIDS[k]) for k in ('carbon', 'hm_carbon', 'rod', 'paht_cf', 'steel'))
 #: Tube wall share of radius (`[shell]`), von Mises shear/flex share, half-backlash flex limit, and safety factor.
 WALL = float(_SHELL['wall_share'])
 FLEX_AT = float(_SHELL.get('flex_at', round(1.0 / math.sqrt(3.0), 1)))
-FLEX_DEG = float(_SHELL.get('flex_deg', 0.5 * float(_GBOX['backlash_deg'])))
+FLEX_DEG = float(_SHELL.get('flex_deg', 0.5 * _MIN_BACKLASH_DEG))
 MARGIN = float(_SHELL.get('margin', 1.5))
 #: Four-bar PAHT-CF plate width and hip-fork carbon crown width, m (`[shell]`).
 PLATE_W, CROWN_W = float(_SHELL['plate_w_m']), float(_SHELL['crown_w_m'])

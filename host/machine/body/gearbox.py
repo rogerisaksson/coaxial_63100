@@ -52,7 +52,7 @@ OBSERVE_X = _bus['observe_x']
 RATE_S = _bus['rate_s']
 #: The mesh's friction rounded over this speed, rad/s; the rotors stepped this many times within
 #: the world's step (`gearboxes.toml`, `peripherals.world`).
-MESH_RAD_S = float(_LIB['gearboxes'][_BUILD['stacks']['knee'][1]]['mesh_rad_s'])
+MESH_RAD_S = min(float(_LIB['gearboxes'][s[1]]['mesh_rad_s']) for s in _BUILD['stacks'].values())
 SUBSTEPS = int(_wrld['substeps'])
 
 

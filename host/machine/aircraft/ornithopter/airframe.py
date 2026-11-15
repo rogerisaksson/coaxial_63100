@@ -40,8 +40,9 @@ WO_TURN, WO_PULL, WO_WIND = _OBS['turn_bandwidth'], _OBS['pull_bandwidth'], _OBS
 WIND_REG, MIN_AIR_M_S = _OBS['wind_regularization'], _OBS['min_air_speed']
 FLOOR_M, HOVER_M, TOP_M = (KINEMATICS['envelope'][k] for k in (
     'floor_height', 'hover_height', 'top_height'))
-FLAP_ROCK_HZ, FLAP_ROCK_RAD = (KINEMATICS['oscillator'][k] for k in (
-    'tictoc_frequency', 'tictoc_amplitude'))
+WAKE_FLOOR_M_S, FLAP_ROCK_HZ, FLAP_ROCK_RAD = (
+    KINEMATICS['vertical']['wake_floor'],
+    *(KINEMATICS['oscillator'][k] for k in ('tictoc_frequency', 'tictoc_amplitude')))
 RIDGE_SOAR, THERMAL_SPIRAL, FOLD_ENTRY, SANDSTORM_DIVE, DIVE_PIRO = (STUNTS[k] for k in (
     'ridge_soar', 'thermal_spiral', 'fold_entry', 'sandstorm_dive', 'dive_piro'))
 WING_ROCK, BANK_ROCK, DUNE_SLASH, CORIOLIS_STORM, DESERT_UNWIND, UNWIND = (STUNTS[k] for k in (
@@ -105,5 +106,5 @@ def _wing_cda(stroke=0.0):
 
 def _flap_inflow(along, v_horiz, w_eq):
     """Combined axial inflow and translational flapping lift factor (`K_LIFT`)."""
-    tip = max(w_eq * WING_SPAN, 8.0)
+    tip = max(w_eq * WING_SPAN, WAKE_FLOOR_M_S)
     return inflow(along, w_eq) * (1.0 + K_LIFT * min(INFLOW_FLOOR, v_horiz / tip))

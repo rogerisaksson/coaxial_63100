@@ -39,7 +39,8 @@ WO_TURN, WO_PULL, WO_WIND = _OBS['turn_bandwidth'], _OBS['pull_bandwidth'], _OBS
 WIND_REG, MIN_AIR_M_S = _OBS['wind_regularization'], _OBS['min_air_speed']
 FLOOR_M, HOVER_M, TOP_M = (
     KINEMATICS['envelope'][k] for k in ('floor_height', 'hover_height', 'top_height'))
-PULL_MAX = K_THRUST * (GOV_RAD_S * STUNT_BOOST) ** 2 / MASS_KG
+WAKE_FLOOR_M_S, PULL_MAX = (
+    KINEMATICS['vertical']['wake_floor'], K_THRUST * (GOV_RAD_S * STUNT_BOOST) ** 2 / MASS_KG)
 TICTOC_HZ, TICTOC_RAD = (
     KINEMATICS['oscillator'][k] for k in ('tictoc_frequency', 'tictoc_amplitude'))
 FUNNEL, SPIRAL, FLIP_IN, INVERTED, INV_PIRO, TICTOC, AILERON_TICTOC, PIRO_FLIP, CHAOS, HURRICANE, UNWIND = (
@@ -83,4 +84,5 @@ def _rotor_drag(coll, cyc_p, cyc_r, w):
 
 
 def _rotor_inflow(along, v_horiz, w_m):
-    return inflow(along, w_m) * (1.0 + (1.0 - INFLOW_FLOOR) * min(INFLOW_FLOOR, v_horiz / max(w_m * ROTOR_R, 8.0)))
+    return inflow(along, w_m) * (
+        1.0 + (1.0 - INFLOW_FLOOR) * min(INFLOW_FLOOR, v_horiz / max(w_m * ROTOR_R, WAKE_FLOOR_M_S)))

@@ -165,6 +165,13 @@ def test_heterogeneous_inverter_and_gearbox_derivations(report, _lib):
     report.check('DC-link housekeeping + switching sum matches driven joints',
                  abs(dclink.laid()['house_w'] - len(dclink.DRIVEN) * (heat.HOUSEKEEPING_W + heat.SWITCHING_W)) < 1e-9
                  and drives.zeta('left_knee') == drives.BOX_ZETA and drives.zeta('left_foot') == 0.0)
+    from machine.body import compile as body_compile, gearbox, mjcf, peripherals, structural
+    report.check('passive armatures, backlash stops and mesh smoothing generalize per stack',
+                 mjcf._passive_j('left_wrist') == mjcf.PASSIVE_J
+                 and mjcf._held_deg('left_gripper') == mjcf.HELD_DEG
+                 and structural.FLEX_DEG == 0.5 * drives.BACKLASH_DEG
+                 and gearbox.MESH_RAD_S > 0.0 and body_compile.ENC_RAD > 0.0
+                 and peripherals.identify()['wear']['unit']['kt'] > 0.0)
 
 
 ROSTER = (test_the_mirror_lays_what_the_c_lays, test_the_air_is_the_cs,

@@ -198,8 +198,10 @@ def test_aeroblocks_static_scaling(report):
     as_base = blocks['unlimited_3d_monoplane'][1]
     surf = aeroblocks.kv_block(
         [['use', 'unlimited_3d_monoplane'], ['wing_span', 2.0 * as_base['wing_span']],
-         ['prop_radius', 2.0 * as_base['prop_radius']], ['tail_arm', 1.5 * as_base['tail_arm']]],
+         ['prop_radius', 2.0 * as_base['prop_radius']], ['tail_arm', 1.5 * as_base['tail_arm']],
+         ['elevator_limit', math.radians(30.0)]],
         aeroblocks.AERO_BLOCKS['aero_surfaces'], c, None, None, blocks, 'aero_surfaces')
+    elev_ratio = math.sin(math.radians(30.0)) / math.sin(as_base['elevator_limit'])
     report.check('main and tail rotors scale k_thrust ~ r^4 and k_drag / k_cyclic ~ r^5',
                  abs(mr['k_thrust'] / mr_base['k_thrust'] - 16.0) < 1e-6
                  and abs(mr['k_drag'] / mr_base['k_drag'] - 32.0) < 1e-6
@@ -211,8 +213,18 @@ def test_aeroblocks_static_scaling(report):
                  and abs(fw['k_roll'] / fw_base['k_roll'] - 8.0) < 1e-6
                  and abs(surf['k_thrust'] / as_base['k_thrust'] - 16.0) < 1e-6
                  and abs(surf['k_roll'] / as_base['k_roll'] - 4.0) < 1e-6
-                 and abs(surf['k_pitch'] / as_base['k_pitch'] - 1.5) < 1e-6
+                 and abs(surf['k_pitch'] / as_base['k_pitch'] - 1.5 * elev_ratio) < 1e-6
                  and surf['cd_induced'] < as_base['cd_induced'])
+    vt = aeroblocks.kv_block([['use', 'vertical_climb_brake'], ['climb_speed', 6.5]],
+                             aeroblocks.KIN_BLOCKS['vertical'], c, None, None, blocks, 'vertical')
+    from machine.aircraft.aerobat import airframe as aa
+    from machine.aircraft.helicopter import airframe as ha
+    from machine.aircraft.ornithopter import airframe as oa
+    report.check('Glauert edgewise wake floor equals 2 * climb_speed across vertical blocks and airframes',
+                 vt['wake_floor'] == 13.0
+                 and ha.WAKE_FLOOR_M_S == 2.0 * ha.KINEMATICS['vertical']['climb_speed']
+                 and oa.WAKE_FLOOR_M_S == 2.0 * oa.KINEMATICS['vertical']['climb_speed']
+                 and aa.WAKE_FLOOR_M_S == 2.0 * aa.KINEMATICS['vertical']['climb_speed'])
 
 
 ROSTER = (

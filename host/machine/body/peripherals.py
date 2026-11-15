@@ -75,11 +75,11 @@ def _build_peripherals():
     }
 
     st = _compile.subtrees()
-    m_sprung = st['trunk'][0] + build.segments()['pelvis'][0]
+    m_dressed = st['weight'] / _compile.G_M_S2
     j_sprung = st['trunk'][2] + 2.0 * st['leg'][2]
     zeta, w_h = round(math.sqrt(0.5), 1), math.sqrt(12.0) * st['omega']
-    kp_p = float(round(m_sprung * w_h * w_h, -3))
-    kd_p = float(round(2.0 * zeta * math.sqrt(kp_p * m_sprung), -2))
+    kp_p = float(round(m_dressed * w_h * w_h, -3))
+    kd_p = float(round(2.0 * zeta * math.sqrt(kp_p * m_dressed), -2))
     kp_t = float(round(j_sprung * w_h * w_h, -2))
     kd_t = float(round(2.0 * zeta * math.sqrt(kp_t * j_sprung), -1))
 
@@ -102,10 +102,11 @@ def _build_peripherals():
         'p1': p1, 'p2': 12 * p1, 'texture': 1.5, 'unique': round(1.0 + 3.0 / p1, 2),
     }
 
-    gbox_k = lib['gearboxes'][rbt['stacks']['knee'][1]]
-    pwm_hz = float(inv_k['pwm_hz'])
+    stacks = tuple(rbt['stacks'].values())
+    pwm_hz = max(float(lib['inverters'][s[2]]['pwm_hz']) for s in stacks)
+    min_eff = min(float(lib['gearboxes'][s[1]]['efficiency']) for s in stacks)
+    min_ceil = min(float(lib['inverters'][s[2]]['ceiling_c'][0]) for s in stacks)
     p_air_mpa = float(env['air_kg_m3']) * 287.05 * (amb + 273.15) * 1e-6
-    m_dressed = st['weight'] / _compile.G_M_S2
     sole, pad, lace = rbt['elastomers']['sole'], rbt['elastomers']['pad'], rbt['garments']['lace']
     e_sole, h_sole = float(sole['modulus_mpa']), float(sole['thick_m'])
     a_sole = 2.0 * figure.CONTACTS[0][2][0] * (figure.BALL + figure.HEEL)
@@ -119,7 +120,7 @@ def _build_peripherals():
         'step_s': 1.0 / bus_hz,
         'substeps': max(1, int(round(pwm_hz / (10.0 * bus_hz)))),
         'cone': 'elliptic',
-        'impratio': round(1.0 / (1.0 - float(gbox_k['efficiency'])), 1),
+        'impratio': round(1.0 / (1.0 - min_eff), 1),
         'stand_m': round(1.5 * figure.standing() / figure.SCALE, 1) * figure.SCALE,
         'stand_solref_s': solref_floor,
         'sole_s': max(solref_floor, round(math.tau * math.sqrt(m_dressed / k_sole), 2)),
@@ -134,7 +135,7 @@ def _build_peripherals():
         'reflected': 1.0, 'placed': 1.0, 'backdrive': 1.0, 'skeleton': 0.0, 'wound': 1.0,
         'boxed': 0.0, 'room': 0.0, 'camera': 0.0, 'sight': 0.0, 'envelope': 1.0,
         'soa_rds': float(round(pwm_hz / bus_hz)),
-        'warm_c': round(amb + 0.75 * (float(inv_k['ceiling_c'][0]) - amb), 1),
+        'warm_c': round(amb + 0.75 * (min_ceil - amb), 1),
         'virtual_span_deg': float(round(max(hi - lo for lo, hi in drives.TRAVEL.values()) * 0.9, -1)),
         'virtual_slew_deg_s': float(round(drives.speed('left_shoulder'), -2)),
     }
@@ -181,8 +182,10 @@ def world() -> dict[str, Any]:
 def _service() -> dict[str, Any]:
     from machine.body import heat
     env, rbt, lib = mechatronics.environment(), mechatronics.robot(), mechatronics.library()
-    gbox = lib['gearboxes'][rbt['stacks']['knee'][1]]
-    eff, fatigue_cycles = float(gbox['efficiency']), float(gbox['l10_cycles'])
+    stacks = tuple(rbt['stacks'].values())
+    eff = min(float(lib['gearboxes'][s[1]]['efficiency']) for s in stacks)
+    fatigue_cycles = min(float(lib['gearboxes'][s[1]]['l10_cycles']) for s in stacks)
+    max_bl = max(float(lib['gearboxes'][s[1]]['backlash_deg']) for s in stacks)
     loss_band = round(5.0 * (1.0 - eff), 2)
     mesh_arm = max(0.2, round(drives.mesh('left_shoulder'), 1))
     pose, origin = figure.stand(), (0.0, figure.standing(), 0.0)
@@ -200,9 +203,9 @@ def _service() -> dict[str, Any]:
         'friction': [loss_band, round(0.5 * mesh_arm, 2)],
         'viscous': [loss_band, float(env['joint_damping'])],
         'torque': round(1.5 * (1.0 - eff), 2),
-        'play': round(1.0 - drives.RIGID_PLAY_DEG / drives.BACKLASH_DEG, 2),
+        'play': round(1.0 - drives.RIGID_PLAY_DEG / max_bl, 2),
         'wind_up': loss_band,
-        'zero': round(math.radians(drives.BACKLASH_DEG) + _compile.ENC_RAD, 2),
+        'zero': round(math.radians(max_bl) + _compile.ENC_RAD, 2),
         'load_kg': load_kg,
         'hours': round(fatigue_cycles / (3600.0 * walk_hz), -2),
         'trend_h': trend_h,
@@ -222,8 +225,11 @@ def service(overrides=None) -> dict[str, Any]:
 def _identify() -> dict[str, Any]:
     env, rbt, lib = mechatronics.environment(), mechatronics.robot(), mechatronics.library()
     segs, svc, b_cfg = build.segments(), service(), bus()
-    gbox = lib['gearboxes'][rbt['stacks']['knee'][1]]
-    eff, zeta, mesh_rad_s = float(gbox['efficiency']), float(gbox['zeta']), float(gbox['mesh_rad_s'])
+    stacks = tuple(rbt['stacks'].values())
+    eff = min(float(lib['gearboxes'][s[1]]['efficiency']) for s in stacks)
+    mesh_rad_s = min(float(lib['gearboxes'][s[1]]['mesh_rad_s']) for s in stacks)
+    max_bl = max(float(lib['gearboxes'][s[1]]['backlash_deg']) for s in stacks)
+    zeta = drives.zeta('neck')
     bus_hz = round(1.0 / float(b_cfg['lockstep_s']), 1)
     law_div, win_s = int(b_cfg['law_div']), float(b_cfg['wear_window_s'])
     mesh_arm = max(0.2, round(drives.mesh('left_shoulder'), 1))
@@ -277,7 +283,7 @@ def _identify() -> dict[str, Any]:
             'rows_at': rows_at, 'independent': 1e-3, 'none': 1e-9, 'tie': 1e-9,
             'trust': round(1.0 - eff, 2), 'stick': round(12.5 * mesh_rad_s, 2),
             'sprung_stick': inside, 'lever_m': max(0.05, round(0.5 * (figure.BALL + figure.HEEL), 1)),
-            'stop_deg': round(4.0 * drives.BACKLASH_DEG, 1),
+            'stop_deg': round(4.0 * max_bl, 1),
             'hem_acc_max': float(round(_compile.G_M_S2 / l_hem, -1)),
         },
     }

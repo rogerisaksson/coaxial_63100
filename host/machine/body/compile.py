@@ -11,10 +11,9 @@ from typing import Any
 from machine.body import build, drives, figure, mechatronics
 
 _ENV, _BUILD, _LIB = mechatronics.environment(), mechatronics.robot(), mechatronics.library()
-_INV = _LIB['inverters'][_BUILD['stacks']['knee'][2]]
 G_M_S2, _BUS_HZ, _LAW_DIV = float(_ENV['g_m_s2']), drives.BUS_HZ, float(drives.LAW_DIV)
 _LAW_HZ, ROTOR_FF, _ESO_WO = _BUS_HZ / _LAW_DIV, round(1.0 / (1.0 + _LAW_DIV), 2), 0.10 * _BUS_HZ
-ENC_RAD = tau / float(_INV['encoder_counts'])
+ENC_RAD = max(tau / float(_LIB['inverters'][s[2]]['encoder_counts']) for s in _BUILD['stacks'].values())
 _MU_DRY, _KIN_SHARE = float(_ENV['mu_dry']), float(_ENV['kinetic_share'])
 _TAKES_NPZ = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'texts', 'takes.npz')
 _AX, _AY, _AZ = (1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)
@@ -118,15 +117,21 @@ def _servos(st):
     w_inner, zeta_opt = 3.0 * w_task, sqrt(0.5)
 
     def j_drv(k):
-        j = drives.armature(_joint_of(k))
-        return j if j > 0.0 else (1.0 + drives.GEAR_J) * drives.size(k).rotor * drives.RATIO ** 2
+        jt = _joint_of(k)
+        j = drives.armature(jt)
+        if j > 0.0:
+            return j
+        box = drives._box(jt)
+        return (1.0 + float(box['input_j_share'])) * drives.size(k).rotor * float(box['ratio']) ** 2
 
     def sv(k, pk, kp, kd):
-        a = (ROTOR_FF + drives.GEAR_J) * drives.size(k).rotor * drives.RATIO ** 2
+        box = drives._box(_joint_of(k))
+        a = (ROTOR_FF + float(box['input_j_share'])) * drives.size(k).rotor * float(box['ratio']) ** 2
         return (round(pk, 1), float(kp), float(kd), round(a, 2))
 
     def pd_joint(k, j_eff, zeta, bw=w_inner):
-        k_res = 0.5 * drives.BOX_ZETA * drives.wind(_joint_of(k))
+        jt = _joint_of(k)
+        k_res = 0.5 * drives.zeta(jt) * drives.wind(jt)
         kp = float(round(min(k_res, bw * bw * j_eff) if k_res > 0.0 else bw * bw * j_eff))
         return kp, float(round(2.0 * zeta * sqrt(kp * j_eff)))
 
@@ -275,11 +280,12 @@ def _loop_gait(v0, w_task, w_eso):
     k_task = round(w_task * w_task, 1)
     k_swing, d_task = 16.0 * k_task, 2.0 * sqrt(k_task)
     mu = round(_KIN_SHARE * _MU_DRY, 2)
+    max_bl = max(float(_LIB['gearboxes'][s[1]]['backlash_deg']) for s in _BUILD['stacks'].values())
     return {
         'mu': mu, 'f_min_n': 0.0, 'slide_m_s': 0.055 * v0,
         'margin_m': figure.SOLE_HALF / 3.0, 'slack': 1e3,
         'height_band_m_s2': float(round(0.5 * mu * G_M_S2)), 'limit_s': 0.5 / w_task,
-        'stop_rad': round(radians(drives.BACKLASH_DEG) + ENC_RAD, 2),
+        'stop_rad': round(radians(max_bl) + ENC_RAD, 2),
         'contact_1_s': d_task, 'held_1_s': 0.5 * w_eso, 'clamp_share': 0.95, 'near': 0.6,
         'turn_1_s2': k_task, 'turn_1_s': d_task, 'posture_1_s2': k_task, 'posture_1_s': d_task,
         'swing_1_s2': k_swing, 'swing_1_s': 2.0 * sqrt(k_swing), 'momentum_1_s': 0.3 * w_task,
