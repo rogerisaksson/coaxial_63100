@@ -142,9 +142,32 @@ def _derive_tail_rotor(out, inherited, explicit):
         _scale_pow(out, inherited, explicit, out['radius'] / inherited['radius'], (('k_thrust', 4),))
 
 
+def _rigid_axes(d, planar_z):
+    if all(d.get(k, 0.0) > 0.0 for k in ('hub_x', 'hub_y', 'hub_z')):
+        return d['hub_x'], d['hub_y'], d['hub_z']
+    span = 0.5 * abs(d.get('strut_fore', 0.0) - d.get('strut_aft', 0.0))
+    h = d.get('skid_height', 0.0)
+    if d.get('skid_span', 0.0) > 0.0 and h > 0.0 and span > 0.0:
+        return (d['skid_span'], span, h) if planar_z else (d['skid_span'], h, span)
+    return None
+
+
 def _derive_rigid_body(out, inherited, explicit):
-    if 'mass' in explicit and inherited.get('mass', 0.0) > 0.0:
-        _scale_pow(out, inherited, explicit, out['mass'] / inherited['mass'],
+    m_r = (out['mass'] / inherited['mass']
+           if 'mass' in explicit and inherited.get('mass', 0.0) > 0.0 else 1.0)
+    geom = ('hub_x', 'hub_y', 'hub_z', 'skid_span', 'skid_height', 'strut_aft', 'strut_fore')
+    planar_z = inherited.get('inertia_zz', 0.0) > inherited.get('inertia_yy', 0.0)
+    ax0 = _rigid_axes(inherited, planar_z) if any(k in explicit for k in geom) else None
+    ax1 = _rigid_axes(out, planar_z) if ax0 is not None else None
+    if ax0 is not None and ax1 is not None:
+        (x0, y0, z0), (x1, y1, z1) = ax0, ax1
+        for k, n0, n1 in (('inertia_xx', y0 * y0 + z0 * z0, y1 * y1 + z1 * z1),
+                          ('inertia_yy', x0 * x0 + z0 * z0, x1 * x1 + z1 * z1),
+                          ('inertia_zz', x0 * x0 + y0 * y0, x1 * x1 + y1 * y1)):
+            if k not in explicit and k in inherited and n0 > 0.0:
+                out[k] = inherited[k] * m_r * (n1 / n0)
+    elif m_r != 1.0:
+        _scale_pow(out, inherited, explicit, m_r,
                    (('inertia_xx', 1), ('inertia_yy', 1), ('inertia_zz', 1)))
 
 

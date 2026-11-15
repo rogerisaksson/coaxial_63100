@@ -234,6 +234,29 @@ def test_aeroblocks_static_scaling(report):
     from machine.aircraft.aerobat import airframe as aa
     from machine.aircraft.helicopter import airframe as ha
     from machine.aircraft.ornithopter import airframe as oa
+    rot_b, rb_q, rb_a, cool_b = (blocks['quad_x_16x14'][1], blocks['quad_x_body'][1],
+                                 blocks['aerobat_monoplane_body'][1], blocks['aluminium_finned_block'][1])
+    rot = aeroblocks.kv_block([['use', 'quad_x_16x14'], ['disc_radius', 2.0 * rot_b['disc_radius']]],
+                              aeroblocks.AERO_BLOCKS['rotors'], c, None, None, blocks, 'rotors')
+    rb_wide = aeroblocks.kv_block([['use', 'quad_x_body'], ['hub_x', 2.0 * rb_q['hub_x']]],
+                                  aeroblocks.DYN_BLOCKS['rigid_body'], c, aeroblocks.DYN_REQUIRED['rigid_body'],
+                                  None, blocks, 'rigid_body')
+    rb_size = aeroblocks.kv_block(
+        [['use', 'aerobat_monoplane_body'], ['mass', 8.0 * rb_a['mass']],
+         ['skid_span', 2.0 * rb_a['skid_span']], ['skid_height', 2.0 * rb_a['skid_height']],
+         ['strut_aft', 2.0 * rb_a['strut_aft']], ['strut_fore', 2.0 * rb_a['strut_fore']]],
+        aeroblocks.DYN_BLOCKS['rigid_body'], c, aeroblocks.DYN_REQUIRED['rigid_body'], None, blocks, 'rigid_body')
+    cool = aeroblocks.kv_block([['use', 'aluminium_finned_block'], ['sink_mass', 2.0 * cool_b['sink_mass']]],
+                               aeroblocks.DYN_BLOCKS['cooling'], c, (), None, blocks, 'cooling')
+    report.check('rotors, rigid-body principal inertias and heatsink capacity scale statically with geometry and mass',
+                 abs(rot['k_thrust'] / rot_b['k_thrust'] - 16.0) < 1e-6
+                 and abs(rot['k_drag'] / rot_b['k_drag'] - 32.0) < 1e-6
+                 and abs(rb_wide['inertia_xx'] - rb_q['inertia_xx']) < 1e-9
+                 and rb_wide['inertia_yy'] > 2.0 * rb_q['inertia_yy']
+                 and rb_wide['inertia_zz'] > 3.0 * rb_q['inertia_zz']
+                 and all(abs(rb_size[k] / rb_a[k] - 32.0) < 1e-6
+                         for k in ('inertia_xx', 'inertia_yy', 'inertia_zz'))
+                 and abs(cool['sink_capacity'] - 2.0 * cool_b['sink_capacity']) < 1e-6)
     report.check('Glauert wake floor, governor, ESO, envelope and horizontal spot gains scale statically',
                  vt['wake_floor'] == 13.0
                  and abs(gov['tail_ratio'] - 2.0 * gov_b['tail_ratio']) < 1e-6
