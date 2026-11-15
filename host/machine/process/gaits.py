@@ -112,7 +112,7 @@ def _brake_and_switch(g, by, entry, t0, spd, back_now):
         brake['p'][:, ortho.AMP + modal.LATERAL] = 0.0
         brake['blend'] = 450 if wide_open else 160
     sprung.said(g, 'brake', brake.tobytes(), ('brake',), at=t0, reset=True)
-    if name == 'stand' or name not in (sprung._FWD_GAITS + sprung._BACK_GAITS):
+    if name == 'stand' or name not in (sprung._FWD_GAITS + sprung._BACK_GAITS) or name in ('spin_left', 'spin_right'):
         ts, tg = se2.stand_lead(spd)
         if name == 'stand':
             # said once it has halted (`halted`), the clock its fallback: on the clock the stand took it at

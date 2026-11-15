@@ -5,7 +5,8 @@ import math
 
 def tell(g, gym, heard_fn, cmd):
     """`cmd` as the errand's word to it, once: the same twist again would restart its gait."""
-    if g.get('asked') != cmd.get('twist'):
+    tw = cmd.get('twist')
+    if g.get('asked') != tw or (tw is not None and g.get('governed') != tw and _mods()[3].doing(g) != 'brake'):
         heard_fn(g, gym, dict(cmd, _errand_cmd=True))
 
 

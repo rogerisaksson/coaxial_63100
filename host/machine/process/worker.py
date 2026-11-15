@@ -269,7 +269,9 @@ def stepped(s):
             if g['n'] % g['every'] == 0:
                 kt = g.get('_key_twist', (0.0, 0.0, 0.0))
                 if g.get('_cocoon_cut') and g.get('_errand') is None and not gaits.in_stunt_transient(g):
-                    tw_c, still = _cocoon().refused(g, kt), sprung.doing(g) in ('stand', 'rest')
+                    spd = math.hypot(float(g['est']['vel'][0]), float(g['est']['vel'][2]))
+                    tw_c = _cocoon().refused(g, kt)
+                    still = sprung.doing(g) in ('stand', 'rest') and spd < se2.HALT_M_S
                     if max(abs(kt[0]), abs(kt[1]), abs(kt[2])) <= 1e-6 or (
                             still and (tw_c == kt or tw_c != g.get('asked'))):
                         g['_cocoon_cut'] = tw_c != kt and max(abs(kt[0]), abs(kt[1]), abs(kt[2])) > 1e-6
