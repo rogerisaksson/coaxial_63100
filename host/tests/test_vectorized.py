@@ -41,11 +41,11 @@ def test_no_function_loses_a_vectorised_loop(report, _c):
     from tools.cores import vectorized
     key, targets, table, _fused = _told()
     rows = vectorized.laid()
+    # a host no one reaches by hand (a runner) tells its section whole where it has none, for the tool's --take
     report.check("this host's compiler and machine have their section of the table: %s" % key, key in rows,
-                 'lay it: python tools/cores/vectorized.py --write (a container: --json there, --take here)')
+                 'lay it: python tools/cores/vectorized.py --write (a container: --json there, --take here)'
+                 + ('' if key in rows else '; its section: ' + json.dumps({key: [list(targets), table]})))
     if key not in rows:
-        # a host no one reaches by hand (a runner): its section told whole, for the tool's --take
-        print('  its section: ' + json.dumps({key: [list(targets), table]}))
         return
     of, laid = rows[key]
     stand = {name: {fn for fn, _first, _last in vectorized.spans(path)} for name, path in vectorized.sources().items()}
