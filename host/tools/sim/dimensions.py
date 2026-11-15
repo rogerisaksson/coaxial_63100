@@ -66,7 +66,7 @@ def text(lib=None, rows=None):
     gearboxes = (mechatronics.library() if lib is None else lib)['gearboxes']
     rows = types() if rows is None else rows
     driven = [j for j in JOINTS if not drives.passive(j)]
-    out = ['# Dimensions', '',
+    out = ['# Dimensions (written by host/tools/sim/dimensions.py, not by hand)', '',
            'The gynoid\'s axes by drive type: %d driven on %d type%s, %d without a drive.'
            % (len(driven), len(rows), '' if len(rows) == 1 else 's', len(JOINTS) - len(driven)),
            'The candidate of record, laid in `machine/body/drives.py` and written by',

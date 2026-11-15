@@ -2,6 +2,7 @@
 import ast
 import glob
 import importlib
+import inspect
 import io
 import operator
 import os
@@ -372,9 +373,63 @@ def test_static_compiler_and_generators(r):
             terms.render(terms.rows()) == terms_disk and footprint.text(fp_dict) == fp_disk and hdr == hdr_disk)
 
 
+def test_footprint_rows_hold_their_shape(r):
+    """machine/body/footprint_rows.py as `tools/cores/footprint.py` lays it: K reaches a band, a turn each of
+    TURN_DEG, each reach a length (its text is held by test_static_compiler_and_generators)."""
+    from machine.body import footprint_rows as rows
+    names = ('LEFT', 'RIGHT', 'CARRY_LEFT', 'CARRY_RIGHT', 'SPREAD_LEFT', 'SPREAD_RIGHT', 'TOOK_LEFT', 'TOOK_RIGHT')
+    turns, bands = len(rows.TURN_DEG), ('STAND', 'WALK', 'BACK', 'SIDE')
+    wide = all(len(row) == rows.K for name in bands for row in getattr(rows, name))
+    turned = (all(len(getattr(rows, name)) == turns for name in names)
+              and all(len(row) == rows.K for name in ('LEFT', 'RIGHT') for h in getattr(rows, name) for row in h))
+    r.check('K reaches a band, a turn each of TURN_DEG', wide and turned, (rows.K, turns))
+    reaches = [v for name in bands for row in getattr(rows, name) for v in row]
+    reaches += [v for name in ('LEFT', 'RIGHT') for h in getattr(rows, name) for row in h for v in row]
+    r.check('each reach a length, its bands and steps too', rows.BAND_M > 0.0 and rows.STEP_M > 0.0
+            and all(v >= 0.0 for v in reaches) and all(t > 0.0 for t in rows.TOOK_LEFT + rows.TOOK_RIGHT),
+            (min(reaches), rows.BAND_M, rows.STEP_M))
+
+
+def test_generated_files_name_their_tools(r):
+    """Every file a tool writes names the tool on its first line (`token_budget.GENERATED`), LF-only, and
+    every tracked file saying so is one of theirs: the generators' outputs and the notices, one set."""
+    import subprocess
+    from machine.body import mechatronics
+    from tools.cores import footprint, manifest, model, reach, terms
+    from tools.dev import cover, pinned, token_budget
+    from tools.sim import dimensions
+    host = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    outputs = {footprint.PATH: footprint, reach.PATH: reach, terms.PATH: terms, model.HEADER: model,
+               model.SOURCE: model, dimensions.PAGE: dimensions, str(pinned.LOCK): pinned, cover.PAGE: cover}
+    outputs.update((manifest.path(robot), manifest) for robot in mechatronics.robots())
+
+    def key(path):
+        return os.path.normcase(os.path.relpath(os.path.abspath(path), REPO)).replace(os.sep, '/')
+    unnamed, crlf = [], []
+    for path, tool in outputs.items():
+        named = os.path.relpath(inspect.getfile(tool), host).replace(os.sep, '/')
+        with open(path, 'rb') as f:
+            first = f.readline()
+            crlf += [key(path)] if b'\r' in first + f.read() else []
+        if token_budget.GENERATED.encode() not in first or named.encode() not in first:
+            unnamed.append((key(path), named))
+    r.check('%d outputs of %d tools, each naming its tool on its first line' % (len(outputs), len({
+        t.__name__ for t in outputs.values()})), not unnamed, unnamed)
+    r.check('each LF-only', not crlf, crlf)
+    tracked = subprocess.run(['git', 'ls-files', '-z'], cwd=REPO, capture_output=True, check=True).stdout
+    theirs, strays = {key(p) for p in outputs}, []
+    files = (os.path.join(REPO, rel) for rel in filter(None, tracked.decode('utf-8').split('\0')))
+    for full in filter(os.path.isfile, files):           # a submodule's gitlink is no file
+        with open(full, 'rb') as f:
+            if token_budget.GENERATED.encode() in f.readline() and key(full) not in theirs:
+                strays.append(key(full))
+    r.check('every tracked file saying a tool writes it is one of theirs', not strays, strays)
+
+
 ROSTER = (test_subsystem_calls_resolve, test_limits_live_in_one_file, test_mirrors_agree,
           test_dimensions_page_is_the_drives, test_its_manifest_is_its_build,
-          test_static_compiler_and_generators)
+          test_static_compiler_and_generators, test_footprint_rows_hold_their_shape,
+          test_generated_files_name_their_tools)
 
 def main(argv=None):
     """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""
