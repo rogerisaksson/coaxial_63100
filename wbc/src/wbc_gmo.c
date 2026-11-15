@@ -18,7 +18,7 @@ _Static_assert((offsetof(wbc_gmo_t, ag) % 64U == 0U) && (offsetof(wbc_gmo_t, w) 
 _Static_assert(_Alignof(wbc_gmo_t) == 64U, "the struct on a line");
 #define NH (WBC_N - 6)
 
-static const double gravity[3] = {0.0, -9.81, 0.0};
+static const double gravity[3] = {0.0, -WBC_GRAVITY, 0.0};
 
 static void turned(const double r[9], const double v[3], double out[3])
 {

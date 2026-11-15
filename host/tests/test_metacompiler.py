@@ -13,14 +13,16 @@ import glob
 import json
 import math
 import os
+import re
 import subprocess
 import sys
 import tomllib
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from tools.dev import token_budget
 from tools.dev.focus import chosen
-from structure_kit import HOST, Report, sources
+from structure_kit import HOST, REPO, Report, sources
 
 #: The power stage's names its model reads from the library, each the library's key or its solver.
 STAGE = {'FSW': 'pwm_hz', 'RDS_ON': 'rds_ohm', 'RTH_JC': 'rth_jc', 'T_J_MAX': 'tj_max_c', 'SHUNT': 'shunt_ohm'}
@@ -115,7 +117,8 @@ def test_the_rig_reads_the_specs_as_files(r):
 def test_the_worlds_gravity_is_stated_once(r):
     """No module of the host's packages or scripts holds the world's gravity as a number of its
     own: `world.toml` states it; the body's compiler, the simulated accelerometer and the
-    emulator's worlds read it there, the air's density with it."""
+    emulator's worlds read it there, the air's density with it; the C cores of the robot's law
+    take the constant `tools/cores/model.py` lays in wbc_model.h."""
     from coaxial.simulated import sensors
     from machine.body import compile as body, mechatronics
     from tools.emu import world
@@ -131,6 +134,17 @@ def test_the_worlds_gravity_is_stated_once(r):
             body.G_M_S2 == g and sensors.G == g and sensors.SimulatedImu.VECTORS[0][4] == (0.0, 0.0, g)
             and sensors.SimulatedImu.ONE_G == int(g * (1 << 8))
             and left_out['gravity'] == g and left_out['rho'] == float(env['air_kg_m3']), left_out)
+    number, hand = re.compile(r'(?<![\w.])%s(?![\w.])' % re.escape(repr(g))), []
+    for folder in ('src', 'inc'):
+        for name in sorted(os.listdir(os.path.join(REPO, 'wbc', folder))):
+            with open(os.path.join(REPO, 'wbc', folder, name), encoding='utf-8') as f:
+                first, rest = f.readline(), f.read()
+            if token_budget.GENERATED not in first and number.search(first + rest):
+                hand.append(name)
+    with open(os.path.join(REPO, 'wbc', 'inc', 'wbc_model.h'), encoding='utf-8') as f:
+        laid = re.search(r'#define WBC_GRAVITY (\S+)', f.read())
+    r.check('no core of the robot\'s law written by hand states it: the generated model\'s constant is the world\'s',
+            not hand and laid is not None and float(laid.group(1)) == g, hand)
 
 
 def test_a_motor_and_its_profile_are_one(r):

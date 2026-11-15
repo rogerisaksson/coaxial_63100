@@ -272,7 +272,7 @@ double wbc_pass_drawn(const wbc_world_t *w, const double *tau, const double *spe
 void wbc_pass_felt(const wbc_world_t *w, double *y, int quat_at, int gyro_at, int accel_at, int q_at, int qd_at,
                    int qm_at)
 {
-  static const double g[3] = {0.0, -9.81, 0.0};
+  static const double g[3] = {0.0, -WBC_GRAVITY, 0.0};
   const double       *r = w->xmat + 9 * w->pelvis;
   double              v[3];
 

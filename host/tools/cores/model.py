@@ -178,6 +178,8 @@ def render(rows, b, stand=None):
         '#define WBC_HELD %d' % len(held),
         '#define WBC_BUFFERS %d' % len(buffers),
         '#define WBC_LOOP %d' % len(LOOP_KEYS), '',
+        '/** The world\'s gravity, m/s^2, down its y: -wbc_gravity[1] where a constant is asked. */',
+        '#define WBC_GRAVITY %r' % float(-b.m.opt.gravity[1]), '',
         '/** A link\'s kind (wbc_kind). */',
         '#define WBC_FREE %d' % FREE, '#define WBC_IS_DRIVEN %d' % DRIVEN,
         '#define WBC_IS_HELD %d' % HELD, '',

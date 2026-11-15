@@ -17,8 +17,6 @@
 #include <math.h>
 #include <string.h>
 
-#define WBC_G 9.81
-
 /** A bound within ACTIVE of its edge is reported at it; loop gains, bounds and weights live in
     wbc_loop (wbc_model.h), where a margin's slack is weighed by sqrt(wbc_loop[WBC_LOOP_SLACK]) on
     the turns' level so the form's level stays scaled to the python stack's (wbc_solve.c, LOWER). */
@@ -131,7 +129,7 @@ static void lay_bounds(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N],
   }
   if (s->nst)
   {
-    const double ay = ask->com_acc[1] + WBC_G;
+    const double ay = ask->com_acc[1] + WBC_GRAVITY;
 
     for (int sign = -1; sign <= 1; sign += 2)
     {
@@ -263,7 +261,7 @@ static int prepare(wbc_body_t *b, wbc_stack_t *s, const wbc_ask_t *ask)
 {
   int nst = 0;
 
-  s->fs = wbc_total_mass * WBC_G;
+  s->fs = wbc_total_mass * WBC_GRAVITY;
   memcpy(s->chol, b->m, sizeof(s->chol));
   if (!wbc_cholesky(WBC_N, WBC_N, &s->chol[0][0]))
   {
@@ -490,7 +488,7 @@ static void lay_level(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N],
           a[fvar(k, c, 1)] = s->fs / wbc_total_mass;
         }
       }
-      lay(s, 4, a, ask->com_acc[1] + WBC_G, wbc_loop[WBC_LOOP_HEIGHT_W]);
+      lay(s, 4, a, ask->com_acc[1] + WBC_GRAVITY, wbc_loop[WBC_LOOP_HEIGHT_W]);
       wbc_body_momentum(b, s->com, k3);
       for (int i = 0; i < 3; i++)
       {

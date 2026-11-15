@@ -20,7 +20,7 @@
 #define NU WBC_U
 #define UPPER (WBC_DRIVEN - 12)
 
-static const double G = 9.81;
+static const double G = WBC_GRAVITY;
 /** machine/stack/wrench.py's: a sole's edge, m; a leg's solve's damping; the rows' weights. */
 static const double EDGE_M = 0.003, DAMP = 0.02;
 static const double W_COM = 1000.0, W_TURN = 30.0, W_SWING = 30.0, W_KNEE = 3.0, W_POSTURE = 1.0;

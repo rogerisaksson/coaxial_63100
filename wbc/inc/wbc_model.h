@@ -11,6 +11,9 @@
 #define WBC_BUFFERS 12
 #define WBC_LOOP 24
 
+/** The world's gravity, m/s^2, down its y: -wbc_gravity[1] where a constant is asked. */
+#define WBC_GRAVITY 9.81
+
 /** A link's kind (wbc_kind). */
 #define WBC_FREE 0
 #define WBC_IS_DRIVEN 1
