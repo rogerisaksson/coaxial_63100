@@ -60,7 +60,8 @@ thick_m = 0.001074
 loss = 0.3
 rest = 0.0
 
-# Clothing thermal insulation over bare-air convection (ISO 9920): 1.0 bare, 1.20 cotton tee, 1.45 denim.
+# Clothing thermal insulation over bare-air convection (ISO 9920): 1.20 cotton tee, 1.45 denim; a joint
+# the table names none for is bare (1.0, `mechatronics.BARE`).
 [cloth]
 hip_yaw = 1.45
 hip_roll = 1.45
@@ -73,11 +74,6 @@ spine_roll = 1.20
 waist = 1.20
 shoulder = 1.20
 elbow = 1.20
-neck = 1.0
-head = 1.0
-wrist = 1.0
-gripper = 1.0
-foot = 1.0
 
 # Real-time RS485 fieldbus electronics: wire bit rate, transceiver turnaround (s) and noisy-run
 # bit error rate; lockstep rate, law decimation and thermal cadence are derived (`drives`, `peripherals`).

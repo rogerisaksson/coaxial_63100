@@ -259,6 +259,25 @@ def test_a_craft_states_its_own_alone(r):
             not apart and not any('extends' in cfg for cfg in resolved.values()), apart)
 
 
+def test_a_joint_dressed_in_nothing_is_bare(r):
+    """A build's `[cloth]` names the joints it dresses: the resolver lays bare (`mechatronics.BARE`,
+    the identity over bare air) under the rest, after those named and in the stacks' order, and
+    the stock build states no joint bare."""
+    from machine.body import drives, mechatronics
+    with open(os.path.join(mechatronics.ROBOTS, mechatronics.STOCK + '.toml'), 'rb') as f:
+        stated = tomllib.load(f)['cloth']
+    build = mechatronics.robot(mechatronics.STOCK)
+    bare = [kind for kind in build['stacks'] if kind not in stated]
+    r.check('the stock build states no joint bare and dresses only joints it has',
+            bool(bare) and mechatronics.BARE not in stated.values() and set(stated) <= set(build['stacks']), stated)
+    r.check('every joint has its cloth: the named as stated, then the bare in the stacks\' order',
+            list(build['cloth']) == list(stated) + bare and set(build['cloth']) == set(build['stacks'])
+            and all(build['cloth'][kind] == mechatronics.BARE for kind in bare)
+            and all(build['cloth'][kind] == value for kind, value in stated.items()), list(build['cloth']))
+    r.check('the robot\'s drives read the table as resolved', drives.CLOTH_AIR == mechatronics.robot()['cloth'],
+            drives.CLOTH_AIR)
+
+
 def test_a_wings_lift_slope_is_its_aspect_ratios(r):
     """The aerobat's lift a radian of incidence is not stated: `polars.lift_slope` gives it of its
     wing's span and chord (Helmbold) - a slender wing's pi/2 an aspect ratio at the one end, thin
@@ -304,7 +323,8 @@ def test_a_heavier_craft_keeps_its_radii(r):
 ROSTER = (test_the_power_stage_is_the_librarys, test_the_worlds_gravity_is_stated_once,
           test_a_motor_and_its_profile_are_one, test_a_build_compiled_anew_is_its_cache,
           test_no_compiled_number_is_not_a_number, test_an_override_moves_the_number_it_names,
-          test_a_scaled_figure_follows_similarity, test_a_craft_states_its_own_alone,
+          test_a_scaled_figure_follows_similarity, test_a_joint_dressed_in_nothing_is_bare,
+          test_a_craft_states_its_own_alone,
           test_a_wings_lift_slope_is_its_aspect_ratios, test_a_heavier_craft_keeps_its_radii)
 
 

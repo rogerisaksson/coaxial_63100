@@ -55,6 +55,8 @@ STOCK = 'gynoid_mesomorph_medium'
 ROBOT = os.environ.get('COAXIAL_ROBOT', STOCK)
 #: Each part's file in the library, and what a stack names of it in turn.
 PARTS = ('motors', 'gearboxes', 'inverters')
+#: Clothing's insulation over bare air (`[cloth]`, ISO 9920) on a joint a build dresses in nothing: the identity.
+BARE = 1.0
 #: Canonical whole-body latent mode names (`ortho.MODES`, `compile`, `modal`).
 MODES = ('axial_compression', 'lateral_shift', 'sagittal_drive', 'pitch_attitude', 'sagittal_shift',
          'limb_lift', 'stance_width', 'pelvis_list', 'pelvis_turn', 'arm_swing', 'foot_rock', 'arm_reach', 'arm_fold')
@@ -268,7 +270,8 @@ def _merged(base, over):
 def robot(name=ROBOT) -> dict:
     """A robot's build (machine/humanoids/`name`.toml), each stack's parts found in the library. A build that
     `extends` another is that one with its own tables laid on it - only what is its own -, its `swap` the
-    motors it takes for that one's in every stack it does not name."""
+    motors it takes for that one's in every stack it does not name. A joint the build's `[cloth]` dresses in
+    nothing is bare (BARE), laid after those the table names, in the stacks' order."""
     path = os.path.join(ROBOTS, name + '.toml')
     if not os.path.isfile(path):
         raise MachineError('no robot %s: %s' % (name, ', '.join(sorted(
@@ -284,4 +287,5 @@ def robot(name=ROBOT) -> dict:
             if named not in lib[part]:
                 raise MachineError('%s: %s %s is no %s in the library (%s)' % (
                     name, kind, named, part[:-1], ', '.join(lib[part])))
-    return build
+    worn = build.get('cloth', {})
+    return dict(build, cloth={**worn, **{kind: BARE for kind in build['stacks'] if kind not in worn}})

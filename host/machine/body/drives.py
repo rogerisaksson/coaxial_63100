@@ -494,7 +494,7 @@ MOUNT_K_W, OFF_MOUNT_K_W = MOUNT_BY_INV[_PRIMARY_INV]
 
 def cloth_air(joint=None):
     """Clothing thermal insulation multiplier (`>= 1.0`) for `joint` (or mean dressed factor)."""
-    return sum(CLOTH_AIR.values()) / len(CLOTH_AIR) if joint is None else CLOTH_AIR.get(kind(joint), 1.20)
+    return sum(CLOTH_AIR.values()) / len(CLOTH_AIR) if joint is None else CLOTH_AIR[kind(joint)]
 
 
 def stator(joint):
