@@ -17,7 +17,6 @@ robot's own (`machine.process.aside`), as its camera's map is.
     told = planner.answer(t)                # None till LATENCY_S after an ask, then {laid, stops, curve, held}, or {}
     planner.close()
 """
-import operator
 import queue
 
 from machine.process import aside, placed
@@ -30,7 +29,7 @@ _APART = obstacles.laws()['wayfinder-apart']
 LATENCY_S, WATCH_S = _APART['watch-latency-s'], _APART['watch-period-s']
 #: What an ask tells of the robot's things where they are the ask before's (`Planner.ask`): those its planner
 #: apart kept.
-SAME = 'its things as last asked'
+SAME, ROWS = 'its things as last asked', 'its things as last asked but these rows'
 
 
 def answered(ask):
@@ -61,8 +60,14 @@ def main():
     kept: dict = {}
 
     def served(ask):
-        if isinstance(ask['things'], str):
+        things = ask['things']
+        if isinstance(things, str):
             ask = dict(ask, things=kept['things'])
+        elif isinstance(things, tuple) and things[0] == ROWS:
+            laid = list(kept['things'])
+            for k, row in zip(things[1], things[2]):
+                laid[k] = row
+            ask = dict(ask, things=laid)
         kept['things'] = ask['things']
         return answered(ask)
     aside.serve(served)
@@ -85,16 +90,19 @@ class Planner:
 
     def ask(self, now, ask):
         """`ask` sent at `now`, the one in flight let go (its answer read and dropped); the robot's things
-        told SAME where they are the very ones of the ask before - kept there (`main`) -: pickled with every
-        ask they were 0.8 to 1.8 ms of each, its peeks' one after another, its things new at a
-        look alone."""
+        told SAME where they are the very ones of the ask before - kept there (`main`) -, and those of them not
+        the very ones alone where the rest are (ROWS: a look's rows that moved, `vision.ROWS`): pickled with every
+        ask they were 0.8 to 1.8 ms of each, its peeks' one after another; a bed creeping under the robot renews
+        a row every look, its things whole 1.35 ms an ask."""
         self.start()
         if self.asked_at is not None:
             self._told()
         things, was = ask['things'], self._things
-        same = was is not None and len(things) == len(was) and all(map(operator.is_, things, was))
+        moved = None if was is None or len(things) != len(was) else [
+            k for k, (p, q) in enumerate(zip(things, was)) if p is not q]
         self._things = things
-        self._aside.send(dict(ask, things=SAME) if same else ask)
+        self._aside.send(ask if moved is None or len(moved) == len(things) else dict(
+            ask, things=(ROWS, moved, [things[k] for k in moved]) if moved else SAME))
         self.asked_at, self._wait = now, LATENCY_S * float(ask['kind'] == 'watch')
 
     def answer(self, now):
