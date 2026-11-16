@@ -142,6 +142,19 @@ def truth(lay, m):
     return theta
 
 
+def stepped(lay, theta):
+    """`theta` with each series drive's armature its servo's and its rotor's, as the world steps it - its armature
+    the servo's, its rotor the box's (`machine.world.physics`) -, where the robot's law lumps its rotor alone
+    (`mjcf`): the build as it runs. As the law holds it, an ankle's 0.293 kg m^2 for the world's 0.343 put the
+    robot's swing's torque 15 % short, and the on-line filter read the left ankle's torque an amp 0.42 down on
+    the robot as built (`wear`): stepped, 0.03, its misfit 2.36 -> 0.79 N m."""
+    out = theta.copy()
+    for i, name in enumerate(lay['drives']):
+        if series(name):
+            out[lay['drive'] + 3 * i] = armature(name) + servos.SERVO[kind(name)][3]
+    return out
+
+
 _rotations = campaign.rotations
 
 

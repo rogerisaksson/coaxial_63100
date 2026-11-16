@@ -59,7 +59,8 @@ def laid(body, build=None):
     serviced_at, residual, read, armature, boxes, box_n, zero, torso, nominal_boxes, service}."""
     import numpy as np
     lay = sysid.laid(body)
-    nominal, table = sysid.truth(lay, body.m), service(build)
+    built = sysid.truth(lay, body.m)
+    nominal, table = sysid.stepped(lay, built), service(build)
     sites = lay['col'][[body.m.body(site).id for site in SITES]]
     if (sites < 0).any():
         raise MachineError('%s is no link of the robot\'s own to load' % SITES[int(np.argmin(sites))])
@@ -89,7 +90,7 @@ def laid(body, build=None):
     return {'lay': lay, 'body': body, 'nominal': nominal, 'names': names, 'unit': unit,
             'pace': np.array([PACE[k] for k in kinds]), 'D': D * unit[:D.shape[1]], 'band': band,
             'z': np.zeros(len(names)), 'P': PRIOR ** 2 * np.eye(len(names)), 'hours': 0.0, 'serviced_at': 0.0,
-            'residual': np.zeros(n_d), 'read': np.zeros(n_d, int), 'armature': friction[:, 0].copy(),
+            'residual': np.zeros(n_d), 'read': np.zeros(n_d, int), 'armature': built[at:].reshape(n_d, 3)[:, 0].copy(),
             'boxes': np.zeros((n_d, len(campaign.BOX))), 'box_n': np.zeros(n_d, int),
             'zero': np.zeros(n_d), 'torso': (0.0, (0.0, 0.0, 0.0)), 'hems': hems, 'hem_limb': hem_limb,
             'nominal_boxes': np.array([(drives.play(j), 1.0 / (1.0 / drives.wind(j) + (
