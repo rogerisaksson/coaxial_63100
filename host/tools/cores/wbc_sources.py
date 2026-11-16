@@ -4,11 +4,11 @@ import os
 from tools import REPO
 from tools.cores import build
 
-#: The robot's C law, its harnesses, the bus it answers on, and the SE(3) core's friction its world's contacts take
-#: (wbc_world.c: se3_rubs, se3_kept).
-SOURCES = ([os.path.join(REPO, 'wbc', 'test', 'harness%s.c' % n) for n in ('', '_world', '_qp')]
+#: The robot's C law, its eyes' classes (wbc_classes.c), its harnesses, the bus it answers on, and the SE(3) core's
+#: friction its world's contacts take (wbc_world.c: se3_rubs, se3_kept).
+SOURCES = ([os.path.join(REPO, 'wbc', 'test', 'harness%s.c' % n) for n in ('', '_world', '_qp', '_classes')]
            + [os.path.join(REPO, 'wbc', 'src', 'wbc_%s.c' % n) for n in (
-               'body stack solve wrench cone shrunk model pass beat world bus imp latched poses stride poise swing floor surety touch twist wait anatomy bedexit scoot sensed brace blas qp qp_interior law step maps rounds patch sil rcu gmo soa chain chain_qp chain_rows chain_tasks borne registry').split()]
+               'body stack solve wrench cone shrunk model pass beat world bus imp latched poses stride poise swing floor surety touch twist wait anatomy bedexit scoot sensed brace blas qp qp_interior law step maps rounds patch sil rcu gmo soa chain chain_qp chain_rows chain_tasks borne registry classes').split()]
            + [os.path.join(REPO, 'modbus', 'src', 'modbus_%s.c' % n) for n in ('crc rtu slave').split()]
            + [os.path.join(REPO, 'se3', 'src', 'se3_law.c')])
 INCLUDES = [os.path.join(REPO, *folder) for folder in (('wbc', 'inc'), ('modbus', 'inc'), ('se3', 'inc'), ('se3', 'src'))]

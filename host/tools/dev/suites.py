@@ -171,6 +171,9 @@ BORNE = 'test_borne.py'
 #: The robot's map's look in C beside its numpy twin, drawn looks and the robot's lodge's
 #: (tools.cores.registry).
 REGISTRY = 'test_registry.py'
+#: What the robot's eyes take a thing for in C beside its numpy twin, drawn looks and the robot's lodge's
+#: (tools.cores.classes).
+CLASSES = 'test_classes.py'
 #: Orthokinematics on the robot: its latent loop, its walk on it, the page's gym.
 ORTHO = 'test_ortho.py'
 #: The robot's posture as what bears it holds it: the seat's chain, the blend, the kernel's atlas, its ask
@@ -271,7 +274,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, NATIVE_SYSID, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, CAMERA, GAZE, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
-                   WBC_CORE, LEAP, WASD, WRENCH, CHAIN, QP, SYSID, SYSID_LIVE, COMPILED, QUICK, TICK, STICTION, VECTORIZED, PLACED, DEPENDS, CI, WORKFLOW, SMART, PORTED, BORNE, REGISTRY, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, DSP, KERNEL, SHIELD, WAYFINDER, SAYS, INTROSPECT, GATE, TUNE, FLOOR, SITUATION, BUSES, ERRANDS, DOCKS,
+                   WBC_CORE, LEAP, WASD, WRENCH, CHAIN, QP, SYSID, SYSID_LIVE, COMPILED, QUICK, TICK, STICTION, VECTORIZED, PLACED, DEPENDS, CI, WORKFLOW, SMART, PORTED, BORNE, REGISTRY, CLASSES, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, DSP, KERNEL, SHIELD, WAYFINDER, SAYS, INTROSPECT, GATE, TUNE, FLOOR, SITUATION, BUSES, ERRANDS, DOCKS,
                    CYCLIC, QUAD, QUAD_PULL,
                    AERO_CORE, MPPI_CORE, SE3_CORE, SE3_GRIP, STREAMS, QUAD_COURSE, SWEEP, BOOT)
                   + VIEWS
@@ -361,7 +364,7 @@ JOINS = (
     (20, CTRL_CORE),
     (20, WORLD_CORE),
     (20, WBC_CORE),
-    (20, SYSID), (20, SYSID_LIVE), (20, COMPILED), (20, QUICK), (20, TICK), (80, VECTORIZED), (80, STICTION), (20, PLACED), (20, DEPENDS), (20, CI), (20, WORKFLOW), (20, SMART), (35, PORTED), (20, BORNE), (20, REGISTRY),
+    (20, SYSID), (20, SYSID_LIVE), (20, COMPILED), (20, QUICK), (20, TICK), (80, VECTORIZED), (80, STICTION), (20, PLACED), (20, DEPENDS), (20, CI), (20, WORKFLOW), (20, SMART), (35, PORTED), (20, BORNE), (20, REGISTRY), (20, CLASSES),
     (20, AERO_CORE),
     (20, MPPI_CORE),
     (20, SE3_CORE),

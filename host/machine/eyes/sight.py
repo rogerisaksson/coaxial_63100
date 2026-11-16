@@ -301,12 +301,12 @@ class Keep:
         """((n,) what the robot tells of each of the points of `last`, its last look - 'thing' what it cannot -,
         (n,) the one thing each is of - -1 none -, (n,) the building each is of seen from outside it - -1 none -,
         [each building's class]) of its map's things and the lumps of what it took none of past its own hands
-        (`voxels.NEAR_M`), told at once (`classes.of`, `classes.grouped`): a point of its map's its thing's whole's
+        (`voxels.NEAR_M`), told at once (`classes.of`, `wholes.grouped`): a point of its map's its thing's whole's
         class - a chair's back's and legs' its seat's -; a lump one look's points joined in the picture, those
         under its map's floor (`voxels.FLOOR_M`) in bands a cell apart and seen clear over, each told by its box -
         one at its floor running on to its picture's reach the ground -, one under LUMP points none; what rises
         past its map's ceiling within its reach is the top of what it holds, none."""
-        from machine.eyes import classes
+        from machine.eyes import classes, wholes
         np = _np()
         things, labels = self.map.things()
         kinds, centre, half, R, clear = classes.stacked(things)
@@ -335,7 +335,7 @@ class Keep:
         thing = np.where(thing < 0, n + m, thing)
         for j, i in enumerate(lumps):
             thing[off[i]] = n + j
-        (ones, built), housed = classes.grouped(names, whole, *boxes), np.full(len(last.at), -1)
+        (ones, built), housed = wholes.grouped(names, whole, *boxes), np.full(len(last.at), -1)
         for b, (_name, c, h, members) in enumerate(built):
             seen_out = bool((np.abs(np.asarray(last.seen.at)[::2] - c[::2]) > h[::2]).any())
             housed = np.where(seen_out & np.isin(thing, members), b, housed)

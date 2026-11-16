@@ -1,7 +1,7 @@
 """What a change to each part of the tree reaches: a path's prefix, its suites."""
 from tools.dev.suites import (AERO_CORE, MPPI_CORE, BENCH, BUSES, BOARD_MEM, BOOT, BOOT_CLIENT,
                               BOOT_CORE, CI, WORKFLOW, DEPENDS, ATLAS, PLACED, BROKER, COMPILED, TICK,
-                              VECTORIZED, CONFORMANCE, PORTED, BORNE, REGISTRY, CONTROLLER, CORE,
+                              VECTORIZED, CONFORMANCE, PORTED, BORNE, REGISTRY, CLASSES, CONTROLLER, CORE,
                               CTRL_CORE, DAQ_API, DAQ_CORE, DRIVE, DRIVE_OBSERVER, DSP, KERNEL, SHIELD,
                               WAYFINDER, TUNE, EMULATOR, ERRANDS, FILTER, GVS, GROUND, HEATED,
                               LEAP, NATIVE, NATIVE_HEAT, NATIVE_SYSID, OLLAMA, ORTHO, POSTURES, FOURS,
@@ -163,7 +163,7 @@ TOUCHES = (
     ('filter/',                                (FILTER,)),
     ('ctrl/',                                  (CTRL_CORE,)),
     ('aero/',                                  QUADS + (AERO_CORE, STREAMS, WIRE, NATIVE, EMULATOR)),
-    ('wbc/',                                   (WBC_CORE, LEAP, EMULATOR, PORTED, BORNE, REGISTRY, VECTORIZED)),
+    ('wbc/',                                   (WBC_CORE, LEAP, EMULATOR, PORTED, BORNE, REGISTRY, CLASSES, VECTORIZED)),
     ('world/',                                 (WORLD_CORE, NATIVE, NATIVE_HEAT, EMULATOR)),
     ('host/coaxial/acquire/bessel.py',         (FILTER, STRUCTURE)),
     # The control law is hardware-free like the SHTP layer; its suite closes

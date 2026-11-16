@@ -5,7 +5,7 @@
 """
 import math
 
-from machine.eyes import classes
+from machine.eyes import wholes
 from machine.law.se2 import doing
 from machine.moves import leap
 from machine.senses import situation
@@ -17,14 +17,14 @@ WALK_M_S, STEP_S, RECOVER_S = 0.1, 1.0, 3.0
 
 
 def named(g):
-    """The robot's things by what each is, the one thing each is of and the buildings they make (`classes.read`), told
+    """The robot's things by what each is, the one thing each is of and the buildings they make (`wholes.read`), told
     anew only as they change: the page names none - 59 things took 12 ms a scan there; keyed by `registry.keyed`."""
     from machine.eyes import registry
     things = g['things']
     if g.get('_named_of') is not things:     # the same list the robot's things are as last keyed: nothing writes into them
         key = registry.keyed(things)
         if g.get('_named', (None,))[0] != key:
-            g['_named'] = (key,) + classes.read(things)
+            g['_named'] = (key,) + wholes.read(things)
         g['_named_of'] = things
     return g['_named'][1:]
 

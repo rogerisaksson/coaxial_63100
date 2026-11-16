@@ -1,7 +1,6 @@
 """What the robot's eyes take a thing for: its class by look and box (the text's semantic classifier).
 
     names, whole = classes.of(kinds, centre, half, R, clear)   # each one's class, the thing each is a piece of
-    names, ones, built = classes.read(things)                   # each box's class, the one thing it is of, buildings
 
 A thing is a box with a kind (`registry`'s): the robot's eyes' look - the palette's nearest colour (`sight.LOOKS`)
 -, the stand-in's (`world.props()`), or a class already - a scene's chair, its registry's slot -, which stays. A
@@ -14,12 +13,12 @@ window and the posts framing it, a railing, a ceiling, a wall, a post); a piece 
 chair's back on its edge, a leg or a face under it - the top's class, the top its whole. What none tells is a
 thing, named none.
 
-Of what the robot tells, a building (`houses`): its shell - walls, windows and doors, joined across what the
+Of what the robot tells, a building (`houses`, `wholes.buildings`): its shell - walls, windows and doors, joined across what the
 robot's eyes may not have seen of it - with an opening in it, enclosing a floor, and what roofs it over; a cabin
 of one storey, else a house. Outside it what lies by it is its veranda - a floor - or its terrace - a platform -;
 a floor apart from it or a top sunk under the robot's floor the ground.
 
-What is one thing, many to one (`grouped`): what of one class touches, slabs across each other apart - a window's
+What is one thing, many to one (`wholes.grouped`): what of one class touches, slabs across each other apart - a window's
 panes and the posts between them, a stair's treads, not two walls at a corner -; a building's walls on one side one
 wall; a piece of furniture its top's, two chairs side by side two.
 """
@@ -108,64 +107,20 @@ SHELL, OPENINGS, ROOFS, STOREY = ('wall', 'window', 'door'), ('window', 'door'),
 THROUGH = ('window', 'railing')
 
 
-def _beside(centre, e):
+def meet(centre, e):
     """(n, n) whether boxes' footprints - centres and half extents along the room's axes (n, 3) - meet a cell apart."""
     gap, reach = np.abs(centre[:, None, ::2] - centre[None, :, ::2]), e[:, None, ::2] + e[None, :, ::2]
     return (gap <= reach + CELL_M + 1e-9).all(axis=2) & ~np.eye(len(centre), dtype=bool)
 
 
-def _plane(lo, hi):
+def planar(lo, hi):
     """(n, n) whether boxes - corners `lo`, `hi` (n, 3) - lie in one wall's plane: each THIN across one floor axis, the
     two a cell apart across it."""
     middle, flat = 0.5 * (lo + hi)[:, ::2], 0.5 * (hi - lo)[:, ::2] <= 0.5 * THIN + 1e-9
     return (flat[:, None] & flat[None, :] & (np.abs(middle[:, None] - middle[None, :]) <= CELL_M + 1e-9)).any(axis=2)
 
 
-def _instances(names, whole, beside, lo, hi, built):
-    """(n,) the one thing each of `n` things told `names` is of, many to one - their `whole`s, which meet
-    (`beside`), their boxes' corners `lo`, `hi` (n, 3), the buildings `built` (`_houses`') -: its lowest
-    index. A piece of furniture its top's, two chairs side by side two; a building's walls on one side, its
-    openings between them, one wall; what the robot sees through (THROUGH) in one plane within the robot's
-    map's reach, no wall wider than THIN standing from its floor between - a glass wall's panes, a
-    door set in it, a rail either side of a stair -, one, two windows a wall apart two; the rest what of one
-    class touches - a window's panes and the posts between them, a stair's treads a rise (STEP) apart, a
-    lamp's post and shade, a rail along a side -, slabs across each other apart, as two walls at a corner."""
-    n = len(names)
-    names = np.asarray(names, object)
-    middle, half, slack = 0.5 * (lo + hi), 0.5 * (hi - lo), np.where(names == 'stairs', STEP, CELL_M)
-    level = (np.abs(middle[:, None, 1] - middle[None, :, 1]) - half[:, None, 1] - half[None, :, 1]
-             <= np.maximum(slack[:, None], slack[None, :]) + 1e-9)
-    flat = half[:, ::2] <= 0.5 * THIN + 1e-9
-    slab = flat & ~flat[:, ::-1]
-    across = (slab[:, None, 0] & slab[None, :, 1]) | (slab[:, None, 1] & slab[None, :, 0])
-    one = np.array([k not in FURNITURE and k != 'thing' for k in names], bool)
-    link = (names[:, None] == names[None, :]) & beside & level & ~across & one[:, None] & one[None, :]
-    plane = _plane(lo, hi)
-    # what the robot sees through in one plane within its map's reach, no wall wider than THIN standing from its floor
-    # between
-    u = np.where(flat[:, 1], 0, 2)
-    a_lo, a_hi = lo[np.arange(n), u], hi[np.arange(n), u]
-    start, end = np.minimum(a_hi[:, None], a_hi[None, :]), np.maximum(a_lo[:, None], a_lo[None, :])
-    pier = np.flatnonzero((names == 'wall') & (lo[:, 1] <= STEP))
-    stood = ((np.minimum(a_hi[pier], end[:, :, None]) - np.maximum(a_lo[pier], start[:, :, None]) > THIN + 1e-9)
-             & plane[:, None, pier] & level[:, None, pier] & level[None, :, pier]).any(axis=2)
-    through = np.isin(names, THROUGH)
-    link |= (names[:, None] == names[None, :]) & through[:, None] & plane & level & ~stood & (end - start <= FAR_M + 1e-9)
-    for _name, _lo, _hi, members in built:
-        wall = np.zeros(n, bool)
-        wall[members] = names[members] == 'wall'
-        link |= wall[:, None] & wall[None, :] & plane
-    label = np.asarray(whole, int).copy()
-    while True:
-        low = np.minimum(label, np.where(link, label[None, :], n).min(axis=1))
-        low = low[low]
-        if (low == label).all():
-            break
-        label = low
-    return label
-
-
-def _houses(names, beside, lo, hi):
+def houses(names, beside, lo, hi):
     """[(class, low corner (3,), high corner (3,), members (k,))] of the buildings things told `names` make -
     `beside` (n, n) which meet, `lo`, `hi` (n, 3) their boxes' corners -: each its SHELL's things joined
     across what the robot's eyes may not have seen of it, the robot's map's reach (`voxels.FAR_M`: a door's
@@ -177,7 +132,7 @@ def _houses(names, beside, lo, hi):
     shell, opening, roof, storey = (np.array([k in kinds for k in names], bool) for kinds in (SHELL, OPENINGS, ROOFS, STOREY))
     middle, half = 0.5 * (lo + hi)[:, ::2], 0.5 * (hi - lo)[:, ::2]
     near = (np.abs(middle[:, None] - middle[None, :]) - half[:, None] - half[None, :] <= FAR_M + 1e-9).all(axis=2)
-    plane = _plane(lo, hi)
+    plane = planar(lo, hi)
     label = np.where(shell, np.arange(n), n)
     while True:
         low = np.where(shell, np.minimum(label, np.where((near | plane) & shell[None, :], label[None, :], n).min(axis=1)), n)
@@ -201,10 +156,69 @@ def _first(table, f, n):
     return np.array([name for name, _test in table] + ['thing'], object)[held.argmax(axis=0)]
 
 
-def of(kinds, centre, half, R, clear):
+#: The classes `of` tells, as wbc_classes.h numbers them: the tops, the faces, a thing, what lies by a building.
+CLASSES = (tuple(name for name, _test in TOPS) + tuple(name for name, _test in FACES)
+           + ('thing', 'veranda', 'terrace', 'ground'))
+#: Each kind's code and flags for the C (`tools.cores.classes.BITS`), told at its first look; the told name each
+#: code is; the C laid at its first look, False where no host compiler builds it.
+_CODES: dict = {}
+_TOLD: list = []
+_CORE: list = [None]
+
+
+def _coded(kind):
+    """(code, flags) of `kind` for the C: what its look tells alone (LOOKED), seen through (`sight.ALPHA`), furniture,
+    a building's shell, an opening, a roof, a storey's, a door's or a bed's."""
+    got = _CODES.get(kind)
+    if got is None:
+        from tools.cores.classes import BITS
+        told = LOOKED.get(kind, kind)
+        flags = sum(BITS[name] for name, held in (('raw', told is None), ('see', ALPHA.get(kind, 1.0) < 1.0),
+                                                   ('furn', kind in FURNITURE), ('shell', told in SHELL),
+                                                   ('open', told in OPENINGS), ('roof', told in ROOFS),
+                                                   ('storey', told in STOREY), ('door', kind == 'door'),
+                                                   ('bed', kind == 'bed')) if held)
+        got = _CODES[kind] = (len(_TOLD), flags)
+        _TOLD.append(told)
+    return got
+
+
+def _core():
+    """`of` in C (`tools.cores.classes`), laid at its first look with the text's heights as this module lays them
+    - each sum here, as numpy sums it -; None where the C is not to be had (it stays numpy)."""
+    if _CORE[0] is None:
+        try:
+            from tools.cores import classes as c_classes, registry as c_registry
+            timber, glass = _coded('timber'), _coded('glass')
+            _CORE[0] = c_classes.laid(flush=FLUSH, step=STEP, over=OVER, overhead=OVERHEAD, seat0=SEAT[0], seat1=SEAT[1],
+                                      bed0=BED[0], bed1=BED[1], brace=BRACE, lap=LAP, lumbar=LUMBAR, stance=STANCE,
+                                      thin_eps=THIN + 1e-9, cell=CELL_M, eps=1e-9, brace_half=BRACE + 0.5 * CELL_M,
+                                      far_eps=FAR_M + 1e-9, half_thin_eps=0.5 * THIN + 1e-9, cell_eps=CELL_M + 1e-9,
+                                      lane=c_registry.lanes()[2], timber=timber[0], timber_flags=timber[1],
+                                      glass=glass[0], glass_flags=glass[1], spare=0)
+        except (OSError, RuntimeError, ValueError) as e:
+            import sys
+            print('classes.of stays numpy: %s' % e, file=sys.stderr)
+            _CORE[0] = False
+    return _CORE[0] or None
+
+
+def of(kinds, centre, half, R, clear, in_c=True):
     """(names [str], whole (n,)) of `n` things - kinds, centres and half sizes (n, 3), turns (n, 3, 3), whether the
     space over each is seen clear (n,) -: each one's class, and the thing each is a piece of, its own index where it
-    is whole."""
+    is whole. In C where `in_c` (`tools.cores.classes`, wbc_classes.c: the lodge's 70 things 1.1 ms of numpy a
+    look, every look of a thing that moved), numpy's own below its twin (`_of`), bit for bit."""
+    from tools.cores.classes import MOST
+    core = _core() if in_c and 0 < len(kinds) <= MOST else None
+    if core is None:
+        return _of(kinds, centre, half, R, clear)
+    coded = [_coded(str(k)) for k in kinds]
+    cls, of_, whole = core(centre, half, R, clear, [c for c, _f in coded], [f for _c, f in coded])
+    return [CLASSES[k] if k >= 0 else _TOLD[o] for k, o in zip(cls.tolist(), of_.tolist())], whole.astype(int)
+
+
+def _of(kinds, centre, half, R, clear):
+    """`of` in numpy, its twin."""
     n = len(kinds)
     if not n:
         return [], np.zeros(0, int)
@@ -216,7 +230,7 @@ def of(kinds, centre, half, R, clear):
     look = np.unique(np.array(kinds, str), return_inverse=True)[1]
     long, short = 2.0 * half[:, ::2].max(axis=1), 2.0 * half[:, ::2].min(axis=1)
     surface, wide = raw & (clear > 0.0), short > THIN + 1e-9
-    gap, reach, beside = np.abs(centre[:, None, ::2] - centre[None, :, ::2]), e[:, None, ::2], _beside(centre, e)
+    gap, reach, beside = np.abs(centre[:, None, ::2] - centre[None, :, ::2]), e[:, None, ::2], meet(centre, e)
     within = (gap + reach <= e[None, :, ::2] + CELL_M + 1e-9).all(axis=2) & ~np.eye(n, dtype=bool)
     # a piece of a raised top of its look: on its edge, its foot from the top's surface into the slab over it - a
     # chair's back -, or under it within its footprint - a leg, a face of what holds it up
@@ -253,7 +267,7 @@ def of(kinds, centre, half, R, clear):
     face = raw & ~(surface & (tops != 'thing'))
     names[surface], names[face] = tops[surface], _first(FACES, f, n)[face]
     whole = np.where(held.any(axis=1), held.argmax(axis=1), np.arange(n))
-    names, built = names[whole], _houses(names[whole], beside, centre - e, centre + e)
+    names, built = names[whole], houses(names[whole], beside, centre - e, centre + e)
     if built:
         # outside a building by it a floor its veranda, a platform its terrace; a floor apart, a platform sunk, the ground
         flo, fhi = (np.array([b[j] for b in built])[:, ::2] for j in (1, 2))
@@ -273,41 +287,3 @@ def stacked(things):
             np.array([t[2] for t in things], float).reshape(-1, 3),
             np.array([t[3] if len(t) > 3 else np.eye(3) for t in things], float).reshape(-1, 3, 3),
             np.array([float(t[5]) if len(t) > 5 else 1.0 for t in things]))
-
-
-def grouped(names, whole, centre, half, R):
-    """((n,) the one thing each of `n` things told `names` - `of`'s, with their `whole`s - is of (`_instances`), the
-    buildings they make [(class, centre (3,), half sizes (3,), members (k,))] (`_houses`)), of their centres and half
-    sizes (n, 3) and turns (n, 3, 3)."""
-    if not len(names):
-        return np.zeros(0, int), []
-    e = np.einsum('nij,nj->ni', np.abs(R), half)
-    lo, hi, beside = centre - e, centre + e, _beside(centre, e)
-    built = _houses(names, beside, lo, hi)
-    return (_instances(names, whole, beside, lo, hi, built),
-            [(name, 0.5 * (a + b), 0.5 * (b - a), members) for name, a, b, members in built])
-
-
-def read(things):
-    """What the robot's eyes read of boxes `things` - `registry.boxes`' or `world.props()` -, at once: (each one's
-    class, None for what it cannot tell and for a piece of furniture other than its top - one of FURNITURE's
-    not seen clear over it or THIN across, a chair's back or legs -; the one thing each is of, its lowest index
-    (`grouped`); the buildings they make [(class, centre, half sizes)])."""
-    kinds, centre, half, R, clear = stacked(things)
-    names, whole = of(kinds, centre, half, R, clear)
-    ones, built = grouped(names, whole, centre, half, R)
-    top = (clear > 0.0) & (2.0 * half[:, ::2].min(axis=1) > THIN + 1e-9)
-    return ([None if name == 'thing' or (name in FURNITURE + ('bed',) and not t) else name
-             for name, t in zip(names, top)],
-            ones.tolist(), [(name, tuple(c.tolist()), tuple(h.tolist())) for name, c, h, _m in built])
-
-
-def named(things):
-    """Each of boxes `things` by its class, None for what the robot cannot tell and a piece of furniture
-    (`read`)."""
-    return read(things)[0]
-
-
-def buildings(things):
-    """[(class, centre, half sizes)] of the buildings boxes `things` make (`read`)."""
-    return read(things)[2]

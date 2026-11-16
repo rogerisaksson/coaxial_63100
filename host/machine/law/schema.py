@@ -17,6 +17,7 @@ limb synergy it has) spared no strike at a doorway's jamb and halved its shoulde
 it: not held; the text's holds the robot's trunk by its balance bus and its legs by the
 robot's footholds.
 """
+import functools
 import os
 
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
@@ -86,8 +87,20 @@ def _evaded(M, J, act, free, short):
     H = np.block([[Mf, np.zeros((f, k))], [np.zeros((k, f)), SPILL_KG * np.eye(k)]])
     A = np.block([[-Jf, -np.eye(k)], [np.zeros((k, f)), -np.eye(k)], [np.eye(f), np.zeros((f, k))],
                   [-np.eye(f), np.zeros((f, k))]])
-    x, held, _u = qp.solve(H, np.zeros(f + k), A, np.concatenate([-short, np.zeros(k), top, top]))
+    x, held, _u = _solve()(H, np.zeros(f + k), A, np.concatenate([-short, np.zeros(k), top, top]))
     return (np.zeros(f + k) if x is None else x), held
+
+
+@functools.cache
+def _solve():
+    """The shield's QP: the stack's dual active set in C (`tools.cores.qp`, wbc_qp.c: `qp.solve` bit for bit on an
+    exact host - numpy's 207 us a solve with the robot sat, its shield short on every pass), `qp.solve` itself where
+    no host compiler builds it."""
+    from tools.cores.build import find_cc
+    if find_cc() is None:
+        return qp.solve
+    from tools.cores import qp as c_qp
+    return c_qp.solve
 
 
 def shielded(body, near, s, ask, volts, shield_=None):

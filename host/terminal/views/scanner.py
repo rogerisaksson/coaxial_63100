@@ -16,7 +16,7 @@ import threading
 from coaxial.graphics.callouts import FRAME_CORNERS, FRAME_INK, packed
 from coaxial.graphics import inset
 from machine.world import room
-from machine.eyes import classes, sight, stereo, voxels
+from machine.eyes import sight, stereo, voxels, wholes
 
 
 #: What F says by a support the robot sees (`gym.offers`): its verb, and the verb's name.
@@ -137,7 +137,7 @@ class VisionScanner:
     def scan(self, now, look=None, reach=None):
         """The robot's things in its sight, one a thing of its pieces - the robot's registry's, by what
         each is and the one thing each is of as its worker read them (`now['named']`, `now['groups']`,
-        `classes.read`), else the props by theirs, a scenario's variants by its rules (`_PROP_RULES`), a piece of
+        `wholes.read`), else the props by theirs, a scenario's variants by its rules (`_PROP_RULES`), a piece of
         furniture's and what the robot cannot tell none; and each building it is outside of, its index
         from -1 down -: within 75 deg of the robot's heading or the heading the view looks along (`look`, rad),
         SIGHT_M, or with `reach` every one that near, nearest first; a thing's distance and kind its nearest
@@ -154,7 +154,7 @@ class VisionScanner:
         things = list(now.get('things') or ())
         props = things or (now.get('props') or ())
         named, groups, built = ((now.get('named') or (), now.get('groups') or (), now.get('buildings') or ())
-                                if things else classes.read(props))
+                                if things else wholes.read(props))
         where = now.get('where', (0.0, 0.0, 0.0))
         scen = str(now.get('scenario', ''))
         gx, gz = where[0], where[2]
@@ -184,7 +184,7 @@ class VisionScanner:
             })
         found: list[dict] = [_one(ds, scen) for ds in pieces.values()]
 
-        # a building the robot is outside of (`now['buildings']`, `classes.read`): its distance its shell's
+        # a building the robot is outside of (`now['buildings']`, `wholes.read`): its distance its shell's
         for k, (kind, centre, half) in enumerate(built):
             dx, dz = float(centre[0]) - gx, float(centre[2]) - gz
             dist = math.hypot(max(abs(dx) - float(half[0]), 0.0), max(abs(dz) - float(half[2]), 0.0))

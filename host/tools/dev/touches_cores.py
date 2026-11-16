@@ -1,6 +1,6 @@
 """What a change to tools/cores/ reaches: its modules, a prefix each, and their suites."""
 from tools.dev.suites import (AERO_CORE, BOOT_CLIENT, BOOT_CORE, COMPILED, QUICK, TICK, VECTORIZED,
-                              PORTED, BORNE, REGISTRY, CORE, CTRL_CORE, DAQ_CORE, DRIVE,
+                              PORTED, BORNE, REGISTRY, CLASSES, CORE, CTRL_CORE, DAQ_CORE, DRIVE,
                               DRIVE_OBSERVER, FILTER, LEAP, ORTHO, QUADS, REACH, SENSORLESS, SHTP,
                               STREAMS, STRUCTURE, SYSID, THERMAL, THERMAL_APP, WBC_CORE, WEAR,
                               WORLD_CORE)
@@ -31,6 +31,7 @@ CORES = (
     ('host/tools/cores/brace.py',              (STRUCTURE, PORTED)),
     ('host/tools/cores/borne.py',              (STRUCTURE, BORNE)),
     ('host/tools/cores/registry.py',           (STRUCTURE, REGISTRY)),
+    ('host/tools/cores/classes.py',            (STRUCTURE, CLASSES)),
     ('host/tools/cores/trace.py',              (STRUCTURE, COMPILED, SYSID, WEAR, ORTHO)),
     ('host/tools/cores/trace_mj.py',           (STRUCTURE, COMPILED, ORTHO)),
     ('host/tools/cores/trace_np.py',           (STRUCTURE, COMPILED, SYSID, WEAR, ORTHO)),

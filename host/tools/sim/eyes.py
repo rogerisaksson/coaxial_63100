@@ -94,11 +94,11 @@ def column(chart, x, z, r=0.2):
 
 
 def near(things, x, z, r=0.6):
-    """The robot's things whose footprint lies within `r` m of (x, z): each one's kind, class (`classes.named`), box,
+    """The robot's things whose footprint lies within `r` m of (x, z): each one's kind, class (`wholes.named`), box,
     top and bottom, whether it is seen clear over, seats the robot, has a back (`affordance`)."""
-    from machine.eyes import classes
+    from machine.eyes import wholes
     from machine.way import affordance
-    names = classes.named(things)
+    names = wholes.named(things)
     for t, name in zip(things, names):
         if affordance.distance(t, (x, z)) <= r:
             print('  %-7s %-9s c(%5.2f %4.2f %5.2f) half(%.2f %.2f %.2f) top %.2f bottom %.2f clear %.0f sits %d backed %d' % (
