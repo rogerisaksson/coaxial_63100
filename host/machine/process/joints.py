@@ -138,9 +138,23 @@ def said(g, command):
 def ended(g):
     """The program on `g` over, the gains it set on the robot's boards its own again (cut by a say and
     kept by the move after it as the robot's own, its law drove at their stiffness: its spine
-    943 deg/s), its text's bindings dropped (`g['programs']`): its law drives again."""
-    kept = (g.get('played') or {}).get('gains')
+    943 deg/s), its text's bindings dropped (`g['programs']`), its way turned to its upright pelvis
+    after a holding move: its law drives again."""
+    import math
+    import numpy as np
+    p = g.get('played') or {}
+    kept = p.get('gains')
     g['world'].gains[:] = g['world'].gains if kept is None else kept
+    if p.get('holds') and 'y' in g and 'fr' in g:
+        modal = _modal()
+        w, x, j, k = (float(v) for v in g['y'][modal.QUAT][:4])
+        if 1.0 - 2.0 * (x * x + k * k) > 0.5:
+            yaw = math.atan2(2.0 * (w * j + x * k), 1.0 - 2.0 * (x * x + j * j))
+            sh, ch = math.sin(yaw), math.cos(yaw)
+            g['heading'] = g['target_heading'] = yaw
+            g['has_heading'] = 0.0
+            g['fr'][modal.HEADING], g['fr'][modal.PLANTED] = yaw, 0.0
+            g['fr'][modal.ROT] = np.array([sh, 0.0, ch, ch, 0.0, -sh, 0.0, 1.0, 0.0])
     g['played'], g['programs'] = None, {}
 
 
