@@ -16,7 +16,7 @@ whose IMU gives turn, spin and specific force (gravity rides in it), the robot's
 and rate, their differences the accelerations (`machine.senses.edge`); only its drives' rows are
 measured, so its pelvis's own parameters never show and what a link shares with its neighbours, or
 what a campaign never moves apart, comes out as a sum: `base` finds those sums numerically (Gautier) in the
-campaign's regressor, and `identify` fits them by least squares; `machine.identify.identified` moves the
+campaign's regressor, and `identify` fits them by Huber's estimate (`robust`); `machine.identify.identified` moves the
 robot's build the least that fits the campaign and lays it over the robot's law's model. On the stand
 (`mjcf.STAND`) the robot's pelvis is welded to the world and nothing touches its soles.
 """
@@ -370,25 +370,31 @@ def projected(b, theta):
 
 
 def identify(b, Y, tau, min_condition=1e-9):
-    """The base parameters fitted to `Y` (N, driven, P) and `tau` (N, driven) by least
-    squares: {theta, names, uncertainty (relative, each), trusted, condition, residual (N m
-    rms a drive over its rows read), read (rows a drive), samples}. Refused where the campaign
-    cannot tell them apart."""
+    """The base parameters fitted to `Y` (N, driven, P) and `tau` (N, driven) by Huber's estimate,
+    each drive's rows against their own residual's scale (`robust.fitted`): {theta, names,
+    uncertainty (relative, each, of the rows as weighed), trusted, condition, residual (N m rms a
+    drive over its rows read), read (rows a drive), samples}. Refused where the campaign cannot
+    tell them apart."""
     import numpy as np
-    ind, rows_, target = b['ind'], Y.reshape(-1, Y.shape[-1]), tau.reshape(-1)
-    G0 = (rows_.T @ rows_)[np.ix_(ind, ind)]
+    from machine.identify import robust
+    ind, on = b['ind'], np.abs(Y).sum(axis=2) > 0.0
+    A, target = Y[:, :, ind][on], tau[on]
+    G0 = A.T @ A
     scale = np.sqrt(np.maximum(G0.diagonal(), 0.0))
     scale[scale == 0.0] = 1.0
-    eig, V = np.linalg.eigh(G0 / np.outer(scale, scale))
-    singular, V = np.sqrt(np.maximum(eig[::-1], 0.0)), V[:, ::-1]
+    singular = np.sqrt(np.maximum(np.linalg.eigvalsh(G0 / np.outer(scale, scale))[::-1], 0.0))
     condition = float(singular[-1] / singular[0]) if singular[0] else 0.0
     if condition < min_condition:
         raise ValueError('this campaign cannot separate the base parameters - condition %.2e '
                          'against a floor of %.0e: every drive has to move, each at tones of '
                          'its own' % (condition, min_condition))
-    theta = (V @ ((V.T @ ((rows_.T @ target)[ind] / scale)) / singular ** 2)) / scale
+    x, w = robust.fitted(A / scale, target, np.nonzero(on)[1])
+    theta, weighed = x / scale, A / scale * np.sqrt(w)[:, None]
+    eig, V = np.linalg.eigh(weighed.T @ weighed)
+    singular, V = np.sqrt(np.maximum(eig[::-1], 0.0)), V[:, ::-1]
     left, seen = tau - Y[:, :, ind] @ theta, read(Y)
-    err = np.sqrt(float((left * left).sum()) / max(1, rows_.shape[0] - len(ind)) * ((V / singular) ** 2).sum(axis=1)) / scale
+    spent = float((w * (target - A @ theta) ** 2).sum())
+    err = np.sqrt(spent / max(1, on.size - len(ind)) * ((V / singular) ** 2).sum(axis=1)) / scale
     unc = err / np.maximum(np.abs(theta), 1e-12)
     return {'theta': theta, 'names': b['names'], 'uncertainty': unc, 'trusted': unc < TRUST,
             'condition': condition, 'residual': np.sqrt((left * left).sum(axis=0) / np.maximum(seen, 1)),
