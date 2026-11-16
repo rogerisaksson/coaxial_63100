@@ -16,13 +16,15 @@ ORTHO_TEXTS = 'test_ortho_texts.py'
 METACOMPILER = 'test_metacompiler.py'
 #: The crafts' spec held to its compilers: a craft states its own alone, a wing's numbers its own (machine.aircraft.polars).
 METACOMPILER_CRAFTS = 'test_metacompiler_crafts.py'
+#: The rig held to the library: what a sheet states is read of its file and stated nowhere else (coaxial.model.inverter).
+METACOMPILER_RIG = 'test_metacompiler_rig.py'
 
 #: The structure family, first in every run: host/ holding together, the tree's shape, the
 #: firmware and the host agreeing - one 17 k-token file before; every path on the atlas's trunk;
 #: the robot's texts compiling and its law's code branchless; what its specs state compiled the same twice.
 STRUCTURES = (STRUCTURE, 'test_layout.py', 'test_mirrors.py', 'test_wire_shapes.py',
               'test_wire_requests.py', 'test_protocol_doc.py', ATLAS, ORTHO_TEXTS, METACOMPILER,
-              METACOMPILER_CRAFTS)
+              METACOMPILER_CRAFTS, METACOMPILER_RIG)
 #: Suites with prior CI or local regressions, scheduled right after structural checks so a regression stops the run at once:
 #: what GitHub's last host run left red is laid at its head at every commit (tools/dev/ci.py, the pre-commit).
 FAILED_FIRST = ('test_ollama_runner.py', 'test_errands.py', 'test_se3_core.py',
