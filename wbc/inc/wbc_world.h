@@ -74,9 +74,11 @@ typedef struct
   double *row;    /**< this step's contacts' friction rows' slips between the two calls: along its two tangents,
                        about its normal, about its tangents (5 a contact) */
   double *held;   /**< what of each one's slip its cone held the last step: under 1 it yielded, it slides (cap) */
+  double *borne;  /**< each one's normal force the last step, N: the reach its next step's strain is kept to (cap) */
   const double *grip;  /**< MuJoCo's geoms' friction as its model holds it: slide, spin, roll (3 a geom) */
   const double *share; /**< each geom's sliding friction over its friction at rest (a geom) */
   double  step_s; /**< a step, s */
+  double  fade;   /**< 1 / v^2, v the speed where a contact's friction stands half way to its sliding share */
   int     cap;    /**< the contacts kept at most: one past them keeps MuJoCo's rows */
   int     n;      /**< in and out: the last step's contacts kept */
 } wbc_stuck_t;

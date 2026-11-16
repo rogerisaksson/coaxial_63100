@@ -157,6 +157,36 @@ def test_a_load_between_holds_at_rest_and_slides_once_moved(report, _c):
                      sped[1], READ_S, shove + gains * READ_S, sped[0]))
 
 
+def test_a_contacts_friction_falls_by_its_speed(report, _c):
+    """The SE(3) core's friction on the world's contacts (se3_rubs, wbc_world_stuck): a block on a floor bears its
+    friction at rest, half way to its sliding share sliding at the Stribeck speed (`world.toml` stribeck_m_s), its
+    sliding share sliding fast - each contact's coefficient the core's own of its slip's speed, to the bit, in C and
+    in its twin."""
+    mujoco = importlib.import_module('mujoco')
+    from machine.body import mechatronics
+    from machine.world import stiction
+    from tools.cores import se3
+    m, v_s, share = _scene(BLOCK), float(mechatronics.environment()['stribeck_m_s']), stiction.KINETIC
+    told, exact = [], True
+    for speed, law in ((0.0, 1.0), (v_s, 0.5 * (1.0 + share)), (100.0 * v_s, share + (1.0 - share) / 10001.0)):
+        for in_c in (True, False):
+            d, state = _stepped(m, SETTLE_S, in_c=in_c)
+            d.qvel[:] = 0.0
+            d.qvel[0] = speed
+            mujoco.mj_step1(m, d)
+            n = d.ncon
+            laid, at = d.contact.friction[:n, 0].copy(), d.contact.efc_address[:n]
+            stiction.stuck(d, state, in_c)
+            v1, v2 = d.efc_vel[at + 1].tolist(), d.efc_vel[at + 2].tolist()
+            want = [f * se3.rubs_twin(1.0, share, stiction.FADE, (a * a) + (b * b)) for f, a, b in zip(laid.tolist(), v1, v2)]
+            exact = exact and d.contact.friction[:n, 0].tolist() == want
+            told.append(float(np.mean(d.contact.friction[:n, 0] / laid)) - law)
+    report.check('at rest, at the Stribeck speed and fast its friction at rest, half way and its sliding share',
+                 max(abs(x) for x in told) < 1e-9, 'off the law %s' % ', '.join('%.1e' % x for x in told))
+    report.check("and each contact's coefficient the SE(3) core's own of its slip's speed, in C and in its twin",
+                 exact, 'the same bits' if exact else 'apart')
+
+
 def test_a_ball_rolls_as_freely(report, _c):
     """A ball let go on a slope rolls down it without sliding, 5/7 g sin: MuJoCo's own step and its rows stuck
     alike - rolling carries no slip -, and stuck its contact slides slower than MuJoCo's own lets it (whose damper
@@ -211,9 +241,9 @@ def test_the_kernels_in_c_are_their_twins(report, _c):
     def few(kept):
         """The contacts' slips of `m` with `kept` contacts kept: wbc_stuck_t laid on arrays that short."""
         whole = stiction.laid(m)
-        pair, at, slip, row, held = (a[:kept].copy() for a in (*whole[1:5], whole[7]))
-        c, sprung, yielded = world.stuck(pair, at, slip, row, held, whole[8], whole[9], STEP_S)
-        return c, pair, at, slip, row, sprung, yielded, held, whole[8], whole[9]
+        pair, at, slip, row, held, borne = (a[:kept].copy() for a in (*whole[1:5], whole[7], whole[10]))
+        c, sprung, yielded = world.stuck(pair, at, slip, row, held, borne, whole[8], whole[9], STEP_S, stiction.FADE)
+        return c, pair, at, slip, row, sprung, yielded, held, whole[8], whole[9], borne
     for kept in (None, 3):
         twins = [_thrown(m), _thrown(m)]
         states = [stiction.laid(m), stiction.laid(m)] if kept is None else [few(kept), few(kept)]

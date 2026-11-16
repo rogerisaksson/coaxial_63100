@@ -84,7 +84,7 @@ def test_a_step_has_no_branch(report):
         with io.open(path, encoding='utf-8') as f:
             code = re.sub(r'"[^"\n]*"', '""', re.sub(r'/\*.*?\*/', ' ', f.read(), flags=re.S))
         found += ['%s: %s' % (os.path.basename(path), hit.group(0)) for hit in re.finditer(BANNED, code)]
-    report.check('no jump the data decides in %d sources' % len(sources), len(sources) == 4 and not found,
+    report.check('no jump the data decides in %d sources' % len(sources), len(sources) == 5 and not found,
                  ', '.join(found[:6]) or ' '.join(os.path.basename(p) for p in sources))
     cc = find_cc()
     machine = 'arm' if platform.machine().lower() in ('arm64', 'aarch64') else 'x86'

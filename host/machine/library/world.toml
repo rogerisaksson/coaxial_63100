@@ -11,6 +11,11 @@ load_s = 0.02
 # once the sole slides. Friction alone reads them (`machine.body.compile`, the aerobat's wheels and tail).
 mu_dry = 0.80
 kinetic_share = 0.75
+# The slip speed where a contact's friction stands half way from rest to its sliding share (the SE(3) core's
+# Stribeck law, `machine.world.stiction`): between a sole's creep held at rest (under 2 mm/s on the robot's walks)
+# and its slides at a toe-off or a landing (50-1000 mm/s); shoe-floor tribometers measure at 2-250 mm/s
+# (Tribology in Industry 39 (2017) 340-348).
+stribeck_m_s = 0.01
 joint_damping = 0.3
 
 # High-discharge 15S1P LiPo flight battery pack (`machine.aircraft.flightpack`).

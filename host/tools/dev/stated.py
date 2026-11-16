@@ -43,7 +43,8 @@ CEILING = {
     'machine/library/inverters.toml': 40,
     'machine/library/materials.toml': 52,
     'machine/library/motors.toml': 64,
-    'machine/library/world.toml': 87,
+    # 88: the friction's Stribeck speed (stribeck_m_s), a property of a sole on a floor no other value tells
+    'machine/library/world.toml': 88,
 }
 #: The peripherals the solver derives of a humanoid build (`machine.body.peripherals`), each by its name.
 PERIPHERALS = ('bus', 'thermal', 'cooling', 'harness', 'eyes', 'world', 'service', 'identify')

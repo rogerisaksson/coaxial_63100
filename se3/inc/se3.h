@@ -139,4 +139,16 @@ void se3_grip(se3_real_t *planes, size_t stride, const se3_cfg_t *cfg,
 void se3_anchored(se3_real_t *planes, size_t stride, const se3_friction_t *friction,
                   const se3_real_t r[9], const se3_real_t t[3]);
 
+/** A bearing point's friction's coefficient at its speed: from `rest` to `slide` by its speed's square,
+    slide + (rest - slide) / (1 + speed2 fade), the coefficient se3_rubbed's reach takes - the world's
+    contacts' friction each step (wbc_world.c). */
+se3_real_t se3_rubs(se3_real_t rest, se3_real_t slide, se3_real_t fade, se3_real_t speed2);
+
+/** The share of its miss a bearing point's bristle keeps, as se3_rubbed's every point keeps it: its reach -
+    the coefficient at its speed times its load times `yield`, a stiffness's inverse, `fall` rest - slide -
+    over the larger of the reach and its miss, both times its pace; with no load none. The world's contacts'
+    slips yield by it (wbc_world.c). */
+se3_real_t se3_kept(se3_real_t load, se3_real_t speed2, se3_real_t miss2, se3_real_t slide, se3_real_t fall,
+                    se3_real_t fade, se3_real_t yield);
+
 #endif /* SE3_H */

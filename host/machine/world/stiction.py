@@ -48,6 +48,9 @@ A_GEOM = 4
 #: A sliding contact's friction over its friction at rest where its geom states none of its own: the share of a
 #: rubber sole's static friction on a floor that holds once it slides (`world.toml`).
 KINETIC = float(mechatronics.environment()['kinetic_share'])
+#: The friction's fade from rest to its sliding share by a contact's slip speed, 1 / v^2 (`world.toml`'s
+#: stribeck_m_s): the SE(3) core's law (se3_rubs).
+FADE = 1.0 / float(mechatronics.environment()['stribeck_m_s']) ** 2
 #: A surface's own sliding share, by its geom's name: ice bears a sole on a film of its own melt, at rest as
 #: sliding (on KINETIC of its 0.1 the robot fell on the ice in each of its six scenarios).
 SURFACES = {'ice': 1.0}
@@ -59,19 +62,19 @@ OF, ON = (0, 0, 3, 3, 3), (3, 6, 0, 3, 6)
 def laid(m, shares=None):
     """(wbc_stuck_t, each contact's geoms (cap, 2), where it bore (cap, 3), its slip (cap, 6), this step's friction
     rows' slips (cap, 5), its rows sprung in C, its slips yielded in C, what of each contact's slip its cone held
-    (cap,), MuJoCo's geoms' friction (ngeom, 3), each geom's sliding share (ngeom,)) of model `m`: its contacts'
-    slips, none yet - A_GEOM contacts a geom kept; `shares` each geom's sliding friction over its friction at rest,
-    KINETIC every geom's where none is given, a surface SURFACES names its own."""
+    (cap,), MuJoCo's geoms' friction (ngeom, 3), each geom's sliding share (ngeom,), each contact's normal force
+    (cap,)) of model `m`: its contacts' slips, none yet - A_GEOM contacts a geom kept; `shares` each geom's sliding
+    friction over its friction at rest, KINETIC every geom's where none is given, a surface SURFACES names its own."""
     import numpy as np
     from tools.cores import world
     cap = A_GEOM * m.ngeom
     pair, at, slip, row = np.full((cap, 2), -1, np.int32), np.zeros((cap, 3)), np.zeros((cap, 6)), np.zeros((cap, 5))
-    held, grip = np.ones(cap), m.geom_friction
+    held, borne, grip = np.ones(cap), np.zeros(cap), m.geom_friction
     share = np.full(m.ngeom, KINETIC) if shares is None else np.ascontiguousarray(shares, float)
     for g in range(m.ngeom):
         share[g] = SURFACES.get(m.geom(g).name, share[g])
-    s, sprung, yielded = world.stuck(pair, at, slip, row, held, grip, share, float(m.opt.timestep))
-    return s, pair, at, slip, row, sprung, yielded, held, grip, share
+    s, sprung, yielded = world.stuck(pair, at, slip, row, held, borne, grip, share, float(m.opt.timestep), FADE)
+    return s, pair, at, slip, row, sprung, yielded, held, grip, share, borne
 
 
 def home(state):
@@ -121,21 +124,23 @@ def _sprung(kbip, e):
 
 def _stuck(d, state):
     """wbc_world_stuck's twin: each of data `d`'s contacts' friction rows' slip - the last step's nearest contact of
-    its two geoms' (`state`), carried on by the row's speed a step - and the row's reference less K I s; a contact
-    whose nearest yielded the last step on its sliding share of the friction MuJoCo laid."""
+    its two geoms' (`state`), carried on by the row's speed a step - and the row's reference less K I s, s kept to
+    the reach its load bore the last step (the SE(3) core's se3_kept); its friction MuJoCo laid falling to its
+    sliding share by its slip's speed (se3_rubs)."""
+    from tools.cores import se3
     s, pair, at, slip, row = state[:5]
-    yielded, grip, share = state[7:10]
+    grip, share, borne = state[8:11]
     n, last, dt = min(d.ncon, s.cap), s.n, s.step_s
     if not n:
         return
     elliptic = int(importlib.import_module('mujoco').mjtConstraint.mjCNSTR_CONTACT_ELLIPTIC)
-    con, kbip, vel, aref = d.contact, d.efc_KBIP, d.efc_vel, d.efc_aref
+    con, kbip, vel, aref, res = d.contact, d.efc_KBIP, d.efc_vel, d.efc_aref, d.efc_R
     geoms, pos, frames = con.geom[:n].tolist(), con.pos[:n].tolist(), con.frame[:n].tolist()
     dims, adr = con.dim[:n].tolist(), con.efc_address[:n].tolist()
     start = 0
     for i in range(n):
         g0, g1 = geoms[i]
-        was, j, seen, held = [0.0] * 6, start, 0, 0.0
+        was, j, seen, bore = [0.0] * 6, start, 0, 0.0
         while seen < last and (pair[j, 0] != g0 or pair[j, 1] != g1):
             j = j + 1 if j + 1 < last else 0
             seen += 1
@@ -145,28 +150,38 @@ def _stuck(d, state):
                 x, y, z = pos[i][0] - float(at[j, 0]), pos[i][1] - float(at[j, 1]), pos[i][2] - float(at[j, 2])
                 far = (x * x + y * y) + z * z
                 if far < least:
-                    least, was, held = far, slip[j].tolist(), float(yielded[j])
+                    least, was, bore = far, slip[j].tolist(), float(borne[j])
                 j += 1
         row[i] = 0.0
         if _gripped(d, adr[i], dims[i], geoms[i], elliptic):
             f = frames[i]
             g = g1 if float(grip[g1, 0]) == float(con.friction[i, 0]) else g0
-            slides = float(share[g]) if held < 1.0 else 1.0
+            a0 = adr[i]
+            u2 = (float(vel[a0 + 1]) * float(vel[a0 + 1])) + (float(vel[a0 + 2]) * float(vel[a0 + 2]))
+            slides = se3.rubs_twin(1.0, float(share[g]), s.fade, u2)
             con.friction[i] = con.friction[i] * slides
             con.mu[i] = con.mu[i] * slides
+            pulls = 0.0
             for r in range(dims[i] - 1):
-                e, o, t = adr[i] + 1 + r, OF[r], ON[r]
+                e, o, t = a0 + 1 + r, OF[r], ON[r]
                 went = ((was[o] * f[t] + was[o + 1] * f[t + 1]) + was[o + 2] * f[t + 2]) + float(vel[e]) * dt
                 row[i, r] = went
-                aref[e] -= _sprung(kbip, e) * went
+                pull = (_sprung(kbip, e) * went) / (float(res[e]) * float(con.friction[i, r]))
+                pulls = pulls + pull * pull
+            kept = float(se3.kept_twin(max(bore, 0.0), 0.0, pulls, 1.0, 0.0, 0.0, 1.0))
+            for r in range(dims[i] - 1):
+                e = a0 + 1 + r
+                aref[e] -= _sprung(kbip, e) * (kept * float(row[i, r]))
 
 
 def _slipped(d, state):
     """wbc_world_slipped's twin: each of data `d`'s contacts' slip (`state`) yielded to what its cone holds - its
-    rows' pulls K I s / R over their friction's, past its normal force, scaled back onto it -, kept in the world's
-    frame with its geoms, where it bore and what of it its cone held."""
+    rows' pulls K I s / R over their friction's, past its normal force, scaled back onto it: the SE(3) core's
+    radial return (se3_kept) -, kept in the world's frame with its geoms, where it bore and what of it its cone
+    held."""
+    from tools.cores import se3
     s, pair, at, slip, row = state[:5]
-    yielded = state[7]
+    yielded, borne_of = state[7], state[10]
     n = min(d.ncon, s.cap)
     if n:
         elliptic = int(importlib.import_module('mujoco').mjtConstraint.mjCNSTR_CONTACT_ELLIPTIC)
@@ -176,14 +191,15 @@ def _slipped(d, state):
         pair[:n], at[:n] = con.geom[:n], con.pos[:n]
         for i in range(n):
             f, a, rows, held = frames[i], adr[i], row[i].tolist(), 1.0
+            borne_of[i] = 0.0
             if _gripped(d, a, dims[i], geoms[i], elliptic):
                 pulls, borne = 0.0, float(force[a])
+                borne_of[i] = borne
                 for r in range(dims[i] - 1):
                     e = a + 1 + r
                     pull = (_sprung(kbip, e) * rows[r]) / (float(res[e]) * mu[i][r])
                     pulls = pulls + pull * pull
-                pulls = math.sqrt(pulls)
-                held = max(borne, 0.0) / pulls if pulls > borne else 1.0
+                held = float(se3.kept_twin(max(borne, 0.0), 0.0, pulls, 1.0, 0.0, 0.0, 1.0))
             yielded[i] = held
             for x in range(3):
                 slip[i, x] = held * (rows[0] * f[3 + x] + rows[1] * f[6 + x])

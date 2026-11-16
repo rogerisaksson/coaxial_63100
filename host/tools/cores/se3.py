@@ -23,7 +23,7 @@ import numpy as np
 from tools import REPO
 from tools.cores.build import TARGETS, cached, native
 
-SOURCES = [os.path.join(REPO, 'se3', name) for name in ('test/harness.c', 'src/se3_sums.c', 'src/se3_step.c')]
+SOURCES = [os.path.join(REPO, 'se3', name) for name in ('test/harness.c', 'src/se3_sums.c', 'src/se3_step.c', 'src/se3_law.c')]
 INCLUDES = [os.path.join(REPO, 'se3', 'inc')]
 
 #: se3.h's sizes: a sum's lanes, the arena's planes and those of them given, a cache line of bytes; a step's turn
@@ -278,6 +278,20 @@ def _taken(r, t, centre, w, v, dt):
     return r_out, t_out
 
 
+def rubs_twin(rest, slide, fade, speed2):
+    """se3_rubs in numpy or Python's floats: the coefficient at a point's speed, the C's terms in its order."""
+    pace = 1.0 + (speed2 * fade)
+    return ((slide * pace) + (rest - slide)) / pace
+
+
+def kept_twin(load, speed2, miss2, slide, fall, fade, yield_, dt=np.float64):
+    """se3_kept in numpy, the same bits (`_rubbed`'s every point's share): numbers or arrays of `dt`."""
+    one, tiny = dt(1.0), dt(TINY[dt])
+    pace = one + (speed2 * fade)
+    reach, miss = (((slide * pace) + fall) * load) * yield_, np.sqrt(miss2) * pace
+    return reach / (np.where(np.signbit(reach - miss), miss, reach) + tiny)
+
+
 def _rubbed(planes, stride, rub, r, t, dt):
     """se3_rubbed: its sums as `_summed`'s, then each point's place, its miss and its share of its bristle."""
     px, py, pz, gx, gy, gz, pw = (planes[k * stride:(k + 1) * stride] for k in range(GIVEN))
@@ -287,9 +301,8 @@ def _rubbed(planes, stride, rub, r, t, dt):
     m = [q[0] - gx, q[1] - gy, q[2] - gz]
     u = [(((s[3 * i] * px) + (s[3 * i + 1] * py)) + (s[3 * i + 2] * pz)) + v[i] for i in range(3)]
     m2, u2 = ((m[0] * m[0]) + (m[1] * m[1])) + (m[2] * m[2]), ((u[0] * u[0]) + (u[1] * u[1])) + (u[2] * u[2])
-    firm, load, pace = (half * (stiff + np.abs(stiff))) + tiny, half * (pw + np.abs(pw)), one + (u2 * fade)
-    reach, miss = (((slide * pace) + (rest - slide)) * load) * (one / firm), np.sqrt(m2) * pace
-    share = reach / (np.where(np.signbit(reach - miss), miss, reach) + tiny)
+    firm, load = (half * (stiff + np.abs(stiff))) + tiny, half * (pw + np.abs(pw))
+    share = kept_twin(load, u2, m2, slide, rest - slide, fade, one / firm, dt)
     spring, damp = firm * share, np.where(np.signbit(dt(0.0) - load), drag, dt(0.0))
     w = spring + damp
     f = [(spring * m[i]) + (damp * u[i]) for i in range(3)]

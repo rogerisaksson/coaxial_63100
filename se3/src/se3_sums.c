@@ -47,21 +47,6 @@ static void told(se3_real_t first[FIRST][SE3_LANES], se3_real_t moment[MOMENTS][
   sums->cost = HALF * tree(first[COST]);
 }
 
-/** The share of its bristle's stiffness a point keeps. The point's reach is the strain its load
-    holds at its speed: the friction between sliding and rest by the speed's square, slide + fall
-    / pace, times the load, over the stiffness (`yield` its inverse). Inside the reach the whole,
-    past it the reach over the miss - the pull stays on the cone -, with no load none. The reach
-    and the miss are both taken times the pace, 1 + speed^2 fade: one division a point. */
-static inline se3_real_t share(se3_real_t load, se3_real_t speed2, se3_real_t miss2,
-                               se3_real_t slide, se3_real_t fall, se3_real_t fade,
-                               se3_real_t yield)
-{
-  const se3_real_t pace = ONE + (speed2 * fade);
-  const se3_real_t reach = (((slide * pace) + fall) * load) * yield;
-
-  return reach / (most(reach, SE3_ROOT(miss2) * pace) + SE3_TINY);
-}
-
 void se3_summed(se3_real_t *planes, size_t stride, se3_real_t soft, const se3_real_t r[9],
                 const se3_real_t t[3], se3_sums_t *sums)
 {

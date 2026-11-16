@@ -2,7 +2,7 @@
 
     at, rated, before, after, paired, s, kept = world.laid(w)   # on the robot's world `w`, anew where `w.reset` lays its link
     hold = world.held(vel, of, at, lie, still, by_geom, live, n, low) # its loose things asleep held a pass: woken
-    s, stuck, slipped = world.stuck(pair, at, slip, row, held, grip, share, step_s)   # its contacts' slips
+    s, stuck, slipped = world.stuck(pair, at, slip, row, held, borne, grip, share, step_s, fade)   # contacts' slips
     loop, data = world.numpy_tanh()                             # numpy's own float64 tanh loop, for C to call
 
 `machine.world.physics.World.advance`'s steps where nothing else is asked of them (`machine.world.steps`), the same
@@ -69,8 +69,8 @@ class Stuck(ctypes.Structure):
 
     """wbc_stuck_t: the world's contacts' slips as `machine.world.stiction` keeps them, pointing at their arrays."""
 
-    _fields_ = ([(name, _vp) for name in ('pair', 'at', 'slip', 'row', 'held', 'grip', 'share')]
-                + [('step_s', _d), ('cap', _i), ('n', _i)])
+    _fields_ = ([(name, _vp) for name in ('pair', 'at', 'slip', 'row', 'held', 'borne', 'grip', 'share')]
+                + [('step_s', _d), ('fade', _d), ('cap', _i), ('n', _i)])
 
 
 @functools.lru_cache(maxsize=None)
@@ -187,14 +187,15 @@ def held(vel, of, at, lie, still, by_geom, live, nthing, low):
     return hold
 
 
-def stuck(pair, at, slip, row, held, grip, share, step_s):
+def stuck(pair, at, slip, row, held, borne, grip, share, step_s, fade):
     """(wbc_stuck_t on `machine.world.stiction.laid`'s arrays - each contact's geoms, where it bore, its slip, its
-    friction rows' slips this step, what of its slip its cone held; MuJoCo's geoms' friction and each geom's
-    sliding share of it - and a step, s; its friction rows sprung between MuJoCo's step's halves (wbc_world_stuck),
-    its slips yielded after it (wbc_world_slipped), each a call of MuJoCo's data)."""
+    friction rows' slips this step, what of its slip its cone held, its normal force; MuJoCo's geoms' friction and
+    each geom's sliding share of it -, a step, s, and the friction's fade to its sliding share, 1 / v^2; its
+    friction rows sprung between MuJoCo's step's halves (wbc_world_stuck), its slips yielded after it
+    (wbc_world_slipped), each a call of MuJoCo's data)."""
     lib, point = typed(), wbc.pointer
     s = Stuck(pair=point(pair, np.int32), at=point(at), slip=point(slip), row=point(row), held=point(held),
-              grip=point(grip), share=point(share), step_s=step_s, cap=len(at), n=0)
+              borne=point(borne), grip=point(grip), share=point(share), step_s=step_s, fade=fade, cap=len(at), n=0)
     address = ctypes.addressof(s)
     return (s, lambda d, fn=lib.wbh_world_stuck: fn(d._address, address),
             lambda d, fn=lib.wbh_world_slipped: fn(d._address, address))

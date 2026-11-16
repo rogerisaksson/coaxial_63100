@@ -63,4 +63,20 @@ static inline se3_real_t least(se3_real_t a, se3_real_t b)
   return pick(under(b - a), a, b);
 }
 
+/** The share of its bristle's stiffness a point keeps. The point's reach is the strain its load
+    holds at its speed: the friction between sliding and rest by the speed's square, slide + fall
+    / pace, times the load, over the stiffness (`yield` its inverse). Inside the reach the whole,
+    past it the reach over the miss - the pull stays on the cone -, with no load none. The reach
+    and the miss are both taken times the pace, 1 + speed^2 fade: one division a point. The core's
+    friction pass inlines it on its lanes (se3_sums.c), se3_kept is it alone (se3_law.c). */
+static inline se3_real_t share(se3_real_t load, se3_real_t speed2, se3_real_t miss2,
+                               se3_real_t slide, se3_real_t fall, se3_real_t fade,
+                               se3_real_t yield)
+{
+  const se3_real_t pace = ONE + (speed2 * fade);
+  const se3_real_t reach = (((slide * pace) + fall) * load) * yield;
+
+  return reach / (most(reach, SE3_ROOT(miss2) * pace) + SE3_TINY);
+}
+
 #endif /* SE3_BITS_H */

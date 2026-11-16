@@ -14,6 +14,7 @@ CORES = (
     ('host/tools/cores/thermal.py',            (THERMAL, THERMAL_APP)),
     ('host/tools/cores/reach.py',              (STRUCTURE, REACH)),
     ('host/tools/cores/wbc.py',                (STRUCTURE, WBC_CORE, LEAP)),
+    ('host/tools/cores/wbc_sources.py',        (STRUCTURE, WBC_CORE, LEAP, VECTORIZED, TICK)),
     ('host/tools/cores/arrays.py',             (STRUCTURE, WBC_CORE, LEAP)),
     ('host/tools/cores/motion.py',             (STRUCTURE, WBC_CORE, PORTED)),
     ('host/tools/cores/step.py',               (STRUCTURE, WBC_CORE, PORTED, QUICK)),

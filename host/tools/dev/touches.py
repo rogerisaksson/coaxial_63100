@@ -7,7 +7,7 @@ from tools.dev.suites import (AERO_CORE, MPPI_CORE, BENCH, BUSES, BOARD_MEM, BOO
                               LEAP, NATIVE, NATIVE_HEAT, NATIVE_SYSID, OLLAMA, ORTHO, POSTURES, FOURS,
                               GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, FLOOR, PAINT,
                               QUADS, RENDER, REPLAYS, SCENES, SE3_CORE, SE3_GRIP, SENSORLESS, SHTP,
-                              SIGHT, SITUATION, SMART, STREAMS, STRUCTURE, TERMS, THERMAL, THERMAL_APP,
+                              SIGHT, SITUATION, SMART, STICTION, STREAMS, STRUCTURE, TERMS, THERMAL, THERMAL_APP,
                               VIEWS, WBC, WBC_CORE, WIRE, WORLD_CORE, WRENCH)
 from tools.dev.touches_cores import CORES
 from tools.dev.touches_drawn import DRAWN
@@ -69,6 +69,10 @@ TOUCHES = (
     ('host/tools/cores/mppi.py',               (MPPI_CORE, 'test_helicopter.py')),
     ('mppi/',                                  (MPPI_CORE, 'test_helicopter.py', STRUCTURE)),
     ('host/tools/cores/se3.py',                (SE3_CORE, SE3_GRIP)),
+    # A bearing point's friction alone, the world's contacts' too (wbc_world.c: se3_rubs, se3_kept).
+    ('se3/src/se3_law.c',                      (SE3_CORE, SE3_GRIP, STICTION, TICK, STRUCTURE)),
+    ('se3/src/se3_bits.h',                     (SE3_CORE, SE3_GRIP, STICTION, TICK, STRUCTURE)),
+    ('se3/inc/se3.h',                          (SE3_CORE, SE3_GRIP, STICTION, TICK, STRUCTURE)),
     ('se3/',                                   (SE3_CORE, SE3_GRIP, STRUCTURE)),
     ('host/lisp/aircraft/aerobat.lisp',        ('test_helicopter.py', 'test_aerobat.py', STRUCTURE)),
     ('host/lisp/aircraft/',                    QUADS + (AERO_CORE, STREAMS, 'test_helicopter.py', 'test_aerobat.py')),
@@ -89,9 +93,9 @@ TOUCHES = (
     ('wbc/src/wbc_soa.c',                      (SHIELD, WBC_CORE)),
     ('wbc/src/wbc_sil.c',                      (BUSES, WBC_CORE, TICK)),
     ('wbc/src/wbc_beat.c',                     (WBC_CORE, TICK)),
-    ('wbc/src/wbc_world.c',                    (WBC_CORE, TICK)),
-    ('wbc/inc/wbc_world.h',                    (WBC_CORE, TICK)),
-    ('wbc/test/harness_world.c',               (WBC_CORE, TICK)),
+    ('wbc/src/wbc_world.c',                    (WBC_CORE, TICK, STICTION)),
+    ('wbc/inc/wbc_world.h',                    (WBC_CORE, TICK, STICTION)),
+    ('wbc/test/harness_world.c',               (WBC_CORE, TICK, STICTION)),
     ('wbc/inc/wbc_beat.h',                     (WBC_CORE, TICK)),
     ('wbc/src/wbc_pass.c',                     (WBC_CORE, LEAP, EMULATOR, PORTED, BORNE, REGISTRY, TICK)),
     ('wbc/inc/wbc_pass.h',                     (WBC_CORE, LEAP, EMULATOR, PORTED, BORNE, REGISTRY, TICK)),

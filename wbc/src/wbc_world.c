@@ -3,6 +3,7 @@
     its data through its own headers, their friction rows sprung to where they stuck. The host's alone. */
 #include "wbc_world.h"
 #include "wbc_np.h"
+#include "se3.h"
 
 #include <math.h>
 #include <stddef.h>
@@ -240,7 +241,7 @@ void wbc_world_stuck(mjData *d, wbc_stuck_t *k)
     double    *row = &k->row[5 * i];
     double     was[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
     double     least = INFINITY;
-    double     held = 0.0;   /* a contact its geoms had none of lands sliding: a contact sticks once it has held */
+    double     bore = 0.0;   /* the nearest's normal force the last step: a contact new to the step lands unstrained */
     int        j = from;
     int        seen = 0;
 
@@ -264,7 +265,7 @@ void wbc_world_stuck(mjData *d, wbc_stuck_t *k)
         if (far < least)
         {
           least = far;
-          held = k->held[j];
+          bore = k->borne[j];
           for (int v = 0; v < 6; v++)
           {
             was[v] = k->slip[(6 * j) + v];
@@ -279,25 +280,41 @@ void wbc_world_stuck(mjData *d, wbc_stuck_t *k)
     }
     if (gripped(d, c) != 0)
     {
-      /* a contact stuck holds on the friction its geoms state, at rest; one that yielded the last step slides on
-         the sliding share of it - the share of the geom whose friction MuJoCo took -: its cone's every row and its
-         regularized cone's by it, their R as laid (a row's R times its friction squared the same for all) */
+      /* the friction its geoms state at rest, falling to its sliding share - the share of the geom whose friction
+         MuJoCo took - by its slip's speed along its plane, the SE(3) core's law (se3_rubs): its cone's every row
+         and its regularized cone's by it, their R as laid (a row's R times its friction squared the same for all) */
       const int    g = (k->grip[3 * c->geom[1]] == c->friction[0]) ? c->geom[1] : c->geom[0];
-      const double share = (held < 1.0) ? k->share[g] : 1.0;
+      const int    a = c->efc_address;
+      const double u2 = (d->efc_vel[a + 1] * d->efc_vel[a + 1]) + (d->efc_vel[a + 2] * d->efc_vel[a + 2]);
+      const double share = se3_rubs(1.0, k->share[g], k->fade, u2);
 
       for (int v = 0; v < 5; v++)
       {
         c->friction[v] = c->friction[v] * share;
       }
       c->mu = c->mu * share;
+      double pulls = 0.0, kept;
+
       for (int r = 0; r < (c->dim - 1); r++)
       {
         const double *s = &was[slip_of[r]];
         const double *t = &c->frame[slip_on[r]];
-        const int     e = (c->efc_address + 1) + r;
+        const int     e = (a + 1) + r;
+        double        pull;
 
         row[r] = ((s[0] * t[0] + s[1] * t[1]) + s[2] * t[2]) + d->efc_vel[e] * k->step_s;
-        d->efc_aref[e] -= sprung(d, e) * row[r];
+        pull = (sprung(d, e) * row[r]) / (d->efc_R[e] * c->friction[r]);
+        pulls = pulls + pull * pull;
+      }
+      /* the strain its rows pull on kept to the reach its load bore the last step: the SE(3) core's radial return
+         before the pull (se3_kept), as its friction pass takes it - a row's reference past its cone pressed the
+         contact's normal and a block sliding a slope flew 354 of its 1000 steps */
+      kept = se3_kept(npmax(bore, 0.0), 0.0, pulls, 1.0, 0.0, 0.0, 1.0);
+      for (int r = 0; r < (c->dim - 1); r++)
+      {
+        const int e = (a + 1) + r;
+
+        d->efc_aref[e] -= sprung(d, e) * (kept * row[r]);
       }
     }
   }
@@ -316,11 +333,16 @@ void wbc_world_slipped(const mjData *d, wbc_stuck_t *k)
     double          *slip = &k->slip[6 * i];
     double           held = 1.0;
 
+    k->borne[i] = 0.0;
     if (gripped(d, c) != 0)
     {
       const int a = c->efc_address;
       double    pulls = 0.0;
 
+      k->borne[i] = d->efc_force[a];
+
+      /* its rows' pulls over their friction's, against its normal force: the SE(3) core's radial return
+         (se3_kept), the friction at its speed already in the cone they were solved on */
       for (int r = 0; r < (c->dim - 1); r++)
       {
         const int    e = (a + 1) + r;
@@ -328,8 +350,7 @@ void wbc_world_slipped(const mjData *d, wbc_stuck_t *k)
 
         pulls = pulls + pull * pull;
       }
-      pulls = sqrt(pulls);
-      held = (pulls > d->efc_force[a]) ? (npmax(d->efc_force[a], 0.0) / pulls) : 1.0;
+      held = se3_kept(npmax(d->efc_force[a], 0.0), 0.0, pulls, 1.0, 0.0, 0.0, 1.0);
     }
     for (int x = 0; x < 3; x++)
     {
