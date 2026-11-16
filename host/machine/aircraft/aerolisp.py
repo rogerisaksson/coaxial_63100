@@ -347,9 +347,11 @@ def _apply_manifest_form(form, out, c, base_dir, seen):
     raise SyntaxError(f'unknown or malformed manifest form {h!r}')
 
 
-def compile_manifest(text, symbols=None, base_dir=_BASE_DIR):
+def compile_manifest(text, symbols=None, base_dir=_BASE_DIR, blocks=None):
+    """A craft's text compiled: its vehicle, its blocks by kind, its streams, stunts, behaviors and routines;
+    `blocks` what a `use` names, the compiled spec's (`aircraft.compile.blocks`) unless given."""
     c = AeroLispCompiler(symbols)
-    out = {'includes': [], 'blocks': aircraft_compile.blocks(), 'vehicle': None, 'aerodynamics': {},
+    out = {'includes': [], 'blocks': aircraft_compile.blocks() if blocks is None else blocks, 'vehicle': None, 'aerodynamics': {},
            'dynamics': {}, 'kinematics': {}, 'streams': [], 'stunts': {}, 'behaviors': {}, 'routines': {}}
     for f in _trees(text):
         if not isinstance(f, list) or not f:

@@ -5,7 +5,8 @@
 of its wing's aspect ratio and its drag due to lift of the airframe's own span efficiency, a wing a
 vehicle's text resizes with them; the floor's friction read for friction alone; a craft on its
 heavy frame with its radii of gyration kept; the quadcopter's hover solved once for its blocks and
-its parts, as built and resized.
+its parts, as built and resized; every flying text's pitch and roll solved of its own blocks beside
+today's (`machine.aircraft.attitude`).
 The solver's own laws, one source a number and a build anew its cache: test_metacompiler."""
 import math
 import os
@@ -170,9 +171,48 @@ def test_a_quads_hover_is_solved_once(r):
             (craft.ROTOR_CAN_J, craft.ROTOR_MAX_NM))
 
 
+def test_a_crafts_attitude_is_solved_of_its_own(r):
+    """Every text that flies has its pitch and its roll solved of its own blocks (`machine.aircraft.attitude`):
+    the stiffest of its needs, feasible under its least ceiling; the quadcopter's is the stiffness its course
+    measured; a craft's inertia moves its own authority alone; nothing flies on the solved loops yet."""
+    import copy
+    import re
+    from machine import aircraft
+    from machine.aircraft import attitude
+    from machine.body import mechatronics
+    rows = attitude.rows()
+    texts = [name for kind in aircraft.CRAFTS for name in aircraft.variants(kind)]
+    r.check('every text that flies has a pitch and a roll loop: %d rows of %d texts' % (len(rows), len(texts)),
+            [row[:2] for row in rows] == [(name, loop) for name in texts for loop in ('pitch', 'roll')], rows[:2])
+    odd = [row[:2] for row in rows if row[4].kp != max(row[5].values()) or row[4].need not in row[5]
+           or row[4].feasible != (row[4].kp <= min(row[6].values())) or set(row[5]) != {'motion', 'cascade'}
+           or not {'dead time', 'authority'} <= set(row[6]) or min(row[5].values()) <= 0.0]
+    r.check('a loop is the stiffest of its needs, feasible under its least ceiling, each by its name', not odd, odd)
+    own = {row[:2]: row for row in rows if row[0] in aircraft.CRAFTS.values()}
+    stuck = [key for key, row in own.items() if not row[4].feasible]
+    r.check("each kind's own text can follow its card: its pitch and its roll feasible", not stuck and len(own) == 8, stuck)
+    quad = own[(aircraft.CRAFTS['quad'], 'pitch')]
+    r.check("the quadcopter's tilt solved of its tic-toc is the stiffness its course measured, within 1 %%: %.1f, %.0f"
+            % (quad[4].kp, quad[2]), abs(quad[4].kp / quad[2] - 1.0) < 0.01 and 'rotor slew' in quad[6], quad[6])
+    crafts = copy.deepcopy(mechatronics.crafts())
+    crafts['helicopter']['gyration_m'] = [math.sqrt(2.0) * g for g in crafts['helicopter']['gyration_m']]
+    twice = {row[:2]: row for row in attitude.rows(crafts)}
+    once = {row[:2]: row for row in rows}
+    halved = [key for key in once if key[0].startswith('helicopter')
+              and abs(twice[key][6]['authority'] / once[key][6]['authority'] - 0.5) > 1e-3]
+    moved = [key for key in once if not key[0].startswith('helicopter') and twice[key] != once[key]]
+    r.check("twice the helicopter's inertia halves its authority's ceiling and moves no other craft's loop",
+            not halved and not moved and twice[('helicopter', 'pitch')][4].kp == once[('helicopter', 'pitch')][4].kp,
+            (halved, moved))
+    readers = sorted(path.replace(os.sep, '/') for path, text, _tree in sources(beside=False)
+                     if re.search(r'aircraft\.attitude|from machine\.aircraft import[^\n]*\battitude\b', text))
+    flown = [path for path in readers if path.startswith(('machine/', 'coaxial/', 'terminal/'))]
+    r.check('no law, rig or page reads the solved loops: they stand beside the blocks', not flown, flown)
+
+
 ROSTER = (test_a_craft_states_its_own_alone, test_a_wings_lift_slope_is_its_aspect_ratios,
           test_the_floors_friction_is_friction_alone, test_a_heavier_craft_keeps_its_radii,
-          test_a_quads_hover_is_solved_once)
+          test_a_quads_hover_is_solved_once, test_a_crafts_attitude_is_solved_of_its_own)
 
 
 def main(argv=None):

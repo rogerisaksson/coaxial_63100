@@ -208,6 +208,13 @@ def materials():
     return _toml(os.path.join(LIBRARY, 'materials.toml'))
 
 
+def control():
+    """The control design's targets, stated once for every machine (`control.toml`): a loop's damping ratio,
+    the phase its delays may take, its factors over a motion, a fall and an outer loop, its observer's over
+    it and the excursion its authority is judged at."""
+    return _toml(os.path.join(LIBRARY, 'control.toml'))
+
+
 def laminate_j_k(inv, mat) -> float:
     """Laminate heat capacity (J/K) from copper-FR4 areal heat capacity and disc diameter."""
     return float(inv.get('laminate_j_k',

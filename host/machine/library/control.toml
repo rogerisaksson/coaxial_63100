@@ -1,0 +1,20 @@
+# The control design's targets (`mechatronics.control()`): what a loop is asked to be, stated once for
+# every machine. The robot's joints and a craft's axes are solved between what their task needs and what
+# their machine allows (`machine.solver.loops`) by the same numbers; a target is a requirement of the
+# design, no share fitted to a table, and the comparison of today's tables with the solved loops starts
+# from these.
+
+# A loop's damping ratio, on the most inertia its drive sees.
+damping_ratio = 0.7
+# The phase a loop's dead time and its actuator's lags may take at its crossover, deg.
+delay_phase_deg = 15.0
+# A loop's natural frequency over the fastest motion asked of it.
+motion_factor = 2.2
+# The error at which a loop may ask all its drive has, at the least, deg: the authority's ceiling.
+excursion_deg = 15.0
+# A stance loop's natural frequency over the rate its machine falls at.
+fall_factor = 3.0
+# An inner loop's natural frequency over the outer loop's it serves.
+cascade_factor = 3.0
+# An observer's bandwidth over the loop it serves.
+observer_factor = 10.0

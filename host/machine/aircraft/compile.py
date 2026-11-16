@@ -259,10 +259,12 @@ def defaults() -> tuple[float, float]:
     return float(h), float(v)
 
 
-def blocks():
-    """Fresh copy of all statically derived AeroLisp vehicle blocks."""
+def blocks(crafts=None):
+    """Fresh copy of all statically derived AeroLisp vehicle blocks: the spec's, or those of a resolved
+    `crafts` table compiled in its place."""
+    laid = _compiled() if crafts is None else _build_aircraft(crafts)
     return {k: (kind, {sk: dict(sv) if isinstance(sv, dict) else sv for sk, sv in val.items()})
-            for k, (kind, val) in _compiled()['blocks'].items()}
+            for k, (kind, val) in laid['blocks'].items()}
 
 
 def part(name):

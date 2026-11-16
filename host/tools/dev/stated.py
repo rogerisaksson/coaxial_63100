@@ -38,6 +38,7 @@ CEILING = {
     'machine/humanoids/gynoid_mesomorph_medium_r80.toml': 3,
     'machine/humanoids/gynoid_mesomorph_medium_s105.toml': 2,
     'machine/humanoids/gynoid_mesomorph_medium_s95.toml': 2,
+    'machine/library/control.toml': 7,
     'machine/library/gearboxes.toml': 18,
     'machine/library/inverters.toml': 40,
     'machine/library/materials.toml': 52,
