@@ -281,8 +281,9 @@ def test_where_no_row_grips_the_step_is_mujocos(report, _c):
 
 
 ROSTER = (test_a_load_its_cone_holds_rests, test_a_load_past_its_cone_slides_as_it_did,
-          test_a_load_between_holds_at_rest_and_slides_once_moved, test_a_ball_rolls_as_freely,
-          test_the_kernels_in_c_are_their_twins, test_where_no_row_grips_the_step_is_mujocos)
+          test_a_load_between_holds_at_rest_and_slides_once_moved, test_a_contacts_friction_falls_by_its_speed,
+          test_a_ball_rolls_as_freely, test_the_kernels_in_c_are_their_twins,
+          test_where_no_row_grips_the_step_is_mujocos)
 
 
 def main(argv=None):
