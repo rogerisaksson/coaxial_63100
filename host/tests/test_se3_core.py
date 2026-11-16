@@ -95,7 +95,7 @@ def test_a_step_has_no_branch(report):
         _lib, warnings = build(cc, se3.SOURCES, se3.INCLUDES, 'se3_warned', list(se3.built(single)))
         report.check('%s: built under the firmware\'s warnings with none' % name, not warnings,
                      '; '.join(warnings[:2]) or '0 warnings')
-        flagged, jumps, size, packed, alone, divided = [], 0, 0, 0, 0, 0
+        flagged, jumps, sizes, packed, alone, divided = [], 0, [], 0, 0, 0
         for path in se3.SOURCES:
             obj = os.path.join(OUT, 'se3_%d_%s.o' % (os.getpid(), os.path.basename(path)[:-2]))
             subprocess.run([cc, '-c'] + FLAGS + flags + ['-I', se3.INCLUDES[0], path, '-o', obj], check=True)
@@ -103,12 +103,14 @@ def test_a_step_has_no_branch(report):
             os.remove(obj)
             flagged += ['%s: %s' % (os.path.basename(path), hit) for hit in re.findall(FLAGGED[machine], text)]
             jumps += len(re.findall(JUMPS[machine], text))
-            size += len(re.findall(r'^\s*[0-9a-f]+:\t', text, flags=re.M))
+            sizes.append(len(re.findall(r'^\s*[0-9a-f]+:\t', text, flags=re.M)))
             if path.endswith('se3_sums.c'):
                 packed, alone, divided = (len(re.findall(kind, text)) for kind in PACKED[machine])
-        report.check('%s: in this host\'s code no flag is set from its data' % name, not flagged and size > 1000,
+        # each source's code read, of any length: on x86-64-v4 a runner's compiler made 979 instructions of the
+        # three, a desk's 1057 and of x86-64-v3 1275 - lanes of 512 bits take half the operations
+        report.check('%s: in this host\'s code no flag is set from its data' % name, not flagged and all(sizes),
                      ', '.join(sorted(set(flagged))[:6])
-                     or '%d instructions, %d conditional jumps: its loops\' ends' % (size, jumps))
+                     or '%d instructions, %d conditional jumps: its loops\' ends' % (sum(sizes), jumps))
         report.check('%s: its passes are packed, their division too' % name, packed > 2 * alone and divided >= 1,
                      '%d operations on a vector\'s lanes, %d on a single number' % (packed, alone))
 
