@@ -27,6 +27,12 @@ from machine.world import physics
 
 #: The things last laid as boxes (`_boxes`): those things and their arrays, without and with doors.
 _KEPT: list = [None, None, None, None]
+#: The things the robot's clearance was last measured against (`_clear`), the place it was measured at and the
+#: clearance there, m.
+_FREE: list = [None, (0.0, 0.0), -math.inf]
+#: How far off that place the clearance is measured anew, m - a pace's matter alone, any length gives the same
+#: answers - and what a clearance is trusted short of, m: rounding's.
+_AGAIN, _SLACK = 0.05, 1e-9
 
 
 def _seen(g):
@@ -95,9 +101,8 @@ def _vel_blocked(g):
     vh = math.hypot(vx, vz)
     if vh <= se2.HALT_M_S:
         return False
-    cut = bool(g.get('_cocoon_cut'))
-    room = _room(g, (vx / vh, vz / vh), things)
-    return _stop(vh) + (2.0 * se2.STOP_SPREAD_M if cut else 0.0) >= room
+    need = _stop(vh) + (2.0 * se2.STOP_SPREAD_M if g.get('_cocoon_cut') else 0.0)
+    return not _spared(g, need, things) and need >= _room(g, (vx / vh, vz / vh), things)
 
 
 def _spin_blocked(g, wz, cut=False):
@@ -111,7 +116,8 @@ def _spin_blocked(g, wz, cut=False):
         return False
     h = float(g['heading'])
     way = ((cf * math.sin(h) + cl * math.cos(h)) / carry_m, (cf * math.cos(h) - cl * math.sin(h)) / carry_m)
-    return carry_m + (2.0 * se2.STOP_SPREAD_M if cut else 0.0) >= _room(g, way, things)
+    need = carry_m + (2.0 * se2.STOP_SPREAD_M if cut else 0.0)
+    return not _spared(g, need, things) and need >= _room(g, way, things)
 
 
 def hop_blocked(g):
@@ -139,7 +145,8 @@ def blocked(g):
     vel = g['est']['vel']
     v_along = max(0.0, float(vel[0]) * way[0] + float(vel[2]) * way[1])
     side = se2.SIDE_STOP_M if abs(float(tw[1])) > 1e-4 and se2.doing(g) not in ('brake', 'stand', 'rest') else 0.0
-    return max(_stop(v_along), side) >= _arc_room(g, tw, v_along)
+    need = max(_stop(v_along), side)
+    return not _spared(g, need) and need >= _arc_room(g, tw, v_along)
 
 
 def refused(g, tw):
@@ -154,8 +161,8 @@ def refused(g, tw):
     vel = g['est']['vel']
     v_along = max(0.0, float(vel[0]) * way[0] + float(vel[2]) * way[1])
     v_chk = max(v, v_along)
-    cut = bool(g.get('_cocoon_cut'))
-    if _stop(v_chk) + (2.0 * se2.STOP_SPREAD_M if cut else 0.0) < _arc_room(g, tw, v_chk):
+    need = _stop(v_chk) + (2.0 * se2.STOP_SPREAD_M if g.get('_cocoon_cut') else 0.0)
+    if _spared(g, need) or need < _arc_room(g, tw, v_chk):
         return tw
     return (0.0, 0.0, 0.0 if _vel_blocked(g) else tw[2])
 
@@ -198,6 +205,31 @@ def _room(g, way, things=None):
     q = furniture.where(g)
     boxes = _boxes(_seen(g) if things is None else things)
     return ahead(boxes, (float(q[0]), float(q[2])), way) - wayfinder.MARGIN
+
+
+def _spared(g, need, things=None):
+    """Whether `need` m fit short of the robot's things along every way by its clearance alone (`_clear`): the room
+    along a way (`_room`) is then no less, and is not asked."""
+    q = furniture.where(g)
+    free = _clear(_seen(g) if things is None else things, (float(q[0]), float(q[2])))
+    return need + wayfinder.MARGIN + _SLACK < free
+
+
+def _clear(things, at):
+    """A floor under `ahead` from `at` (x, z) along every way, m: the least over the robot's things of a box's gap on
+    its own axes less its distance off, as measured at a place and less what the robot has moved off that place
+    since. A way enters a box no sooner than the gap - an axis of a box is no longer than one on the floor - and
+    the gap closes no faster than the robot moves; within a box the floor is under zero and the room is asked."""
+    import numpy as np
+    kept, was, free = _FREE
+    moved = math.hypot(at[0] - was[0], at[1] - was[1])
+    if kept is not things or moved > _AGAIN:
+        c, axes, half, off = _boxes(things)
+        gap = np.abs(np.einsum('nij,nj->ni', axes, np.asarray(at, float) - c)) - half
+        free = float((gap.max(axis=1) - off).min()) if len(c) else math.inf
+        _FREE[:] = things, at, free
+        return free
+    return free - moved
 
 
 def _boxes(things, doors=False):
