@@ -12,9 +12,11 @@ delay_phase_deg = 15.0
 motion_factor = 2.2
 # The error at which a loop may ask all its drive has, at the least, deg: the authority's ceiling.
 excursion_deg = 15.0
-# A stance loop's natural frequency over the rate its machine falls at.
-fall_factor = 3.0
-# An inner loop's natural frequency over the outer loop's it serves.
-cascade_factor = 3.0
+# A stance loop's natural frequency over the rate its machine falls at: at three the robot's ankle would
+# need more stiffness than the leaf in series with it has.
+fall_factor = 2.0
+# An inner loop's natural frequency over the outer loop's it serves: a limb's over the stance loop's, a
+# tilt's over the loop along the floor.
+cascade_factor = 4.5
 # An observer's bandwidth over the loop it serves.
 observer_factor = 10.0
