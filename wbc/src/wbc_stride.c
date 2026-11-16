@@ -196,7 +196,8 @@ void wbc_imp_beat(const wbc_imp_t *k, double drive, double psi, double sway, dou
     const double came = (((stood[1 - b] * was[1 - b]) * (double)(u[1 - b] > 1.0 - k->fall_u)) * (double)(u[1 - b] < 1.0))
                         * (double)(u[b] <= 0.0);
     /* its rhythm's alone on a standing other sole or aloft itself; a swing begun waits for the floor */
-    const double window = (double)((phi[b] > phi_w - PI) && (phi[b] < phi_w));
+    const double window = (double)((phi[b] > phi_w - PI) && (phi[b] < phi_w)
+                                   && !((stood[b] > 0.5) && (was[b] <= 0.5) && (need <= k->tiny) && (sweep[b] > k->early)));
 
     waits[b] = (was[b] * (1.0 - stood[b])) * stood[1 - b];
     on[b] = npmax(npmax(window * npmax(stood[1 - b], 1.0 - stood[b]), came), waits[b]);
