@@ -31,14 +31,14 @@ STRUCTURES = (STRUCTURE, 'test_layout.py', 'test_mirrors.py', 'test_wire_shapes.
               METACOMPILER_CRAFTS, METACOMPILER_RIG, METACOMPILER_SOLVER)
 #: Suites with prior CI or local regressions, scheduled right after structural checks so a regression stops the run at once:
 #: what GitHub's last host run left red is laid at its head at every commit (tools/dev/ci.py, the pre-commit).
-FAILED_FIRST = ('test_errands.py', 'test_scenarios.py', 'test_daq_api.py', 'test_sysid_live.py',
-                'test_ollama_runner.py', 'test_se3_core.py', 'test_views_apps.py', 'test_native.py',
-                'test_mirrors.py', 'test_quick.py', 'test_sysid.py', 'test_introspect.py',
-                'test_wasd.py', 'test_ortho.py', 'test_tick.py', 'test_dsp.py', 'test_kernel.py',
-                'test_wayfinder.py', 'test_views_grove.py', 'test_wbc_core.py', 'test_floor.py',
-                'test_camera.py', 'test_docks.py', 'test_sight.py', 'test_gaze.py',
-                'test_replays.py', 'test_bedside.py', 'test_substrate.py', 'test_vault.py',
-                'test_emulator.py')
+FAILED_FIRST = ('test_errands.py', 'test_docks.py', 'test_scenarios.py', 'test_daq_api.py',
+                'test_sysid_live.py', 'test_ollama_runner.py', 'test_se3_core.py',
+                'test_views_apps.py', 'test_native.py', 'test_mirrors.py', 'test_quick.py',
+                'test_sysid.py', 'test_introspect.py', 'test_wasd.py', 'test_ortho.py',
+                'test_tick.py', 'test_dsp.py', 'test_kernel.py', 'test_wayfinder.py',
+                'test_views_grove.py', 'test_wbc_core.py', 'test_floor.py', 'test_camera.py',
+                'test_sight.py', 'test_gaze.py', 'test_replays.py', 'test_bedside.py',
+                'test_substrate.py', 'test_vault.py', 'test_emulator.py')
 
 CORE = 'test_modbus_core.py'
 
@@ -247,6 +247,9 @@ MPPI_CORE = 'test_mppi_core.py'
 SE3_CORE = 'test_se3_core.py'
 #: The same step under friction (se3_grip, se3_anchored): its twin, its cone, the anchors a twist leaves.
 SE3_GRIP = 'test_se3_grip.py'
+#: Friction at rest and sliding: MuJoCo's contact rows stuck where they hold, sliding where they yield, in C as
+#: their twins (machine.world.stiction).
+STICTION = 'test_stiction.py'
 
 #: The cyclic executive (machine.rig.cyclic): its steps against machine.rig.parts, a cycle on a toy rotor.
 CYCLIC = 'test_cyclic.py'
@@ -268,7 +271,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, NATIVE_SYSID, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, CAMERA, GAZE, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
-                   WBC_CORE, LEAP, WASD, WRENCH, CHAIN, QP, SYSID, SYSID_LIVE, COMPILED, QUICK, TICK, VECTORIZED, PLACED, DEPENDS, CI, WORKFLOW, SMART, PORTED, BORNE, REGISTRY, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, DSP, KERNEL, SHIELD, WAYFINDER, SAYS, INTROSPECT, GATE, TUNE, FLOOR, SITUATION, BUSES, ERRANDS, DOCKS,
+                   WBC_CORE, LEAP, WASD, WRENCH, CHAIN, QP, SYSID, SYSID_LIVE, COMPILED, QUICK, TICK, STICTION, VECTORIZED, PLACED, DEPENDS, CI, WORKFLOW, SMART, PORTED, BORNE, REGISTRY, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, DSP, KERNEL, SHIELD, WAYFINDER, SAYS, INTROSPECT, GATE, TUNE, FLOOR, SITUATION, BUSES, ERRANDS, DOCKS,
                    CYCLIC, QUAD, QUAD_PULL,
                    AERO_CORE, MPPI_CORE, SE3_CORE, SE3_GRIP, STREAMS, QUAD_COURSE, SWEEP, BOOT)
                   + VIEWS
@@ -358,7 +361,7 @@ JOINS = (
     (20, CTRL_CORE),
     (20, WORLD_CORE),
     (20, WBC_CORE),
-    (20, SYSID), (20, SYSID_LIVE), (20, COMPILED), (20, QUICK), (20, TICK), (80, VECTORIZED), (20, PLACED), (20, DEPENDS), (20, CI), (20, WORKFLOW), (20, SMART), (35, PORTED), (20, BORNE), (20, REGISTRY),
+    (20, SYSID), (20, SYSID_LIVE), (20, COMPILED), (20, QUICK), (20, TICK), (80, VECTORIZED), (80, STICTION), (20, PLACED), (20, DEPENDS), (20, CI), (20, WORKFLOW), (20, SMART), (35, PORTED), (20, BORNE), (20, REGISTRY),
     (20, AERO_CORE),
     (20, MPPI_CORE),
     (20, SE3_CORE),
@@ -429,7 +432,7 @@ PORT = ('test_mcp.py', 'test_parity.py')
 #: on as shards side by side.
 SHARDED = (SENSORLESS, CONTROLLER, GYNOID, ORTHO, SYSID, SYSID_LIVE, WEAR, SITUATION, 'test_simulated.py', 'test_views_segments.py',
            DAQ_API, QUAD_PAGE, REPLAYS, SCENES, ERRANDS, WASD, STRUCTURE,
-           PORTED, 'test_mirrors.py', LEAP, TICK, VECTORIZED, FLOOR, CAMERA, SIGHT, GAZE)
+           PORTED, 'test_mirrors.py', LEAP, TICK, STICTION, VECTORIZED, FLOOR, CAMERA, SIGHT, GAZE)
 
 #: A suite's seconds where the tree holds no record of its own (tests/.counts.json, not committed) are its work
 #: in tests/work.json over the pace of the host a run is on (tools/dev/machine_detector.py): numbers written

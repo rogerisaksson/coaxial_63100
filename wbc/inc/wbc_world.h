@@ -57,13 +57,37 @@ typedef struct
   int                  spare;       /**< explicit: its ints a whole number of doubles */
 } wbc_boxes_t;
 
+/** What bears does not creep (machine.world.stiction): each of MuJoCo's contacts' friction rows' slip since the
+    contact stuck, kept from step to step on its arrays. MuJoCo's friction rows are dampers alone - their reference
+    acceleration -B v, their violation naught -, and a load f one holds creeps at R f / B for good. A row whose
+    violation is its slip s since the contact stuck (-B v - K I s, K the stiffest its damper holds without ringing,
+    (B / 2)^2, I the row's impedance) holds its load at rest, R f / (K I) off where it stuck, within its cone; past
+    its cone the slip yields (wbc_world_slipped). MuJoCo lays one friction a contact: a contact stuck holds on it,
+    its friction at rest; one that yielded slides on its sliding share of it, and sticks again once its pull is
+    back inside that. */
+typedef struct
+{
+  int    *pair;   /**< the last step's contacts' geoms, two a contact (cap) */
+  double *at;     /**< where each bore, the world's (3 a contact) */
+  double *slip;   /**< each one's slip since it stuck, the world's: along its plane, m (3), about its normal and
+                       about its plane, rad (3) */
+  double *row;    /**< this step's contacts' friction rows' slips between the two calls: along its two tangents,
+                       about its normal, about its tangents (5 a contact) */
+  double *held;   /**< what of each one's slip its cone held the last step: under 1 it yielded, it slides (cap) */
+  const double *grip;  /**< MuJoCo's geoms' friction as its model holds it: slide, spin, roll (3 a geom) */
+  const double *share; /**< each geom's sliding friction over its friction at rest (a geom) */
+  double  step_s; /**< a step, s */
+  int     cap;    /**< the contacts kept at most: one past them keeps MuJoCo's rows */
+  int     n;      /**< in and out: the last step's contacts kept */
+} wbc_stuck_t;
+
 /** The robot's world's steps laid once (tools.cores.world): its pass's struct (wbc_pass_ctrl, wbc_pass_motor,
     wbc_pass_metered), MuJoCo's data, its setpoints and their last stamp, its DC link (machine.body.dclink), its
     room's switch (machine.world.room.touched). */
 typedef struct
 {
   wbc_world_t           *pass;       /**< the robot's drives on their setpoints (wbc_pass.c) */
-  const struct mjData_  *d;          /**< MuJoCo's data: its contacts */
+  struct mjData_        *d;          /**< MuJoCo's data: its contacts, its friction rows' references */
   const wbc_blas_t      *blas;       /**< numpy's OpenBLAS: the link's dots */
   const double          *target;     /**< each setpoint, its rate, as last stamped (n) */
   double                *rate;
@@ -79,6 +103,7 @@ typedef struct
   const unsigned char   *switch_geom;/**< the robot's room's switch's geom and its hands', a byte a geom; NULL no room */
   const unsigned char   *hands;
   wbc_boxes_t           *boxes;      /**< the robot's gearboxes where any is stepped (`World.sprung`); NULL rigid */
+  wbc_stuck_t           *stuck;      /**< the world's contacts' slips (machine.world.stiction); NULL MuJoCo's rows */
   double                 house_w;    /**< the robot's boards' housekeeping and switching, W */
   double                 onset_v;    /**< the link's bleed onset and clamp, V; its capacitance, F */
   double                 clamp_v;
@@ -97,14 +122,16 @@ typedef struct
  * stamped. */
 void wbc_world_rated(wbc_steps_t *s, double span);
 
-/** Before MuJoCo's step `since` s past the stamp: the robot's drives' torques into ctrl - on its boxes' rotors asked
-    ahead and their rates past the links where boxes are laid (Boxes.ahead) -, their motors' (wbc_pass.c), and ctrl
-    what its boxes pass on to their links (Boxes.step). */
+/** Before MuJoCo's step's second half `since` s past the stamp, its first half done: the robot's drives' torques into
+    ctrl - on its boxes' rotors asked ahead and their rates past the links where boxes are laid (Boxes.ahead) -,
+    their motors' (wbc_pass.c), ctrl what its boxes pass on to their links (Boxes.step), and the world's contacts
+    stuck on the rows the first half laid (wbc_world_stuck). */
 void wbc_world_before(wbc_steps_t *s, double since);
 
-/** After it: the robot's boxes' rotors past their links where they landed (Boxes.moved), its drives' meters
-    on its rotors' speeds (wbc_pass_metered), its DC link a step on (dclink.step), its room's
-    switch toggled where a hand of its own touches it, not twice within its dead time (room.touched). */
+/** After it: the world's contacts' slips yielded (wbc_world_slipped), the robot's boxes' rotors past their links
+    where they landed (Boxes.moved), its drives' meters on its rotors' speeds (wbc_pass_metered), its DC link a
+    step on (dclink.step), its room's switch toggled where a hand of its own touches it, not twice within its dead
+    time (room.touched). */
 void wbc_world_after(wbc_steps_t *s);
 
 /** Whether any of MuJoCo's contacts now pairs a geom `a` marks with one `b` marks under `below` m up
@@ -116,6 +143,17 @@ int wbc_world_paired(const wbc_steps_t *s, const unsigned char *a, const unsigne
     world applies a force to any of its bodies (its xfrc_applied: a shove, for the robot's skin to feel), else 0.
     */
 int wbc_world_contacted(const struct mjData_ *d, wbc_contacts_t *c);
+
+/** Between MuJoCo's step's halves (after mj_step1, before mj_step2): each contact's friction rows sprung on their
+    slip - the slip of the last step's nearest contact of its two geoms (none: naught), carried on by each row's
+    speed a step -, each row's reference acceleration less K I s; an elliptic cone's rows alone. A contact whose
+    nearest yielded the last step slides: its friction its sliding share of what MuJoCo laid. */
+void wbc_world_stuck(struct mjData_ *d, wbc_stuck_t *k);
+
+/** After MuJoCo's step: each contact's slip yielded to what its cone holds - its rows' pulls K I s / R over their
+    friction's, past its normal force, scaled back onto it -, kept in the world's frame with its geoms and where
+    it bore. */
+void wbc_world_slipped(const struct mjData_ *d, wbc_stuck_t *k);
 
 /** The robot's loose things asleep as machine.world.loose.stick holds them a pass (its `_held`
  * arrays). */

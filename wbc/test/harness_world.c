@@ -177,3 +177,18 @@ API int wbh_world_held(struct mjData_ *d, const wbc_held_t *h)
 {
   return wbc_world_held(d, h);
 }
+
+API int wbh_stuck_size(void)
+{
+  return (int)sizeof(wbc_stuck_t);
+}
+
+API void wbh_world_stuck(struct mjData_ *d, wbc_stuck_t *k)
+{
+  wbc_world_stuck(d, k);
+}
+
+API void wbh_world_slipped(const struct mjData_ *d, wbc_stuck_t *k)
+{
+  wbc_world_slipped(d, k);
+}

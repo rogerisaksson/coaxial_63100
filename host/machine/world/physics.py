@@ -18,7 +18,7 @@ import os
 from typing import Any
 
 from machine.body import compile as _compile, dclink, drives, gearbox, heat, linkage, mechatronics, peripherals
-from machine.world import floor, harness, loose, passing, room, steps
+from machine.world import floor, harness, loose, passing, room, steps, stiction
 from machine.body.drives import kind
 from machine.rig.buses import QUIET, Block, Buses
 from machine.rig.controller import Batch
@@ -128,6 +128,8 @@ class World:
         #: (`loose.stick`); posed where they stand before its first step (its room's props read a loose thing live:
         #: unposed, all at naught).
         self.furnished = loose.free(m)
+        #: The world's contacts' slips since each stuck (`stiction`): what bears does not creep.
+        self.stuck = stiction.laid(m, loose.shares(m, self.furnished, stiction.KINETIC))
         mujoco.mj_kinematics(m, self.data)
         #: Each body's sole, a column a side (left, right): its contacts bear on that side.
         self.soles = np.zeros((m.nbody, 2), bool)
@@ -227,6 +229,7 @@ class World:
         d.qpos[0:3], d.qpos[3:7], d.qvel[0:3] = where, turn, speed
         self._park()
         loose.home(self.model, d, self.furnished)
+        stiction.home(self.stuck)
         self._mj.mj_forward(self.model, d)
         self.shorted[:] = self.cut[:] = False
         self.testing[:] = 0.0
@@ -323,7 +326,7 @@ class World:
             self.pushed = pushing
             if self.hung is not None:
                 d.xfrc_applied[self.pelvis] = harness.wrench(d, self._np, self.hung, self.pelvis)
-            self._mj.mj_step(self.model, d)
+            stiction.stepped(self._mj, self.model, d, self.stuck, self.in_c)
             if self.sprung:
                 self.boxes.moved(d.qpos[self.qadr])
             self._metered(ctypes.byref(p), self.boxes.w.ctypes.data if self.sprung else None, STEP_S)

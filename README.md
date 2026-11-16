@@ -307,7 +307,7 @@ python host/tools/dev/cover.py --readme        # the gate under coverage, into d
 python -X utf8 docs/structure.py               # every folder's purpose; a folder: its files' synopses
 ```
 
-145 suites in `host/tests/`, each a plain script with its own tally.
+146 suites in `host/tests/`, each a plain script with its own tally.
 
 A run measures the host it is on as it starts - its cores, its pace with
 every baton busy (`host/tools/dev/machine_detector.py`) - and lays a

@@ -52,10 +52,13 @@ def _laid(world):
 
 def advanced(world, now, room):
     """`world` on to `now` as `physics.World.advance` steps it where nothing else is asked of its steps - no buses, no
-    push, no harness, no lace -: its setpoints' rates and stamp, then a step at a time the robot's drives' torques and
-    the robot's gearboxes (C), MuJoCo's step (its own binding: its errors Python's), the boxes moved, their meters,
-    the robot's link and, its `room` laid, its room's switch (C), the switch's state in from the
-    robot's world and out again."""
+    push, no harness, no lace -: its setpoints' rates and stamp, then a step at a time MuJoCo's step's first half
+    where none was begun beside, the robot's drives' torques, the robot's gearboxes and the contacts' friction rows
+    sprung to where they stuck (C, `stiction`), MuJoCo's step's second half (its own binding, as its first: its
+    errors Python's), the contacts' slips yielded, the boxes moved, their meters, the robot's link and, its `room`
+    laid, its room's switch (C), the switch's state in from the robot's world and out again. The robot's drives'
+    torques read nothing the step's first half writes: before it or after, the same bits (the first step of a pass
+    always had it before them)."""
     _at, rated, before, after, _paired, s, _kept = _laid(world)
     d = world.data
     if room:
@@ -64,8 +67,10 @@ def advanced(world, now, room):
     world.stamp = now
     start, mj, m = d.time, world._mj, world.model
     while d.time < now - 1e-9:
-        before(d.time - start)
-        (mj.mj_step2 if behind(world) else mj.mj_step)(m, d)     # the step's first half begun beside the robot's law, or whole
+        if not behind(world):                                    # the step's first half begun beside the robot's law, or here
+            mj.mj_step1(m, d)
+        before(d.time - start)                                   # ... and the contacts stuck on the rows it laid
+        mj.mj_step2(m, d)
         after()
     if room:
         world.switched, world.lamp = s.switched, bool(s.lamp)

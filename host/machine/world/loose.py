@@ -4,12 +4,13 @@
     pairs = loose.things(model)                    # [(body, joint)] of the model's loose things
     things = loose.free(model)                     # each loose thing's joint and its feet, once a model
     loose.home(model, data, things)                # each where the robot's world stands it, asleep (the robot's world laid anew)
-    loose.stick(model, data, things)               # a pass: each foot's grip as its thing slides, still ones asleep
+    loose.stick(model, data, things)               # a pass: still ones asleep, one touched or moved woken
+    share = loose.shares(model, things, default)   # each geom's sliding friction over its friction at rest
 
 A thing's feet are its geoms that stand on the floor where the robot's world stands it; a foot grips as GRIPS
-says of what it is - classic stiction and friction against an ordinary wooden floor, at rest and sliding,
-MuJoCo's one coefficient switched as its thing slides along the floor past SLIDE_M_S and stops under half
-that. A thing's geoms meet the floor, the room's still things and the robot (MEETS, as its rug's):
+says of what it is - classic stiction and friction against an ordinary wooden floor, at rest and sliding: its
+geom states its grip at rest, and a foot that yields slides on its sliding grip's share of it, as every contact of
+the world does (`stiction`, `shares`). A thing's geoms meet the floor, the room's still things and the robot (MEETS, as its rug's):
 with the floor's own bits a chair met none of the floor and fell through. Stumbled into, a chair, the table,
 the bed or the lamp moves; sat on carelessly, a chair.
 """
@@ -19,7 +20,7 @@ import math
 
 #: What a foot is and its grip on a wooden floor, (at rest, sliding): wood on wood; a lamp's felted foot.
 GRIPS = {'wood': (0.45, 0.35), 'felt': (0.30, 0.20)}
-#: A thing sliding past this along the floor slides, m/s; under half of it it is stuck again.
+#: A thing moving under half of this every way, m/s, is still.
 SLIDE_M_S = 0.01
 #: A thing still this long, s - under half SLIDE_M_S every way -, touched by nothing that moves (the world's
 #: still geoms alone, things asleep), sleeps: its geoms meet by the world's type alone, none of the world's
@@ -90,16 +91,26 @@ def free(m):
             [[False, False, 0.0, None] for _ in dofs], world, held)
 
 
+def shares(m, things, default):
+    """(ngeom,) each geom of model `m`'s sliding friction over its friction at rest, for the world's contacts' stick
+    (`stiction.laid`): a loose thing's foot's as GRIPS says of what it is (`free`'s `things`), `default` every
+    other's."""
+    import numpy as np
+    feet, grips = things[2], things[4]
+    out = np.full(m.ngeom, float(default))
+    out[feet] = grips[:, 1] / grips[:, 0]
+    return out
+
+
 def home(m, d, things):
     """Each loose thing (`free`'s `things`) where the robot's world stands it - its body's pose in the model, as a
     scene or a look round moves it -, its feet stuck, asleep: the robot's world laid anew zeroes every coordinate,
     and the chairs stood in it where it starts; from the model's first coordinates a bed moved in it
     went back to where it was built."""
     mujoco = importlib.import_module('mujoco')
-    _dofs, at, feet, _of, grips, bodies, _per, state, _world, _held = things
+    _dofs, at, _feet, _of, _grips, bodies, _per, state, _world, _held = things
     for q, b in zip(at, bodies):
         d.qpos[q:q + 3], d.qpos[q + 3:q + 7] = m.body_pos[b], m.body_quat[b]
-    m.geom_friction[feet, 0] = grips[:, 0]
     if state:
         mujoco.mj_kinematics(m, d)
         mujoco.mj_comPos(m, d)
@@ -109,15 +120,13 @@ def home(m, d, things):
 
 
 def stick(m, d, things, in_c=True):
-    """A pass of the robot's loose things (`free`'s `things`), after MuJoCo's steps: each foot's grip sliding
-    while its thing slides along the floor (past SLIDE_M_S), at rest once it has stopped (under half that), as
-    it was between - written as a thing goes from one to the other alone (its six things' arrays each pass
-    were 24 us of it) -; a thing still SLEEP_S, touched by nothing that moves, asleep (`_alone`); one asleep
+    """A pass of the robot's loose things (`free`'s `things`), after MuJoCo's steps: a thing still SLEEP_S - under
+    half SLIDE_M_S every way -, touched by nothing that moves, asleep (`_alone`); one asleep
     that something awake touches or that moves woken (`_woke`), the others held where they lie, still - all at
     once (`_held`): one by one, six asleep were 16 us of each pass; told in C where `in_c` (wbc_world_held,
     `_woke` its twin): its numpy views of MuJoCo's contacts 25 us of the robot's stand's every pass, 4 % of
     it."""
-    dofs, _at, _feet, _of, _grips, _bodies, per, state, _world, held = things
+    dofs, _at, _feet, _of, _grips, _bodies, _per, state, _world, held = things
     qp, qv, t, low = d.qpos, d.qvel, d.time, 0.5 * SLIDE_M_S
     if len(held[4]):
         c = held[7] if in_c else None
@@ -132,10 +141,6 @@ def stick(m, d, things, in_c=True):
         if s[1]:
             continue
         speed = math.hypot(qv[v], qv[v + 2])
-        now = speed > SLIDE_M_S or (s[0] and speed >= low)
-        if now != s[0]:
-            s[0] = now
-            m.geom_friction[per[k][0], 0] = per[k][2] if now else per[k][1]
         if speed >= low or abs(qv[v + 1]) >= low:
             s[2] = t
         elif t - s[2] >= SLEEP_S:

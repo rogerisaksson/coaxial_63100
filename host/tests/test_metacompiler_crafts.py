@@ -76,8 +76,9 @@ def test_a_wings_lift_slope_is_its_aspect_ratios(r):
 
 
 def test_the_floors_friction_is_friction_alone(r):
-    """`world.toml`'s kinetic share is the floor's under a sole: the robot's gait compiler alone
-    names it, for the friction the robot's law counts on. A wing's drag due to lift takes the
+    """`world.toml`'s kinetic share is the floor's under a sole, read for friction alone: the robot's
+    gait compiler names it for the friction the robot's law counts on, its world's contacts
+    (`stiction`) for the friction a sliding contact bears. A wing's drag due to lift takes the
     airframe's own span efficiency, and a wing a vehicle's text resizes takes its lift slope and
     that drag of its new aspect ratio."""
     from machine.aircraft import aeroblocks, aerolisp, compile as craft, polars
@@ -85,8 +86,8 @@ def test_the_floors_friction_is_friction_alone(r):
     env, wing = mechatronics.environment(None), mechatronics.crafts()['aerobat']
     readers = sorted(path.replace(os.sep, '/') for path, text, _tree in sources(beside=False)
                      if 'kinetic_share' in text)
-    r.check("the kinetic share of the floor's friction is named by the robot's gait compiler alone",
-            readers == ['machine/body/compile.py'], readers)
+    r.check("the kinetic share of the floor's friction is named for friction alone: the robot's gait's, its contacts'",
+            readers == ['machine/body/compile.py', 'machine/world/stiction.py'], readers)
     counted = body.gait()['loop']['mu']
     r.check("the friction the robot's law counts on is the kinetic share of the floor's",
             counted == round(float(env['kinetic_share']) * float(env['mu_dry']), 2), counted)

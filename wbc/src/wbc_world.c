@@ -1,6 +1,6 @@
 /** wbc_world.c - the robot's world's steps on the host (wbc_world.h): World.advance's arithmetic between MuJoCo's steps,
     its gearboxes' with it, numpy's operation for operation and its own tanh; MuJoCo's contacts read off
-    its data through its own headers. The host's alone. */
+    its data through its own headers, their friction rows sprung to where they stuck. The host's alone. */
 #include "wbc_world.h"
 #include "wbc_np.h"
 
@@ -137,6 +137,10 @@ void wbc_world_before(wbc_steps_t *s, double since)
   {
     stepped(s, n);
   }
+  if (s->stuck != NULL)
+  {
+    wbc_world_stuck(s->d, s->stuck);
+  }
 }
 
 /* dclink.step: the link a step on under the robot's drives' torques at their joints' speeds */
@@ -186,6 +190,10 @@ static void switched(wbc_steps_t *s)
 
 void wbc_world_after(wbc_steps_t *s)
 {
+  if (s->stuck != NULL)
+  {
+    wbc_world_slipped(s->d, s->stuck);
+  }
   if (s->boxes != NULL)
   {
     moved(s, (s->pass->n < WBC_PASS_MAX) ? s->pass->n : WBC_PASS_MAX);
@@ -196,6 +204,144 @@ void wbc_world_after(wbc_steps_t *s)
   {
     switched(s);
   }
+}
+
+/* which of a contact's two slips each of its friction rows reads - along its plane (0) or about (3) - and on which
+   of its frame's rows: its two tangents, its normal, its two tangents */
+static const int slip_of[5] = {0, 0, 3, 3, 3};
+static const int slip_on[5] = {3, 6, 0, 3, 6};
+
+/* whether MuJoCo's constraints hold contact `c`'s friction rows, an elliptic cone's between two geoms */
+static int gripped(const mjData *d, const mjContact *c)
+{
+  return ((c->efc_address >= 0) && (c->dim >= 3) && (c->geom[0] >= 0) && (c->geom[1] >= 0)
+          && (d->efc_type[c->efc_address] == (int)mjCNSTR_CONTACT_ELLIPTIC))
+             ? 1
+             : 0;
+}
+
+/* friction row `e`'s spring on its slip: the stiffest its own damper holds without ringing ((B / 2)^2), at its
+   impedance - as MuJoCo lays a row's reference on its violation (K I) */
+static double sprung(const mjData *d, int e)
+{
+  const double half = 0.5 * d->efc_KBIP[(4 * e) + 1];
+
+  return (half * half) * d->efc_KBIP[(4 * e) + 2];
+}
+
+void wbc_world_stuck(mjData *d, wbc_stuck_t *k)
+{
+  const int n = (d->ncon < k->cap) ? d->ncon : k->cap;
+  int       from = 0;
+
+  for (int i = 0; i < n; i++)
+  {
+    mjContact *c = &d->contact[i];
+    double    *row = &k->row[5 * i];
+    double     was[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+    double     least = INFINITY;
+    double     held = 0.0;   /* a contact its geoms had none of lands sliding: a contact sticks once it has held */
+    int        j = from;
+    int        seen = 0;
+
+    /* the last step's contacts of its two geoms, sought on from where the contact before found its own: they lie
+       together, in MuJoCo's order; the nearest's slip its own */
+    while ((seen < k->n) && ((k->pair[2 * j] != c->geom[0]) || (k->pair[(2 * j) + 1] != c->geom[1])))
+    {
+      j = ((j + 1) < k->n) ? (j + 1) : 0;
+      seen++;
+    }
+    if (seen < k->n)
+    {
+      from = j;
+      while ((j < k->n) && (k->pair[2 * j] == c->geom[0]) && (k->pair[(2 * j) + 1] == c->geom[1]))
+      {
+        const double x = c->pos[0] - k->at[3 * j];
+        const double y = c->pos[1] - k->at[(3 * j) + 1];
+        const double z = c->pos[2] - k->at[(3 * j) + 2];
+        const double far = (x * x + y * y) + z * z;
+
+        if (far < least)
+        {
+          least = far;
+          held = k->held[j];
+          for (int v = 0; v < 6; v++)
+          {
+            was[v] = k->slip[(6 * j) + v];
+          }
+        }
+        j++;
+      }
+    }
+    for (int r = 0; r < 5; r++)
+    {
+      row[r] = 0.0;
+    }
+    if (gripped(d, c) != 0)
+    {
+      /* a contact stuck holds on the friction its geoms state, at rest; one that yielded the last step slides on
+         the sliding share of it - the share of the geom whose friction MuJoCo took -: its cone's every row and its
+         regularized cone's by it, their R as laid (a row's R times its friction squared the same for all) */
+      const int    g = (k->grip[3 * c->geom[1]] == c->friction[0]) ? c->geom[1] : c->geom[0];
+      const double share = (held < 1.0) ? k->share[g] : 1.0;
+
+      for (int v = 0; v < 5; v++)
+      {
+        c->friction[v] = c->friction[v] * share;
+      }
+      c->mu = c->mu * share;
+      for (int r = 0; r < (c->dim - 1); r++)
+      {
+        const double *s = &was[slip_of[r]];
+        const double *t = &c->frame[slip_on[r]];
+        const int     e = (c->efc_address + 1) + r;
+
+        row[r] = ((s[0] * t[0] + s[1] * t[1]) + s[2] * t[2]) + d->efc_vel[e] * k->step_s;
+        d->efc_aref[e] -= sprung(d, e) * row[r];
+      }
+    }
+  }
+}
+
+void wbc_world_slipped(const mjData *d, wbc_stuck_t *k)
+{
+  const mjContact *con = d->contact;
+  const int        n = (d->ncon < k->cap) ? d->ncon : k->cap;
+
+  for (int i = 0; i < n; i++)
+  {
+    const mjContact *c = &con[i];
+    const double    *f = c->frame;
+    const double    *row = &k->row[5 * i];
+    double          *slip = &k->slip[6 * i];
+    double           held = 1.0;
+
+    if (gripped(d, c) != 0)
+    {
+      const int a = c->efc_address;
+      double    pulls = 0.0;
+
+      for (int r = 0; r < (c->dim - 1); r++)
+      {
+        const int    e = (a + 1) + r;
+        const double pull = (sprung(d, e) * row[r]) / (d->efc_R[e] * c->friction[r]);
+
+        pulls = pulls + pull * pull;
+      }
+      pulls = sqrt(pulls);
+      held = (pulls > d->efc_force[a]) ? (npmax(d->efc_force[a], 0.0) / pulls) : 1.0;
+    }
+    for (int x = 0; x < 3; x++)
+    {
+      slip[x] = held * (row[0] * f[3 + x] + row[1] * f[6 + x]);
+      slip[3 + x] = held * ((row[2] * f[x] + row[3] * f[3 + x]) + row[4] * f[6 + x]);
+      k->at[(3 * i) + x] = c->pos[x];
+    }
+    k->pair[2 * i] = c->geom[0];
+    k->pair[(2 * i) + 1] = c->geom[1];
+    k->held[i] = held;
+  }
+  k->n = n;
 }
 
 int wbc_world_paired(const wbc_steps_t *s, const unsigned char *a, const unsigned char *b, double below)

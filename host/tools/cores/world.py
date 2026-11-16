@@ -2,6 +2,7 @@
 
     at, rated, before, after, paired, s, kept = world.laid(w)   # on the robot's world `w`, anew where `w.reset` lays its link
     hold = world.held(vel, of, at, lie, still, by_geom, live, n, low) # its loose things asleep held a pass: woken
+    s, stuck, slipped = world.stuck(pair, at, slip, row, held, grip, share, step_s)   # its contacts' slips
     loop, data = world.numpy_tanh()                             # numpy's own float64 tanh loop, for C to call
 
 `machine.world.physics.World.advance`'s steps where nothing else is asked of them (`machine.world.steps`), the same
@@ -49,7 +50,7 @@ class Steps(ctypes.Structure):
 
     _fields_ = ([(name, _vp) for name in ('pass_', 'd', 'blas', 'target', 'rate', 'was', 'link_v', 'link_peak',
                                            'link_bled', 'link_id', 'link_kt', 'link_ohm', 'link_amps', 'link_loss',
-                                           'switch_geom', 'hands', 'boxes')]
+                                           'switch_geom', 'hands', 'boxes', 'stuck')]
                 + [(name, _d) for name in ('house_w', 'onset_v', 'clamp_v', 'link_f', 'pack_v', 'pack_ohm', 'charge_a',
                                            'step_s', 'switch_s', 'switched')]
                 + [('lamp', _i), ('spare', _i)])
@@ -64,18 +65,26 @@ class Held(ctypes.Structure):
                 + [('low', _d)] + [(name, _i) for name in ('nvel', 'nat', 'nstill', 'nthing')])
 
 
+class Stuck(ctypes.Structure):
+
+    """wbc_stuck_t: the world's contacts' slips as `machine.world.stiction` keeps them, pointing at their arrays."""
+
+    _fields_ = ([(name, _vp) for name in ('pair', 'at', 'slip', 'row', 'held', 'grip', 'share')]
+                + [('step_s', _d), ('cap', _i), ('n', _i)])
+
+
 @functools.lru_cache(maxsize=None)
 def typed():
     """The library's steps typed, wbc_steps_t's and wbc_boxes_t's sizes the C's."""
     lib = wbc.library()
-    for name, mirror in (('steps', Steps), ('boxes', Boxes), ('held', Held)):
+    for name, mirror in (('steps', Steps), ('boxes', Boxes), ('held', Held), ('stuck', Stuck)):
         size = getattr(lib, 'wbh_%s_size' % name)
         size.restype = _i
         if size() != ctypes.sizeof(mirror):
             raise ValueError('wbc_%s_t is %d bytes, its mirror %d' % (name, size(), ctypes.sizeof(mirror)))
     for name, args, back in (('rated', [_vp, _d], None), ('before', [_vp, _d], None), ('after', [_vp], None),
                              ('paired', [_vp, _vp, _vp, _d], _i), ('ahead', [_vp, _vp, _vp], _i), ('behind', [], _i),
-                             ('held', [_vp, _vp], _i)):
+                             ('held', [_vp, _vp], _i), ('stuck', [_vp, _vp], None), ('slipped', [_vp, _vp], None)):
         fn = getattr(lib, 'wbh_world_' + name)
         fn.argtypes, fn.restype = args, back
     return lib
@@ -138,7 +147,7 @@ def laid(w):
     """(its address, rated, before, after, paired - each a call of its address -, the struct, what it points at) on the
     robot's world `w`: its pass's struct (`w.passing`), MuJoCo's data, the robot's setpoints, its DC link
     (`w.link`, laid anew by `w.reset`), its room's switch where its room is laid (`room.switch`), the
-    robot's gearboxes where any is stepped (`boxed`)."""
+    robot's gearboxes where any is stepped (`boxed`), its contacts' slips (`w.stuck`, `machine.world.stiction`)."""
     from machine.body import dclink, drives
     from machine.world import physics, room
     lib, link, point = typed(), w.link, wbc.pointer
@@ -149,7 +158,7 @@ def laid(w):
               **{'link_' + k: point(link[k]) for k in ('v', 'peak', 'bled', 'id', 'kt', 'ohm', 'amps', 'loss')},
               switch_geom=None if masks[0] is None else point(masks[0], np.bool_),
               hands=None if masks[1] is None else point(masks[1], np.bool_),
-              boxes=None if boxes is None else ctypes.addressof(boxes),
+              boxes=None if boxes is None else ctypes.addressof(boxes), stuck=ctypes.addressof(w.stuck[0]),
               house_w=link['house_w'], onset_v=dclink.ONSET_V, clamp_v=dclink.CLAMP_V, link_f=dclink.LINK_F,
               pack_v=drives.PACK_V, pack_ohm=dclink.PACK_OHM, charge_a=dclink.CHARGE_A, step_s=physics.STEP_S,
               switch_s=room.SWITCH_S, switched=getattr(w, 'switched', room.SWITCH_S), lamp=int(getattr(w, 'lamp', False)))
@@ -176,3 +185,16 @@ def held(vel, of, at, lie, still, by_geom, live, nthing, low):
         return np.flatnonzero(woken).tolist() if fn(d._address, address) else []
     hold.kept = (s, kept)
     return hold
+
+
+def stuck(pair, at, slip, row, held, grip, share, step_s):
+    """(wbc_stuck_t on `machine.world.stiction.laid`'s arrays - each contact's geoms, where it bore, its slip, its
+    friction rows' slips this step, what of its slip its cone held; MuJoCo's geoms' friction and each geom's
+    sliding share of it - and a step, s; its friction rows sprung between MuJoCo's step's halves (wbc_world_stuck),
+    its slips yielded after it (wbc_world_slipped), each a call of MuJoCo's data)."""
+    lib, point = typed(), wbc.pointer
+    s = Stuck(pair=point(pair, np.int32), at=point(at), slip=point(slip), row=point(row), held=point(held),
+              grip=point(grip), share=point(share), step_s=step_s, cap=len(at), n=0)
+    address = ctypes.addressof(s)
+    return (s, lambda d, fn=lib.wbh_world_stuck: fn(d._address, address),
+            lambda d, fn=lib.wbh_world_slipped: fn(d._address, address))
