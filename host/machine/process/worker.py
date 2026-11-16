@@ -5,7 +5,7 @@ import math
 import os
 import queue
 import time
-from machine.process import apart, gaits, sprung, worn
+from machine.process import apart, gaits, governed, sprung, worn
 from machine.world import physics, referee
 from machine.senses import edge
 from machine.way import peek, planner
@@ -270,8 +270,9 @@ def stepped(s):
     try:
         if s['fallen_at'] is None:
             gaits.halted(g, s['gym'])
+            gaits.slowed(g)
             _errand().step_errand(g, s['gym'], heard, gaits.heard_say)
-            gaits.govern_twist(g, s['gym'], DT)
+            governed.govern_twist(g, s['gym'], DT)
             if g['n'] % g['every'] == 0:
                 kt = g.get('_key_twist', (0.0, 0.0, 0.0))
                 if g.get('_cocoon_cut') and g.get('_errand') is None and not gaits.in_stunt_transient(g):

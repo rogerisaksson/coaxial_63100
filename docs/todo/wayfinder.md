@@ -5,7 +5,7 @@
   `agnostic_terrain_and_clutter_nav.lisp`; `machine.way.planner`): the
   robot's errand turns through its rounded corners' circles by pure
   pursuit, not by the text's clothoid (`integrate-se2-clothoid-streamline`,
-  now its keys' twist alone, `gaits.govern_twist`); the robot's stage is
+  now its keys' twist alone, `governed.govern_twist`); the robot's stage is
   cleared from all five `dock.ARRIVALS`, not from the arrival its way
   brings it on; a thing the robot sees from one side has no frustum's
   shadow (`extract-agnostic-frustum-so3-clusters`). DOD: house.py's starts
