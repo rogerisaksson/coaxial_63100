@@ -32,8 +32,8 @@ def _off(points, tubes):
 def test_the_mechanism_in_its_livery_bolted(report):
     """Bare of its clothes the robot is drawn as its mechanism (`plated.framed`): every part of it a hard shell's in
     its livery's paints - black carbon tubes, anodised drives -, each drive bolted, a ring of bolts on either face of
-    its can; its own head and its shoes on it, no shell over it, and its seat where it sits - its buttocks' round
-    backs. Posed as its mechanism is."""
+    its can; its own head and its shoes on it, no shell over it, and its seat a plate a side. Posed as its mechanism
+    is."""
     import numpy as np
     from coaxial.graphics import drums, gynoid, lit, livery, mechanism, plated
     from machine.body import figure, guards
@@ -43,8 +43,8 @@ def test_the_mechanism_in_its_livery_bolted(report):
     shells = {name for name in names if name.startswith('shell_')}
     report.check("its mechanism's every part in its order, its bolts, its guards and its seat beside; of a shell its "
                  'own head and its shoes alone - no trunk, no hips, no limb',
-                 [n for n in names if not n.startswith(('bolts_', 'guard_', 'shell_')) and n != 'seat'] == frame
-                 and names.count('seat') == 1
+                 [n for n in names if not n.startswith(('bolts_', 'guard_', 'shell_')) and not n.endswith('_seat')] == frame
+                 and names.count('left_seat') == names.count('right_seat') == 1
                  and shells == {'shell_head', 'shell_jaw', 'shell_nose', 'shell_lips'} | {
                      'shell_' + s + n for s in ('left_', 'right_') for n in ('ear', 'eye', 'foot', 'toes')},
                  '%d parts of the mechanism, %d shells' % (len(frame), len(shells)))
@@ -85,23 +85,6 @@ def test_the_mechanism_in_its_livery_bolted(report):
                  body.see == 'plated' and bool(np.isfinite(walked).all()) and abs(float(stood[:, 1].min())) < 0.01
                  and abs(float(walked[:, 1].min())) < 0.01 and float(np.abs(walked - stood).max()) > 0.05,
                  'its lowest point %.4f m standing, %.4f walking' % (stood[:, 1].min(), walked[:, 1].min()))
-    seat, k = body.parts[names.index('seat')][5], names.index('seat')
-    rest = np.vstack([stood[slice(*body.spans[j])] for j, n in enumerate(names) if n != 'seat'])
-    rest = rest - (stood[slice(*body.spans[k])] - seat[0]).mean(axis=0)       # standing, its pelvis moved, not turned
-    r, x0, y0, z0 = figure.SEAT_R, figure.SEAT_X, figure.SEAT_Y, figure.SEAT_Z[0]
-    half = len(seat[0]) // 2
-    side = np.r_[np.ones(half), -np.ones(half)]
-    off = np.linalg.norm(seat[0] - np.stack([side * x0, np.full(2 * half, y0), np.full(2 * half, z0)], 1), axis=1) - r
-    gap = min(float(np.abs(np.linalg.norm(by - (s * x0, y0, z0), axis=1) - r).min(initial=np.inf)) for s in (1.0, -1.0)
-              for by in [rest[(s * rest[:, 0] >= 0.0) & (rest[:, 1] < y0) & (rest[:, 2] < z0)]])
-    report.check("its seat its buttocks' round backs (`figure.SEAT_*`: the capsules the floor and a chair meet), each's "
-                 "half sphere under its axis on its own side, the two met at its middle, a pad's face; nothing else of "
-                 "it within a guard's air of them, standing",
-                 len(seat[0]) == 2 * half and float(np.abs(off).max()) < 1e-9 and float(seat[0][:, 2].max()) <= z0 + 1e-12
-                 and float(seat[0][:, 1].max()) <= y0 + 1e-12 and bool((seat[0][:half, 0] > -1e-12).all())
-                 and bool((seat[0][half:, 0] < 1e-12).all()) and float(np.abs(seat[0][:, 0]).min()) < 1e-9
-                 and bool((seat[3] == livery.PAD).all()) and gap > guards.AIR_M,
-                 'off its buttocks %.1e m, %d corners a side, the rest %.4f m from them' % (np.abs(off).max(), half, gap))
 
 
 def test_guards_of_honeycomb_stood_off_the_tubes(report):

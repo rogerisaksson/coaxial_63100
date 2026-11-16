@@ -7,7 +7,7 @@ import math
 from typing import Any
 
 from coaxial.graphics import (arrows as _arrows, drape, drums, engine, form, likeness, marks, mechanism, panels,
-                              plated, sneaker, under)
+                              plated, seat, sneaker, under)
 from coaxial.graphics.callouts import callouts, line, packed
 from coaxial.graphics.lit import (CORE, MESH, PAINTED, PLATE, SKIN, braille, grid, paint,
                                   project, splat)
@@ -272,9 +272,9 @@ class Body:
         self.patches = drums.patches(self.parts)
         self.dense, self.dense_spans = sampled(self, np.concatenate(faces))
         self.dense_near = drums.near(self.patches, self.parts, self.drums, self.dense, self.dense_spans)
+        blends, given = (plated.BLENDS, (self.uv[:, 0], self.dense[2][:, 0])) if like else (drape.BLENDS, (None, None))
         self.bends = drape.table(self.parts, (self.corners, self.normals, self.spans),
-                                 (self.dense[0], self.dense[1], self.dense_spans),
-                                 *((plated.BLENDS, (self.uv[:, 0], self.dense[2][:, 0])) if like else ()))
+                                 (self.dense[0], self.dense[1], self.dense_spans), blends + seat.BEND, given)
         self._rest_pivots = self.pivots({})
 
     def _frames(self, angles, root=None):

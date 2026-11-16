@@ -9,5 +9,6 @@ VIEWS = ('test_views_terminal.py', 'test_views_front.py', 'test_views_rotor.py',
          'test_aerobat.py',
          'test_views_humanoid.py', 'test_views_prompt.py', 'test_views_floor.py', 'test_views_inset.py',
          'test_views_keys.py', 'test_views_lettering.py', 'test_views_likeness.py', 'test_views_clothes.py',
-         'test_views_marks.py', 'test_views_bared.py', 'test_views_tube.py', 'test_views_atlas.py', 'test_views_apps.py',
+         'test_views_marks.py', 'test_views_bared.py', 'test_views_seat.py', 'test_views_tube.py', 'test_views_atlas.py',
+         'test_views_apps.py',
          'test_views_grove.py')

@@ -4,7 +4,7 @@ The robot is its mechanism (`mechanism.parts`: carbon tubes, each drive's drum, 
 joints, gimbals), every part of it a hard shell's in its livery's paints (`framed`: black
 carbon tubes, magenta drives, steel) and each drive bolted - a ring of bolts on either face
 of its motor's can -; on it its guards (`guards.laid`: honeycomb pads in carbon frames, stood
-off its tubes), its seat (`seat`: its buttocks where the floor and a chair meet them), its
+off its tubes), its seat (`seat.plate`: a plate a side over its buttocks, sliding with the thighs), its
 hands and its head - a body's and a figure's where a likeness is worn, else as built - and its
 shoes. No shell closes it: its tubes, its drives and the air between
 them are what is seen. Dressed (`dressed`), it wears the likeness's clothes over that: what a
@@ -17,9 +17,9 @@ garment girds is not drawn, what is left of a triangle across its end a layer fu
 import math
 from typing import Any
 
-from coaxial.graphics import drums, guards, mechanism
+from coaxial.graphics import drums, guards, mechanism, seat
 from coaxial.graphics.lit import PAINTED, UNDER, WOVEN, paint
-from coaxial.graphics.livery import BOARD, BOLT, FRAME, GEAR, PAD, SERVO, STEEL, TUBE
+from coaxial.graphics.livery import BOARD, BOLT, FRAME, GEAR, SERVO, STEEL, TUBE
 from coaxial.graphics.panels import SHELL
 from coaxial.graphics.shapes import turn_about
 from machine.body import figure
@@ -52,14 +52,6 @@ BOLTS, CIRCLE, BOLT_R, BOLT_M = 6, 0.72, 0.005, 0.004
 #: (CLEARED, a part's name's start) - within NEAR_M of the segment's axis (the build's,
 #: `machine.body.guards`) and DRUM_M of its ends.
 CLEARED, DRUM_M = ('drive_', 'inv_', 'gear_', 'hung'), 0.06
-#: The robot's seat is its two buttocks (`figure.SEAT_R`, `SEAT_X`, `SEAT_Y`, `SEAT_Z`: the capsules the floor, a
-#: chair and a bed meet) where they are round behind, the half sphere each ends in under its axis: a pad's face,
-#: SEAT_ROWS rows from its pole and SEAT_AROUND round, each its own side of the robot's middle - where the two
-#: meet, a cleft. Drawn whole, a buttock held the hips' drives and gimbals, and a thigh's quick-release stood
-#: 0.8 mm from its face at its middle; a hip's yaw to its stops, its roll 30 deg either way and its pitch from
-#: -40 to 100 deg bring no part within 23 mm of its half sphere. Cheeks stood on struts behind it, and the robot
-#: sat on them in place of its buttocks and tipped onto its back scooting on the floor.
-SEAT_ROWS, SEAT_AROUND = 8, 12
 #: Under its clothes: about a segment's bone - a limb's from its joint to the next's, the
 #: trunk's the upright - cloth within REACH_M of it in UNDER_OF of SIDES ways round, told in
 #: slabs BIN_M along it from SPAN_M before its joint, a slab with its two neighbours. What a
@@ -126,25 +118,6 @@ def _bolts(axis, corners, triangles):
     return out, np.vstack(ts), np.zeros((len(out), 2)), np.full(len(out), BOLT)
 
 
-def seat():
-    """The robot's seat's mesh, the pelvis's frame (SEAT_ROWS, SEAT_AROUND): each buttock's half sphere behind,
-    from its pole to its rim, under its axis, its own side of the middle; a pad's face, out."""
-    from coaxial.model.blocks import numpy as np
-    r, x0, y0, z0 = figure.SEAT_R, figure.SEAT_X, figure.SEAT_Y, figure.SEAT_Z[0]
-    up = np.linspace(0.0, 0.5 * math.pi, SEAT_ROWS + 1)
-    rho, z = r * np.sin(up), z0 - r * np.cos(up)
-    start = math.pi + np.arccos(np.clip(x0 / np.maximum(rho, 1e-12), -1.0, 1.0))
-    turn = start[:, None] + (2.0 * math.pi - start[:, None]) * np.linspace(0.0, 1.0, SEAT_AROUND + 1)[None]
-    left = np.stack([x0 + rho[:, None] * np.cos(turn), y0 + rho[:, None] * np.sin(turn),
-                     np.broadcast_to(z[:, None], turn.shape)], 2).reshape(-1, 3)
-    a = (np.arange(SEAT_ROWS)[:, None] * (SEAT_AROUND + 1) + np.arange(SEAT_AROUND)).ravel()
-    b, c = a + 1, a + SEAT_AROUND + 1
-    one = np.vstack([np.stack([a, b, c], 1), np.stack([b, c + 1, c], 1)])
-    corners = np.vstack([left, left * (-1.0, 1.0, 1.0)])
-    triangles = np.vstack([one, one[:, ::-1] + len(left)])
-    return corners, triangles, np.zeros((len(corners), 2)), np.full(len(corners), PAD)
-
-
 def framed(gone=()):
     """[(name, parent, joints, offset, rest, mesh)]: the mechanism's parts (`mechanism.parts`), a
     hard shell's each (`lit.HARD`: a servo drawn solid reads as one) in the livery's paints - a
@@ -204,7 +177,7 @@ def parts(meshes, extra, liked: Any = None):
     for name, parent, *rest in extra:
         if len(rest) == 2 and parent == 'head' and not figured and (name in KEPT or name.endswith(ENDS)):
             out.append(('shell_' + name, parent, (), rest[0], 0.0, rest[1]))
-    out.append(('seat', 'pelvis', (), z0, 0.0, seat()))
+    out += [(name + '_seat', 'pelvis', (), z0, 0.0, seat.plate(side)) for name, side in (('left', 1.0), ('right', -1.0))]
     return out +[(name, parent, (), offset, 0.0, mesh) for name, parent, offset, mesh in guards.laid(cleared(out, body, meshes, extra))]
 
 
