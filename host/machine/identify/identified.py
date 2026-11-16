@@ -7,8 +7,8 @@
 
 Each link's mass and first moment and each drive's armature and friction move; a link's
 inertia about its centre stays as built and follows them about its origin, so every link stays
-a body. Fitted across campaigns, each link's and each drive's share of the move is laid as far
-as it harms no drive on a campaign it was not fitted on (`shares`). `wbc.Body` lays IDENTIFIED
+a body. Each link's and each drive's share of the move is laid as far as it harms no drive on a
+campaign it was not fitted on (`shares`), one campaign's halves two (`halves`). `wbc.Body` lays IDENTIFIED
 over the robot's law's model when the file is there.
 """
 import os
@@ -16,6 +16,7 @@ import tomllib
 
 from machine.body import mechatronics, peripherals
 from machine.errors import MachineError
+from machine.identify.campaign import STAGES
 from machine.identify.sysid import FRICTION, INERTIAL, following, laid, shifted, truth
 
 #: A correction's unit move a kind (kg, kg m; kg m^2, N m s/rad, N m), ridge regularization and
@@ -53,13 +54,26 @@ def correction(lay, body, Y, tau, *campaigns, ridge=RIDGE):
     move is laid as far as it harms no drive on a campaign it was not fitted on (`shares`):
     fitted on the stand and its walk's first half, a shank's mass took its hem's torque and
     raised the knee's misfit on the walk's second half 0.49 -> 2.13 N m while the drives' own
-    moves held - held out, the links' shares fall and the knee reads 0.43."""
+    moves held - held out, the links' shares fall and the knee reads 0.43. Given none, the
+    campaign's own `halves` are held out against each other so: laid whole, the payload's
+    campaign moved the links it does not tell apart - the right foot's, toes', hem's, shank's -
+    and raised the right hip's misfit on a third campaign +0.093 N m; held out, +0.023, while the
+    arm's fell the same (3.28 -> 0.05)."""
     import numpy as np
     rows = [(Y, tau)] + list(campaigns)
     delta = _fit(lay, body, np.concatenate([r[0] for r in rows]), np.concatenate([r[1] for r in rows]), ridge)
-    if campaigns:
-        delta = delta * shares(lay, body, rows, ridge)
+    delta = delta * shares(lay, body, rows if campaigns else halves(Y, tau), ridge)
     return {n: float(d) for n, d in zip(lay['names'], delta) if d != 0.0}
+
+
+def halves(Y, tau, stages=len(STAGES)):
+    """[(Y, tau)] two of a campaign's rows: the first half of each of its `stages` equal spans
+    (`campaign.setpoints`, a limb a span), then the second - each half swinging every limb."""
+    import numpy as np
+    edges = np.linspace(0, len(Y), stages + 1).round().astype(int)
+    first = np.concatenate([np.arange(a, (a + b) // 2) for a, b in zip(edges[:-1], edges[1:])])
+    second = np.concatenate([np.arange((a + b) // 2, b) for a, b in zip(edges[:-1], edges[1:])])
+    return [(Y[first], tau[first]), (Y[second], tau[second])]
 
 
 def shares(lay, body, rows, ridge=RIDGE):
