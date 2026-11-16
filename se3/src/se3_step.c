@@ -15,10 +15,11 @@ static const se3_real_t EYE[9] = {1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f
 
 unsigned se3_size(unsigned which)
 {
-  static const unsigned SIZES[4] = {(unsigned)sizeof(se3_real_t), (unsigned)sizeof(se3_cfg_t),
-                                    (unsigned)sizeof(se3_sums_t), (unsigned)sizeof(se3_out_t)};
+  static const unsigned SIZES[8] = {(unsigned)sizeof(se3_real_t), (unsigned)sizeof(se3_cfg_t),
+                                    (unsigned)sizeof(se3_sums_t), (unsigned)sizeof(se3_out_t),
+                                    (unsigned)sizeof(se3_friction_t), 0U, 0U, 0U};
 
-  return SIZES[which & 3U];
+  return SIZES[which & 7U];
 }
 
 /** a b, 3 by 3 row-major. */
@@ -144,13 +145,13 @@ static void taken(const se3_real_t r[9], const se3_real_t t[3], const se3_real_t
   }
 }
 
-void se3_step(se3_real_t *planes, size_t stride, const se3_cfg_t *cfg, const se3_real_t r[9],
-              const se3_real_t t[3], se3_out_t *out)
+/** The step off the sums `out` holds, from the pose (r, t): the fit's and the friction's alike. */
+static void stepped(const se3_cfg_t *cfg, const se3_real_t r[9], const se3_real_t t[3],
+                    se3_out_t *out)
 {
-  se3_sums_t *s = &out->sums;
-  se3_real_t  held, inverse;
+  const se3_sums_t *s = &out->sums;
+  se3_real_t        held, inverse;
 
-  se3_summed(planes, stride, cfg->soft, r, t, s);
   for (size_t i = 0U; i < 3U; i++)
   {
     out->at[i] = (((r[3U * i] * s->centre[0]) + (r[(3U * i) + 1U] * s->centre[1]))
@@ -176,4 +177,19 @@ void se3_step(se3_real_t *planes, size_t stride, const se3_cfg_t *cfg, const se3
   capped(out->turned, least(cfg->most_turn, (se3_real_t)SE3_TURN));
   capped(out->shifted, cfg->most_shift);
   taken(r, t, s->centre, out->turned, out->shifted, out->r, out->t);
+}
+
+void se3_step(se3_real_t *planes, size_t stride, const se3_cfg_t *cfg, const se3_real_t r[9],
+              const se3_real_t t[3], se3_out_t *out)
+{
+  se3_summed(planes, stride, cfg->soft, r, t, &out->sums);
+  stepped(cfg, r, t, out);
+}
+
+void se3_grip(se3_real_t *planes, size_t stride, const se3_cfg_t *cfg,
+              const se3_friction_t *friction, const se3_real_t r[9], const se3_real_t t[3],
+              unsigned take, se3_out_t *out)
+{
+  se3_rubbed(planes, stride, friction, r, t, take, &out->sums);
+  stepped(cfg, r, t, out);
 }

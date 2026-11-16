@@ -26,7 +26,8 @@ its structure, the relay, tiers, CI. Each subject's suites: its document.
   them in the ledger.
 - Tiers: `run_tests.ps1` sells checks by percentage; suites join by
   seconds per check. `touches.TOUCHES` maps a changed path to its suites;
-  `CHEAP` ones settle without asking the model.
+  `CHEAP` ones settle without asking the model; `test_smart.py` holds the
+  map and the tiers.
 - CI: one workflow, `gate.yml`, twenty jobs a push laid out by its `workflow`
   job (tools/dev/workflow.py): `host` runs `--offline`
   on Python 3.12 and 3.14 in eight parts each (`--part k/8`, split by

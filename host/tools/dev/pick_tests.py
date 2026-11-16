@@ -43,6 +43,7 @@ SUITES = {
                             'tool answers what',
     'test_ollama_runner.py': 'the plan runner, the sandbox, and the test '
                              'tooling itself',
+    'test_smart.py': 'which suites a change reaches: the path map and the tiers',
     'test_ollama_prompt.py': 'SYSTEM and the per-turn hints',
     'test_ollama_link.py': 'the serial link: ports, probing, diagnosis',
     'test_ollama_render.py': 'how a result reaches the screen',

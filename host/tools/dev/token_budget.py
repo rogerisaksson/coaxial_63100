@@ -69,7 +69,7 @@ HEAVY = {
     'host/tests/test_ollama_tools.py': 18600,
     'host/tests/test_render.py': 18100,
     'host/tests/test_thermal_core.py': 17300,
-    'host/tests/test_ollama_runner.py': 13600,
+    'host/tests/test_ollama_runner.py': 11400,
     'host/tests/test_controller.py': 10300,
     'host/tools/notebooks/drive.py': 10000,
     'host/tests/test_ollama_link.py': 9900,
