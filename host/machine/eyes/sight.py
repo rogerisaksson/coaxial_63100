@@ -14,13 +14,12 @@ The keep reads nothing of the world: a look's frame - an eye's colour and parall
 alone, rendered on the world's side (`physics.SIGHT`).
 """
 import atexit
-import heapq
 import math
 import weakref
 
 from machine.eyes.stereo import BASELINE_M, FOVY_DEG, H, W, _np, indices
 from machine.eyes.voxels import CELL_M, X_M, Z_M
-from machine.eyes import epipolar, gimbal, ground, instances, squint, voxels
+from machine.eyes import epipolar, gimbal, grids, ground, instances, squint, voxels
 from machine.eyes.grids import coded, convex, joined_by, rim as _rim
 
 #: A look's points every EVERY'th pixel each way: at 640 x 480 the robot's map's 19 200 points a look as at
@@ -130,7 +129,15 @@ class Eyes:
 
     def __init__(self, world):
         import mujoco
-        self.renderer = mujoco.Renderer(world.model, epipolar.FINE * H, epipolar.FINE * W)
+        # the robot's eyes' frames drawn without the card's multisampling, the model's own kept for what else draws
+        # it: multisampled, a frame's pixels told by the frames drawn before it and the wall's time between them
+        # (`camera.main`), the robot's camera apart and its map here took 101 to 107 things of the same looks
+        quality = world.model.vis.quality
+        samples, quality.offsamples = quality.offsamples, 0
+        try:
+            self.renderer = mujoco.Renderer(world.model, epipolar.FINE * H, epipolar.FINE * W)
+        finally:
+            quality.offsamples = samples
         ground.speckled(world.model)
         self.ids = {side: world.model.camera('eye_%s' % side).id for side in ('left', 'right')}
         self.squint, self.laid, self.held = squint.Squint(), None, {'left': (0.0, 0.0), 'right': (0.0, 0.0)}
@@ -350,74 +357,6 @@ def thumbnail(rgb, w, h):
     return rgb[:hh, :ww].reshape(h, hh // h, w, ww // w, 3).mean(axis=(1, 3)).astype(np.uint8)
 
 
-def _nearest_free(blocked, cell):
-    np = _np()
-    free = np.argwhere(~blocked)
-    if len(free) == 0:
-        return cell
-    k = np.argmin(((free - np.array(cell)) ** 2).sum(axis=1))
-    return (int(free[k][0]), int(free[k][1]))
-
-
-def _astar(cost, start, goal):
-    """The cells from `start` to `goal` of least cost, `cost` (nx, nz) a metre's through each, inf blocked:
-    eight ways, a step its length times its two cells' mean cost, no diagonal past a blocked cell; []
-    where none. Each cell costs 1 at least: the straight distance is its heuristic."""
-    nx, nz = cost.shape
-    c_ = cost.tolist()
-    root2 = math.sqrt(2.0)
-    steps = [(1, 0, 1.0), (-1, 0, 1.0), (0, 1, 1.0), (0, -1, 1.0),
-             (1, 1, root2), (1, -1, root2), (-1, 1, root2), (-1, -1, root2)]
-    came, spent = {start: None}, {start: 0.0}
-    todo = [(math.dist(start, goal), start)]
-    while todo:
-        _f, here = heapq.heappop(todo)
-        if here == goal:
-            path = []
-            while here is not None:
-                path.append(here)
-                here = came[here]
-            return path[::-1]
-        for di, dj, w in steps:
-            nxt = (here[0] + di, here[1] + dj)
-            if not (0 <= nxt[0] < nx and 0 <= nxt[1] < nz) or math.isinf(c_[nxt[0]][nxt[1]]):
-                continue
-            if w > 1.0 and (math.isinf(c_[here[0] + di][here[1]]) or math.isinf(c_[here[0]][here[1] + dj])):
-                continue
-            c = spent[here] + w * 0.5 * (c_[here[0]][here[1]] + c_[nxt[0]][nxt[1]])
-            if c < spent.get(nxt, math.inf):
-                spent[nxt], came[nxt] = c, here
-                heapq.heappush(todo, (c + math.dist(nxt, goal), nxt))
-    return []
-
-
-def _line(a, b):
-    """The cells of the straight line from `a` to `b`, a cell a sample."""
-    n = max(abs(b[0] - a[0]), abs(b[1] - a[1]), 1)
-    return [(int(round(a[0] + (b[0] - a[0]) * k / n)), int(round(a[1] + (b[1] - a[1]) * k / n))) for k in range(n + 1)]
-
-
-def _cuts(cost, a, b, most):
-    """Whether the straight line from cell `a` to `b` is free and its dearest cell costs `most` or less."""
-    on = [float(cost[c]) for c in _line(a, b)]
-    return max(on) <= most + 1e-9
-
-
-def _pruned(cost, path):
-    """The path's corners: each the furthest cell straight from the one before whose line's dearest
-    cell is no dearer than the path's it cuts (`_cuts`): no nearer things than the way it
-    replaces; at a cost of 1 each, the furthest seen free."""
-    out, i = [path[0]], 0
-    on = [float(cost[c]) for c in path]
-    while i < len(path) - 1:
-        j = len(path) - 1
-        while j > i + 1 and not _cuts(cost, path[i], path[j], max(on[i:j + 1])):
-            j -= 1
-        out.append(path[j])
-        i = j
-    return out
-
-
 def told(keep):
     """[(kind, centre, half sizes, turn, id, clear)] of what the robot's map tells (`voxels.Map.things`) as
     `world.props()` gives the room's boxes, each thing's id and whether the space over it is seen clear with it:
@@ -434,7 +373,7 @@ def plan(blocked, at, to):
     cells = [(int(math.floor((p[0] - X_M[0]) / CELL_M)), int(math.floor((p[1] - Z_M[0]) / CELL_M))) for p in (at, to)]
     if not all(0 <= c[0] < blocked.shape[0] and 0 <= c[1] < blocked.shape[1] for c in cells):
         return []
-    start, goal = (c if not blocked[c] else _nearest_free(blocked, c) for c in cells)
+    start, goal = (c if not blocked[c] else grids.nearest_free(blocked, c) for c in cells)
     cost = np.where(blocked, np.inf, 1.0)
-    path = _astar(cost, start, goal)
-    return [(X_M[0] + (i + 0.5) * CELL_M, Z_M[0] + (j + 0.5) * CELL_M) for i, j in _pruned(cost, path)[1:]] if path else []
+    path = grids.astar(cost, start, goal)
+    return [(X_M[0] + (i + 0.5) * CELL_M, Z_M[0] + (j + 0.5) * CELL_M) for i, j in grids.pruned(cost, path)[1:]] if path else []

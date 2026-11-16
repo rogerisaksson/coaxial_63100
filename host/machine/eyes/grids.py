@@ -4,9 +4,12 @@
     groups = grids.joined(on, offsets)        # [(index arrays)] the set cells' connected groups, lowest first
     hull = grids.convex(pts)                  # [(x, y)] the hull of points, counter-clockwise
     pts = grids.rim(cols, rows)               # a picture's points a hull can hold: each column's lowest and highest
+    path = grids.astar(cost, start, goal)     # the cells of least cost from start to goal, eight ways
+    corners = grids.pruned(cost, path)        # its corners, each line between no dearer than the path it cuts
 
 The robot's map's and its picture's (`machine.eyes.voxels`, `machine.eyes.sight`).
 """
+import heapq
 import math
 
 
@@ -139,3 +142,72 @@ def convex(pts):
             upper.pop()
         upper.append(p)
     return lower[:-1] + upper[:-1]
+
+
+def nearest_free(blocked, cell):
+    """The free cell of `blocked` (nx, nz) nearest `cell`, `cell` itself where none is."""
+    import numpy as np
+    free = np.argwhere(~blocked)
+    if len(free) == 0:
+        return cell
+    k = np.argmin(((free - np.array(cell)) ** 2).sum(axis=1))
+    return (int(free[k][0]), int(free[k][1]))
+
+
+def astar(cost, start, goal):
+    """The cells from `start` to `goal` of least cost, `cost` (nx, nz) a metre's through each, inf blocked:
+    eight ways, a step its length times its two cells' mean cost, no diagonal past a blocked cell; []
+    where none. Each cell costs 1 at least: the straight distance is its heuristic."""
+    nx, nz = cost.shape
+    c_ = cost.tolist()
+    root2 = math.sqrt(2.0)
+    steps = [(1, 0, 1.0), (-1, 0, 1.0), (0, 1, 1.0), (0, -1, 1.0),
+             (1, 1, root2), (1, -1, root2), (-1, 1, root2), (-1, -1, root2)]
+    came, spent = {start: None}, {start: 0.0}
+    todo = [(math.dist(start, goal), start)]
+    while todo:
+        _f, here = heapq.heappop(todo)
+        if here == goal:
+            path = []
+            while here is not None:
+                path.append(here)
+                here = came[here]
+            return path[::-1]
+        for di, dj, w in steps:
+            nxt = (here[0] + di, here[1] + dj)
+            if not (0 <= nxt[0] < nx and 0 <= nxt[1] < nz) or math.isinf(c_[nxt[0]][nxt[1]]):
+                continue
+            if w > 1.0 and (math.isinf(c_[here[0] + di][here[1]]) or math.isinf(c_[here[0]][here[1] + dj])):
+                continue
+            c = spent[here] + w * 0.5 * (c_[here[0]][here[1]] + c_[nxt[0]][nxt[1]])
+            if c < spent.get(nxt, math.inf):
+                spent[nxt], came[nxt] = c, here
+                heapq.heappush(todo, (c + math.dist(nxt, goal), nxt))
+    return []
+
+
+def line(a, b):
+    """The cells of the straight line from `a` to `b`, a cell a sample."""
+    n = max(abs(b[0] - a[0]), abs(b[1] - a[1]), 1)
+    return [(int(round(a[0] + (b[0] - a[0]) * k / n)), int(round(a[1] + (b[1] - a[1]) * k / n))) for k in range(n + 1)]
+
+
+def cuts(cost, a, b, most):
+    """Whether the straight line from cell `a` to `b` is free and its dearest cell costs `most` or less."""
+    on = [float(cost[c]) for c in line(a, b)]
+    return max(on) <= most + 1e-9
+
+
+def pruned(cost, path):
+    """The path's corners: each the furthest cell straight from the one before whose line's dearest
+    cell is no dearer than the path's it cuts (`cuts`): no nearer things than the way it
+    replaces; at a cost of 1 each, the furthest seen free."""
+    out, i = [path[0]], 0
+    on = [float(cost[c]) for c in path]
+    while i < len(path) - 1:
+        j = len(path) - 1
+        while j > i + 1 and not cuts(cost, path[i], path[j], max(on[i:j + 1])):
+            j -= 1
+        out.append(path[j])
+        i = j
+    return out

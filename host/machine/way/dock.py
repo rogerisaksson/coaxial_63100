@@ -113,9 +113,9 @@ def walked(at, cells):
     """(nx, nz) m the robot's walk over `cells`' free ones from `at` (x, z), inf where none reaches."""
     import numpy as np
     from machine.way import route
-    from machine.eyes import sight
+    from machine.eyes import grids
     here = route._cell(*at)
-    start = here if route._free(cells, here) else sight._nearest_free(cells, here)
+    start = here if route._free(cells, here) else grids.nearest_free(cells, here)
     out = np.full(cells.shape, np.inf)
     todo = [(voxels.CELL_M * math.dist(here, start), start)]
     steps = [(i, j, voxels.CELL_M * math.hypot(i, j)) for i in (-1, 0, 1) for j in (-1, 0, 1) if (i, j) != (0, 0)]

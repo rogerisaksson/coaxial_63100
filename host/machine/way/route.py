@@ -15,7 +15,7 @@ import math
 
 from machine.way import obstacles
 from machine.law import rhythm, se2, stride
-from machine.eyes import sight, voxels
+from machine.eyes import grids, sight, voxels
 #: Setting off the robot walks while its heading is CONE off its leg at most, its
 #: walk's arc (WALK_SPEED / YAW_RATE round) a cell off it at most.
 CONE = math.acos(1.0 - voxels.CELL_M * se2.YAW_RATE / se2.WALK_SPEED)
@@ -89,10 +89,10 @@ def way(at, to, cost):
     if not all(0 <= c[0] < cost.shape[0] and 0 <= c[1] < cost.shape[1] for c in (start, goal)):
         return [tuple(to)]
     cells = np.isinf(cost)
-    start = start if not cells[start] else sight._nearest_free(cells, start)
-    goal = goal if not cells[goal] else sight._nearest_free(cells, goal)
-    path = sight._astar(cost, start, goal)
-    return [_centre(*c) for c in sight._pruned(cost, path)[1:-1]] + [tuple(to)] if path else [tuple(to)]
+    start = start if not cells[start] else grids.nearest_free(cells, start)
+    goal = goal if not cells[goal] else grids.nearest_free(cells, goal)
+    path = grids.astar(cost, start, goal)
+    return [_centre(*c) for c in grids.pruned(cost, path)[1:-1]] + [tuple(to)] if path else [tuple(to)]
 
 
 def barred(cells, pts):
