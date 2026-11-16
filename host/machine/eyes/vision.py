@@ -185,7 +185,7 @@ class Apart:
     def _changed(self, looks):
         """{place: look} of `looks` not as last sent - a part not the same object, its tuples and floats the same
         values where it is: 63 of the robot's room's 64 are, its door's not -; all of them where their count
-        changed. A look the same object is passed at once (the robot's room's still boxes, `room.props`): part by
+        changed. A look the same object is passed at once (the robot's room's still boxes, `boxed.props`): part by
         part, 50 us a look."""
         was, self._looks = self._looks, looks
         if len(was) != len(looks):

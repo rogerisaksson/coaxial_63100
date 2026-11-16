@@ -18,7 +18,7 @@ import os
 from typing import Any
 
 from machine.body import compile as _compile, dclink, drives, gearbox, heat, linkage, mechatronics, peripherals
-from machine.world import floor, harness, loose, passing, room, steps, stiction
+from machine.world import boxed, floor, harness, loose, passing, room, steps, stiction
 from machine.body.drives import kind
 from machine.rig.buses import QUIET, Block, Buses
 from machine.rig.controller import Batch
@@ -365,15 +365,15 @@ class World:
         """What lies on the floor (`floor.props`), and a lace snagged: ('lace', from, to), shoe
         to shoe."""
         m, d = self.model, self.data
-        out = floor.props(self) + (room.props(self) if ROOM else [])
+        out = floor.props(self) + (boxed.props(self) if ROOM else [])
         if self.laced:
             out.append(('lace', tuple(d.site_xpos[m.site('lace_left').id]),
                         tuple(d.site_xpos[m.site('lace_right').id])))
         return out
 
     def rounds(self, props):
-        """Whether each of `props` (`props()`') is round - the lodge's (`room.rounds`) -, the page drawing it so."""
-        lodge, laced = (room.rounds(self) if ROOM else []), int(bool(self.laced))
+        """Whether each of `props` (`props()`') is round - the lodge's (`boxed.rounds`) -, the page drawing it so."""
+        lodge, laced = (boxed.rounds(self) if ROOM else []), int(bool(self.laced))
         return [False] * (len(props) - len(lodge) - laced) + lodge + [False] * laced
 
     def lace(self):
