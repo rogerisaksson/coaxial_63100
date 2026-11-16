@@ -142,7 +142,7 @@ def docked(at, things, floor, sc, box, standoff):
     over = sc == 'sit_chair' and affordance.top(box) > seated.POPLITEAL
     if over and not seated.reaches(affordance.top(box)):
         return None
-    across = seated.placed(seated.ON, 0.0)[2] if over else across
+    across = seated.across() if over else across
     things = [t for t in things if t is box or not (
         affordance.top(t) <= affordance.bottom(box) + voxels.CELL_M + 1e-9 and affordance.covered(box, t) > 0.0)]
     cells = route.blocked(things, floor)

@@ -147,7 +147,7 @@ def _dock_why(at, things, floor, sc, box, standoff):
     over = sc == 'sit_chair' and affordance.top(box) > seated.POPLITEAL
     if over and not seated.reaches(affordance.top(box)):
         return 'its seat %.2f m up, the robot\'s legs reach no floor from it' % affordance.top(box)
-    across = seated.placed(seated.ON, 0.0)[2] if over else across
+    across = seated.across() if over else across
     cells = route.blocked(things, floor)
     far, s_dock = dock.walked(at, cells), poise.HALF_M + standoff
     outs = s_dock + np.arange(0.0, max(footprint.carry(180.0, w)[0] for w in (1.0, -1.0)) + voxels.CELL_M + se2.STOP_SPREAD_M,

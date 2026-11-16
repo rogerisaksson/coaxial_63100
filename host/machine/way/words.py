@@ -8,6 +8,7 @@ context and what hears it -, beside the thing an errand goes to among its things
 """
 import functools
 import math
+import operator
 
 from machine.way.tour import STOP
 from machine.way.steer import steer, tell
@@ -202,6 +203,20 @@ def _fixed(g, gym, er, c, heard_fn, _say_fn):
     gaze.fix(g, _docking(er), er['curve'], gaze.HELD * sight.LOOK_S + planner.WATCH_S + planner.LATENCY_S + route.RUN_OUT_S)
 
 
+def _faces(g, kind, box):
+    """The headings `kind` goes to `box` from among the robot's things (`furniture.GOES`), told anew only as its
+    things change - the very ones last told, `box` one of them (`furniture._afforded`'s rule): refreshed each pass
+    of an errand's settle, a chair's back sought among the lodge's 64 things (`affordance.back_of`) was 365 us a
+    pass."""
+    from machine.way import furniture
+    things = g['things']
+    kept = g.get('_faces')
+    if (kept is None or kept[0] != kind or kept[1] is not box or len(kept[2]) != len(things)
+            or not all(map(operator.is_, kept[2], things))):
+        kept = g['_faces'] = (kind, box, tuple(things), furniture.GOES.get(kind, furniture._NONE)[2](box, things))
+    return kept[3]
+
+
 def _refreshed(g, er):
     """The robot's dock's edge on its thing as the robot's map holds it close (`_arrived`, `_faced`, `settle`):
     laid from afar or nudged loose as the robot arrives, its edge and heading update before the robot backs and
@@ -217,12 +232,12 @@ def _refreshed(g, er):
     if box is None or affordance.distance(box, (er['x_dock'], er['z_dock'])) > stride.STRIDE_M:
         return
     hn0 = math.atan2(er['nx'], er['nz'])
-    faces = furniture.GOES.get(er['kind'], furniture._NONE)[2](box, g['things'])
+    faces = _faces(g, er['kind'], box)
     hn = min(faces, key=lambda h: abs(se2.wrap_angle(h - hn0))) if faces else hn0
     nx, nz = math.sin(hn), math.cos(hn)
     tx, tz = nz, -nx
     over = er['kind'] == 'sit_chair' and affordance.top(box) > seated.POPLITEAL
-    across = seated.placed(seated.ON, 0.0)[2] if over else dock.docks()[er['kind']][0]
+    across = seated.across() if over else dock.docks()[er['kind']][0]
     edge, span = affordance.support(box, hn), affordance.support(box, hn + 0.5 * math.pi)
     lat = max(0.0, span - (min(across, span) if span >= figure.HIP_HALF else across))
     mx, mz = float(box[1][0]) + edge * nx, float(box[1][2]) + edge * nz

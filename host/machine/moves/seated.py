@@ -6,6 +6,7 @@
 The robot's figure's links and segments (`machine.body.figure`); its modes' units its manifest's
 (`defrobot.read`).
 """
+import functools
 import math
 import os
 
@@ -357,6 +358,14 @@ def placed(up, trunk):
     deg['left_shoulder'], deg['left_elbow'] = (math.degrees(v) for v in flexed)
     at, elbow = figure.fist(deg), figure.frames(deg, (0.0, 0.0, 0.0), figure.IDENT)['left_forearm'][0]
     return flexed[0], flexed[1], abs(at[0]), (abs(at[2] - shoulder[2]), abs(at[2] - elbow[2]))
+
+
+@functools.cache
+def across():
+    """How far aside of the robot's middle its fist stands set on a seat upright (`placed` at ON, its trunk
+    plumb), m: the figure's, laid once a process. Asked anew each pass of an errand's settle it was 11 ms a
+    call - the robot's figure walked in python - and up to 3.6 s of the chair errand's seconds."""
+    return placed(ON, 0.0)[2]
 
 
 def reaches(top):
