@@ -12,11 +12,32 @@ The links' inertias alone: a drive's own rotor is its compiler's to add. Kinds b
 a row a posture (`postures`).
 """
 from machine.body import build, drives, figure, mechatronics
-from machine.body.compile import crb as about
 
 #: Up, the world's: gravity pulls against it. A joint's axis by its letter, in its own frame.
 UP = figure.IDENT[1]
 ALONG = dict(zip('xyz', figure.IDENT))
+
+
+def about(segs, placed, names, pivot, axis):
+    """(mass kg, its centre's distance from the axis m, inertia kg m^2) of the segments `names` as one
+    body about the line through `pivot` along `axis` (unit), world."""
+    present = [n for n in names if n in segs]
+    m = sum(segs[n][0] for n in present)
+    com = [sum(segs[n][0] * figure.add(placed[n][0], figure.apply(placed[n][1], segs[n][1]))[i]
+               for n in present) / m for i in range(3)]
+    j_ax = 0.0
+    for n in present:
+        kg, c, (ixx, iyy, izz, ixy, ixz, iyz) = segs[n]
+        at, rot = placed[n]
+        pw = figure.add(at, figure.apply(rot, c))
+        i_w = figure.mul(figure.mul(rot, ((ixx, ixy, ixz), (ixy, iyy, iyz), (ixz, iyz, izz))), figure.t(rot))
+        d = [pw[i] - pivot[i] for i in range(3)]
+        du = sum(d[i] * axis[i] for i in range(3))
+        u_iu = sum(axis[i] * sum(i_w[i][k] * axis[k] for k in range(3)) for i in range(3))
+        j_ax += u_iu + kg * (sum(v * v for v in d) - du * du)
+    dc = [com[i] - pivot[i] for i in range(3)]
+    du_c = sum(dc[i] * axis[i] for i in range(3))
+    return m, (max(0.0, sum(v * v for v in dc) - du_c * du_c)) ** 0.5, j_ax
 
 
 def _hung(segs):
@@ -39,10 +60,11 @@ def _hung(segs):
 
 
 def postures():
-    """The postures the table is laid in, {joint: deg} each: the robot standing. In its deep squat a folded
-    leg stands twenty times further from its hip's yaw: a stiffness set there over-damps the leg standing,
-    and the campaign on the stand read that drive's friction 24 % off (test_sysid)."""
-    return (figure.stand(),)
+    """The postures the table is laid in, {joint: deg} each: the robot standing and in its deep squat
+    (`figure.SQUAT`), the ends of what its moves fold its legs through. Laid on the leg standing alone, a
+    hip's yaw (170 N m/rad) gave 5.9 degrees under the bed's sit-up and the robot slid off the bed's
+    side to the floor; on the folded leg too (523), it stood up on its soles, 274 N."""
+    return (figure.stand(), figure.SQUAT)
 
 
 def table(gravity):

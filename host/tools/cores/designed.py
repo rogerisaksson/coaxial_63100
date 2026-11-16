@@ -4,12 +4,12 @@
     python tools/cores/designed.py           # a row a loop: the robot's joints, each craft's axes
     python tools/cores/designed.py --json    # ... as JSON
 
-The robot's servo table is laid by formulas a joint (`machine.body.compile.servos`) and the crafts'
-attitude gains by shares (their impedance blocks); the solver lays each loop of what its drive turns
-and the control design's targets (`machine.body.looped`, `machine.aircraft.attitude`). A row: the
-machine, the loop, today's stiffness and damping, the solved ones, the need that set the stiffness,
-the least ceiling and whether the need lies under it - the robot's in N m/rad and N m s/rad, a craft's
-an inertia's (1/s^2, 1/s). Nothing runs on the solved column: the comparison a switch waits on.
+The solver lays each loop of what its drive turns and the control design's targets
+(`machine.body.looped`, `machine.aircraft.attitude`): the robot's servo table runs on it
+(`machine.body.compile.servos`), the crafts' attitude gains still by shares (their impedance blocks). A
+row: the machine, the loop, today's stiffness and damping, the solved ones, the need that set the
+stiffness, the least ceiling and whether the need lies under it - the robot's in N m/rad and N m s/rad,
+a craft's an inertia's (1/s^2, 1/s).
 """
 import argparse
 import json
@@ -27,10 +27,11 @@ def rows():
     robot's driven joints by their kind, then every craft's axes."""
     from machine.aircraft import attitude
     from machine.body import compile, looped, mechatronics
-    today, gains = compile.servos(), looped.gains()
+    st = compile.subtrees()
+    today, gains = compile.servos(), looped.gains(st)
     out = [(mechatronics.ROBOT, kind, today[kind][1], today[kind][2], gains[kind][0], gains[kind][1],
             loop.need, loop.ceiling, loop.feasible)
-           for kind, (_rotor, _limb, _most, loop, _needs, _ceilings) in looped.table().items()]
+           for kind, (_rotor, _limb, _most, loop, _needs, _ceilings) in looped.table(st).items()]
     out += [(machine, name, kp, kd, loop.kp, loop.kd, loop.need, loop.ceiling, loop.feasible)
             for machine, name, kp, kd, loop, _needs, _ceilings in attitude.rows()]
     return out

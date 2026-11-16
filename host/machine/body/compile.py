@@ -8,11 +8,12 @@ from math import acos, asin, atan2, cos, degrees, dist, hypot, isnan, pi, radian
 import os
 from typing import Any
 
-from machine.body import build, drives, figure, mechatronics
+from machine.body import build, carried, drives, figure, looped, mechatronics
+from machine.solver import loops
 
 _ENV, _BUILD, _LIB = mechatronics.environment(), mechatronics.robot(), mechatronics.library()
 G_M_S2, _BUS_HZ, _LAW_DIV = float(_ENV['g_m_s2']), drives.BUS_HZ, float(drives.LAW_DIV)
-_LAW_HZ, ROTOR_FF, _ESO_WO = _BUS_HZ / _LAW_DIV, round(1.0 / (1.0 + _LAW_DIV), 2), 0.10 * _BUS_HZ
+_LAW_HZ, ROTOR_FF, _ESO_WO = _BUS_HZ / _LAW_DIV, looped.ROTOR_FF, 0.10 * _BUS_HZ
 ENC_RAD = max(tau / float(_LIB['inverters'][s[2]]['encoder_counts']) for s in _BUILD['stacks'].values())
 _MU_DRY, _KIN_SHARE = float(_ENV['mu_dry']), float(_ENV['kinetic_share'])
 _TAKES_NPZ = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'texts', 'takes.npz')
@@ -23,24 +24,8 @@ def _joint_of(kind):
     return kind if kind in figure.JOINTS else 'left_' + kind
 
 
-def crb(segs, placed, names, pivot, axis):
-    present = [n for n in names if n in segs]
-    m = sum(segs[n][0] for n in present)
-    com = [sum(segs[n][0] * figure.add(placed[n][0], figure.apply(placed[n][1], segs[n][1]))[i]
-               for n in present) / m for i in range(3)]
-    j_ax = 0.0
-    for n in present:
-        kg, c, (ixx, iyy, izz, ixy, ixz, iyz) = segs[n]
-        at, rot = placed[n]
-        pw = figure.add(at, figure.apply(rot, c))
-        i_w = figure.mul(figure.mul(rot, ((ixx, ixy, ixz), (ixy, iyy, iyz), (ixz, iyz, izz))), figure.t(rot))
-        d = [pw[i] - pivot[i] for i in range(3)]
-        du = sum(d[i] * axis[i] for i in range(3))
-        u_iu = sum(axis[i] * sum(i_w[i][k] * axis[k] for k in range(3)) for i in range(3))
-        j_ax += u_iu + kg * (sum(v * v for v in d) - du * du)
-    dc = [com[i] - pivot[i] for i in range(3)]
-    du_c = sum(dc[i] * axis[i] for i in range(3))
-    return m, sqrt(max(0.0, sum(v * v for v in dc) - du_c * du_c)), j_ax
+#: Segments as one body about a line (`carried.about`): (mass, its centre's distance, inertia).
+crb = carried.about
 
 
 def _dressed_statics(segs, pose, y_pelvis):
@@ -108,49 +93,20 @@ def _subtrees():
 
 
 def _servos(st):
-    m_tot, w_tot, h0 = st['mass'], st['weight'], st['h0']
-    m_tr, r_tr, j_tr_x, j_tr_y = st['trunk']
-    _, _, _, j_lg_y = st['leg']
+    w_tot, h0 = st['weight'], st['h0']
+    m_tr, r_tr, j_tr_x, _j_tr_y = st['trunk']
     m_nk, r_nk, j_nk_x = st['neck']
     m_hd, _, j_hd_y = st['head']
-    w_task = 0.1 * _ESO_WO / sqrt(figure.SCALE)
-    w_inner, zeta_opt = 3.0 * w_task, sqrt(0.5)
+    zeta_opt, j_drv = sqrt(0.5), looped.rotor
 
-    def j_drv(k):
-        jt = _joint_of(k)
-        j = drives.armature(jt)
-        if j > 0.0:
-            return j
-        box = drives._box(jt)
-        return (1.0 + float(box['input_j_share'])) * drives.size(k).rotor * float(box['ratio']) ** 2
+    def sv(k, pk, kp_kd):
+        return (round(pk, 1), kp_kd[0], kp_kd[1], round(looped.felt(k), 2))
 
-    def sv(k, pk, kp, kd):
-        box = drives._box(_joint_of(k))
-        a = (ROTOR_FF + float(box['input_j_share'])) * drives.size(k).rotor * float(box['ratio']) ** 2
-        return (round(pk, 1), float(kp), float(kd), round(a, 2))
-
-    def pd_joint(k, j_eff, zeta, bw=w_inner):
-        jt = _joint_of(k)
-        k_res = 0.5 * drives.zeta(jt) * drives.wind(jt)
-        kp = float(round(min(k_res, bw * bw * j_eff) if k_res > 0.0 else bw * bw * j_eff))
-        return kp, float(round(2.0 * zeta * sqrt(kp * j_eff)))
-
-    kp_ank = float(round(w_tot * h0 * h0 / (figure.BALL + figure.HEEL)))
-    kd_ank = float(round(2.0 * sqrt(kp_ank * (st['foot'][2] + j_drv('ankle')))))
-    j_kn = 0.5 * m_tot * (h0 - figure.ANKLE_H - figure.SHANK) ** 2 + j_drv('knee')
-    kp_st, kd_hip = pd_joint('hip', 0.5 * m_tot * (0.5 * h0) ** 2 + j_drv('hip'), 0.5 * zeta_opt)
-    kd_knee = float(round(zeta_opt * sqrt(kp_st * j_kn)))
-    kp_sp, kd_sp = pd_joint('spine', j_tr_x + j_drv('spine'), 0.5)
-    kp_wa, kd_wa = pd_joint('waist', j_tr_y + 1.5 * j_drv('waist'), 0.67)
-    kp_hy, kd_hy = pd_joint('hip_yaw', j_lg_y + j_drv('hip_yaw'), 0.5)
-    kp_nk, kd_nk = pd_joint('neck', j_nk_x + j_drv('neck'), zeta_opt, 2.0 * w_inner)
-    kp_hd, kd_hd = pd_joint('head', j_hd_y + j_drv('head'), 0.5, 2.0 * w_task)
-    kp_sh, kd_sh = pd_joint('shoulder', st['arm'][2] + j_drv('shoulder'), zeta_opt)
-    kp_el, kd_el = pd_joint('elbow', st['elbow_x'] + st['fore'][2] + j_drv('elbow'), 0.5)
-    kp_wr, kd_wr = pd_joint('wrist', st['hand'][2] + j_drv('wrist'), zeta_opt)
+    # Every kind's stiffness and damping are its loop's, solved (`looped`): no formula a joint.
+    gains = looped.gains(st)
     p_gr = drives.PASSIVE.get('gripper', (None, 0.0, 0.0))
-    kp_gr, kd_gr = (p_gr[:2] if p_gr[0] is not None
-                    else pd_joint('gripper', st['fingers'][2] + j_drv('gripper'), zeta_opt))
+    gains['gripper'] = (p_gr[0], p_gr[1]) if p_gr[0] is not None else gains['gripper']
+    kp_nk = gains['neck'][0]
 
     def wep_sat(joint):
         s = drives.of(joint)[1]
@@ -163,24 +119,25 @@ def _servos(st):
     palm = w_tot / 3.0
     mu_sole = float(_BUILD['elastomers']['sole']['friction'])
     return {
-        'spine': sv('spine', sp_wep, kp_sp, kd_sp),
-        'spine_roll': sv('spine_roll', min(drives.peak('spine_roll'), drives.peak('waist') * zeta_opt), kp_sp, kd_sp),
-        'waist': sv('waist', drives.peak('waist') * zeta_opt, kp_wa, kd_wa),
-        'neck': sv('neck', min(drives.peak('neck'), nk_whip), kp_nk, kd_nk),
-        'head': sv('head', min(drives.peak('head'), hd_fall), kp_hd, kd_hd),
+        'spine': sv('spine', sp_wep, gains['spine']),
+        'spine_roll': sv('spine_roll', min(drives.peak('spine_roll'), drives.peak('waist') * zeta_opt),
+                         gains['spine_roll']),
+        'waist': sv('waist', drives.peak('waist') * zeta_opt, gains['waist']),
+        'neck': sv('neck', min(drives.peak('neck'), nk_whip), gains['neck']),
+        'head': sv('head', min(drives.peak('head'), hd_fall), gains['head']),
         'shoulder': sv('shoulder', min(drives.peak('left_shoulder'), palm * hypot(figure.UPPER_ARM, figure.FOREARM)),
-                       kp_sh, kd_sh),
-        'elbow': sv('elbow', min(drives.peak('left_elbow'), palm * figure.FOREARM), kp_el, kd_el),
-        'wrist': sv('wrist', palm * abs(figure.FIST_AT[1]), kp_wr, kd_wr),
-        'gripper': sv('gripper', palm * (abs(figure.FIST_AT[1]) - 0.5 * figure.FIST_R), kp_gr, kd_gr),
+                       gains['shoulder']),
+        'elbow': sv('elbow', min(drives.peak('left_elbow'), palm * figure.FOREARM), gains['elbow']),
+        'wrist': sv('wrist', palm * abs(figure.FIST_AT[1]), gains['wrist']),
+        'gripper': sv('gripper', palm * (abs(figure.FIST_AT[1]) - 0.5 * figure.FIST_R), gains['gripper']),
         'hip_yaw': sv('hip_yaw', min(drives.peak('left_hip_yaw'), mu_sole * w_tot * (figure.BALL + figure.HEEL)),
-                      kp_hy, kd_hy),
-        'hip_roll': sv('hip_roll', drives.peak('left_hip_roll') * zeta_opt, kp_st, kd_hip),
-        'hip': sv('hip', leg_wep, kp_st, kd_hip),
-        'knee': sv('knee', leg_wep, kp_st, kd_knee),
-        'ankle': sv('ankle', drives.peak('left_ankle') * zeta_opt, kp_ank, kd_ank),
-        'ankle_roll': sv('ankle_roll', 0.5 * drives.peak('left_ankle'), kp_ank, kd_ank),
-        'foot': sv('foot', drives.TOE_K * atan2(figure.BALL, figure.ANKLE_H), 4.0 * drives.TOE_K, 0.1 * drives.TOE_K),
+                      gains['hip_yaw']),
+        'hip_roll': sv('hip_roll', drives.peak('left_hip_roll') * zeta_opt, gains['hip_roll']),
+        'hip': sv('hip', leg_wep, gains['hip']),
+        'knee': sv('knee', leg_wep, gains['knee']),
+        'ankle': sv('ankle', drives.peak('left_ankle') * zeta_opt, gains['ankle']),
+        'ankle_roll': sv('ankle_roll', 0.5 * drives.peak('left_ankle'), gains['ankle_roll']),
+        'foot': sv('foot', drives.TOE_K * atan2(figure.BALL, figure.ANKLE_H), (4.0 * drives.TOE_K, 0.1 * drives.TOE_K)),
     }
 
 
@@ -394,7 +351,8 @@ def _gait(st):
 
 def _core() -> dict[str, Any]:
     srcs = (mechatronics.robot_sources()
-            + (__file__, drives.__file__, figure.__file__, build.__file__, _TAKES_NPZ))
+            + (__file__, drives.__file__, figure.__file__, build.__file__, carried.__file__, looped.__file__,
+               loops.__file__, _TAKES_NPZ))
 
     def build_core():
         st = _subtrees()
@@ -406,6 +364,12 @@ def _core() -> dict[str, Any]:
 def subtrees() -> dict[str, Any]:
     """Composite rigid-body masses, gravity levers and inertias of the robot's kinematic subtrees standing."""
     return dict(_core()['subtrees'])
+
+
+def designed() -> dict[str, tuple]:
+    """{kind: (rotor, limb, the most inertia its drive sees - kg m^2 -, its Loop, its needs, its ceilings)}:
+    every joint's loop as the solver lays the servo table of it (`looped.table`)."""
+    return looped.table(subtrees())
 
 
 def servos(overrides=None) -> dict[str, tuple[float, float, float, float]]:

@@ -38,7 +38,7 @@ box.
 | axis | drives | sits | through | ratio | peak N m | clamp N m | deg/s |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | neck | 1 | on its axis, its inverter on the torso | - | 30.0 | 51 | 14 | 1536 |
-| head | 1 | on its axis, its inverter on the torso | - | 30.0 | 51 | 10 | 1536 |
+| head | 1 | on its axis, its inverter on the torso | - | 30.0 | 51 | 5 | 1536 |
 | shoulder | 2 | on the torso | - | 30.0 | 51 | 39 | 1536 |
 | elbow | 2 | on the upper arm | - | 30.0 | 51 | 26 | 1536 |
 

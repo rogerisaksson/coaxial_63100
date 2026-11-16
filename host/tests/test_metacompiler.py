@@ -218,12 +218,12 @@ def test_a_builds_drives_are_stated_once(r):
 
 
 def test_a_joints_loop_is_solved_of_what_it_turns(r):
-    """Beside the servo table the compiler lays by formulas a joint stands the solved one, one rule
-    for every driven joint (`machine.body.looped`): of what its drive turns (`carried.table`: its
-    limb swinging, the body it carries where a sole hangs on it, gravity's stiffness there) and the
-    control design's targets (`control.toml`), by `machine.solver.loops` - the stiffer of the
-    swing's and the stance's needs under its ceilings. The comparison lays a row a loop, the
-    robot's and every craft's (`tools/cores/designed.py`); the robot's law runs on none of it."""
+    """The servo table the compiler lays is the solved one, one rule for every driven joint
+    (`machine.body.looped`): of what its drive turns (`carried.table`: its limb swinging, the body it
+    carries where a sole hangs on it, gravity's stiffness there) and the control design's targets
+    (`control.toml`), by `machine.solver.loops` - the stiffer of the swing's and the stance's needs
+    under its ceilings; no joint keeps a formula of its own. The comparison lays a row a loop, the
+    robot's and every craft's (`tools/cores/designed.py`)."""
     from machine.body import carried, compile as body, drives, looped, mechatronics
     from tools.cores import designed
     seen, st, ctl = carried.table(body.G_M_S2), body.subtrees(), mechatronics.control()
@@ -238,10 +238,11 @@ def test_a_joints_loop_is_solved_of_what_it_turns(r):
     zeta, fall = float(ctl['damping_ratio']), float(ctl['fall_factor']) * st['omega']
     swung = float(ctl['cascade_factor']) * fall
     taken = math.radians(float(ctl['delay_phase_deg'])) * drives.BUS_HZ / looped.DEAD_PERIODS
-    solved, gains = looped.table(), looped.gains()
+    solved, gains, today = looped.table(st), looped.gains(st), body.servos()
     off, soft, held = [], [], []
     for kind, (rotor, limb, most, loop, needs, ceilings) in solved.items():
         kp, kd = gains[kind]
+        off += [kind] * (kind in seen and today[kind][1:3] != (kp, kd))
         on = limb if loop.need == 'swing' else most
         if (kp != float(round(min(loop.kp, ceilings[loop.ceiling])))
                 or abs(kd - min(2.0 * zeta * math.sqrt(kp * math.sqrt(rotor * on)), rotor * taken)) > 0.05):
@@ -250,18 +251,19 @@ def test_a_joints_loop_is_solved_of_what_it_turns(r):
             soft.append(kind)
         if loop.need == 'stance' and (kind not in bears or needs['stance'] <= max(row[2] for row in seen[kind])):
             held.append(kind)
-    r.check("every driven joint's stiffness is its loop's under its least ceiling, its damping the target's on the "
-            "mean of its rotor and what set its stiffness, no more than its rotor takes", set(seen) <= set(solved) and not off, off)
+    r.check("every driven joint's servo is its loop's: its stiffness under its least ceiling, its damping the target's "
+            "on the mean of its rotor and what set its stiffness, no more than its rotor takes",
+            set(seen) <= set(solved) and not off, off)
     r.check("every limb's loop is asked the cascade's factor over the stance loop's, itself the fall's by its factor",
             not soft and math.isclose(fall, float(ctl['fall_factor']) * math.sqrt(body.G_M_S2 / st['h0'])), soft)
     r.check('a loop set by its stance is a leg\'s, and asks more than gravity alone tips it with', not held, held)
     unmet = sorted(kind for kind, row in solved.items() if not row[3].feasible)
     r.check("the robot's own build can be what its loops ask: no need lies over a ceiling", not unmet, unmet)
-    laid, today = designed.rows(), body.servos()
+    laid = designed.rows()
     own = {loop: (kp, kd, solved_kp, solved_kd) for machine, loop, kp, kd, solved_kp, solved_kd, *_ in laid
            if machine == mechatronics.ROBOT}
     crafts = sorted({machine for machine, *_ in laid} - {mechatronics.ROBOT})
-    r.check('the comparison lays a row a loop: %d of the robot\'s, today\'s table beside the solved, and %d crafts\' axes'
+    r.check('the comparison lays a row a loop: %d of the robot\'s, its servo table the solved, and %d crafts\' axes'
             % (len(own), len(laid) - len(own)),
             set(own) == set(solved) and len(crafts) >= 4 and all(len(row) == len(designed.COLUMNS) for row in laid)
             and all(own[kind] == (today[kind][1], today[kind][2]) + gains[kind] for kind in own), crafts)
