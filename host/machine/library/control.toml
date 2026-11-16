@@ -6,8 +6,9 @@
 
 # A loop's damping ratio, on the most inertia its drive sees.
 damping_ratio = 0.7
-# The phase a loop's dead time and its actuator's lags may take at its crossover, deg.
-delay_phase_deg = 15.0
+# The phase a loop's dead time and its actuator's lags may take at its crossover, deg: what a loop's delays
+# may take and still leave it forty degrees - the robot's ankle on its free foot takes 22.
+delay_phase_deg = 25.0
 # A loop's natural frequency over the fastest motion asked of it.
 motion_factor = 2.2
 # The error at which a loop may ask all its drive has, at the least, deg: the authority's ceiling.
