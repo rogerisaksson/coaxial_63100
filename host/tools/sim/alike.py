@@ -4,7 +4,7 @@
     python tools/sim/alike.py                  # each picture's measures, the robot's, and the verdict
     python tools/sim/alike.py --png OUT.png    # the same laid side by side: each as seen, and as its classes
 
-A picture of a robot on a white ground is cut out of it (its banner and its ground left); the
+A picture of a robot is cut out of its ground - white, a colour, a ramp - and its banner; the
 robot is drawn bare of its clothes, its arms out (T-posed), from the front as its page draws
 it - dots on black, a dot of it that is not lit black as the ground: its darkest. The robot's
 head is a figure's likeness and no part of what is held to the pictures. Both are measured alike
@@ -15,7 +15,7 @@ pad's cells) and how thick its parts are (plates on a frame, where a frame alone
 The robot is alike (`alike`) where its palette lies no further from a picture's than the
 pictures' lie apart, it wears no hue no picture has, and its air, its edge and its girth are
 a picture's least by SHARE. The pictures are never the tree's: where none lie beside it the
-robot is held to what they measured (PICTURED).
+robot is held to what they measured (PICTURED, by their names).
 """
 import argparse
 import glob
@@ -26,9 +26,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from coaxial.model.blocks import numpy as np
 
-#: A picture is read HIGH rows tall; its ground is what is whiter than GROUND, its banner the
-#: rows at its foot more than half dark.
-HIGH, GROUND = 400, 0.97
+#: A picture is read HIGH rows tall. The ground is what a flood from the picture's border reaches, a dot to
+#: its neighbour no more than RAMP apart in any channel, from the border's dots within SEED of the border's
+#: middle colour - a white ground, a blue one, a grey one ramping to white; told by whiteness alone (0.97) a
+#: blue ground was 70 % of a robot -, and of a ground with a hue every dot as saturated as SAT within NEAR deg
+#: of that hue: the blue a robot's edges blended and its arms closed off was 8 % of one. A banner is the rows
+#: at the picture's foot more than half within SEED of their own middle colour and not the ground's.
+HIGH, RAMP, SEED, NEAR = 400, 0.035, 0.08, 25.0
 #: The classes: a dot with a hue is SAT saturated and no darker than DIM of the white; one
 #: without is dark under DARK of the white and light over LIGHT. The hues, deg, each from its
 #: first to its second round the wheel.
@@ -61,17 +65,56 @@ def pictures():
     return sorted(path for kind in ('*.jpg', '*.jpeg', '*.png') for path in glob.glob(os.path.join(folder, kind)))
 
 
+def _hue(rgb):
+    """Each colour's hue, deg round the wheel."""
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    return np.degrees(np.arctan2(np.sqrt(3.0) * (g - b), 2.0 * r - g - b)) % 360.0
+
+
+def _sat(rgb):
+    """Each colour's saturation: its channels' spread of its brightest."""
+    return (rgb.max(axis=-1) - rgb.min(axis=-1)) / np.maximum(rgb.max(axis=-1), 1e-6)
+
+
+def _ground(rgb):
+    """What of `rgb` (rows, columns, 3) is its ground: flooded from its border (RAMP, SEED); what lies
+    within half SEED of the flooded ground's middle colour - ground an arm closed off -; and of a ground
+    with a hue, every dot as saturated within NEAR deg of it."""
+    border = np.concatenate([rgb[0], rgb[-1], rgb[:, 0], rgb[:, -1]])
+    middle = np.median(border, axis=0)
+    rim = np.zeros(rgb.shape[:2], bool)
+    rim[0], rim[-1], rim[:, 0], rim[:, -1] = True, True, True, True
+    out = rim & (np.abs(rgb - middle).max(axis=2) < SEED)
+    down, across = (np.abs(np.diff(rgb, axis=k)).max(axis=2) < RAMP for k in (0, 1))
+    while True:
+        was = out.copy()
+        out[1:] |= out[:-1] & down
+        out[:-1] |= out[1:] & down
+        out[:, 1:] |= out[:, :-1] & across
+        out[:, :-1] |= out[:, 1:] & across
+        if (out == was).all():
+            middle = np.median(rgb[out], axis=0)
+            out |= np.abs(rgb - middle).max(axis=2) < SEED / 2.0
+            if _sat(middle) >= SAT:
+                off = np.abs((_hue(rgb) - _hue(middle) + 180.0) % 360.0 - 180.0)
+                out |= (off < NEAR) & (_sat(rgb) >= SAT)
+            return out
+
+
 def cut_out(path):
     """(colours (rows, columns, 3) 0..1, what is the robot (rows, columns)) of the picture at
-    `path`, HIGH rows tall: its banner cut off, its white ground not the robot."""
+    `path`, HIGH rows tall: its banner cut off, its ground not the robot (`_ground`)."""
     from PIL import Image
     with Image.open(path) as picture:
         rgb = np.asarray(picture.convert('RGB'), float) / 255.0
-    banner = (rgb.max(axis=2) < 0.2).mean(axis=1) > 0.5
+    border = np.median(np.concatenate([rgb[0], rgb[:, 0], rgb[:, -1]]), axis=0)
+    row_middle = np.median(rgb, axis=1)
+    banner = ((np.abs(rgb - row_middle[:, None]).max(axis=2) < SEED).mean(axis=1) > 0.5) & (
+        np.abs(row_middle - border).max(axis=1) > SEED)
     rgb = rgb[:len(rgb) - int(np.argmin(banner[::-1]))] if banner[-1] else rgb
     small = Image.fromarray((rgb * 255.0).astype(np.uint8)).resize((max(1, round(rgb.shape[1] * HIGH / len(rgb))), HIGH), Image.Resampling.BOX)
     rgb = np.asarray(small, float) / 255.0
-    return rgb, rgb.min(axis=2) < GROUND
+    return rgb, ~_ground(rgb)
 
 
 def t_posed():
@@ -184,13 +227,26 @@ def apart(a, b):
     return 0.5 * sum(abs(a[name] - b[name]) for name in CLASSES)
 
 
-#: What the pictures beside the tree measured (`measured`, tools/sim/alike.py): robot 1.jpg -
-#: white plates on a black frame - and robot 2.png - gunmetal plates, magenta actuators. A
-#: host that keeps the pictures holds these to them (test_views_bared).
-PICTURED = ({'palette': {'dark': 0.435, 'grey': 0.321, 'light': 0.243, 'red': 0.0, 'yellow': 0.0, 'green': 0.0, 'blue': 0.001,
-                         'magenta': 0.0}, 'air': 0.093, 'edge': 0.285, 'girth': 0.109},
-            {'palette': {'dark': 0.48, 'grey': 0.197, 'light': 0.16, 'red': 0.0, 'yellow': 0.0, 'green': 0.005, 'blue': 0.026,
-                         'magenta': 0.132}, 'air': 0.059, 'edge': 0.184, 'girth': 0.154})
+#: What the pictures beside the tree measured (`measured`, tools/sim/alike.py), by their names: white plates
+#: on a black frame walking (robot 1), gunmetal plates and magenta actuators (robot 2), white plates over a
+#: black frame on a blue ground from behind (robot_3) and seated (robot_4), white plates and red actuators
+#: (robot_5 from behind, robot_6 walking), a black suit and white plates from behind (robot_7). A host that
+#: keeps the pictures holds those it names to these (test_views_bared).
+PICTURED = {
+    'robot 1.png': {'palette': {'dark': 0.434, 'grey': 0.321, 'light': 0.243, 'red': 0.0, 'yellow': 0.0, 'green': 0.0,
+                                'blue': 0.001, 'magenta': 0.0}, 'air': 0.122, 'edge': 0.281, 'girth': 0.107},
+    'robot 2.png': {'palette': {'dark': 0.5, 'grey': 0.21, 'light': 0.115, 'red': 0.0, 'yellow': 0.0, 'green': 0.006,
+                                'blue': 0.028, 'magenta': 0.142}, 'air': 0.089, 'edge': 0.188, 'girth': 0.15},
+    'robot_3.png': {'palette': {'dark': 0.539, 'grey': 0.228, 'light': 0.233, 'red': 0.0, 'yellow': 0.0, 'green': 0.0,
+                                'blue': 0.0, 'magenta': 0.0}, 'air': 0.144, 'edge': 0.221, 'girth': 0.097},
+    'robot_4.png': {'palette': {'dark': 0.487, 'grey': 0.257, 'light': 0.221, 'red': 0.001, 'yellow': 0.001, 'green': 0.001,
+                                'blue': 0.031, 'magenta': 0.0}, 'air': 0.105, 'edge': 0.213, 'girth': 0.179},
+    'robot_5.png': {'palette': {'dark': 0.328, 'grey': 0.321, 'light': 0.232, 'red': 0.109, 'yellow': 0.009, 'green': 0.0,
+                                'blue': 0.0, 'magenta': 0.0}, 'air': 0.08, 'edge': 0.237, 'girth': 0.11},
+    'robot_6.png': {'palette': {'dark': 0.347, 'grey': 0.312, 'light': 0.206, 'red': 0.129, 'yellow': 0.007, 'green': 0.0,
+                                'blue': 0.0, 'magenta': 0.0}, 'air': 0.134, 'edge': 0.247, 'girth': 0.089},
+    'robot_7.png': {'palette': {'dark': 0.637, 'grey': 0.173, 'light': 0.178, 'red': 0.0, 'yellow': 0.0, 'green': 0.0,
+                                'blue': 0.011, 'magenta': 0.0}, 'air': 0.116, 'edge': 0.209, 'girth': 0.148}}
 
 
 def alike(robot, told=None):
@@ -198,7 +254,7 @@ def alike(robot, told=None):
     (PICTURED unless told) - its palette no further from the nearest than they lie apart, no
     more than FOREIGN of it in hues none of them has, its air, its edge and its girth SHARE of
     their least at the least. Empty where it is alike."""
-    told = list(told or PICTURED)
+    told = list(told or PICTURED.values())
     spread = max((apart(a['palette'], b['palette']) for a in told for b in told), default=0.0)
     near = min(apart(robot['palette'], p['palette']) for p in told)
     foreign = sum(robot['palette'][name] for name in CLASSES[3:] if all(p['palette'][name] < HAS for p in told))

@@ -1,5 +1,6 @@
 """The robot bare of its clothes: carbon tubes, bolted drives, honeycomb guards; held to the pictures."""
 import math
+import os
 import sys
 
 from tools.dev.focus import chosen
@@ -251,7 +252,7 @@ def test_the_robot_bare_is_held_to_the_pictures(report):
     faults = alike.alike(robot)
     report.check('the robot as built, bare and T-posed, is alike: its palette no further from a picture\'s than the '
                  'pictures lie apart, no hue of its own, their air, edge and girth by half at the least',
-                 not faults and len(alike.PICTURED) == 2, faults or alike._said('the robot', robot).strip())
+                 not faults and len(alike.PICTURED) > 1, faults or alike._said('the robot', robot).strip())
     swapped = alike.alike(alike.measured(rgb[..., [1, 0, 2]], mask, body))
     solid = alike.alike(alike.measured(rgb, alike._closed(mask, 12), None))
     frame = alike.alike(alike.measured(*alike.drawn(None, 'mechanism')))
@@ -259,14 +260,18 @@ def test_the_robot_bare_is_held_to_the_pictures(report):
                  "mechanism in its frames' own paints",
                  any('hues' in fault for fault in swapped) and any('air' in fault for fault in solid) and len(frame) > 0,
                  '; '.join(swapped + solid + frame))
-    shown = [alike.measured(*alike.cut_out(path)) for path in alike.pictures()]
-    if len(shown) == 2 and likeness.FOUND:
-        apart = max(abs(a[k] - b[k]) for a, b in zip(shown, alike.PICTURED) for k in ('air', 'edge', 'girth'))
-        apart = max(apart, max(alike.apart(a['palette'], b['palette']) for a, b in zip(shown, alike.PICTURED)))
+    found = {os.path.basename(path): alike.measured(*alike.cut_out(path)) for path in alike.pictures()}
+    named = sorted(set(found) & set(alike.PICTURED))
+    if named and likeness.FOUND:
+        told = alike.PICTURED
+        apart = max(max(abs(found[n][k] - told[n][k]) for k in ('air', 'edge', 'girth')) for n in named)
+        apart = max(apart, max(alike.apart(found[n]['palette'], told[n]['palette']) for n in named))
         worn = alike.measured(*alike.drawn(likeness.FOUND))
-        report.check('this host keeps the pictures: they measure what is told of them (PICTURED), and the robot in '
-                     "the figure's likeness is alike", apart < 0.005 and not alike.alike(worn, shown),
-                     'the pictures within %.3f of what is told; %s' % (apart, alike.alike(worn, shown) or 'alike'))
+        faults = alike.alike(worn, list(found.values()))
+        report.check('this host keeps the pictures: those it names measure what is told of them (PICTURED), and the '
+                     "robot in the figure's likeness is alike to every one it keeps", apart < 0.005 and not faults,
+                     '%d named within %.3f of what is told, untold %s; %s' % (
+                         len(named), apart, ', '.join(sorted(set(found) - set(told))) or 'none', faults or 'alike'))
     else:
         report.skip('the pictures beside the tree measure what is told of them', 'no pictures on this host')
 
