@@ -173,10 +173,21 @@ def _apart(xml, pairs):
         '<exclude body1="%s" body2="%s"/>' % pair for pair in pairs))
 
 
+def lumped(joint):
+    """A driven joint's armature as its element lumps it, kg m^2: its servo's and its rotor's reflected
+    (`physics.REFLECTED`) - beyond the servo's, or beside it where a series spring steps the rotor in its
+    box, as the world steps that joint (`physics`: its armature the servo's, its rotor the box's). Lumped
+    beyond it there, the robot's law held an ankle 0.293 kg m^2 for the world's 0.343, its swing's torque
+    15 % short, and the on-line filter read the left ankle's torque an amp 0.42 down as built (`wear`)."""
+    from machine.world.physics import REFLECTED
+    from machine.body.servos import SERVO
+    s0 = SERVO[kind(joint)][3]
+    return s0 + REFLECTED * (drives.armature(joint) - (0.0 if drives.series(joint) else s0))
+
+
 def _joint(joint, axis, sign):
     """A joint's element: its drive's armature, its stops, its spring or its gearbox's drag."""
-    from machine.world.physics import BACKDRIVE, REFLECTED
-    from machine.body.servos import SERVO
+    from machine.world.physics import BACKDRIVE
     stop, spring = drives.TRAVEL.get(kind(joint)), drives.passive(joint)
     if spring:
         stiffness, _damp, rest = spring
@@ -185,8 +196,7 @@ def _joint(joint, axis, sign):
     axes = {'x': (1, 0, 0), 'y': (0, 1, 0), 'z': (0, 0, 1)}
     return '<joint name="%s" axis="%g %g %g" armature="%g"%s%s/>' % (
         (joint,) + tuple(sign * v for v in axes[axis]) + (
-            _passive_j(joint) if spring else
-            SERVO[kind(joint)][3] + REFLECTED * (drives.armature(joint) - SERVO[kind(joint)][3]),
+            _passive_j(joint) if spring else lumped(joint),
             ' limited="true" range="%g %g"' % stop if stop else '',
             ' stiffness="%g" springref="%g" damping="%g"' % (spring[0], spring[2], spring[1])
             if spring and spring[0] else
