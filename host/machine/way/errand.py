@@ -249,6 +249,8 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
     # round the bed 1 m off and more walked, the robot was told to stand mid-curve at 0.84 m/s and fell
     gap, closing = ((float(e['curve'][-1, 2] - e['curve'][e['k'], 2]) + math.hypot(float(e['curve'][e['k'], 0]) - gx, float(e['curve'][e['k'], 1]) - gz),
                      max(0.0, vx_w * math.sin(along) + vz_w * math.cos(along))) if len(e['curve']) else (gap, closing))
+    run_out = len(e['curve']) > 0 and (float(e['curve'][-1, 2] - e['curve'][e['k'], 2])
+                                       <= stride.STRIDE_M + voxels.CELL_M * float(len(e['way']) > 1))
     ctx = _Context(g, {
         'gx': gx, 'gz': gz, 'pyaw': pyaw, 's_par': s_par, 's_perp': s_perp, 's_perp_stop': s_perp_stop,
         's_perp_side': s_perp_side,
@@ -260,9 +262,11 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
         # the robot's run-out its speed's over t_stop - 0.87 m at 0.81 m/s, 1.17 at 0.92 - and a
         # stride at least, its brake's: told 0.31 m off its stage at 0.25 m/s it went
         # on 0.5 m onto the bed; a cell early at a corner, none at its stage: a cell short there the
-        # robot backed it after the robot's turn
-        'corner': bool(e['way']) and gap <= max(closing * t_stop, stride.STRIDE_M * float(closing > 0.0))
-        + voxels.CELL_M * float(len(e['way']) > 1),
+        # robot backed it after the robot's turn. Or where the robot's curve slows it to the corner's speed
+        # (`route.rounded`'s run-out), read at its place on the curve as its pace is: by its own distance it was
+        # asked that speed 1.8 cm short of the run-out, stepped in place 30 s and never closed in
+        'corner': bool(e['way']) and (gap <= max(closing * t_stop, stride.STRIDE_M * float(closing > 0.0))
+                                      + voxels.CELL_M * float(len(e['way']) > 1) or run_out),
         'err_w': se2.wrap_angle(math.atan2(ax - gx, az - gz) - pyaw), 'off_w': se2.wrap_angle(along - pyaw),
         'aim_m': math.hypot(ax - gx, az - gz), 'pace': pace,
         'err_yaw': se2.wrap_angle(e['hdd'] - pyaw),

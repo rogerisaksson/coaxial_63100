@@ -31,12 +31,12 @@ STRUCTURES = (STRUCTURE, 'test_layout.py', 'test_mirrors.py', 'test_wire_shapes.
               METACOMPILER_CRAFTS, METACOMPILER_RIG, METACOMPILER_SOLVER)
 #: Suites with prior CI or local regressions, scheduled right after structural checks so a regression stops the run at once:
 #: what GitHub's last host run left red is laid at its head at every commit (tools/dev/ci.py, the pre-commit).
-FAILED_FIRST = ('test_smart.py', 'test_stiction.py', 'test_wasd.py', 'test_scenarios.py',
-                'test_errands.py', 'test_ortho.py', 'test_sysid_live.py', 'test_introspect.py',
-                'test_leap.py', 'test_floor.py', 'test_wbc_core.py', 'test_wear.py',
-                'test_daq_api.py', 'test_kernel.py', 'test_docks.py', 'test_ollama_runner.py',
-                'test_se3_core.py', 'test_views_apps.py', 'test_native.py', 'test_mirrors.py',
-                'test_quick.py', 'test_sysid.py', 'test_tick.py', 'test_dsp.py',
+FAILED_FIRST = ('test_smart.py', 'test_errands.py', 'test_scenarios.py', 'test_wasd.py',
+                'test_stiction.py', 'test_ortho.py', 'test_native_heat.py', 'test_sysid_live.py',
+                'test_introspect.py', 'test_leap.py', 'test_floor.py', 'test_wbc_core.py',
+                'test_wear.py', 'test_daq_api.py', 'test_kernel.py', 'test_docks.py',
+                'test_ollama_runner.py', 'test_se3_core.py', 'test_views_apps.py', 'test_native.py',
+                'test_mirrors.py', 'test_quick.py', 'test_sysid.py', 'test_tick.py', 'test_dsp.py',
                 'test_wayfinder.py', 'test_views_grove.py', 'test_camera.py', 'test_sight.py',
                 'test_gaze.py', 'test_replays.py', 'test_bedside.py', 'test_substrate.py',
                 'test_vault.py', 'test_emulator.py')
