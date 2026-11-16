@@ -31,8 +31,8 @@ STRUCTURES = (STRUCTURE, 'test_layout.py', 'test_mirrors.py', 'test_wire_shapes.
               METACOMPILER_CRAFTS, METACOMPILER_RIG, METACOMPILER_SOLVER)
 #: Suites with prior CI or local regressions, scheduled right after structural checks so a regression stops the run at once:
 #: what GitHub's last host run left red is laid at its head at every commit (tools/dev/ci.py, the pre-commit).
-FAILED_FIRST = ('test_stiction.py', 'test_wasd.py', 'test_errands.py', 'test_ortho.py',
-                'test_scenarios.py', 'test_sysid_live.py', 'test_introspect.py', 'test_leap.py',
+FAILED_FIRST = ('test_stiction.py', 'test_ortho.py', 'test_wasd.py', 'test_scenarios.py',
+                'test_errands.py', 'test_sysid_live.py', 'test_introspect.py', 'test_leap.py',
                 'test_smart.py', 'test_floor.py', 'test_wbc_core.py', 'test_wear.py',
                 'test_daq_api.py', 'test_kernel.py', 'test_docks.py', 'test_ollama_runner.py',
                 'test_se3_core.py', 'test_views_apps.py', 'test_native.py', 'test_mirrors.py',
@@ -151,6 +151,8 @@ TICK = 'test_tick.py'
 #: The compiler vectorises the robot's cores as its table says, a target at a time: no loop is lost
 #: (tools.cores.vectorized).
 VECTORIZED = 'test_vectorized.py'
+#: The robot's own libm: C and twin one set of bits, a digest pinned, under 1 ulp, Annex F's (machine.libm).
+LIBM = 'test_libm.py'
 #: The robot's processes placed by its host's topology, on hosts of other shapes and live on this one
 #: (machine.process.placed).
 PLACED = 'test_placed.py'
@@ -275,7 +277,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, NATIVE_SYSID, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, CAMERA, GAZE, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
-                   WBC_CORE, LEAP, WASD, WRENCH, CHAIN, QP, SYSID, SYSID_LIVE, COMPILED, QUICK, TICK, STICTION, VECTORIZED, PLACED, DEPENDS, CI, WORKFLOW, SMART, PORTED, BORNE, REGISTRY, CLASSES, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, DSP, KERNEL, SHIELD, WAYFINDER, SAYS, INTROSPECT, GATE, TUNE, FLOOR, SITUATION, BUSES, ERRANDS, DOCKS,
+                   WBC_CORE, LEAP, WASD, WRENCH, CHAIN, QP, SYSID, SYSID_LIVE, COMPILED, QUICK, TICK, STICTION, VECTORIZED, LIBM, PLACED, DEPENDS, CI, WORKFLOW, SMART, PORTED, BORNE, REGISTRY, CLASSES, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, DSP, KERNEL, SHIELD, WAYFINDER, SAYS, INTROSPECT, GATE, TUNE, FLOOR, SITUATION, BUSES, ERRANDS, DOCKS,
                    CYCLIC, QUAD, QUAD_PULL,
                    AERO_CORE, MPPI_CORE, SE3_CORE, SE3_GRIP, STREAMS, QUAD_COURSE, SWEEP, BOOT)
                   + VIEWS
@@ -365,7 +367,7 @@ JOINS = (
     (20, CTRL_CORE),
     (20, WORLD_CORE),
     (20, WBC_CORE),
-    (20, SYSID), (20, SYSID_LIVE), (20, COMPILED), (20, QUICK), (20, TICK), (80, VECTORIZED), (80, STICTION), (20, PLACED), (20, DEPENDS), (20, CI), (20, WORKFLOW), (20, SMART), (35, PORTED), (20, BORNE), (20, REGISTRY), (20, CLASSES),
+    (20, SYSID), (20, SYSID_LIVE), (20, COMPILED), (20, QUICK), (20, TICK), (80, VECTORIZED), (20, LIBM), (80, STICTION), (20, PLACED), (20, DEPENDS), (20, CI), (20, WORKFLOW), (20, SMART), (35, PORTED), (20, BORNE), (20, REGISTRY), (20, CLASSES),
     (20, AERO_CORE),
     (20, MPPI_CORE),
     (20, SE3_CORE),
@@ -436,7 +438,7 @@ PORT = ('test_mcp.py', 'test_parity.py')
 #: on as shards side by side.
 SHARDED = (SENSORLESS, CONTROLLER, GYNOID, ORTHO, SYSID, SYSID_LIVE, WEAR, SITUATION, 'test_simulated.py', 'test_views_segments.py',
            DAQ_API, QUAD_PAGE, REPLAYS, SCENES, ERRANDS, WASD, STRUCTURE,
-           PORTED, 'test_mirrors.py', LEAP, TICK, STICTION, VECTORIZED, FLOOR, CAMERA, SIGHT, GAZE)
+           PORTED, 'test_mirrors.py', LEAP, TICK, STICTION, VECTORIZED, LIBM, FLOOR, CAMERA, SIGHT, GAZE)
 
 #: A suite's seconds where the tree holds no record of its own (tests/.counts.json, not committed) are its work
 #: in tests/work.json over the pace of the host a run is on (tools/dev/machine_detector.py): numbers written

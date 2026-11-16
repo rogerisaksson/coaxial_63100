@@ -1,5 +1,5 @@
 """What a change to tools/cores/ reaches: its modules, a prefix each, and their suites."""
-from tools.dev.suites import (AERO_CORE, BOOT_CLIENT, BOOT_CORE, COMPILED, QUICK, TICK, VECTORIZED,
+from tools.dev.suites import (AERO_CORE, BOOT_CLIENT, BOOT_CORE, COMPILED, QUICK, TICK, VECTORIZED, LIBM,
                               PORTED, BORNE, REGISTRY, CLASSES, CORE, CTRL_CORE, DAQ_CORE, DRIVE,
                               DRIVE_OBSERVER, FILTER, LEAP, ORTHO, QUADS, REACH, SENSORLESS, SHTP,
                               STREAMS, STRUCTURE, SYSID, THERMAL, THERMAL_APP, WBC_CORE, WEAR,
@@ -14,7 +14,8 @@ CORES = (
     ('host/tools/cores/thermal.py',            (THERMAL, THERMAL_APP)),
     ('host/tools/cores/reach.py',              (STRUCTURE, REACH)),
     ('host/tools/cores/wbc.py',                (STRUCTURE, WBC_CORE, LEAP)),
-    ('host/tools/cores/wbc_sources.py',        (STRUCTURE, WBC_CORE, LEAP, VECTORIZED, TICK)),
+    ('host/tools/cores/wbc_sources.py',        (STRUCTURE, WBC_CORE, LEAP, VECTORIZED, TICK, LIBM)),
+    ('host/tools/cores/libm',                  (STRUCTURE, LIBM, VECTORIZED, 'test_mirrors.py')),
     ('host/tools/cores/arrays.py',             (STRUCTURE, WBC_CORE, LEAP)),
     ('host/tools/cores/motion.py',             (STRUCTURE, WBC_CORE, PORTED)),
     ('host/tools/cores/step.py',               (STRUCTURE, WBC_CORE, PORTED, QUICK)),

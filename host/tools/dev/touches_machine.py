@@ -4,10 +4,11 @@ from tools.dev.suites import (AERO_CORE, BALLISTIC, BEDSIDE, BUSES, CAMERA, COMP
                               GYNOID, INTROSPECT, KERNEL, LEAP, MPPI_CORE, NATIVE_SYSID, ORTHO, PORTED, BORNE, REGISTRY,
                               POSTURES, QUADS, REACH, RENDER, REPLAYS, SAYS, SCENES, SENSORLESS, SHIELD,
                               SIGHT, SITUATION, STREAMS, STRUCTURE, SUBSTRATE, SWEEP, SYSID, SYSID_LIVE,
-                              TERMS, THERMAL, TUNE, VAULT, WAYFINDER, WBC, WBC_CORE, WEAR, WRENCH, TICK, STICTION, PLACED)
+                              TERMS, THERMAL, TUNE, VAULT, WAYFINDER, WBC, WBC_CORE, WEAR, WRENCH, TICK, STICTION, PLACED, LIBM)
 
 #: machine/'s rows of the path map (`touches.TOUCHES`) in its order: a module's before its folder's.
 MACHINE = (
+    ('host/machine/libm',                          (STRUCTURE, LIBM, 'test_mirrors.py')),
     ('host/machine/rig/ansi.py',                   ('test_simulated.py', CONTROLLER)),
     ('host/machine/rig/parts.py',                  (CONTROLLER, CTRL_CORE, CYCLIC)),
     ('host/machine/rig/cyclic.py',                 (CYCLIC,)),

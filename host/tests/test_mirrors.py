@@ -396,13 +396,13 @@ def test_generated_files_name_their_tools(r):
     every tracked file saying so is one of theirs: the generators' outputs and the notices, one set."""
     import subprocess
     from machine.body import mechatronics
-    from tools.cores import footprint, manifest, model, reach, terms, vectorized
+    from tools.cores import footprint, libm, manifest, model, reach, terms, vectorized
     from tools.dev import cover, pinned, token_budget
     from tools.sim import dimensions
     host = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     outputs = {footprint.PATH: footprint, reach.PATH: reach, terms.PATH: terms, model.HEADER: model,
                model.SOURCE: model, dimensions.PAGE: dimensions, str(pinned.LOCK): pinned, cover.PAGE: cover,
-               vectorized.PATH: vectorized}
+               vectorized.PATH: vectorized, libm.C_PATH: libm, libm.PY_PATH: libm}
     outputs.update((manifest.path(robot), manifest) for robot in mechatronics.robots())
 
     def key(path):
