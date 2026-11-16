@@ -5,12 +5,13 @@
     mechanism.posed(parts, placed, angles, frames)   # each crank's, pin's and rod's (turn, spot)
     layers = mechanism.wires(parts, frames)  # the kinematic stick figure: [(a, b, ink)], world
 
-The robot's skeleton's parts (`machine.body.skeleton`), each drive's drum (`drums`), each belt over its two
-pulleys; cranks, pins and rods posed each frame (`posed`), their parent '*'.
+The robot's skeleton's parts (`machine.body.skeleton`), each drive's drum (`drums`) - its motor its maker's
+model turned where one is found (`bells`) -, each belt over its two pulleys; cranks, pins and rods posed each
+frame (`posed`), their parent '*'.
 """
 import math
 
-from coaxial.graphics import drums
+from coaxial.graphics import bells, drums
 from coaxial.graphics.lit import paint
 from coaxial.graphics.shapes import drum, ellipsoid, limb, loft
 from machine.body import build, drives, figure, linkage
@@ -146,12 +147,13 @@ def parts(bare=False):
             for name, parent, joints, at, mesh in drums.stages()]
     for name, parent, offset, _mesh in drums.drums():
         joint = name[len('drive_'):]
-        sized = paint(SIZED[drives.of(joint)[0]])
+        kind = drives.of(joint)[0]
         axis, _half = drums.AXES[joint]
         letter = 'xyz'[[abs(a) for a in axis].index(1.0)]
-        ink = {'board': paint(PCB), 'motor': sized, 'gear': paint(GEARBOX)}
-        out += [(PARTED[part] + joint, parent, (), tuple(o + a * at for o, a in zip(offset, axis)),
-                 0.0, drum(radius, long, letter, ink[part]))
+        ink = {'board': paint(PCB), 'motor': paint(SIZED[kind]), 'gear': paint(GEARBOX)}
+        out += [(PARTED[part] + joint, parent, (), tuple(o + a * at for o, a in zip(offset, axis)), 0.0,
+                 (part == 'motor' and bells.turned(kind, radius, long, letter, sum(axis), ink[part]))
+                 or drum(radius, long, letter, ink[part]))
                 for part, radius, at, long in drives.along(joint)]
     poly, steel = paint(POLYMER), paint(STEEL)
     if not bare:

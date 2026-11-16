@@ -4,8 +4,9 @@ The robot is its mechanism (`mechanism.parts`: carbon tubes, each drive's drum, 
 joints, gimbals), every part of it a hard shell's in its livery's paints (`framed`: black
 carbon tubes, magenta drives, steel) and each drive bolted - a ring of bolts on either face
 of its motor's can -; on it its guards (`guards.laid`: honeycomb pads in carbon frames, stood
-off its tubes), its hands and its head - a body's and a figure's where a likeness is worn,
-else as built - and its shoes. No shell closes it: its tubes, its drives and the air between
+off its tubes), its seat (`seat`: its buttocks where the floor and a chair meet them), its
+hands and its head - a body's and a figure's where a likeness is worn, else as built - and its
+shoes. No shell closes it: its tubes, its drives and the air between
 them are what is seen. Dressed (`dressed`), it wears the likeness's clothes over that: what a
 garment girds is not drawn, what is left of a triangle across its end a layer further
 (`lit.UNDER`), and nothing of it stands out of them (`tools/sim/shown.py --out`).
@@ -18,7 +19,7 @@ from typing import Any
 
 from coaxial.graphics import drums, guards, mechanism
 from coaxial.graphics.lit import PAINTED, UNDER, WOVEN, paint
-from coaxial.graphics.livery import BOARD, BOLT, FRAME, GEAR, SERVO, STEEL, TUBE
+from coaxial.graphics.livery import BOARD, BOLT, FRAME, GEAR, PAD, SERVO, STEEL, TUBE
 from coaxial.graphics.panels import SHELL
 from coaxial.graphics.shapes import turn_about
 from machine.body import figure
@@ -51,6 +52,14 @@ BOLTS, CIRCLE, BOLT_R, BOLT_M = 6, 0.72, 0.005, 0.004
 #: (CLEARED, a part's name's start) - within NEAR_M of the segment's axis (the build's,
 #: `machine.body.guards`) and DRUM_M of its ends.
 CLEARED, DRUM_M = ('drive_', 'inv_', 'gear_', 'hung'), 0.06
+#: The robot's seat is its two buttocks (`figure.SEAT_R`, `SEAT_X`, `SEAT_Y`, `SEAT_Z`: the capsules the floor, a
+#: chair and a bed meet) where they are round behind, the half sphere each ends in under its axis: a pad's face,
+#: SEAT_ROWS rows from its pole and SEAT_AROUND round, each its own side of the robot's middle - where the two
+#: meet, a cleft. Drawn whole, a buttock held the hips' drives and gimbals, and a thigh's quick-release stood
+#: 0.8 mm from its face at its middle; a hip's yaw to its stops, its roll 30 deg either way and its pitch from
+#: -40 to 100 deg bring no part within 23 mm of its half sphere. Cheeks stood on struts behind it, and the robot
+#: sat on them in place of its buttocks and tipped onto its back scooting on the floor.
+SEAT_ROWS, SEAT_AROUND = 8, 12
 #: Under its clothes: about a segment's bone - a limb's from its joint to the next's, the
 #: trunk's the upright - cloth within REACH_M of it in UNDER_OF of SIDES ways round, told in
 #: slabs BIN_M along it from SPAN_M before its joint, a slab with its two neighbours. What a
@@ -68,9 +77,32 @@ TUCK_M = 0.012
 _SEGMENTS = frozenset(seg[0] for seg in figure.SEGMENTS)
 
 
-def _bolts(axis, corners):
-    """A drive's bolts' mesh: BOLTS heads on either face of the can `corners` (its part's frame)
-    along its `axis`, a hexagon's prism each, steel."""
+def faces(axis, corners, triangles, spots):
+    """(over, under): how far along `axis` the can (`corners`, `triangles`) stands over and under each
+    of `spots` (n, 3) seen down its axis - its face there either way, a turned motor's slope or hub
+    (`bells`) as a drum's flat; -inf over and inf under where none of it is."""
+    from coaxial.model.blocks import numpy as np
+    e1 = np.cross(axis, (0.0, 0.0, 1.0) if abs(axis[2]) < 0.9 else (1.0, 0.0, 0.0))
+    e1 /= np.linalg.norm(e1)
+    e2 = np.cross(axis, e1)
+    flat = np.stack([corners @ e1, corners @ e2], 1)[triangles]            # (t, 3, 2)
+    a, b, c = flat[:, 0], flat[:, 1], flat[:, 2]
+    q = np.stack([spots @ e1, spots @ e2], 1)[:, None]                     # (n, 1, 2)
+    den = (b[:, 1] - c[:, 1]) * (a[:, 0] - c[:, 0]) + (c[:, 0] - b[:, 0]) * (a[:, 1] - c[:, 1])
+    den = np.where(np.abs(den) < 1e-15, np.nan, den)
+    u = ((b[:, 1] - c[:, 1]) * (q[..., 0] - c[:, 0]) + (c[:, 0] - b[:, 0]) * (q[..., 1] - c[:, 1])) / den
+    v = ((c[:, 1] - a[:, 1]) * (q[..., 0] - c[:, 0]) + (a[:, 0] - c[:, 0]) * (q[..., 1] - c[:, 1])) / den
+    w = 1.0 - u - v
+    height = (corners @ axis)[triangles]
+    at = u * height[:, 0] + v * height[:, 1] + w * height[:, 2]
+    inside = (u >= -1e-9) & (v >= -1e-9) & (w >= -1e-9)
+    return np.where(inside, at, -np.inf).max(axis=1), np.where(inside, at, np.inf).min(axis=1)
+
+
+def _bolts(axis, corners, triangles):
+    """A drive's bolts' mesh: BOLTS heads on either face of the can (`corners`, `triangles`, its
+    part's frame) along its `axis` on a circle CIRCLE of its radius, each on its face where it
+    stands (`faces`), a hexagon's prism each, steel."""
     from coaxial.model.blocks import numpy as np
     along = corners @ axis
     radius = float(np.linalg.norm(corners - np.outer(along, axis), axis=1).max())
@@ -81,15 +113,36 @@ def _bolts(axis, corners):
     head = BOLT_R * (np.outer(np.cos(turn), e1) + np.outer(np.sin(turn), e2))
     sides = [row for i in range(6) for row in ((i, (i + 1) % 6, i + 6), ((i + 1) % 6, (i + 1) % 6 + 6, i + 6))]
     one = np.array(sides + [(6, 7, 8), (6, 8, 9), (6, 9, 11), (9, 10, 11)])
+    ring = 2.0 * math.pi * np.arange(BOLTS) / BOLTS
+    spots = CIRCLE * radius * (np.outer(np.cos(ring), e1) + np.outer(np.sin(ring), e2))
+    over, under = faces(axis, corners, triangles, spots)
     cs, ts = [], []
-    for face, way in ((float(along.max()), 1.0), (float(along.min()), -1.0)):
+    for face, way in ((over, 1.0), (under, -1.0)):
         for k in range(BOLTS):
-            at = 2.0 * math.pi * k / BOLTS
-            centre = axis * face + CIRCLE * radius * (math.cos(at) * e1 + math.sin(at) * e2)
+            centre = axis * float(face[k]) + spots[k]
             ts.append(one + 12 * len(cs))
             cs.append(np.vstack([centre + head, centre + head + axis * (way * BOLT_M)]))
     out = np.vstack(cs)
     return out, np.vstack(ts), np.zeros((len(out), 2)), np.full(len(out), BOLT)
+
+
+def seat():
+    """The robot's seat's mesh, the pelvis's frame (SEAT_ROWS, SEAT_AROUND): each buttock's half sphere behind,
+    from its pole to its rim, under its axis, its own side of the middle; a pad's face, out."""
+    from coaxial.model.blocks import numpy as np
+    r, x0, y0, z0 = figure.SEAT_R, figure.SEAT_X, figure.SEAT_Y, figure.SEAT_Z[0]
+    up = np.linspace(0.0, 0.5 * math.pi, SEAT_ROWS + 1)
+    rho, z = r * np.sin(up), z0 - r * np.cos(up)
+    start = math.pi + np.arccos(np.clip(x0 / np.maximum(rho, 1e-12), -1.0, 1.0))
+    turn = start[:, None] + (2.0 * math.pi - start[:, None]) * np.linspace(0.0, 1.0, SEAT_AROUND + 1)[None]
+    left = np.stack([x0 + rho[:, None] * np.cos(turn), y0 + rho[:, None] * np.sin(turn),
+                     np.broadcast_to(z[:, None], turn.shape)], 2).reshape(-1, 3)
+    a = (np.arange(SEAT_ROWS)[:, None] * (SEAT_AROUND + 1) + np.arange(SEAT_AROUND)).ravel()
+    b, c = a + 1, a + SEAT_AROUND + 1
+    one = np.vstack([np.stack([a, b, c], 1), np.stack([b, c + 1, c], 1)])
+    corners = np.vstack([left, left * (-1.0, 1.0, 1.0)])
+    triangles = np.vstack([one, one[:, ::-1] + len(left)])
+    return corners, triangles, np.zeros((len(corners), 2)), np.full(len(corners), PAD)
 
 
 def framed(gone=()):
@@ -108,7 +161,8 @@ def framed(gone=()):
         out.append((*head, tuple(each[:0] for each in mesh) if name in gone else mesh))
         if name.startswith('drive_'):
             joint = name[len('drive_'):]
-            out.append(('bolts_' + joint, head[1], (), head[3], 0.0, _bolts(np.array(drums.AXES[joint][0]), corners)))
+            out.append(('bolts_' + joint, head[1], (), head[3], 0.0,
+                        _bolts(np.array(drums.AXES[joint][0]), corners, triangles)))
     return out
 
 
@@ -150,7 +204,8 @@ def parts(meshes, extra, liked: Any = None):
     for name, parent, *rest in extra:
         if len(rest) == 2 and parent == 'head' and not figured and (name in KEPT or name.endswith(ENDS)):
             out.append(('shell_' + name, parent, (), rest[0], 0.0, rest[1]))
-    return out + [(name, parent, (), offset, 0.0, mesh) for name, parent, offset, mesh in guards.laid(cleared(out, body, meshes, extra))]
+    out.append(('seat', 'pelvis', (), z0, 0.0, seat()))
+    return out +[(name, parent, (), offset, 0.0, mesh) for name, parent, offset, mesh in guards.laid(cleared(out, body, meshes, extra))]
 
 
 def cleared(parts_, body, meshes, extra):

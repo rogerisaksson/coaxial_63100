@@ -32,17 +32,19 @@ def _off(points, tubes):
 def test_the_mechanism_in_its_livery_bolted(report):
     """Bare of its clothes the robot is drawn as its mechanism (`plated.framed`): every part of it a hard shell's in
     its livery's paints - black carbon tubes, anodised drives -, each drive bolted, a ring of bolts on either face of
-    its can; its own head and its shoes on it, no shell over it. Posed as its mechanism is."""
+    its can; its own head and its shoes on it, no shell over it, and its seat where it sits - its buttocks' round
+    backs. Posed as its mechanism is."""
     import numpy as np
     from coaxial.graphics import drums, gynoid, lit, livery, mechanism, plated
-    from machine.body import figure
+    from machine.body import figure, guards
     body = gynoid.body(dressed=False, plates=True)
     names, frame = [p[0] for p in body.parts], [p[0] for p in mechanism.parts()]
     worn = {name: body.parts[names.index(name)][5][3] for name in frame}
     shells = {name for name in names if name.startswith('shell_')}
-    report.check("its mechanism's every part in its order, its bolts and its guards beside; of a shell its own head "
-                 'and its shoes alone - no trunk, no hips, no limb',
-                 [n for n in names if not n.startswith(('bolts_', 'guard_', 'shell_'))] == frame
+    report.check("its mechanism's every part in its order, its bolts, its guards and its seat beside; of a shell its "
+                 'own head and its shoes alone - no trunk, no hips, no limb',
+                 [n for n in names if not n.startswith(('bolts_', 'guard_', 'shell_')) and n != 'seat'] == frame
+                 and names.count('seat') == 1
                  and shells == {'shell_head', 'shell_jaw', 'shell_nose', 'shell_lips'} | {
                      'shell_' + s + n for s in ('left_', 'right_') for n in ('ear', 'eye', 'foot', 'toes')},
                  '%d parts of the mechanism, %d shells' % (len(frame), len(shells)))
@@ -56,18 +58,26 @@ def test_the_mechanism_in_its_livery_bolted(report):
                  and len(tubes) > 20 and all(livery.TUBE in worn[name] for name in tubes) and bool(livery.TUBE & lit.TWILL),
                  '%d parts of drives anodised, %d tubes carbon' % (len(servos), len(tubes)))
     bolted = [name[len('bolts_'):] for name in names if name.startswith('bolts_')]
-    heads, can = body.parts[names.index('bolts_left_knee')][5], body.parts[names.index('drive_left_knee')][5][0]
+    heads, can = body.parts[names.index('bolts_left_knee')][5], body.parts[names.index('drive_left_knee')][5]
     axis = np.array(drums.AXES['left_knee'][0], float)
-    along, radius = heads[0] @ axis, float(np.linalg.norm(can - np.outer(can @ axis, axis), axis=1).max())
+    along, radius = heads[0] @ axis, float(np.linalg.norm(can[0] - np.outer(can[0] @ axis, axis), axis=1).max())
     ring = np.linalg.norm(heads[0] - np.outer(along, axis), axis=1)
+    base, top = (heads[0].reshape(-1, 12, 3)[:, part].mean(axis=1) for part in (slice(0, 6), slice(6, 12)))
+    over, under = plated.faces(axis, can[0], can[1], base)
+    face = np.r_[over[:plated.BOLTS], under[plated.BOLTS:]]
+    way = np.r_[np.ones(plated.BOLTS), -np.ones(plated.BOLTS)]
     report.check('each drive is bolted: BOLTS heads on either face of its can, a hexagon each, on a circle CIRCLE of '
-                 'its radius, BOLT_M proud of the face',
+                 'its radius, each on its face where it stands and BOLT_M proud of it',
                  sorted(bolted) == sorted(name[len('drive_'):] for name in frame if name.startswith('drive_'))
                  and len(heads[0]) == 2 * plated.BOLTS * 12 and bool((heads[3] == livery.BOLT).all())
                  and abs(float(ring.mean()) - plated.CIRCLE * radius) < 0.002
-                 and abs(float(along.max()) - float((can @ axis).max()) - plated.BOLT_M) < 1e-6
-                 and abs(float(along.min()) - float((can @ axis).min()) + plated.BOLT_M) < 1e-6,
-                 '%d drives bolted, a knee\'s ring %.4f m of a can %.4f' % (len(bolted), ring.mean(), radius))
+                 and float(np.abs(base @ axis - face).max()) < 1e-9
+                 and float(np.abs((top - base) @ axis - way * plated.BOLT_M).max()) < 1e-9
+                 and float((base @ axis).max()) <= float((can[0] @ axis).max()) + 1e-9
+                 and float((base @ axis).min()) >= float((can[0] @ axis).min()) - 1e-9,
+                 '%d drives bolted, a knee\'s ring %.4f m of a can %.4f, its heads %.4f to %.4f along it of %.4f to %.4f'
+                 % (len(bolted), ring.mean(), radius, (base @ axis).min(), (base @ axis).max(), (can[0] @ axis).min(),
+                    (can[0] @ axis).max()))
     walk = dict(figure.stand(), left_hip=-25.0, right_hip=20.0, left_knee=30.0, left_shoulder=-25.0, right_elbow=40.0)
     stood, _n = body.pose(figure.stand())
     walked, _n = body.pose(walk)
@@ -75,6 +85,23 @@ def test_the_mechanism_in_its_livery_bolted(report):
                  body.see == 'plated' and bool(np.isfinite(walked).all()) and abs(float(stood[:, 1].min())) < 0.01
                  and abs(float(walked[:, 1].min())) < 0.01 and float(np.abs(walked - stood).max()) > 0.05,
                  'its lowest point %.4f m standing, %.4f walking' % (stood[:, 1].min(), walked[:, 1].min()))
+    seat, k = body.parts[names.index('seat')][5], names.index('seat')
+    rest = np.vstack([stood[slice(*body.spans[j])] for j, n in enumerate(names) if n != 'seat'])
+    rest = rest - (stood[slice(*body.spans[k])] - seat[0]).mean(axis=0)       # standing, its pelvis moved, not turned
+    r, x0, y0, z0 = figure.SEAT_R, figure.SEAT_X, figure.SEAT_Y, figure.SEAT_Z[0]
+    half = len(seat[0]) // 2
+    side = np.r_[np.ones(half), -np.ones(half)]
+    off = np.linalg.norm(seat[0] - np.stack([side * x0, np.full(2 * half, y0), np.full(2 * half, z0)], 1), axis=1) - r
+    gap = min(float(np.abs(np.linalg.norm(by - (s * x0, y0, z0), axis=1) - r).min(initial=np.inf)) for s in (1.0, -1.0)
+              for by in [rest[(s * rest[:, 0] >= 0.0) & (rest[:, 1] < y0) & (rest[:, 2] < z0)]])
+    report.check("its seat its buttocks' round backs (`figure.SEAT_*`: the capsules the floor and a chair meet), each's "
+                 "half sphere under its axis on its own side, the two met at its middle, a pad's face; nothing else of "
+                 "it within a guard's air of them, standing",
+                 len(seat[0]) == 2 * half and float(np.abs(off).max()) < 1e-9 and float(seat[0][:, 2].max()) <= z0 + 1e-12
+                 and float(seat[0][:, 1].max()) <= y0 + 1e-12 and bool((seat[0][:half, 0] > -1e-12).all())
+                 and bool((seat[0][half:, 0] < 1e-12).all()) and float(np.abs(seat[0][:, 0]).min()) < 1e-9
+                 and bool((seat[3] == livery.PAD).all()) and gap > guards.AIR_M,
+                 'off its buttocks %.1e m, %d corners a side, the rest %.4f m from them' % (np.abs(off).max(), half, gap))
 
 
 def test_guards_of_honeycomb_stood_off_the_tubes(report):
@@ -137,6 +164,49 @@ def test_guards_of_honeycomb_stood_off_the_tubes(report):
     report.check("a guard clears what it lies over: a knee's cup stands ahead of its knee's drum",
                  float(cup[:, 2].max()) > float(drum[:, 2].max()) + 0.01,
                  'the cup %.3f m ahead, the drum %.3f' % (cup[:, 2].max(), drum[:, 2].max()))
+
+
+def test_a_motor_turned_after_its_makers_model(report):
+    """A motor's model (`bells`: an OBJ, its axis z, its foot at 0) is told as its turned outline - a foot under a
+    bell, a hub on its face; the knee's motor is drawn after its model where one is found - within its drum, its
+    hub toward its gearbox -, else as its drum."""
+    import os
+    import tempfile
+    import numpy as np
+    from coaxial.graphics import bells, drums, gynoid
+    from coaxial.graphics.shapes import loft
+    from machine.body import drives
+    rings = [(0.0, 0.8, 0.8), (0.25, 0.8, 0.8), (0.25, 1.0, 1.0), (0.8, 1.0, 1.0), (0.8, 0.3, 0.3), (1.0, 0.3, 0.3)]
+    corners, triangles, _uv, _ink = loft(rings, 0, poles=(0.0, 1.0))       # up its y: a model's up its z
+    with tempfile.TemporaryDirectory() as folder:
+        path = os.path.join(folder, 'stepped.obj')
+        with open(path, 'w', encoding='utf-8', newline='') as file:
+            file.writelines('v %.6f %.6f %.6f\n' % (x, -z, y) for x, y, z in 0.04 * corners)
+            file.writelines('f %d %d %d\n' % tuple(t + 1) for t in triangles)
+        got, tall = bells.outline(path)
+    z, r = np.array(got).T
+    first, last = int(np.argmax(r)), len(r) - 1 - int(np.argmax(r[::-1]))           # its rim, up
+    under = np.interp((0.5, 0.9), r[:first + 1], z[:first + 1])                      # out under its foot and its bell
+    over = np.interp((0.15, 0.6), r[last:][::-1], z[last:][::-1])                    # in over its face to its hub
+    near = 2.0 / bells.BINS
+    report.check('a model told as its turned outline: its foot, its bell and its hub, a dozen points at the most, its '
+                 'height over its width',
+                 len(got) <= 12 and abs(tall - 0.5) < 1e-4 and float(np.abs(under - (0.0, 0.25)).max()) < near
+                 and float(np.abs(over - (1.0, 0.8)).max()) < near,
+                 '%d points, its foot and its bell %s under, its hub and its face %s over, %.6f tall a width' % (
+                     len(got), under.round(3).tolist(), over.round(3).tolist(), tall))
+    body = gynoid.body(dressed=False, plates=True)
+    names = [p[0] for p in body.parts]
+    can = body.parts[names.index('drive_left_knee')][5][0]
+    axis = np.array(drums.AXES['left_knee'][0], float)
+    _part, radius, _at, long = next(p for p in drives.along('left_knee') if p[0] == 'motor')
+    along = can @ axis
+    out = np.linalg.norm(can - np.outer(along, axis), axis=1)
+    face = out[along > along.max() - 1e-9].max()
+    report.check("the knee's motor after its model, within its drum and its hub toward its gearbox; with none, its drum",
+                 float(out.max()) <= radius + 1e-9 and float(np.ptp(along)) <= long + 1e-9
+                 and (face < 0.5 * radius if bells.MODELS else face > 0.8 * radius),
+                 '%d models; its face out to %.4f m of %.4f' % (len(bells.MODELS), face, radius))
 
 
 def test_arms_out_and_light_on_hard_shells(report):
@@ -219,7 +289,8 @@ def test_the_robot_bare_is_held_to_the_pictures(report):
 
 
 ROSTER = (test_the_mechanism_in_its_livery_bolted, test_guards_of_honeycomb_stood_off_the_tubes,
-          test_arms_out_and_light_on_hard_shells, test_the_robot_bare_is_held_to_the_pictures)
+          test_a_motor_turned_after_its_makers_model, test_arms_out_and_light_on_hard_shells,
+          test_the_robot_bare_is_held_to_the_pictures)
 
 
 def main(argv=None):
