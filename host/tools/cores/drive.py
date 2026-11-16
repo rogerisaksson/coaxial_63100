@@ -73,7 +73,6 @@ class Drive:
         lib.drv_wrap.restype, lib.drv_wrap.argtypes = f, [f]
         lib.drv_dt_volts.restype, lib.drv_dt_volts.argtypes = f, [vp, f]
         lib.drv_room.restype, lib.drv_room.argtypes = f, [vp]
-        lib.drv_current_limit.restype, lib.drv_current_limit.argtypes = f, [vp]
         self.own = at is None
         self.h = ctypes.c_void_p(lib.drv_new(ctypes.c_float(ts)) if self.own else at)
         self.n_params = lib.drv_param_count()
@@ -227,10 +226,6 @@ class Drive:
         arr = (ctypes.c_float * self.n_th_states)()
         self.lib.drv_thermal_state(self.h, arr, self.n_th_states)
         return dict(zip(THERMAL_STATES, arr))
-
-    def current_limit(self):
-        """Continuous box-constraint limit min(i_max, i_max_dyn), A."""
-        return self.lib.drv_current_limit(self.h)
 
     def hex_clamp(self, va, vb, vdc, v_frac=1.0):
         """Project (va, vb) onto the Space Vector Hexagon boundary."""

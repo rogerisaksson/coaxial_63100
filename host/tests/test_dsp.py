@@ -92,7 +92,7 @@ def test_the_maneuvers_read_as_written(report):
 def test_a_patch_moves_the_robots_walk_by_its_changes(report):
     """The nominal manifold voiced on itself moves no slot of the robot's walk and tells its walk's
     speed; the runway moves each voiced slot by its change off the nominal, relative to the robot's walk."""
-    from machine.texts import dsp, ortho, voicing
+    from machine.texts import ortho, voicing
     from machine.law import modal, se2
     got, fr = suite_read(), robot_frame()
     dry = got['nominal-biped-manifold']

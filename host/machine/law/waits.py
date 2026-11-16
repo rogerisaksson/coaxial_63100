@@ -1,16 +1,12 @@
 """The robot's table's rows that wait or wake it, held a pass on its law's arrays, in C bit for bit.
 
-    waits.held_back(g, dt)     # rows that halt the robot's rhythm wait while its capture point steps its
-    waits.risen_back(g, dt)    # rows that raise its wait while something bears it off its soles
-    waits.landed_back(g, dt)   # rows that lower its wait while nothing bears its
-    waits.borne_back(g, dt)    # rows a contact releases wait till a seat or a bed bears its
-    waits.sunk_back(g, dt)     # rows that raise it out of a dip wait while it still sinks
     waits.played_back(g, dt)   # rows not yet due wait while a move of its own plays (`joints.MOVES`)
-    waits.backs(g, dt)         # held, risen, landed, sunk, borne and latched back, a law pass's, in one call
+    waits.backs(g, dt)         # held, risen, landed, sunk, borne and latched rows, a law pass's, in one call
     waits.woken_rows(tab, st, t, dt)   # the rows due wake its rhythm where it has died down
 
 `g` is `sprung.laid`'s; the C is `tools.cores.wait` on `g['waits']` (`motion.laid`); `held_rows`,
-`risen_rows`, `landed_rows`, `played_rows` and `woken_rows` are its python, the reference.
+`risen_rows`, `landed_rows`, `sunk_rows`, `borne_rows`, `latched_rows`, `played_rows` and `woken_rows`
+are its python, the reference.
 """
 import math
 import os
@@ -23,26 +19,10 @@ from machine.law import impedance, latent, modal, poise, stride
 from machine.moves import leap
 
 
-def held_back(g, dt):
-    """Rows that halt the robot's rhythm - a stand, a hop's load - wait a pass while its capture point
-    steps it or a swing is under way (`modal.NEED`, `modal.SWINGS`), every row after them, its
-    labels and a hop's end with them: stepped through a hop's load, it left the floor rolling
-    and came down at 60 deg. Held longer than two of the robot's rhythm's swings (`latent.TURNS`) they
-    come: the swing waited for is not coming - the brake's sway kept one commanded on two
-    standing soles for ever, the stand that would end it never came, a sit asked held with it,
-    and told to stop on ice the robot shuffled on 38 cm at 0.045 m/s. Each hold counts its own: a
-    hop said 2.1 s after a stop, still stepping, loaded on one sole at once on the stand's. The robot's
-    rhythm at rest, no swing comes: sitting, its centre of mass behind its heels, a seat asked
-    was held for ever."""
-    t = g['t']
-    shift, first, g['_held_s'] = g['waits'].held(g['tab'], t, dt, g.get('_held_s', 0.0))
-    g['labels'] = [(w + shift * (w >= first), n) for w, n in g['labels']]
-    g['_jump_until'] = g.get('_jump_until', 0.0) + shift * (g.get('_jump_until', 0.0) > t)
-
-
 def held_rows(tab, a, out, t, dt, held_s):
-    """(shift, first, held_s) of `held_back` on the robot's table `tab` (its times shifted in place), modal's
-    `a`, the latent `out`, at `t`, `dt` on, the robot's hold `held_s` s so far. In C bit for bit
+    """(shift, first, held_s) on the robot's table `tab` (its times shifted in place), modal's
+    `a`, the latent `out`, at `t`, `dt` on, the robot's hold `held_s` s so far: rows that halt the
+    robot's rhythm wait while its capture point steps it or a swing is under way. In C bit for bit
     (`g['waits']`, `laid`)."""
     stepping = float((a[modal.NEED] > 0.0) | (a[modal.SWINGS].max() > 0.0))
     at = tab[:, latent.AT]
@@ -58,20 +38,11 @@ def held_rows(tab, a, out, t, dt, held_s):
     return shift, first, held + active * dt
 
 
-def risen_back(g, dt):
-    """Rows that raise the robot - its height asked up, its centre of mass told over the
-    robot's soles - while something bears it off its soles wait a pass, every row after them
-    with them, while its capture point is off its soles: thrust up off a bed on the clock, the
-    robot's centre of mass 14 cm behind its soles' middle, it rose, its trunk came up
-    and it stepped back as it let the robot go."""
-    shift, first, g['_prop_until'] = g['waits'].risen(g['tab'], g['t'], dt, g.get('_prop_until', -1.0))
-    g['labels'] = [(w + shift * (w >= first), n) for w, n in g['labels']]
-
-
 def risen_rows(tab, y, fr, a, st, t, dt, prop_until):
-    """(shift, first, prop_until) of `risen_back` on the robot's table `tab` (its times shifted in place),
+    """(shift, first, prop_until) on the robot's table `tab` (its times shifted in place),
     modal's `y`, `fr` and `a`, the robot's latent `st`, at `t`, `dt` on, `prop_until` when a prop last
-    bore it. In C bit for bit (`g['waits']`, `laid`)."""
+    bore it: rows that raise the robot while something bears it off its soles wait while its capture
+    point is off its soles. In C bit for bit (`g['waits']`, `laid`)."""
     # what bears the robot off its soles, its hands' share with it (`borne.latched`): risen off a
     # chair's seat on the robot's hands alone, its capture point off its soles, it was thrust
     # off one sole at 500 N
@@ -111,19 +82,10 @@ def risen_rows(tab, y, fr, a, st, t, dt, prop_until):
     return shift, first, until
 
 
-def landed_back(g, dt):
-    """Rows that lower the robot - its height asked down - wait a pass while nothing bears it, soles or
-    prop, every row after them and a hop's end with them: a jump's absorption on the clock met
-    its soles 0.1 s early, its legs long on the told stand, and it bounced off them to a
-    second fall."""
-    shift, first = g['waits'].landed(g['tab'], g['t'], dt)
-    g['labels'] = [(w + shift * (w >= first), n) for w, n in g['labels']]
-    g['_jump_until'] = g.get('_jump_until', 0.0) + shift * (g.get('_jump_until', 0.0) > g['t'])
-
-
 def landed_rows(tab, y, st, t, dt):
-    """(shift, first) of `landed_back` on the robot's table `tab` (its times shifted in place), modal's `y`,
-    the robot's latent `st`, at `t`, `dt` on. In C bit for bit (`g['waits']`, `laid`)."""
+    """(shift, first) on the robot's table `tab` (its times shifted in place), modal's `y`,
+    the robot's latent `st`, at `t`, `dt` on: rows that lower the robot wait while nothing bears it.
+    In C bit for bit (`g['waits']`, `laid`)."""
     airborne = float((y[modal.LOAD].max() < leap.TOUCH_N) & (y[modal.PROP] <= 0.0))
     at = tab[:, latent.AT]
     vals, said, to = tab[:, latent.VALS][:, latent.Z], tab[:, latent.SAID][:, latent.Z], st[latent.TO][latent.Z]
@@ -135,20 +97,10 @@ def landed_rows(tab, y, st, t, dt):
     return shift, first
 
 
-def sunk_back(g, dt):
-    """Rows that raise the robot out of a dip (`ortho.RISE`: a leap's push) wait a pass while its centre of
-    mass still sinks, every row after them and a hop's throw and end with them: begun on the clock as the robot's
-    dip still sank at 0.87 m/s, its push came late, its other sole landed under it, both legs pushed
-    and the robot flew too high and fell."""
-    shift, first = g['waits'].sunk(g['tab'], g['t'], dt)
-    g['labels'] = [(w + shift * (w >= first), n) for w, n in g['labels']]
-    for key in ('_jump_throw', '_jump_until'):
-        g[key] = g.get(key, 0.0) + shift * (g.get(key, 0.0) > g['t'])
-
-
 def sunk_rows(tab, y, fr, t, dt):
-    """(shift, first) of `sunk_back` on the robot's table `tab` (its times shifted in place), modal's `y` and `fr`,
-    at `t`, `dt` on. In C bit for bit (`g['waits']`, `laid`)."""
+    """(shift, first) on the robot's table `tab` (its times shifted in place), modal's `y` and `fr`,
+    at `t`, `dt` on: rows that raise the robot out of a dip (`ortho.RISE`) wait while its centre of mass
+    still sinks. In C bit for bit (`g['waits']`, `laid`)."""
     sinking = float(fr[modal.ROT].reshape(3, 3)[2] @ y[modal.VCOM] < 0.0)
     at = tab[:, latent.AT]
     due = (tab[:, latent.RISES] > 0.5) & (at <= t + latent.EDGE_S) & (at > t - dt + latent.EDGE_S)
@@ -158,26 +110,8 @@ def sunk_rows(tab, y, fr, t, dt):
     return shift, first
 
 
-def borne_back(g, dt):
-    """Rows a contact releases (`ortho.CONTACT`: a seat's or a bed's cross-fade) wait a pass, every
-    row after them with them, while the furniture bears less of the robot than its support counts it
-    from (`impedance.PROP_ON`): laid from the robot's descent's start they meet the seat where it is. Rows the
-    robot's soles' share releases (`ortho.SOLES`: a rise's cross-fade onto them, the kernel's plantar bus)
-    wait till its soles bear that share of it by their own loads: crossed on the clock off a
-    seat bearing half of it, its ZMP engaged asked a step and it fell; told by the
-    furniture's share - 0.83-1.04 pass to pass as its scoot slid it - its 0.828 ended the
-    robot's scoot's slide, its soles 0 N of 311 and its feet 3-4 cm up through the robot's
-    lean. Rows the robot's hands release (`ortho.PALMED`: a hitch's press) wait till the pair bears
-    (`modal.PALMS`): pressed on the clock, the first hand down took it and the other hung 5 cm over the seat;
-    waiting till each bore, the first fist down took the whole told share and was held still, and the shared
-    arm mode never brought the other the last 10 mm down - the wait ended at the rise's word, 3.4 s stalled,
-    and the wobbled rise fell."""
-    shift, first = g['waits'].borne(g['tab'], g['t'], dt)
-    g['labels'] = [(w + shift * (w >= first), n) for w, n in g['labels']]
-
-
 def backs(g, dt):
-    """`held_back`, `risen_back`, `landed_back`, `sunk_back`, `borne_back` and `latched_back` in that order, the
+    """`held_rows`, `risen_rows`, `landed_rows`, `sunk_rows`, `borne_rows` and `latched_rows` in that order, the
     robot's law pass's: their C in one call (`g['waits'].backs`), its labels and its jump's times shifted after as
     each shifts them - nothing of them is read between -, a label through the five shifts in turn."""
     t = g['t']
@@ -205,17 +139,9 @@ def played_back(g, dt):
     g['labels'] = [(w + shift * (w > first), n) for w, n in g['labels']]
 
 
-def latched_back(g, dt):
-    """A row that latches the robot (`ortho.LATCH`: a wake's) sets its vector where it is read
-    at its time (`modal.read`), going nowhere: the robot's gains come back on no error - woken with the
-    robot's trunk 0.7 rad back of its last word, its spring threw the robot off the chair at twice the robot's
-    weight."""
-    g['waits'].latched(g['tab'], g['t'], dt)
-
-
 def latched_rows(tab, y, fr, a, st, t, dt):
-    """`latched_back` on the robot's latent `st` (in place), its table `tab`, modal's `y`, `fr` and `a`, at
-    `t`, `dt` on. In C bit for bit (`g['waits']`)."""
+    """A latch (`ortho.LATCH`: a wake's) on the robot's latent `st` (in place), its table `tab`, modal's `y`,
+    `fr` and `a`, at `t`, `dt` on. In C bit for bit (`g['waits']`)."""
     at = tab[:, latent.AT]
     due = (tab[:, latent.LATCH] > 0.5) & (at <= t + latent.EDGE_S) & (at > t - dt + latent.EDGE_S)
     latch, z = float(np.any(due)), modal.read(y, fr, a[modal.STANCE])[0]
@@ -227,7 +153,7 @@ def latched_rows(tab, y, fr, a, st, t, dt):
 
 
 def borne_rows(tab, y, fr, t, dt):
-    """(shift, first) of `borne_back` on the robot's table `tab` (its times shifted in place), modal's `y`
+    """(shift, first) of contact, plantar and palmar waits on the robot's table `tab` (its times shifted in place), modal's `y`
     and `fr`, at `t`, `dt` on. In C bit for bit (`g['waits']`)."""
     prop, palm, contact, at = float(y[modal.PROP]), float(y[modal.PALMS].sum()), tab[:, latent.CONTACT], tab[:, latent.AT]
     soles = (float(y[modal.LOAD][0]) + float(y[modal.LOAD][1])) / float(fr[modal.WEIGHT])

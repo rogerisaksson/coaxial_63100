@@ -65,11 +65,6 @@ API int thm_edge_end(int edge, int which)
   return which ? (int)thermal_edge(edge).b : (int)thermal_edge(edge).a;
 }
 
-API int thm_sink_edge(int node)
-{
-  return thermal_sink_edge((thermal_node_t)node);
-}
-
 API thermal_t *thm_new(float celsius)
 {
   thermal_t *th = calloc(1U, sizeof(*th));
@@ -82,11 +77,6 @@ API thermal_t *thm_new(float celsius)
     th->ambient = celsius;
   }
   return th;
-}
-
-API void thm_free(thermal_t *th)
-{
-  free(th);
 }
 
 API void thm_ambient(thermal_t *th, float celsius)
@@ -284,12 +274,6 @@ API void thm_step_at(thermal_t *th, const float *watt,
   th->ambient = ambient;               /* the room does not drift here */
 }
 
-API void thm_step(thermal_t *th, const float *watt,
-                  float ntc_c, float afe_c, float mcu_c, float dt_s)
-{
-  thm_step_at(th, watt, ntc_c, afe_c, mcu_c, 0.0f, dt_s);
-}
-
 static void soa_from(thermal_soa_t *soa, const float *limit_c,
                      const float *trip_c, float throttle_at,
                      float lookahead_s, const float *undriven)
@@ -418,11 +402,6 @@ API void thm_power_r(const float *load, const float *phase_c, float r_phase,
   }
 }
 
-API void thm_power(const float *load, const float *phase_c, float *out)
-{
-  thm_power_r(load, phase_c, 0.0f, out);
-}
-
 API float thm_coss_energy(float volts)
 {
   thermal_loss_t loss;
@@ -448,11 +427,6 @@ API void *thm_ident_new(const thermal_t *th, float noise_k)
     thermal_ident_init(&box->id, th->ambient, noise_k);
   }
   return box;
-}
-
-API void thm_ident_free(void *box)
-{
-  free(box);
 }
 
 /** One step of observer AND identifier: the scales applied to the observer,
@@ -549,11 +523,6 @@ API float thm_ident_ambient(const void *box)
 {
   return (box != NULL) ? thermal_ident_ambient(&((const ident_box_t *)box)->id)
                        : NAN;
-}
-
-API int thm_ident_online(int which)
-{
-  return thermal_ident_online((thermal_ident_param_t)which) ? 1 : 0;
 }
 
 /** The loss constants, LOSS_ORDER, so a test can check the split against the

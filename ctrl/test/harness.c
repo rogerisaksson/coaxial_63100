@@ -77,19 +77,9 @@ API float ctl_regulate(ctrl_part_t *part, float dt, float setpoint, float measur
   return ctrl_regulate(part, dt, setpoint, measured, has_accel ? accel : NAN, held != 0, most);
 }
 
-API void ctl_reset(ctrl_part_t *part)
-{
-  ctrl_part_reset(part);
-}
-
 API float ctl_step(ctrl_feedback_t *f, float dt, float setpoint, float measured, float most)
 {
   return ctrl_feedback_step(f, dt, setpoint, measured, most);
-}
-
-API void ctl_feedback_reset(ctrl_feedback_t *f)
-{
-  ctrl_feedback_reset(f);
 }
 
 API ctrl_runner_t *ctl_runner(void)

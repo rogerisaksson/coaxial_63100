@@ -8,7 +8,7 @@ Prose is a comment, a docstring or other string, a Markdown paragraph, list item
 cell (`regions`); a sentence ends at a stop before a space or at a blank line (`sentences`). A
 sentence that opens on It or Its leaves its reader to guess the thing; the robot, the quad, the
 helicopter, the ornithopter, the aerobat or whatever else it speaks of is named instead (CLAUDE.md,
-rule 8). Generated files, the vendor's code and deprecated/ are not read.
+rule 8). Generated files and the vendor's code are not read.
 """
 import ast
 import bisect
@@ -28,8 +28,8 @@ from tools.dev.token_budget import GENERATED
 HASHED = ('.toml', '.yml', '.yaml', '.ps1', '.sh', '.cmake')
 #: The suffixes read: C's and C#'s comments alike, Lisp's comments and strings.
 READ = ('.py', '.md', '.c', '.h', '.cs', '.lisp') + HASHED
-#: Paths never read: the vendor's code and its generated HAL, code kept for reference.
-SKIPPED = ('drivers/', 'cmake/', 'core/', 'deprecated/')
+#: Paths never read: the vendor's code and its generated HAL.
+SKIPPED = ('drivers/', 'cmake/', 'core/')
 #: What opens a sentence on the pronoun: marks and brackets before It or Its.
 OPENS = re.compile(r"\s*[(\[\"'*_~-]*(It|Its|It's)(?![A-Za-z])")
 #: A stop before a space, or a blank line.

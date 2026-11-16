@@ -35,9 +35,6 @@ from terminal.views.desk.load import (HOST_RING, _clocked, drain, duties_from, p
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
 
-VALUE = '[38;5;214m'       # the theme's `value`, the light source
-
-
 def bar_in(columns):
     """The bridge's bar in a window `columns` across: the drawing's room (`taskbar.room`, the
     column as it stands) less a row's name, scale and reading (`desk.ROW`), 20 at the least."""

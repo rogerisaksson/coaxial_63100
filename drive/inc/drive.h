@@ -345,9 +345,6 @@ void drive_set_wep(drive_t *d, float gamma_wep);
     and dynamic switching frequency f_sw. Returns I_max(Delta_t) in A. */
 float drive_thermal_step(drive_t *d, const float *i_abc, float vdc, float omega_e);
 
-/** Continuous box-constraint limit min(p.i_max, th.i_max_dyn) exposed to upper loops. */
-float drive_current_limit(const drive_t *d);
-
 void drive_init(drive_t *d, float ts);
 
 /** Put both frames at `theta`: the polarity flip, or a known start. */
@@ -403,10 +400,8 @@ void drive_moments_feed(drive_t *d, const int32_t *codes);
 /* ---- the arithmetic, exposed for the harness ------------------------- */
 
 void drive_clarke(const float *iabc, float *alpha, float *beta);
-void drive_park(float alpha, float beta, float theta, float *d, float *q);
-void drive_inv_park(float d, float q, float theta, float *alpha, float *beta);
 
-/** The same with cos and sin already taken: one pair serves a whole step. */
+/** Park and inverse Park with cos and sin already taken: one pair serves a whole step. */
 void drive_park_cs(float alpha, float beta, float c, float s, float *d,
                    float *q);
 void drive_inv_park_cs(float d, float q, float c, float s, float *alpha,

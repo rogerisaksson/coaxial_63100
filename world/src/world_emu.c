@@ -246,16 +246,6 @@ void emu_heat_room(int i, float ambient, float air, float capacity)
   world_heat_room(&s.heat[i], ambient, air, capacity);
 }
 
-/** Board `i`'s heat's nodes now, C: THERMAL_NODES into `out`. */
-void emu_heat_nodes(int i, float *out)
-{
-  if ((i < 0) || (i >= (int)WORLD_MOTORS))
-  {
-    return;
-  }
-  memcpy(out, s.heat[i].th.t, sizeof s.heat[i].th.t);
-}
-
 /** Board `i`'s heat mounted in `app`, thermal_app_t (world_heat_application). */
 void emu_heat_application(int i, int app)
 {

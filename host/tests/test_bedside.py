@@ -280,7 +280,6 @@ def test_the_bed_pendulum_on_the_robots_body(report):
     crown and its foot less the robot's legs. Sat the robot's deepest on its side the pendulum lays the robot there:
     within the bed, inside the roll's margins only on its line, within two strokes of the robot's escape (one on a
     0.9 m bed; the ratchet re-anchors). The robot's hip holds a leg out straight."""
-    import numpy as np
     from machine.body import build, figure, heat
     from machine.texts import kernel
     from machine.world import room

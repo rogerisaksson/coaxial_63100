@@ -184,10 +184,6 @@ bool boot_app_valid(void);
     False: nothing may run. */
 bool boot_ready(uint32_t hand_bytes, uint32_t hand_crc);
 
-/** The image RAM holds verified - size and CRC, both 0 for none: what the
-    slot hands the application. */
-void boot_image(uint32_t *bytes, uint32_t *crc);
-
 /** The slot as the application finds it: the image verified, and the node's
     identity - this run's assign, else what a warm slot still holds, else
     none. 247 is a blank node in its bootloader, never an application. */
@@ -198,7 +194,6 @@ boot_state_t boot_state(void);
 uint8_t      boot_unit(void);             /**< BOOT_UNIT until assigned */
 bool         boot_wants_go(void);         /**< a go for a sealed node */
 bool         boot_terminates(void);       /**< assign's flag bit 0 */
-uint32_t     boot_chunks_ignored(void);   /**< chunks with no erase */
 
 /** CRC-32, IEEE, as every host library computes it. */
 uint32_t boot_crc32(uint32_t crc, const uint8_t *data, size_t len);

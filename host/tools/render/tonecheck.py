@@ -241,19 +241,6 @@ def stats(cells):
     return out
 
 
-def steps(cells):
-    """Share of horizontally adjacent same-class cells more than 25 luma
-    apart - the hard iso-lines a reader sees as banding - and the mean
-    step between such neighbours."""
-    grid = {(c[4], c[5]): (c[0], c[3]) for c in cells}
-    jumps = [abs(nb[1] - lum) for (r, col), (ch, lum) in grid.items()
-             for nb in (grid.get((r, col + 1)),) if nb and nb[0] == ch]
-    if not jumps:
-        return 0.0, 0.0
-    return (100.0 * sum(1 for j in jumps if j > 25) / len(jumps),
-            mean(jumps))
-
-
 def neighbours(cells):
     """{glyph: mean |luma step| to the right-hand same-class neighbour}
     - the per-dot texture the exporter has and a flat wash lacks."""

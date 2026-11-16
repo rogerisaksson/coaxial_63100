@@ -42,10 +42,6 @@ PRIMITIVES = {'introspect-active-ast': 'tune.walked', 'compute-adjoint-ast-delta
               'apply-homoiconic-rewrite': 'tune.spliced',
               'atomic-rcu-soa-swap': 'suite.played: a row laid on the robot\'s walk, a morph at its lateral crossing, both soles locked',
               'sync-mutated-packages-to-disk': 'tune.written', 'universal-autotune-daemon': 'tools/sim/tune.py, a run a window'}
-#: What the text names that the robot's loop does another way, or not.
-INSTEAD = {'adjoint-sign': "the measured Jacobian's signs; the text's are not read",
-           'binding-deadband': "none said: a step under the text's float precision writes nothing",
-           'substrate-eigenfreq-hz': "no substrate mode on a rigid floor; fitted, the robot's vertical mode read its step's rate"}
 #: A root that is several definitions: the robot's walk, its streams as the robot's loop composes them
 #: (`gait.said`).
 WHOLE = {'walk': ('stand', 'sway', 'step', 'walk')}

@@ -27,26 +27,11 @@ class ProductId(ctypes.Structure):
                 ('sw_build', ctypes.c_uint32), ('sw_patch', ctypes.c_uint16)]
 
 
-class Rpt(ctypes.Structure):
-    _fields_ = [('report_id', ctypes.c_ubyte), ('seq', ctypes.c_ubyte),
-                ('status', ctypes.c_ubyte), ('delay', ctypes.c_ubyte),
-                ('x', ctypes.c_int16), ('y', ctypes.c_int16),
-                ('z', ctypes.c_int16), ('w', ctypes.c_int16),
-                ('count', ctypes.c_ubyte)]
-
-
 def header(lib, raw):
     """(ok, Header) for four bytes."""
     out = Header()
     ok = lib.shtp_parse_header(bytes(raw), ctypes.byref(out))
     return bool(ok), out
-
-
-def reports(lib, cargo, room=8):
-    got = (Rpt * room)()
-    n = lib.shtp_parse_reports(bytes(cargo), ctypes.c_size_t(len(cargo)),
-                               got, ctypes.c_size_t(room))
-    return [got[i] for i in range(n)]
 
 
 def test_header(report, lib):
@@ -157,34 +142,8 @@ def test_product_id(report, lib):
                                                ctypes.byref(out)))
 
 
-def test_reports(report, lib):
-    """Figure 5-2: a timebase reference then an accelerometer report."""
-    cargo = bytes([0xFB, 0x0A, 0x00, 0x00, 0x00,
-                   0x01, 0x2A, 0x03, 0x00,
-                   0x10, 0x27, 0xF0, 0xD8, 0x00, 0x01])
-    got = reports(lib, cargo)
-    report.check('a cargo carries its timebase and its sensor report',
-                 len(got) == 2, '%d reports' % len(got))
-    if len(got) != 2:
-        return
-    report.check('the timebase is kept rather than skipped, with no axes',
-                 got[0].report_id == 0xFB and got[0].count == 0,
-                 '0x%02X count=%d' % (got[0].report_id, got[0].count))
-    acc = got[1]
-    report.check('the accelerometer report is identified and sequenced',
-                 acc.report_id == 0x01 and acc.seq == 0x2A,
-                 '0x%02X seq=%d' % (acc.report_id, acc.seq))
-    report.check('status carries the accuracy in bits 1:0 - 3 is high',
-                 (acc.status & 3) == 3, 'status=0x%02X' % acc.status)
-    report.check('the axes are signed little-endian counts, unscaled',
-                 (acc.x, acc.y, acc.z) == (10000, -10000, 256),
-                 '%d %d %d' % (acc.x, acc.y, acc.z))
-    report.check('and three of the four fields are meaningful',
-                 acc.count == 3, str(acc.count))
-
-
-def test_walk_stops(report, lib):
-    """An unknown report id ends the walk instead of guessing its length."""
+def test_report_len(report, lib):
+    """Known input report lengths and refusal of unknown report ids."""
     # The datasheet does not tabulate these two - it refers to the SH-2
     # Reference Manual.
     report.check('the rotation vector is fourteen: the four components and '
@@ -205,23 +164,9 @@ def test_walk_stops(report, lib):
     report.check('and the timebase is five - Figure 5-2 bytes 4..8',
                  lib.shtp_report_len(ctypes.c_ubyte(0xFB)) == 5)
 
-    cargo = bytes([0x01, 0x00, 0x03, 0x00, 1, 0, 2, 0, 3, 0,
-                   0x05, 0x00, 0x03, 0x00, 9, 9, 9, 9, 9, 9, 9, 9])
-    got = reports(lib, cargo)
-    report.check('a known report before an unknown one is still delivered',
-                 len(got) == 1 and got[0].report_id == 0x01,
-                 '%d reports' % len(got))
-
-    truncated = bytes([0x01, 0x00, 0x03, 0x00, 1, 0, 2, 0])
-    report.check('a report cut short by the end of the cargo is dropped, '
-                 'not read past', not reports(lib, truncated))
-
-    report.check('and a cargo of nothing decodes to nothing',
-                 not reports(lib, b''))
-
 
 ROSTER = (test_header, test_build, test_set_feature, test_product_id,
-          test_reports, test_walk_stops)
+          test_report_len)
 
 
 def main():
@@ -252,7 +197,6 @@ def main():
     lib.shtp_build.restype = ctypes.c_size_t
     lib.shtp_set_feature.restype = ctypes.c_size_t
     lib.shtp_report_len.restype = ctypes.c_size_t
-    lib.shtp_parse_reports.restype = ctypes.c_size_t
 
     for test in ROSTER:
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))

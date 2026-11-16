@@ -296,7 +296,6 @@ it has.
 | `docs/` | the documents under References, this README's source |
 | `notebook_examples/` | the papers, executed |
 | `electronics/`, `datasheets/`, `render/` | the schematic and BOM, the parts' datasheets, the board's 3D model |
-| `deprecated/` | what was retired, kept to read |
 
 ```powershell
 cube-cmake --build --preset Debug              # zero warnings; two images (app + bootloader)

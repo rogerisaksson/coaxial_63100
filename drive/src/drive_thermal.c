@@ -68,11 +68,6 @@ void drive_set_wep(drive_t *d, float gamma_wep)
   d->th.v_mod_scale = 1.0f + g;
 }
 
-float drive_current_limit(const drive_t *d)
-{
-  return fminf(d->p.i_max, d->th.i_max_dyn);
-}
-
 float drive_thermal_step(drive_t *d, const float *i_abc, float vdc, float omega_e)
 {
   /* Unconditionally stable 3-node Cauer RC backward-Euler solver (Thomas tridiagonal),

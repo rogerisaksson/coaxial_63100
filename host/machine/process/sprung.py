@@ -93,7 +93,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
     from machine.law import latent, melt, modal, motion, statics
     from machine.world import physics
     from machine.eyes import registry
-    from machine.stack import wbc, wrench
+    from machine.stack import wbc
     from machine.body.drives import kind, peak, wep_scale
     from machine.body.figure import JOINTS
     world, body, pose, inner = physics.World(), wbc.Body(), figure.stand(), (inner or INNER)

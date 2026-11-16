@@ -182,51 +182,6 @@ def test_each_drive_is_held(report):
     report.check('every drive held', not loose, '%s held by nothing' % loose)
 
 
-def test_the_robots_kinematics_as_motors(report):
-    """Motor chains match `figure.frames`, damped solve matches `figure.leg`, half-screw squares."""
-    import math
-    from machine.body import drives, figure, motors
-    pelvis = (0.1 * figure.SCALE, figure.standing(), -0.2 * figure.SCALE)
-    turn = figure.mul(figure.ry(0.3), figure.rx(0.08))
-    base, off, leg, half = motors.of(turn, pelvis), 0.0, 0.0, 0.0
-
-    def apart(m, at, here):
-        return max(math.dist(motors.place(m), at), max(
-            abs(a - b) for p, q in zip(motors.turn(m), here) for a, b in zip(p, q)))
-    for i in range(50):
-        deg = {j: _span(*(drives.travel(j) or (-40.0, 40.0)), _weyl(i, k))
-               for k, j in enumerate(figure.JOINTS)}
-        placed = figure.frames(deg, pelvis, turn)
-        for end in ('left_foot', 'right_toes', 'left_hand', 'right_fingers', 'head'):
-            rows = motors.chain(end)
-            m = motors.forward(rows, base, [math.radians(deg[j]) for j, _pre, _axis in rows])
-            off = max(off, apart(m, *placed[end]))
-    report.check('a chain of motors puts a foot, a hand and the robot\'s head where the figure has them',
-                 off < 1e-12, '%.1e m, or of a unit axis' % off)
-    rows = motors.chain('left_foot')
-    hy = math.radians(0.5 * drives.TRAVEL['hip_yaw'][1])
-    hr = math.radians(0.4 * drives.TRAVEL['spine_roll'][1])
-    kn_hi = math.radians(0.70 * drives.TRAVEL['knee'][1])
-    an_lo, an_hi = (math.radians(0.5 * v) for v in drives.TRAVEL['ankle'])
-    ar = math.radians(0.8 * drives.TRAVEL['ankle_roll'][1])
-    for i in range(50):
-        angles = (_span(-hy, hy, _weyl(i, 0)), _span(-hr, hr, _weyl(i, 1)),
-                  _span(-2.0 * hy, hy, _weyl(i, 2)), _span(0.05, kn_hi, _weyl(i, 3)),
-                  _span(an_lo, an_hi, _weyl(i, 4)), _span(-ar, ar, _weyl(i, 5)))
-        ankle, foot = figure.foot_of(1.0, pelvis, turn, angles)
-        there = motors.of(foot, ankle)
-        seed = [a + _span(-0.05, 0.05, _weyl(i, 12 + k)) for k, a in enumerate(angles)]
-        got, _left = motors.solve(rows, base, there, seed, damp=1e-6, passes=8)
-        leg = max(leg, max(abs(a - b) for a, b in zip(
-            got, figure.leg(1.0, pelvis, turn, ankle, foot))))
-        step = motors.mul(motors.inv(base), motors.between(base, there, 0.5))
-        half = max(half, apart(motors.mul(base, motors.mul(step, step)), ankle, foot))
-    report.check('its solve answers the recipe\'s six joints from 0.05 rad off', leg < 1e-8,
-                 '%.1e rad' % leg)
-    report.check('half the screw between two poses, taken twice, is the other', half < 1e-9,
-                 '%.1e m, or of a unit axis' % half)
-
-
 def test_a_gearbox_has_play(report):
     """BOXED: rotor crosses backlash free, winds up `tau / wind`, crosses play on reversal."""
     from machine.body import figure
@@ -415,7 +370,7 @@ def test_the_referee_and_the_robots_averages_in_c(report):
 ROSTER = (test_the_robots_tiers_by_the_machine, test_the_referee_and_the_robots_averages_in_c, test_every_build_runs_the_robot, test_the_robots_gait_is_stated_on_it, test_a_virtual_body_is_told, test_a_leg_by_its_foot, test_a_body_with_mass_is_fitted,
           test_dressed_or_bare, test_the_robots_views_draw, test_the_robots_skeleton_collides,
           test_each_drive_turns_from_its_gearbox, test_each_drive_is_held,
-          test_a_gearbox_has_play, test_the_robots_kinematics_as_motors)
+          test_a_gearbox_has_play)
 
 
 def main(argv=None):

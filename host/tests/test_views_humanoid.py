@@ -121,7 +121,7 @@ def test_vision_scanner_docked_pip_and_affordances(report):
            'props': [('chair', (0.0, 0.45, 0.9), (0.22, 0.02, 0.22), ((1, 0, 0), (0, 1, 0), (0, 0, 1)))]}
     det = sc.scan(now, 0.0)
     report.check('a chair in the robot\'s sight, its verb sit_chair',
-                 len(det) == 1 and det[0]['kind'] == 'chair' and scanner.auto_action(det) == 'sit_chair'
+                 len(det) == 1 and det[0]['kind'] == 'chair'
                  and det[0]['affordances'] == [('sit_chair', 'sit')])
     sent = []
     st = {'body': SN(send=lambda **kw: sent.append(kw)), 'scanner': sc, 'now': now, 'yaw': 180.0, 'tour': None}
@@ -220,7 +220,8 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
                    'props': [('bed', (0.0, 0.08, 0.9), (0.45, 0.08, 0.95), ((1, 0, 0), (0, 1, 0), (0, 0, 1)))]}, 0.0)
     report.check('] the bed; a mattress ahead seen',
                  st['scenario'] == 'bed' and {'scenario': 'bed'} in sent
-                 and len(det) == 1 and det[0]['kind'] == 'mattress' and scanner.auto_action(det) == 'lie_floor')
+                 and len(det) == 1 and det[0]['kind'] == 'mattress'
+                 and det[0]['affordances'] == [('lie_floor', 'lie down')])
 
     sent.clear()
     typed(pad, 'H', st)
@@ -233,7 +234,8 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
     report.check('H tours every step, sending what an agent sends: twists, verbs, scenes, pushes',
                  tr is not None and st.get('tour') is tr and len(vis) == len(tour.STEPS)
                  and all(set(c) <= {'twist', 'say', 'scenario', 'push', 'seconds'} for c in sent)
-                 and verbs == set(scanner.PRIMARY_ACTION.values()) | {'rise_chair', 'rise_bed', 'rise_floor'}, verbs)
+                 and verbs == {v for v, _ in scanner.AFFORDANCES.values()} | {'rise_chair', 'rise_bed', 'rise_floor'},
+                 verbs)
     typed(pad, 'w', st)
     report.check('a key that moves the robot ends the tour', st.get('tour') is None)
 

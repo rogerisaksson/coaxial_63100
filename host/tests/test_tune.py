@@ -53,7 +53,7 @@ def test_the_autotuner_reads_as_written(report):
 def test_the_robots_texts_given_play_as_its_files(report):
     """The robot's texts read and given (`tune.texts`): the suite, its gym's entries and a stunt's entry the
     same as its files'; one not among them refused by name."""
-    from machine.texts import dsp, maneuver, ortho, tune
+    from machine.texts import maneuver, ortho, tune
     from machine.process import sprung
     tx = tune.texts()
     got, gym = tune.evaluated(tx)

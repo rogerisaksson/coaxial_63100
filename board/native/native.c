@@ -491,11 +491,6 @@ static void native_until(uint64_t target)
 
 /* ---- what the parts and the board layer call ---------------------------------------- */
 
-uint64_t native_now(void)
-{
-  return n.cycles;
-}
-
 void native_wait(uint64_t cycles)
 {
   const uint64_t at = n.cycles + cycles;

@@ -25,11 +25,6 @@ def fresh():
     return hflight.fresh(ornithopter)
 
 
-def shell(flight, rotors):
-    """`(have, spent, fit)` as the two wing-drive boards' thermal envelopes leave the ornithopter."""
-    return hflight.shell(flight, rotors, ornithopter)
-
-
 def passed(rotors, sky, route, law, flight, clock, dt):
     """Advance the ornithopter flight by `dt` s from `clock` in steps of `STEP_S`."""
     return hflight.passed(rotors, sky, route, law, flight, clock, dt, ornithopter)
@@ -38,16 +33,6 @@ def passed(rotors, sky, route, law, flight, clock, dt):
 def step(rotors, sky, route, law, flight, clock, dt):
     """One `dt` s step of the ornithopter flight."""
     return hflight.step(rotors, sky, route, law, flight, clock, dt, ornithopter)
-
-
-def begun(law, flight):
-    """Reset `law` and the ornithopter's 3D `Core` back to the desert floor."""
-    hflight.begun(law, flight, ornithopter)
-
-
-def flown(rotors, sky, core, law, row, flight, dt):
-    """Step the `FORE` and `AFT` 63100 drives, `ornithopter.Core`, and `ornithopter.Sky`."""
-    return hflight.flown(rotors, sky, core, law, row, flight, dt, ornithopter)
 
 
 ORNI_REEXPORTS = (arm, asked, observers, reset, spun, struck, warmth)

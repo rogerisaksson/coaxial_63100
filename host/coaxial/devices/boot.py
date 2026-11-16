@@ -468,11 +468,3 @@ def stale(board, image):
     when a debugger started it (no bootloader named one: (0, 0))."""
     running = board.boot.state()['image']
     return None if running in ((len(image), zlib.crc32(image)), (0, 0)) else running
-
-
-def ensure(board, image, persist=True):
-    """Whether `board` had to be loaded with `image` (`stale`, then `load`)."""
-    if stale(board, image) is None:
-        return False
-    load(board, image, persist)
-    return True

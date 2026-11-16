@@ -145,7 +145,6 @@ def test_a_pulled_chair_weighs_nothing(report):
     it (1.5 s): what bears the robot takes no seat till its rise is said (8 s), and the robot
     stands."""
     import numpy as np
-    from machine.law import latent
     from tools.sim import scenarios
     seat, x0 = [0.0], [None]
 

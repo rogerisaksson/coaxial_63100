@@ -292,17 +292,7 @@ API void drv_obs_sync(drive_t *d, float theta, float omega)
   drive_observer_sync(&d->obs, &d->p, theta, omega);
 }
 
-API void drv_obs_reset(drive_t *d)
-{
-  drive_observer_init(&d->obs, &d->p, d->ts);
-}
-
 #define OBS 12
-
-API int drv_obs_count(void)
-{
-  return OBS;
-}
 
 /** The observer chain's state, drive_observer.c, in the order Drive.obs in
     tools/cores/drive.py names it: the blend, then each observer on its own,
@@ -349,12 +339,18 @@ API void drv_clarke(const float *iabc, float *ab)
 
 API void drv_park(float alpha, float beta, float theta, float *dq)
 {
-  drive_park(alpha, beta, theta, &dq[0], &dq[1]);
+  float s, c;
+
+  drive_sincos(theta, &s, &c);
+  drive_park_cs(alpha, beta, c, s, &dq[0], &dq[1]);
 }
 
 API void drv_inv_park(float dd, float q, float theta, float *ab)
 {
-  drive_inv_park(dd, q, theta, &ab[0], &ab[1]);
+  float s, c;
+
+  drive_sincos(theta, &s, &c);
+  drive_inv_park_cs(dd, q, c, s, &ab[0], &ab[1]);
 }
 
 API float drv_wrap(float theta)
@@ -495,10 +491,5 @@ API void drv_thermal_state(const drive_t *d, float *v, int n)
   v[10] = th->ts_active;
   v[11] = th->v_mod_scale;
   v[12] = th->i_max_dyn;
-}
-
-API float drv_current_limit(const drive_t *d)
-{
-  return drive_current_limit(d);
 }
 

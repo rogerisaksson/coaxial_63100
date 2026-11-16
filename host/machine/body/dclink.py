@@ -10,15 +10,14 @@ back they take no faster than their BMS's charge, the rest charges its boards' D
 implicit in the link's volts (its RC, 0.52 ms, is under a step): the packs' linear share or their
 charge's limit, whichever leaves the link higher. Past the text's bleed onset
 (`shunt-regenerative-bus-overvoltage`) each board drives its d axis in proportion to its clamp, at
-the current its drive's peak leaves its torque's - copper heat, no torque: the text's sinks
-(SINKS), unloaded, have the most. The sinks alone (880 W) let a hop down's landing to 60.78 V.
+the current its drive's peak leaves its torque's - copper heat, no torque: the text's sinks,
+unloaded, have the most. The sinks alone (880 W) let a hop down's landing to 60.78 V.
 """
 import math
 
 from machine.body import drives, mechatronics
 from machine.texts import kernel
 from machine.body.figure import JOINTS
-from machine.law.supervisor import NODE_KINDS
 
 _PACK, _INVS = mechatronics.robot()['pack'], mechatronics.library()['inverters']
 _SHUNT = kernel.node('shunt-regenerative-bus-overvoltage', 'dc-bus')
@@ -27,11 +26,10 @@ PACK_OHM = _PACK['series'] * _PACK['cell_ohm'] / _PACK['parallel'] / len(_PACK['
 CHARGE_A = _PACK['cell_charge_a'] * _PACK['parallel'] * len(_PACK['mounts'])
 DRIVEN = [j for j in JOINTS if not drives.passive(j)]
 LINK_F = _PACK['board_link_f'] * len(DRIVEN)
-#: The bleed's onset and clamp, V, scaled to its packs and its boards' ceilings; the text's sinks.
+#: The bleed's onset and clamp, V, scaled to its packs and its boards' ceilings.
 _V_CEIL = min(float(_INVS[drives.STACKS[drives.kind(j)][2]]['volts']) for j in DRIVEN)
 CLAMP_V = min(_V_CEIL, round(float(_SHUNT['max-voltage-v']) * drives.PACK_V / float(_SHUNT['nominal-voltage-v']), 4))
 ONSET_V = round(CLAMP_V * float(_SHUNT['bleed-threshold-v']) / float(_SHUNT['max-voltage-v']), 4)
-SINKS = [j for j in DRIVEN if drives.kind(j) in {k for node in _SHUNT['priority-sink-nodes'] for k in NODE_KINDS[node]}]
 
 
 def laid():

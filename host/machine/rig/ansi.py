@@ -77,12 +77,6 @@ def rgb(number):
 
 #: Lower half block. A cell drawn with it carries two colours - foreground
 #: below, background above - so one character row holds two picture rows.
-#: Taken from esimov/ascii-fluid, which uses the same glyph for the same
-#: reason: a terminal cell is twice as tall as it is wide, and this is how
-#: you get the other half back.
-HALF = '▄'
-
-
 def paint(text, number):
     """`text` in one colour, closed again."""
     return code(number) + text + RESET

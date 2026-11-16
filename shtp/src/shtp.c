@@ -128,61 +128,6 @@ size_t shtp_report_len(uint8_t report_id)
   }
 }
 
-size_t shtp_parse_reports(const uint8_t *cargo, size_t len,
-                          shtp_report_t *out, size_t max)
-{
-  size_t at = 0U;
-  size_t n = 0U;
-
-  if ((cargo == NULL) || (out == NULL))
-  {
-    return 0U;
-  }
-
-  while ((at < len) && (n < max))
-  {
-    const uint8_t id = cargo[at];
-    const size_t  step = shtp_report_len(id);
-
-    if ((step == 0U) || ((at + step) > len))
-    {
-      break;
-    }
-
-    if (id == SH2_REPORT_TIMEBASE)
-    {
-      /* Carried once at the head of a cargo and not a sensor reading. */
-      out[n].report_id = id;
-      out[n].seq = 0U;
-      out[n].status = 0U;
-      out[n].delay = 0U;
-      out[n].x = 0;
-      out[n].y = 0;
-      out[n].z = 0;
-      out[n].w = 0;
-      out[n].count = 0U;
-      n++;
-      at += step;
-      continue;
-    }
-
-    out[n].report_id = id;
-    out[n].seq       = cargo[at + 1U];
-    out[n].status    = cargo[at + 2U];
-    out[n].delay     = cargo[at + 3U];
-    out[n].x = (int16_t)rd_u16(&cargo[at + 4U]);
-    out[n].y = (int16_t)rd_u16(&cargo[at + 6U]);
-    out[n].z = (int16_t)rd_u16(&cargo[at + 8U]);
-    out[n].w = 0;
-    out[n].count = 3U;
-
-    n++;
-    at += step;
-  }
-
-  return n;
-}
-
 size_t shtp_set_feature(uint8_t *buf, size_t cap, uint8_t report_id,
                         uint32_t interval_us)
 {

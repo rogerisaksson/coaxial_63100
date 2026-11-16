@@ -34,7 +34,6 @@ static struct
   uint16_t            record_bytes;
   bool                verified;
   bool                go;
-  uint32_t            ignored;           /**< chunks with no erase behind */
   uint32_t            run_bytes;         /**< the image RAM holds verified, 0 for none */
   uint32_t            run_crc;
 } s;
@@ -414,12 +413,10 @@ static boot_answer_t h_boot_chunk(rd_t *in, wr_t *out)
   (void)out;
   if ((s.state != BOOT_ERASED) && (s.state != BOOT_VERIFIED))
   {
-    s.ignored++;
     return BOOT_SILENT;
   }
   if ((index >= s.chunks) || (len == 0U) || (len > BOOT_CHUNK_BYTES))
   {
-    s.ignored++;
     return BOOT_SILENT;
   }
   if (bit(index))
@@ -675,12 +672,6 @@ bool boot_ready(uint32_t hand_bytes, uint32_t hand_crc)
   return true;
 }
 
-void boot_image(uint32_t *bytes, uint32_t *crc)
-{
-  *bytes = s.run_bytes;
-  *crc = s.run_crc;
-}
-
 void boot_hand_over(boot_hand_t *slot)
 {
   const bool warm = (slot->magic == BOOT_HAND_MAGIC);
@@ -721,11 +712,6 @@ bool boot_wants_go(void)
 bool boot_terminates(void)
 {
   return (s.flags & BOOT_FLAG_TERMINATE) != 0U;
-}
-
-uint32_t boot_chunks_ignored(void)
-{
-  return s.ignored;
 }
 
 uint32_t boot_crc32(uint32_t crc, const uint8_t *data, size_t len)

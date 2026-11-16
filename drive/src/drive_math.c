@@ -93,22 +93,6 @@ float drive_atan2(float y, float x)
   return (y < 0.0f) ? -r : r;
 }
 
-void drive_park(float alpha, float beta, float theta, float *d, float *q)
-{
-  float s, c;
-
-  drive_sincos(theta, &s, &c);
-  drive_park_cs(alpha, beta, c, s, d, q);
-}
-
-void drive_inv_park(float d, float q, float theta, float *alpha, float *beta)
-{
-  float s, c;
-
-  drive_sincos(theta, &s, &c);
-  drive_inv_park_cs(d, q, c, s, alpha, beta);
-}
-
 float drive_hex_clamp(float *valpha, float *vbeta, float vdc, float v_frac)
 {
   /* Exact geometric projection onto the Space Vector Hexagon in abc span:

@@ -607,8 +607,6 @@ def test_the_placements_behind_the_thermal_model(r):
 
 def test_the_board_stays_in_the_laminar_regime(r):
     """The convection exponent is the regime, not a choice."""
-    import math
-
     from coaxial.model import thermal
 
     # The board's extent, off the same file the element fraction uses.

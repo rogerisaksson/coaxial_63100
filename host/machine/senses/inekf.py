@@ -38,9 +38,6 @@ ENCODER_COUNTS = int(_INV['encoder_counts'])
 GRAIN, REACH = math.tau / (ENCODER_COUNTS * drives.RATIO), round(figure.standing(), 2)
 CONTACTS, N = 3, 18
 CORE = np.array([edge.SKIN.index('pelvis'), edge.SKIN.index('torso')])
-#: The robot's world's up, against gravity (`edge.G`): what a look laid onto its floor turns it about
-#: (`seen`).
-UP = -edge.G / np.linalg.norm(edge.G)
 #: How fast a bearing sole's point rolls along it at most, m/s: its length (`figure.SOLE_HALF` twice) once a stride of
 #: the robot's walk (`se2.WALK_HZ`) - its drift's walk a pass (`stepped`).
 ROLL_M_S = 2.0 * figure.SOLE_HALF * se2.WALK_HZ

@@ -45,7 +45,7 @@ def _at(x):
 
 def _doubles():
     """wbc_imp_t's doubles in its order: (name, value) - a tuple or an array lays that many."""
-    from machine.senses import borne, edge
+    from machine.senses import borne
     from machine.body import figure
     from machine.law import impedance as imp, modal, poise, stride
     from machine.moves import leap

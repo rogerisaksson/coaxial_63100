@@ -11,7 +11,6 @@ Findings: [kinematics](../findings/kinematics.md).
 | `machine/body/compile` | the static meta-compiler: the build's TOML (`humanoids/<robot>.toml`, `library/`) solved for subtree masses, levers, inertias, servos and gait, cached by content hash under `.cache/compiled/`; `peripherals` the bus, thermal SOA, cooling, harness, eyes, world and sysid |
 | `machine/body/figure` | the gynoid's segments, masses and legs' dimensions, the robot's stand and squat, leg IK |
 | `machine/body/bends` | how each driven joint goes a radian of the robot's modes: its knees' bend, its arms' swing, reach and fold |
-| `machine/body/motors` | the robot's kinematics as dual quaternions: a pose a motor, a joint a screw, a chain their product |
 | `machine/body/reach` | a leg's reach over its foot from static arrays (reach_rows, laid by tools/cores/reach.py): margins, the flat place landed, two feet's gap; a limb an index |
 | `machine/body/terms` | the robot's movements by their orthopaedic names from static arrays (term_rows, laid by tools/cores/terms.py): a part and a movement, its joint kind, sign and stops |
 | `machine/body/mjcf` | the figure as MuJoCo's XML: segments, a motor a joint, contacts, clothes, what hangs loose |

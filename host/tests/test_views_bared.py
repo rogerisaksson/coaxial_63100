@@ -37,7 +37,7 @@ def test_the_mechanism_in_its_livery_bolted(report):
     is."""
     import numpy as np
     from coaxial.graphics import drums, gynoid, lit, livery, mechanism, plated
-    from machine.body import figure, guards
+    from machine.body import figure
     body = gynoid.body(dressed=False, plates=True)
     names, frame = [p[0] for p in body.parts], [p[0] for p in mechanism.parts()]
     worn = {name: body.parts[names.index(name)][5][3] for name in frame}

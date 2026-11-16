@@ -406,19 +406,6 @@ def search(pool, vdcs=VDC_SWEEP, candidates_n=48, draws=16, refine=24, seed=1):
     return best, runs
 
 
-def verify(pool, best, draws=48, seed=5):
-    """The best of each link against fresh draws, with and without the
-    injection through the descent: the cost's spread, and the speed the
-    back-EMF alone loses the rotor at."""
-    jobs = []
-    for _, row in best.iterrows():
-        knobs = {k: float(row[k]) for k in KNOBS}
-        for s in range(draws):
-            jobs.append({'vdc': float(row.vdc), 'knobs': knobs, 'seed': 7000 + 100 * seed + s})
-            jobs.append({'vdc': float(row.vdc), 'knobs': knobs, 'seed': 7000 + 100 * seed + s, 'bemf_only': True})
-    return sweep(pool, jobs)
-
-
 def main():
     ap = argparse.ArgumentParser(description=(__doc__ or '').split('\n')[0])
     ap.add_argument('--vdc', type=float, nargs='+', default=[43.0])

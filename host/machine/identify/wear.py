@@ -97,15 +97,9 @@ def laid(body, build=None):
                 1.0 / drives.series(j) if drives.series(j) else 0.0))) for j in names_d]), 'service': table}
 
 
-def _hems(w, ys, dt, every):
-    """((qadr, vadr, q, qd, qdd), free) the robot's limb pendulums (`w['hems']`) integrated at `dt` over `ys`
-    as 2-DoF pendulums with their stops, sampled every `every`th: what it does not measure on its
-    shanks, following them from its IMU and its legs' encoders."""
-    return sysid.done(_hemming(w, ys, dt, every))
-
-
 def _hemming(w, ys, dt, every):
-    """`_hems` a hem at a time, yielding after each (`campaign.hemming`)."""
+    """((qadr, vadr, q, qd, qdd), free) the robot's limb pendulums (`w['hems']`) integrated a hem at a time
+    at `dt` over `ys` as 2-DoF pendulums with their stops, sampled every `every`th (`campaign.hemming`)."""
     import numpy as np
     return (yield from campaign.hemming(w['lay'], w['body'], np.asarray(ys), dt, every, w))
 

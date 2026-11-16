@@ -59,7 +59,7 @@ def forces(craft, x, u, w_p, w_v, wind=(0.0, 0.0, 0.0)):
 
 def constants(craft):
     """`craft`'s model constants by name."""
-    from machine.aircraft import quad, wingborne
+    from machine.aircraft import wingborne
     w = craft.WING
     ix, iy, iz = craft.INERTIA
     return dict(m=craft.MASS_KG, g=craft.GRAVITY, kt=craft.K_THRUST, kp=craft.K_PITCH_Q, kr=craft.K_ROLL_Q,

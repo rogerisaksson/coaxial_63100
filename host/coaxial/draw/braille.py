@@ -9,14 +9,6 @@ ALL = tuple(chr(BRAILLE + bits) for bits in range(256))
 #: this module uses for a column of a cell.
 BIT = BRAILLE_BITS
 
-#: The dot numbers, `[lane][y]`, for a caller who thinks in the standard's
-#: numbering rather than in coordinates.
-NUMBER = ((1, 2, 3, 7), (4, 5, 6, 8))
-
-#: Where each dot number sits, `{number: (lane, y)}`.
-AT = {NUMBER[lane][y]: (lane, y)
-      for lane in range(DOTS_X) for y in range(DOTS_Y)}
-
 
 def mask(cells):
     """The bit mask for an iterable of `(lane, y)` dots."""
@@ -30,11 +22,6 @@ def mask(cells):
 def glyph(cells):
     """The character for an iterable of `(lane, y)` dots."""
     return ALL[mask(cells)]
-
-
-def numbered(*dots):
-    """The character for dot NUMBERS, the way a braille chart names them."""
-    return glyph(AT[n] for n in dots if n in AT)
 
 
 def lit(char):
@@ -62,12 +49,6 @@ def corner(y, lane, up=False, through=False):
     return glyph([(other, y) for other in range(DOTS_X)]
                  + [(lane, step) for step in range(max(0, lo),
                                                    min(DOTS_Y - 1, hi) + 1)])
-
-
-def tee(y, lane):
-    """A horizontal on dot row `y` met by a full-height stroke in `lane`."""
-    return glyph([(other, y) for other in range(DOTS_X)]
-                 + [(lane, step) for step in range(DOTS_Y)])
 
 
 #: The dotted horizontal a leader runs along, one per dot row.

@@ -844,16 +844,6 @@ float thermal_expected_ntc(const thermal_t *th)
   return (th->cfg.ntc_tau_s > 0.0f) ? th->ntc : ntc_target(th);
 }
 
-float thermal_board_from_ntc(const thermal_cfg_t *cfg, float ntc_c,
-                             float patch_rise_k)
-{
-  if (cfg == NULL)
-  {
-    return ntc_c;
-  }
-  return ntc_c - cfg->ntc_sees * patch_rise_k;
-}
-
 /** Pull one node to its die; the patch under it that implies, the node
     being patch + P * R. */
 static float anchor_die(thermal_t *th, thermal_node_t node, float seen,
@@ -898,15 +888,6 @@ static void integrate(thermal_t *th, const thermal_power_t *p,
     {
       th->t[i] += net[i] * dt_s / c;
     }
-  }
-}
-
-void thermal_integrate(thermal_t *th, const thermal_power_t *p,
-                       float speed_rpm, float dt_s)
-{
-  if ((th != NULL) && (p != NULL) && (dt_s > 0.0f))
-  {
-    integrate(th, p, speed_rpm, dt_s);
   }
 }
 

@@ -238,8 +238,6 @@ def typed(lib):
     lib.wbh_pass_averaged.argtypes = [ctypes.POINTER(World), d, _vp, _vp]
     lib.wbh_pass_hem.restype = None
     lib.wbh_sil_init.argtypes = [ctypes.POINTER(World), i, _vp, _vp]
-    lib.wbh_sil_transceive.argtypes = [ctypes.POINTER(World), i, ctypes.c_char_p, i]
-    lib.wbh_sil_transceive.restype = i
     lib.wbh_sil_drive.argtypes = [ctypes.POINTER(World), i, _vp, _vp, _vp, _vp, _vp]
     lib.wbh_sil_stats.argtypes = [i, _vp, _vp, _vp, _vp]
     lib.wbh_sil_noise.argtypes, lib.wbh_sil_burst.argtypes, lib.wbh_sil_off.argtypes = [d, i], [i, i], [_vp]

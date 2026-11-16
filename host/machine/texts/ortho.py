@@ -67,10 +67,10 @@ SLIDE, P = MANIFOLD.stop, MANIFOLD.stop + 1
 ROW = struct.Struct('<4I%df' % P)
 #: A row's flags: REST every parameter back to the robot's rest (a behaviour's last row, blended REST_MS);
 #: CURVE a curve's sample - a take's frame - blended as one with the rows about it (`latent.CONTIG`),
-#: a text's rows each their own way; it and the rows after it wait (`waits.borne_back`) till a seat
+#: a text's rows each their own way; it and the rows after it wait (`waits.borne_rows`) till a seat
 #: or bed bears the robot (CONTACT), its soles SHARE of it (SOLES, thousandths from SHARE_BIT),
 #: each hand (PALMED); LATCH its vector set where it is read, its gains back on no
-#: error (`waits.latched_back`).
+#: error (`waits.latched_rows`).
 REST, REST_MS, CURVE, CONTACT, LATCH, SOLES, SHARE_BIT, PALMED = 1, 200, 2, 4, 8, 256, 9, 1 << 19
 #: A row that raises the robot out of a dip waits while its centre of mass still sinks (RISE: a leap's push).
 RISE = 1 << 20

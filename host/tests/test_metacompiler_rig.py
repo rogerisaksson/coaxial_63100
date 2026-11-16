@@ -118,7 +118,6 @@ def test_the_stages_rate_and_envelope_are_stated_once(r):
     library's; the thermal core's envelope is the library's ceilings and its junction's limit; the
     bootloader's line rate the emulator opens at is the master's transport's."""
     from coaxial.devices import boot
-    from coaxial.model import inverter
     from coaxial.simulated import power
     from coaxial.simulated.drive import device
     from machine.body import mechatronics

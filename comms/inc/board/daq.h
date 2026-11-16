@@ -127,9 +127,6 @@ const char *Board_DaqSetTone(uint32_t hz, uint32_t rate_hz,
 /** Advance the tone generator. */
 void Board_DaqTonePoll(void);
 
-/** Whether a tone is standing in for the converter. */
-bool Board_DaqToneOn(void);
-
 /** Whether a task is running. */
 bool Board_DaqRunning(void);
 

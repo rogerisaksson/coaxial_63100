@@ -170,31 +170,6 @@ AREA_SHARE = {'board': 0.199, 'patch_u': 0.109, 'patch_v': 0.134,
               'patch_w': 0.109, 'patch_left': 0.126, 'patch_bottom': 0.197,
               'patch_right': 0.126}
 
-
-def patch_of(x_mm, y_mm):
-    """Which laminate patch a point of the board is in, millimetres from the
-    centre, +y up: the band under the switches and shunts above y = 12
-    cut into the three legs at x = +-14, the front end's band below y =
-    -25, and the middle in three at x = +-22.
-    """
-    if y_mm >= 12.0:
-        return 'patch_u' if x_mm < -14.0 else (
-            'patch_w' if x_mm > 14.0 else 'patch_v')
-    if y_mm < -25.0:
-        return 'patch_bottom'
-    if x_mm < -22.0:
-        return 'patch_left'
-    if x_mm > 22.0:
-        return 'patch_right'
-    return 'board'
-
-
-#: The sheet conductance of the laminate, W/K per unit of shared boundary
-#: over centre distance: 0.020 makes the V leg's patch's three neighbours
-#: in parallel the 15.2 K/W the camera measured lumped, and it is what two
-#: ounces of copper on two layers at forty percent coverage compute to.
-K_SHEET = 0.020
-
 #: The edges, in `thermal.c`'s table order: `(a, b, K/W)`. The sources into
 #: their patches first - a leg's switches at 12, its shunts at 8, the rest
 #: the camera's zone figures, the hot swap an estimate at the driver's -

@@ -15,11 +15,6 @@ OUTER = 1.0
 BORE = 0.10
 HALF_THICKNESS = 0.016
 
-#: Perspective: K2 pushes the torus away from the eye and K1 scales what is
-#: left onto the canvas. K1 is derived from the width, so a wider terminal
-#: draws a bigger donut rather than the same one with more blank around it.
-K2 = 5.0
-
 #: Samples around the board. Fine enough that the surface has no gaps at this
 #: character resolution; every sample is rotated, projected and z-tested.
 PHI_STEPS = 260
@@ -49,12 +44,6 @@ def rotate(q, v):
     return (x + w * tx + (j * tz - k * ty),
             y + w * ty + (k * tx - i * tz),
             z + w * tz + (i * ty - j * tx))
-
-
-def relative(q, reference):
-    """`q` with `reference` taken out: the attitude SINCE the tare."""
-    ri, rj, rk, rw = reference
-    return _qmul(q, (-ri, -rj, -rk, rw))
 
 
 def _qmul(a, b):

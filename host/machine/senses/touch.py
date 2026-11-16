@@ -6,8 +6,8 @@
     touch.against(g, twist)                 # a twist less its part toward what the robot felt
 
 The robot's law's own reading of the edge's touch (`machine.senses.edge`): no body is named, nothing but
-forces on its segments in their own frames, turned by its own model. The filter's memory is one array (`laid`,
-STATE): what the robot felt and where, its hold, its brake, its stand, its drive, each sole's clearance.
+forces on its segments in their own frames, turned by its own model. The filter's memory is one array (`laid`):
+what the robot felt and where, its hold, its brake, its stand, its drive, each sole's clearance.
 """
 import math
 import os
@@ -50,13 +50,12 @@ TIPS = tuple((x, -figure.TOE_RY, figure.TOE_M) for x in (-figure.SOLE_HALF, figu
 #: The filter's state: what the robot felt, along and across (m of FELT_S's reach left); its hold's
 #: seconds; its brake, its stand and its drive, 0 to 1; each sole's clearance.
 FELT, HOLD_S, U_BRAKE, U_STAND, U_DRV, CLEAR = slice(0, 2), 2, 3, 4, 5, slice(6, 8)
-STATE = CLEAR.stop
 #: At rest: nothing felt, no hold, no brake, standing, the robot's drive whole, nothing to clear.
 REST = (0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0)
 
 
 def laid():
-    """The filter's state at rest, (STATE,)."""
+    """The filter's state at rest."""
     return np.array(REST)
 
 

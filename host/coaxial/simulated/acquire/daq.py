@@ -25,10 +25,6 @@ INJECTED = frozenset((0, 1, 2, 4, 5))
 LINE_SHARE_PERCENT = 75
 
 
-#: The capture ring's sources the stand-in fills, by bit.
-SOURCES = {'phases': 0, 'angle': 1, 'imu': 2}
-
-
 class SimulatedDaq(Acquisition):
     """One acquisition task, backed by DaqCore (`daq.c` and `filter.c`)."""
 
@@ -468,14 +464,9 @@ class SimulatedDaq(Acquisition):
         record = self.calibration
         return code if record is None else record.apply(index, code)
 
-    _record = staticmethod(Daq._record)
-
     def decode(self, blob, layout=None):
         """Records out of raw record bytes, decoded by the board's own wire format (`Daq.decode`)."""
-        lay = layout or self.layout()
-        if not blob:
-            return []
-        return Daq.decode(self, blob, lay)
+        return Daq._decode(blob, layout or self.layout()) if blob else []
 
     def latest(self, layout=None, block=True, timeout=2.0, poll=0.002):
         if not self._running and not block:

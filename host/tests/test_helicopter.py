@@ -241,10 +241,10 @@ def test_lisp_manifests_and_validation(report):
     hm, qm, om, am = helicopter.MANIFEST, quad.MANIFEST, ornithopter.MANIFEST, aerobat.MANIFEST
     mdir = os.path.dirname(os.path.abspath(helicopter.LISP_PATH))
     shared_files = ('aerodynamics.lisp', 'dynamics.lisp', 'kinematics.lisp')
-    fns = (aerolisp.compile_aerodynamics, aerolisp.compile_dynamics, aerolisp.compile_kinematics)
-    shared = [fn(open(os.path.join(mdir, name), encoding='utf-8').read()) for fn, name in zip(fns, shared_files)]
+    shared = [aerolisp.compile_manifest(open(os.path.join(mdir, name), encoding='utf-8').read())
+              for name in shared_files]
     report.check('shared Lisp files compile and puzzle into helicopter, quadcopter, ornithopter, and aerobat',
-                 shared[0]['name'] == 'shared' and shared[1]['name'] == 'shared'
+                 shared[0]['aerodynamics']['name'] == 'shared' and shared[1]['dynamics']['name'] == 'shared'
                  and shared[2]['kinematics']['name'] == 'shared' and len(shared[2]['stunts']) == 11
                  and all(m['includes'] == shared_files + (own + '.lisp',)
                          for m, own in zip((hm, qm, om, am), ('helicopter', 'quadcopter', 'ornithopter', 'aerobat')))

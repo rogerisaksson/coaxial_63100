@@ -6,7 +6,6 @@ weight (`build.segments`).
 
     skeleton.bodies()           # [(body, segment it rides, [geom xml])], each geom in its frame
     skeleton.cans()             # [(joint, rides, centre, axis, radius, half)]: the drives' stacks
-    skeleton.owners(model)      # {body id: segment}: the robot's segments and what rides each
     skeleton.overlapping(model) # [(body, body)]: touching standing, so by design
 
 A part a body of its own meets the segment its own hangs from - the folded femur the calf's rod -
@@ -277,18 +276,6 @@ def bodies():
                     _geom('capsule', r, start, (start[0],) + tuple(
                         v + (b - v) * r / max(1e-9, abs(b - v) + 1e-12) for v, b in
                         zip(start[1:], drum[2][1:])))]))
-    return out
-
-
-def owners(model):
-    """{body id: segment}: the robot's segments' bodies and its skeleton's, each by the segment it
-    rides."""
-    out = {model.body(s[0]).id: s[0] for s in SEGMENTS}
-    for body, rides, _geoms in bodies():
-        try:
-            out[model.body(body).id] = rides
-        except KeyError:
-            pass
     return out
 
 

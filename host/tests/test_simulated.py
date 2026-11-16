@@ -1418,8 +1418,6 @@ def test_a_ceiling_pulled_in_under_a_node_closes_the_clamp(report):
 
 def test_thermal_identification(report):
     """The stand-in identifies its own ground truth, and says so."""
-    import os
-
     from coaxial import Coaxial63100
     from coaxial.model import thermal
     from coaxial.simulated.thermal.observer import SimulatedThermal

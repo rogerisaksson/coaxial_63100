@@ -207,17 +207,21 @@ class Daq(Device, Acquisition, device=protocol.DEVICE_DAQ):
         self._op(DaqOp.STOP)
         return True
 
-    def decode(self, blob, layout=None):
-        """Whole records out of raw record bytes."""
-        layout = layout or self.layout()
+    @staticmethod
+    def _decode(blob, layout):
+        """Whole records out of raw record bytes under `layout`."""
         fields, pins = layout['fields'], layout.get('pins') or []
         sensors = layout.get('sensors') or []
         words = sum(x['words'] for x in sensors)
         stride = layout['stride']
         fmt = '>I%di%dB%dhH' % (len(fields), len(pins), words)
-        return [self._record(struct.unpack(fmt, blob[at:at + stride]),
-                             fields, pins, sensors)
+        return [Daq._record(struct.unpack(fmt, blob[at:at + stride]),
+                            fields, pins, sensors)
                 for at in range(0, len(blob) // stride * stride, stride)]
+
+    def decode(self, blob, layout=None):
+        """Whole records out of raw record bytes."""
+        return self._decode(blob, layout or self.layout())
 
     @staticmethod
     def _record(values, fields, pins, sensors):

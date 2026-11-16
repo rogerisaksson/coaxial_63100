@@ -102,7 +102,6 @@ def test_the_body_schema_lays_the_robots_capsules(report):
     the log-sum-exp under the least by at most log(n) / alpha."""
     import numpy as np
     from machine.body import capsules
-    from machine.law import schema
     rng = np.random.default_rng(3)
     n = 64
     caps = {'p0': rng.normal(size=(n, 3)), 'p1': rng.normal(size=(n, 3)), 'r0': np.zeros(n), 'r1': np.zeros(n)}

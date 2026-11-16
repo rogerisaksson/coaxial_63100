@@ -497,19 +497,6 @@ def _flatten(tree, leaves, seen):
     raise Untraced('an output of %s' % type(tree).__name__)
 
 
-def unflatten(shape, leaves):
-    """The nested output laid back of `shape` (`traced`'s prog.shape) and its leaves' arrays."""
-    kind, body = shape
-    if kind == 'leaf':
-        return leaves[body]
-    if kind == 'dict':
-        return {k: unflatten(v, leaves) for k, v in body}
-    if kind in ('list', 'tuple'):
-        got = [unflatten(v, leaves) for v in body]
-        return got if kind == 'list' else tuple(got)
-    return body
-
-
 def leaves_of(shape, tree, out=None):
     """{leaf: array} of `tree`, fn's own result, at `shape`'s leaves; Untraced where it is not shaped so."""
     out = {} if out is None else out

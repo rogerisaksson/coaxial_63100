@@ -270,11 +270,6 @@ void thermal_budget(const thermal_t *th, const thermal_power_t *p,
 void thermal_net_flows(const thermal_t *th, const thermal_power_t *p,
                        float speed_rpm, float *net);
 
-/** One Euler slice over the whole graph, no anchors: the identification's
-    shadow steps with this, the observer with `thermal_step`. */
-void thermal_integrate(thermal_t *th, const thermal_power_t *p,
-                       float speed_rpm, float dt_s);
-
 /** Start the thermal observer with every node at one temperature. */
 void thermal_init(thermal_t *th, const thermal_cfg_t *cfg, float celsius);
 
@@ -302,10 +297,6 @@ float thermal_expected_ntc(const thermal_t *th);
     average of the two patches it sits between at `ntc_tau_s`, and never past
     either of them. */
 int thermal_ntc_follow(thermal_t *th, float dt_s);
-
-/** The centre patch from the NTC with the V leg's share taken out. */
-float thermal_board_from_ntc(const thermal_cfg_t *cfg, float ntc_c,
-                             float patch_rise_k);
 
 /** Defaults: the network as derived for this board. */
 void thermal_defaults(thermal_cfg_t *cfg);

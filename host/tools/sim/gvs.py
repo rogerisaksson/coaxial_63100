@@ -48,18 +48,6 @@ def hof_scaling(mass=MASS_DEFAULT, leg=L0_DEFAULT, g=G):
             'tau0': mass * g * leg, 'om0': math.sqrt(g / leg), 'mass': mass, 'leg': leg, 'g': g}
 
 
-def strip_hardware(times, places=None, velocities=None, forces=None, torques=None,
-                   mass=MASS_DEFAULT, leg=L0_DEFAULT, g=G):
-    """Strip physical context from telemetry data using Hof's scaling axiom."""
-    s = hof_scaling(mass, leg, g)
-    out = {'tau': np.asarray(times, float) / s['t0'], 'scale': s}
-    for k, arr, unit in (('r_star', places, s['leg']), ('v_star', velocities, s['v0']),
-                         ('f_star', forces, s['f0']), ('tau_star', torques, s['tau0'])):
-        if arr is not None:
-            out[k] = np.asarray(arr, float) / unit
-    return out
-
-
 def capture_point(times, com_along, vcom_along=None, leg=L0_DEFAULT, g=G):
     """Dimensionless forward Capture Point progression xi* = c*_along + v*_along."""
     times, com = np.asarray(times, float), np.asarray(com_along, float)
@@ -74,15 +62,6 @@ def capture_point(times, com_along, vcom_along=None, leg=L0_DEFAULT, g=G):
     else:
         v_star = np.asarray(vcom_along, float) / s['v0']
     return tau, c_star + v_star
-
-
-def phase_from_capture_point(xi_star, window_samples=None):
-    """Parameterize phase theta in [0, 1) strictly over forward Capture Point progression."""
-    n = len(xi_star)
-    if n < 4:
-        return np.linspace(0.0, 1.0, n, endpoint=False)
-    span = xi_star[-1] - xi_star[0]
-    return np.zeros(n) if abs(span) < 1e-6 else np.clip((xi_star - xi_star[0]) / span, 0.0, 1.0)
 
 
 def geodesic_distance_so3(r1, r2):

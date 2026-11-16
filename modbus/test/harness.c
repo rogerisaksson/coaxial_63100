@@ -200,7 +200,6 @@ API void mbh_set_id(harness_t *h, const char *s)
 
 API uint16_t mbh_hold(harness_t *h, uint16_t addr) { return h->hold[addr]; }
 API uint8_t  mbh_coil(harness_t *h, uint16_t addr) { return h->coil[addr]; }
-API void     mbh_set_hold(harness_t *h, uint16_t addr, uint16_t v) { h->hold[addr] = v; }
 
 API size_t mbh_execute(harness_t *h, const uint8_t *req, size_t req_len,
                        uint8_t *rsp, size_t rsp_cap)
@@ -273,5 +272,4 @@ API void mbh_rtu_counters(harness_t *h, uint32_t *out)
 /* ---- CRC, straight through ---------------------------------------------- */
 
 API uint16_t mbh_crc16(const uint8_t *d, size_t n)      { return modbus_crc16(d, n); }
-API size_t   mbh_crc_append(uint8_t *b, size_t n)       { return modbus_crc_append(b, n); }
 API int      mbh_crc_check(const uint8_t *f, size_t n)  { return modbus_crc_check(f, n); }

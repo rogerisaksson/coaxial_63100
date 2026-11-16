@@ -110,7 +110,6 @@ def recorded(path, start, end):
 def simulated(scene, verb, seconds):
     """(times, joints, flickers) of the robot's sit here: `scene` laid, `verb` said, `seconds` followed;
     `flickers` how often a sole's load came and went past its soles' touch."""
-    from machine.body import figure
     from machine.moves import leap
     from machine.world import physics
     from machine.process import worker

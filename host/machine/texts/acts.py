@@ -5,7 +5,7 @@
 They are the robot's law's own quantities: an envelope's knee is its height (`modal`'s axial), where a
 seat is seen the knee and ankle that land its hips on it (`figure.SEAT_Y`, `SEAT_R`, `HIP_DROP`), its
 centre of mass where its posture puts it (`seated.com`). A contact's threshold is the robot's support's
-own (`impedance.PROP_ON`, `waits.borne_back`). A cross-fade is the furniture taking the robot - what
+own (`impedance.PROP_ON`, `waits.borne_rows`). A cross-fade is the furniture taking the robot - what
 bears it panned to it (`ortho.MANIFOLDS`) - or its soles; a cascade or a gate a phase a node (no
 reaction wheel of its arms); a recline its trunk's ramp; a pendulum its pelvis listed and turned onto its
 hip; a seek its fists set on a seat over its shins.
@@ -318,7 +318,7 @@ def _pendulum(p, then, at, modes, body):
 
 def _latch(p, then, at, modes, body):
     """A latch: the robot's vector where it is read at its time, the reference its gains come back on with no
-    error (`ortho.LATCH`, `waits.latched_back`)."""
+    error (`ortho.LATCH`, `waits.latched_rows`)."""
     return [Phase('wake', 'latch', GRAIN_MS, GRAIN_MS, {}, {}, None, None, True)]
 
 

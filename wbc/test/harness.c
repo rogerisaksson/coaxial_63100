@@ -647,11 +647,6 @@ API void wbh_sil_init(wbc_world_t *w, int nbuses, const int *counts, const int *
   wbc_sil_init(w, nbuses, counts, joints);
 }
 
-API int wbh_sil_transceive(wbc_world_t *w, int bus_id, const unsigned char *frame, int len)
-{
-  return wbc_sil_transceive(w, bus_id, frame, len);
-}
-
 API void wbh_sil_drive(wbc_world_t *w, int n_idx, const int *idx, const double *target,
                        const double *feed, const double *kp, const double *limit)
 {

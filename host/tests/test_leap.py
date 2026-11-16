@@ -235,7 +235,7 @@ def test_the_robot_leaps_in_stride_and_walks_on(report):
     is held 250 ms vs 5 ms and when running vs walking, lands and continues its gait. Measured, the robot's
     longest flight: walk 0.13 -> 0.13 m, run 0.27 -> 0.27 - in stride the hold's charge has no lever
     yet (`ballistic.bound`), a held leap held to no shorter than a tap's."""
-    from machine.process import sprung, worker
+    from machine.process import worker
     leap_dz = {}
     for label, vx in (('walk', 0.69), ('run', 1.40)):
         for ch in (0.0, 1.0):
@@ -286,7 +286,7 @@ def test_the_pages_held_space_lands_the_robot(report):
     while it is under way; on the robot's loop as the page lays it the robot lands on both soles and stands. A held
     Space said a new hop every 0.12 s in the robot's flight and felled it (a recording on the page)."""
     from types import SimpleNamespace as SN
-    from machine.process import sprung, worker
+    from machine.process import worker
     from terminal.ui import bindings
     from terminal.views import humanoid_keys
     sent = []

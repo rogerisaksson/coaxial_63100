@@ -34,12 +34,6 @@ def first(verb, box, things, heading):
                                         for h in kind(box, things)))
 
 
-def _things(g, things):
-    """`things` (the robot's own, `g['things']`, without) as boxes: kind, centre, half sizes, turn at the
-    least."""
-    return [p for p in (g['things'] if things is None else things) if _boxlike(p)]
-
-
 def _boxlike(p):
     return len(p) >= 4 and len(p[1]) >= 3 and hasattr(p[2], '__len__') and len(p[2]) >= 3
 

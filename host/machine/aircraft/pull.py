@@ -104,8 +104,6 @@ def linked(volts, rotors=0, rotor=ROTOR):
     return low
 
 
-LINK = tuple(linked(VOLTS[0] + k * VOLTS[2])
-             for k in range(int(round((VOLTS[1] - VOLTS[0]) / VOLTS[2])) + 1))
 PACK = tuple(linked(flightpack.open_volts(k / (CHARGES - 1.0)), ROTORS) for k in range(CHARGES))
 
 

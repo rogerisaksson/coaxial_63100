@@ -18,7 +18,6 @@ import argparse
 import functools
 import math
 import os
-import struct
 import sys
 from decimal import Decimal, getcontext, localcontext
 from fractions import Fraction
@@ -112,11 +111,6 @@ def grid(q, e):
 def split(q, hi):
     """[q's high part, the rest's nearest double]."""
     return [hi, nearest(Fraction(q) - Fraction(hi))]
-
-
-def word(v):
-    """A double's bits, an integer."""
-    return struct.unpack('<Q', struct.pack('<d', v))[0]
 
 
 def ln(q):

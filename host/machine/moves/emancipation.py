@@ -28,7 +28,7 @@ from machine.senses import borne, field, observer, edge
 from machine.texts import kernel, ortho
 from machine.law import composer, latent, modal
 from machine.moves import leap
-from machine.moves.cascade import (_U, asked, HANG_RATE, LEG_JOINTS, LEGGED, leave, MARGIN_NM, nothing, OPEN, opening,
+from machine.moves.cascade import (_U, asked, HANG_RATE, LEG_JOINTS, LEGGED, leave, MARGIN_NM, OPEN, opening,
                                    PLANTAR, reached, released, SHED)
 from machine.stack.wbc import turn_error
 
@@ -52,12 +52,6 @@ def margin(point, pts, room, mask):
     -inf."""
     reach = reached(point, pts, room, mask)
     return reach.min(axis=1), _U[reach.argmin(axis=1)]
-
-
-def told_nothing(told):
-    """How far the robot's text tells its soles nothing, 0 to 1: under its comparator's release share of what
-    is told (`observer.said`; nothing told, its soles bear)."""
-    return float(nothing(told))
 
 
 def gate(xi, pts, room, soles, vcom, shares, loads, weight, left=None):

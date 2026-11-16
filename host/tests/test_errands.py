@@ -85,7 +85,7 @@ def test_a_stop_settles_and_f_is_heard(report):
 
 def test_a_halting_row_waits_for_a_swing_only_while_the_robots_rhythm_turns(report):
     """A row halting the robot's rhythm, due while its capture point asks a step, waits a pass while
-    the robot's rhythm turns; at rest no swing comes and it comes at once (`waits.held_back`): sitting, the
+    the robot's rhythm turns; at rest no swing comes and it comes at once (`waits.backs`): sitting, the
     robot's centre of mass behind its heels, a seat asked was held for ever."""
     import numpy as np
     from machine.law import latent, modal, waits
@@ -93,12 +93,13 @@ def test_a_halting_row_waits_for_a_swing_only_while_the_robots_rhythm_turns(repo
     k, _ask = c_motion.laid()
 
     def waited(turns):
-        tab = np.zeros((1, latent.TABLE))
+        tab, fr = np.zeros((1, latent.TABLE)), np.zeros(modal.FRAME)
+        fr[modal.WEIGHT] = 1.0
         tab[0, latent.SAID][latent.GAIN], tab[0, latent.AT] = 1.0, 1.0
         g = {'tab': tab, 't': 1.0, 'a': np.zeros(modal.ASK), 'out': np.zeros(latent.OUT), 'labels': [(1.0, 'seated')]}
-        g['waits'] = c_wait.laid(k, g['a'], g['out'], np.zeros(modal.SENSED), np.zeros(modal.FRAME), np.zeros(latent.STATE))
+        g['waits'] = c_wait.laid(k, g['a'], g['out'], np.zeros(modal.SENSED), fr, np.zeros(latent.STATE))
         g['a'][modal.NEED], g['out'][latent.TURNS] = 1.0, turns
-        waits.held_back(g, 0.003)
+        waits.backs(g, 0.003)
         return float(g['tab'][0, latent.AT]) - 1.0
     report.check('a halting row waits a pass while the robot\'s rhythm turns, none at rest',
                  waited(np.pi) > 0.0 and waited(0.0) == 0.0, (waited(np.pi), waited(0.0)))
@@ -273,7 +274,7 @@ def test_from_the_low_chair_the_robot_rounds_the_bed_to_the_door(report):
     door's line, clear of the bed's box by its hips, no fall."""
     from machine.body import figure
     from machine.world import physics, room
-    from machine.process import sprung, worker
+    from machine.process import worker
     physics.ROOM, physics.SIGHT = 1.0, 0.0
     s = worker.session()
     g, d = s['g'], s['g']['world'].data

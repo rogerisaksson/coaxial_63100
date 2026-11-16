@@ -30,11 +30,6 @@ API rig_t *flt_new(void)
   return r;
 }
 
-API void flt_free(rig_t *r)
-{
-  free(r);
-}
-
 /** The design as the host holds it: boxcar, decimate, then five floats per
     section in b0 b1 b2 a1 a2 order - the order coaxial/acquire/bessel.py emits. */
 API int flt_design(rig_t *r, uint16_t boxcar, uint16_t decimate,
@@ -60,11 +55,6 @@ API int flt_design(rig_t *r, uint16_t boxcar, uint16_t decimate,
 
   filter_reset(&r->channel);
   return filter_valid(&r->design) ? 1 : 0;
-}
-
-API void flt_prime(rig_t *r, double value)
-{
-  filter_prime(&r->design, &r->channel, (float)value);
 }
 
 API void flt_reset(rig_t *r)

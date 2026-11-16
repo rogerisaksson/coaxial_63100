@@ -21,8 +21,8 @@ import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 KINDS = ('.py', '.c', '.h', '.lisp')
-#: Trees left out: the vendor's drivers, what nothing reaches, build output.
-SKIP = ('drivers/', 'deprecated/', 'build/')
+#: Trees left out: the vendor's drivers, build output.
+SKIP = ('drivers/', 'build/')
 ROLES = {'inc': 'headers', 'src': 'sources', 'test': 'tests'}
 #: A folder's purpose compiled from its files' synopses is cut at WIDTH characters, each file's head at HEAD.
 WIDTH, HEAD = 200, 64

@@ -26,7 +26,6 @@ static uint32_t  s_erases;               /* flash sector erases */
 static uint32_t  s_programs;             /* flash words */
 static uint32_t  s_writes;               /* RAM words */
 static uint32_t  s_fail_program_at;      /* an address that refuses, 0 for none */
-static int       s_fail_erase;
 static char      s_said[LINE_MAX];
 static boot_layout_t s_layout;
 
@@ -44,10 +43,6 @@ static uint8_t *at(uint32_t address)
 static bool erase(void *ctx, uint32_t address, uint32_t bytes)
 {
   (void)ctx;
-  if (s_fail_erase)
-  {
-    return false;
-  }
   if (in_ram(address))
   {
     memset(at(address), 0xFF, (bytes + BOOT_WORD_BYTES - 1U) & ~(BOOT_WORD_BYTES - 1U));
@@ -114,7 +109,6 @@ API void boot_h_reboot(void)
   s_programs = 0U;
   s_writes = 0U;
   s_fail_program_at = 0U;
-  s_fail_erase = 0;
   s_said[0] = '\0';
   boot_init(&s_port, NULL, &s_layout);
 }
@@ -184,11 +178,6 @@ API int boot_h_ready(uint32_t bytes, uint32_t crc)
   return boot_ready(bytes, crc) ? 1 : 0;
 }
 
-API void boot_h_image(uint32_t *out)
-{
-  boot_image(&out[0], &out[1]);
-}
-
 /* The slot, 32 bytes in and out: what the jump leaves the application. */
 API void boot_h_hand(uint8_t *slot)
 {
@@ -203,14 +192,12 @@ API int      boot_h_state(void)         { return (int)boot_state(); }
 API int      boot_h_unit(void)          { return (int)boot_unit(); }
 API int      boot_h_go(void)            { return boot_wants_go() ? 1 : 0; }
 API int      boot_h_terminates(void)    { return boot_terminates() ? 1 : 0; }
-API uint32_t boot_h_ignored(void)       { return boot_chunks_ignored(); }
 API int      boot_h_app_valid(void)     { return boot_app_valid() ? 1 : 0; }
 API uint32_t boot_h_erases(void)        { return s_erases; }
 API uint32_t boot_h_programs(void)      { return s_programs; }
 API uint32_t boot_h_writes(void)        { return s_writes; }
 API const char *boot_h_said(void)       { return s_said; }
 API void     boot_h_fail_program(uint32_t address) { s_fail_program_at = address; }
-API void     boot_h_fail_erase(int on)  { s_fail_erase = on; }
 API uint32_t boot_h_crc32(const uint8_t *data, uint32_t n)
 {
   return boot_crc32(0xFFFFFFFFU, data, n) ^ 0xFFFFFFFFU;

@@ -179,7 +179,7 @@ def test_the_robots_law_in_c_as_it_walks(report, c):
     """The robot's motion's compiled parts - its estimate, its sensing, its grip's feel and floor, its situation,
     its drive's cap, its ask's poses, its sensing flat (`motion.laid`) - at every pass of its motion over PASSES of
     its walk, built at their first and held there, each beside its numpy on copies."""
-    from machine.senses import estimate, grip, situation, touch
+    from machine.senses import estimate, grip, situation
     from machine.law import modal, motion
     from machine.stack import wbc
     from machine.process import worker

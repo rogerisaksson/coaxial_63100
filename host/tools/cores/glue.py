@@ -27,8 +27,7 @@ def whole(r):
 def maker(shape, outs):
     """fn's result laid back of an output block and its arguments, a function of them: each leaf a
     view of the block at its span (a 0-d one numpy's scalar, a bool one numpy's bools) - a whole
-    argument array the caller's own, as Python returns it -, its dicts, lists and tuples as traced
-    (`trace.unflatten`)."""
+    argument array the caller's own, as Python returns it -, its dicts, lists and tuples as traced."""
     consts, lines = [], []
     for k, (a, b, s, dtype, given) in enumerate(outs):
         view = 'f[%d]' % a if not s else 'f[%d:%d]' % (a, b) if len(s) == 1 else 'f[%d:%d].reshape(%r)' % (a, b, tuple(s))

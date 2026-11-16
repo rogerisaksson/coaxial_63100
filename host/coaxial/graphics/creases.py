@@ -53,11 +53,6 @@ OUTLINE_DEG = 60.0
 OUTLINE_RISE = 0.02
 
 
-#: A slab-level loop this wide is the board's own edge (the rim is 2.0,
-#: the bore 0.2); the mounting holes at 0.14 and the copper are not.
-OUTLINE_RIM = 0.19
-
-
 #: And per LOOP, in model units: edges adding up to more than this many
 #: widths is crease detail, not an outline. See _outline_loops.
 OUTLINE_DENSITY = 6.0

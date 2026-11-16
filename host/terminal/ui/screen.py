@@ -38,8 +38,6 @@ SCROLL_STEP = {'down': 1, 'up': -1}
 #: through a shell heredoc arrives as the real character (CLAUDE.md, Traps).
 ESC = chr(27)
 
-CR = chr(13)
-
 #: Preflight colours, matching board_chat/Say.ps1 so the two read the
 #: same. Green ok, cyan waiting, yellow worth knowing, red stop.
 STATES = {'ok': '32', 'wait': '36', 'warn': '33', 'fail': '31'}

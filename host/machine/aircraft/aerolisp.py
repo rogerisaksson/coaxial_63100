@@ -359,15 +359,3 @@ def compile_manifest(text, symbols=None, base_dir=_BASE_DIR, blocks=None):
         _apply_manifest_form(f, out, c, base_dir, set())
     out.update(includes=tuple(out['includes']), streams=tuple(out['streams']))
     return out
-
-
-def compile_aerodynamics(text, symbols=None, base_dir=_BASE_DIR):
-    return compile_manifest(text, symbols, base_dir)['aerodynamics']
-
-
-def compile_dynamics(text, symbols=None, base_dir=_BASE_DIR):
-    return compile_manifest(text, symbols, base_dir)['dynamics']
-
-
-def compile_kinematics(text, symbols=None, base_dir=_BASE_DIR):
-    return compile_manifest(text, symbols, base_dir)

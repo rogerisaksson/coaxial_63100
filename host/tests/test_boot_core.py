@@ -87,11 +87,6 @@ class Node:
         """The reset's gate, with what the slot names."""
         return bool(self.lib.boot_h_ready(bytes_, crc))
 
-    def image(self):
-        out = (ctypes.c_uint32 * 2)()
-        self.lib.boot_h_image(out)
-        return tuple(out)
-
     def hand(self, slot=None):
         """The slot the jump leaves, from the one it found (noise by default): (magic, stay,
         unit, position, flags, bytes, crc)."""
@@ -109,7 +104,6 @@ class Node:
     programs = property(lambda self: self.lib.boot_h_programs())
     writes = property(lambda self: self.lib.boot_h_writes())
     erases = property(lambda self: self.lib.boot_h_erases())
-    ignored = property(lambda self: self.lib.boot_h_ignored())
 
 
 def chunks_of(img):
@@ -273,7 +267,7 @@ def test_seal_before_verify_is_refused(report, node):
 
 def test_the_master_dies(report, node):
     """A stream that stops leaves an invalid image; the next erase starts
-    over, and a chunk before an erase is counted and ignored."""
+    over, and a chunk before an erase is ignored."""
     img = image(30 * CHUNK)
     node.op(HOLD, struct.pack('>I', SESSION))
     node.op(ASSIGN, UID + bytes([2, 2, 0]))
@@ -286,8 +280,8 @@ def test_the_master_dies(report, node):
                  node.erases == 0 and missing(node) == list(range(30)) and node.state == ERASED)
     fresh = Node(node.lib)
     fresh.op(CHUNK_OP, struct.pack('>H', 0) + img[:CHUNK])
-    report.check('a chunk with no erase behind it is ignored and counted',
-                 fresh.ignored == 1 and fresh.state == BLANK)
+    report.check('a chunk with no erase behind it is ignored',
+                 fresh.state == BLANK and fresh.writes == 0)
 
 
 def test_a_wrong_crc_and_a_wrong_type(report, node):
@@ -373,7 +367,7 @@ def test_the_store(report, node):
     report.check('a power-up: RAM is noise, so the slot names nothing, and the store is copied',
                  not node.valid and node.ready() and node.valid
                  and node.read(RUN_BASE, len(img)) == img and node.writes == words
-                 and node.image() == (len(img), zlib.crc32(img)))
+                 and node.hand()[-2:] == (len(img), zlib.crc32(img)))
     node.power_cycle()
     ok, _crc = session(node, img)
     report.check('a master offering the stored image: copied, verified at once, nothing streamed',
@@ -396,7 +390,7 @@ def test_a_warm_reset(report, node):
     node.reboot()
     report.check('the slot names RAM\'s image: ready without a word written',
                  node.ready(len(img), zlib.crc32(img)) and node.writes == 0
-                 and node.image() == (len(img), zlib.crc32(img)))
+                 and node.hand()[-2:] == (len(img), zlib.crc32(img)))
     node.reboot()
     report.check('a slot naming another crc falls to the store, and an empty store runs nothing',
                  not node.ready(len(img), zlib.crc32(img) ^ 1))
@@ -461,7 +455,6 @@ def run(roster, name='bootcore'):
     lib_path, warnings = build(cc, SOURCES, INCLUDES, name=name)
     lib = ctypes.CDLL(lib_path)
     lib.boot_h_crc32.restype = ctypes.c_uint32
-    lib.boot_h_ignored.restype = ctypes.c_uint32
     lib.boot_h_programs.restype = ctypes.c_uint32
     lib.boot_h_erases.restype = ctypes.c_uint32
     lib.boot_h_writes.restype = ctypes.c_uint32

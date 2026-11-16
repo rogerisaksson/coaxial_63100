@@ -89,26 +89,6 @@ typedef struct
 bool shtp_parse_product_id(const uint8_t *cargo, size_t len,
                            shtp_product_id_t *out);
 
-/** One input report, as it arrived. */
-typedef struct
-{
-  uint8_t report_id;
-  uint8_t seq;
-  uint8_t status;      /**< bits 1:0 are the accuracy, section 1.3.5.2 */
-  uint8_t delay;
-  int16_t x;
-  int16_t y;
-  int16_t z;
-  int16_t w;
-  uint8_t count;       /**< 3 for a vector, 4 for a quaternion */
-} shtp_report_t;
-
-/** Walk one input cargo and decode the reports in it.
-    @param  cargo  The cargo WITHOUT the SHTP header.
-    @return How many reports were written to `out`. */
-size_t shtp_parse_reports(const uint8_t *cargo, size_t len,
-                          shtp_report_t *out, size_t max);
-
 /** Input report ids this firmware picks out of a channel 3 cargo. */
 #define SH2_ROTATION_VECTOR      0x05U
 #define SH2_GAME_ROTATION_VECTOR 0x08U

@@ -197,7 +197,6 @@ LIMBS = (
     ('right_arm', ('right_shoulder', 'right_elbow', 'right_wrist', 'right_gripper')),
     ('right_leg', ('right_hip_yaw', 'right_hip_roll', 'right_hip', 'right_knee', 'right_ankle', 'right_ankle_roll', 'right_foot')),
 )
-_SCALE = None
 
 
 class LimbBus:
@@ -249,11 +248,6 @@ class LimbBus:
         return int(self._counts[2])
 
     @property
-    def server_messages(self):
-        self._pull()
-        return int(self._counts[3])
-
-    @property
     def wire_s(self):
         self._pull()
         return float(self._wire.value)
@@ -262,18 +256,6 @@ class LimbBus:
     def last_frame(self):
         self._pull()
         return bytes(self._buf[:self._len.value])
-
-    def transceive(self, frame, world):
-        """Verify CRC-16/MODBUS on `frame` via the SIL boards' `mb_rtu_t` + `mb_slave_t`, account
-        10 Mbit/s 8N1 wire time, and apply the register write solely to this extremity's boards."""
-        raw = bytes(frame)
-        rc = int(self._lib.wbh_sil_transceive(ctypes.byref(world.passing), self.link, raw, len(raw)))
-        if rc == -1:
-            raise ValueError('invalid Modbus RTU broadcast on %s' % self.name)
-        if rc == -2:
-            raise ValueError('Modbus RTU unit span mismatch on %s' % self.name)
-        if rc < 0:
-            raise ValueError('Modbus RTU CRC-16 fault on %s' % self.name)
 
 
 @functools.cache

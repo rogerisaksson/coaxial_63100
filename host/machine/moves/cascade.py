@@ -88,7 +88,7 @@ def reached(point, pts, room, mask):
 
 
 def nothing(told):
-    """`told_nothing` of arrays alone, a 0-d array."""
+    """How far the robot's text tells its soles nothing, 0 to 1, of arrays alone, a 0-d array."""
     return np.minimum(np.maximum(1.0 - observer.said(told)[PLANTAR] / TOLD_NOTHING, 0.0), 1.0)
 
 
@@ -99,7 +99,7 @@ def lift(out):
 
 
 def intent(told, out):
-    """How far the robot's text asks each leg released, 0 to 1 (2,): its soles told nothing (`told_nothing`), or
+    """How far the robot's text asks each leg released, 0 to 1 (2,): its soles told nothing (`nothing`), or
     the leg lifted past its poise's lift (`impedance.LIMBS`, `lift`)."""
     return np.maximum(nothing(told), window(impedance.LIMBS * lift(out), (0.0, poise.LIFT_EPS)))
 

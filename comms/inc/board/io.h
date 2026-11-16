@@ -27,11 +27,9 @@ typedef struct
 
 uint8_t Board_DigitalCount(void);
 
-/** The drivable pins - what `0x6D` kind 1 reports - as one word, bit i being
+/** The sampled pins - what `0x6D` kind 1 reports - as one word, bit i being
     slot i. */
 uint32_t Board_DigitalMask(void);
-uint8_t  Board_DigitalIoCount(void);
-bool     Board_DigitalIoChan(uint8_t slot, board_dchan_t *info);
 
 /** How many pins a DAQ record carries, and which. */
 uint8_t  Board_DigitalSampledCount(void);

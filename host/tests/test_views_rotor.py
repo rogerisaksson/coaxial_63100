@@ -141,7 +141,6 @@ def test_a_power_node_never_reads_below_the_copper(report):
 def test_the_ntc_is_shown_as_the_one_measurement(report):
     """The reference above the headroom scale, and what it says unread."""
     from coaxial.draw import cross_section
-    from terminal.views import show_rotor_observer as view
     from terminal.views.rotor import layout, legend
 
     report.check('a reading is shown in degrees',
@@ -212,7 +211,6 @@ def test_the_foot_carries_the_policy(report):
     """
     from coaxial.draw import cross_section
     from terminal.ui.screen import plain as visible      # the row without its inks
-    from terminal.views import show_rotor_observer as view
     from terminal.views.rotor import layout, legend, thermal
 
     def a_view(watts, ident):

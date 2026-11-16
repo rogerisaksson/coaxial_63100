@@ -5,9 +5,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* native.c: the clock; main() waiting `cycles`, the interrupts due running; an interrupt's
+/* native.c: main() waiting `cycles`, the interrupts due running; an interrupt's
    handler run as the NVIC runs it; whether one is enabled. */
-uint64_t native_now(void);
 void native_wait(uint64_t cycles);
 void native_irq(int irq, void (*handler)(void));
 bool native_irq_enabled(int irq);

@@ -447,13 +447,6 @@ def _fan(static, width, height):
     return lines, near_depth
 
 
-def _fan_cells(static, width, height, phase):
-    """The horizon and the fan's dashes at `phase`, in _ground_dot's shape."""
-    step = int(phase * RUNG_STEPS + 0.5) % RUNG_STEPS
-    return _lay([r for r in _runs(static, width, height, step)
-                 if not (isinstance(r[0], tuple) and r[0][0] == 'rung')], width, height)
-
-
 def _ground(codes, inks, buf, distance, width, height, colour, view, scroll=None,
             flown=None):
     """The landscape behind the board at `scroll` seconds (None: at rest) into the frame's

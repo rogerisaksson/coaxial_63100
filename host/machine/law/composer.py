@@ -2,7 +2,6 @@
 
     @composer.capability(works, rest)          # on a part in its owner's module: its activity, its rest
     def step(g, ...): ...                      # its run, the part as it always was
-    composer.working(g)                        # the robot's working set this pass: {part: 1 at work, 0 at rest}
 
 The kernel-on-demand gating of `working_envelope_scoper.lisp` on the robot's law: a part's activity reads its drivers
 and its own state off their rest; at rest the part is its rest - what the part gives there, the same bits, at a
@@ -30,9 +29,3 @@ def capability(works, rest, g=0):
         LAID[name] = composed
         return composed
     return laid
-
-
-def working(g):
-    """The robot's working set as its last pass composed it: {part: 1 at work, 0 at rest} of every part laid
-    (`LAID`), one the robot's pass has not reached yet at rest."""
-    return {name: int(g.get('working', {}).get(name, 0)) for name in sorted(LAID)}

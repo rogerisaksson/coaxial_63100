@@ -384,11 +384,6 @@ def scenario(world, name, z=1.2, x=0.0):
     raise MachineError('unknown scenario %r: one of %s' % (name, ', '.join(SCENARIOS)))
 
 
-def bricks(world, soles, heading=0.0):
-    for name, at in zip(('brick_left', 'brick_right'), soles):
-        mocap(world, name, (at[0], BRICK[1], at[1]), heading)
-
-
 def take(world, name):
     mocap(world, name, (0.0, -1.0, 0.0))
 

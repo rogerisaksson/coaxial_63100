@@ -315,7 +315,7 @@ def main(argv=None):
         errand(seconds=a.seconds, still=a.still)
         return 0
     from machine.way import affordance, route
-    from machine.eyes import gaze, registry, sight, voxels
+    from machine.eyes import registry, sight, voxels
     body, world = _room()
     try:
         sights, keep, slots = sight.Eyes(world), sight.Keep(), registry.laid()

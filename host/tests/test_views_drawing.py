@@ -200,7 +200,6 @@ def test_nothing_in_the_drawing_can_be_sheared(report):
     import unicodedata
 
     from coaxial.draw import cross_section
-    from terminal.views import show_rotor_observer as view
     from terminal.views.rotor import legend
     from terminal.ui import scroll
 

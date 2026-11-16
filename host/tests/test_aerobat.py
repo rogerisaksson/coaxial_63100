@@ -9,7 +9,7 @@ from views_kit import Report
 def _routine():
     """The card flown as the page flies it on the airfield, its gates down: {stage: [rows]},
     the stages in order, the sky."""
-    from machine.aircraft import aerobat, aerobatics, aerokin, airfield, pull, se3mpc
+    from machine.aircraft import aerobat, aerobatics, aerokin, airfield, se3mpc
     dt, by_stage, stages = 1.0 / 120.0, {}, []
     top = aerobat.PULL_MAX
     rest, foot = se3mpc.points(aerobat)[2], aerobat.SKID_M + aerobat.FOOT_M
@@ -115,7 +115,7 @@ def test_aerobat_airfield_laps(report):
     """The aerobat laps its airfield's course in gusty wind - through the air gate, under the
     limbo bar, up through the hoop, round each pylon on its line's side, through the knife gate
     on its side - and lands on its runway along it."""
-    from machine.aircraft import aerobat, aerobatics, aerokin, airfield, pull, weather
+    from machine.aircraft import aerobat, aerobatics, aerokin, airfield, weather
     dt, tick, foot = 0.02, 0.002, aerobat.SKID_M + aerobat.FOOT_M
     sky, core, law = aerobat.Sky(airfield.solids()), aerobat.Core(), aerokin.fresh()
     route, air = aerobatics.routine(airfield.CARD), weather.air(7, 'gusty')

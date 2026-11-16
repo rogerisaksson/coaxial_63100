@@ -4,7 +4,6 @@
     detected = scanner.scan(now, look)
     shown = scanner.seen(now)                  # what the robot's eyes' view holds, for its vision's panel
     cells = docked_vision(scanner, now, width, height)
-    action = auto_action(detected)
 
 Names what the robot's stereo visual field holds by its class (`machine.eyes.classes`: a wall, a window, a
 door, a chair, a table, a bed, stairs, a slope) using local Ollama inference when available or deterministic spatial geometry, and compiles
@@ -24,7 +23,6 @@ AFFORDANCES = {'chair': ('sit_chair', 'sit'), 'armchair': ('sit_chair', 'sit'),
                'stool': ('sit_chair', 'sit'), 'bench': ('sit_chair', 'sit'), 'sofa': ('sit_chair', 'sit'),
                'bed': ('lie_bed', 'lie down'), 'mattress': ('lie_floor', 'lie down'),
                'door': ('exit_door', 'go out')}
-PRIMARY_ACTION = {kind: verb for kind, (verb, _name) in AFFORDANCES.items()}
 #: A box's turn where a thing has none: the robot's map's are upright. The robot's sight's reach, m. The
 #: robot's vision's panel holds its eyes' view about its heading alone - ACROSS rad either
 #: side (`sight.FOVY_DEG` high, W / H as wide), out to its map's reach (`voxels.FAR_M`): held to the
@@ -55,11 +53,6 @@ PLATE_BG = (8, 14, 16)
 #: The bus plate's own faults (CRC), and the robot's wear's service alarms (`wear.told`): a drive's drift
 #: past its band, no bus fault.
 CRC_INK, WEAR_INK = (255, 80, 80), (200, 120, 255)
-
-
-def auto_action(detected):
-    """The verb the nearest support detected asks, None with none."""
-    return next((PRIMARY_ACTION[d['kind']] for d in detected if d['kind'] in PRIMARY_ACTION), None)
 
 
 def _snap_key(now):

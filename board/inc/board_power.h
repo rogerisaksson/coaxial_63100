@@ -53,9 +53,6 @@ void Board_PowerPoll(void);
     @return true if the rail is now off. */
 bool Board_PowerRelease(board_rail_t rail, board_user_t user);
 
-/** Whether @p user currently holds @p rail. */
-bool Board_PowerHolds(board_rail_t rail, board_user_t user);
-
 /** Whether @p user alone holds @p rail: the rail goes when it lets go. */
 bool Board_PowerAlone(board_rail_t rail, board_user_t user);
 

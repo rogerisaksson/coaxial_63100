@@ -1066,20 +1066,6 @@ def test_scroll(report):
                 if static['hrow'] <= y0 < 20)
     report.check('scroll: one step moves a rung on screen under half a '
                  'dot row', 0.0 < moved < 0.125, '%.3f rows' % moved)
-    dashes = [ground._fan_cells(static, 60, 20, p) for p in (0.0, 0.25)]
-    near = [at for at in dashes[0] if at // 60 >= 15]
-    horizon = {int(fy) * 60 + int(fx) for fx, fy, _d in static['horizon']
-               if 0 <= fx < 60 and 0 <= fy < 20}
-    report.check('dash: the fan moves with the rungs, its near dashes a quarter on',
-                 any(dashes[1].get(at, [0])[0] != dashes[0][at][0] for at in near)
-                 and horizon <= set(dashes[1]), '%d near cells' % len(near))
-    far = [(fx, fy) for _k, run in static['fan'] for fx, fy, _d, wy in run
-           if wy >= static['south'] + (ground.DASHED + 1) * ground.RUNG_SPACING
-           and 0 <= fx < 60 and 0 <= fy < 20]
-    report.check('dash: past DASHED spacings the fan is solid, whatever the phase',
-                 far and all(int(fy) * 60 + int(fx) in dashes[0]
-                             and int(fy) * 60 + int(fx) in dashes[1] for fx, fy in far),
-                 '%d far points' % len(far))
 
 
 def test_approach(report):
@@ -1337,14 +1323,8 @@ def test_the_alphabet(report):
     report.check('all 256 patterns, in order',
                  len(b.ALL) == 256 and len(set(b.ALL)) == 256
                  and b.ALL[0] == chr(0x2800) and b.ALL[255] == chr(0x28FF))
-    report.check('a dot number and a coordinate name the same dot',
-                 all(b.numbered(n) == b.glyph([at])
-                     for n, at in b.AT.items()))
     report.check('what is read back is what was drawn',
                  all(b.glyph(b.lit(c)) == c for c in b.ALL))
-    # The bench asks in dot numbers: `⠲` is 2, 5 and 6.
-    report.check('the chart\'s own numbering answers the chart\'s glyph',
-                 b.numbered(2, 5, 6) == chr(0x2832), b.numbered(2, 5, 6))
 
     report.check('a run is a horizontal on its dot row',
                  b.RUN == ('\u2809', '\u2812', '\u2824', '\u28c0'),
@@ -1362,9 +1342,6 @@ def test_the_alphabet(report):
                   b.corner(1, 1, through=True)) == ('\u2856', '\u28b2'),
                  b.corner(1, 0, through=True)
                  + b.corner(1, 1, through=True))
-    report.check('a tee is met, not turned',
-                 (b.tee(0, 0), b.tee(0, 1)) == ('\u284f', '\u28b9'),
-                 b.tee(0, 0) + b.tee(0, 1))
     # The same turn the other way: a run on dot row 2 climbing to the cell's
     # top in the far lane, for a leader that rises to what it names.
     report.check('a corner turning up mirrors one turning down',

@@ -312,11 +312,6 @@ void Board_DaqTonePoll(void)
   daq_tone_poll(engine(), Board_Cycles(), BOARD_DAQ_TONE_BURST);
 }
 
-bool Board_DaqToneOn(void)
-{
-  return engine()->tone.on;
-}
-
 bool Board_DaqRunning(void)
 {
   return engine()->running;

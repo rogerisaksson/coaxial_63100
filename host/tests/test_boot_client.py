@@ -6,8 +6,8 @@ import sys
 import time
 import zlib
 
-from test_boot_core import (CHUNK, SEAL_MAGIC, SEALED, SESSION, STATE, STORE_BASE, TYPE, UID,
-                            UNIT_BLANK, image, run)
+from test_boot_core import (CHUNK, HAND, SEAL_MAGIC, SEALED, SESSION, STATE, STORE_BASE, TYPE,
+                            UID, UNIT_BLANK, image, run)
 
 
 class Wire:
@@ -113,9 +113,10 @@ class Bench:
         if not self.in_app:
             self._core(payload)
             if self.lib.boot_h_go():
-                got = (ctypes.c_uint32 * 2)()
-                self.lib.boot_h_image(got)
-                self.running, self.in_app = tuple(got), True
+                slot = ctypes.create_string_buffer(32)
+                self.lib.boot_h_hand(slot)
+                self.running = struct.unpack(HAND, slot.raw[:struct.calcsize(HAND)])[-2:]
+                self.in_app = True
 
     @staticmethod
     def sleep(seconds):
@@ -133,8 +134,10 @@ def test_the_host_loads_its_image(report, node):
     img, old = image(20 * CHUNK + 3), image(20 * CHUNK + 3, version=6)
     bench = Bench(node.lib, 3, (len(old), zlib.crc32(old)))
     board = Board(bench, unit=3)
+    was = boot.stale(board, img)
+    boot.load(board, img)
     report.check('another image running: loaded, and the application names the host\'s',
-                 boot.ensure(board, img) is True
+                 was == (len(old), zlib.crc32(old))
                  and bench.running == (len(img), zlib.crc32(img)) and bench.in_app)
     report.check('its unit, position and termination given back through assign',
                  node.unit == 3 and node.lib.boot_h_terminates() == 1
@@ -144,10 +147,10 @@ def test_the_host_loads_its_image(report, node):
                  == (SEAL_MAGIC, len(img), zlib.crc32(img)))
     frames = bench.frames
     report.check('running the host\'s image already: one state read, nothing loaded',
-                 boot.ensure(board, img) is False and bench.frames == frames + 1)
+                 boot.stale(board, img) is None and bench.frames == frames + 1)
     bench.running = (0, 0)
     report.check('started by a debugger (no image named): left alone',
-                 boot.ensure(board, img) is False and bench.in_app)
+                 boot.stale(board, img) is None and bench.in_app)
 
 
 def test_the_front_door_owns_the_image(report, node):

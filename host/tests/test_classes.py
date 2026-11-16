@@ -167,7 +167,6 @@ def test_the_lodges_boxes_classed_in_c_as_in_numpy(report):
     """The robot's lodge's own boxes (`world.props()`) through both, as they stand and each thing moved a little
     many times over - a bed creeping under the robot renews its look every 9 ms -, every name and whole bit for bit;
     a look of the lodge in C faster than numpy's."""
-    from machine.eyes import classes
     from test_sight import _room
     body, world = _room()
     try:

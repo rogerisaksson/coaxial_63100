@@ -143,55 +143,29 @@ bool Board_DigitalChan(uint8_t index, board_dchan_t *info)
   return true;
 }
 
-/* Rows a filter keeps: the drivable ones, or the sampled ones. */
-static bool kept(const DigitalDesc *d, bool sampled)
-{
-  return sampled ? d->sampled : d->usable;
-}
-
-static uint8_t count_of(bool sampled)
+uint8_t Board_DigitalSampledCount(void)
 {
   uint8_t n = 0U;
 
   for (uint8_t i = 0U; i < Board_DigitalCount(); i++)
   {
-    n = (uint8_t)(n + (kept(&s_digital[i], sampled) ? 1U : 0U));
+    n = (uint8_t)(n + (s_digital[i].sampled ? 1U : 0U));
   }
   return n;
 }
 
-static bool nth(bool sampled, uint8_t slot, board_dchan_t *info)
+bool Board_DigitalSampledChan(uint8_t slot, board_dchan_t *info)
 {
   uint8_t n = 0U;
 
   for (uint8_t i = 0U; i < Board_DigitalCount(); i++)
   {
-    if (kept(&s_digital[i], sampled) && (n++ == slot))
+    if (s_digital[i].sampled && (n++ == slot))
     {
       return Board_DigitalChan(i, info);
     }
   }
   return false;
-}
-
-uint8_t Board_DigitalIoCount(void)
-{
-  return count_of(false);
-}
-
-bool Board_DigitalIoChan(uint8_t slot, board_dchan_t *info)
-{
-  return nth(false, slot, info);
-}
-
-uint8_t Board_DigitalSampledCount(void)
-{
-  return count_of(true);
-}
-
-bool Board_DigitalSampledChan(uint8_t slot, board_dchan_t *info)
-{
-  return nth(true, slot, info);
 }
 
 uint32_t Board_DigitalMask(void)
