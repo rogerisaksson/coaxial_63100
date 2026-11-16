@@ -39,10 +39,20 @@
   (phase land (use soft_land)
     (duration 700ms)))
 
-;; 0: on one sole, the other off the floor: it leaves once the robot's weight is over
+;; 0: on one sole, the other off the floor: it leaves once the robot's weight is over - carried over first, then
+;; the other asked off. Asked together, the leg asked released held the robot's legs' modes where they stood till it
+;; was free (`cascade.released`), its weight between its soles (151 and 139 N): it left on its own 2-3 s on, off
+;; the robot's balance, and the robot stepped from sole to sole
 (defbehavior one_sole (extends stance_hold)
+  (phase carry
+    (duration 1s) (blend_duration 800ms)
+    (latent_targets (mode_lateral_shift 0.92) (mode_pelvis_list 0.0))
+    (impedance
+      (stiffness mode_axial_compression 6000) (damping mode_axial_compression 800)
+      (stiffness mode_lateral_shift 3000) (damping mode_lateral_shift 600)
+      (stiffness mode_pelvis_list 1500) (damping mode_pelvis_list 300)))
   (phase over
-    (duration 4s) (blend_duration 800ms)
+    (duration 3s) (blend_duration 800ms)
     (latent_targets (mode_lateral_shift 0.92) (mode_limb_lift -1.0) (mode_pelvis_list 0.0))
     (impedance
       (stiffness mode_axial_compression 6000) (damping mode_axial_compression 800)
