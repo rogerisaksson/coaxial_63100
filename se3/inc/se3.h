@@ -134,7 +134,8 @@ void se3_grip(se3_real_t *planes, size_t stride, const se3_cfg_t *cfg,
 /** The anchors taken to where the pose (r, t) leaves them, in their own planes: g = q - share
     (q - g), q the point's place and the share se3_rubbed's. An anchor inside its reach stays,
     one past it follows its point at the reach, one with no load stands under its point - where
-    the point lands, the bristle holds at once. */
+    the point lands, the bristle holds at once. se3_rubbed's first pass alone, the anchors taken:
+    the step's own planes are left as that pass leaves them. */
 void se3_anchored(se3_real_t *planes, size_t stride, const se3_friction_t *friction,
                   const se3_real_t r[9], const se3_real_t t[3]);
 

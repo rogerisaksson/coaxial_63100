@@ -18,8 +18,9 @@ import sys
 from tools.dev.focus import chosen
 from gynoid_kit import Report
 
-#: In the machine's code, a root taken on a vector's lanes at once: the passes under friction alone take one.
-ROOTS = {'x86': r'\sv?sqrtp[sd]\s', 'arm': r'\sfsqrt\s+[vz]\d+'}
+#: In the machine's code, a root taken on a vector's lanes at once and one on a single number: the pass under
+#: friction alone takes roots.
+ROOTS = {'x86': (r'\sv?sqrtp[sd]\s', r'\sv?sqrts[sd]\s'), 'arm': (r'\sfsqrt\s+[vz]\d+', r'\sfsqrt\s+[ds]\d+')}
 #: A sole's bristles: their stiffness, N/m, the friction at rest and sliding, and 1 / v^2 of 1 cm/s between them.
 STIFF, REST, SLIDE, FADE = 2e4, 0.8, 0.6, 1e4
 
@@ -248,8 +249,8 @@ def test_a_twist_is_kept(report):
 
 def test_its_form_and_its_pace(report):
     """se3_friction_t is seventeen numbers of its precision with no padding; a friction of another length and an
-    arena off its shape are refused before the C; as this host's compiler makes them, both passes under friction
-    take their root on a vector's lanes at once; and what a bearing sole costs a tick beside the fit - its step, the
+    arena off its shape are refused before the C; as this host's compiler makes it, the pass under friction takes
+    every root on a vector's lanes at once; and what a bearing sole costs a tick beside the fit - its step, the
     step taking its anchors with it, and the anchors' return in a call of its own."""
     import numpy as np
     from tools.cores import se3
@@ -275,11 +276,11 @@ def test_its_form_and_its_pace(report):
         obj = os.path.join(OUT, 'se3_grip_%d.o' % os.getpid())
         flags = [flag for flag in se3.built(single) if not flag.startswith('-Wl')]
         subprocess.run([cc, '-c'] + FLAGS + flags + ['-I', se3.INCLUDES[0], source, '-o', obj], check=True)
-        roots = len(re.findall(ROOTS[machine], subprocess.run([objdump, '-d', obj], capture_output=True, text=True,
-                                                              check=True).stdout))
+        code = subprocess.run([objdump, '-d', obj], capture_output=True, text=True, check=True).stdout
         os.remove(obj)
-        report.check('%s: both passes under friction take their root on a vector\'s lanes' % name, roots >= 2,
-                     '%d roots on lanes' % roots)
+        lanes, alone = (len(re.findall(kind, code)) for kind in ROOTS[machine])
+        report.check('%s: under friction every root is taken on a vector\'s lanes, none on a single number' % name,
+                     lanes >= 1 and alone == 0, '%d roots on lanes, %d on a single number' % (lanes, alone))
         cost = (se3.paced(se3.laid(p, g, w, single), config, *pose, 20000),
                 se3.paced(se3.laid(p, g, w, single), config, *pose, 20000, rub=rub),
                 se3.paced(se3.laid(p, g, w, single), config, *pose, 20000, rub=rub, take=True),

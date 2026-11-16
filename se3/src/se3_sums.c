@@ -146,15 +146,22 @@ void se3_summed(se3_real_t *planes, size_t stride, se3_real_t soft, const se3_re
   told(first, moment, weight, cx, cy, cz, sums);
 }
 
-void se3_rubbed(se3_real_t *planes, size_t stride, const se3_friction_t *friction,
-                const se3_real_t r[9], const se3_real_t t[3], unsigned take, se3_sums_t *sums)
+/** The friction's first pass over the planes, its sums into `first` - summed in lanes of its own,
+    which no plane can be. Each point's bristle: its stiffness as its miss and speed leave it,
+    its pull that on the miss and the drag on the speed; a point with no load weighs nothing and
+    pulls nothing. The pull and the stiffness go to their planes a block at a time, as the fit's
+    miss and weight, and with them the block's anchors. `taken` all ones, an anchor goes to
+    q - share (q - g): the share one, the anchor's own bits; under one, the anchor the reach
+    behind its point; none, the point's place. `taken` none, to its own. */
+static inline void bristled(se3_real_t *planes, size_t stride, const se3_friction_t *friction,
+                            const se3_real_t r[9], const se3_real_t t[3], se3_word_t taken,
+                            se3_real_t first[FIRST][SE3_LANES])
 {
   const se3_real_t *px = &planes[SE3_PX * stride], *py = &planes[SE3_PY * stride];
   const se3_real_t *pz = &planes[SE3_PZ * stride], *gx = &planes[SE3_GX * stride];
   const se3_real_t *gy = &planes[SE3_GY * stride], *gz = &planes[SE3_GZ * stride];
   const se3_real_t *pw = &planes[SE3_W * stride];
   se3_real_t       *kept = &planes[SE3_MX * stride], *anchors = &planes[SE3_GX * stride];
-  const se3_word_t taken = (se3_word_t)0 - (se3_word_t)(take & 1U);
   const se3_real_t r0 = r[0], r1 = r[1], r2 = r[2], r3 = r[3], r4 = r[4], r5 = r[5];
   const se3_real_t r6 = r[6], r7 = r[7], r8 = r[8], t0 = t[0], t1 = t[1], t2 = t[2];
   const se3_real_t s0 = friction->spun[0], s1 = friction->spun[1], s2 = friction->spun[2];
@@ -164,15 +171,9 @@ void se3_rubbed(se3_real_t *planes, size_t stride, const se3_friction_t *frictio
   const se3_real_t firm = over(friction->stiff) + SE3_TINY, yield = ONE / firm;
   const se3_real_t drag = friction->drag, slide = friction->slide;
   const se3_real_t fall = friction->rest - slide, fade = friction->fade;
-  se3_real_t       first[FIRST][SE3_LANES] = {{ZERO}};
-  se3_real_t       moment[MOMENTS][SE3_LANES] = {{ZERO}};
+  se3_real_t       sum[FIRST][SE3_LANES] = {{ZERO}};
   se3_real_t       lane[LAID][SE3_LANES];
-  se3_real_t       weight, inverse, cx, cy, cz;
 
-  /* each point's bristle: its stiffness as its miss and speed leave it, its pull that on the
-     miss and the drag on the speed; a point with no load weighs nothing and pulls nothing. The
-     pull and the stiffness go to their planes a block at a time, as the fit's miss and weight,
-     and with them the block's anchors: taken, where se3_anchored lays them, else their own */
   for (size_t base = 0U; base < stride; base += SE3_LANES)
   {
     for (size_t k = 0U; k < SE3_LANES; k++)
@@ -196,15 +197,15 @@ void se3_rubbed(se3_real_t *planes, size_t stride, const se3_friction_t *frictio
       const se3_real_t fy = (spring * my) + (damp * uy);
       const se3_real_t fz = (spring * mz) + (damp * uz);
 
-      first[W][k] += w;
-      first[X][k] += w * x;
-      first[Y][k] += w * y;
-      first[Z][k] += w * z;
-      first[SPREAD][k] += w * (((x * x) + (y * y)) + (z * z));
-      first[SX][k] += fx;
-      first[SY][k] += fy;
-      first[SZ][k] += fz;
-      first[COST][k] += spring * m2;
+      sum[W][k] += w;
+      sum[X][k] += w * x;
+      sum[Y][k] += w * y;
+      sum[Z][k] += w * z;
+      sum[SPREAD][k] += w * (((x * x) + (y * y)) + (z * z));
+      sum[SX][k] += fx;
+      sum[SY][k] += fy;
+      sum[SZ][k] += fz;
+      sum[COST][k] += spring * m2;
       lane[MX][k] = fx;
       lane[MY][k] = fy;
       lane[MZ][k] = fz;
@@ -222,6 +223,21 @@ void se3_rubbed(se3_real_t *planes, size_t stride, const se3_friction_t *frictio
       memcpy(&anchors[(n * stride) + base], lane[(size_t)AX + n], sizeof(lane[n]));
     }
   }
+  memcpy(first, sum, sizeof(sum));
+}
+
+void se3_rubbed(se3_real_t *planes, size_t stride, const se3_friction_t *friction,
+                const se3_real_t r[9], const se3_real_t t[3], unsigned take, se3_sums_t *sums)
+{
+  const se3_real_t *px = &planes[SE3_PX * stride], *py = &planes[SE3_PY * stride];
+  const se3_real_t *pz = &planes[SE3_PZ * stride], *kept = &planes[SE3_MX * stride];
+  const se3_real_t r0 = r[0], r1 = r[1], r2 = r[2], r3 = r[3], r4 = r[4], r5 = r[5];
+  const se3_real_t r6 = r[6], r7 = r[7], r8 = r[8];
+  se3_real_t       first[FIRST][SE3_LANES];
+  se3_real_t       moment[MOMENTS][SE3_LANES] = {{ZERO}};
+  se3_real_t       weight, inverse, cx, cy, cz;
+
+  bristled(planes, stride, friction, r, t, (se3_word_t)0 - (se3_word_t)(take & 1U), first);
   weight = tree(first[W]);
   inverse = weight / ((weight * weight) + SE3_TINY);
   cx = tree(first[X]) * inverse;
@@ -259,45 +275,7 @@ void se3_rubbed(se3_real_t *planes, size_t stride, const se3_friction_t *frictio
 void se3_anchored(se3_real_t *planes, size_t stride, const se3_friction_t *friction,
                   const se3_real_t r[9], const se3_real_t t[3])
 {
-  const se3_real_t *px = &planes[SE3_PX * stride], *py = &planes[SE3_PY * stride];
-  const se3_real_t *pz = &planes[SE3_PZ * stride], *pw = &planes[SE3_W * stride];
-  se3_real_t       *anchors = &planes[SE3_GX * stride];
-  const se3_real_t r0 = r[0], r1 = r[1], r2 = r[2], r3 = r[3], r4 = r[4], r5 = r[5];
-  const se3_real_t r6 = r[6], r7 = r[7], r8 = r[8], t0 = t[0], t1 = t[1], t2 = t[2];
-  const se3_real_t s0 = friction->spun[0], s1 = friction->spun[1], s2 = friction->spun[2];
-  const se3_real_t s3 = friction->spun[3], s4 = friction->spun[4], s5 = friction->spun[5];
-  const se3_real_t s6 = friction->spun[6], s7 = friction->spun[7], s8 = friction->spun[8];
-  const se3_real_t v0 = friction->sped[0], v1 = friction->sped[1], v2 = friction->sped[2];
-  const se3_real_t yield = ONE / (over(friction->stiff) + SE3_TINY), slide = friction->slide;
-  const se3_real_t fall = friction->rest - slide, fade = friction->fade;
-  se3_real_t       lane[3][SE3_LANES];
+  se3_real_t first[FIRST][SE3_LANES];
 
-  /* q - share (q - g): the share one, the anchor's own bits; under one, the anchor the reach
-     behind its point; none, the point's place. A block is read whole before its anchors go */
-  for (size_t base = 0U; base < stride; base += SE3_LANES)
-  {
-    for (size_t k = 0U; k < SE3_LANES; k++)
-    {
-      const size_t     i = base + k;
-      const se3_real_t x = px[i], y = py[i], z = pz[i];
-      const se3_real_t qx = (((r0 * x) + (r1 * y)) + (r2 * z)) + t0;
-      const se3_real_t qy = (((r3 * x) + (r4 * y)) + (r5 * z)) + t1;
-      const se3_real_t qz = (((r6 * x) + (r7 * y)) + (r8 * z)) + t2;
-      const se3_real_t mx = qx - anchors[i], my = qy - anchors[stride + i];
-      const se3_real_t mz = qz - anchors[(2U * stride) + i];
-      const se3_real_t ux = (((s0 * x) + (s1 * y)) + (s2 * z)) + v0;
-      const se3_real_t uy = (((s3 * x) + (s4 * y)) + (s5 * z)) + v1;
-      const se3_real_t uz = (((s6 * x) + (s7 * y)) + (s8 * z)) + v2;
-      const se3_real_t kept = share(over(pw[i]), ((ux * ux) + (uy * uy)) + (uz * uz),
-                                    ((mx * mx) + (my * my)) + (mz * mz), slide, fall, fade, yield);
-
-      lane[0][k] = qx - (kept * mx);
-      lane[1][k] = qy - (kept * my);
-      lane[2][k] = qz - (kept * mz);
-    }
-    for (size_t n = 0U; n < 3U; n++)
-    {
-      memcpy(&anchors[(n * stride) + base], lane[n], sizeof(lane[n]));
-    }
-  }
+  bristled(planes, stride, friction, r, t, (se3_word_t)0 - (se3_word_t)1U, first);
 }
