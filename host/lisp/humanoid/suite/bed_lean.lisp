@@ -285,5 +285,6 @@
       (transfer-concentric-handover
         :source-manifold :ischial-bilateral
         :target-manifold :plantar-bilateral
-        :ascent-duration-ms 950.0)
+        :ascent-duration-ms 950.0
+        :ascent-curve :hermite-s-curve)
       (master-anti-spasm-insert)))
