@@ -183,8 +183,8 @@ def _coded(kind):
     return got
 
 
-def _core():
-    """`of` in C (`tools.cores.classes`), laid at its first look with the text's heights as this module lays them
+def core():
+    """`of` in C (`tools.cores.classes`) - `wholes.grouped` beside it (`.grouped`) -, laid at its first look with the text's heights as this module lays them
     - each sum here, as numpy sums it -; None where the C is not to be had (it stays numpy)."""
     if _CORE[0] is None:
         try:
@@ -209,11 +209,11 @@ def of(kinds, centre, half, R, clear, in_c=True):
     is whole. In C where `in_c` (`tools.cores.classes`, wbc_classes.c: the lodge's 70 things 1.1 ms of numpy a
     look, every look of a thing that moved), numpy's own below its twin (`_of`), bit for bit."""
     from tools.cores.classes import MOST
-    core = _core() if in_c and 0 < len(kinds) <= MOST else None
-    if core is None:
+    told = core() if in_c and 0 < len(kinds) <= MOST else None
+    if told is None:
         return _of(kinds, centre, half, R, clear)
     coded = [_coded(str(k)) for k in kinds]
-    cls, of_, whole = core(centre, half, R, clear, [c for c, _f in coded], [f for _c, f in coded])
+    cls, of_, whole = told(centre, half, R, clear, [c for c, _f in coded], [f for _c, f in coded])
     return [CLASSES[k] if k >= 0 else _TOLD[o] for k, o in zip(cls.tolist(), of_.tolist())], whole.astype(int)
 
 
@@ -282,7 +282,13 @@ def _of(kinds, centre, half, R, clear):
 
 def stacked(things):
     """(kinds, centres (n, 3), half sizes (n, 3), turns (n, 3, 3), clear (n,)) of boxes `things`, as `registry` takes
-    them: a box without a turn upright, without a word of what is over it clear."""
+    them: a box without a turn upright, without a word of what is over it clear; the robot's things' numbers
+    (`registry.Things`, their arrays beside their rows) copied, not built again of their rows' floats - 141 us of
+    the lodge's 93 a state told its page."""
+    arrays = getattr(things, 'arrays', None)
+    if arrays is not None and len(arrays[0]) == len(things):
+        centre, half, R = (np.array(a, float) for a in arrays[:3])
+        return ([str(t[0]) for t in things], centre, half, R, np.array([float(t[5]) if len(t) > 5 else 1.0 for t in things]))
     return ([str(t[0]) for t in things], np.array([t[1] for t in things], float).reshape(-1, 3),
             np.array([t[2] for t in things], float).reshape(-1, 3),
             np.array([t[3] if len(t) > 3 else np.eye(3) for t in things], float).reshape(-1, 3, 3),

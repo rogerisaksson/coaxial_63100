@@ -117,12 +117,31 @@ def _apart(got, twin):
             if a != b or int(w) != int(v)]
 
 
+def _wholes(things, names, whole):
+    """(where the C's grouping (`wholes.grouped`) and numpy's part - [] where every one thing and every building's
+    class, corners and members are the same bits -, the buildings, the C's seconds, numpy's) of `things` told
+    `names`, `whole`."""
+    from machine.eyes import classes, wholes
+    _kinds, centre, half, R, _clear = classes.stacked(things)
+    t0 = time.perf_counter()
+    (one, built) = wholes.grouped(names, whole, centre, half, R)
+    t1 = time.perf_counter()
+    (one_, built_) = wholes.grouped(names, whole, centre, half, R, in_c=False)
+    t2 = time.perf_counter()
+    apart: list = [k for k, (a, b) in enumerate(zip(one.tolist(), one_.tolist())) if a != b]
+    if len(built) != len(built_) or any(x[0] != y[0] or x[1].tobytes() != y[1].tobytes() or x[2].tobytes() != y[2].tobytes()
+                                        or x[3].tolist() != y[3].tolist() for x, y in zip(built, built_)):
+        apart.append(('buildings', [(x[0], x[3].tolist()) for x in built], [(y[0], y[3].tolist()) for y in built_]))
+    return apart, len(built_), t1 - t0, t2 - t1
+
+
 def test_drawn_looks_classed_in_c_as_in_numpy(report):
     """Drawn looks through both: every name and every whole bit for bit, every class of the C's enum told at least
-    once across the draws."""
+    once across the draws; what is one thing and the buildings they make (`wholes.grouped`) bit for bit too, houses
+    and cabins among them."""
     from machine.eyes import classes
     rng = np.random.default_rng(SEED)
-    worst, told, sizes = [], set(), []
+    worst, told, sizes, grouped, built = [], set(), [], [], 0
     for k in range(LOOKS):
         things = _drawn(rng)
         got, twin, _c, _n = _both(things)
@@ -131,8 +150,14 @@ def test_drawn_looks_classed_in_c_as_in_numpy(report):
         apart = _apart(got, twin)
         if apart:
             worst.append((k, len(things), apart[:3]))
+        parted, houses, _gc, _gn = _wholes(things, *twin)
+        built += houses
+        if parted:
+            grouped.append((k, parted[:3]))
     report.check('%d drawn looks of %d-%d things classed in C as in numpy, every name and whole bit for bit'
                  % (LOOKS, min(sizes), max(sizes)), not worst, '%d apart: %s' % (len(worst), worst[:2]))
+    report.check('the same looks grouped in C as in numpy, every one thing and every building bit for bit (%d buildings)'
+                 % built, not grouped and built > LOOKS, '%d apart: %s' % (len(grouped), grouped[:2]))
     missing = sorted(set(classes.CLASSES) - told)
     report.check('every class of the enum told across the draws (%d)' % len(classes.CLASSES), not missing,
                  ', '.join(missing) or 'all told')
@@ -150,19 +175,22 @@ def test_the_lodges_boxes_classed_in_c_as_in_numpy(report):
         props = world.props()
     finally:
         body.close()
-    rng, worst, spent = np.random.default_rng(SEED), [], ([], [])
+    rng, worst, spent = np.random.default_rng(SEED), [], ([], [], [], [])
     for k in range(60):
         things = [(t[0], np.asarray(t[1], float) + (rng.normal(0.0, 1e-7, 3) if k else 0.0)) + tuple(t[2:]) for t in props]
         got, twin, c, n = _both(things)
-        spent[0].append(c)
-        spent[1].append(n)
-        apart = _apart(got, twin)
+        parted, _houses, gc, gn = _wholes(things, *twin)
+        for each, s in zip(spent, (c, n, gc, gn)):
+            each.append(s)
+        apart = _apart(got, twin) + parted
         if apart:
             worst.append((k, apart[:3]))
-    report.check("the lodge's %d boxes classed in C as in numpy, as they stand and jittered 59 times over, every name and "
-                 "whole bit for bit" % len(props), not worst, '%d apart: %s' % (len(worst), worst[:2]))
+    report.check("the lodge's %d boxes classed and grouped in C as in numpy, as they stand and jittered 59 times over, "
+                 "every name, whole, one thing and building bit for bit" % len(props), not worst,
+                 '%d apart: %s' % (len(worst), worst[:2]))
     us = [1e6 * float(np.median(each)) for each in spent]
-    report.check("a look of the lodge classed in C on this host", us[0] < us[1], '%.0f us a look, numpy %.0f' % tuple(us))
+    report.check("a look of the lodge classed and grouped in C on this host", us[0] < us[1] and us[2] < us[3],
+                 'classed %.0f us a look, numpy %.0f; grouped %.0f, numpy %.0f' % tuple(us))
 
 
 UP = ((1, 0, 0), (0, 1, 0), (0, 0, 1))

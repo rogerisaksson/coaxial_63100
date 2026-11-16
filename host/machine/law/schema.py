@@ -84,9 +84,12 @@ def _evaded(M, J, act, free, short):
     k, f = len(short), len(free)
     Jf, Mf = J[:, act[free]], M[np.ix_(act[free], act[free])]
     top = np.asarray(bemf.PEAK)[free] / np.diag(Mf)
-    H = np.block([[Mf, np.zeros((f, k))], [np.zeros((k, f)), SPILL_KG * np.eye(k)]])
-    A = np.block([[-Jf, -np.eye(k)], [np.zeros((k, f)), -np.eye(k)], [np.eye(f), np.zeros((f, k))],
-                  [-np.eye(f), np.zeros((f, k))]])
+    # the QP's blocks laid as np.block lays them - each block's own zeros, -np.eye's negative zeros too -: np.block
+    # was 50 us of each shield short
+    H, A, spill = np.zeros((f + k, f + k)), np.zeros((2 * (k + f), f + k)), -np.eye(k)
+    H[:f, :f], H[f:, f:] = Mf, SPILL_KG * np.eye(k)
+    A[:k, :f], A[:k, f:], A[k:2 * k, f:] = -Jf, spill, spill
+    A[2 * k:2 * k + f, :f], A[2 * k + f:, :f] = np.eye(f), -np.eye(f)
     x, held, _u = _solve()(H, np.zeros(f + k), A, np.concatenate([-short, np.zeros(k), top, top]))
     return (np.zeros(f + k) if x is None else x), held
 

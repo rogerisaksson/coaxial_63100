@@ -4,7 +4,7 @@ looks drawn to take every path - each thing its own slot at once, the loop where
 least salient taken, things moving, unseen, pruned, the robot's eyes' frustum or the whole room - and the robot's
 lodge's own looks walking out of its door, as the robot's process passes them and as its vision apart does
 (its changed rows restacked alone), every slot's every field and class bit for bit after each; a look's time beside
-numpy's."""
+numpy's. A look's rows that moved said alone and patched into the robot's things as the look laid whole."""
 import math
 import os
 import sys
@@ -141,7 +141,56 @@ def test_the_robots_lodge_looks_in_c_as_in_numpy(report, c):
     report.check("a look of the robot's lodge in C on this host", us[0] < us[1], '%.0f us a look, numpy %.0f' % tuple(us))
 
 
-ROSTER = (test_the_robots_map_looks_in_c_as_in_numpy, test_the_robots_lodge_looks_in_c_as_in_numpy)
+def _bits(things):
+    """Every number of `things` (`registry.things`' laid) as bytes, row by row and in its arrays, with its kinds and
+    slots: two the same to the bit, a zero's sign too."""
+    rows = [(t[0], t[4], np.array([*t[1], *t[2], *np.ravel(t[3]), t[5], t[6]], float).tobytes()) for t in things]
+    return rows, tuple(a.tobytes() for a in things.arrays), [type(x) for t in things for x in t[1]]
+
+
+def test_a_looks_rows_patched_as_laid_whole(report, c):
+    """The robot's vision apart says a look's rows that moved alone (`vision.ROWS`): `registry.moved` finds every row
+    whose numbers are not the last look's to the bit - a zero's sign flipped among them - and `registry.patched` lays
+    the robot's things from them as `registry.things` lays the look whole, every number and type to the bit, the other
+    rows the same tuples; a look of other things or slots told whole (None)."""
+    from machine.eyes import registry
+    rng, worst, told = np.random.default_rng(SEED), [], 0
+    for _ in range(200):
+        n = int(rng.integers(1, 90))
+        was = (['k%d' % int(k) for k in rng.integers(0, 6, n)], rng.normal(size=(n, 3)), rng.uniform(0.01, 1, (n, 3)),
+               rng.normal(size=(n, 3, 3)), list(range(n)), rng.integers(0, 2, n).astype(float).tolist(),
+               rng.uniform(0, 0.1, n).tolist())
+        now = [list(was[0]), was[1].copy(), was[2].copy(), was[3].copy(), list(was[4]), list(was[5]), list(was[6])]
+        rows = sorted(set(rng.integers(0, n, int(rng.integers(0, 4))).tolist()))
+        for k in rows:
+            field = int(rng.integers(0, 5))
+            if field == 0:
+                now[1][k, int(rng.integers(3))] += 1e-12
+            elif field == 1:
+                now[2][k] *= 1.0 + 1e-15
+            elif field == 2:
+                now[3][k, 1, 2] = -now[3][k, 1, 2] if now[3][k, 1, 2] else -0.0
+            else:
+                now[5 + field - 3][k] = -0.0 if not now[5 + field - 3][k] else now[5 + field - 3][k] * 2.0
+        now[3][rows[:1], 0, 0] = 0.0
+        was[3][rows[:1], 0, 0] = -0.0
+        found = registry.moved(was, now)
+        assert found is not None, 'the same things and slots told whole'
+        laid = registry.patched(registry.things(*was), found, now[1][found], now[2][found], now[3][found],
+                                [now[5][k] for k in found], [now[6][k] for k in found])
+        whole = registry.things(*now)
+        told += len(found)
+        if found.tolist() != rows or _bits(laid) != _bits(whole):
+            worst.append((n, rows, found.tolist()))
+    others = (registry.moved((['other'] * len(now[0]), *was[1:]), now),
+              registry.moved((*was[:4], [k + 1 for k in was[4]], *was[5:]), now))
+    report.check("a look's rows that moved found to the bit and patched as the look laid whole (%d rows over 200 looks), "
+                 "a look of other things or slots told whole" % told, not worst and others == (None, None),
+                 '%d apart: %s; %s' % (len(worst), worst[:2], others))
+
+
+ROSTER = (test_the_robots_map_looks_in_c_as_in_numpy, test_the_robots_lodge_looks_in_c_as_in_numpy,
+          test_a_looks_rows_patched_as_laid_whole)
 
 
 def main(argv=None):

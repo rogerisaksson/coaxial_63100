@@ -64,6 +64,15 @@ typedef struct
   int32_t lane, timber, timber_flags, glass, glass_flags, spare;
 } wbc_classes_t;
 
+/** classes.houses: the buildings `n` things make - their corners `lo`, `hi` and their middles and halves `mid`,
+    `hlf` (n, 3), each one's part in a building (`part`: WBC_CLASSES_SHELL, WBC_CLASSES_OPEN) -: each shell's things
+    joined across what the robot's eyes may not have seen of it (FAR_M) or in one wall's plane, into `label` (n where
+    none, `low` and `link` (n, n) its scratch); of those with an opening, two things or more and deeper than THIN both
+    ways, each its corners into `blo`, `bhi` (3 each) and its label into `of`, in the labels' order. How many. */
+int wbc_classes_houses(const wbc_classes_t *k, int n, const double *lo, const double *hi, const double *mid,
+                       const double *hlf, const int32_t *part, int32_t *label, int32_t *low, unsigned char *link,
+                       double *blo, double *bhi, int32_t *of);
+
 /** The scratch `wbc_classes_of` needs for `n` things, bytes: its per-thing numbers and its pairs. */
 size_t wbc_classes_scratch(int n);
 

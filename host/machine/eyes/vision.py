@@ -23,8 +23,8 @@ from machine.errors import MachineError
 #: `physics.SIGHT`).
 LOOKS = (lambda g: g['world'].props(), lambda g: g['keep'].told())
 #: What the robot's vision apart says for a look whose boxes are the last one's to the bit (`main`): its things as
-#: they were.
-SAME = 'its things as the look before'
+#: they were; and before the rows of a look whose things are the last one's but those rows: the rest as they were.
+SAME, ROWS = 'its things as the look before', 'its things as the look before but these rows'
 
 
 # the robot's step's clamps told its drives as zeros it rests limp (`se2.limp`, `motion.drives`): nothing of
@@ -195,11 +195,13 @@ class Apart:
 
     def join(self):
         """The look in flight's things, waited for: those it last laid where its boxes are theirs to the bit (SAME) -
-        seated, every look's; built anew each, 105 us of numpy floats in tuples a look."""
+        seated, every look's -, those with the rows told anew where the rest are (ROWS: a chair or a bed creeping
+        under the robot, every look's - built whole, 130-150 us of numpy floats in tuples a look)."""
         self.pending = False
         got = self.ready()._aside.recv()
-        if not isinstance(got, str):
-            self._things = registry.things(*got)
+        if isinstance(got, str):
+            return self._things
+        self._things = registry.patched(self._things, *got[1:]) if got[0] == ROWS else registry.things(*got)
         return self._things
 
     def ready(self):
@@ -268,12 +270,15 @@ def main():
         kept['looks'] = looks
         registry.passed(slots, head, dt)
         registry.seen(slots, looks, head, t, everywhere=everywhere, kept=kept, changed=changed)
-        boxes = registry.boxed(slots)
-        bits = (boxes[0], boxes[4], *(np.asarray(a, dtype=float).tobytes() for a in (*boxes[1:4], *boxes[5:])))
-        if bits == kept.get('said'):
+        boxes, was = registry.boxed(slots), kept.get('said')
+        kept['said'] = boxes
+        rows = None if was is None else registry.moved(was, boxes)
+        if rows is None:
+            return boxes
+        if not len(rows):
             return SAME
-        kept['said'] = bits
-        return boxes
+        return (ROWS, rows.tolist(), boxes[1][rows], boxes[2][rows], boxes[3][rows], [boxes[5][k] for k in rows],
+                [boxes[6][k] for k in rows])
     aside.serve(answered, ready=True)
 
 

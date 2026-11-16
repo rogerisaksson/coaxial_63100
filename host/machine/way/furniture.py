@@ -56,19 +56,45 @@ def _afforded(g, verb, things=None):
     told it anew at every call: 346 us of 19 558 in the robot's bed errand, 15 % of its wall."""
     source, key = (g['things'] if things is None else things), (verb, things is None)
     kept = g.setdefault('_afforded', {}).get(key)
-    if kept is None or not (kept[0] is source and len(kept[1]) == len(source) and all(map(operator.is_, kept[1], source))):
+    if kept is None or not _same(kept, source):
         if kept is not None and _alike(kept[0], source):
             index, chosen = kept[2], kept[3]
+            laid, boxes = _laid(g, source)
+            boxes = boxes if laid == index else _boxes(source, index)
         else:
             affords, itself, _faces = GOES.get(verb, _NONE)
-            index = [k for k, p in enumerate(source) if _boxlike(p)]
-            boxes = _boxes(source, index)
-            near, was = _near(kept, source, index), dict(kept[3]) if kept is not None else {}
+            index, boxes = _laid(g, source)
+            near, was = _nearby(g, kept, source, index), dict(kept[3]) if kept is not None else {}
             chosen = [(j, itself(p, boxes) if near is None or near[j] else was[j]) for j, p in enumerate(boxes)
                       if (affords(p, boxes) if near is None or near[j] else j in was)]
-        boxes = _boxes(source, index)
         kept = g['_afforded'][key] = (source, tuple(source), index, chosen, boxes, [(boxes[j], own) for j, own in chosen], {})
     return kept[4], kept[5]
+
+
+def _same(kept, things):
+    """Whether `kept` (things, a tuple of them as they were) holds the very list `things`, each thing in it the same."""
+    return kept[0] is things and len(kept[1]) == len(things) and all(map(operator.is_, kept[1], things))
+
+
+def _laid(g, source):
+    """(index, boxes) of the things `source` (`_boxlike`, `_boxes`), laid once a list of things: each verb's telling of
+    one look takes them - the robot's errand's, its peeks' three, its move's bed (`lain`) laid them anew each."""
+    laid = g.get('_boxes_laid')
+    if laid is None or not _same(laid, source):
+        index = [k for k, p in enumerate(source) if _boxlike(p)]
+        laid = g['_boxes_laid'] = (source, tuple(source), index, _boxes(source, index))
+    return laid[2], laid[3]
+
+
+def _nearby(g, kept, source, index):
+    """`_near` of `kept` and `source` at `index`, told once a pair of looks: each verb told last of the same look
+    takes it."""
+    if kept is None:
+        return None
+    memo = g.get('_nearby')
+    if memo is None or memo[2] is not kept[0] or memo[3] != kept[2] or memo[4] != index or not _same(memo, source):
+        memo = g['_nearby'] = (source, tuple(source), kept[0], kept[2], index, _near(kept, source, index))
+    return memo[5]
 
 
 def _boxes(things, index):
@@ -97,8 +123,10 @@ def _near(kept, things, index):
         return None
     at = np.asarray(index, int)
     now, was = [a[at].reshape(len(at), -1) for a in arrays], [a[at].reshape(len(at), -1) for a in before]
+    # a thing the very tuple it was (its look's rows that moved alone told anew, `vision.ROWS`) is as it was
     moved = np.any(np.hstack(now) != np.hstack(was), axis=1) | np.array(
-        [things[k][0] != kept[0][k][0] or things[k][5:6] != kept[0][k][5:6] for k in index], bool)
+        [things[k] is not kept[0][k] and (things[k][0] != kept[0][k][0] or things[k][5:6] != kept[0][k][5:6])
+         for k in index], bool)
     if not moved.any():
         return moved
     near = moved.copy()
@@ -140,13 +168,15 @@ def floor(g):
     return min(float(f['sole'][1]) for f in g['s']['feet']) - float(g['est']['pos'][1]) + float(where(g)[1])
 
 
-def _found(g, verb, at=None, thing=None, things=None):
+def _found(g, verb, at=None, thing=None, things=None, edge=True):
     """(its distance from `at`, its edge's from the robot, the thing - kind, centre, half sizes, turn, slot) of
     what `verb` goes to nearest `at` (x, z) - it without one - among `things` (its own, `g['things']`,
     without), the thing itself before what else affords it; the thing of slot `thing` where the robot holds
     one still (an errand's, chosen when it was seen whole); None with none seen. What affords it told as the robot's
     things change (`_afforded`); its edge's distance (`affordance.distance`) only where it decides - the nearest's,
-    and those as near to the hair -, the first least by (not itself, distance, edge's) as among all."""
+    and those as near to the hair -, the first least by (not itself, distance, edge's) as among all; not `edge`, its
+    edge's distance None where one alone is least (`lain`'s and `seen`'s, which read the thing alone: the edge's
+    distance was 21 us of the robot's every pass sat on a chair or lain on a bed)."""
     from machine.law import stride
     q = where(g)
     gx, gz = float(q[0]), float(q[2])
@@ -160,7 +190,10 @@ def _found(g, verb, at=None, thing=None, things=None):
     if not near:
         return None
     least = min((not on_at, not own, d) for d, on_at, _p, own in near)
-    hits = [(d, affordance.distance(p, (gx, gz)), p, own) for d, on_at, p, own in near if (not on_at, not own, d) == least]
+    tied = [(d, p, own) for d, on_at, p, own in near if (not on_at, not own, d) == least]
+    if not edge and len(tied) == 1:
+        return tied[0][0], None, tied[0][1], tied[0][2]
+    hits = [(d, affordance.distance(p, (gx, gz)), p, own) for d, p, own in tied]
     return min(hits, key=lambda h: (not h[3], h[0], h[1]))
 
 
@@ -194,7 +227,7 @@ def lain(g, verb='lie_bed'):
     bed as it lay down on it and stroked up it."""
     q, data = where(g), g['world'].data
     speed = float(math.sqrt(sum(float(v) ** 2 for v in data.qvel[:3])))
-    hit = _found(g, verb)
+    hit = _found(g, verb, edge=False)
     if hit is None:
         return 0.0, 0.0, speed
     _kind, (px, _py, pz), half, turn = hit[2][:4]
@@ -217,7 +250,7 @@ def seen(g, stunt, at=None, thing=None):
     from machine.senses import edge
     from machine.texts import maneuver
     from machine.law import modal
-    hit = _found(g, maneuver.PLAYED.get(stunt, (None, None))[1] or stunt, at, thing)
+    hit = _found(g, maneuver.PLAYED.get(stunt, (None, None))[1] or stunt, at, thing, edge=False)
     if hit is None:
         return None
     _kind, (px, py, pz), half, turn = hit[2][:4]

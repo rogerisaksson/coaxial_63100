@@ -7,20 +7,20 @@
 #include <math.h>
 
 /** A look's scratch: each thing's numbers (classes.of) - its extents along the room's axes, its top and bottom, its
-    long and short sides, its corners, its footprint's middle and half (_houses, _plane), the longest opaque piece
-    under it -, the buildings' corners, its words and its pairs. */
+    long and short sides, its corners, its middle and half along each axis (houses, planar), the longest opaque piece
+    under it -, the buildings' corners and labels, its words and its pairs. */
 typedef struct
 {
   double *e, *top, *bottom, *lng, *shrt, *lo, *hi, *mid, *hlf, *longest, *blo, *bhi;
-  int32_t *kcode, *kflags, *tops, *faces, *name, *label, *low;
+  int32_t *kcode, *kflags, *tops, *faces, *name, *label, *low, *part, *of;
   unsigned char *raw, *see, *wood, *top_, *surface, *wide, *free_, *steps, *more, *flight, *solid, *seat, *framed;
-  unsigned char *walled, *backed, *shell, *opening, *roof, *storey, *out, *by, *held_any;
+  unsigned char *walled, *backed, *out, *by, *held_any;
   unsigned char *beside, *within, *held, *rise, *link;
 } work_t;
 
-#define WBC_CLASSES_DOUBLES 24
-#define WBC_CLASSES_INTS    7
-#define WBC_CLASSES_BYTES   23
+#define WBC_CLASSES_DOUBLES 26
+#define WBC_CLASSES_INTS    9
+#define WBC_CLASSES_BYTES   19
 #define WBC_CLASSES_PAIRS   5
 
 size_t wbc_classes_scratch(int n)
@@ -53,8 +53,8 @@ static void carve(work_t *w, int n, unsigned char *s)
   w->shrt = (double *)taken(&at, m * d);
   w->lo = (double *)taken(&at, 3 * m * d);
   w->hi = (double *)taken(&at, 3 * m * d);
-  w->mid = (double *)taken(&at, 2 * m * d);
-  w->hlf = (double *)taken(&at, 2 * m * d);
+  w->mid = (double *)taken(&at, 3 * m * d);
+  w->hlf = (double *)taken(&at, 3 * m * d);
   w->longest = (double *)taken(&at, m * d);
   w->blo = (double *)taken(&at, 3 * m * d);
   w->bhi = (double *)taken(&at, 3 * m * d);
@@ -65,6 +65,8 @@ static void carve(work_t *w, int n, unsigned char *s)
   w->name = (int32_t *)taken(&at, m * i);
   w->label = (int32_t *)taken(&at, m * i);
   w->low = (int32_t *)taken(&at, m * i);
+  w->part = (int32_t *)taken(&at, m * i);
+  w->of = (int32_t *)taken(&at, m * i);
   w->raw = taken(&at, m);
   w->see = taken(&at, m);
   w->wood = taken(&at, m);
@@ -80,10 +82,6 @@ static void carve(work_t *w, int n, unsigned char *s)
   w->framed = taken(&at, m);
   w->walled = taken(&at, m);
   w->backed = taken(&at, m);
-  w->shell = taken(&at, m);
-  w->opening = taken(&at, m);
-  w->roof = taken(&at, m);
-  w->storey = taken(&at, m);
   w->out = taken(&at, m);
   w->by = taken(&at, m);
   w->held_any = taken(&at, m);
@@ -136,12 +134,10 @@ static void laid(const wbc_classes_t *k, int n, const double *c, const double *h
     w->surface[a] = (w->raw[a] != 0U && clear[a] > 0.0) ? 1U : 0U;
     w->wide[a] = w->shrt[a] > k->thin_eps ? 1U : 0U;
     w->top_[a] = (w->wood[a] != 0U && clear[a] > 0.0 && w->wide[a] != 0U && w->top[a] > k->flush) ? 1U : 0U;
-    for (int j = 0; j < 2; j++)
+    for (int j = 0; j < 3; j++)
     {
-      const int ax = 2 * j;
-
-      w->mid[2 * a + j] = 0.5 * (w->lo[3 * a + ax] + w->hi[3 * a + ax]);
-      w->hlf[2 * a + j] = 0.5 * (w->hi[3 * a + ax] - w->lo[3 * a + ax]);
+      w->mid[3 * a + j] = 0.5 * (w->lo[3 * a + j] + w->hi[3 * a + j]);
+      w->hlf[3 * a + j] = 0.5 * (w->hi[3 * a + j] - w->lo[3 * a + j]);
     }
     w->longest[a] = 0.0;
     w->backed[a] = 0U;
@@ -346,41 +342,34 @@ static int32_t face_of(const wbc_classes_t *k, const work_t *w, int a)
   return WBC_CLASS_THING;
 }
 
-/** A thing's part in a building by its told class (`cls` one of the enum) or its kind's flags. */
-static void housed(const work_t *w, int a, int32_t cls, int32_t flags)
+/** A thing's part in a building (WBC_CLASSES_SHELL, WBC_CLASSES_OPEN) by its told class `cls` (one of the enum) or
+    its kind's `flags`: a wall's and a window's, a door's as its look tells it. */
+static int32_t housed(int32_t cls, int32_t flags)
 {
   if (cls >= 0)
   {
-    w->shell[a] = (cls == WBC_CLASS_WALL || cls == WBC_CLASS_WINDOW) ? 1U : 0U;
-    w->opening[a] = cls == WBC_CLASS_WINDOW ? 1U : 0U;
-    w->roof[a] = cls == WBC_CLASS_CEILING ? 1U : 0U;
-    w->storey[a] = cls == WBC_CLASS_WALL ? 1U : 0U;
+    return (cls == WBC_CLASS_WALL || cls == WBC_CLASS_WINDOW ? WBC_CLASSES_SHELL : 0)
+           | (cls == WBC_CLASS_WINDOW ? WBC_CLASSES_OPEN : 0);
   }
-  else
-  {
-    w->shell[a] = (flags & WBC_CLASSES_SHELL) != 0 ? 1U : 0U;
-    w->opening[a] = (flags & WBC_CLASSES_OPEN) != 0 ? 1U : 0U;
-    w->roof[a] = (flags & WBC_CLASSES_ROOF) != 0 ? 1U : 0U;
-    w->storey[a] = (flags & WBC_CLASSES_STOREY) != 0 ? 1U : 0U;
-  }
+  return flags & (WBC_CLASSES_SHELL | WBC_CLASSES_OPEN);
 }
 
-/** classes._houses: the buildings the things make, each its corners into `blo`, `bhi`; how many. */
-static int built(const wbc_classes_t *k, int n, work_t *w)
+int wbc_classes_houses(const wbc_classes_t *k, int n, const double *lo, const double *hi, const double *mid,
+                       const double *hlf, const int32_t *part, int32_t *label, int32_t *low, unsigned char *link,
+                       double *blo, double *bhi, int32_t *of)
 {
   int changed = 1, nb = 0;
 
   for (int a = 0; a < n; a++)
   {
-    w->label[a] = w->shell[a] != 0U ? a : n;
+    label[a] = (part[a] & WBC_CLASSES_SHELL) != 0 ? a : n;
     for (int b = 0; b < n; b++)
     {
-      const size_t  ab = (size_t)a * (size_t)n + (size_t)b;
       unsigned char near_ = 1U, plane = 0U;
 
-      for (int j = 0; j < 2; j++)
+      for (int j = 0; j < 3; j += 2)
       {
-        const double ma = w->mid[2 * a + j], mb = w->mid[2 * b + j], ha = w->hlf[2 * a + j], hb = w->hlf[2 * b + j];
+        const double ma = mid[3 * a + j], mb = mid[3 * b + j], ha = hlf[3 * a + j], hb = hlf[3 * b + j];
 
         if (!((fabs(ma - mb) - ha) - hb <= k->far_eps))
         {
@@ -391,7 +380,8 @@ static int built(const wbc_classes_t *k, int n, work_t *w)
           plane = 1U;
         }
       }
-      w->link[ab] = ((near_ != 0U || plane != 0U) && w->shell[b] != 0U) ? 1U : 0U;
+      link[(size_t)a * (size_t)n + (size_t)b] = ((near_ != 0U || plane != 0U) && (part[b] & WBC_CLASSES_SHELL) != 0)
+                                                    ? 1U : 0U;
     }
   }
   while (changed != 0)
@@ -399,41 +389,38 @@ static int built(const wbc_classes_t *k, int n, work_t *w)
     changed = 0;
     for (int a = 0; a < n; a++)
     {
-      int32_t low = n;
+      int32_t least = n;
 
-      if (w->shell[a] != 0U)
+      if ((part[a] & WBC_CLASSES_SHELL) != 0)
       {
-        low = w->label[a];
+        least = label[a];
         for (int b = 0; b < n; b++)
         {
-          if (w->link[(size_t)a * (size_t)n + (size_t)b] != 0U && w->label[b] < low)
+          if (link[(size_t)a * (size_t)n + (size_t)b] != 0U && label[b] < least)
           {
-            low = w->label[b];
+            least = label[b];
           }
         }
       }
-      w->low[a] = low;
+      low[a] = least;
     }
     for (int a = 0; a < n; a++)
     {
-      if (w->low[a] != w->label[a])
+      if (low[a] != label[a])
       {
         changed = 1;
       }
-      w->label[a] = w->low[a];
+      label[a] = low[a];
     }
   }
   for (int32_t g = 0; g < n; g++)
   {
     int     opened = 0, count = 0;
-    double *lo = w->blo + 3 * nb, *hi = w->bhi + 3 * nb;
+    double *bl = blo + 3 * nb, *bh = bhi + 3 * nb;
 
-    for (int a = 0; a < n; a++)
+    for (int a = 0; a < n && opened == 0; a++)
     {
-      if (w->label[a] == g && w->opening[a] != 0U)
-      {
-        opened = 1;
-      }
+      opened = (label[a] == g && (part[a] & WBC_CLASSES_OPEN) != 0) ? 1 : 0;
     }
     if (opened == 0)
     {
@@ -441,19 +428,20 @@ static int built(const wbc_classes_t *k, int n, work_t *w)
     }
     for (int a = 0; a < n; a++)
     {
-      if (w->label[a] != g)
+      if (label[a] != g)
       {
         continue;
       }
       for (int j = 0; j < 3; j++)
       {
-        lo[j] = count == 0 ? w->lo[3 * a + j] : npminimum(lo[j], w->lo[3 * a + j]);
-        hi[j] = count == 0 ? w->hi[3 * a + j] : npmaximum(hi[j], w->hi[3 * a + j]);
+        bl[j] = count == 0 ? lo[3 * a + j] : npminimum(bl[j], lo[3 * a + j]);
+        bh[j] = count == 0 ? hi[3 * a + j] : npmaximum(bh[j], hi[3 * a + j]);
       }
       count++;
     }
-    if (count >= 2 && hi[0] - lo[0] > k->thin_eps && hi[2] - lo[2] > k->thin_eps)
+    if (count >= 2 && bh[0] - bl[0] > k->thin_eps && bh[2] - bl[2] > k->thin_eps)
     {
+      of[nb] = g;
       nb++;
     }
   }
@@ -545,9 +533,9 @@ int wbc_classes_of(const wbc_classes_t *k, int n, const double *c, const double 
   {
     cls[a] = w.name[whole[a]];
     of[a] = w.kcode[whole[a]];
-    housed(&w, a, cls[a], w.kflags[whole[a]]);
+    w.part[a] = housed(cls[a], w.kflags[whole[a]]);
   }
-  nb = built(k, n, &w);
+  nb = wbc_classes_houses(k, n, w.lo, w.hi, w.mid, w.hlf, w.part, w.label, w.low, w.link, w.blo, w.bhi, w.of);
   if (nb > 0)
   {
     beside_built(k, n, nb, c, &w, cls);

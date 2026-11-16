@@ -66,11 +66,43 @@ def _instances(names, whole, beside, lo, hi, built):
     return label
 
 
+#: Each told name's code and flags for the C (`tools.cores.classes.BITS`), told at its first grouping.
+_NAMED: dict = {}
 
-def grouped(names, whole, centre, half, R):
+
+def _named(name):
+    """(code, flags) of a told name `name` for the C: a building's shell, opening, roof or storey, a wall, seen
+    through, a stair, no thing of its own (a piece of furniture, what none tells)."""
+    got = _NAMED.get(name)
+    if got is None:
+        from tools.cores.classes import BITS
+        flags = sum(BITS[bit] for bit, held in (('shell', name in classes.SHELL), ('open', name in classes.OPENINGS),
+                                                 ('roof', name in classes.ROOFS), ('storey', name in classes.STOREY),
+                                                 ('wall', name == 'wall'), ('through', name in THROUGH),
+                                                 ('stairs', name == 'stairs'),
+                                                 ('notone', name in FURNITURE or name == 'thing')) if held)
+        got = _NAMED[name] = (len(_NAMED), flags)
+    return got
+
+
+def grouped(names, whole, centre, half, R, in_c=True):
     """((n,) the one thing each of `n` things told `names` - `of`'s, with their `whole`s - is of (`_instances`), the
-    buildings they make [(class, centre (3,), half sizes (3,), members (k,))] (`classes.houses`)), of their centres and half
-    sizes (n, 3) and turns (n, 3, 3)."""
+    buildings they make [(class, centre (3,), half sizes (3,), members (k,))] (`classes.houses`)), of their centres and
+    half sizes (n, 3) and turns (n, 3, 3). In C where `in_c` (`tools.cores.classes`, wbc_wholes.c: the lodge's 93
+    boxes 1.6 ms of numpy, a state told the robot's page each time its things move), numpy's own its twin
+    (`_grouped`), bit for bit."""
+    from tools.cores.classes import MOST
+    told = classes.core() if in_c and 0 < len(names) <= MOST else None
+    if told is None:
+        return _grouped(names, whole, centre, half, R)
+    coded = [_named(str(name)) for name in names]
+    one, built = told.grouped(centre, half, R, [c for c, _f in coded], [f for _c, f in coded], whole)
+    return one.astype(int), [('cabin' if cabin else 'house', 0.5 * (a + b), 0.5 * (b - a), members)
+                             for cabin, a, b, members in built]
+
+
+def _grouped(names, whole, centre, half, R):
+    """`grouped` in numpy, its twin."""
     if not len(names):
         return np.zeros(0, int), []
     e = np.einsum('nij,nj->ni', np.abs(R), half)

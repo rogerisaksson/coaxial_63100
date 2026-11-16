@@ -340,6 +340,33 @@ def things(kinds, centre, half, R, taken, clear, swell):
     return laid
 
 
+def moved(was, boxes):
+    """(k,) the rows of `boxed`'s `boxes` whose numbers are not `was`'s to the bit - its centre, half sizes, turn,
+    clear or swell: a zero's sign too, which == passes -; None where their things are not the same things (their
+    kinds or slots apart)."""
+    if was[0] != boxes[0] or was[4] != boxes[4]:
+        return None
+    n = len(boxes[0])
+    apart = np.zeros(n, bool)
+    for a, b in zip((*was[1:4], *was[5:]), (*boxes[1:4], *boxes[5:])) if n else ():
+        bits_a, bits_b = (np.asarray(x, float).view(np.uint64).reshape(n, -1) for x in (a, b))
+        apart |= (bits_a != bits_b).any(1)
+    return np.flatnonzero(apart)
+
+
+def patched(things, rows, centre, half, R, clear, swell):
+    """`things` (`things`' laid) with rows `rows` told anew - their centres, half sizes, turns (k, 3), (k, 3), (k, 3, 3),
+    clears and swells -, their kinds and slots as they were: `things(*boxed)` of the whole look to the bit, its other
+    rows the same tuples."""
+    c, h, r = (a.copy() for a in things.arrays)
+    c[rows], h[rows], r[rows] = centre, half, R
+    laid = Things(things)
+    for k, cr, hr, rr, cl, sw in zip(rows, _tuples(centre), _tuples(half), _tuples(R), clear, swell):
+        laid[k] = (laid[k][0], cr, hr, rr, laid[k][4], cl, sw)
+    laid.arrays = (c, h, r)
+    return laid
+
+
 def keyed(things):
     """`things`' key for what they afford (`sprung.named`): each one's kind, slot, centre and its half sizes across
     the floor to the centimetre - a registry's (`Things`) off its arrays at once, numpy's rounding either way."""
