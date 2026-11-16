@@ -57,13 +57,16 @@ def test_the_power_stage_is_the_librarys(r):
     is read of its file, and the share of the link the model gives the modulator is the solver's
     (`mechatronics.v_frac`)."""
     from coaxial.devices import scaling
-    from coaxial.model import inverter, thermal
+    from coaxial.model import inverter, thermal, thermal_app
     from coaxial.simulated import values
     from coaxial.simulated.drive import capture
     from machine.body import mechatronics
     inv = mechatronics.library()['inverters']['coaxial_63100']
-    bare = _literals(os.path.join(HOST, 'coaxial', 'model', 'inverter.py'), set(STAGE))
-    r.check('the inverter model binds none of the library\'s numbers to a literal', not bare, bare)
+    bare = (_literals(os.path.join(HOST, 'coaxial', 'model', 'inverter.py'), {*STAGE, 'V_FRAC'})
+            + _literals(os.path.join(HOST, 'coaxial', 'model', 'thermal_app.py'), {'EDGE_MOUNT_FIRST'}))
+    r.check("the inverter model binds none of the library's numbers nor the link's share to a literal, the "
+            "mount's first edge is the network's", not bare and thermal_app.EDGE_MOUNT_FIRST == thermal.EDGE_MOUNT_FIRST,
+            bare)
     apart = [n for n, key in STAGE.items() if getattr(inverter, n) != float(inv[key])]
     r.check('its switching rate, resistances and junction limit are the library\'s',
             not apart and inverter.V_FRAC == mechatronics.v_frac(inv) and inverter.TS == 1.0 / float(inv['pwm_hz']),

@@ -6,6 +6,8 @@ reason - until a test cycle runs in the application.
 import copy
 import math
 
+from coaxial.model.thermal import EDGE_MOUNT_FIRST
+
 #: thermal_app_t, in order: still air (a bench), a rotor's wash (a drone's), a sealed finned
 #: aluminium housing, a fan's finned sink, a liquid's cold plate, PAO, transformer oil, a
 #: joint's holder on its motor or gearbox.
@@ -32,9 +34,6 @@ WASH_M_S_PER_KRPM = (0.0, 4.32, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
 #: The host's word on the airspeed holds this long, wall s (THERMAL_AIRSPEED_HOLD_MS), and
 #: goes to this at the most, m/s (THERMAL_AIRSPEED_MAX_MM_S).
 AIRSPEED_HOLD_S, AIRSPEED_MAX_M_S = 1.0, 100.0
-
-#: The first of the mount's six edges, the stator onto patches U, V, W, left, bottom, right.
-EDGE_MOUNT_FIRST = 24
 
 
 def air_rpm(app, speed_rpm, airspeed_m_s):

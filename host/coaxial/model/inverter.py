@@ -16,7 +16,9 @@ T_DEAD = 63.2e-9              #: DTG 15: 33.7 ns shot through dry, 42 did not
 T_DEAD_SIM = 65.4e-9          #: the simulation's worst corner
 T_MIN_PULSE = 105e-9          #: 25 ticks: TPW 40 ns + DTG 15 -> 0.53 % duty
 GATE_UVLO_V = 7.5             #: the 2EDL8034's (motor_inverters/half_bridge/2EDL8034F5.lib)
-V_FRAC = 0.95                 #: of the link the modulator may use
+#: Of the link the modulator may use: what the library's dead time leaves of a period, blanked at both
+#: of its edges (the static solver's law, `mechatronics.v_frac`, held to this one by test_metacompiler_rig).
+V_FRAC = round(1.0 - 2.0 * float(_INV['deadtime_s']) * FSW, 4)
 
 # IAUCN10S7N021, from the vendor VDMOS model in half_bridge.asc.
 RDS_ON = float(_INV['rds_ohm'])

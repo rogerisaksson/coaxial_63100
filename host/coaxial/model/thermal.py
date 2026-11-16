@@ -219,6 +219,8 @@ EDGES = (
     ('stator', 'patch_w', 0.0), ('stator', 'patch_left', 0.0),
     ('stator', 'patch_bottom', 0.0), ('stator', 'patch_right', 0.0),
 )
+#: The winding's edge into the stator, the stator's into the rotor, and the first of the mount's six edges:
+#: the stator onto patches U, V, W, left, bottom, right (`thermal_app` lays a board's mount on them).
 EDGE_WINDING_STATOR, EDGE_STATOR_ROTOR, EDGE_MOUNT_FIRST = 22, 23, 24
 
 
