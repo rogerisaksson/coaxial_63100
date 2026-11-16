@@ -130,7 +130,8 @@ def hop_blocked(g):
     vx, vz = float(vel[0]), float(vel[2])
     vh = math.hypot(vx, vz)
     q = furniture.where(g)
-    room = ahead(_boxes(things, True), (float(q[0]), float(q[2])), (vx / max(vh, 1e-9), vz / max(vh, 1e-9))) - wayfinder.MARGIN
+    room = ahead(_boxes(things, True), (float(q[0]), float(q[2])), (vx / max(vh, 1e-9), vz / max(vh, 1e-9)),
+                 g.get('rooms')) - wayfinder.MARGIN
     return vh > se2.HALT_M_S and _stop(vh) + 0.35 * vh >= room
 
 
@@ -204,7 +205,7 @@ def _room(g, way, things=None):
     thing grown by it half width, to a wall's or a window's face its way runs into less it."""
     q = furniture.where(g)
     boxes = _boxes(_seen(g) if things is None else things)
-    return ahead(boxes, (float(q[0]), float(q[2])), way) - wayfinder.MARGIN
+    return ahead(boxes, (float(q[0]), float(q[2])), way, g.get('rooms')) - wayfinder.MARGIN
 
 
 def _spared(g, need, things=None):
@@ -251,22 +252,32 @@ def _boxes(things, doors=False):
     return _KEPT[slot + 1]
 
 
-def ahead(boxes, at, way):
+def ahead(boxes, at, way, rooms=None):
     """How far from `at` (x, z) along `way` (a unit (x, z)) the nearest of `boxes` (`_boxes`') begins less its
-    distance off, m: 0 within one and going deeper, inf none ahead. The division where the way crosses an axis alone
-    (`where`): no warnings to hush, each a context of numpy's."""
+    distance off, m: 0 within one and going deeper, inf none ahead - by `rooms`, `rooms_of` or its C (`g['rooms']`,
+    `machine.law.motion.laid`: the room along a way was 115 us of numpy, the walk's cocoon asked it some 150 times a
+    second)."""
     import numpy as np
     c, axes, half, off = boxes
     if not len(c):
         return math.inf
-    o = np.einsum('nij,nj->ni', axes, np.asarray(at, float) - c)
-    d = axes @ np.asarray(way, float)
+    return float((rooms_of if rooms is None else rooms)(c, axes, half, off, np.asarray(at, float), np.asarray(way, float)))
+
+
+def rooms_of(c, axes, half, off, at, way):
+    """`ahead` of the boxes' arrays (`_boxes`'), `at` and `way`: the slab method on each box's axes, a way along an
+    axis crossing it nowhere; the least begun over the boxes hit, inf none. The division where the way crosses an
+    axis alone counts (`where`), its warnings hushed - in C a part a count of boxes (`machine.law.motion.laid`). The
+    axes' products with the way one matmul of their rows, numpy's stacked one's bits (none apart in 10^5 boxes)."""
+    import numpy as np
+    o = np.einsum('nij,nj->ni', axes, at - c)
+    d = (axes.reshape(-1, 2) @ way).reshape(-1, 2)
     flat, within = np.abs(d) > 1e-12, np.abs(o) <= half
-    t1 = np.divide(-half - o, d, out=np.zeros_like(o), where=flat)
-    t2 = np.divide(half - o, d, out=np.zeros_like(o), where=flat)
-    lo = np.where(flat, np.minimum(t1, t2), np.where(within, -np.inf, np.inf)).max(axis=1)
-    hi = np.where(flat, np.maximum(t1, t2), np.where(within, np.inf, -np.inf)).min(axis=1)
-    inside = within.all(axis=1)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        t1, t2 = (-half - o) / d, (half - o) / d
+        lo = np.where(flat, np.minimum(t1, t2), np.where(within, -np.inf, np.inf)).max(axis=1)
+        hi = np.where(flat, np.maximum(t1, t2), np.where(within, np.inf, -np.inf)).min(axis=1)
+    inside = within[:, 0] & within[:, 1]
     deeper = _deeper(o, d, half, off)
     hit = ((lo <= hi) & (hi >= 0.0) & ~inside) | (inside & deeper)
-    return float((np.where(inside, 0.0, np.maximum(lo, 0.0)) - off)[hit].min()) if hit.any() else math.inf
+    return np.where(hit, np.where(inside, 0.0, np.maximum(lo, 0.0)) - off, np.inf).min(initial=np.inf)

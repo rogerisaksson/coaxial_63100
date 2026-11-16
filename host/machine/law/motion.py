@@ -25,7 +25,7 @@ from machine.stack import chain
 from machine.senses import edge
 from machine.texts import ortho
 from machine.eyes import vision
-from machine.way import wayfinder
+from machine.way import cocoon, wayfinder
 from machine.law.upper import step_modal
 
 
@@ -254,7 +254,7 @@ def laid(g):
     (`g['cmd']`), with its latent step, upper-body coupling, ask, surety, touch, twist, table waits, brace and
     borne read in C bit for bit (`tools.cores.motion`, `step`, `surety`, `touch`, `twist`, `wait`, `brace`,
     `borne`), and the robot's estimate, grip, situation, poses, EKF, barrier, field, weighed shares,
-    clearances and wayfinder gap compiled from numpy (`tools.cores.bodied`)."""
+    clearances, wayfinder gap and cocoon's rooms compiled from numpy (`tools.cores.bodied`)."""
     from machine.body.figure import JOINTS
     from tools.cores import bodied, motion as c_motion, surety as c_surety, touch as c_touch, twist as c_twist
     from tools.cores import brace as c_brace, wait as c_wait, wbc as cores
@@ -263,6 +263,7 @@ def laid(g):
     g['weighed'] = bodied.on_args(observer.weighed, 'weighed', (0, 1, 2, 3))
     g['clear'] = bodied.on_body(capsules.felt, 'clear', (1,))
     g['gap'] = bodied.on_shapes(wayfinder.gap, 'gap', (0, 1, 2, 3, 4, 5))
+    g['rooms'] = bodied.on_shapes(cocoon.rooms_of, 'rooms', (0, 1, 2, 3, 4, 5))     # the cocoon's room along a way
     g['outside'] = bodied.on_args(grip.outside, 'outside', (0, 1))
     g['readings'] = bodied.on_args(situation.readings, 'readings', (0, 1, 2, 3, 4, 5))
     g['read'] = bodied.on_args(situation.read, 'read', (0, 1))
