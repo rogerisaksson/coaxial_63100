@@ -46,6 +46,7 @@
  "test_metacompiler.py": 56.9,
  "test_metacompiler_crafts.py": 12.3,
  "test_metacompiler_rig.py": 29.7,
+ "test_metacompiler_solver.py": 0.8,
  "test_mirrors.py": 571.8,
  "test_modbus_core.py": 23.6,
  "test_mppi_core.py": 67.4,
