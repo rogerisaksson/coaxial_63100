@@ -74,9 +74,10 @@ def test_a_loop_keeps_the_margin_asked(r):
             dead, lags, zeta, natural, margin),
             abs(got - margin) < 1e-9
             and _measured(1.05 * natural, zeta, dead, lags) < margin < _measured(0.95 * natural, zeta, dead, lags), got)
-    free = math.atan(2.0 * 0.5 * loops.crossover(0.5))
-    r.check("a loop's crossover is where its gain is one, its margin with no dead time the lead's there",
+    free = loops.margin(0.5)
+    r.check("a loop's crossover is where its gain is one, its own margin the lead's there, read off its response",
             math.isclose(abs(_response(loops.crossover(0.5), 1.0, 0.5, 0.0, ())), 1.0, rel_tol=1e-12)
+            and math.isclose(free, math.atan(2.0 * 0.5 * loops.crossover(0.5)), rel_tol=1e-12)
             and math.isclose(_measured(1.0, 0.5, 0.0, ()), free, rel_tol=1e-9), free)
 
 
@@ -125,13 +126,18 @@ def test_a_loop_is_the_softest_that_meets_its_needs(r):
     loop = loops.design((least, most), zeta, needs, ceilings)
     r.check('the stiffest need is the stiffness, the least ceiling named, the loop feasible under it',
             loop.kp == 600.0 and (loop.need, loop.ceiling, loop.feasible) == ('gravity', 'series', True), loop)
-    r.check('its damping is the ratio asked on the most inertia, more on the least',
-            math.isclose(loop.kd / (2.0 * math.sqrt(loop.kp * most)), zeta, rel_tol=1e-12)
-            and loop.kd / (2.0 * math.sqrt(loop.kp * least)) > zeta
-            and math.isclose(loop.natural_rad_s, math.sqrt(loop.kp / most), rel_tol=1e-12), loop.kd)
+    on_least, on_most = (loop.kd / (2.0 * math.sqrt(loop.kp * j)) for j in (least, most))
+    r.check('its damping is as far over the ratio asked on the least inertia as under it on the most',
+            on_most < zeta < on_least and math.isclose(on_least * on_most, zeta * zeta, rel_tol=1e-12)
+            and math.isclose(loop.natural_rad_s, math.sqrt(loop.kp / most), rel_tol=1e-12), (on_least, on_most))
     over = loops.design((least, most), zeta, {**needs, 'throw': 3000.0}, ceilings)
     r.check('a need past the least ceiling stands as asked and the loop is not feasible',
             over.kp == 3000.0 and over.need == 'throw' and not over.feasible, over)
+    stiff, past = (loops.stiffest((least, most), zeta, asked, ceilings) for asked in (needs, {**needs, 'throw': 3000.0}))
+    r.check('the stiffest loop its machine allows stands at its least ceiling, damped alike, feasible with every need under it',
+            stiff.kp == 2518.0 and (stiff.need, stiff.ceiling, stiff.feasible) == ('gravity', 'series', True)
+            and loop.kp <= stiff.kp and math.isclose(stiff.kd / math.sqrt(stiff.kp), loop.kd / math.sqrt(loop.kp), rel_tol=1e-12)
+            and past.kp == stiff.kp and past.need == 'throw' and not past.feasible, (stiff, past))
     per = loops.design(1.0, 0.68, {'motion': loops.stiffness(1.0, 17.0)}, {'authority': 500.0})
     wide = loops.design(2.0, 0.68, {'motion': loops.stiffness(2.0, 17.0)}, {'authority': 1000.0})
     r.check('per inertia the gains are the frequency squared and twice the ratio times it, twice the inertia twice both',

@@ -217,10 +217,61 @@ def test_a_builds_drives_are_stated_once(r):
             and dclink.CHARGE_A == pack['cell_charge_a'] * pack['parallel'] * len(pack['mounts']), pack['mounts'])
 
 
+def test_a_joints_loop_is_solved_of_what_it_turns(r):
+    """Beside the servo table the compiler lays by formulas a joint stands the solved one, one rule
+    for every driven joint (`machine.body.looped`): of what its drive turns (`carried.table`: its
+    limb swinging, the body it carries where a sole hangs on it, gravity's stiffness there) and the
+    control design's targets (`control.toml`), by `machine.solver.loops` - the stiffer of the
+    swing's and the stance's needs under its ceilings. The comparison lays a row a loop, the
+    robot's and every craft's (`tools/cores/designed.py`); the robot's law runs on none of it."""
+    from machine.body import carried, compile as body, drives, looped, mechatronics
+    from tools.cores import designed
+    seen, st, ctl = carried.table(body.G_M_S2), body.subtrees(), mechatronics.control()
+    bears = sorted(kind for kind, rows in seen.items() if any(held for _swing, held, _tip in rows))
+    carries = [seen[kind][0][1] for kind in ('hip', 'knee', 'ankle')]
+    r.check("the joints that carry the robot are its legs': standing, the further down, the more of it a joint carries",
+            bears == ['ankle', 'ankle_roll', 'hip', 'hip_roll', 'hip_yaw', 'knee'] and carries == sorted(carries)
+            and all(len(rows) == len(carried.postures()) and all(row[0] > 0.0 for row in rows) for rows in seen.values()),
+            bears)
+    tip = seen['ankle'][0][2] / (st['weight'] * st['h0'])
+    r.check("gravity tips the robot over its ankle with nearly its weight times its centre's height", 0.8 < tip < 1.0, tip)
+    zeta, fall = float(ctl['damping_ratio']), float(ctl['fall_factor']) * st['omega']
+    swung = float(ctl['cascade_factor']) * fall
+    taken = math.radians(float(ctl['delay_phase_deg'])) * drives.BUS_HZ / looped.DEAD_PERIODS
+    solved, gains = looped.table(), looped.gains()
+    off, soft, held = [], [], []
+    for kind, (rotor, limb, most, loop, needs, ceilings) in solved.items():
+        kp, kd = gains[kind]
+        on = limb if loop.need == 'swing' else most
+        if (kp != float(round(min(loop.kp, ceilings[loop.ceiling])))
+                or abs(kd - min(2.0 * zeta * math.sqrt(kp * math.sqrt(rotor * on)), rotor * taken)) > 0.05):
+            off.append(kind)
+        if not math.isclose(math.sqrt(needs['swing'] / limb), swung, rel_tol=1e-12) or not rotor < limb <= most:
+            soft.append(kind)
+        if loop.need == 'stance' and (kind not in bears or needs['stance'] <= max(row[2] for row in seen[kind])):
+            held.append(kind)
+    r.check("every driven joint's stiffness is its loop's under its least ceiling, its damping the target's on the "
+            "mean of its rotor and what set its stiffness, no more than its rotor takes", set(seen) <= set(solved) and not off, off)
+    r.check("every limb's loop is asked the cascade's factor over the stance loop's, itself the fall's by its factor",
+            not soft and math.isclose(fall, float(ctl['fall_factor']) * math.sqrt(body.G_M_S2 / st['h0'])), soft)
+    r.check('a loop set by its stance is a leg\'s, and asks more than gravity alone tips it with', not held, held)
+    unmet = sorted(kind for kind, row in solved.items() if not row[3].feasible)
+    r.check("the robot's own build can be what its loops ask: no need lies over a ceiling", not unmet, unmet)
+    laid, today = designed.rows(), body.servos()
+    own = {loop: (kp, kd, solved_kp, solved_kd) for machine, loop, kp, kd, solved_kp, solved_kd, *_ in laid
+           if machine == mechatronics.ROBOT}
+    crafts = sorted({machine for machine, *_ in laid} - {mechatronics.ROBOT})
+    r.check('the comparison lays a row a loop: %d of the robot\'s, today\'s table beside the solved, and %d crafts\' axes'
+            % (len(own), len(laid) - len(own)),
+            set(own) == set(solved) and len(crafts) >= 4 and all(len(row) == len(designed.COLUMNS) for row in laid)
+            and all(own[kind] == (today[kind][1], today[kind][2]) + gains[kind] for kind in own), crafts)
+
+
 ROSTER = (test_the_worlds_gravity_is_stated_once, test_a_build_compiled_anew_is_its_cache,
           test_no_compiled_number_is_not_a_number, test_an_override_moves_the_number_it_names,
           test_a_scaled_figure_follows_similarity, test_a_joint_dressed_in_nothing_is_bare,
-          test_the_specs_inputs_only_fall, test_a_builds_drives_are_stated_once)
+          test_the_specs_inputs_only_fall, test_a_builds_drives_are_stated_once,
+          test_a_joints_loop_is_solved_of_what_it_turns)
 
 
 def main(argv=None):
