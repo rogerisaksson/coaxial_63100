@@ -1,16 +1,21 @@
-"""The robot's drives as drawn: each joint's drum and the patches sewn on the cloth over a drum's ends.
+"""The robot's drives as drawn: each joint's drum, its cover, the patches on the cloth over its ends.
 
-    parts += drums()                               # [(name, parent, offset, mesh)], a joint each
+    parts += covers()                              # [(name, parent, offset, mesh)], a joint each
+    parts += drums()                               # the same bare: its mechanism's
     sewn = patches(parts)                          # {joint: [(part, its corners near an end)]}
     masks = near(sewn, parts, drummed, dense, spans)   # the same patches among the dense dots
 """
 from coaxial.graphics.lit import PLATE
-from coaxial.graphics.shapes import drum
-from machine.body import drives, figure, skeleton
+from coaxial.graphics.shapes import drum, pod
+from machine.body import build, drives, figure, skeleton
 
 #: Each drum's axis (unit, its part's frame) and half its length, m, by its joint - filled as the
 #: drums are built.
 AXES = {}
+
+#: A cover's rims as a squircle's (`shapes.pod`): at 2, an ellipsoid's, a cover stands 22 % of its
+#: drum's radius past it, at 4 11 %, at 8 5 % and reads as the drum's own edge.
+ROUND = 4.0
 
 #: A patch reaches PATCH_M round a drum's end.
 PATCH_M = 0.045
@@ -40,6 +45,21 @@ def drums():
                                                'z': (0.0, 0.0, 1.0)}[letter]),
                        drives.length(joint) / 2.0)
         out.append(('drive_' + joint, parent, at, mesh))
+    return out
+
+
+def covers():
+    """[(name, parent, offset, mesh)]: each drive as drawn under the robot's shell and its clothes,
+    its drum's cover - the least superellipsoid (`shapes.pod`, ROUND) about the drum and the
+    shell's wall on it (`build.WALL_M`), on the drum's place. Of the drum's own size, it holds
+    the drum in every build and every pose: a drum stood 37 mm out of the shoulder's shell."""
+    out = []
+    for name, parent, at, _mesh in drums():
+        joint = name[len('drive_'):]
+        axis, half = AXES[joint]
+        letter = 'xyz'[[abs(v) for v in axis].index(1.0)]
+        out.append((name, parent, at, pod(drives.of(joint)[1].diameter / 2.0 + build.WALL_M,
+                                          half + build.WALL_M, ROUND, letter, PLATE)))
     return out
 
 

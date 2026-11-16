@@ -40,11 +40,12 @@ HEADER = (['t', 'stage', 'yaw', 'speed', 'phase', 'left_load', 'right_load',
           + ['%s_%s' % (seg[0], axis) for seg in SEGMENTS for axis in 'xyz']
           + ['set_' + j for j in JOINTS] + ['watts', 'epoch', 'ratio', 'headroom', 'crc', 'link', 'keys', 'commands'])
 
-#: What L, T and M step through: the joints called out (`show_humanoid.CALLED`), what each
-#: callout shows, the robot's skin - dressed, its shell, its mechanism (`coaxial.graphics.mechanism`), its
-#: drives alone.
+#: What L and T step through: the joints called out (`show_humanoid.CALLED`), what each callout shows;
+#: and what U undresses the robot through, a layer a press: dressed, its carbon skeleton bare with
+#: its guards on it ('shell': `coaxial.graphics.plated`), its mechanism as built
+#: (`coaxial.graphics.mechanism`), the stick figure of its kinematics.
 CALLING, SHOWN, SKINS = ('strong', 'all', 'none'), ('torque', 'power', 'temp'), ('dressed', 'shell', 'mechanism', 'actuators')
-_CYCLES = {'l': ('called', CALLING), 't': ('shown', SHOWN), 'm': ('skin', SKINS)}
+_CYCLES = {'l': ('called', CALLING), 't': ('shown', SHOWN)}
 #: The view's steps: an arrow's turn, deg, round the robot; a key's zoom.
 _LOOKS, _ZOOMS = {'left': -viewpoint.TURN_DEG, 'right': viewpoint.TURN_DEG}, {'+': 1.1, '=': 1.1, '-': 1 / 1.1, '_': 1 / 1.1}
 #: The scenes' keys, each the step through `floor.SCENARIOS` it takes - Enter the one the robot is in.
@@ -329,9 +330,14 @@ def _restarted(state):
 
 
 def _cycled(state, key, _now):
-    """L, T, M: the next of what the key steps through (_CYCLES)."""
+    """L, T: the next of what the key steps through (_CYCLES)."""
     name, ring = _CYCLES[key.lower()]
     state[name] = ring[(ring.index(state[name]) + 1) % len(ring)]
+
+
+def _undressed(state, key, _now):
+    """U a layer off the robot (SKINS), down to the stick figure and round to dressed; Shift+U one back on."""
+    state['skin'] = SKINS[(SKINS.index(state['skin']) + (1 if key == 'u' else -1)) % len(SKINS)]
 
 
 def _horizon(state, key, _now):
@@ -361,7 +367,8 @@ _ROWS = (
      {k: lambda state, key, _now: viewpoint.zoomed(state, _ZOOMS[key]) for k in _ZOOMS}),
     ('VIEW', 'V / O', 'behind the robot / orbit', (), {**_cased('v', _did(lambda state: state.update(viewpoint.HOME))),
                                                  **_cased('o', _did(lambda state: state.update(orbit=not state['orbit'])))}),
-    ('VIEW', 'M', 'dressed, shell, mechanism, drives', (), _cased('m', _cycled)),
+    ('VIEW', 'U', 'undress a layer: dressed, skeleton and guards, mechanism, stick figure; SHIFT+U one back on', (),
+     _cased('u', _undressed)),
     ('VIEW', 'L / T', 'callouts / torque, power, temp', (), {**_cased('l', _cycled), **_cased('t', _cycled)}),
     ('LAB', '[ / ] , < / ENTER', 'scene before / after / again', (('[ ]', 'SCENE'),),
      {k: lambda state, key, _now: gym.step_scenario(state, _SCENES[key]) for k in _SCENES}),

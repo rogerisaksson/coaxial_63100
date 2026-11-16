@@ -6,10 +6,12 @@ offset. Without `root`, the lowest foot stands on y = 0.
 import math
 from typing import Any
 
-from coaxial.graphics import arrows as _arrows, drape, drums, engine, mechanism, panels, sneaker
+from coaxial.graphics import (arrows as _arrows, drape, drums, engine, form, likeness, marks, mechanism, panels,
+                              plated, sneaker, under)
 from coaxial.graphics.callouts import callouts, line, packed
 from coaxial.graphics.lit import (CORE, MESH, PAINTED, PLATE, SKIN, braille, grid, paint,
                                   project, splat)
+from coaxial.graphics.panels import SHELL
 from coaxial.graphics.props import lines as prop_lines
 from coaxial.graphics.raster import DOTS_X, DOTS_Y
 from coaxial.graphics.shapes import (ellipsoid, limb, loft, moved, sampled, smooth, turn_about,
@@ -46,27 +48,27 @@ CHEEK_AT, CHEEK_R = (0.056, -0.072, -0.078), (0.06, 0.056, 0.045)
 
 def _wear():
     """Tee, sleeves, and jeans shells."""
-    tee, denim, z0, b = paint(TEE), paint(DENIM), (0.0, 0.0, 0.0), BAGGY_M - 0.012
-    out = [('cloth_tee', 'torso', z0, loft(_draped(), tee, poles=(HEM_Y - 0.01, 0.378))),
-           ('cloth_seat', 'pelvis', z0, loft(
+    tee, denim, z0, b = paint(TEE, True), paint(DENIM, True), (0.0, 0.0, 0.0), BAGGY_M - 0.012
+    out = [('cloth_tee', 'torso', z0, loft(drape.fine('cloth_tee', _draped()), tee, poles=(HEM_Y - 0.01, 0.378))),
+           ('cloth_seat', 'pelvis', z0, loft(drape.fine('cloth_seat', (
                [_hung(-0.12, 0.095, 0.05, 0.100), _hung(-0.10, 0.11, 0.06, 0.112)]
-               + [_hung(*r) for r in _SEAT] + [(0.11, 0.118, 0.084)], denim, poles=(-0.135, 0.118)))]
+               + [_hung(*r) for r in _SEAT] + [(0.11, 0.118, 0.084)])), denim, poles=(-0.135, 0.118)))]
     for side, x in _SIDES:
         out += [(f'cloth_{side}_bust', 'torso', (BUST_AT[0] * x, BUST_AT[1], BUST_AT[2] + b),
                  ellipsoid(z0, tuple(r + LOOSE_M / 2.0 for r in BUST_R), tee, rows=8)),
                 (f'cloth_{side}_inner', f'{side}_thigh', (INNER_AT[0] * x, INNER_AT[1], INNER_AT[2]),
                  ellipsoid(z0, tuple(r + FIT_M for r in INNER_R), denim, rows=8))]
     for side, x in _SIDES:
-        out += [(f'cloth_{side}_sleeve', f'{side}_upper_arm', z0, loft(
+        out += [(f'cloth_{side}_sleeve', f'{side}_upper_arm', z0, loft(drape.fine(f'cloth_{side}_sleeve', (
                     [(0.022, 0.05, 0.052), (-0.01, 0.066, 0.063), (-0.07, 0.064, 0.06),
-                     (-0.13, 0.06, 0.056)], tee, poles=(0.05, -0.133))),
+                     (-0.13, 0.06, 0.056)])), tee, poles=(0.05, -0.133))),
                 (f'cloth_{side}_thigh', f'{side}_thigh', z0,
                  limb(THIGH, THIGH_R[0] + FIT_M, THIGH_R[1] + FIT_M, THIGH_R[2] + LOOSE_M,
                       denim, bulge_at=0.22, out=x * SCULPT_M, ahead=THIGH_AHEAD, behind=THIGH_BEHIND)),
-                (f'cloth_{side}_shin', f'{side}_shank', z0, loft(
+                (f'cloth_{side}_shin', f'{side}_shank', z0, loft(drape.fine(f'cloth_{side}_shin', (
                     [(0.03, 0.068 + PAD_FULL_M, 0.068 + PAD_FULL_M),
                      (0.0, 0.074 + PAD_FULL_M, 0.074 + PAD_FULL_M), (-0.06, 0.073, 0.072),
-                     (-HEM_AT, 0.07, 0.074)], denim, poles=(0.045, -HEM_AT - 0.01))),
+                     (-HEM_AT, 0.07, 0.074)])), denim, poles=(0.045, -HEM_AT - 0.01))),
                 (f'cloth_{side}_leg', f'{side}_shank', ((f'{side}_hem_x', 'x', 1), (f'{side}_hem_z', 'z', 1)),
                  (0.0, -HEM_AT, 0.0), loft(JEANS_LEG, denim, poles=(0.02, JEANS_LEG[-1][0] - 0.02)))]
     return out
@@ -162,13 +164,13 @@ def _balayage(corners, top, end):
 def _face(corners):
     np = _np()
     y, z = corners[:, 1] - HEAD_Y, corners[:, 2] - 0.012
-    return np.where((z > 0.028) & (y < 0.07) & (y > -0.12), SKIN, MESH)
+    return np.where((z > 0.028) & (y < 0.07) & (y > -0.12), SKIN, SHELL)
 
 
 def _core(corners):
     np = _np()
     return np.where((corners[:, 1] > 0.03) & (corners[:, 1] < 0.10) & (corners[:, 2] > 0.035),
-                    CORE, MESH)
+                    CORE, SHELL)
 
 
 def _meshes():
@@ -176,7 +178,7 @@ def _meshes():
     z0 = (0.0, 0.0, 0.0)
     pelvis = loft([(-0.10, 0.06, 0.05), (-0.07, 0.135, 0.097, -0.0215),
                    (-0.03, 0.168, 0.115, -0.0275), (0.02, 0.166, 0.117, -0.0295), (0.07, 0.14, 0.092, -0.012),
-                   (0.11, 0.114, 0.074), (0.13, 0.098, 0.068)], PLATE, poles=(-0.115, 0.14))
+                   (0.11, 0.114, 0.074), (0.13, 0.098, 0.068)], SHELL, poles=(-0.115, 0.14))
     torso = loft(list(_TORSO), _core, poles=(-0.055, 0.40))
     meshes = {'pelvis': pelvis, 'torso': torso,
               'neck': loft([(0.0, 0.055, 0.052), (0.035, 0.05, 0.048), (0.07, 0.05, 0.048)],
@@ -185,30 +187,34 @@ def _meshes():
     extra = [('jaw', 'head', z0, ellipsoid((0.0, 0.042, 0.03), (0.047, 0.048, 0.056), SKIN))] + _features()
     for side, x in _SIDES:
         for tag, par, (ax, ay, az), rad, mat in (
-                ('bust', 'torso', BUST_AT, BUST_R, PLATE), ('cheek', 'pelvis', CHEEK_AT, CHEEK_R, PLATE),
-                ('inner', f'{side}_thigh', INNER_AT, INNER_R, MESH),
-                ('cap', 'torso', (0.13, 0.318, -0.004), (0.048, 0.036, 0.044), PLATE)):
+                ('bust', 'torso', BUST_AT, BUST_R, SHELL), ('cheek', 'pelvis', CHEEK_AT, CHEEK_R, SHELL),
+                ('inner', f'{side}_thigh', INNER_AT, INNER_R, SHELL)):
             extra.append((f'{side}_{tag}', par, (ax * x, ay, az), ellipsoid(z0, rad, mat, rows=8)))
         meshes.update({
             f'{side}_upper_arm': limb(UPPER_ARM, 0.04, 0.038, 0.040 + PAD_FULL_M, MESH, flat=0.95),
             f'{side}_forearm': limb(FOREARM, 0.040 + PAD_FULL_M, 0.028, 0.02, MESH, flat=0.9),
-            f'{side}_hand': ellipsoid((0.0, -0.043, 0.004), (0.014, 0.047, 0.032), PLATE, rows=8),
-            f'{side}_fingers': ellipsoid((0.0, -0.035, 0.0), (0.011, 0.042, 0.028), PLATE, rows=8),
+            f'{side}_hand': ellipsoid((0.0, -0.043, 0.004), (0.014, 0.047, 0.032), SHELL, rows=8),
+            f'{side}_fingers': ellipsoid((0.0, -0.035, 0.0), (0.011, 0.042, 0.028), SHELL, rows=8),
             f'{side}_thigh': limb(THIGH, THIGH_R[0], THIGH_R[1], THIGH_R[2], MESH, bulge_at=0.22,
                                   out=x * SCULPT_M, ahead=THIGH_AHEAD, behind=THIGH_BEHIND),
             f'{side}_shank': limb(SHANK, 0.06 + PAD_FULL_M, 0.062, 0.034, PLATE, bulge_at=0.3, ahead=0.008),
             **sneaker.feet(side)})
         extra += sneaker.soles(side)
-    return meshes, extra + drums.stages() + drums.drums() + _wear()
+    return meshes, extra + drums.stages() + drums.covers() + _wear()
 
 
 def _worn(name):
     return name.startswith(('cloth_', 'hair')) or name.endswith('_sole')
 
 
-def _parts(dressed=True):
+def _parts(dressed=True, like=None, plates=False):
     meshes, extra = _meshes()
     meshes = panels.over(meshes)
+    if plates:
+        # Plated (`plated`): a figure's likeness's head on it and, dressed, its tee and jeans.
+        worn = like and _liked(like)
+        got = plated.parts(meshes, extra, worn)
+        return plated.dressed(got, worn) if dressed and worn else got
     if not dressed:
         extra = [part for part in extra if not _worn(part[0])] + mechanism.bands(meshes)
         for name, (c, t, u, _m) in list(meshes.items()):
@@ -219,6 +225,14 @@ def _parts(dressed=True):
                   for name, parent, *rest in extra for joints, offset, mesh in [_split(rest)]]
 
 
+def _liked(like, _read={}):
+    """The figure at `like` on the robot (`likeness.worn`), read once: dressed and bare wear it."""
+    if like not in _read:
+        _read[like] = likeness.worn(like, (('hair', paint(HAIR)), ('eye', paint(EYES)), ('jean', paint(DENIM, True)), (
+            'skin', SHELL), ('face', SKIN), ('', paint(TEE, True)), ('joint', panels.OPEN)), HUNG) + form.worn(like)
+    return _read[like]
+
+
 def _split(rest) -> tuple[Any, Any, Any]:
     return (rest[0], rest[1], rest[2]) if len(rest) == 3 else ((), rest[0], rest[1])
 
@@ -227,10 +241,18 @@ class Body:
 
     """The parts' meshes laid end to end once, normals smoothed; `pose(angles)` turns them."""
 
-    def __init__(self, dressed=True, see=None):
+    def __init__(self, dressed=True, see=None, like=None, plates=False):
+        plates = not see and (plates or bool(like))                  # a likeness is worn on the robot plated
+        self.parts: list[Any] = mechanism.parts(see == 'actuators') if see else _parts(dressed, like, plates)
+        self.see = see = see or ('plated' if plates else None)       # plated, posed as its mechanism is
+        if not see:
+            rest = self._frames({})
+            self.parts = under.covered(self.parts, rest)
+            self.parts = under.dressed(self.parts, rest, _worn) if dressed else self.parts
+        self._lay(like)
+
+    def _lay(self, like):
         np = _np()
-        self.parts: list[Any] = mechanism.parts(see == 'actuators') if see else _parts(dressed)
-        self.see = see
         cs, ts, us, ms, spans, faces, base = [], [], [], [], [], [], 0
         for i, (*_head, (c, t, u, m)) in enumerate(self.parts):
             cs.append(c)
@@ -250,7 +272,9 @@ class Body:
         self.patches = drums.patches(self.parts)
         self.dense, self.dense_spans = sampled(self, np.concatenate(faces))
         self.dense_near = drums.near(self.patches, self.parts, self.drums, self.dense, self.dense_spans)
-        self.bends = drape.table(self.parts, self.corners, self.spans, self.dense[0], self.dense_spans)
+        self.bends = drape.table(self.parts, (self.corners, self.normals, self.spans),
+                                 (self.dense[0], self.dense[1], self.dense_spans),
+                                 *((plated.BLENDS, (self.uv[:, 0], self.dense[2][:, 0])) if like else ()))
         self._rest_pivots = self.pivots({})
 
     def _frames(self, angles, root=None):
@@ -265,7 +289,7 @@ class Body:
             if parent:
                 above, at = placed[parent]
                 spot = at + above @ np.asarray(offset, float)
-                if spread and name.endswith('_upper_arm'):
+                if spread and rest and name.endswith('_upper_arm'):
                     rest = rest + math.copysign(spread, rest)
                 here = above @ turn_about('z', rest) if rest else above
             else:
@@ -297,7 +321,7 @@ class Body:
         src = (self.dense[0], self.dense[1], self.dense_spans) if dense else (
             self.corners, self.normals, self.spans)
         pos, norm = moved(*src, frames)
-        drape.bent(pos, norm, src[0], src[2], frames, self.bends, dense)
+        drape.bent(pos, norm, frames, angles, self.bends, dense)
         if floor:
             pos[:, 1] -= floor
         return pos, norm
@@ -313,10 +337,10 @@ def _band(depth, width):
 _BODY = {}
 
 
-def body(dressed=True, see=None):
-    got = _BODY.get((dressed, see))
+def body(dressed=True, see=None, like=None, plates=False):
+    got = _BODY.get((dressed, see, like, plates))
     if got is None:
-        got = _BODY[(dressed, see)] = Body(dressed, see)
+        got = _BODY[(dressed, see, like, plates)] = Body(dressed, see, like, plates)
     return got
 
 
@@ -413,16 +437,18 @@ def cells(points, width, height, yaw=30.0, pitch=8.0, zoom=1.0, travel=(0.0, 0.0
 
 def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, travel=(0.0, 0.0),
            lit=None, root=None, labels=None, heat=None, props=None, legend=None, dressed=True, dents=None,
-           mark=None, around=False, see=None, pan=(0.0, 0.0), inset=None, arrows=None, horizon=None, rounds=None):
+           mark=None, around=False, see=None, pan=(0.0, 0.0), inset=None, arrows=None, horizon=None, rounds=None,
+           like=None):
     """Render the gynoid at `angles` (`{joint: deg}`) into `width` x `height` braille lines;
     `horizon` [(segments, ink)] on it (`coaxial.graphics.horizon`); `props` drawn round where `rounds` says."""
-    who, (m, fine, centre) = body(dressed, see), _looked(width, height, yaw, pitch, zoom, pan)
+    who = body(dressed, see, like if not see else None, not dressed and not see)
+    m, fine, centre = _looked(width, height, yaw, pitch, zoom, pan)
     mats, dense = _heated(who, heat)
-    frames, wired = who._frames(angles, root), []
+    frames, wired, laid = who._frames(angles, root), [], None
     if see == 'actuators':
         depth, rgb, wired = _wired(who, frames, root, m, fine, centre)
     elif lit is not None:
-        pos, norm = who.pose(angles, root=root, _frames=frames)
+        pos, norm = laid = who.pose(angles, root=root, _frames=frames)
         depth, rgb = lit.raster(pos, norm, who.uv, mats, who.index, m, fine, centre, REACH * 1.4)
     else:
         pos, norm = who.pose(angles, dense=True, root=root, _frames=frames)
@@ -450,6 +476,7 @@ def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, tr
     return braille(depth, rgb, grid(m, fine, centre, travel), width, height, colour, overlay,
                    leaders, prop_lines(props or (), m, fine, centre, travel, dents, rounds)
                    + _arrows.layers(arrows, m, fine, centre, travel) + wired
+                   + marks.layers(who, laid or (lambda: who.pose(angles, root=root, _frames=frames)), m, fine, centre, depth)
                    + [(dots, ink) for segs, ink in (horizon or ())
                       for dots in (_arrows._rasterize(segs, m, fine, centre, travel),) if dots is not None])
 

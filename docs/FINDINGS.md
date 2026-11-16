@@ -292,6 +292,7 @@ Six firmware defects, no hardware fault:
 | The robot's jerk through transitions against its steady walk, and its sources | [findings/jerk.md](findings/jerk.md) |
 | The anti-spasm insert, the robot's master bus: each stage on it | [findings/insert.md](findings/insert.md) |
 | Build, buses, falls, drawing, clothes | [findings/body.md](findings/body.md) |
+| The robot as drawn: a figure's likeness, its clothes, its mechanism in its livery, its guards, held to pictures | [findings/likeness.md](findings/likeness.md) |
 | The robot's pace against real time: MuJoCo's step, its law in C, the page's tiers | [findings/pace.md](findings/pace.md) |
 | Drives: motors, gearboxes, inverters, sizing | [findings/drives.md](findings/drives.md) |
 | Each drive's demand on the robot's loop, the chair's stunts against it | [findings/demand.md](findings/demand.md) |

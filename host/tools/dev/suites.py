@@ -3,6 +3,8 @@ import ast
 import re
 from pathlib import Path
 
+from tools.dev.suites_views import VIEWS      # every live view's suite, a file a subject
+
 
 ROOT = Path(__file__).resolve().parents[2]           # host/
 
@@ -120,17 +122,6 @@ DAQ_API = 'test_daq_api.py'
 #: The master's side of the bootloader against the stand-in's blank
 #: node - no board, no compiler, a second (docs/BOOT.md).
 BOOT = 'test_boot.py'
-
-#: Every live view against the stand-in, by subject: a file a subject, each under the token
-#: budget (tools/dev/token_budget.py); one 32 k-token file before.
-VIEWS = ('test_views_terminal.py', 'test_views_front.py', 'test_views_rotor.py',
-         'test_views_drawing.py', 'test_views_gauges.py', 'test_views_thermal.py',
-         'test_views_demo.py', 'test_views_segments.py',
-         'test_views_quad.py', 'test_views_quad_flight.py', 'test_views_flying.py', 'test_helicopter.py',
-         'test_aerobat.py',
-         'test_views_humanoid.py', 'test_views_prompt.py', 'test_views_floor.py', 'test_views_inset.py',
-         'test_views_keys.py',
-         'test_views_tube.py', 'test_views_atlas.py', 'test_views_apps.py', 'test_views_grove.py')
 
 #: The composed controller and its parts, against a toy rotor and the stand-in.
 CONTROLLER = 'test_controller.py'

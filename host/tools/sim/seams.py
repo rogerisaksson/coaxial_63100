@@ -5,7 +5,7 @@
 
 Each covered part of the robot's drawn shell (`coaxial.graphics.gynoid`, bare) against the clothes over
 it (COVERED, a side's its own): the worst reach of its corners past a cloth's rings
-(`fit._excess`), m - a seam catches where a cloth is tighter than the shell beneath; a corner no
+(`shapes.excess`), m - a seam catches where a cloth is tighter than the shell beneath; a corner no
 cloth covers does not count. The cheeks stood 19 mm out of the jeans between the seat and the
 thighs' legs.
 """
@@ -14,8 +14,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+from coaxial.graphics.shapes import excess, ringed
 from coaxial.model.blocks import numpy as np
-from tools.sim.fit import _excess, _rings
 
 #: The robot's shell's parts and the clothes over each (`gynoid._wear`).
 COVERED = {'pelvis': ('seat',), 'torso': ('tee', 'bust'), 'upper_arm': ('sleeve',),
@@ -38,7 +38,7 @@ def seams():
     worn = [(_sided(part[0][len('cloth_'):]), rings, turn, spot)
             for part, frame in zip(dressed.parts, dressed._frames(stand))
             if frame is not None and part[0].startswith('cloth_')
-            for rings in [_rings(part[5])] if rings is not None for turn, spot in [frame]]
+            for rings in [ringed(part[5])] if rings is not None for turn, spot in [frame]]
     out = {}
     for part, frame in zip(bare.parts, bare._frames(stand)):
         side, name = _sided(part[0])
@@ -49,7 +49,7 @@ def seams():
         best = np.full(len(points), np.inf)
         for (side_c, kind), rings, turn_c, spot_c in worn:
             if kind in COVERED[name] and side_c in (None, side):
-                best = np.minimum(best, _excess((points - spot_c) @ turn_c, rings))
+                best = np.minimum(best, excess((points - spot_c) @ turn_c, rings))
         if np.isfinite(best).any():
             out[name] = max(out.get(name, -1.0), float(best[np.isfinite(best)].max()))
     return out

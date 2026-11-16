@@ -12,15 +12,32 @@ from coaxial.graphics.callouts import LEADER_INK
 from coaxial.graphics.raster import BRAILLE, BRAILLE_BITS, DOTS_X, DOTS_Y, NOISE
 from machine.rig import ansi
 
-#: A corner's material, as `gpu.LIT_WGSL` colours it; past PAINTED the colour it wears.
+#: A corner's material, as `gpu.LIT_WGSL` colours it; past PAINTED the colour it wears, WOVEN with
+#: it a cloth's: no highlight and a faint rim - cloth is seldom glossy. UNDER with it, the corner
+#: lies under a garment: drawn where it stands, it is taken LAYER_M further from the eye where
+#: the nearest is told - what a garment covers never shows through it, bent or pressed, while what
+#: stands more than that before it still hides it. A card tells it a pixel, the dots a dot.
+#: TWILL with it, a carbon fibre's under a clear coat: a highlight GLOSS strong, and its dots
+#: drawn through a twill's screen in place of the blue noise (`braille`), the weave seen in them.
+#: HARD with it, a hard shell's - a plate: every dot of it drawn, through no screen, its rim
+#: HARD_RIM: under the whole rim a black frame's edges were blue, a hue no pictured robot
+#: wears; with TWILL too, a carbon plate's: every dot but its weave's rib. A carbon's coat glints, GLINT sharp
+#: where a paint's highlight is 40, and under the glint lies a sheen, SHEEN's first at the
+#: most and its second sharp - a grey streak down a limb, never white: with a paint's
+#: highlight what faced the light - a chest, a seat from behind - was a white card, a body
+#: white plastic; with the glint alone it was a flat shadow.
 MESH, SKIN, PLATE, CORE = 0, 1, 2, 3
-PAINTED = 1 << 24
+PAINTED, WOVEN, UNDER, TWILL, HARD = 1 << 24, 1 << 25, 1 << 26, 1 << 27, 1 << 28
+LAYER_M, GLOSS, GLINT, SHEEN, HARD_RIM = 0.03, 0.9, 160.0, (0.6, 28.0), 0.3
+#: A prop drawn over all and alone in its cells (`braille`'s props): a mark on a shell.
+ALONE = 2
 
 
-def paint(rgb):
-    """The material that wears `rgb`, 0..255 each."""
+def paint(rgb, woven=False, twill=False, hard=False):
+    """The material that wears `rgb`, 0..255 each; `woven` a cloth's, `twill` a carbon fibre's,
+    `hard` a hard shell's."""
     r, g, b = (int(c) & 255 for c in rgb)
-    return PAINTED | r << 16 | g << 8 | b
+    return PAINTED | WOVEN * bool(woven) | TWILL * bool(twill) | HARD * bool(hard) | r << 16 | g << 8 | b
 
 
 #: The palette `gpu.LIT_WGSL` lights, for the dots drawn without a card.
@@ -46,24 +63,31 @@ def _const():
 
 
 def _light(normals, materials, uv):
-    """`gpu.LIT_WGSL`'s light on corners in view space: (n, 3) RGB 0..255."""
+    """`gpu.LIT_WGSL`'s light on corners in view space: (n, 4), RGB 0..255 and the screen a dot
+    of it is drawn through - 255 the blue noise, 224 none (a hard shell's), a twill's under 192,
+    either hand by the side its surface faces (`braille`)."""
     np, key, fill, half, pal, *_ = _const()
     n = normals / np.maximum(np.linalg.norm(normals, axis=1, keepdims=True), 1e-9)
     n = np.where(n[:, 2:3] < 0.0, -n, n)
     lam = np.clip(n @ key, 0.0, None)
     fil = 0.35 * np.clip(n @ fill, 0.0, None)
     rim = (1.0 - np.clip(n[:, 2], 0.0, 1.0)) ** 3
-    spec = np.clip(n @ half, 0.0, None) ** 40
+    lobe = np.clip(n @ half, 0.0, None)
+    woven, twill, hard = (materials & WOVEN) > 0, (materials & TWILL) > 0, (materials & HARD) > 0
+    spec = lobe ** np.where(twill, GLINT, 40.0) + twill * (SHEEN[0] / GLOSS) * lobe ** SHEEN[1]
     base = pal[np.minimum(materials, 3)]
     worn = np.stack([(materials >> 16) & 255, (materials >> 8) & 255, materials & 255], 1)
     base = np.where((materials >= PAINTED)[:, None], worn / 255.0, base)
     g = np.abs(np.modf(uv * (22.0, 30.0))[0] - 0.5).max(axis=1)
     base = np.where((materials == MESH)[:, None] & (g > 0.4)[:, None], base * 0.5, base)
-    shine = np.where(materials == SKIN, 0.12, 0.55)
+    shine = np.where(materials == SKIN, 0.12, np.where(woven, 0.0, np.where(twill, GLOSS, 0.55)))
     c = (base * (0.10 + 0.85 * lam + fil)[:, None] + (spec * shine)[:, None]
-         + np.outer(rim * 0.8, (0.55, 0.75, 1.0)))
+         + np.outer(rim * np.where(woven, 0.15, np.where(hard, HARD_RIM, 0.8)), (0.55, 0.75, 1.0)))
     c = np.where((materials == CORE)[:, None], base * (0.75 + 0.25 * lam)[:, None], c)
-    return (np.clip(c, 0.0, 1.0) * 255.0).astype(np.uint8)
+    out = np.empty((len(n), 4), np.uint8)
+    out[:, :3] = np.clip(c, 0.0, 1.0) * 255.0
+    out[:, 3] = np.where(twill, np.where(n[:, 0] > 0.0, 0, 128) + 64 * hard, np.where(hard, 224, 255))
+    return out
 
 
 def project(points, m, cam, centre):
@@ -85,7 +109,8 @@ def project(points, m, cam, centre):
 
 def splat(arrays, m, cam, centre):
     """(depth, colour) without a card: every corner of (positions, normals, materials, uv) a
-    2x2 dot splat, the nearest winning."""
+    2x2 dot splat, the nearest winning - one UNDER a garment as LAYER_M further; the colour
+    `_light`'s four a dot."""
     np = _const()[0]
     positions, normals, materials, uv = arrays
     height, width = int(cam['height']), int(cam['width'])
@@ -95,7 +120,7 @@ def splat(arrays, m, cam, centre):
     stride = width + 1
     cell = (iy + 1) * stride + (ix + 1) + 1
     cell[(w <= 0.0) | (ix < -1) | (ix >= width) | (iy < -1) | (iy >= height)] = 0
-    order = np.argsort(w)
+    order = np.argsort(w / (1.0 + LAYER_M * w * ((materials & UNDER) > 0)))
     cells = np.full((height + 1) * stride + 1, -1, np.int32)
     cells[cell[order]] = order
     top = cells[1:][cells[1:] >= 0]
@@ -107,7 +132,7 @@ def splat(arrays, m, cam, centre):
         keep = (x >= 0) & (x < width) & (y >= 0) & (y < height)
         depth[y[keep], x[keep]] = w_t[keep]
         win[y[keep], x[keep]] = top[keep]
-    rgb = np.zeros((height, width, 3), np.uint8)
+    rgb = np.zeros((height, width, 4), np.uint8)
     hit = win >= 0
     if hit.any():
         pts = win[hit]
@@ -148,23 +173,79 @@ def _mask(height, width):
     return got
 
 
+#: A twill's rib, dots: a 2/2 twill's diagram a dot a thread - of RIB dots along a row the
+#: darkest light keeps two, a row down them a dot aside; a highlight fills the rib. A hard
+#: shell's twill keeps every dot whose screen is under HARDS: three of four, the fourth its rib.
+RIB, HARDS = 4, 0.75
+
+
+def _screened(mask, hand):
+    """`mask`, the blue noise a dot's light is held to, with a twill's screen where `hand` (a
+    dot's each, `_light`'s fourth) is under 208: its ribs rising to the right under 96, to the
+    left over that - the weave's two halves meet in a V where a surface faces the eye -, a
+    hard shell's twill (HARDS, a quarter over its hand) its rib's one dot in RIB alone, the
+    rest through: carbon as a plate, solid, its weave a hatch; and none, every dot through,
+    from there under 255: a hard shell's. The twills are kept whole a raster's size and copied
+    in where theirs: told a twill's dot at a time it took 2.8 ms at 300 x 300."""
+    np = _const()[0]
+    if not (hand < 255).any():
+        return mask
+    got = _CACHED.get(('twill',) + mask.shape)
+    if got is None:
+        y, x = np.mgrid[:mask.shape[0], :mask.shape[1]]
+        ribs = [((x + way * y) % RIB + 0.5) / RIB for way in (1, -1)]
+        got = _CACHED[('twill',) + mask.shape] = [ribs[0], np.where(ribs[0] > HARDS, ribs[0], 0.0),
+                                                  ribs[1], np.where(ribs[1] > HARDS, ribs[1], 0.0), 0.0]
+    kind, out = np.digitize(hand, (32, 96, 160, 208, 255)), mask.copy()
+    for k, screen in enumerate(got):
+        np.copyto(out, screen, where=kind == k)
+    return out
+
+
+#: Carbon's weave at a cell's scale: a tow TOW cells wide along a row, a row down it a cell
+#: aside - a 2/2 twill's diagram a cell a thread -, the tows that lie under WEFT darker. A
+#: dot's screen is too fine to tell from afar: a body 17 cells wide in it read as grey mail.
+TOW, WEFT = 2, 0.6
+
+
+def _towed(hand, covered, hits, height, width):
+    """(height, width): what a cell's ink is toned by for carbon's weave - 1 where none of its
+    dots is a twill's (`hand`, a dot's screen, under 208 where `covered`), 1 - WEFT where all
+    are and its tow lies under: tows TOW cells wide, a row down them a cell aside, to the right
+    where its dots' ribs rise right and to the left where left."""
+    np = _const()[0]
+    cells = np.where(covered, hand, 255).reshape(height, DOTS_Y, width, DOTS_X)
+    right, left = (cells < 96).sum(axis=(1, 3)), ((cells >= 96) & (cells < 208)).sum(axis=(1, 3))
+    got = _CACHED.get(('tow', height, width))
+    if got is None:
+        y, x = np.mgrid[:height, :width]
+        got = _CACHED[('tow', height, width)] = [(x + way * y) % (2 * TOW) < TOW for way in (1, -1)]
+    return 1.0 - WEFT * np.where(right >= left, got[0], got[1]) * (right + left) / np.maximum(hits, 1)
+
+
 def braille(depth, rgb, floor, width, height, colour=True, overlay=None, leaders=None,
             props=()):
-    """Dot rasters down to cells: a dot where the light clears the blue noise, the silhouette and
-    every depth step always; the floor's dots where nothing covers it, the `leaders`' dots and
-    the `props`' [(dots, ink[, over])] in their inks - an ink, or one a cell, (height, width,
-    3) -, where nothing covers them or, `over`, whatever does (a force's arrow); the
-    `overlay`'s cells {(row, col): (codepoint, key)} over all (`callouts`). Lines, ANSI where
-    `colour`."""
+    """Dot rasters down to cells: a dot where the light clears its screen - the blue noise, a
+    twill's where `rgb`'s fourth tells one (`_screened`), its cells toned as its tows lie
+    (`_towed`) -, the silhouette and every depth step always; the floor's dots where nothing covers it, the `leaders`' dots and the `props`'
+    [(dots, ink[, over])] in their inks - an ink, or one a cell, (height, width, 3) -, where
+    nothing covers them or, `over`, whatever does (a force's arrow), ALONE in their cells where
+    `over` is that: nothing else of what is lit drawn there (a shell's mark); the `overlay`'s
+    cells {(row, col): (codepoint, key)} over all (`callouts`). Lines, ANSI where `colour`."""
     np, _k, _f, _h, _p, _bits, floor_ink, leader_ink = _const()
     covered = depth > 0.0
-    over = np.zeros_like(covered)
+    over, alone = np.zeros_like(covered), None
     for dots, _ink, *on_top in props:
         if on_top and on_top[0]:
             over = over | dots
+            if on_top[0] == ALONE:
+                alone = dots if alone is None else (alone | dots)
         else:
             leaders = dots if leaders is None else (leaders | dots)
-    lum = rgb @ (0.2126 / 255.0, 0.7152 / 255.0, 0.0722 / 255.0)
+    # The colours laid end to end apart from a dot's screen: weighed four a dot the light took
+    # 1.16 ms at 300 x 300, three 0.58 and the laying 0.39.
+    tone = np.ascontiguousarray(rgb[..., :3])
+    lum = tone @ (0.2126 / 255.0, 0.7152 / 255.0, 0.0722 / 255.0)
     pad = np.pad(depth, 1)
     steps = [pad[1:-1, :-2], pad[1:-1, 2:], pad[:-2, 1:-1], pad[2:, 1:-1]]
     edge = covered & np.any([(s == 0.0) | (np.abs(s - depth) > 0.04 * depth) for s in steps], 0)
@@ -172,7 +253,12 @@ def braille(depth, rgb, floor, width, height, colour=True, overlay=None, leaders
     # read as a cloud of points. Black paint keeps none - a wing's lettering, on the floor's 0.4 a
     # blur.
     keep = (0.40 + 0.60 * np.clip(lum, 0.0, 1.0)) * (lum > 0.004)
-    lit = (covered & (keep > _mask(*depth.shape))) | edge | over
+    mask = _mask(*depth.shape)
+    lit = covered & (keep > (_screened(mask, rgb[..., 3]) if rgb.shape[-1] > 3 else mask))
+    if alone is not None:                      # a mark's cells: nothing else of what is lit in them
+        a4 = alone[0::4] | alone[1::4] | alone[2::4] | alone[3::4]
+        lit.reshape(height, DOTS_Y, width, DOTS_X).transpose(0, 2, 1, 3)[a4[:, 0::2] | a4[:, 1::2]] = False
+    lit = lit | edge | over
     ground = (floor > 0.0) & ~covered
     lead = leaders & ~covered if leaders is not None else np.zeros_like(covered)
     on_dots = lit | ground | lead
@@ -186,10 +272,16 @@ def braille(depth, rgb, floor, width, height, colour=True, overlay=None, leaders
              | (on_dots[3::4, 1::2] * BRAILLE_BITS[1][3]))
     c4 = covered[0::4].astype(int) + covered[1::4] + covered[2::4] + covered[3::4]
     hits = c4[:, 0::2] + c4[:, 1::2]
-    masked = rgb * covered[..., None]
-    m4 = masked[0::4].astype(int) + masked[1::4] + masked[2::4] + masked[3::4]
-    body = (m4[:, 0::2] + m4[:, 1::2]) / np.maximum(hits, 1)[..., None]
+    # A dot nothing covers is black as a raster leaves it (`splat`, a card's): none is cut out.
+    # A cell's ink is the mean of the dots it may draw: black paint's, never drawn, are no part
+    # of it - a pad's cells over its black backing were half as bright as their foam.
+    m4 = tone[0::4].astype(int) + tone[1::4] + tone[2::4] + tone[3::4]
+    inked = covered & (lum > 0.004)
+    i4 = inked[0::4].astype(int) + inked[1::4] + inked[2::4] + inked[3::4]
+    body = (m4[:, 0::2] + m4[:, 1::2]) / np.maximum(i4[:, 0::2] + i4[:, 1::2], 1)[..., None]
     body = np.clip(body * 1.2 + 18.0, 0.0, 255.0)
+    if rgb.shape[-1] > 3 and (rgb[..., 3] < 208).any():                 # carbon's tows, a cell a thread
+        body = body * _towed(rgb[..., 3], covered, hits, height, width)[..., None]
     shine = floor.reshape(height, DOTS_Y, width, DOTS_X).max(axis=(1, 3))
     text = np.where(cells > 0, BRAILLE + cells, ord(' ')).tolist()
     for (row, col), (char, _ink) in (overlay or {}).items():

@@ -1,4 +1,5 @@
 """The HUMANOID page's hands: its mouse on the view, its keys on the robot's loop and on the view."""
+import math
 import sys
 from types import SimpleNamespace as SN
 
@@ -64,16 +65,16 @@ def test_the_humanoid_pages_keys(report):
                 'shown': 'torque', 'skin': 'dressed', **viewpoint.HOME}
     typed(pad, ('\x08', '4'), st)
     report.check('Backspace lands the robot\'s anew, 4 says the fourth entry', sent == [{'restart': True}, {'say': 3}])
-    typed(pad, 'ltmo', st)
+    typed(pad, 'ltuuUo', st)
     s_pwr = st['shown']
     typed(pad, 't', st)
     s_tmp = st['shown']
     typed(pad, 't', st)
-    report.check('L the next callouts, T cycles power -> temp -> torque, M the robot\'s shell, O the orbit',
+    report.check('L the next callouts, T cycles power -> temp -> torque, U U Shift+U its shell, O the orbit',
                  st['called'] == 'all' and (s_pwr, s_tmp, st['shown']) == ('power', 'temp', 'torque')
                  and st['skin'] == 'shell' and st['orbit'] is True)
     letters = ''.join(sorted(k for k in pad['keys'] if len(k) == 1 and k.isalpha() and k.islower()))
-    report.check('its letters: verbs, the view, the lab - none moves it', letters == 'cfhlmoprtvxz', letters)
+    report.check('its letters: verbs, the view, the lab - none moves it', letters == 'cfhloprtuvxz', letters)
     sent.clear()
     yaw = st['yaw']
     typed(pad, ('left', '<', '\r'), st)

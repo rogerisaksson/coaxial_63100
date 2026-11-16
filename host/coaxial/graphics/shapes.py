@@ -4,6 +4,7 @@ A loft runs through elliptical rings; normals are smoothed within a part, parts 
 frames, surfaces sampled into dots.
 
     corners, triangles, uv, materials = loft(rings, material)    # in its part's frame, y up
+    reach = excess(points, ringed(mesh))                         # past a loft, by its rings
     positions, normals = moved(corners, normals, spans, frames)  # each part by (turn, spot)
     m = view(yaw, pitch)                                          # the engine's 3x3
 """
@@ -94,18 +95,87 @@ def box(centre, half, material):
     return corners, triangles, uv, np.full(len(corners), material)
 
 
+#: A loft up y laid along its part's x, y or z: its corners times this.
+ALONG = {'x': ((0.0, 1.0, 0.0), (-1.0, 0.0, 0.0), (0.0, 0.0, 1.0)),
+         'y': ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)),
+         'z': ((1.0, 0.0, 0.0), (0.0, 0.0, -1.0), (0.0, 1.0, 0.0))}
+
+
+def lain(mesh, axis):
+    """A loft up y (`mesh`) lain along its part's `axis`, 'x', 'y' or 'z' (ALONG)."""
+    from coaxial.model.blocks import numpy as np
+    corners, triangles, uv, materials = mesh
+    return corners @ np.asarray(ALONG[axis]), triangles, uv, materials
+
+
 def drum(radius, length, axis, material):
     """A drum `radius` round and `length` long on its part's `axis` ('x', 'y' or 'z') through
     the origin, its rims chamfered."""
-    from coaxial.model.blocks import numpy as np
     half, lip = length / 2.0, min(0.004, 0.1 * radius)
     rings = [(-half, radius - lip, radius - lip), (-half + lip, radius, radius),
              (half - lip, radius, radius), (half, radius - lip, radius - lip)]
-    corners, triangles, uv, materials = loft(rings, material)
-    turn = {'x': ((0.0, 1.0, 0.0), (-1.0, 0.0, 0.0), (0.0, 0.0, 1.0)),
-            'y': ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)),
-            'z': ((1.0, 0.0, 0.0), (0.0, 0.0, -1.0), (0.0, 1.0, 0.0))}[axis]
-    return corners @ np.asarray(turn), triangles, uv, materials
+    return lain(loft(rings, material), axis)
+
+
+def pod(radius, half, power, axis, material):
+    """The least superellipsoid of `power` about a drum `radius` round and 2 `half` long on its
+    part's `axis`: |s / a| ** power + (r / b) ** power = 1 through the drum's rims, a = half
+    3 ** (1 / power) and b = radius 1.5 ** (1 / power) - at 2 an ellipsoid, the more the squarer;
+    a ring on each rim."""
+    a, b = half * 3.0 ** (1.0 / power), radius * 1.5 ** (1.0 / power)
+    rim = math.asin(math.sqrt(1.0 / 3.0))
+    rings = [(a * math.copysign(abs(math.sin(t)) ** (2.0 / power), t), b * math.cos(t) ** (2.0 / power))
+             for t in (0.5 * rim * k for k in range(-4, 5))]
+    return lain(loft([(s, r, r) for s, r in rings], material, poles=(-a, a)), axis)
+
+
+def finer(rings, low, high, pitch):
+    """`rings` (`loft`'s, either way up) with rings between any two that stand across `low`..`high`
+    further than `pitch` apart: as many as bring them within it, each column between theirs."""
+    out = [tuple(rings[0])]
+    for a, b in zip(rings, rings[1:]):
+        across = max(a[0], b[0]) > low and min(a[0], b[0]) < high
+        n = max(1, math.ceil(abs(b[0] - a[0]) / pitch - 1e-9)) if across else 1
+        a6, b6 = (tuple(r) + (0.0,) * (6 - len(r)) for r in (a, b))
+        out += [tuple(p + (q - p) * k / n for p, q in zip(a6, b6)) for k in range(1, n)] + [tuple(b)]
+    return out
+
+
+def ringed(mesh):
+    """(axis, [(at, c0, c1, r0, r1)]) of a loft's rings in its part's frame (`loft`, `ellipsoid`,
+    `pod`): the axis they stand along (0, 1 or 2), each ring's place on it, its centre and its
+    half sizes across the other two in their order; None not a loft."""
+    from coaxial.model.blocks import numpy as np
+    c = np.asarray(mesh[0])
+    n = (len(c) - 2) // AROUND
+    if n < 2 or n * AROUND + 2 != len(c):
+        return None
+    rows = c[:n * AROUND].reshape(n, AROUND, 3)
+    axis = int(np.argmax(np.ptp(rows.mean(1), axis=0)))
+    u, v = (k for k in range(3) if k != axis)
+    low, high = rows.min(1), rows.max(1)
+    out = zip(rows[:, :, axis].mean(1).tolist(), ((low[:, u] + high[:, u]) / 2.0).tolist(),
+              ((low[:, v] + high[:, v]) / 2.0).tolist(),
+              np.maximum((high[:, u] - low[:, u]) / 2.0, 1e-4).tolist(),
+              np.maximum((high[:, v] - low[:, v]) / 2.0, 1e-4).tolist())
+    return axis, sorted(out)
+
+
+def excess(points, through):
+    """Each point's reach past a loft's rings (`through`, `ringed`'s), m, by its ellipse where it
+    stands along the loft (inf past its ends)."""
+    from coaxial.model.blocks import numpy as np
+    axis, rows = through
+    u, v = (k for k in range(3) if k != axis)
+    ys = np.array([r[0] for r in rows])
+    out = np.full(len(points), np.inf)
+    inside = (points[:, axis] >= ys[0]) & (points[:, axis] <= ys[-1])
+    if not inside.any():
+        return out
+    q = points[inside]
+    cu, cv, ru, rv = (np.interp(q[:, axis], ys, [r[i] for r in rows]) for i in range(1, 5))
+    out[inside] = (np.hypot((q[:, u] - cu) / ru, (q[:, v] - cv) / rv) - 1.0) * np.minimum(ru, rv)
+    return out
 
 
 def strut(a, b, radius, material):

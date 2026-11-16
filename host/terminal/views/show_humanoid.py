@@ -10,7 +10,7 @@ from rich.text import Text
 
 from coaxial.comm.session import Origin
 from coaxial.draw import cross_section, gauges as _gauges
-from coaxial.graphics import arrows, gynoid, horizon
+from coaxial.graphics import arrows, gynoid, horizon, likeness
 from coaxial.graphics.callouts import packed
 from machine.body import figure
 from machine.law import se2
@@ -396,7 +396,7 @@ def _draw_viewport(state, now, width, height, terminal):
         labels=labels(now, state['called'], state['shown']), props=now.get('props'), dents=now.get('dents'),
         rounds=now.get('rounds'), mark=marked(state, now, time.monotonic()),
         legend=legend(state['shown'], width) if state['called'] != 'none' else None,
-        dressed=state['skin'] == 'dressed', see=_seen(state), inset=inset, arrows=(now, state.get('pad')),
+        dressed=state['skin'] == 'dressed', like=likeness.FOUND, see=_seen(state), inset=inset, arrows=(now, state.get('pad')),
         horizon=horizon.segments(now, now.get('props') or (), state.get('horizon') or 'off') or None))
 
 

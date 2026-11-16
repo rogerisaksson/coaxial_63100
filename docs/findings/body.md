@@ -307,3 +307,37 @@ the robot's latent loop in [orthokinematics](orthokinematics.md).
   a stride's frame 0.01 s the dearer. A grid-and-tendon cloth (the ICARSC
   2026 composite, 20 x 26 spheres a panel) is a page's whole budget: not
   taken.
+- What stood through the robot as drawn (`tools/sim/shown.py`, a pose a row):
+  its drives' drums 88-216 cm2 a joint out of the shoulders and the elbows in
+  each of 43 poses, 37 mm past the shoulder's shell; dressed, the cheeks 145
+  and the pelvis 105 cm2 through the jeans at a hip bent 120 deg, the torso
+  176 through the tee at a spine bent 85. Three causes, a rule each:
+  + A corner blended between two frames' places sinks to the chord, cos(turn
+    / 2) of its reach from the joint: 0.51 at a hip bent 120 deg, 0.60 at a
+    knee bent 150, 0.49 at a shoulder turned 135 (the law met to 0.000). Each
+    of the joint's turns is now taken by the corner's share, about the joint
+    (`drape.bent`): its reach kept to 1e-16 m, and a ring a dot apart across
+    a bend where 2-4 stood (`drape.fine`).
+  + A drive is drawn as its cover (`drums.covers`): the least superellipsoid
+    of power 4 about its drum and the shell's 2 mm wall on it, 115 mm across
+    over a 100 mm drum. Of the drum's own size, it holds the drum in every
+    build and every pose: 0 cm2 in 39 of 39, dressed and as its shell; the
+    shoulders' typed caps, 14 mm under their drums, are gone. A cover wears
+    what its middle stands deepest in (`under.covered`): a garment's cloth, else
+    the shell's paint there - the tee at a shoulder, the jeans at a knee, a
+    joint's dark at an elbow, a panel's plate at a hip; all in plate, the
+    elbows read as white balls on the page.
+  + Dressed, a segment a garment rides shows its shell only past a garment's
+    end that a bare segment hangs beyond (`under.dressed`): the arm under
+    the sleeve's hem, the neck's root over the collar. Nothing rigid is left
+    under bent cloth to stand through it, nor under the jeans' loose legs,
+    where the shins stood 70 cm2 a leg through the cloth that lies on them,
+    standing; of the body the clothes cover standing, the pelvis is 57 cm2
+    past them at a hip bent 120 deg where 250 stood with the cheeks, the
+    torso 17 at a spine bent 85 where 176 stood.
+  + A frame at 110 x 36 cells: 9.8 ms on the card where 9.9 stood, 37.6 ms
+    without one where 57.5 stood - 45 000 fewer dots under the clothes.
+- A figure's likeness on the robot's skeleton, its clothes, its mechanism
+  in its livery and a rider's guards on it: [likeness](likeness.md).
+- U undresses the robot a layer a press (dressed, shell, mechanism, stick
+  figure), Shift+U one back on; M's cycle before.

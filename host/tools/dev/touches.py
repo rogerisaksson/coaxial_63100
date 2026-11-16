@@ -3,13 +3,14 @@ from tools.dev.suites import (AERO_CORE, MPPI_CORE, BENCH, BUSES, BOARD_MEM, BOO
                               BOOT_CORE, CI, WORKFLOW, DEPENDS, ATLAS, PLACED, BROKER, COMPILED, TICK,
                               VECTORIZED, CONFORMANCE, PORTED, BORNE, REGISTRY, CONTROLLER, CORE,
                               CTRL_CORE, DAQ_API, DAQ_CORE, DRIVE, DRIVE_OBSERVER, DSP, KERNEL, SHIELD,
-                              WAYFINDER, TUNE, EMULATOR, ERRANDS, FILTER, GVS, GYNOID, GROUND, HEATED,
+                              WAYFINDER, TUNE, EMULATOR, ERRANDS, FILTER, GVS, GROUND, HEATED,
                               LEAP, NATIVE, NATIVE_HEAT, NATIVE_SYSID, OLLAMA, ORTHO, POSTURES, FOURS,
                               GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, FLOOR, PAINT,
                               QUADS, RENDER, REPLAYS, SCENES, SE3_CORE, SE3_GRIP, SENSORLESS, SHTP,
                               SIGHT, SITUATION, SMART, STREAMS, STRUCTURE, TERMS, THERMAL, THERMAL_APP,
                               VIEWS, WBC, WBC_CORE, WIRE, WORLD_CORE, WRENCH)
 from tools.dev.touches_cores import CORES
+from tools.dev.touches_drawn import DRAWN
 from tools.dev.touches_machine import MACHINE
 
 # What a change to each part of the tree can plausibly have broken.
@@ -58,7 +59,7 @@ TOUCHES = (
     ('host/coaxial/draw/desk.py',              ('test_simulated.py',)),
     ('host/coaxial/draw/dial.py',              ('test_simulated.py',)),
     ('host/coaxial/graphics/mesh.py',          ('test_simulated.py',)),
-) + MACHINE + (
+) + MACHINE + DRAWN + (
     ('host/coaxial/graphics/quadcopter.py',    QUADS + (RENDER,)),
     ('host/coaxial/graphics/helicopter.py',    ('test_helicopter.py', RENDER, STRUCTURE)),
     ('host/coaxial/graphics/ornithopter.py',   ('test_helicopter.py', RENDER, STRUCTURE)),
@@ -96,10 +97,6 @@ TOUCHES = (
     ('wbc/inc/wbc_pass.h',                     (WBC_CORE, LEAP, EMULATOR, PORTED, BORNE, REGISTRY, TICK)),
     ('host/tools/sim/observed.py',             (KERNEL,)),
     ('host/lisp/humanoid/runway.lisp',               (DSP,)),
-    ('host/coaxial/graphics/gynoid.py',        (RENDER, *VIEWS, GYNOID)),
-    ('host/coaxial/graphics/shapes.py',        (RENDER, *VIEWS, GYNOID)),
-    ('host/coaxial/graphics/lit.py',           (RENDER, *VIEWS, GYNOID)),
-    ('host/coaxial/graphics/callouts.py',      (RENDER, *VIEWS, GYNOID)),
     ('host/coaxial/node.py',                   (CONTROLLER, 'test_mcp.py')),
     ('host/coaxial/devices/ctrl.py',           (CONTROLLER, STRUCTURE)),
     ('host/coaxial/simulated/ctrl.py',         (CONTROLLER, STRUCTURE)),
@@ -258,7 +255,7 @@ TOUCHES = (
     ('host/tools/dev/workflow.py',             (WORKFLOW, STRUCTURE)),
     # The relay's choice of suites, the path map and the tiers: test_smart holds them.
     ('host/tools/dev/scope.py',                OLLAMA + (SMART,)),
-    ('host/tools/dev/suites.py',               OLLAMA + (SMART,)),
+    ('host/tools/dev/suites',                  OLLAMA + (SMART,)),
     ('host/tools/dev/touches',                 OLLAMA + (SMART,)),
     # The README, laid out of its source and the tree: test_layout holds it, a structural suite.
     ('host/tools/dev/readme.py',               (STRUCTURE, 'test_ollama_runner.py')),

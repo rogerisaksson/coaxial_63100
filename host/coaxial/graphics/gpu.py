@@ -12,7 +12,7 @@ from coaxial.errors import RigError
 from coaxial.graphics.card import adapter, device_of
 from coaxial.graphics import crew as crewmod
 from coaxial.graphics import engine
-from coaxial.graphics.lit import FILL, KEY
+from coaxial.graphics.lit import FILL, GLOSS, KEY, LAYER_M
 
 #: A sample is engine.raster's integer point (px, py) and a pixel's centre is at +0.5, so every
 #: screen coordinate moves half a pixel. Depth is `ooz`, linear in screen space as the engine
@@ -193,16 +193,18 @@ class GpuRaster:
 #: A lit mesh: world positions, smooth normals, a (u, v) and a material a corner, seen through the
 #: engine's own projection about `centre`. A pixel's colour is its material's, lit by a key and a
 #: fill, a rim where the surface turns away and a highlight; MESH wears a lattice in (u, v); a
-#: material past 2^24 is painted, its low 24 bits the colour (`lit.paint`).
+#: material past 2^24 is painted, its low 24 bits the colour (`lit.paint`), with 2^25 a cloth's:
+#: no highlight, a faint rim; with 2^26 one under a garment, its depth a layer further; with 2^27
+#: a carbon fibre's (`lit.TWILL`): glossy, its alpha a twill's hand by the side it faces.
 LIT_WGSL = """
 struct U {
     m0: vec4<f32>, m1: vec4<f32>, m2: vec4<f32>,    // the view, row by row
     cam: vec4<f32>,                                  // cx, cy, scale, aspect
     cam2: vec4<f32>,                                 // distance, width, height, -
-    near: vec4<f32>,                                 // w at the nearest, 1 / its span, -, -
+    near: vec4<f32>,                                 // w at the nearest, 1 / its span, a layer m, -
     centre: vec4<f32>,                               // the model point the view turns about
     key: vec4<f32>,                                  // the key light, view space
-    fill: vec4<f32>,                                 // the fill light, view space
+    fill: vec4<f32>,                                 // the fill light, view space; a twill's gloss
 };
 @group(0) @binding(0) var<uniform> u: U;
 
@@ -222,12 +224,14 @@ fn vs(@location(0) p: vec3<f32>, @location(1) n: vec3<f32>, @location(2) uv: vec
     let ty = dot(u.m1.xyz, q);
     let tz = dot(u.m2.xyz, q);
     let w = 1.0 / (u.cam2.x - tz);
+    // Under a garment (2^26, `lit.UNDER`): tested a layer further from the eye, drawn where it is.
+    let under = 1.0 / (u.cam2.x - tz + select(0.0, u.near.z, (material & 67108864u) != 0u));
     let sx = u.cam.x + u.cam.z * w * tx;
     let sy = u.cam.y - u.cam.z * u.cam.w * w * ty;
     var o: VOut;
     o.pos = vec4<f32>((sx + 0.5) / u.cam2.y * 2.0 - 1.0,
                       1.0 - (sy + 0.5) / u.cam2.z * 2.0,
-                      clamp((u.near.x - w) * u.near.y, 0.0, 1.0), 1.0);
+                      clamp((u.near.x - under) * u.near.y, 0.0, 1.0), 1.0);
     o.ooz = w;
     o.n = vec3<f32>(dot(u.m0.xyz, n), dot(u.m1.xyz, n), dot(u.m2.xyz, n));
     o.uv = uv;
@@ -249,7 +253,8 @@ fn fs(i: VOut) -> FOut {
     let key = max(dot(n, u.key.xyz), 0.0);
     let fill = 0.35 * max(dot(n, u.fill.xyz), 0.0);
     let rim = pow(1.0 - clamp(n.z, 0.0, 1.0), 3.0);
-    let spec = pow(max(dot(n, normalize(u.key.xyz + vec3<f32>(0.0, 0.0, 1.0))), 0.0), 40.0);
+    let lobe = max(dot(n, normalize(u.key.xyz + vec3<f32>(0.0, 0.0, 1.0))), 0.0);
+    var spec = pow(lobe, 40.0);
     var base = palette[min(i.material, 3u)];
     var shine = 0.55;
     if (i.material >= 16777216u) {
@@ -262,12 +267,20 @@ fn fs(i: VOut) -> FOut {
         base = base * (1.0 - 0.5 * smoothstep(0.36, 0.46, max(g.x, g.y)));
     }
     if (i.material == 1u) { shine = 0.12; }
+    var edge = 0.8;
+    var screen = 1.0;                         // a dot's screen (`lit.braille`): the blue noise
+    if ((i.material & 33554432u) != 0u) { shine = 0.0; edge = 0.15; }
+    if ((i.material & 134217728u) != 0u) {    // carbon: its coat's glint (`lit.GLINT`)
+        shine = u.fill.w; spec = pow(lobe, 160.0) + pow(lobe, 28.0) / 1.5; screen = select(0.5, 0.0, n.x > 0.0);
+    }
+    // A hard shell's (`lit.HARD`): none - a twill's with it its rib alone, a quarter over its hand.
+    if ((i.material & 268435456u) != 0u) { screen = select(0.875, screen + 0.25, screen < 1.0); edge = 0.3; }
     var c = base * (0.10 + 0.85 * key + fill) + vec3<f32>(spec * shine)
-            + vec3<f32>(0.55, 0.75, 1.0) * rim * 0.8;
+            + vec3<f32>(0.55, 0.75, 1.0) * rim * edge;
     if (i.material == 3u) { c = base * (0.75 + 0.25 * key); }
     var f: FOut;
     f.ooz = i.ooz;
-    f.colour = vec4<f32>(clamp(c, vec3<f32>(0.0), vec3<f32>(1.0)), 1.0);
+    f.colour = vec4<f32>(clamp(c, vec3<f32>(0.0), vec3<f32>(1.0)), screen);
     return f;
 }
 """
@@ -275,7 +288,7 @@ fn fs(i: VOut) -> FOut {
 
 class LitRaster:
     """A mesh posed anew each frame, lit on the GPU: `raster()` -> (depth, colour) arrays at the
-    fine camera's samples, colour 0..255 RGB."""
+    fine camera's samples, colour 0..255 RGB and a dot's screen."""
 
     def __init__(self, device=None, found=None):
         import wgpu
@@ -332,9 +345,10 @@ class LitRaster:
 
     def raster(self, positions, normals, uv, material, index, m, cam, centre, reach,
                key=KEY, fill=FILL):
-        """(depth, colour): (height, width) f32 `ooz` (0 uncovered) and (height, width, 3) u8, the
-        mesh `index` triangles over per-corner arrays, `m` the view about `centre`. The index is
-        fixed for a mesh; the rest may change every frame."""
+        """(depth, colour): (height, width) f32 `ooz` (0 uncovered) and (height, width, 4) u8 - RGB
+        and a dot's screen, as `lit._light` tells them -, the mesh `index` triangles over
+        per-corner arrays, `m` the view about `centre`. The index is fixed for a mesh; the rest
+        may change every frame."""
         import wgpu
 
         from coaxial.model.blocks import numpy as np      # behind the OpenBLAS cap
@@ -348,8 +362,8 @@ class LitRaster:
         self.device.queue.write_buffer(self.uniform, 0, np.concatenate([
             np.asarray(m[0:3] + (0.0,) + m[3:6] + (0.0,) + m[6:9] + (0.0,)),
             [cam['cx'], cam['cy'], cam['scale'], cam.get('aspect', 0.5),
-             distance, width, height, 0.0, near, 1.0 / (near - far), 0.0, 0.0],
-            list(centre) + [0.0], list(unit(key)) + [0.0], list(unit(fill)) + [0.0]])
+             distance, width, height, 0.0, near, 1.0 / (near - far), LAYER_M, 0.0],
+            list(centre) + [0.0], list(unit(key)) + [0.0], list(unit(fill)) + [GLOSS]])
             .astype(np.float32).tobytes())
         buffers, indices, count = self._upload(
             [np.ascontiguousarray(positions, np.float32),
@@ -387,7 +401,7 @@ class LitRaster:
         self.device.queue.submit([encoder.finish()])
         depth = _read(self.device.queue, depth_t, width, height, np.float32)
         colour = _read(self.device.queue, colour_t, width, height, np.uint8)
-        return depth, colour.reshape(height, width, 4)[..., :3]
+        return depth, colour.reshape(height, width, 4)
 
 
 def _read(queue, texture, width, height, dtype) -> Any:
