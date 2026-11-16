@@ -18,7 +18,7 @@ import os
 from typing import Any
 
 from machine.body import compile as _compile, dclink, drives, gearbox, heat, linkage, mechatronics, peripherals
-from machine.world import boxed, floor, harness, loose, passing, room, steps, stiction
+from machine.world import boxed, floor, harness, loose, passing, room, shown, steps, stiction
 from machine.body.drives import kind
 from machine.rig.buses import QUIET, Block, Buses
 from machine.rig.controller import Batch
@@ -358,14 +358,14 @@ class World:
                                                   and not self.boxes.sprung[i] else 0.0)
 
     def dents(self):
-        """Where the robot's mattress gives under it (`floor.dents`)."""
-        return floor.dents(self, self._np)
+        """Where the robot's mattress gives under it (`shown.dents`)."""
+        return shown.dents(self, self._np)
 
     def props(self):
-        """What lies on the floor (`floor.props`), and a lace snagged: ('lace', from, to), shoe
+        """What lies on the floor (`shown.props`), and a lace snagged: ('lace', from, to), shoe
         to shoe."""
         m, d = self.model, self.data
-        out = floor.props(self) + (boxed.props(self) if ROOM else [])
+        out = shown.props(self) + (boxed.props(self) if ROOM else [])
         if self.laced:
             out.append(('lace', tuple(d.site_xpos[m.site('lace_left').id]),
                         tuple(d.site_xpos[m.site('lace_right').id])))

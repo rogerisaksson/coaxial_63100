@@ -62,7 +62,7 @@ def _sagged(pos, half, turn, dents, shift):
 
 
 def lines(props, m, cam, centre, travel, dents=None, rounds=None):
-    """[(dots, ink)] of `props` (`floor.props`) seen by `cam`, a bed's top sagging over `dents`, each one
+    """[(dots, ink)] of `props` (`shown.props`) seen by `cam`, a bed's top sagging over `dents`, each one
     `rounds` says round a wire cylinder: their edges in view gathered by ink, an ink's drawn in one call
     (`callouts.lines`)."""
     if not props:
