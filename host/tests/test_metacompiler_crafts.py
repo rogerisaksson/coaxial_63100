@@ -172,9 +172,10 @@ def test_a_quads_hover_is_solved_once(r):
 
 
 def test_a_crafts_attitude_is_solved_of_its_own(r):
-    """Every text that flies has its pitch and its roll solved of its own blocks (`machine.aircraft.attitude`):
-    the stiffest of its needs, feasible under its least ceiling; the quadcopter's is the stiffness its course
-    measured; a craft's inertia moves its own authority alone; nothing flies on the solved loops yet."""
+    """Every text that flies has its tilt solved of its own blocks (`machine.aircraft.attitude`): one loop on
+    its pitch and its roll, at the least of its ceilings with every need beneath; the quadcopter's, the
+    helicopter's and the ornithopter's are the stiffness their blocks hold; a craft's inertia moves its own
+    loop alone; nothing flies on the solved loops yet."""
     import copy
     import re
     from machine import aircraft
@@ -182,28 +183,28 @@ def test_a_crafts_attitude_is_solved_of_its_own(r):
     from machine.body import mechatronics
     rows = attitude.rows()
     texts = [name for kind in aircraft.CRAFTS for name in aircraft.variants(kind)]
-    r.check('every text that flies has a pitch and a roll loop: %d rows of %d texts' % (len(rows), len(texts)),
+    r.check('every text that flies has a pitch and a roll row: %d rows of %d texts' % (len(rows), len(texts)),
             [row[:2] for row in rows] == [(name, loop) for name in texts for loop in ('pitch', 'roll')], rows[:2])
-    odd = [row[:2] for row in rows if row[4].kp != max(row[5].values()) or row[4].need not in row[5]
-           or row[4].feasible != (row[4].kp <= min(row[6].values())) or set(row[5]) != {'motion', 'cascade'}
-           or not {'dead time', 'authority'} <= set(row[6]) or min(row[5].values()) <= 0.0]
-    r.check('a loop is the stiffest of its needs, feasible under its least ceiling, each by its name', not odd, odd)
-    own = {row[:2]: row for row in rows if row[0] in aircraft.CRAFTS.values()}
-    stuck = [key for key, row in own.items() if not row[4].feasible]
-    r.check("each kind's own text can follow its card: its pitch and its roll feasible", not stuck and len(own) == 8, stuck)
-    quad = own[(aircraft.CRAFTS['quad'], 'pitch')]
-    r.check("the quadcopter's tilt solved of its tic-toc is the stiffness its course measured, within 1 %%: %.1f, %.0f"
-            % (quad[4].kp, quad[2]), abs(quad[4].kp / quad[2] - 1.0) < 0.01 and 'rotor slew' in quad[6], quad[6])
+    once = {row[:2]: row for row in rows}
+    odd = [key for key, row in once.items() if row[4].kp != min(row[6].values()) or row[6][row[4].ceiling] != row[4].kp
+           or row[5][row[4].need] != max(row[5].values()) or row[4].feasible != (max(row[5].values()) <= row[4].kp)
+           or set(row[5]) != {'motion', 'cascade'} or not {'dead time', 'pitch authority', 'roll authority'} <= set(row[6])
+           or row[4] != once[(key[0], 'pitch')][4]]
+    r.check('a tilt is one loop on both axes, at the least of its ceilings, each need and ceiling by its name', not odd, odd)
+    stuck = [key for key, row in once.items() if not row[4].feasible]
+    r.check('every text can follow its card: its motion and the loop it serves lie under its tilt', not stuck, stuck)
+    held = {name: (once[(name, 'pitch')][4].kp, once[(name, 'pitch')][2], once[(name, 'roll')][2])
+            for name in (aircraft.CRAFTS[kind] for kind in ('quad', 'helicopter', 'ornithopter'))}
+    off = {name: got for name, got in held.items() if abs(got[0] / got[1] - 1.0) > 0.01 or abs(got[0] / got[2] - 1.0) > 0.01}
+    r.check("the quadcopter's, the helicopter's and the ornithopter's tilt are the stiffness their blocks hold, within 1 %",
+            not off and 'rotor slew' in once[(aircraft.CRAFTS['quad'], 'pitch')][6], held)
     crafts = copy.deepcopy(mechatronics.crafts())
     crafts['helicopter']['gyration_m'] = [math.sqrt(2.0) * g for g in crafts['helicopter']['gyration_m']]
     twice = {row[:2]: row for row in attitude.rows(crafts)}
-    once = {row[:2]: row for row in rows}
-    halved = [key for key in once if key[0].startswith('helicopter')
-              and abs(twice[key][6]['authority'] / once[key][6]['authority'] - 0.5) > 1e-3]
+    halved = [key for key in once if key[0].startswith('helicopter') and abs(twice[key][4].kp / once[key][4].kp - 0.5) > 1e-3]
     moved = [key for key in once if not key[0].startswith('helicopter') and twice[key] != once[key]]
-    r.check("twice the helicopter's inertia halves its authority's ceiling and moves no other craft's loop",
-            not halved and not moved and twice[('helicopter', 'pitch')][4].kp == once[('helicopter', 'pitch')][4].kp,
-            (halved, moved))
+    r.check("twice the helicopter's inertia halves its own tilt's stiffness and moves no other craft's loop",
+            not halved and not moved, (halved, moved))
     readers = sorted(path.replace(os.sep, '/') for path, text, _tree in sources(beside=False)
                      if re.search(r'aircraft\.attitude|from machine\.aircraft import[^\n]*\battitude\b', text))
     flown = [path for path in readers if path.startswith(('machine/', 'coaxial/', 'terminal/'))]

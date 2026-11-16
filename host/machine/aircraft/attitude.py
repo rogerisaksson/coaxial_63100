@@ -1,19 +1,21 @@
-"""A craft's attitude loops solved of its own blocks: its card's need under its frame's ceilings.
+"""A craft's tilt solved of its own blocks: as stiff as its frame allows, its card's motion beneath.
 
     for machine, loop, kp, kd, solved, needs, ceilings in attitude.rows():    # today's beside the solved
 
 Every text that flies (`machine.aircraft.variants`) is compiled to its own blocks by kind
-(`aerolisp.compile_manifest`) and its pitch and roll are solved by the kinds it has - no craft is named
-here: rotors on arms turn a frame by what each can shed or add of its hover's thrust, a main rotor by its
-cyclic, flapping wings and a monoplane's surfaces by their moments at the governed speed. A loop needs the
-motion its card asks, its oscillator's frequency with `motion_factor` over it, and the loop along the
-floor it serves with `cascade_factor` over that; its ceilings are the phase its dead time may take, the
-acceleration all its drive gives over the excursion that may ask it and, for rotors, the rate their moment
-turns at. The targets are the library's (`mechatronics.control`), the solver `machine.solver.loops`; a
-craft's law takes its gains per inertia, so each loop is solved on an inertia of one, its stiffness in
-1/s^2 and its damping in 1/s. The rotors' slew is the quad's own rotor's (`pull.ROTOR`), the one the
-crafts' parts hold. The heading's loop has no stated need yet and no row. Nothing flies on the solved
-loops: they stand beside today's blocks until the comparison has been read.
+(`aerolisp.compile_manifest`) and its tilt is solved by the kinds it has - no craft is named here: rotors
+on arms turn a frame by what each can shed or add of its hover's thrust, a main rotor by its cyclic,
+flapping wings and a monoplane's surfaces by their moments at the governed speed. A tilt is one thing,
+the thrust's direction: one stiffness about its pitch and its roll, bound by the weaker of the two - all
+the drive that axis has at the excursion that may ask it (`excursion_deg`) -, by the phase the loop's
+dead time may take and, for rotors, by the rate their moment turns at; the loop stands at the least of
+these (`loops.stiffest`). What it must follow lies beneath: the motion its card asks, its oscillator's
+frequency with `motion_factor` over it, and the loop along the floor it serves with `cascade_factor` over
+that - feasible where both do. The targets are the library's (`mechatronics.control`); a craft's law
+takes its gains per inertia, so the loop is solved on an inertia of one, its stiffness in 1/s^2 and its
+damping in 1/s. The rotors' slew is the quad's own rotor's (`pull.ROTOR`), the one the crafts' parts
+hold. The heading's loop has no stated need yet and no row. Nothing flies on the solved loops: they
+stand beside today's blocks until the comparison has been read.
 """
 import math
 import os
@@ -25,7 +27,7 @@ from machine.solver import loops
 
 #: A loop's dead time in its law's steps: one of transport and half a one of hold.
 DEAD_STEPS = 1.5
-#: The loops solved, each with its inertia's key in a rigid body's block (y is up: the heading's).
+#: A tilt's axes, each with its inertia's key in a rigid body's block (y is up: the heading's).
 AXES = (('pitch', 'inertia_xx'), ('roll', 'inertia_zz'))
 
 
@@ -49,7 +51,7 @@ def _drive(aero, dynamics):
 
 
 def _loops(name, manifest, targets):
-    """A vehicle's rows (`rows`) of its compiled text."""
+    """A vehicle's rows (`rows`) of its compiled text: its one tilt, on its pitch and on its roll."""
     aero, dynamics, kinematics = manifest['aerodynamics'], manifest['dynamics'], manifest['kinematics']
     body, gov, today = dynamics['rigid_body'], dynamics['governor'], dynamics['impedance']
     zeta = float(targets['damping_ratio'])
@@ -57,24 +59,24 @@ def _loops(name, manifest, targets):
     along = math.sqrt(kinematics['horizontal']['spot_kp'])
     needs = {'motion': loops.stiffness(1.0, float(targets['motion_factor']) * motion),
              'cascade': loops.stiffness(1.0, float(targets['cascade_factor']) * along)}
-    left = math.atan(2.0 * zeta * loops.crossover(zeta)) - math.radians(float(targets['delay_phase_deg']))
-    quick = loops.stiffness(1.0, loops.natural(DEAD_STEPS * gov['step_time'], zeta, left))
-    drive, out = _drive(aero, dynamics), []
+    left = loops.margin(zeta) - math.radians(float(targets['delay_phase_deg']))
+    ceilings = {'dead time': loops.stiffness(1.0, loops.natural(DEAD_STEPS * gov['step_time'], zeta, left))}
+    drive, excursion = _drive(aero, dynamics), math.radians(float(targets['excursion_deg']))
     for loop, key in AXES:
         moment, rate = drive[loop]
-        ceilings = {'dead time': quick,
-                    'authority': moment / body[key] / math.radians(float(targets['excursion_deg']))}
+        ceilings[loop + ' authority'] = moment / body[key] / excursion
         if rate:
-            ceilings['rotor slew'] = loops.stiffness(1.0, rate / moment)
-        out.append((name, loop, today['stiffness']['attitude_' + loop], today['damping']['attitude_' + loop],
-                    loops.design(1.0, zeta, needs, ceilings), needs, ceilings))
-    return out
+            ceilings['rotor slew'] = min(ceilings.get('rotor slew', math.inf), loops.stiffness(1.0, rate / moment))
+    tilt = loops.stiffest(1.0, zeta, needs, ceilings)
+    return [(name, loop, today['stiffness']['attitude_' + loop], today['damping']['attitude_' + loop],
+             tilt, needs, ceilings) for loop, _key in AXES]
 
 
 def rows(crafts=None):
     """[(machine, loop, today's stiffness 1/s^2, today's damping 1/s, the solved `loops.Loop`, its needs,
-    its ceilings)] for every text that flies, its pitch and its roll; `crafts` a resolved crafts table
-    compiled in the stock one's place (`compile.blocks`)."""
+    its ceilings)] for every text that flies: its tilt's loop on its pitch and on its roll, beside what
+    each holds today; `crafts` a resolved crafts table compiled in the stock one's place
+    (`compile.blocks`)."""
     targets, out = mechatronics.control(), []
     for kind in aircraft.CRAFTS:
         for name in aircraft.variants(kind):

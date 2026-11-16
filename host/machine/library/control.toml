@@ -9,10 +9,13 @@ damping_ratio = 0.7
 # The phase a loop's dead time and its actuator's lags may take at its crossover, deg: what a loop's delays
 # may take and still leave it forty degrees - the robot's ankle on its free foot takes 22.
 delay_phase_deg = 25.0
-# A loop's natural frequency over the fastest motion asked of it.
-motion_factor = 2.2
-# The error at which a loop may ask all its drive has, at the least, deg: the authority's ceiling.
-excursion_deg = 15.0
+# A loop's natural frequency over the fastest motion asked of it, at the least: the heavy ornithopter's
+# tilt stands 1.72 over its wings' beat.
+motion_factor = 1.7
+# The error at which a loop may ask all its drive has, at the least, deg: the authority's ceiling. A
+# craft's tilt stands at it - the quad's, the helicopter's and the ornithopter's blocks each ask all
+# their drive at 21.
+excursion_deg = 21.0
 # A stance loop's natural frequency over the rate its machine falls at: at three the robot's ankle would
 # need more stiffness than the leaf in series with it has.
 fall_factor = 2.0
