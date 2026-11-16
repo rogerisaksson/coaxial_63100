@@ -29,7 +29,7 @@ box.
 | ankle roll | 2 | on the shank | a rod, a pair with the ankle | 17.9 | 129 | 98 | 1611 |
 | spine | 1 | on the spine roll, its inverter on the torso | - | 30.0 | 108 | 108 | 960 |
 | waist | 1 | on the torso | - | 30.0 | 108 | 76 | 960 |
-| hip yaw | 2 | on the pelvis | - | 30.0 | 108 | 54 | 960 |
+| hip yaw | 2 | on the pelvis | - | 30.0 | 108 | 50 | 960 |
 | hip | 2 | on the hip roll | - | 30.0 | 108 | 108 | 960 |
 | knee | 2 | on its axis, its inverter on the thigh | - | 30.0 | 108 | 108 | 960 |
 
@@ -37,10 +37,10 @@ box.
 
 | axis | drives | sits | through | ratio | peak N m | clamp N m | deg/s |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| neck | 1 | on its axis, its inverter on the torso | - | 30.0 | 51 | 14 | 1536 |
+| neck | 1 | on its axis, its inverter on the torso | - | 30.0 | 51 | 15 | 1536 |
 | head | 1 | on its axis, its inverter on the torso | - | 30.0 | 51 | 5 | 1536 |
-| shoulder | 2 | on the torso | - | 30.0 | 51 | 39 | 1536 |
-| elbow | 2 | on the upper arm | - | 30.0 | 51 | 26 | 1536 |
+| shoulder | 2 | on the torso | - | 30.0 | 51 | 36 | 1536 |
+| elbow | 2 | on the upper arm | - | 30.0 | 51 | 24 | 1536 |
 
 ### No drive
 

@@ -93,7 +93,7 @@
 (defprimitive filter-streamline-via-se2-clothoid
   [state &key (curvature-bandwidth-radps 6.5)
               (max-curvature-inv-m 0.61)       ; Min turning radius R_min ~ 0.54 m during normal walk! The robot's own 1.63 m, its arc
-              (max-clothoid-rate-inv-ms 1.41)  ; Bounds lateral jerk d^3(y)/dt^3! Text 2.4; the robot's own 0.61 /m over a step's 0.43 s
+              (max-clothoid-rate-inv-ms 1.39)  ; Bounds lateral jerk d^3(y)/dt^3! Text 2.4; the robot's own 0.61 /m over a step's 0.44 s
               (harmonic-dipole-circulation 0.42)]
   (-> state
       (integrate-se2-clothoid-streamline

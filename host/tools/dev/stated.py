@@ -29,10 +29,12 @@ sys.path.insert(0, HOST)
 
 #: Where the specs lie, from the host folder.
 SPECS = ('machine/library/*.toml', 'machine/humanoids/*.toml', 'machine/aircraft/*.toml')
-#: The values each spec file states, at most: its count as the solver stands.
+#: The values each spec file states, at most: its count as the solver stands. The robot's rose by 71 with its
+#: guards (`[guards]`): new construction - what its limbs and its trunk are built of in place of its shells -,
+#: no value the solver could derive.
 CEILING = {
     'machine/aircraft/crafts.toml': 102,
-    'machine/humanoids/gynoid_mesomorph_medium.toml': 993,
+    'machine/humanoids/gynoid_mesomorph_medium.toml': 1064,
     'machine/humanoids/gynoid_mesomorph_medium_packs.toml': 2,
     'machine/humanoids/gynoid_mesomorph_medium_performance.toml': 9,
     'machine/humanoids/gynoid_mesomorph_medium_r80.toml': 3,

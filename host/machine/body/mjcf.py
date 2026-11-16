@@ -1,13 +1,15 @@
 """The robot's figure as MuJoCo's XML: segments, a motor a joint, contacts, clothes, what hangs loose.
 
-The world steps it (`machine.world.physics`).
+The world steps it (`machine.world.physics`). As built, each guard over the robot's tubes meets the floor and
+the robot's own segments in flat boxes (`machine.body.guards`), its foam giving over its depth as a pad's gel
+over its own.
 """
 import math
 
-from machine.body import build, drives, figure, mechatronics, peripherals, skeleton
+from machine.body import build, drives, figure, guards, mechatronics, peripherals, skeleton
 from machine.world import floor, room
 from machine.body.drives import kind
-from machine.body.figure import BODY, HAIR_AT, HEM_AT, JOINTS, MASS_KG, SEGMENTS, contacts as undersides
+from machine.body.figure import HAIR_AT, HEM_AT, JOINTS, MASS_KG, SEGMENTS, contacts as undersides
 
 _BUILD, _WORLD = mechatronics.robot(), mechatronics.environment()
 _WRLD = peripherals.world()
@@ -62,8 +64,11 @@ HAIRS = ('hair_x', 'hair_z')
 #: What hangs loose on the robot: the hinges `World.loose` reads.
 LOOSE = HEMS + HAIRS
 
-#: Contact bitmasks: 2 meets the floor's 1, 4 the robot's own segments and skeleton.
+#: Contact bitmasks: 2 meets the floor's 1, 4 the robot's own segments and skeleton. A guard's (GUARDS) the
+#: floor's and the room's alone: the robot's own body is its capsules, its law's (`capsules`, `momentum`) - its
+#: guards meeting its own segments, walking, the observer read 331 N where its skin felt nothing.
 ME, MEETS = 2 | 4, 1 | 4
+GUARDS = 2, 1
 
 #: Sole sliding/torsional friction and sneaker/gel-pad contact compliance (`peripherals.world`).
 FRICTION, TORSION_M = float(_SOLE['friction']), figure.sole_torsion_m()
@@ -194,6 +199,17 @@ def _joint(joint, axis, sign):
             if BACKDRIVE and not spring else ''))
 
 
+def _guarded(name):
+    """The geoms of segment `name`'s guards (`machine.body.guards`): a flat box a piece, meeting the floor and
+    the room's things (GUARDS) with the grip of the skin under it, its foam giving over its depth as a pad's gel."""
+    worn = name.split('_', 1)[1] if name.startswith(('left_', 'right_')) else name
+    return ['<geom name="%s_guard%d" type="box" size="%g %g %g" pos="%g %g %g" xyaxes="%g %g %g %g %g %g" contype="%d" '
+            'conaffinity="%d" condim="4" friction="%g %g 0.001" priority="1" solref="%g %g" solimp="%g 0.95 %g"/>' % (
+                (name, k) + tuple(half) + tuple(centre) + tuple(around) + tuple(along) + GUARDS
+                + (CLOTH.get(worn, FRICTION), TORSION_M, PAD_S, PAD_DAMP, PAD_SOFT, guards.THICK_M))
+            for k, (centre, around, along, half) in enumerate(guards.slabs(name))]
+
+
 def _mjcf(bones, free=True):
     from machine.eyes import gimbal, sight
     from machine.world.physics import CAMERA, PLACED, ROOM, SIGHT, STEP_S
@@ -257,13 +273,13 @@ def _mjcf(bones, free=True):
         if name in ('left_foot', 'right_foot'):
             out.append('<site name="lace_%s" pos="%g %g %g" size="0.005"/>' % (
                 (name.split('_')[0],) + LACE_AT))
-        for part, radius, top, end in BODY:
-            if name == part or name.endswith('_' + part):
-                shape = ('type="sphere" size="%g" pos="%g %g %g"' % ((radius,) + top) if top == end
-                         else 'type="capsule" size="%g" fromto="%s"' % (
-                             radius, ' '.join('%g' % v for v in top + end)))
-                out.append('<geom %s%s%s/>' % (shape, grip % CLOTH.get(part, FRICTION),
-                                                cloth if part in CLOTH else ''))
+        part = name.split('_', 1)[1] if name.startswith(('left_', 'right_')) else name
+        for radius, top, end in figure.skin_of(name):
+            shape = ('type="sphere" size="%g" pos="%g %g %g"' % ((radius,) + top) if top == end
+                     else 'type="capsule" size="%g" fromto="%s"' % (
+                         radius, ' '.join('%g' % v for v in top + end)))
+            out.append('<geom %s%s%s/>' % (shape, grip % CLOTH.get(part, FRICTION),
+                                            cloth if part in CLOTH else ''))
         for k, (part, axis, radius, toward, size, wide) in enumerate(figure.PADS):
             for x in ((1.0, -1.0) if name == part == 'pelvis' else
                       ((1.0 if name.startswith('left') else -1.0),) if name.endswith('_' + part) else ()):
@@ -274,6 +290,7 @@ def _mjcf(bones, free=True):
                 out.append('<geom name="%s_pad%d%s" %s%s priority="1" solref="%g %g" solimp="%g 0.95 %g"/>' % (
                     name, k, '' if x > 0 else 'r', shape, grip % CLOTH.get(part, FRICTION),
                     PAD_S, PAD_DAMP, PAD_SOFT, figure.PAD_M))
+        out += _guarded(name) if shells else []
         if name.endswith('_shank'):
             side = name[:-len('_shank')]
             hem_gyr2 = round(0.5 * HEM_M ** 2, 4)

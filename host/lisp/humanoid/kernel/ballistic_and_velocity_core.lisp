@@ -181,7 +181,7 @@
 ;; -----------------------------------------------------------------------------
 (defprimitive drive-stretch-shortening-ballistic-impulse
   [state &key (launch-topology :bilateral-in-phase) ; :bilateral-in-phase (two-footed jump) | :unilateral-split-leap (leap)
-              (target-apex-height-dz-mm 207.0)   ; the robot's knees' launch from its crouch (320.0)
+              (target-apex-height-dz-mm 218.8)   ; the robot's knees' launch from its crouch (320.0)
               (target-horizontal-span-dx-mm 0.0)
               (countermovement-depth-mm 175.6)   ; at the robot's size (185.0)
               (arm-flywheel-assist true)]
@@ -198,7 +198,7 @@
         ;; Phase 2: Concentric Triple-Extension with Back-EMF Proximal-to-Distal Handoff
         ;; As knee velocity dq_knee approaches Back-EMF saturation, shifts peak power
         ;; demand down to the ankle plantarflexors (`:talocrural` + `:metatarsal-equinus`)!
-        ;; The robot's own: its knees leave at 15.8 of their 16.8 rad/s, 2.03 m/s; its ankles reach 2.15 m/s
+        ;; The robot's own: its knees leave at 15.9 of their 16.8 rad/s, 2.07 m/s; its ankles reach 2.15 m/s
         ;; at most.
         :phase-2-concentric-launch
           (:takeoff-angle-law :ballistic-parabola-solver

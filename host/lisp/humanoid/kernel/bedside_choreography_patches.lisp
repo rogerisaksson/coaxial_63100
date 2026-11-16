@@ -29,7 +29,7 @@
                                        :probe-capsules [:femoral-diaphysis-dorsal-l :femoral-diaphysis-dorsal-r])
       ;; Vault onto toes, slide thighs onto stool, halt at centroid via rim-ZCBF, balance core:
       (xform-sit-on-chair-or-stool :slide-speed-mps 0.15 :use-carpal-hand-boost true)
-      (specialize-with-stool-active-core-balance :seat-diameter-mm 340.0)
+      (specialize-with-stool-active-core-balance :seat-diameter-mm 355.0) ; the robot's own, its ischia 12 % inside (320.0)
       (release-impedance-wavefront :terminal-mode :seated-active-rest)
       (limiter-high-mu-planar)
       (master-anti-spasm-insert)))

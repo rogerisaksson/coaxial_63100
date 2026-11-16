@@ -302,15 +302,17 @@ def _both(c, step, outs, got):
 
 def test_the_robots_observer_scoped_as_whole(report):
     """The robot's observer's working set (working_envelope_scoper.lisp) at every law pass of its walk and
-    the robot's crouch - hinges on their stops, capsules touching -: its step scoped and its step whole from the
-    same state the same bits; scoped, about half the robot's unknowns split and a fraction of its pairs
-    searched, within the text's envelope."""
+    its rise from a seat - hinges on their stops, capsules touching: its hands and fingers on its thighs and
+    its trunk, a forearm on a thigh -: its step scoped and its step whole from the same state the same bits;
+    scoped, about half the robot's unknowns split and a fraction of its pairs searched, within the text's
+    envelope. The crouch touched only where its right thigh's capsule lay unmirrored, on its trunk
+    (`figure.skin_of`): mirrored, none of 11067 passes touches."""
     from machine.texts import kernel
     from tools.cores.gmo import GMO_F
     from tools.sim import scenarios
     outs = ('r', 'f', 'force', 'at', 'touched', 'past', 'prior', 'speed', 'expected')
     envelope = kernel.said('evaluate-operating-point-horizon', 'manifold-preload-distance-mm') * 1e-3
-    for scene, touching in (('play_walk', False), ('crouching_down', True)):
+    for scene, touching in (('play_walk', False), ('sit_to_stand', True)):
         got, held = dict.fromkeys(('passes', 'apart', 'lives', 'listed', 'touches', 'whole', 'scoped'), 0), {}
 
         def laid(s, got=got, held=held):

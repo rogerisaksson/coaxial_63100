@@ -42,11 +42,10 @@ NOWHERE = np.full(3, np.inf), np.full(3, -np.inf)
 #: alone it rolled off at 2e-4 rad.
 PELVIS = edge.SKIN.index('pelvis')
 #: What bears the robot is a surface under its skin: a bearing point's room is its segment's capsule's
-#: radius round it along the floor (CAPSULES, `figure.BODY` by its name without its side; MuJoCo gives a
-#: capsule one contact point). Points alone, sat on the robot's pelvis its box was the ischia's line and the
-#: robot's centre of mass was asked back to it at 1.5 m/s^2.
-CAPSULES = [[(r, np.asarray(a, float), np.asarray(b, float)) for seg, r, a, b in figure.BODY
-             if seg == (name.split('_', 1)[1] if name.startswith(('left_', 'right_')) else name)] for name in edge.SKIN]
+#: radius round it along the floor (CAPSULES, `figure.skin_of` the segment's, a right side's mirrored; MuJoCo
+#: gives a capsule one contact point). Points alone, sat on the robot's pelvis its box was the ischia's line and
+#: the robot's centre of mass was asked back to it at 1.5 m/s^2.
+CAPSULES = [[(r, np.asarray(a, float), np.asarray(b, float)) for r, a, b in figure.skin_of(name)] for name in edge.SKIN]
 ALONG = np.array([1.0, 0.0, 1.0])
 
 

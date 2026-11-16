@@ -35,7 +35,8 @@ identification. The robot's figure: [kinematics](kinematics.md); its drives:
 
 | Module | Is |
 | --- | --- |
-| body/build | the build as made: carbon-fibre shells over the shape, what they hold, the drives where they sit |
+| body/build | the build as made: its chassis' tubes, its guards and its shells, what they hold, the drives where they sit |
+| body/guards | the guards as built: foam slabs on the limbs and the trunk on steel struts off their tubes - their masses and the boxes the floor and the robot's own segments meet |
 | body/gait | the robot's gait's numbers of its build: each derived on it, Froude-similar on another's leg and mass |
 | body/capsules | the kernel's 18 capsules by its names and pairs on the robot's skin, their clearances in closed form and their log-sum-exp, each pair's and each capsule's evading joints (the text's barriers', its synergies') |
 | body/bemf | the robot's drives' torque bounds under their back-EMF: the kernel's quadrant law on its DC link's volts, its boards' current loops' own |

@@ -71,12 +71,12 @@ def _behind(part, k):
     return tuple(mid - (0.0, 0.0, r))
 
 
-def _thigh():
+def _thigh(x=1.0):
     """A thigh's underside where the seat's patch ends ahead of the buttocks (`cop-bounds-mm`), on the robot's
-    thigh's capsule, sat: pressed up from behind it."""
+    thigh's capsule, sat: pressed up from behind it; `x` -1 the right's, its capsule mirrored (`figure.skin_of`)."""
     r, mid = _capsule('thigh', 0)
     ahead = kernel.read()['anatomical-manifold-registry']['ischial-bilateral']['cop-bounds-mm']['x'][1] / 1e3
-    return (mid[0], -ahead, mid[2] - r)
+    return (x * mid[0], -ahead, mid[2] - r)
 
 
 def _hip(x):
@@ -112,7 +112,7 @@ POINTS = tuple((((m, seg if frame is None else frame, n if axis is None else axi
     ('ischial-bilateral', None, None, 'pelvis', _under('pelvis', 0), _UP),
     ('ischial-bilateral', None, None, 'pelvis', _under('pelvis', 1), _UP),
     ((('posterior-femoral-bilateral', 'left_thigh', _BACK), _SEAT, _LAIN), None, None, 'left_thigh', _thigh(), _BACK),
-    ((('posterior-femoral-bilateral', 'right_thigh', _BACK), _SEAT, _LAIN), None, None, 'right_thigh', _thigh(), _BACK),
+    ((('posterior-femoral-bilateral', 'right_thigh', _BACK), _SEAT, _LAIN), None, None, 'right_thigh', _thigh(-1.0), _BACK),
     ('trochanter-gluteal-lateral', None, None, 'pelvis', _hip(1.0), (-1.0, 0.0, 0.0)),
     ('trochanter-gluteal-lateral', None, None, 'pelvis', _hip(-1.0), (1.0, 0.0, 0.0)),
     ('dorsal-supine-continuum', None, None, 'pelvis', _behind('pelvis', 2), _BACK),

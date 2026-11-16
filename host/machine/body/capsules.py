@@ -71,7 +71,13 @@ def _sided(name):
     return (base, SIDES[side]) if side in SIDES else (name, '')
 
 
-_BOUND = [(prefix + SKIN[base][0], SKIN[base][1]) for base, prefix in map(_sided, NAMES)]
+def _mirrored(cap, prefix):
+    """A capsule of SKIN (the left side's) on a side: the right's mirrored across, as `figure.skin_of` lays it."""
+    s = -1.0 if prefix == 'right_' else 1.0
+    return (s * cap[0][0],) + tuple(cap[0][1:]), (s * cap[1][0],) + tuple(cap[1][1:]), cap[2], cap[3]
+
+
+_BOUND = [(prefix + SKIN[base][0], _mirrored(SKIN[base][1], prefix)) for base, prefix in map(_sided, NAMES)]
 #: Each capsule's segment; its ends in that segment's frame (n, 3), m; its radii there, m.
 SEGMENT = tuple(seg for seg, _c in _BOUND)
 P0, P1 = (np.array([c[k] for _s, c in _BOUND], float) for k in (0, 1))

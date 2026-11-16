@@ -1,17 +1,19 @@
-"""The robot's build as made: carbon-fibre shells over its shape, what they hold, where its drives sit.
+"""The robot's build as made: its tubes, guards and shells, what they hold, where its drives sit.
 
     build.SHELLS = 1.0        # the robot's segments as built (`machine.body.mjcf`, `figure.com`); 0 a woman's
     build.segments()          # {segment: (kg, centre, (ixx, iyy, izz, ixy, ixz, iyz))}, its frame
     build.mass()              # the robot's weight as built, kg
     build.riders()            # {segment: [(joint, kg, where, (ixx, iyy, izz))]}: the drives on it
 
-A shell is a laminate WALL_M thick over the robot's capsules (`figure.BODY`) and its soles' boxes
-(`figure.CONTACTS`), each capsule a thin cylinder and its two caps; what a segment holds besides
-(HOLDS) is a point; a drive's assembly a cylinder of its size about its joint's axis.
+A segment is built of its chassis (`structural.chassis`: its bones' and its frames' tubes) and the guards
+over them (`guards.pieces`). A shell, a laminate WALL_M thick, closes only the robot's capsules no tube
+frames (`figure.BODY`: its head's, its hands') - each capsule a thin cylinder and two caps - and its soles'
+boxes (`figure.CONTACTS`); what a segment holds besides (HOLDS) is a point; a drive's assembly a cylinder of
+its size about its joint's axis.
 """
 import math
 
-from machine.body import drives, mechatronics
+from machine.body import drives, guards, mechatronics, skeleton, structural
 from machine.body.figure import BODY, SCALE, SEGMENTS, STAGES, contacts as undersides
 
 #: The robot's body as made or as a woman's (de Leva's shares of `figure.MASS_KG`), 1 or 0.
@@ -86,10 +88,11 @@ def riders():
 
 
 def _shells(part):
-    """[(kg, centre, 3x3 inertia about it)] of `part`'s shell pieces."""
+    """[(kg, centre, 3x3 inertia about it)] of `part`'s shell pieces: over its capsules where no tube
+    frames it (`skeleton.HUNG`, `skeleton.TRUNK`), and its soles' boxes."""
     out = []
     for p, r, top, end in BODY:
-        if p != part:
+        if p != part or part in skeleton.HUNG or part in skeleton.TRUNK:
             continue
         length = math.dist(top, end)
         mid = tuple((a + b) / 2.0 for a, b in zip(top, end))
@@ -115,9 +118,8 @@ def _shells(part):
 
 def segments():
     """{segment: (kg, centre, (ixx, iyy, izz, ixy, ixz, iyz) about it)}, each in its own frame: its
-    shell, what it holds and the drives on it, and each stage a drive rides - laid once a wall and
-    a drives' layout
-    (`figure.com` asks every pass)."""
+    chassis, its guards, its shell, what it holds and the drives on it, and each stage a drive rides -
+    laid once a wall and a drives' layout (`figure.com` asks every pass)."""
     key = (WALL_M, CF_KG_M3, tuple(sorted(drives.WAYS.items())), tuple(drives.JOINTS.items()),
            STAGED)
     if key not in _LAID:
@@ -132,9 +134,14 @@ def _segments():
     on = riders()
     out = {}
     names = [seg[0] for seg in SEGMENTS]
-    # A stage a drive rides (`drives.mount`) its drives' alone, in its own frame.
-    for name in names + [k for k in on if k not in names]:
-        pieces = _shells(_part(name))
+    laid = names + [k for k in on if k not in names]
+    # A stage a drive rides (`drives.mount`) its drives' and its chassis' alone, in its own frame; a stage
+    # none rides is its segment's.
+    owner, framed = {j: seg[0] for seg in SEGMENTS for j, _a, _s in seg[2]}, {}
+    for body, kg, at, own in structural.chassis():
+        framed.setdefault(body if body in laid else owner[body], []).append((kg, at, own))
+    for name in laid:
+        pieces = _shells(_part(name)) + framed.get(name, []) + guards.pieces(name)
         pieces += [(kg, at, [[0.0] * 3 for _ in range(3)]) for kg, at in HOLDS.get(_part(name), ())]
         pieces += [(kg, (0.0, y, 0.0), [[0.0] * 3 for _ in range(3)])
                    for y, _r, _l, kg in ([RELEASES[_part(name)]] if _part(name) in RELEASES else [])]

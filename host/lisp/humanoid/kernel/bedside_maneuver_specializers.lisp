@@ -219,13 +219,13 @@
 ;; Tunes the stroke length of the contralateral hip-escape so the robot can roll
 ;; 180 deg inside a narrow 700 mm camping cot or bunk bed without touching the rails.
 ;; The robot's stroke to its spine's lateral stop against its shoulders; its arms at its sides
-;; make its 609 mm wide, its elbows folded 0.95 rad more it lies within the rails' margins.
+;; make its 609 mm wide, its elbows folded 0.94 rad more it lies within the rails' margins.
 (defmodifier specialize-with-shrimp-centerline-recentering
   [bed-roll-state &key (cot-width-mm 720.0) (shrimp-stroke-mm 186.0)]
   (-> bed-roll-state
       (inject-nullspace-posture-delta
         :gate-by-manifold-weight (:dorsal-supine-continuum :min-w 0.40)
-        :delta-angles '((:cubital 0.95)))
+        :delta-angles '((:cubital 0.94)))
       (drive-centerline-pinned-mattress-roll
         :bed-width-mm cot-width-mm
         :edge-safety-margin-mm 110.0)

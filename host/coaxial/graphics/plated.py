@@ -22,6 +22,7 @@ from coaxial.graphics.livery import BOARD, BOLT, FRAME, GEAR, SERVO, STEEL, TUBE
 from coaxial.graphics.panels import SHELL
 from coaxial.graphics.shapes import turn_about
 from machine.body import figure
+from machine.body.guards import NEAR_M
 
 #: A likeness's part, the segment its corners bend into, the local y where the bend begins and
 #: ends (`drape.BLENDS`' columns): the trunk's and the limbs' joints. A shoulder's by the share
@@ -47,8 +48,9 @@ KEPT, ENDS = ('jaw', 'nose', 'lips'), ('_ear', '_eye')
 #: hexagon BOLT_R round stood BOLT_M proud.
 BOLTS, CIRCLE, BOLT_R, BOLT_M = 6, 0.72, 0.005, 0.004
 #: A guard clears what stands by its segment at rest - a drive's can and its gearbox, a tube
-#: (CLEARED, a part's name's start) - within NEAR_M of the segment's axis and DRUM_M of its ends.
-CLEARED, NEAR_M, DRUM_M = ('drive_', 'inv_', 'gear_', 'hung'), 0.11, 0.06
+#: (CLEARED, a part's name's start) - within NEAR_M of the segment's axis (the build's,
+#: `machine.body.guards`) and DRUM_M of its ends.
+CLEARED, DRUM_M = ('drive_', 'inv_', 'gear_', 'hung'), 0.06
 #: Under its clothes: about a segment's bone - a limb's from its joint to the next's, the
 #: trunk's the upright - cloth within REACH_M of it in UNDER_OF of SIDES ways round, told in
 #: slabs BIN_M along it from SPAN_M before its joint, a slab with its two neighbours. What a

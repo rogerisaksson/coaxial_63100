@@ -30,11 +30,13 @@ def _link(seg):
 def _capsules(m):
     """(the robot's capsules, each (segment, radius, its axis's ends in its frame), the pairs of them MuJoCo
     collides) of the robot's model `m`'s colliding geoms: a sphere a capsule of no length, a box one along its
-    longest side as thick as its thinnest; a pair on two bodies not welded, not parent and child, not excluded,
-    their bits meeting."""
+    longest side as thick as its thinnest, a guard's none - a guard meets the floor and the room alone
+    (`mjcf.GUARDS`) -; a pair on two bodies not welded, not parent and child, not excluded, their bits
+    meeting."""
     from machine.body.figure import SEGMENTS
     segs, kinds = {s[0] for s in SEGMENTS}, m.geom_type
-    geoms = [g for g in range(m.ngeom) if m.body(m.geom_bodyid[g]).name in segs and kinds[g] in _AXES]
+    geoms = [g for g in range(m.ngeom) if m.body(m.geom_bodyid[g]).name in segs and kinds[g] in _AXES
+             and '_guard' not in m.geom(g).name]
     out = []
     for g in geoms:
         R, size = rotation(m.geom_quat[g]), m.geom_size[g]

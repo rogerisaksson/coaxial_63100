@@ -88,8 +88,9 @@ play_deg = { left = [0.20, 0.15], right = [0.35, 0.25] }
 lever_m = { left = 0.006, right = 0.0065 }
 church = { left = -0.025, right = 0.025 }
 
-# Carbon-epoxy shells over the robot's capsules (`machine/body/build.py`), housing lips/brackets and thermal
-# interfaces.
+# Carbon-epoxy laminate: the head's and the hands' shells and the soles' boxes (`machine/body/build.py`),
+# housing lips/brackets and thermal interfaces. The limbs, the trunk and the neck wear no shell: their tubes
+# (`structural.chassis`) and their guards are what they are built of.
 [shell]
 wall_m = 0.002
 kg_m3 = 1600.0
@@ -102,6 +103,25 @@ plate_w_m = 0.050
 crown_w_m = 0.040
 wall_share = 0.10
 room_m = 0.0025
+
+# A rider's guards over the robot's tubes (`machine/body/guards.py`): honeycomb foam slabs in rims, riveted,
+# each held off its segment's nearest tube by two solid steel struts - what takes the blow when the robot falls
+# or is run into. A guard's areal density with its rim and its rivets, kg/m^2 (EN 1621-1 limb protectors, foam
+# and shell, weigh 3 to 5), its foam's thickness and a strut's radius, m. A limb's guards: [from, to] down the
+# limb, shares of its length, its middle, deg from its outer side toward ahead, and its half width, deg; the
+# torso's: [from, to] up it, m, its middle, deg from its left toward ahead, and its half width - a cup a side, a
+# sternum's, two slats down the belly, a back's and a plate under it. The hips, the seat and the small of the
+# back wear none.
+[guards]
+kg_m2 = 4.0
+thick_m = 0.012
+strut_r_m = 0.004
+upper_arm = [[-0.06, 0.32, 0.0, 85.0], [0.42, 0.9, 10.0, 70.0]]
+forearm = [[0.08, 0.66, 20.0, 75.0], [0.7, 0.84, 20.0, 60.0]]
+thigh = [[0.14, 0.62, 40.0, 72.0], [0.655, 0.735, 40.0, 62.0], [0.77, 0.85, 40.0, 52.0]]
+shank = [[-0.07, 0.11, 90.0, 55.0], [0.16, 0.72, 90.0, 66.0], [0.755, 0.835, 90.0, 52.0]]
+torso = [[0.152, 0.262, 62.0, 26.0], [0.152, 0.262, 118.0, 26.0], [0.27, 0.35, 90.0, 13.0], [0.1, 0.13, 90.0, 34.0],
+         [0.06, 0.09, 90.0, 29.0], [0.215, 0.37, -90.0, 52.0], [0.155, 0.195, -90.0, 30.0]]
 
 # Mechanical bracket and shell hard-stops, [low, high] deg; linkage strokes follow `[linkage]`.
 [stops]

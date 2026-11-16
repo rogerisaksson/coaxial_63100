@@ -76,7 +76,8 @@ class Run:
         self.told, now = self.t, worker.told(self.s)
         self.log.append((self.t, doing, [float(now['angles'].get(j, 0.0)) for j in ARMS],
                          sum(g['loads']) / float(g['fr'][modal.WEIGHT]), float(g['y'][modal.PROP]),
-                         float(g['world'].data.qpos[1])))
+                         float(g['world'].data.qpos[1]), float(g['world'].data.qpos[0]), float(g['world'].data.qpos[2]),
+                         _guarded(g['world'])))
         self.rows.append(dict(zip(HEADER, row(dict(now, stage='sit'), 60.0))))
 
     def tell(self, **command):
@@ -106,17 +107,38 @@ class Run:
 
     def trace(self):
         """The robot's phases a line each: span, its arms' fastest swing and widest sweep, the robot's
-        soles' and the furniture's share, its pelvis's height at its end."""
+        soles' and the furniture's share, its pelvis's height and place (x, z) at its end."""
         lines, k0 = [], 0
         for k in range(1, len(self.log) + 1):
             if k == len(self.log) or self.log[k][1] != self.log[k0][1]:
                 t0, t1 = self.log[k0][0], self.log[k - 1][0]
                 fast, wide = self.arms(t0, t1)
                 last = self.log[k - 1]
+                worn = {}
+                for r in self.log[k0:k]:
+                    for name, n in r[8].items():
+                        worn[name] = max(worn.get(name, 0.0), n)
                 lines.append('  %-28s %6.2f %5.2f s | arms %5.0f deg/s %5.1f deg | soles %4.2f prop %4.2f pelvis %.3f'
-                             % (self.log[k0][1][:28], t0, t1 - t0, fast, wide, last[3], last[4], last[5]))
+                             ' at (%+.3f, %+.3f)%s' % (self.log[k0][1][:28], t0, t1 - t0, fast, wide, last[3], last[4],
+                                                       last[5], last[6], last[7], ''.join(
+                                                           ' | %s %.0f N' % item for item in sorted(
+                                                               worn.items(), key=lambda item: -item[1])[:2])))
                 k0 = k
         return lines
+
+
+def _guarded(world):
+    """{guard: N}: the robot's guards' boxes (`mjcf.GUARDS`) bearing on what is not the robot's own, each its push."""
+    import numpy as np
+    m, d, out, f = world.model, world.data, {}, np.zeros(6)
+    for i in range(d.ncon):
+        c = d.contact[i]
+        for g in (c.geom1, c.geom2):
+            name = m.geom(g).name
+            if '_guard' in name:
+                world._mj.mj_contactForce(m, d, i, f)
+                out[name] = max(out.get(name, 0.0), float(abs(f[0])))
+    return out
 
 
 def moving(r):

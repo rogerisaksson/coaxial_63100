@@ -7,6 +7,7 @@
 Frames: x the robot's left, y up, z ahead; a turn a 3x3 of rows. A joint turns its segment by sign x
 angle about its axis.
 """
+import functools
 import math
 
 from machine.body import mechatronics
@@ -150,6 +151,15 @@ def _capsules(row):
 #: robot's head 40, its shins 100 through each other and its hand 41 into its upper arm; on
 #: these, 2-9.
 BODY = tuple(capsule for row in _F['body'] for capsule in _capsules(row))
+
+
+def skin_of(seg):
+    """[(radius, from, to)]: segment `seg`'s capsules (BODY, the left side's) in its frame, a right side's
+    mirrored across: its thigh's stand 12 mm out of its axis, and the right's laid as the left's stood 24 mm
+    inward of the mirror, its guard 17 mm under it sat on the bed's edge (`machine.body.guards`)."""
+    s = -1.0 if seg.startswith('right_') else 1.0
+    part = seg.split('_', 1)[1] if seg.startswith(('left_', 'right_')) else seg
+    return [(r, (s * a[0], a[1], a[2]), (s * b[0], b[1], b[2])) for p, r, a, b in BODY if p == part]
 
 #: The robot's widest half across, m: its trunk's capsules' reach along x (BODY's hips row), what an
 #: aperture must clear each side of it - its arms hang within it.
@@ -400,16 +410,17 @@ def palm(degrees, pelvis=(0.0, 0.0, 0.0), turn=IDENT, side='left'):
     fingers' segments (`BODY`), what of it meets what the robot reaches down to - curled, the robot's
     fingers."""
     placed, lows = frames(degrees, pelvis, turn), []
-    for seg, r, a, b in BODY:
-        if seg in ('hand', 'fingers'):
-            at, here = placed[side + '_' + seg]
+    for seg in ('hand', 'fingers'):
+        at, here = placed[side + '_' + seg]
+        for r, a, b in skin_of(side + '_' + seg):
             low = min((add(at, apply(here, a)), add(at, apply(here, b))), key=lambda p: p[1])
             lows.append((low[0], low[1] - r, low[2]))
     return min(lows, key=lambda p: p[1])
 
 
 def squat(arm=(35.0, 70.0, 10.0, 30.0)):
-    """Static-equilibrium deep squat pose, deg, with CoM balanced over the sole's midpoint."""
+    """Static-equilibrium deep squat pose, deg, with the robot's centre of mass (`com`: as built or a
+    woman's) balanced over the sole's midpoint."""
     out = {name: 0.0 for name in JOINTS}
     pelvis_rad = math.atan2(BALL + HEEL, THIGH)
     out.update(spine=round(math.degrees(0.25 * math.pi)),
@@ -420,18 +431,24 @@ def squat(arm=(35.0, 70.0, 10.0, 30.0)):
     turn = rx(pelvis_rad)
     yp = ANKLE_H + HIP_DROP + (THIGH + SHANK) * math.sin(pelvis_rad)
     xa, zp = HIP_HALF - 3.0 * PAD_M, -HEEL
-    seg_shares = {s[0]: (s[5], s[6]) for s in SEGMENTS}
     for _ in range(6):
         for side, sgn in (('left', 1.0), ('right', -1.0)):
             angles = leg(sgn, (0.0, yp, zp), turn, (sgn * xa, ANKLE_H, 0.0), IDENT)
             for k, a in zip(LEG, angles):
                 out[side + k] = round(math.degrees(a), 3)
-        placed = frames(out, (0.0, yp, zp), turn)
-        cz = sum(w * add(placed[n][0], apply(placed[n][1], c))[2] for n, (w, c) in seg_shares.items())
-        zp += 0.5 * (BALL - HEEL) - cz
+        zp += 0.5 * (BALL - HEEL) - com(out, (0.0, yp, zp), turn)[2]
     return out
 
 
-#: The robot's deep squat, deg: what of it touches in it is kept apart as what touches standing
-#: (`machine.body.mjcf`).
-SQUAT = ({joint: float(deg) for joint, deg in _F['squat'].items()} if 'squat' in _F else squat())
+@functools.cache
+def _squatted():
+    return {joint: float(deg) for joint, deg in _F['squat'].items()} if 'squat' in _F else squat()
+
+
+def __getattr__(name):
+    """SQUAT, the robot's deep squat, deg (`squat`, laid at its first asking: on the robot as built, the
+    build the figure's own): what of it touches in it is kept apart as what touches standing
+    (`machine.body.mjcf`)."""
+    if name == 'SQUAT':
+        return _squatted()
+    raise AttributeError(name)

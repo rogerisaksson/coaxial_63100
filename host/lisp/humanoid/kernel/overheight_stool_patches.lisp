@@ -31,7 +31,7 @@
       (specialize-vault-hand-anchor-topology :anchor-style :lateral-seat-rim-cup :seat-width-mm 340.0)
       (specialize-vault-for-light-tippy-stool :estimated-stool-mass-kg 5.0 :base-radius-mm 200.0)
       (specialize-vault-abort-to-plantar-drop)
-      (specialize-with-stool-active-core-balance :seat-diameter-mm 340.0)
+      (specialize-with-stool-active-core-balance :seat-diameter-mm 355.0) ; the robot's own, its ischia 12 % inside (320.0)
       (release-impedance-wavefront :terminal-mode :seated-active-rest)
       (limiter-high-mu-planar)
       (master-anti-spasm-insert)))
@@ -41,7 +41,7 @@
   (-> seated-high-stool-state
       ;; Anchor hands on seat corners, scoot buttocks 55mm past front bevel, lower pelvis
       ;; vertically via eccentric triceps dip until plantarflexed toes catch the floor, then stand!
-      (xform-overheight-arm-dip-egress :dip-lowering-speed-mps 0.15 :max-dip-travel-mm 163.0) ; the robot's dip
+      (xform-overheight-arm-dip-egress :dip-lowering-speed-mps 0.15 :max-dip-travel-mm 162.0) ; the robot's dip
       (specialize-vault-hand-anchor-topology :anchor-style :flat-carpal-beside-hips :seat-width-mm 340.0)
       (specialize-vault-for-light-tippy-stool :estimated-stool-mass-kg 5.0 :base-radius-mm 200.0)
       (specialize-dip-egress-with-footrest-rung)

@@ -144,6 +144,11 @@ def followed():
 #: there is held too: a shoe under a hem. Of what stands past a girt slab no more is held: an
 #: arm bent into a hip is the pose's.
 SLAB_M, WAYS, OF, OUT_M, FAR_M = 0.02, 24, 18, 0.006, 0.25
+#: The furthest cloth a point's way is told about the point - a slab long, a way wide, centred on it,
+#: in FINE parts of each -, not in the slab and the way it falls in: a seat's skin 19 mm inside its
+#: jeans' reach within 10 mm and 7.5 deg of it read 9.2 mm out of them in a squat, a slab's end on it,
+#: and 0.25 mm in where a turn of the hips 0.5 deg away moved it 0.4 mm.
+FINE = 8
 #: Cloth tears where an edge of it grows past TORN times its own length - its length standing
 #: times how folded its corners lie there (a likeness's: its uv's second, `likeness.worn`), a
 #: dot's at the least (`shapes.DENSE_M`): in the tried poses a bend stretched one 4.4 times at
@@ -184,22 +189,35 @@ def _boned(body, frames):
 def girded(cover, joint, way):
     """`told(points)` -> (within, past, edge, beyond) about the bone from `joint` along `way`:
     whether each of `points` stands in a slab the cloth `cover` (m, 3) girds with both its
-    neighbours (SLAB_M, OF of WAYS ways within FAR_M), how far past the furthest cloth its way it
-    reaches, m (-inf with none that way); whether it stands by a girt run's end instead - its
-    last slab or the one past it -, and how far past the furthest cloth its way in its slab and
-    the two beside it (inf with none)."""
+    neighbours (SLAB_M, OF of WAYS ways within FAR_M), how far past the furthest cloth its way
+    about it reaches (FINE), m (-inf with none that way); whether it stands by a girt run's end
+    instead - its last slab or the one past it -, and how far past the furthest cloth its way in
+    its slab and the two beside it (inf with none)."""
     n = int(2.0 / SLAB_M)
     aside = np.cross(way, (0.0, 0.0, 1.0) if abs(way[2]) < 0.9 else (1.0, 0.0, 0.0))
     aside = aside / np.linalg.norm(aside)
 
-    def laid(points):
+    def laid(points, parts=1):
         off = points - joint
         t, x, z = off @ way, off @ aside, off @ np.cross(way, aside)
-        return (np.clip((t + 1.0) / SLAB_M, 0, n - 1).astype(int),
-                np.floor(np.arctan2(z, x) / (2.0 * math.pi) * WAYS).astype(int) % WAYS, np.hypot(x, z))
-    slab, ways, reach = laid(np.asarray(cover, float).reshape(-1, 3))
-    far = np.full((n, WAYS), -np.inf)
-    np.maximum.at(far, (slab[reach < FAR_M], ways[reach < FAR_M]), reach[reach < FAR_M])
+        return (np.clip((t + 1.0) / SLAB_M * parts, 0, n * parts - 1).astype(int),
+                np.floor(np.arctan2(z, x) / (2.0 * math.pi) * WAYS * parts).astype(int) % (WAYS * parts), np.hypot(x, z))
+
+    def furthest(points, parts):
+        slab, ways, reach = laid(points, parts)
+        out = np.full((n * parts, WAYS * parts), -np.inf)
+        np.maximum.at(out, (slab[reach < FAR_M], ways[reach < FAR_M]), reach[reach < FAR_M])
+        return out
+    cover = np.asarray(cover, float).reshape(-1, 3)
+    far, about = furthest(cover, 1), furthest(cover, FINE)
+    for axis in (0, 1):                    # about each part, half a slab and half a way each side of it
+        spread = about.copy()
+        for step in [s for k in range(1, FINE // 2 + 1) for s in (k, -k)]:
+            moved = np.roll(about, step, axis=axis)
+            if axis == 0:                  # the bone's two ends are no neighbours
+                moved[(slice(None, step) if step > 0 else slice(step, None))] = -np.inf
+            spread = np.maximum(spread, moved)
+        about = spread
     girt = np.isfinite(far).sum(axis=1) >= OF
     within = girt & np.roll(girt, 1) & np.roll(girt, -1)
     edge = (girt | np.roll(girt, 1) | np.roll(girt, -1)) & ~within
@@ -207,7 +225,8 @@ def girded(cover, joint, way):
 
     def told(points):
         slab, ways, reach = laid(points)
-        return (within[slab], np.where(np.isfinite(far[slab, ways]), reach - far[slab, ways], -np.inf), edge[slab],
+        fine, round_, _reach = laid(points, FINE)
+        return (within[slab], np.where(np.isfinite(about[fine, round_]), reach - about[fine, round_], -np.inf), edge[slab],
                 np.where(np.isfinite(near[slab, ways]), reach - near[slab, ways], np.inf))
     return told
 

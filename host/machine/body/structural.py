@@ -1,4 +1,4 @@
-"""Static compliance of the robot's skeleton, linkages and carbon ankle leaf."""
+"""Static compliance of the robot's skeleton, linkages and carbon ankle leaf; its chassis' masses."""
 import math
 
 from machine.body import linkage, mechatronics, skeleton
@@ -20,6 +20,8 @@ PLATE_W, CROWN_W = float(_SHELL['plate_w_m']), float(_SHELL['crown_w_m'])
 _MIN_WALL_M = float(_MAT['min_wall_m'])
 TUBES = tuple((float(d) / 2e3, float(t)) for d, t in _MAT['tubes']['stock'])
 ROOM, CF_KG_M3 = float(_SHELL['room_m']), float(_MAT['cf_kg_m3'])
+#: Steel, kg/m^3 (`materials.toml`): the spine roll's rods and a hip cradle's trunnions.
+STEEL_KG_M3 = float(_MAT['steel_kg_m3'])
 #: Series structural load path from each joint kind's gearbox to its driven segment.
 PATH = {
     'spine': ('spine frame 0', 'pelvis frame 0'),
@@ -129,6 +131,54 @@ def members(peak=None):
         out.append(('%s rod' % kind, 'pull', length, pull,
                     (math.pi * linkage.ROD_R ** 4 / 4.0, 0.0, math.pi * linkage.ROD_R ** 2), ROD, 0.0))
     return out
+
+
+def _solid(r):
+    return math.pi * r ** 4 / 4.0, math.pi * r ** 4 / 2.0, math.pi * r * r
+
+
+def _piece(a, b, section, kg_m3):
+    """(kg, centre, 3x3 inertia about it) of a straight member from `a` to `b` of `section` (I, J, A)."""
+    length, (_i, j, area) = math.dist(a, b), section
+    kg = area * length * kg_m3
+    w = tuple((q - p) / length for p, q in zip(a, b))
+    about, across = kg * j / area, kg * (j / (2.0 * area) + length * length / 12.0)
+    return kg, tuple((p + q) / 2.0 for p, q in zip(a, b)), [
+        [(across if r == c else 0.0) + (about - across) * w[r] * w[c] for c in range(3)] for r in range(3)]
+
+
+def _ring(centre, axis, r, half):
+    """A ring `r` round and `half` either side of `centre` along `axis`: a stock tube's short length."""
+    return _piece(tuple(p - a * half for p, a in zip(centre, axis)), tuple(p + a * half for p, a in zip(centre, axis)),
+                  tube(r), CF_KG_M3)
+
+
+def chassis():
+    """[(body, kg, centre, 3x3 inertia about it)]: the chassis each segment or stage carries, its frame, sized
+    as `members` sizes it - each limb's bones, the trunk's frames and the boom stock tubes (`tube`), the spine
+    roll's rods solid steel, each hip's fork (its crown in plates) and its cradle (trunnions of solid steel), a
+    ring a tube's short length. A drive's collars and struts are its fasteners' (`drives`), the rods what a
+    limb holds (`build.HOLDS`)."""
+    out = []
+    for side, s in (('left_', 1.0), ('right_', -1.0)):
+        out += [(side + seg,) + _piece(a, b, tube(r), CF_KG_M3) for seg in skeleton.HUNG for a, b, r in skeleton.runs(seg, s)]
+        for stage in ('hip_yaw', 'hip_roll'):
+            tubes, rings = skeleton.gimbal(stage)
+            for k, (a, b, r) in enumerate(tubes):
+                a, b, crown = (s * a[0],) + tuple(a[1:]), (s * b[0],) + tuple(b[1:]), plate(2.0 * r, CROWN_W)
+                out.append((side + stage,) + (
+                    _piece(a, b, _solid(r), STEEL_KG_M3) if stage == 'hip_roll' else
+                    _piece(a, b, (crown, crown, 2.0 * r * CROWN_W) if k and r <= skeleton.CROWN_R else tube(r), CF_KG_M3)))
+            out += [(side + stage,) + _ring((s * c[0],) + tuple(c[1:]), skeleton.AXES[axis], r, half)
+                    for c, axis, r, half in rings]
+    for frame, (runs, rings) in skeleton.TRUNK.items():
+        for k, pts in enumerate(runs):
+            r = skeleton.TRUNK_R[frame][min(k, len(skeleton.TRUNK_R[frame]) - 1)]
+            section, kg_m3 = (_solid(r), STEEL_KG_M3) if frame == 'spine_roll' else (tube(r), CF_KG_M3)
+            out += [(frame,) + _piece(a, b, section, kg_m3) for a, b in zip(pts, pts[1:])]
+        out += [(frame,) + _ring(c, skeleton.AXES[axis], r, half) for c, axis, r, half in rings]
+    r, pts = skeleton.BOOM
+    return out + [('pelvis',) + _piece(a, b, tube(r), CF_KG_M3) for a, b in zip(pts, pts[1:])]
 
 
 def judge(_name, kind, length, load, section, material, c):

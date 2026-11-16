@@ -5,6 +5,7 @@ ankles' bent rods and cranks, the hip rolls' spur pairs and the belts; the robot
 weight (`build.segments`).
 
     skeleton.bodies()           # [(body, segment it rides, [geom xml])], each geom in its frame
+    skeleton.cans()             # [(joint, rides, centre, axis, radius, half)]: the drives' stacks
     skeleton.owners(model)      # {body id: segment}: the robot's segments and what rides each
     skeleton.overlapping(model) # [(body, body)]: touching standing, so by design
 
@@ -194,15 +195,23 @@ def _rod(side, kind):
     return seg, hub, pin, linkage.bent(kind, pin, ball, (s, 0.0, 0.0), s), ball
 
 
-def bodies():
-    """[(body, segment it rides, [geom xml])]: the robot's skeleton's parts, each its own welded body."""
+def cans():
+    """[(joint, segment or stage it rides, centre, axis, radius, half)]: each drive's stack part by part
+    (`drives.along`), a cylinder about its axis where `build.riders` puts the drive."""
     out = []
     for joint, rides, at, axis in _drums():
         end = drives.toward(joint, axis)
-        out.append((joint + '_drum', rides, [
-            _geom('cylinder', r, *_along(tuple(p + end * a * c for p, a in zip(at, AXES[axis])),
-                                         AXES[axis], long / 2.0))
-            for _part, r, c, long in drives.along(joint)]))
+        out += [(joint, rides, tuple(p + end * a * c for p, a in zip(at, AXES[axis])), AXES[axis], r, long / 2.0)
+                for _part, r, c, long in drives.along(joint)]
+    return out
+
+
+def bodies():
+    """[(body, segment it rides, [geom xml])]: the robot's skeleton's parts, each its own welded body."""
+    out, laid = [], cans()
+    for joint, rides, _at, _axis in _drums():
+        out.append((joint + '_drum', rides, [_geom('cylinder', r, *_along(centre, axis, half))
+                                             for j, _r, centre, axis, r, half in laid if j == joint]))
     for joint, (seg, at, _kg, radius, faces) in drives.boards().items():
         out.append((joint + '_board', seg, [_geom('cylinder', radius,
                                                   *_along(at, AXES[faces],
