@@ -11,7 +11,7 @@ it froze mid-descent at 0.505 m - so a seat asking its pelvis under its
 legs' floor is refused by name (`maneuver.text`): top + its ischia's 0.128
 (`figure`'s seat capsules) against `figure.pelvis_at` at the knee drive's
 154.7 deg, 0.299 m; the bed's 0.44 plays (0.568), the floor mattress
-refuses (0.132) till the deep landing (item 13). A stunt said with nothing
+refuses (0.132) till the deep landing (item 12). A stunt said with nothing
 among the robot's things looks till a sighting is its own and refuses with none:
 unseen, the patch's default 0.45 m seat played a descent onto nothing. The
 mattress scenario holds the refusal; the bed scenario's miss (rolled 10.8
@@ -27,7 +27,7 @@ window's rest the laying transient's own scale (934 deg/s, 1 219 N against the
 passive transient's 1 420, 2 936). The rise from the floor stays open: the
 suite's wake patch at seat 0 compiles targets past the modes' own range and the
 loop refuses them (compression 6.62, sagittal -2.06) - a floor rise is a new
-patch over the tibial keel and carpal manifolds (kneel, half-knee), item 13's
+patch over the tibial keel and carpal manifolds (kneel, half-knee), item 12's
 landing its other half.
 
 ## The rise's true dependency
@@ -49,7 +49,7 @@ the support buses (plantar, ischial, trochanter-lateral, scapular-dorsal,
 occipital, palmar). The floor rise's chain, each measured: supine (quiet,
 drives let go) -> roll on the trochanter (the pendulum act, in range) ->
 no path below pelvis 0.51 without the equinus redistribution or a tibial
-(kneeling) bus - item 13's deep landing is the same dependency from above.
+(kneeling) bus - item 12's deep landing is the same dependency from above.
 
 ## The robot lies down where it stands
 

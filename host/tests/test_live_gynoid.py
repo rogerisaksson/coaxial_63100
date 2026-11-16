@@ -161,8 +161,8 @@ def test_nothing_the_robot_can_do_moves_nothing(report):
 
 
 def test_rise_from_the_floor_refused_by_name(report):
-    """'res dig' lying on the floor: the rise said and refused by name - the robot's legs' floor, item 13 -,
-    it lies on, quiet."""
+    """'res dig' lying on the floor: the rise said and refused by name - the robot's legs' floor, the deep landing
+    (protocol item 12) -, the robot lies on, quiet."""
     import numpy as np
     from machine.process import sprung
     case = 'rise from the floor refused by name'
@@ -171,7 +171,7 @@ def test_rise_from_the_floor_refused_by_name(report):
     s, _st, sent = _said('res dig', before=({'say': 'lie_floor'},), lead_s=12.0)
     _steps(s, 3.0)
     d = s['g']['world'].data
-    report.check(case, sent == [{'say': 'rise_floor'}] and 'item 13' in (s.get('refused') or '')
+    report.check(case, sent == [{'say': 'rise_floor'}] and 'the deep landing' in (s.get('refused') or '')
                  and sprung.doing(s['g']) == 'floor_rest' and float(np.abs(d.qvel[6:]).max()) < math.radians(30.0),
                  'sent %s, refused %r, doing %s' % (sent, (s.get('refused') or '')[:80], sprung.doing(s['g'])))
 
