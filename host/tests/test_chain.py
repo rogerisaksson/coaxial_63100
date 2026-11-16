@@ -128,17 +128,21 @@ def test_the_chain_step_in_c_is_the_steps(report):
     report.check("the QP turns the robot's pelvis the asked way through its drives and the contacts it holds",
                  turned < 1.0, 'the turn short of the ask by %.2f at worst' % turned)
     # told a twist, the robot's seat slides at its friction's edge against the way told and still bears the robot, the
-    # robot's hands beside it
+    # robot's hands beside it each midway between what holds them (`regime.hold`) and what drives the seat's whole brake
+    # (their friction's share of the robot, mu / (mu + anchor), the two): the seat unloads to their balance, no further.
+    # At a tenth of the robot each the hands fell under the hold as the guards lightened it (29.0 of 30 N): never held,
+    # they drove nothing and the seat unloaded to 45 %
     left, up, way = chain.ways(still['turns'][0]['quat'])
     weight, sled = float(b.m.body_subtreemass[b.m.body('pelvis').id]) * 9.81, []
-    for name, off, share, patch in ([('pelvis', s * 0.07 * left - 0.08 * up - 0.03 * way, 0.40, 0) for s in (1.0, -1.0)]
-                                    + [(n, np.zeros(3), 0.10, 6 + 3 * k) for k, n in enumerate(('left_hand', 'right_hand'))]):
+    hand = (regime.hold + weight * regime.mu / (2.0 * (regime.mu + regime.anchor))) / 2.0
+    for name, off, bears, patch in ([('pelvis', s * 0.07 * left - 0.08 * up - 0.03 * way, weight / 2.0 - hand, 0) for s in (1.0, -1.0)]
+                                    + [(n, np.zeros(3), hand, 6 + 3 * k) for k, n in enumerate(('left_hand', 'right_hand'))]):
         body = b.m.body(name).id
         p = b.d.xpos[body] + off
         b.mj.mj_jac(b.m, b.d, jp, jr, p, body)
         J = jp[:, :b.n].copy()
         b.mj.mj_jacDot(b.m, b.d, jp, jr, p, body)
-        sled.append({'p': p, 'f': share * weight * up, 'n': up, 'J': J, 'dJv': jp[:, :b.n] @ still['v'], 'patch': patch, 'side': 0, 'body': body})
+        sled.append({'p': p, 'f': bears * up, 'n': up, 'J': J, 'dJv': jp[:, :b.n] @ still['v'], 'patch': patch, 'side': 0, 'body': body})
     seats, apart = [], 0.0
     for vx in (0.0, 0.3):
         sc, sat = dict(still, contacts=sled), dict(ask, turns=tuple(t['quat'] for t in still['turns']), swing={}, posture=still['q'].copy(),
