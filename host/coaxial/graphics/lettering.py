@@ -6,12 +6,13 @@ CAP_M high: the runs of its ink, a raster's row at a time (`lettered`), laid acr
 header of a limb's guard and on the back's plate (`guards`) from an anchor on it, a triangle of
 its rim. A run's
 end is told by that triangle - along its two edges and off it - and carried by it as the
-body is posed (`marks.layers`). A label is drawn from the scale its cap is LEGIBLE dots high
-at: from afar a guard wears none. Lettered across a body's every limb in caps a limb wide, a
-name was smeared over it; a word laid on its side down a limb, a cap 8 dots high, read as a
-box. The faces are the host's, never the tree's.
+body is posed (`marks.layers`): read only where its joint's drive fills the view, and short of
+that its box filtered to its tone - as much of it as its ink covers. Lettered across a body's
+every limb in caps a limb wide, a name was smeared over it; a word laid on its side down a
+limb, a cap 8 dots high, read as a box; read from 7 dots a cap, medium braille text was
+clutter over the guards. The faces are the host's, never the tree's.
 
-    told = lettering.laid(parts, spans)     # (tri (n, 3), a (n, 3), b (n, 3), way (n,), least (n,)) or None
+    told = lettering.laid(parts, spans)     # (tri, a, b (n, 3) each, way, size, kind, tone (n,)) or None
 """
 import math
 import os
@@ -26,9 +27,10 @@ from machine.body import drives
 FOLDERS = ('%LOCALAPPDATA%/Microsoft/Windows/Fonts', '%WINDIR%/Fonts', '~/.fonts', '~/.local/share/fonts',
            '/usr/share/fonts', '/usr/local/share/fonts', '~/Library/Fonts', '/Library/Fonts')
 FACES = {'latin': ('eurostile',), 'kana': ('yugothb', 'meiryob', 'msgothic', 'notosanscjk', 'notosansjp', 'ipag', 'takao')}
-#: A cap CAP_M high and RASTER rows of it, as tall as LIKE in its face; a label LIFT_M off its
-#: header, its words GAP of a cap apart, drawn where a cap is LEGIBLE dots high.
-CAP_M, RASTER, LIFT_M, GAP, LEGIBLE = 0.016, 12, 0.002, 0.5, 7.0
+#: A cap CAP_M high and RASTER rows of it, as tall as LIKE in its face - read where a drive fills
+#: the view, a cap stands 30 to 65 dots high, a row a dot at the most: at 12 rows a glyph stood
+#: in stripes -; a label LIFT_M off its header, its words GAP of a cap apart.
+CAP_M, RASTER, LIFT_M, GAP = 0.016, 64, 0.002, 0.5
 LIKE = {'latin': 'H', 'kana': '\u30ed'}
 #: A guard's label by the end of its segment's name: the joint its drive turns and the joint in
 #: katakana - kata, hiji, koshi, hiza, senaka. Across its header stands the drive's type, and the
@@ -95,14 +97,16 @@ def lettered(word, kind='latin'):
 
 
 def laid(parts, spans):
-    """(tri (n, 3), a (n, 3), b (n, 3), way (n,), least (n,)): the lettering of the guards among
-    `parts` [(name, parent, joints, offset, rest, mesh)] ('guard_' and a limb or the trunk:
-    `guards.laid`'s), `spans` each part's corners among all laid end to end. A run of ink goes
-    from `a` to `b`, each told by its anchor `tri` - three corners of the guard's header's rim:
-    along its first edge, along its second, off it out of the guard, `way` 1 where its corners'
-    turn faces out and -1 where in -, drawn from the scale `least`. Across a guard's header
-    (LABELS) stand its joint's drive's type (`drives.of`) and the joint's name in katakana,
-    read from without; None where nothing is lettered."""
+    """(tri (n, 3), a (n, 3), b (n, 3), way (n,), size (n,), kind (n,), tone (n,)): the lettering
+    of the guards among `parts` [(name, parent, joints, offset, rest, mesh)] ('guard_' and a limb
+    or the trunk: `guards.laid`'s), `spans` each part's corners among all laid end to end. A run
+    goes from `a` to `b`, each told by its anchor `tri` - three corners of the guard's header's
+    rim: along its first edge, along its second, off it out of the guard, `way` 1 where its
+    corners' turn faces out and -1 where in -, `size` its joint's drive's diameter, m, what reads
+    it (`marks.read`), `kind` 0 a glyph's ink and 1 a row of its label's box - a raster's row a
+    row, across the label -, `tone` the share of its label's box its ink covers. Across a guard's
+    header (LABELS) stand its joint's drive's type (`drives.of`) and the joint's name in
+    katakana, read from without; None where nothing is lettered."""
     from coaxial.model.blocks import numpy as np
     rows = []
     for (name, _parent, _joints, _offset, _rest, (corners, triangles, _uv, materials)), (start, _end) in zip(parts, spans):
@@ -147,11 +151,18 @@ def laid(parts, spans):
         up = np.array([0.0, 1.0, 0.0]) - out[1] * out                  # up the limb, along the header there
         up = up / np.linalg.norm(up)
         across, at = np.cross(up, out), mid[k] + LIFT_M * out
-        col, ends = -(sum(wide for _runs, wide in told) + GAP * RASTER * (len(told) - 1)) / 2.0, ([], [])
+        half = (sum(wide for _runs, wide in told) + GAP * RASTER * (len(told) - 1)) / 2.0
+        col, ends, kinds, inked = -half, ([], []), [], 0.0
         for runs, wide in told:                # a word beside the last, read from without
             for c in (0, 1):
                 ends[c].append(at + scale * (np.outer(col + runs[:, 1 + c], across) + np.outer(RASTER / 2.0 - runs[:, 0] - 0.5, up)))
-            col += wide + GAP * RASTER
+            col, kinds, inked = col + wide + GAP * RASTER, kinds + [0] * len(runs), inked + float((runs[:, 2] - runs[:, 1]).sum())
+        box = RASTER / 2.0 - np.arange(RASTER) - 0.5                  # its box: a row of it each row of a glyph
+        for c, x in ((0, -half), (1, half)):
+            ends[c].append(at + scale * (np.outer(np.full(RASTER, x), across) + np.outer(box, up)))
+        kinds += [1] * RASTER
         a, b = (np.linalg.solve(np.stack([e1, e2, out], 1), (np.vstack(ends[c]) - p).T).T for c in (0, 1))
-        rows.append((np.tile(triangles[k] + start, (len(a), 1)), a, b, np.full(len(a), way), np.full(len(a), LEGIBLE / (CAP_M * shrink))))
-    return tuple(np.concatenate([row[i] for row in rows]) for i in range(5)) if rows else None
+        rows.append((np.tile(triangles[k] + start, (len(a), 1)), a, b, np.full(len(a), way),
+                     np.full(len(a), drives.of(joint)[1].diameter), np.array(kinds),
+                     np.full(len(a), inked / (2.0 * half * RASTER))))
+    return tuple(np.concatenate([row[i] for row in rows]) for i in range(7)) if rows else None

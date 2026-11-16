@@ -74,6 +74,19 @@ def test_carbon_and_hard_shells_drawn_through_their_screens(report):
     alone, over = (int(folded(255, 255, [(mark, (0, 255, 0), how)])[8:12, 4:6].sum()) for how in (lit.ALONE, True))
     report.check('a mark is alone in its cell: of a lit cell its one dot drawn; a prop over all leaves the cell lit',
                  (alone, over) == (1, 8), '%d dot alone, %d over' % (alone, over))
+    share = np.zeros(depth.shape)
+    share[4:8, 2:4] = 0.5                              # the cell at row 1, column 1, all its dots half
+    rgb = np.full(depth.shape + (4,), 96, np.uint8)
+    rgb[..., 3] = 224
+    plain, tinted = (lit.braille(depth, rgb, np.zeros(depth.shape), wide, high, props=props) for props in ([], [(share, (232, 232, 232), lit.TINT)]))
+    inks = [[fg for _ch, fg, _bg in row] for row in lit.ansi.parse('\n'.join(tinted))]
+    base = [[fg for _ch, fg, _bg in row] for row in lit.ansi.parse('\n'.join(plain))]
+    dots = [[ch for ch, _fg, _bg in row] for row in lit.ansi.parse('\n'.join(tinted))] == [[ch for ch, _fg, _bg in row] for row in lit.ansi.parse('\n'.join(plain))]
+    report.check("a TINT prop lights no dot and draws its cells toward its ink by its mean over them: half of each dot, "
+                 "half the way; a cell it covers not, as it was",
+                 dots and abs(inks[1][1][0] - (base[1][1][0] + 0.5 * (232 - base[1][1][0]))) <= lit.INK_STEP
+                 and inks[1][1][0] > base[1][1][0] and inks[3][5] == base[3][5],
+                 '%s tinted, %s plain' % (inks[1][1], base[1][1]))
 
 
 def _mannequin(path, crown=1.75):

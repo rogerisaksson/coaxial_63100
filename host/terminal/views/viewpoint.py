@@ -16,9 +16,24 @@ from coaxial.graphics import engine, gynoid
 from terminal.ui import console
 
 #: Where it starts - straight behind the robot (`yaw` 180°), tipped down a little -, degrees a
-#: key turns it, the orbit's degrees a second, the zoom's bounds: at 8 a knee's linkage fills it.
-YAW, PITCH, TURN_DEG, ORBIT_DEG_S, ZOOM = 180.0, 8.0, 10.0, 12.0, (0.6, 8.0)
+#: key turns it, the orbit's degrees a second, a key's zoom step.
+YAW, PITCH, TURN_DEG, ORBIT_DEG_S, STEP = 180.0, 8.0, 10.0, 12.0, 1.1
 HOME = {'yaw': YAW, 'pitch': PITCH, 'zoom': 1.0, 'pan': (0.0, 0.0), 'shoulder': 1.0}
+
+
+def _closest():
+    """The zoom's top: two of a key's steps past where the robot's smallest drive spans the view's
+    shorter side, however the view is laid - where a guard's lettering is read (`marks.read`).
+    At 8 a knee's linkage filled the view and no label could be read."""
+    from machine.body import drives, figure
+    least = min(drives.of(joint)[1].diameter for seg in figure.SEGMENTS for joint, _axis, _sign in seg[2]
+                if not drives.passive(joint))
+    views = (engine.fine(engine.camera(w, h, gynoid.REACH, distance=gynoid.DISTANCE)) for w, h in ((4, 1), (1, 4)))
+    return max(min(cam['width'], cam['height']) * cam['distance'] / cam['scale'] for cam in views) / least * STEP ** 2
+
+
+#: The zoom's bounds.
+ZOOM = (0.6, _closest())
 
 #: A left drag's degrees a cell across and a row down; the tip's bounds, deg.
 DRAG_DEG, TIP_DEG = (2.0, 4.0), (-30.0, 85.0)

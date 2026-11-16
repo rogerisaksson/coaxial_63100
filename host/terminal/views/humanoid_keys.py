@@ -47,7 +47,8 @@ HEADER = (['t', 'stage', 'yaw', 'speed', 'phase', 'left_load', 'right_load',
 CALLING, SHOWN, SKINS = ('strong', 'all', 'none'), ('torque', 'power', 'temp'), ('dressed', 'shell', 'mechanism', 'actuators')
 _CYCLES = {'l': ('called', CALLING), 't': ('shown', SHOWN)}
 #: The view's steps: an arrow's turn, deg, round the robot; a key's zoom.
-_LOOKS, _ZOOMS = {'left': -viewpoint.TURN_DEG, 'right': viewpoint.TURN_DEG}, {'+': 1.1, '=': 1.1, '-': 1 / 1.1, '_': 1 / 1.1}
+_LOOKS = {'left': -viewpoint.TURN_DEG, 'right': viewpoint.TURN_DEG}
+_ZOOMS = {'+': viewpoint.STEP, '=': viewpoint.STEP, '-': 1 / viewpoint.STEP, '_': 1 / viewpoint.STEP}
 #: The scenes' keys, each the step through `floor.SCENARIOS` it takes - Enter the one the robot is in.
 _SCENES = {'[': -1, ']': 1, ',': 1, '<': 1, '\r': 0, '\n': 0}
 #: The function keys, F1 the first balloon's.

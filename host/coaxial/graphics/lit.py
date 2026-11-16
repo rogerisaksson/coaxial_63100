@@ -29,8 +29,11 @@ from machine.rig import ansi
 MESH, SKIN, PLATE, CORE = 0, 1, 2, 3
 PAINTED, WOVEN, UNDER, TWILL, HARD = 1 << 24, 1 << 25, 1 << 26, 1 << 27, 1 << 28
 LAYER_M, GLOSS, GLINT, SHEEN, HARD_RIM = 0.03, 0.9, 160.0, (0.6, 28.0), 0.3
-#: A prop drawn over all and alone in its cells (`braille`'s props): a mark on a shell.
-ALONE = 2
+#: A prop drawn over all and alone in its cells (`braille`'s props): a mark on a shell. TINT, a
+#: prop of coverage - 0 to 1 a dot - that lights no dot and tints its cells toward its ink by
+#: how much of them it covers: a mark too fine for the dots, filtered as a texture's coarse
+#: level is - drawn a dot at a time, text at a few dots a cap was clutter.
+ALONE, TINT = 2, 3
 
 
 def paint(rgb, woven=False, twill=False, hard=False):
@@ -230,12 +233,15 @@ def braille(depth, rgb, floor, width, height, colour=True, overlay=None, leaders
     (`_towed`) -, the silhouette and every depth step always; the floor's dots where nothing covers it, the `leaders`' dots and the `props`'
     [(dots, ink[, over])] in their inks - an ink, or one a cell, (height, width, 3) -, where
     nothing covers them or, `over`, whatever does (a force's arrow), ALONE in their cells where
-    `over` is that: nothing else of what is lit drawn there (a shell's mark); the `overlay`'s
+    `over` is that: nothing else of what is lit drawn there (a shell's mark), and TINT a cell's
+    ink toward theirs by their mean over it, lighting none (a mark too fine to draw); the `overlay`'s
     cells {(row, col): (codepoint, key)} over all (`callouts`). Lines, ANSI where `colour`."""
     np, _k, _f, _h, _p, _bits, floor_ink, leader_ink = _const()
     covered = depth > 0.0
     over, alone = np.zeros_like(covered), None
     for dots, _ink, *on_top in props:
+        if on_top and on_top[0] == TINT:
+            continue
         if on_top and on_top[0]:
             over = over | dots
             if on_top[0] == ALONE:
@@ -297,6 +303,11 @@ def braille(depth, rgb, floor, width, height, colour=True, overlay=None, leaders
     led = (led[:, 0::2] | led[:, 1::2]) & no_hit
     ink = np.where(led[..., None], leader_ink, ink)
     for dots, prop_ink, *on_top in props:
+        if on_top and on_top[0] == TINT:       # toward its ink by its mean over each cell, on what is lit
+            c4 = dots[0::4] + dots[1::4] + dots[2::4] + dots[3::4]
+            share = (c4[:, 0::2] + c4[:, 1::2]) / float(DOTS_X * DOTS_Y) * (hits > 0)
+            ink = ink + share[..., None] * (np.asarray(prop_ink, float) - ink)
+            continue
         d4 = dots[0::4] | dots[1::4] | dots[2::4] | dots[3::4]
         on = d4[:, 0::2] | d4[:, 1::2]
         on = on if on_top and on_top[0] else on & no_hit

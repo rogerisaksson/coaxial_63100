@@ -165,9 +165,19 @@ board's findings: [FINDINGS](../FINDINGS.md).
   way first and the type alone is drawn smaller - an upper arm's, 12 mm.
   Lettered down the thighs alone, the label faced away from the page's
   own view, from behind; a header on the back's guard lay under the hair.
-- A label is drawn from the scale a cap is 7 dots high at, 437 dots a
-  metre at 16 mm, about 600 at 12: none from afar - the page stands at
-  some 100 -, up close alone.
+- A label is read only where its joint's drive spans the view's shorter
+  side - its can fills the view (`marks.read`): on the page at a zoom of
+  21 to 23, a cap 30 to 65 dots high, its glyphs a raster of 64 rows a cap
+  so they stand solid; at 12 rows, a row 2 to 5 dots apart, a glyph stood
+  in stripes. Short of that its box is filtered to its tone, as a
+  texture's coarse level is (`lit.TINT`): the cells under it drawn toward
+  its ink by the share of the box its ink covers, 0.28 to 0.48 - a lighter
+  smudge on the header, no glyph. Drawn from 7 dots a cap, braille text at
+  medium sizes was clutter over the guards; three sparse lines in a
+  lighter ink over its box were lost on the rim. The page zooms to 35.5,
+  two of a key's steps past where its smallest drive fills the view
+  (`viewpoint.ZOOM`): at its old top of 8 a knee's linkage filled the view
+  and no label could be read.
   Lettered across every limb in caps a limb wide the robot's name was
   smeared over it; a word laid on its side down a limb, a cap 8 dots
   high, read as a box.
