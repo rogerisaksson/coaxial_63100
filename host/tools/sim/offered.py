@@ -3,6 +3,7 @@
 
     python tools/sim/offered.py                          # the chair: headings x walks about the test's own
     python tools/sim/offered.py bed door --jobs 4        # those
+    python tools/sim/offered.py bed --rise               # the bed's lie and the rise from it, as the test judges
     python tools/sim/offered.py --against C:/sources/coaxial_ab     # each run on another tree too, beside
 
 The robot's session in the lodge walked toward a thing at a heading for some seconds (OFFERED, the test's own), F's
@@ -33,6 +34,9 @@ SPREAD = ((-0.02, 0.0, 0.02), (-0.05, 0.0, 0.05))
 #: A run's commit, GB - its tree's private bytes 1.74 at most, measured -, and its wall over the robot's bound:
 #: 22.6 times its time measured alone, twice that beside others.
 COMMIT_GB, WALL_X = 1.8, 45.0
+#: The bed's rise as test_errands judges it: stood within RISE_S s, its soles bearing more than RISE_N N
+#: 0.5 s on, sure past RISE_SURE.
+RISE_S, RISE_N, RISE_SURE = 30.0, 250.0, 0.85
 
 
 def walked_up(label, hd0, walk_s, verb, goal_phase, sc, said=None):
@@ -103,15 +107,51 @@ def described(label, s, shown_prompt, max_prop):
         s['fallen_at'])
 
 
-def judged(label, hd0, walk_s):
-    """{label, heading, walk, met, t, detail, phases [[doing, t]]} of one run on this process's tree."""
+def rose(s, st, said=None):
+    """(whether, what) of the robot's rise from the bed as test_errands judges it after the lie: 0.8 s on, F's
+    first offer the bed's rise, said; within RISE_S its doing stands, and 0.5 s on its soles bear more than
+    RISE_N, it is sure past RISE_SURE and has not fallen."""
+    from machine.process import sprung, worker
+    from terminal.views import gym, humanoid_keys
+    from views_kit import typed
+    for _ in range(int(round(0.8 / worker.DT))):
+        worker.stepped(s)
+    st['now'] = worker.told(s)
+    prompt, on = gym.prompt(st), (gym.offered(st) or [('',) * 5])[0][4]
+    typed(humanoid_keys.PAD, 'f', st)
+    if st.get('choosing') is not None:
+        typed(humanoid_keys.PAD, 'f', st)
+    t0, stood, last = s['g']['t'], None, None
+    for _ in range(int(round((RISE_S + 0.5) / worker.DT))):
+        worker.stepped(s)
+        doing = sprung.doing(s['g'])
+        if doing != last:
+            last = doing
+            stood = stood if stood is not None or doing != 'stand' else s['g']['t'] - t0
+            if said is not None:
+                said(doing, float(s['g']['t']))
+    g = s['g']
+    loads, sure = float(sum(g['loads'])), float(g.get('surety', 1.0))
+    ok = (prompt == '[F1] rise bed' and on.startswith('bed ') and stood is not None and stood <= RISE_S
+          and loads > RISE_N and sure > RISE_SURE and s['fallen_at'] is None)
+    return ok, 'rise prompt=%r stood=%s loads=%.0f N sure=%.2f pelvis y=%.2f' % (
+        prompt, None if stood is None else round(stood, 2), loads, sure, float(g['world'].data.qpos[1]))
+
+
+def judged(label, hd0, walk_s, rise=False):
+    """{label, heading, walk, met, t, detail, phases [[doing, t]]} of one run on this process's tree; `rise` the
+    bed's rise after its lie too (`rose`)."""
     from terminal.views import scanner
     case = next(c for c in OFFERED if c[0] == label)
     phases = []
-    s, _st, shown, prompt, _asked, prop = walked_up(label, hd0, walk_s, case[3], case[4], scanner.VisionScanner(),
-                                                    lambda d, t: phases.append([d, round(t, 2)]))
-    return {'label': label, 'heading': hd0, 'walk': walk_s, 'met': bool(reached(label, case[4], s, shown, prop)),
-            't': round(float(s['g']['t']), 2), 'detail': described(label, s, prompt, prop), 'phases': phases}
+    s, st, shown, prompt, _asked, prop = walked_up(label, hd0, walk_s, case[3], case[4], scanner.VisionScanner(),
+                                                   lambda d, t: phases.append([d, round(t, 2)]))
+    met, detail = bool(reached(label, case[4], s, shown, prop)), described(label, s, prompt, prop)
+    if rise and label == 'bed' and met:
+        met, more = rose(s, st, lambda d, t: phases.append([d, round(t, 2)]))
+        detail += '; ' + more
+    return {'label': label, 'heading': hd0, 'walk': walk_s, 'met': met,
+            't': round(float(s['g']['t']), 2), 'detail': detail, 'phases': phases}
 
 
 def main(argv=None):
@@ -119,20 +159,21 @@ def main(argv=None):
     p.add_argument('labels', nargs='*', help='its things: chair, bed, door (the chair where none)')
     p.add_argument('--against', help='another tree (its root), each run there too')
     p.add_argument('--jobs', type=int, default=6, help='runs side by side (`tools.dev.focus.relay`)')
-    p.add_argument('--one', nargs=4, help=argparse.SUPPRESS)
+    p.add_argument('--rise', action='store_true', help='the bed\'s rise after its lie too, as test_errands judges it')
+    p.add_argument('--one', nargs=5, help=argparse.SUPPRESS)
     args = p.parse_args(argv)
     if args.one:
-        root, label, hd0, walk_s = args.one
+        root, label, hd0, walk_s, rise = args.one
         sys.path[:0] = [os.path.join(root, 'host'), os.path.join(root, 'host', 'tests')]
         os.environ['PYTHONPATH'] = os.path.join(root, 'host')
-        print('OFFERED ' + json.dumps(judged(label, float(hd0), float(walk_s))))
+        print('OFFERED ' + json.dumps(judged(label, float(hd0), float(walk_s), rise == '1')))
         return 0
     from machine.process import worker
     from tools.dev import focus
     trees = [os.path.dirname(HOST)] + ([os.path.abspath(args.against)] if args.against else [])
     work = [focus.Job('%s %s %+.2f %+.2f' % (os.path.basename(tree), c[0], dh, dw),
                       [sys.executable, '-X', 'utf8', os.path.abspath(__file__), '--one', tree, c[0], str(c[1] + dh),
-                       str(c[2] + dw)], COMMIT_GB, WALL_X * PASSES * worker.DT)
+                       str(c[2] + dw), '1' if args.rise else '0'], COMMIT_GB, WALL_X * (PASSES * worker.DT + RISE_S))
             for c in OFFERED if c[0] in (args.labels or ['chair']) for dh in SPREAD[0] for dw in SPREAD[1]
             for tree in trees]
     for job, text, _code, seconds in focus.relay(work, batons=args.jobs):
