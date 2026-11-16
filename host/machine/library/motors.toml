@@ -6,8 +6,8 @@
 # KV100 turns the knee 960 deg/s at 48 V where it asks 860-1007; KV85 would 816 - a joint's torque
 # times its speed over the pack's volts is its amps whatever the winding.
 
+# T-Motor U8 II Lite KV100
 [U8]
-name = "T-Motor U8 II Lite KV100"
 can_m = 0.0871
 height_m = 0.0270
 kg = 0.253
@@ -15,8 +15,8 @@ ohm = 0.1375
 peak_nm = 4.0
 kv = 100.0
 
+# T-Motor MN6007 II KV160
 [MN6007]
-name = "T-Motor MN6007 II KV160"
 can_m = 0.0672
 height_m = 0.0261
 kg = 0.159
@@ -29,8 +29,8 @@ kv = 160.0
 # `machine/humanoids`; the robot's own keeps the two above (motors cost, variants of boards and
 # gearboxes cost more).
 
+# T-Motor U8 Lite KV85
 [U8_LITE]
-name = "T-Motor U8 Lite KV85"
 can_m = 0.0870
 height_m = 0.0270
 kg = 0.243
@@ -38,8 +38,8 @@ ohm = 0.225
 peak_nm = 4.0
 kv = 85.0
 
+# CubeMars R80 KV110
 [R80]
-name = "CubeMars R80 KV110"
 can_m = 0.0870
 height_m = 0.0275
 kg = 0.354
@@ -47,8 +47,8 @@ ohm = 0.125
 peak_nm = 4.0
 kv = 110.0
 
+# CubeMars RO80 KV105, a kit
 [RO80]
-name = "CubeMars RO80 KV105, a kit"
 can_m = 0.0930
 height_m = 0.0260
 kg = 0.352
@@ -56,8 +56,8 @@ ohm = 0.120
 peak_nm = 4.0
 kv = 105.0
 
+# EaglePower LA8308 KV90
 [LA8308]
-name = "EaglePower LA8308 KV90"
 can_m = 0.0920
 height_m = 0.0285
 kg = 0.336
@@ -65,8 +65,8 @@ ohm = 0.186
 peak_nm = 3.5
 kv = 90.0
 
+# CubeMars R60 KV115
 [R60]
-name = "CubeMars R60 KV115"
 can_m = 0.0690
 height_m = 0.0260
 kg = 0.248
@@ -78,8 +78,8 @@ kv = 115.0
 # II's 7.9 N m is its page's test point at 48 V (94.3 A, 4742 rpm, 4.5 kW, 95 A for 180 s), the
 # U10 II's peak its stator's class (1.6 kW, 32 A for 180 s).
 
+# T-Motor U12 II KV120
 [U12]
-name = "T-Motor U12 II KV120"
 can_m = 0.1068
 height_m = 0.0476
 kg = 0.778
@@ -87,8 +87,8 @@ ohm = 0.022
 peak_nm = 7.9
 kv = 120.0
 
+# T-Motor U10 II KV100
 [U10]
-name = "T-Motor U10 II KV100"
 can_m = 0.0986
 height_m = 0.0331
 kg = 0.415
@@ -99,8 +99,8 @@ kv = 100.0
 # Direct-drive and geared aircraft outrunner (`aircraft.pull`, `aeroblocks`): 14 pole pairs,
 # phase resistance (ohm), q-axis inductance (H), PM flux linkage (V s), rotor inertia (kg m^2)
 # and bearing/windage viscous drag (N m s/rad).
+# Coaxial 63100 14P Outrunner
 [outrunner_63100_14p]
-name = "Coaxial 63100 14P Outrunner"
 can_m = 0.0630
 height_m = 0.1000
 kg = 0.310

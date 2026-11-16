@@ -4,7 +4,7 @@
 The world's gravity is stated in `world.toml` alone; a build compiled anew is the build its cache
 holds; an override moves the one number it names; a figure scaled keeps its angles and shares and
 moves its lengths no further than its scale; a joint dressed in nothing is bare; no compiled
-number is not a number; the values the specs state only fall.
+number is not a number; the values the specs state only fall; a build's drives are stated once.
 The rig held to the library: test_metacompiler_rig. The crafts' spec: test_metacompiler_crafts. The
 meta-compiler's cache keys and the generated files' texts: test_mirrors; the specs' own words:
 test_gynoid."""
@@ -190,10 +190,37 @@ def test_the_specs_inputs_only_fall(r):
     r.check("a ceiling is its spec's count: where a spec states fewer, the ceiling falls with it", not slack, slack)
 
 
+def test_a_builds_drives_are_stated_once(r):
+    """A build's `[drives]` lays every kind's stack: one gearbox and one inverter, a motor a group of kinds; a
+    variant's own lie on its base's, the kinds it names alone moved; a pack a mount."""
+    from machine.body import dclink, mechatronics
+    one = mechatronics._stacks({}, {'gearbox': 'B', 'inverter': 'I', 'motors': {'M': ['a', 'b'], 'N': ['c']}})
+    two = mechatronics._stacks(one, {'motors': {'P': ['b']}, 'gearboxes': {'A': ['b', 'c']}})
+    r.check('a motor a group of kinds, one gearbox and one inverter on each, in the kinds\' order',
+            list(one.items()) == [('a', ['M', 'B', 'I']), ('b', ['M', 'B', 'I']), ('c', ['N', 'B', 'I'])], one)
+    r.check('a variant moves the kinds it names alone, each in its place, its base as it was',
+            list(two.items()) == [('a', ['M', 'B', 'I']), ('b', ['P', 'A', 'I']), ('c', ['N', 'A', 'I'])]
+            and one['b'] == ['M', 'B', 'I'], two)
+    raw = {}
+    for name in mechatronics.robots():
+        with open(os.path.join(mechatronics.ROBOTS, name + '.toml'), 'rb') as f:
+            raw[name] = tomllib.load(f)
+    r.check('no build states a stack a kind, and none its packs\' count',
+            not [n for n, spec in raw.items() if 'stacks' in spec or 'packs' in spec.get('pack', {})], sorted(raw))
+    own, laid = raw[mechatronics.STOCK]['drives'], mechatronics.robot(mechatronics.STOCK)['stacks']
+    r.check('the robot\'s own build lays the kinds its motors name, each on the one gearbox and inverter the build states',
+            list(laid) == [kind for kinds in own['motors'].values() for kind in kinds]
+            and all(stack[1:] == [own['gearbox'], own['inverter']] for stack in laid.values()), laid)
+    pack = mechatronics.robot()['pack']
+    r.check('a pack a mount: the DC link counts its packs by them',
+            dclink.PACK_OHM == pack['series'] * pack['cell_ohm'] / pack['parallel'] / len(pack['mounts'])
+            and dclink.CHARGE_A == pack['cell_charge_a'] * pack['parallel'] * len(pack['mounts']), pack['mounts'])
+
+
 ROSTER = (test_the_worlds_gravity_is_stated_once, test_a_build_compiled_anew_is_its_cache,
           test_no_compiled_number_is_not_a_number, test_an_override_moves_the_number_it_names,
           test_a_scaled_figure_follows_similarity, test_a_joint_dressed_in_nothing_is_bare,
-          test_the_specs_inputs_only_fall)
+          test_the_specs_inputs_only_fall, test_a_builds_drives_are_stated_once)
 
 
 def main(argv=None):

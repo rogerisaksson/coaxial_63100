@@ -281,15 +281,15 @@ def test_the_robots_manifest_is_its_build(r):
     build, lib = mechatronics.robot(), mechatronics.library()
     r.check("each stack's motor, gearbox and inverter is the library's", all(
         named in lib[part] for stack in build['stacks'].values() for part, named in zip(mechatronics.PARTS, stack)))
-    was = build['stacks']['knee']
-    build['stacks']['knee'] = ['U9', 'B', 'coaxial_63100']
+    motors = mechatronics._toml(os.path.join(mechatronics.ROBOTS, mechatronics.STOCK + '.toml'))['drives']['motors']
+    motors['U9'] = ['knee']
     try:
         mechatronics.robot()
         refused = ''
     except MachineError as exc:
         refused = str(exc)
     finally:
-        build['stacks']['knee'] = was
+        del motors['U9']
     r.check('a stack naming a part the library lacks is refused, the parts named',
             'U9 is no motor' in refused and 'MN6007' in refused, refused)
     import subprocess

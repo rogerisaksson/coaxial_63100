@@ -23,8 +23,8 @@ from machine.law.supervisor import NODE_KINDS
 _PACK, _INVS = mechatronics.robot()['pack'], mechatronics.library()['inverters']
 _SHUNT = kernel.node('shunt-regenerative-bus-overvoltage', 'dc-bus')
 #: The robot's packs: their resistance, ohm, their BMS's most charge, A; its boards' DC link, F.
-PACK_OHM = _PACK['series'] * _PACK['cell_ohm'] / _PACK['parallel'] / _PACK['packs']
-CHARGE_A = _PACK['cell_charge_a'] * _PACK['parallel'] * _PACK['packs']
+PACK_OHM = _PACK['series'] * _PACK['cell_ohm'] / _PACK['parallel'] / len(_PACK['mounts'])
+CHARGE_A = _PACK['cell_charge_a'] * _PACK['parallel'] * len(_PACK['mounts'])
 DRIVEN = [j for j in JOINTS if not drives.passive(j)]
 LINK_F = _PACK['board_link_f'] * len(DRIVEN)
 #: The bleed's onset and clamp, V, scaled to its packs and its boards' ceilings; the text's sinks.

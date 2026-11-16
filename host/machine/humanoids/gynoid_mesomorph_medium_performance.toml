@@ -3,8 +3,8 @@
 # gait laws are derived automatically (`machine.body.drives`, `machine.body.compile`).
 extends = "gynoid_mesomorph_medium"
 
-[stacks]
-spine = ["U12", "A", "coaxial_63100"]
-hip = ["U12", "A", "coaxial_63100"]
-knee = ["U12", "A", "coaxial_63100"]
-ankle = ["U12", "A", "coaxial_63100"]
+[drives.motors]
+U12 = ["spine", "hip", "knee", "ankle"]
+
+[drives.gearboxes]
+A = ["spine", "hip", "knee", "ankle"]

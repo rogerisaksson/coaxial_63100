@@ -8,7 +8,6 @@
 # backlash_deg, friction_share: mesh play at the output and mesh Coulomb loss share.
 
 [B]
-kind = "roller wave"
 diameter_m = 0.064
 ratio = 30.0
 efficiency = 0.90

@@ -5,12 +5,11 @@
 # stiffness, standing/deep-squat equilibria, service bands and Froude-scaled gait laws are derived by
 # the static meta-compiler (`structural`, `drives`, `figure`, `compile`).
 
-# The robot's two packs in parallel, each 15S2P of 5 Ah 21700 cells (`build.HOLDS`, `dclink`): cell
+# The robot's packs in parallel, each 15S2P of 5 Ah 21700 cells (`build.HOLDS`, `dclink`): cell
 # cutoff voltage (V), cell and case/BMS mass (kg), cell DC resistance (ohm), BMS max charge per cell
-# (A), per-board DC link capacitance (F: 33 x 10 uF X7S 1210), and flank mount coordinates in the torso
-# (m).
+# (A), per-board DC link capacitance (F: 33 x 10 uF X7S 1210), and a flank mount in the torso (m) for
+# each pack: two.
 [pack]
-packs = 2
 series = 15
 parallel = 2
 cell_v_min = 3.2
@@ -21,24 +20,17 @@ cell_charge_a = 4.9
 board_link_f = 330e-6
 mounts = [[0.065, 0.17, -0.005], [-0.065, 0.17, -0.005]]
 
-# Each kind's stack: [motor, gearbox, inverter] (`docs/findings/stacks.md`).
-[stacks]
-spine = ["U8", "B", "coaxial_63100"]
-spine_roll = ["U8", "B", "coaxial_63100"]
-waist = ["U8", "B", "coaxial_63100"]
-hip_yaw = ["U8", "B", "coaxial_63100"]
-hip_roll = ["U8", "B", "coaxial_63100"]
-hip = ["U8", "B", "coaxial_63100"]
-knee = ["U8", "B", "coaxial_63100"]
-ankle = ["U8", "B", "coaxial_63100"]
-ankle_roll = ["U8", "B", "coaxial_63100"]
-neck = ["MN6007", "B", "coaxial_63100"]
-head = ["MN6007", "B", "coaxial_63100"]
-shoulder = ["MN6007", "B", "coaxial_63100"]
-elbow = ["MN6007", "B", "coaxial_63100"]
-wrist = ["MN6007", "B", "coaxial_63100"]
-gripper = ["MN6007", "B", "coaxial_63100"]
-foot = ["MN6007", "B", "coaxial_63100"]
+# The robot's drives (`docs/findings/stacks.md`): one gearbox and one inverter on every joint kind's stack,
+# a motor a group of kinds, in the kinds' order; `mechatronics.robot` lays each kind's stack of them,
+# [motor, gearbox, inverter]. A build with another gearbox or inverter on some kinds names them under it
+# (`[drives.gearboxes]`, `[drives.inverters]`).
+[drives]
+gearbox = "B"
+inverter = "coaxial_63100"
+
+[drives.motors]
+U8 = ["spine", "spine_roll", "waist", "hip_yaw", "hip_roll", "hip", "knee", "ankle", "ankle_roll"]
+MN6007 = ["neck", "head", "shoulder", "elbow", "wrist", "gripper", "foot"]
 
 # Pre-curved unidirectional carbon leaf spring standing in for the ankle pitch rod (`structural.leaf_series`):
 # rectangular laminate width and 50-ply cured thickness, m; arc length and crown follow `linkage.RODS`/`BENDS`.

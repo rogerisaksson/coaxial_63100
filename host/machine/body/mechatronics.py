@@ -4,10 +4,11 @@
     build = mechatronics.robot(ROBOT)       # machine/humanoids/<name>.toml, its parts the library's
     mechatronics.robots()                   # every build file's name
 
-A robot's file names, for each joint kind, its stack's motor, gearbox and inverter from the
-library, the servo its board runs, the structure between its gearbox and its limb, and what has
-no drive; `machine.body.drives` and `machine.body.servos` read it, `tools/cores/manifest.py` writes its
-orthokinematic manifest of it, the robot's text (machine/<robot>.lisp) includes that. ROBOT is the
+A robot's file names its drives' parts from the library - the gearbox and the inverter of every
+joint kind's stack once, a motor a group of kinds (`[drives]`) -, the structure between its
+gearbox and its limb, and what has no drive; `machine.body.drives` and `machine.body.servos` read
+it, `tools/cores/manifest.py` writes its orthokinematic manifest of it, the robot's text
+(machine/<robot>.lisp) includes that. ROBOT is the
 process's: COAXIAL_ROBOT in the environment names another build, its text, manifest and
 corrections (`machine.identify.identified`) with it.
 """
@@ -267,21 +268,42 @@ def _merged(base, over):
     return out
 
 
+def _stacks(base, drives):
+    """A build's stacks, {kind: [motor, gearbox, inverter]}: `base`'s with its `[drives]` laid on them - a
+    motor the kinds' it names (`motors`), a kind new to the build in its place there; the gearbox and the
+    inverter it states every stack's; then a gearbox or an inverter the kinds' named under it (`gearboxes`,
+    `inverters`)."""
+    out = {kind: list(stack) for kind, stack in base.items()}
+    for motor, kinds in drives.get('motors', {}).items():
+        for kind in kinds:
+            out.setdefault(kind, [motor, None, None])[0] = motor
+    for at, one, table in ((1, 'gearbox', 'gearboxes'), (2, 'inverter', 'inverters')):
+        if one in drives:
+            for stack in out.values():
+                stack[at] = drives[one]
+        for part, kinds in drives.get(table, {}).items():
+            for kind in kinds:
+                out[kind][at] = part
+    return out
+
+
 def robot(name=ROBOT) -> dict:
-    """A robot's build (machine/humanoids/`name`.toml), each stack's parts found in the library. A build that
-    `extends` another is that one with its own tables laid on it - only what is its own -, its `swap` the
-    motors it takes for that one's in every stack it does not name. A joint the build's `[cloth]` dresses in
+    """A robot's build (machine/humanoids/`name`.toml): its tables and its `stacks`, {kind: [motor, gearbox,
+    inverter]} laid of its `[drives]` (`_stacks`), each part found in the library. A build that `extends`
+    another is that one with its own tables laid on it - only what is its own -, its `swap` the motors it
+    takes for that one's in every stack it names no motor for. A joint the build's `[cloth]` dresses in
     nothing is bare (BARE), laid after those the table names, in the stacks' order."""
     path = os.path.join(ROBOTS, name + '.toml')
     if not os.path.isfile(path):
         raise MachineError('no robot %s: %s' % (name, ', '.join(sorted(
             f[:-5] for f in os.listdir(ROBOTS) if f.endswith('.toml')))))
     build, lib = _toml(path), library()
+    own, stacks = build.get('drives', {}), {}
     if 'extends' in build:
         base, swap = robot(build['extends']), build.get('swap', {})
-        base = dict(base, stacks={kind: [swap.get(stack[0], stack[0])] + list(stack[1:])
-                                  for kind, stack in base['stacks'].items()})
+        stacks = {kind: [swap.get(stack[0], stack[0])] + list(stack[1:]) for kind, stack in base['stacks'].items()}
         build = _merged(base, {k: v for k, v in build.items() if k not in ('extends', 'swap')})
+    build = dict({k: v for k, v in build.items() if k != 'drives'}, stacks=_stacks(stacks, own))
     for kind, stack in build['stacks'].items():
         for part, named in zip(PARTS, stack):
             if named not in lib[part]:
