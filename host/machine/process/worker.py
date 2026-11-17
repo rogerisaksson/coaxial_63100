@@ -107,9 +107,12 @@ def heard(g, gym, command):
         leap.update_leap_charge(g, by, se2._WALK_ON_WIRE, g['_hop_charge'])
     if 'say' in command:
         _apply_say(g, gym, by, command, errand_step)
+    # the walk from rest, once: a row laid ahead (a twist heard with it) is a start begun - laid again, each
+    # row's targets summed (`latent.step`) and the robot ran backward into a fall at 2.5 s
     if command.get('walk') and not (abs(float(g['out'][latent.SWAY][modal.DRIVE])) > stride.STIRS
                                     or abs(float(g['out'][latent.SWAY][modal.LATERAL])) > 0.08
-                                    or g['st'][latent.NOW][latent.GAIN] > 0.05):
+                                    or g['st'][latent.NOW][latent.GAIN] > 0.05
+                                    or (g['tab'][:, latent.AT] > g['t']).any()):
         gaits.start_mode(g, by, by['walk'], at=g['t'] + 0.001) if 'walk' in by else sprung.walked(g)
     for entry in command.get('entries', ()):
         sprung.said(g, *entry)
