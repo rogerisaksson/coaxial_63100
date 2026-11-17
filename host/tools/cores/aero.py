@@ -108,10 +108,6 @@ def library():
     lib.aeh_observe_wind_spin.argtypes = [
         _dp, _dp, _d, _d, _d, _dp, _dp, _dp, _dp, _d, _d, _dp, _dp, _dp]
     lib.aeh_aerobat_observe.argtypes = [_dp, _dp, _dp, _dp, _dp, _dp, _dp, _dp, _dp]
-    lib.aeh_plane_alpha.argtypes = [_d, _d, _d, _d, _d]
-    lib.aeh_plane_alpha.restype = _d
-    lib.aeh_so3_error.argtypes = [_dp, _dp, _dp]
-    lib.aeh_align_axis.argtypes = [_dp, _dp, _dp, _dp]
     lib.aeh_smooth_target.argtypes = [
         _dp, ctypes.POINTER(ctypes.c_int), _dp, _d, _d, _d, _d, _d, _d, _dp]
     lib.aeh_toward.argtypes = [_dp, _dp, _d, _dp]

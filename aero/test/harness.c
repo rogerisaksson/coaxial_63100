@@ -309,7 +309,7 @@ static inline double ease_d(double x)
 }
 
 /** 10-step angle-of-attack bisection in `wingborne.plane`. */
-API double aeh_plane_alpha(double k_w, double cl_alpha, double along, double need, double sign)
+static double aeh_plane_alpha(double k_w, double cl_alpha, double along, double need, double sign)
 {
   const double al_pos = (along > 0.0) ? along : 0.0;
   double       hi = AERO_PASS_ALPHA_MAX;
@@ -344,7 +344,7 @@ API double aeh_plane_alpha(double k_w, double cl_alpha, double along, double nee
 }
 
 /** SO(3) attitude error (`helicopter.kit._so3_error`). */
-API void aeh_so3_error(const double r_cur[9], const double r_des[9], double out[3])
+static void aeh_so3_error(const double r_cur[9], const double r_des[9], double out[3])
 {
   double       rt[9], e[9];
   double       vx, vy, vz, sa, ca, sc;
@@ -374,8 +374,8 @@ API void aeh_so3_error(const double r_cur[9], const double r_des[9], double out[
 }
 
 /** Align `from_u` onto `to_u` applied to `mat` (`helicopter.kit._align_axis`). */
-API void aeh_align_axis(const double from_u[3], const double to_u[3], const double mat[9],
-                        double out[9])
+static void aeh_align_axis(const double from_u[3], const double to_u[3], const double mat[9],
+                           double out[9])
 {
   double       w[3];
   const double d = 1.0 + sum3(from_u[0] * to_u[0], from_u[1] * to_u[1], from_u[2] * to_u[2]);
