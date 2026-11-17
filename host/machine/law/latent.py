@@ -36,7 +36,10 @@ V0, V1 = slice(3 * P + 3, 4 * P + 3), slice(4 * P + 3, 5 * P + 3)
 CONTIG = 5 * P + 3
 #: The blend's shape: its share of the way at u, a quintic's coefficients on u..u^5 (SHAPES).
 SHAPE = slice(5 * P + 4, 5 * P + 9)
-STATE = 5 * P + 9
+#: The angle a row waking the robot's rhythm starts its clock at (`waits.woken_rows`), kept till a row comes:
+#: naught, or half a turn - the other sole's swing first - as its walk's start lays it (`gaits.ahead`).
+THETA0 = 5 * P + 9
+STATE = 5 * P + 10
 #: The most rows the robot's table holds (wbc_imp.h's WBC_WAIT_ROWS): a take's frames are thinned to fit.
 ROWS = 512
 #: A table's row: what it says, which of it is said (1) or left (0), when it comes, its blend,

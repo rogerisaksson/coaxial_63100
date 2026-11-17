@@ -25,7 +25,7 @@ class Wait(ctypes.Structure):
     _fields_ = ([(name, ctypes.c_int) for name in ('table', 'at', 'vals_z', 'said_z', 'vals_gain', 'said_gain', 'st_to_z',
                                                    'contact', 'vals_amp', 'said_phase', 'vals_phase', 'st_now_gain',
                                                    'st_now_phase', 'st_theta', 'latch', 'st_now_z', 'st_from_z',
-                                                   'st_v0_z', 'st_v1_z', 'rise', 'zmp')]
+                                                   'st_v0_z', 'st_v1_z', 'rise', 'zmp', 'st_theta0')]
                 + [(name, ctypes.c_double) for name in ('edge_s', 'tiny', 'phi_w')] + [('blas', c_motion.Blas)])
 
 
@@ -81,7 +81,7 @@ class Waits:
                       st_theta=latent.THETA, latch=latent.LATCH, st_now_z=latent.NOW.start + latent.Z.start,
                       st_from_z=latent.FROM.start + latent.Z.start, st_v0_z=latent.V0.start + latent.Z.start,
                       st_v1_z=latent.V1.start + latent.Z.start, rise=latent.RISES,
-                      zmp=latent.ZMP - latent.Z.start, edge_s=latent.EDGE_S, tiny=stride.TINY,
+                      zmp=latent.ZMP - latent.Z.start, st_theta0=latent.THETA0, edge_s=latent.EDGE_S, tiny=stride.TINY,
                       phi_w=stride.PHI_W,
                       blas=c_motion.numpy_blas())
         self.kept = (a, out, y, fr, st, np.zeros((1, latent.TABLE)))

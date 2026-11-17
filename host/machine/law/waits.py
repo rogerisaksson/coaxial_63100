@@ -176,7 +176,8 @@ def played_rows(tab, t, dt):
 
 def woken_rows(tab, st, t, dt):
     """The rows of `tab` due at `t` that ask a rhythm - their gain times their amplitude, its sway -
-    wake the robot's own in `st` where its gain has died down: its angle let go, its phases theirs. Woken by a
+    wake the robot's own in `st` where its gain has died down: its angle let go to the one laid for it
+    (`latent.THETA0`, kept till a row comes), its phases theirs. Woken by a
     row laid whole alone, the sway's 108 deg lead came in with its gain, its lateral mode 22 % fast,
     and its first extremes left a sole 2.0 mm up on 0.6 N where 1.8 on 2.9; by its amplitude alone,
     a stride leap's throw (gain 0) let the robot's angle go and the run's leap fell. In C bit for bit
@@ -185,6 +186,7 @@ def woken_rows(tab, st, t, dt):
     vals = tab[:, latent.VALS]
     w_row = (vals[:, latent.GAIN] * vals[:, latent.AMP].max(axis=1) > 0.05).astype(float)
     wake = min(1.0, max(0.0, (0.04 - float(st[latent.NOW][latent.GAIN])) / 0.02)) * min(1.0, float(hit @ w_row))
-    st[latent.THETA] *= 1.0 - wake
+    st[latent.THETA] = st[latent.THETA] * (1.0 - wake) + wake * st[latent.THETA0]
+    st[latent.THETA0] *= 1.0 - min(1.0, float(hit.sum()))
     w_ph = wake * np.minimum(hit @ tab[:, latent.SAID][:, latent.PHASE], 1.0)
     st[latent.NOW][latent.PHASE] += w_ph * (hit @ tab[:, latent.VALS][:, latent.PHASE] - st[latent.NOW][latent.PHASE])

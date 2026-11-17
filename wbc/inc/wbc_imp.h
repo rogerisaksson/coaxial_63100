@@ -200,12 +200,12 @@ void wbc_twist_step(const wbc_imp_t *k, const wbc_twist_t *t, double dt, const d
 
 /** machine.law.waits' reading of the robot's table (machine.law.latent): a row's width, time,
     targets, gain, amplitudes, phases, contact, latch and rise; its state's targets, gain, phases,
-    rhythm angle and blend rates; the waits' constants and numpy's BLAS. */
+    rhythm angle and blend rates, the angle a woken rhythm starts at; the waits' constants and numpy's BLAS. */
 typedef struct
 {
   int        table, at, vals_z, said_z, vals_gain, said_gain, st_to_z, contact;
   int        vals_amp, said_phase, vals_phase, st_now_gain, st_now_phase, st_theta;
-  int        latch, st_now_z, st_from_z, st_v0_z, st_v1_z, rise, zmp;
+  int        latch, st_now_z, st_from_z, st_v0_z, st_v1_z, rise, zmp, st_theta0;
   double     edge_s, tiny, phi_w;
   wbc_blas_t blas;
 } wbc_wait_t;

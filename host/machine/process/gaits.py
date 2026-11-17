@@ -59,8 +59,20 @@ def _start_hop(g, by, entry, at):
         sprung.said(g, *by['stand'], at=at + dur + 0.01, reset=True)
 
 
+def ahead(g):
+    """The angle init_walk wakes the robot's rhythm at (`latent.THETA0`): half a turn, its right sole's swing
+    first, where that sole stands ahead of the left along the robot's way by more than its ZMP's margin in a sole
+    (`poise.MARGIN_M`, the kernel's lock margin); else naught, the left's first. The sole behind stands, the
+    robot's centre of mass ahead of its ZMP: 3 s after a stop that left the right sole 84 mm ahead the left swung
+    first, the robot's weight onto the sole ahead put its ZMP 78 mm before its centre of mass, which went back
+    0.05 m/s, and its first stride peaked 0.30 m/s, 0.3 m/s at 1.145 s; the left 101.5 mm ahead and first, 0.665 s."""
+    from machine.law import modal, poise, stride
+    soles = g['y'][modal.SOLE].reshape(2, 3) @ g['fr'][modal.ROT].reshape(3, 3).T
+    return math.pi * float(soles[1, stride.ALONG] - soles[0, stride.ALONG] > poise.MARGIN_M)
+
+
 def start_mode(g, by, entry, at):
-    from machine.law import se2
+    from machine.law import latent, se2
     name = g['active_entry'] = entry[0]
     g['_brake_from'], g['_halt_at'] = None, None
     _sync_nominal_twist(g, name)
@@ -74,6 +86,7 @@ def start_mode(g, by, entry, at):
         sprung.said(g, *by['sway'], at=at)
     if use_iw:
         sprung.said(g, 'init_walk', iw, ('init_walk',), at=at, reset=True)
+        g['st'][latent.THETA0] = ahead(g)
     dt_lead = 0.80 if use_sway else (se2.init_lead(g) if use_iw else 0.0)
     sprung.said(g, *entry, at=at + dt_lead, reset=(name in se2.RESET_MODES))
 

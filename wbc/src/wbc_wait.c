@@ -273,7 +273,7 @@ void wbc_wait_woken(const wbc_imp_t *k, const wbc_wait_t *w, const double *tab, 
 {
   const int        rows = n < WBC_WAIT_ROWS ? n : WBC_WAIT_ROWS, modes = k->n;
   const wbc_view_t said = {tab + w->said_phase, w->table, 1}, vals = {tab + w->vals_phase, w->table, 1};
-  double           hit[WBC_WAIT_ROWS], w_row[WBC_WAIT_ROWS], said_ph[WBC_IMP_N], vals_ph[WBC_IMP_N], wake;
+  double           hit[WBC_WAIT_ROWS], w_row[WBC_WAIT_ROWS], said_ph[WBC_IMP_N], vals_ph[WBC_IMP_N], wake, came = 0.0;
   const wbc_view_t h = {hit, 0, 1};
 
   for (int r = 0; r < rows; r++)
@@ -287,9 +287,12 @@ void wbc_wait_woken(const wbc_imp_t *k, const wbc_wait_t *w, const double *tab, 
     }
     hit[r] = (double)((row[w->at] <= t + w->edge_s) && (row[w->at] > (t - dt) + w->edge_s));
     w_row[r] = (double)(row[w->vals_gain] * most > 0.05);
+    came += hit[r];
   }
   wake = npmin(1.0, npmax(0.0, (0.04 - st[w->st_now_gain]) / 0.02)) * npmin(1.0, wbc_dot(&w->blas, hit, 1, w_row, 1, rows));
-  st[w->st_theta] *= 1.0 - wake;
+  /* the angle let go to the one laid for it (machine.law.latent.THETA0), kept till a row comes */
+  st[w->st_theta] = st[w->st_theta] * (1.0 - wake) + wake * st[w->st_theta0];
+  st[w->st_theta0] *= 1.0 - npmin(1.0, came);
   wbc_matmul(&w->blas, h, said, said_ph, 0, 1, 1, rows, modes);
   wbc_matmul(&w->blas, h, vals, vals_ph, 0, 1, 1, rows, modes);
   for (int m = 0; m < modes; m++)
