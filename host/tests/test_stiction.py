@@ -128,7 +128,7 @@ def test_a_load_past_its_cone_slides_as_it_did(report, _c):
 def test_a_load_between_holds_at_rest_and_slides_once_moved(report, _c):
     """A block settled on a slope then raised between its friction at rest and its sliding friction: let be, it
     holds - under a millimetre an hour -; shoved, it slides on and gains speed as its sliding friction lets it
-    (g (sin - mu cos)), where MuJoCo's one friction stops it."""
+    (g sin less the sliding share of the normal force its contacts bore), where MuJoCo's one friction stops it."""
     from machine.world import stiction
     m, shove = _scene(BLOCK, HELD), 0.3
 
@@ -144,17 +144,23 @@ def test_a_load_between_holds_at_rest_and_slides_once_moved(report, _c):
     held = (float(d.qpos[0]) - rest) / READ_S
     report.check('a block between its friction at rest and sliding holds: under a millimetre an hour',
                  1e3 * abs(held) < MM_H, '%.3g mm/s' % (1e3 * held))
-    gains = 9.81 * (math.sin(BETWEEN) - MU * stiction.KINETIC * math.cos(BETWEEN))
-    sped = []
+    sped, bore = [], 0.0
     for stuck in (False, True):
         d, state = tilted(stuck)
         d.qvel[0] = shove
-        d, state = _stepped(m, READ_S, stuck, d=d, state=state)
+        borne = []
+        d, state = _stepped(m, READ_S, stuck, d=d, state=state, each=lambda d, _state: borne.append(
+            float(d.efc_force[d.contact.efc_address[:d.ncon]].sum())))
         sped.append(float(d.qvel[0]))
+        bore = sum(borne) / len(borne)
+    # Coulomb's sliding friction is its share of the normal force its contacts bore, each contact's first row:
+    # MuJoCo's soft corners chatter, the block off the slope on a third of its steps, so that force is not m g cos.
+    weight = MASS * 9.81 * math.cos(BETWEEN)
+    gains = 9.81 * math.sin(BETWEEN) - MU * stiction.KINETIC * bore / MASS
     report.check("shoved, it slides on and gains speed as its sliding friction lets it; MuJoCo's one friction stops it",
                  abs((sped[1] - shove) / (gains * READ_S) - 1.0) < 0.02 and abs(sped[0]) < 0.01 * shove,
-                 "%.4f m/s stuck after %g s (its law %.4f), %.5f m/s MuJoCo's" % (
-                     sped[1], READ_S, shove + gains * READ_S, sped[0]))
+                 "%.4f m/s stuck after %g s (its law %.4f, its contacts bearing %.4f of m g cos), %.5f m/s MuJoCo's"
+                 % (sped[1], READ_S, shove + gains * READ_S, bore / weight, sped[0]))
 
 
 def test_a_contacts_friction_falls_by_its_speed(report, _c):
