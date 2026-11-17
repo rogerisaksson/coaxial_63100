@@ -44,8 +44,9 @@ def bounds(nu, frames, stance, edges, mu, caps, pressed, bears, slips, give):
     along it (`edges`: 1 its ball, -1 its heel, a share between) and across it, its yaw moment's; a contact
     pressing, no more than GROW_N over what it `bears` nor its cap, of that `give` the robot's own to plan (none
     where it is not `pressed`), its friction within the sixteen-sided pyramid inscribed in its cone (`rounds.CONE`)
-    - or, sliding (`slips`: sliding, its slip along the world's x and z), its kinetic friction against its
-    slip."""
+    - or, sliding (`slips`: sliding, its slip along the world's x and z), its kinetic friction against its slip
+    and its push no less than GROW_N under what it bears: that friction given, not shed in a pass (felt 145 N
+    and sliding, a pelvis's contact was planned 0 N, 145 N onto the soles in a pass to spare its drag)."""
     rows, rhs = [], []
 
     def row(entries, c=0.0):
@@ -72,8 +73,10 @@ def bounds(nu, frames, stance, edges, mu, caps, pressed, bears, slips, give):
     for i in range(len(bears)):
         fy, sliding, sx, sz = NU + 3 * i + 1, float(slips[i][0]), float(slips[i][1]), float(slips[i][2])
         den = max(float(np.hypot(sx, sz)), 1e-12)
-        row([(fy, -1.0)])
-        row([(fy, 1.0)], max(min(float(bears[i]) + GROW_N, float(caps[i])) * give, 0.0) if pressed[i] else 0.0)
+        top = max(min(float(bears[i]) + GROW_N, float(caps[i])) * give, 0.0) if pressed[i] else 0.0
+        low = max(min(float(bears[i]) - GROW_N, float(caps[i])) * give, 0.0) if pressed[i] and sliding > 0.0 else 0.0
+        row([(fy, -1.0)], 0.0 - low)
+        row([(fy, 1.0)], top)
         if sliding > 0.0:
             for f, sf in ((NU + 3 * i, sx), (NU + 3 * i + 2, sz)):
                 c = MU * sf / den

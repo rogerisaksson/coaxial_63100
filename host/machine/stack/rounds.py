@@ -33,7 +33,8 @@ EDGE_M, YAW_M = 0.003, 0.04
 ROOM = np.array([SOLE_HALF - EDGE_M, (BALL + HEEL) / 2.0 - EDGE_M])
 #: Rounds of a stride's faces (`taken`).
 ROUNDS = 4
-#: A contact's push no more than this over what it bears now, N a pass (`wrench.W_STILL`).
+#: A contact's push no more than this over what it bears now, N a pass (`wrench.W_STILL`); sliding, no less than
+#: this under it (`within.bounds`).
 GROW_N = 30.0
 #: A contact's friction's sixteen-sided pyramid inscribed in its round cone (the world's: elliptic): its faces'
 #: directions on the world's x and z, k pi / 8, and their reach, cos(pi / 16) of the cone's - square roots alone, so

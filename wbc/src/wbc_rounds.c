@@ -254,8 +254,11 @@ static int bounds(const wbc_step_t *p, const wbc_geo_t *g, const double *bears, 
     const double sliding = g->slips[3 * i], sv[2] = {g->slips[3 * i + 1], g->slips[3 * i + 2]};
     const double den = pymax(hypot(sv[0], sv[1]), 1e-12);
     const double top = pressed[i] != 0.0 ? pymax(pymin(bears[i] + p->grow_n, g->caps[i]) * g->give, 0.0) : 0.0;
+    /* sliding, its push no less than grow_n under what it bears: its kinetic friction given, not shed in a pass */
+    const double low =
+      (pressed[i] != 0.0 && sliding > 0.0) ? pymax(pymin(bears[i] - p->grow_n, g->caps[i]) * g->give, 0.0) : 0.0;
 
-    a = row(A, b, &m, nu, 0.0);
+    a = row(A, b, &m, nu, 0.0 - low);
     a[fy] = -1.0;
     a = row(A, b, &m, nu, top);
     a[fy] = 1.0;
