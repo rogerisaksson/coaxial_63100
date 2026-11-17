@@ -1,6 +1,6 @@
 """The robot's turns, its arms and its knees into the loop's ask (wbc_poses.c): `impedance.ask`'s last.
 
-    posed.posed(out, y, fr, a, said, zd, turned, up, folds, still)   # into `a`, `impedance.ask`'s pass
+    posed.posed(out, y, fr, a, said, turned, up, folds, still)   # into `a`, `impedance.ask`'s pass
 """
 import os
 
@@ -30,12 +30,12 @@ YAW_K = _TABLE['yaw_1_s']
 SEAT_HOLDS = np.array([[0.0], [1.0], [0.0]])
 
 
-def posed(out, y, fr, a, said, zd, turned, up, folds, still):
+def posed(out, y, fr, a, said, turned, up, folds, still):
     """The robot's turns, its arms and its knees into `a`: its trunk's and its pelvis's pitch,
     each on the pitch's spring, its pelvis's list and its turn on theirs - its trunk upright
     and on its way -, the loop's own turn law asked for what gives that; its arms on the
     posture's own spring, asked ahead of it by what its damper holds back. `said` the modes' (as it
-    is, reference, rate, acceleration, 1/s^2, 1/s), `zd` their rates as they are; `turned` the turns and their
+    is, reference, rate, acceleration, 1/s^2, 1/s); `turned` the turns and their
     rates; `up` how far each sole
     is asked up, `folds` which soles' knees are asked a fold."""
     z, ref, rate, acc, kp, kd = said
@@ -69,14 +69,10 @@ def posed(out, y, fr, a, said, zd, turned, up, folds, still):
     # against still, the stack's knee rows held a push's knees at 0.2 of their clamp, its height at its band's
     # floor, 3 m/s^2 under its ask; at the told rate under a held polygon the seats' texts, laid against that
     # damping, sat the robot onto the bed at 1.86 of its weight and it fell, or had it bear 0.00 of it; at its
-    # own rate past AHEAD, a stride's instant throw left its knees undamped and the leap flew 0.20 s for 0.23
-    # - the told height's while it leads the robot's by less than AHEAD or carries it further toward itself,
-    # else the robot's own, never braking the robot on toward it: a throw's step, told no rate, braked its knees
-    # 200 rad/s^2 against their push and the step pitched the robot over (the bed's lie bore 0.00 of it); at the
-    # robot's own rate past AHEAD the walk's leap landed drifting 0.4 m aside and its brake left the floor -
-    toward = max(float(abs(ref[AXIAL] - z[AXIAL]) < AHEAD), float((ref[AXIAL] - z[AXIAL]) * (rate[AXIAL] - zd[AXIAL]) > 0.0))
-    bent_rate = zd[AXIAL] + toward * (rate[AXIAL] - zd[AXIAL])
-    a[BEND_RATE] = (2.0 * AXIAL_M * fr[HIPS_BY] * bent_rate * float(abs(cosine) < 1.0) / LEG_M
+    # own rate past AHEAD, a stride's instant throw left its knees undamped and the leap flew 0.20 s for 0.23;
+    # at its own where it outran the told height's rate toward that height, 11 of the walk's leap's 27 starts
+    # fell at the stop that followed (the told rate's: 1)
+    a[BEND_RATE] = (2.0 * AXIAL_M * fr[HIPS_BY] * rate[AXIAL] * float(abs(cosine) < 1.0) / LEG_M
                     / np.sqrt(np.maximum(1.0 - cosine * cosine, TINY))) * (1.0 - poise.clip(out[latent.HELD], 0.0, 1.0))
     # a sole asked up where the robot stands: its knee folded as its leg is shorter by the lift
     # under its hip. Striding, a limb's knee is its sole's place's alone

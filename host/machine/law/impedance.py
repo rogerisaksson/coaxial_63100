@@ -179,7 +179,7 @@ def ask(out, y, fr, a):
                         + TURN_KD[1] * tilting) / TURN_KD[0]
     a[GOING] += fr[DT] / GOING_S * ((y[VSOLE].reshape(2, 3) @ rot[ALONG]).mean() - a[GOING])
     a[STANCE], a[COM_ACC], a[STRIDES], a[BORNE], a[BEGUN], a[DIP], a[STRODE] = stance, com @ rot, stepping, propped, stride.begins(begun, was, stood, stance, on, off, phi, phi_w, thrown), reach_h - (hips[:, UP] - floors), strides[:, 0]
-    posed(out, y, fr, a, (z, ref, rate, acc, kp, kd), zd, (turn, spun), up, aloft * (1.0 - limbs), still)
+    posed(out, y, fr, a, (z, ref, rate, acc, kp, kd), (turn, spun), up, aloft * (1.0 - limbs), still)
     return a
 
 

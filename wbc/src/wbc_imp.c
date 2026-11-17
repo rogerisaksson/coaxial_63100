@@ -477,5 +477,5 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   a[k->a_borne] = propped;
   folds[0] = aloft[0] * (1.0 - limbs[0]);
   folds[1] = aloft[1] * (1.0 - limbs[1]);
-  wbc_imp_poses(k, out, y, fr, a, z, zd, &s, turn, spun, up_h, folds, still);
+  wbc_imp_poses(k, out, y, fr, a, z, &s, turn, spun, up_h, folds, still);
 }
