@@ -95,7 +95,12 @@
 ;; it (1.05); rolled off (0.95). The robot's legs its law's while it plays (`:joint-keep`): the take's own
 ;; swept the robot's hips apart (right -90, left to -26 deg) and rolled its 180 deg onto its belly
 ;; over its right thigh, 8.2-11.2 s at up to 108 N m, and the rise from its back then asked the
-;; robot's trunk upside down.
+;; robot's trunk upside down. The robot's soles are told nothing as the take begins, its legs let go as
+;; its gate allows them (the kernel's emancipation, over its evacuation's 160 ms): told to bear on through
+;; the take's 3.35 s, the robot's legs stood stiff as the take tipped its pelvis back and pried it off the
+;; foam - its soles 139 N where its step planned 45, its seat 4 N - and its soles came off with its centre of
+;; mass 5 cm outside its seat, so the robot slid off the edge at 4 of 9 starts (headings -0.65 +-0.02 rad,
+;; walks 1 +-0.05 s; as many in CI's runner's image); let go, the bed bore the robot at 9 of 9 in both.
 (defmaneuver specialize-recline-long-side [state]
   (-> state
       (stage-sequential-manifold                       ; the scoot: the robot's feet push its hips back over its fists
@@ -107,11 +112,20 @@
         :talocrural-rad -0.05
         :carpal-ahead-m -0.14
         :manifold-pan '((:plantar-bilateral 0.30) (:ischial-bilateral 0.35) (:scapular-dorsal 0.0) (:palmar-carpal-bilateral 0.35)))
-      (stage-sequential-manifold                       ; landed: the take's lie from its first tick
-        :duration-ms 3350.0
+      (stage-sequential-manifold                       ; landed: the take's lie from its first tick, the soles told nothing
+        :duration-ms 160.0
         :contact-chain [:ischial-sacral -> :ischial-bilateral]
         :joint-program :lying-down-from-sitting
         :joint-keep :legs
+        :torso-pitch-ramp [0.0 -> 0.0]
+        :axial-yaw-ramp [0.0 -> 0.0]
+        :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.25 -> 1.25] :limb-lift 0.0)
+        :talocrural-rad -0.05
+        :carpal-ahead-m -0.14
+        :manifold-pan '((:plantar-bilateral 0.0) (:ischial-bilateral 0.65) (:scapular-dorsal 0.0) (:palmar-carpal-bilateral 0.35)))
+      (stage-sequential-manifold                       ; the take's lie on, the robot onto its back
+        :duration-ms 3190.0
+        :contact-chain [:ischial-bilateral -> :scapular-dorsal]
         :torso-pitch-ramp [0.0 -> -0.10]
         :axial-yaw-ramp [0.0 -> 0.0]
         :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.25 -> 1.45] :limb-lift 0.0)
