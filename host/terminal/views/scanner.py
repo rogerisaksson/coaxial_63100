@@ -70,7 +70,7 @@ class VisionScanner:
     def __init__(self):
         self._ollama_checked = False
         self._ollama_model = None
-        self._laid, self._known, self._places = None, set(), []
+        self._laid, self._last_t, self._known, self._places = None, None, set(), []
         self._snap, self._scans, self._ident_key, self._ident = None, {}, None, []
 
     def model_name(self):
@@ -98,8 +98,10 @@ class VisionScanner:
         robot's sway at its edge none of its; held to the wider `scan`, F offered things no look of the
         robot's own had shown."""
         laid = (now.get('scenario'), now.get('epoch')) if now else None
-        if laid != self._laid:
+        t = now.get('t') if now else None
+        if laid != self._laid or (t is not None and self._last_t is not None and t < self._last_t):
             self._laid, self._known, self._places, self._ident_key = laid, set(), [], None
+        self._last_t = t
         snap = _snap_key(now) if now else None
         if snap is not None and self._ident_key == (snap, len(self._known), len(self._places)):
             return list(self._ident)

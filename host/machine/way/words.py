@@ -391,5 +391,7 @@ def _to_line(g, gym, er, c, heard_fn, _say_fn):
 def _to_edge(g, gym, er, c, heard_fn, _say_fn):
     """Backing onto the edge, the robot's heading bent toward the dock's line as it bears from the robot's
     stage: bent as the dock bears from its, it came to it 0.5 rad askew and sat on its edge."""
+    modal = _modal()
+    er['stepped'] = bool(er.get('stepped') or float(g['a'][modal.STANCE].min()) < 0.5)
     g['has_heading'] = 1.0
     g['target_heading'] = er['hdd'] + math.atan2(c['s_perp'], er['d_stage'])

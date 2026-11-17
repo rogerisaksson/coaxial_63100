@@ -464,9 +464,7 @@ HEATED = (STRUCTURE, *VIEWS, NATIVE_HEAT, 'test_simulated.py')
 # Every this many commits, run the lot regardless of what changed.
 FULL_EVERY = 10
 
-#: Suites the map may settle alone: no board, no ollama - about 40 s all
-#: six together, so asking the model costs a 7.6 GB load longer than the
-#: run. Where the map has an explicit rule it is also the better answer,
-#: written by someone reading the imports.
+#: Suites the map may settle alone: no board, no ollama - about 40 s together, so loading the 7.6 GB
+#: model takes longer than the run, and an explicit import rule is the better answer.
 CHEAP = frozenset({*STRUCTURES, CORE, SHTP, DRIVE, DRIVE_OBSERVER, SENSORLESS,
                    'test_simulated.py', *VIEWS, RENDER, GROUND, PAINT})

@@ -99,7 +99,8 @@ def _on_rows():
                    (lambda c, er: c['idle'] and c['still'] and c['even'] and not er['through'], 'done', _stunt)), _halted),
         'clear': (((lambda c, er: c['turns'] != 0.0 or c['s_par'] > er['d_stage'] + stride.STRIDE_M, 'settle', _stood),), _nothing),
         'side': (((lambda c, er: er.get('stepped') and c['s_perp_side'] * er.get('side_from', c['s_perp']) <= 0.0, 'settle', _told(STOP)),), _to_line),
-        'back': (((lambda c, er: c['s_par'] <= poise.HALF_M + er['standoff'] + se2.BACK_STOP_M, 'done', _told(STOP)),), _to_edge),
+        'back': (((lambda c, er: er.get('stepped') and c['v_par'] < 0.0
+                   and c['s_par'] <= poise.HALF_M + er['standoff'] + se2.BACK_STOP_M, 'done', _told(STOP)),), _to_edge),
         'done': (((lambda c, er: c['idle'] and c['still'] and c['even'] and (
             abs(c['err_yaw']) > modal.LIST_RAD or abs(c['s_perp']) > er['lat_tol']
             or not er['through'] and c['s_par'] > poise.HALF_M + er['standoff'] + se2.BACK_STOP_M), 'settle', _nothing),
@@ -252,8 +253,8 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
     run_out = len(e['curve']) > 0 and (float(e['curve'][-1, 2] - e['curve'][e['k'], 2])
                                        <= stride.STRIDE_M + voxels.CELL_M * float(len(e['way']) > 1))
     ctx = _Context(g, {
-        'gx': gx, 'gz': gz, 'pyaw': pyaw, 's_par': s_par, 's_perp': s_perp, 's_perp_stop': s_perp_stop,
-        's_perp_side': s_perp_side,
+        'gx': gx, 'gz': gz, 'pyaw': pyaw, 's_par': s_par, 'v_par': vx_w * e['nx'] + vz_w * e['nz'], 's_perp': s_perp,
+        's_perp_stop': s_perp_stop, 's_perp_side': s_perp_side,
         'way_left': -e.get('side_from', s_perp) * (e['tx'] * math.cos(pyaw) - e['tz'] * math.sin(pyaw)),
         'door_out': (s_par < -min(stride.STRIDE_M, e['d_stage'] - 1.5 * stride.STRIDE_M)
                      and e['d_stage'] + s_par <= max(closing * t_stop, 1.5 * stride.STRIDE_M)),
@@ -282,7 +283,7 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
     })
     ctx['turns'] = _TURNS.get(e['phase'], lambda _g, _e, _c: 0.0)(g, e, ctx)
     nxt, say = next(((phase, say) for on, phase, say in rows if on(ctx, e)), (e['phase'], meanwhile))
-    if nxt != e['phase'] and nxt == 'side':
+    if nxt != e['phase'] and nxt in ('side', 'back'):
         e['stepped'], e['side_from'] = False, ctx['s_perp']
     e['phase'] = nxt
     say(g, gym, e, ctx, heard_fn, heard_say_fn)
