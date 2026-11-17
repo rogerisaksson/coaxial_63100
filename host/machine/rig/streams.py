@@ -196,6 +196,11 @@ def _wrench_take(s, lay, row):
     return {'ask': _copied(s['g'].get('ask') or {}), 'got': _copied(s['g'].get('got') or {})}
 
 
+def _surety_take(s, lay, row):
+    g = s['g']
+    return {'surety': float(g['surety']), 'vec': [float(x) for x in g.get('surety_vec', ())]}
+
+
 def _drives(s):
     """Each of the robot's drives' setpoint, feed and clamp, by its driven joints' names."""
     from machine.body.figure import JOINTS
@@ -237,6 +242,7 @@ STREAMS = (
     Stream('latent', 'machine.law.latent:step', _at('law'), _latent, _latent_take, _law),
     Stream('impedance', 'machine.law.impedance:ask', _at('law'), _impedance, _impedance_take, _law),
     Stream('wrench', 'machine.stack.wrench:step', _at('law'), None, _wrench_take, _law),
+    Stream('surety', 'machine.law.motion:surety', _at('law'), None, _surety_take, _law),
     Stream('drives', 'machine.law.motion:drives', _at('passed'), _drives, _drives_take, _pass),
     Stream('world', 'machine.world.physics:World.advance', _at('moved', end=True), _world, _world_take, _pass),
     Stream('wear', 'machine.identify.wear:told', _wear, None, lambda s, lay, row: s['wear_told'], None),

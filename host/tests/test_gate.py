@@ -56,6 +56,8 @@ def _harnessed(s):
 
     def drives(g, dt, step):
         out = was[motion, 'drives'](g, dt, step)
+        if got['law'] and got['law'][-1][0] == t():     # the robot's surety, stepped in its drives' tick after its law
+            got['law'][-1][1]['surety'] = {'surety': float(g['surety']), 'vec': [float(x) for x in g.get('surety_vec', ())]}
         got['felt'].append((t(), g['sense'].copy()))      # the robot's felt this pass, in C before its drives' tick
         got['drives'].append((t(), {k: v.copy() for k, v in g['cmd'].items()}))
         return out
@@ -122,6 +124,7 @@ def _sections(path, got, events):
     harness = {'felt': got['felt'], 'read': got['read'], 'grip': got['law'], 'modal': got['law'], 'frame': got['law'], 'latent': got['law'], 'impedance': got['law'],
                'drives': got['drives'], 'world': got['world'], 'things': got['things'], 'wear': got['wear'],
                'heard': got['heard'], 'wrench': [(t, {'ask': x['ask'], 'got': x['got']}) for t, x in got['law']],
+               'surety': [(t, x['surety']) for t, x in got['law'] if 'surety' in x],
                'events': [(e['t'], e) for e in events]}
     with open(path) as f:
         lines = [json.loads(line) for line in f]
