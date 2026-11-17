@@ -1,72 +1,90 @@
-"""The robot's seat bare of its clothes: a plate a side over its buttocks, its lower part sliding with the thigh."""
+"""The robot's seat bare of its clothes: a black honeycomb net a side over its hip's roll drive, turning with it."""
 import sys
 
 from tools.dev.focus import chosen
 from views_kit import Report
 
-def _beyond(points, a, b, r):
-    """How far each of `points` stands out of the capsule `r` round from `a` to `b`, m: under 0 within it."""
+
+def _caps(angles):
+    """[(r, a, b)] the pelvis's capsules and the left thigh's at `angles`, the pelvis's frame."""
     import numpy as np
-    a, b = np.asarray(a, float), np.asarray(b, float)
-    w = np.clip((points - a) @ (b - a) / max(float((b - a) @ (b - a)), 1e-12), 0.0, 1.0)
-    return np.linalg.norm(points - (a + w[:, None] * (b - a)), axis=1) - r
+    from machine.body import figure
+    at, turn = (np.asarray(v, float) for v in figure.frames(angles, (0.0, 0.0, 0.0), figure.IDENT)['left_thigh'])
+    return [(r, np.asarray(a, float), np.asarray(b, float)) if seg == 'pelvis' else
+            (r, at + turn @ np.asarray(a, float), at + turn @ np.asarray(b, float))
+            for seg, r, a, b in figure.BODY if seg in ('pelvis', 'thigh')]
 
 
-def test_the_seat_plates_slide_with_the_thighs(report):
-    """The robot's seat a plate a side (`plated.seat`): within its buttocks (`figure.SEAT_*`, what the floor and a chair
-    meet), the two apart at the middle and each the other's mirror, a pad's face in the guards' rim, its back foam, four
-    rivets; its lower part slides on the buttock with the thigh - forward with the hip forward, its top still, each
-    corner as far from the buttock's middle -; a hip's yaw to its stops, its roll 30 deg either way and its pitch from
-    30 back to 120 forward keep the plate within the robot's capsules and the mechanism a guard's air off it."""
+def _borne(points, caps):
+    """How far `points` stand beyond the planes the capsules `caps` bear on, each way from straight down to straight
+    back (sat on a floor, leant back, lying on the back), m: under 0 within them."""
+    import numpy as np
+    turns = np.radians(np.linspace(0.0, 90.0, 19))
+    ways = np.stack([np.zeros_like(turns), -np.cos(turns), -np.sin(turns)], 1)
+    held = np.max([np.maximum(ways @ a, ways @ b) + r for r, a, b in caps], axis=0)
+    return float((points @ ways.T - held).max())
+
+
+def _nearest(points, others):
+    """The least distance from `points` to `others`, m (inf with none)."""
+    import numpy as np
+    return min([float(np.linalg.norm(c[:, None, :] - points[None, :, :], axis=2).min())
+                for c in np.array_split(others, max(1, len(others) // 2000)) if len(c)] or [np.inf])
+
+
+def test_the_seat_nets_turn_with_the_drives(report):
+    """The robot's seat a net a side (`seat.plate`): the guards' honeycomb alone, its bars black, over the hip's roll
+    drive's stack a guard's air off it, the two apart at the middle and each the other's mirror; fixed on the drive -
+    the hip's yaw turns it with the drive, its roll and its pitch leave it still -; a hip's yaw to its stops, its roll
+    30 deg either way and its pitch from 30 back to 120 forward keep it within what the robot bears on (`figure.BODY`'s
+    pelvis and thigh, what the floor, a chair and a bed meet) and the mechanism by it a guard's air off it."""
     import itertools
     import numpy as np
-    from coaxial.graphics import gynoid, livery
+    from coaxial.graphics import gynoid, livery, seat
     from machine.body import figure, guards
     body = gynoid.body(dressed=False, plates=True)
     names = [p[0] for p in body.parts]
     k, kr, kp = (names.index(n) for n in ('left_seat', 'right_seat', 'pelvis'))
     left, right = body.parts[k][5], body.parts[kr][5]
-    middle = np.array([figure.SEAT_X, figure.SEAT_Y, figure.SEAT_Z[0]])
-    end = (figure.SEAT_X, figure.SEAT_Y, figure.SEAT_Z[1])
-    within = float(_beyond(left[0], middle, end, figure.SEAT_R).max())
-    report.check("a plate a side within its buttock, apart at the middle, the right the left's mirror; a pad's face in "
-                 "the guards' rim, its back foam, four rivets",
-                 within < 0.0 and float(left[0][:, 0].min()) > 0.01 and bool(np.allclose(right[0], left[0] * (-1.0, 1.0, 1.0)))
-                 and {livery.PAD, livery.FRAME, livery.FOAM, livery.BOLT} == set(left[3].tolist())
-                 and int((left[3] == livery.BOLT).sum()) == 4 * 7,
-                 '%.4f m within its buttock, %.3f m off the middle' % (-within, left[0][:, 0].min()))
-    stand, others = figure.stand(), [i for i, n in enumerate(names) if not n.endswith('_seat') and body.spans[i][1] > body.spans[i][0]]
+    stand = figure.stand()
 
     def laid(angles):
         pos, _n = body.pose(angles)
         return pos - (pos[slice(*body.spans[kp])] - body.parts[kp][5][0]).mean(axis=0)   # the pelvis moved, not turned
-    still, bent = (laid(a)[slice(*body.spans[k])] for a in (stand, dict(stand, left_hip=-90.0)))
-    low, top = left[0][:, 1] < -0.11, left[0][:, 1] > -0.08
-    reach = np.abs(np.linalg.norm(bent - middle, axis=1) - np.linalg.norm(still - middle, axis=1)).max()
-    report.check('its lower part slides forward on the buttock with the hip forward 90 deg, its top still, each corner as '
-                 'far from the buttock\'s middle',
-                 float((bent - still)[low, 2].mean()) > 0.02 and float(np.abs(bent - still)[top].max()) < 1e-9 and reach < 1e-9,
-                 'its lowest corners %.3f m ahead, its top %.1e m, its reach %.1e m' % (
-                     (bent - still)[low, 2].mean(), np.abs(bent - still)[top].max(), reach))
-    caps = [c for c in figure.BODY if c[0] in ('pelvis', 'thigh')]
+    own = [i for i, n in enumerate(names) if body.parts[i][1] == 'left_hip_yaw' and n.startswith(seat.STACK)]
+    pos = laid(stand)
+    net, stack = pos[slice(*body.spans[k])], np.vstack([pos[slice(*body.spans[i])] for i in own])
+    off = _nearest(net, stack)
+    report.check("a net a side over its hip's roll drive a guard's air off it, its bars black, apart at the middle, the "
+                 "right the left's mirror",
+                 off >= guards.AIR_M and set(left[3].tolist()) == {livery.VOID} and len(left[0]) > 0
+                 and float(left[0][:, 0].min()) > 0.01 and bool(np.allclose(right[0], left[0] * (-1.0, 1.0, 1.0))),
+                 '%d corners, the drive %.4f m off, %.3f m off the middle' % (len(left[0]), off, left[0][:, 0].min()))
+    gap0 = np.linalg.norm(net[:, None, :] - stack[None, ::7, :], axis=2)
+    turned, still = (laid(dict(stand, **a)) for a in ({'left_hip_yaw': 25.0}, {'left_hip_roll': 30.0, 'left_hip': -90.0}))
+    rigid = float(np.abs(np.linalg.norm(turned[slice(*body.spans[k])][:, None, :] - np.vstack(
+        [turned[slice(*body.spans[i])] for i in own])[None, ::7, :], axis=2) - gap0).max())
+    moved = float(np.abs(turned[slice(*body.spans[k])] - net).max())
+    held = float(np.abs(still[slice(*body.spans[k])] - net).max())
+    report.check("the hip's yaw turns it with the drive, its roll and its pitch leave it still",
+                 rigid < 1e-9 and moved > 0.01 and held < 1e-9,
+                 'with the yaw %.3f m moved, %.1e m off the drive\'s own; with the roll and the pitch %.1e m' % (moved, rigid, held))
+    others = [i for i, n in enumerate(names) if not n.endswith('_seat') and body.spans[i][1] > body.spans[i][0]]
     out, gap = -np.inf, np.inf
     for yaw, roll, pitch in itertools.product((-25.0, 25.0), (-30.0, 30.0), (30.0, -60.0, -120.0)):
         angles = dict(stand, left_hip_yaw=yaw, left_hip_roll=roll, left_hip=pitch)
         pos = laid(angles)
         plate = pos[slice(*body.spans[k])]
-        at, turn = (np.asarray(v, float) for v in figure.frames(angles, (0.0, 0.0, 0.0), figure.IDENT)['left_thigh'])
-        far = np.min([_beyond(plate, a, b, r) if seg == 'pelvis' else _beyond(plate, at + turn @ np.asarray(a), at + turn @ np.asarray(b), r)
-                      for seg, r, a, b in caps], axis=0)
         rest = np.vstack([pos[slice(*body.spans[i])] for i in others])
-        rest = rest[(rest[:, 0] > 0.0) & (rest[:, 1] < -0.04) & (rest[:, 2] < -0.03)]
-        out = max(out, float(far.max()))
-        gap = min(gap, float(np.min(np.linalg.norm(rest[:, None, :] - plate[None, ::2, :], axis=2))))
-    report.check("the hip turned to its stops and its roll and pitch's ends, the plate within the robot's capsules and "
-                 "the mechanism a guard's air off it",
-                 out < 0.0 and gap > guards.AIR_M, '%.4f m within at the least, the mechanism %.4f m off' % (-out, gap))
+        lo, hi = plate.min(axis=0) - guards.AIR_M, plate.max(axis=0) + guards.AIR_M
+        out = max(out, _borne(plate, _caps(angles)))
+        gap = min(gap, _nearest(plate, rest[((rest > lo) & (rest < hi)).all(axis=1)]))
+    report.check("the hip turned to its stops and its roll and pitch's ends, the net within what the robot bears on "
+                 "and the mechanism by it a guard's air off it",
+                 out < 0.0 and gap >= guards.AIR_M, '%.4f m within at the least, the mechanism %.4f m off' % (-out, gap))
 
 
-ROSTER = (test_the_seat_plates_slide_with_the_thighs,)
+ROSTER = (test_the_seat_nets_turn_with_the_drives,)
 
 
 def main(argv=None):

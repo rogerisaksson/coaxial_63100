@@ -4,7 +4,7 @@ The robot is its mechanism (`mechanism.parts`: carbon tubes, each drive's drum, 
 joints, gimbals), every part of it a hard shell's in its livery's paints (`framed`: black
 carbon tubes, magenta drives, steel) and each drive bolted - a ring of bolts on either face
 of its motor's can -; on it its guards (`guards.laid`: honeycomb pads in carbon frames, stood
-off its tubes), its seat (`seat.plate`: a plate a side over its buttocks, sliding with the thighs), its
+off its tubes), its seat (`seat.plate`: a black honeycomb net a side over its hip's roll drive, turning with it), its
 hands and its head - a body's and a figure's where a likeness is worn, else as built - and its
 shoes. No shell closes it: its tubes, its drives and the air between
 them are what is seen. Dressed (`dressed`), it wears the likeness's clothes over that: what a
@@ -177,7 +177,14 @@ def parts(meshes, extra, liked: Any = None):
     for name, parent, *rest in extra:
         if len(rest) == 2 and parent == 'head' and not figured and (name in KEPT or name.endswith(ENDS)):
             out.append(('shell_' + name, parent, (), rest[0], 0.0, rest[1]))
-    out += [(name + '_seat', 'pelvis', (), z0, 0.0, seat.plate(side)) for name, side in (('left', 1.0), ('right', -1.0))]
+    placed, frames = _rested(out)
+    rested = [(part[0], part[1], part[5][0] @ frame[0].T + frame[1], part[5][1]) for part, frame in zip(out, frames)
+              if frame is not None and len(part[5][0])]
+    pelvis = [(c, t) for _n, parent, c, t in rested if parent == 'pelvis']
+    for name, side in (('left', 1.0), ('right', -1.0)):
+        joint = placed[name + '_hip_yaw'][1]
+        drive = ([(n, c, t) for n, parent, c, t in rested if parent == name + '_hip_yaw'], joint)
+        out.append((name + '_seat', name + '_hip_yaw', (), tuple(-joint), 0.0, seat.plate(side, drive, pelvis)))
     return out +[(name, parent, (), offset, 0.0, mesh) for name, parent, offset, mesh in guards.laid(cleared(out, body, meshes, extra))]
 
 
