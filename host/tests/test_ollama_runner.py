@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """The plan runner, the sandbox, and the test tooling itself."""
+import importlib.util
 import json
 import os
 import sys
@@ -220,9 +221,8 @@ def test_scope_repairs(report):
     report.check('a real syntax error is still a syntax error',
                  'SyntaxError' in scope.run('x = ('))
 
-    # A package that is genuinely not here, so the failure has to name the
-    # alternative rather than only the refusal.
-    missing = scope.run('import scipy')
+    # A package this host lacks: the sandbox imports whatever the host has.
+    missing = scope.run('import ' + next(n for n in ('scipy', 'sklearn') if not importlib.util.find_spec(n)))
     report.check('a missing package says what is here instead',
                  'statistics' in missing and 'namespace holds' in missing,
                  missing.splitlines()[-1][:52])
