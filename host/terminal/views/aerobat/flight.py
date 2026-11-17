@@ -42,4 +42,14 @@ def step(rotors, sky, route, law, flight, clock, dt):
     return hflight.step(rotors, sky, route, law, flight, clock, dt, aerobat)
 
 
+def begun(law, flight):
+    """Reset `law` and the aerobat's 3D `Core` back to the runway."""
+    hflight.begun(law, flight, aerobat)
+
+
+def flown(rotors, sky, core, law, row, flight, dt):
+    """Step the `PROP` and `VECT` 63100 drives, `aerobat.Core`, and `aerobat.Sky`."""
+    return hflight.flown(rotors, sky, core, law, row, flight, dt, aerobat)
+
+
 AERO_REEXPORTS = (arm, asked, observers, reset, spun, struck, warmth)
