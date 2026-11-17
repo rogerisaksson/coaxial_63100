@@ -142,7 +142,7 @@ def _crossfade(p, then, at, modes, body):
     seat = not plantar and at['seat'] is not None
     at['knee'] = seated.knee(seated.sat(at['seat']), at['ankle']) if seat else at['knee']
     gain = 1.0 if plantar else 10.0 ** (at.get('legs-db', 0.0) / 20.0)
-    springs = {m: sprung(m, gain, 1.0, modes) for node in LEGS for m in NODES[node]}
+    springs = {m: sprung(m, 1.0 if 'pelvis' in m else gain, 1.0, modes) for node in LEGS for m in NODES[node]}
     left = p.get('source-residual-weight', 0.0)
     fade = Phase('contact', 'crossfade', ms, ms, {'mode_axial_compression': seated.axial(at['knee'], modes, body)} if seat else {},
                  springs, SUPPORT if plantar else NONE, None, shape=shape,

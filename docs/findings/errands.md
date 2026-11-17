@@ -237,3 +237,34 @@ chair stands 1.03 m off its table's edge, the robot's stage 0.58 m off it.
   its turn told round it, a stop only where no arc of its slowest walk fits:
   59 of the lodge's 60 corners, where a B-spline through the same plans
   fitted 3 of 56.
+
+## The chair: square onto it, its hips held off it
+
+The seat's touch on the lighter pelvis (66b0efd0) kicked the robot's trunk into
+a roll the cross-fade let stand: the cross-fade gave the pelvis's list and turn
+the limbs' post-contact gain (the suite's `post-contact-limb-gain-db`, -24 dB on
+a rigid seat), the roll held +5.3 deg, the left fist hung 23 mm over the seat as
+the palmar row came due (4.12 s) and landed 0.16 s after the right, and the
+robot's vault lifted on one fist: turned 10.5 deg, sat 6.6 cm aside, too far for
+both fists to scoot it up. The pelvis's list and turn kept at the rest's spring
+as the seat takes the robot (as `_pendulum` keeps those it turns): the roll near
+0, both fists within 1-3 mm of bearing at the row, the robot seated 6 mm aside,
+turned 2.1 deg. Rising, the dismount's vault folded the robot's hips from its
+start (8b9ea73e): the pelvis slid on the seat still bearing 0.87 of the robot,
+where the kernel's egress slides it bearing 0.55 at most, the fists came off the
+seat, the scoot stalled 11 cm out and the robot stood on one foot and fell. Held
+as at the last green run, the robot's arms unload the seat first (0.08 to 0.49 a
+palm, the pelvis still) and the robot stands, its soles 1.01 a second on.
+
+Open: on Linux's bits the rise still ends off the robot's soles (stand 4.04 s,
+soles 0.00). The robot sits 2.1 deg turned: its right fist meets the seat at
+0.19 m/s (green 0.13, its trunk straightening 22 deg under the seek and lifting
+its shoulders) and rebounds, so the vault lifts on the left; the thighs leave
+the seat's edge 12 ms apart, the dismount ends on one foot's impact, the law's
+step comes lopsided and the plant's latch, pulled to the program's end
+(8b9ea73e), reads the impact (sagittal shift -3.19 where green settled at
+-2.12): the robot rocks foot to foot. The mount's outcome flips within 57 ms of
+its release (4.13 s draws the robot back, 4.18 and 4.60 s hang it): both vaults
+are open-loop programs, and closing them on what the robot senses - its centre
+of mass past its fists, both feet bearing before the law latches - is what is
+left.

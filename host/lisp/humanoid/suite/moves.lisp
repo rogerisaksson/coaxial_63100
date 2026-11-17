@@ -144,7 +144,9 @@
 ;; 14 (0.15 m/s on 0.61 m), its hips and knees held as it sits, till its soles bear it
 ;; as its rise unlatches its seat (`:feet` at the concentric handover's 0.82): the robot's palms bore up to
 ;; 284 N, its pelvis 0.18 m forward, its soles 0.96 of it. The robot's text's rows wait while
-;; it plays.
+;; it plays. Folded from the vault's start (to -102 deg at 20 deg/s), the robot's hips slid its pelvis along the
+;; seat while the seat still bore 0.87 of it - the kernel's slide bears the seat 0.55 at most -, its fists came
+;; off the seat 0.6 s in, the scoot stalled 11 cm out and the robot stood on one foot and fell.
 (defmove chair-dismount []
   (let [;; the robot's soles' share planted, as its rise unlatches its seat; a goal reached within tol deg; the robot's legs squared
         plant 0.82 tol 1e-6
@@ -154,7 +156,7 @@
      :phases [(:name :place :ends :reached :next :press :with [square]
                :goals (:shoulder [-35.5 60.0] :elbow [63.9 120.0] :hip [-90.0 11.0] :knee [90.0 15.0]))
               (:name :press :ends :reached :next :vault :goals (:shoulder [-23.3 30.0] :elbow [41.2 30.0]))
-              (:name :vault :ends :feet :next :done :goals (:shoulder [-45.0 14.0] :elbow [-5.0 30.0] :hip [-102.0 20.0]))
+              (:name :vault :ends :feet :next :done :goals (:shoulder [-45.0 14.0] :elbow [-5.0 30.0]))
               (:name :done :ends :reached :next :done)])))
 
 ;; The robot's scoot on the floor as its twist tells it (machine.moves.scoot, wbc_scoot.c): a crab on the
