@@ -39,6 +39,9 @@ ROWS = {
             'laid': (1,),
             'wbc_chain_tasks': (1,),
         },
+        'wbc_classes.c': {
+            'laid': (1,),
+        },
         'wbc_cone.c': {
             'faced': (2,),
             'kinetic': (5,),
@@ -69,6 +72,22 @@ ROWS = {
             'wbc_law_couple': (2,),
             'wbc_law_latent': (3,),
         },
+        'wbc_libm.c': {
+            'lm_reduce_far': (1,),
+            'lm_reduce_run': (1,),
+            'lm_run_arccos': (1,),
+            'lm_run_arcsin': (1,),
+            'lm_run_arctan': (1,),
+            'lm_run_arctan2': (1,),
+            'lm_run_cos': (1,),
+            'lm_run_exp': (1,),
+            'lm_run_expm1': (1,),
+            'lm_run_hypot': (1,),
+            'lm_run_log': (1,),
+            'lm_run_sin': (1,),
+            'lm_run_sincos': (1,),
+            'lm_run_tan': (1,),
+        },
         'wbc_maps.c': {
             'inv6': (1,),
             'wbc_step_maps': (6,),
@@ -97,7 +116,7 @@ ROWS = {
         },
         'wbc_rounds.c': {
             'taken': (2,),
-            'wbc_rounds': (2,),
+            'wbc_within': (4,),
         },
         'wbc_scoot.c': {
             'wbc_scoot_step': (1,),
@@ -145,9 +164,13 @@ ROWS = {
             'wbc_wait_sunk': (1,),
             'wbc_wait_woken': (1,),
         },
+        'wbc_wholes.c': {
+            'laid': (1,),
+        },
         'wbc_world.c': {
             'wbc_world_contacted': (1,),
             'wbc_world_held': (2,),
+            'wbc_world_stuck': (1,),
         },
         'wbc_wrench.c': {
             'maps': (6,),
@@ -257,7 +280,7 @@ ROWS = {
         },
         'wbc_rounds.c': {
             'taken': (2, 2),
-            'wbc_within': (1, 1),
+            'wbc_within': (2, 2),
         },
         'wbc_shrunk.c': {
             'wbc_wrench_motion': (2, 2),
@@ -422,7 +445,7 @@ ROWS = {
         },
         'wbc_rounds.c': {
             'taken': (2, 2, 2),
-            'wbc_within': (1, 1, 2),
+            'wbc_within': (2, 2, 3),
         },
         'wbc_shrunk.c': {
             'wbc_wrench_motion': (3, 3, 3),
@@ -596,6 +619,7 @@ ROWS = {
         },
         'wbc_rounds.c': {
             'taken': (1, 1, 1),
+            'wbc_within': (2, 2, 2),
         },
         'wbc_shrunk.c': {
             'wbc_wrench_motion': (3, 3, 3),

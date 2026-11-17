@@ -380,7 +380,7 @@ int wbc_within(wbc_step_t *p, const wbc_geo_t *g, const double *H0, const double
     }
     if (g->inner)
     {
-      double *net = rest, *wide = net + 72, *M = wide + 72, *X = M + 36, *nt = X + 72, *least = nt + 72;
+      double *net = rest, *wide = net + 72, *M = wide + 72, *X = M + 36, *least = X + 72;
       double *in = least + 144, *inner = in + 144, *more = inner + 144, w2[12];
 
       for (int j = 0; j < 12; j++)
@@ -400,7 +400,6 @@ int wbc_within(wbc_step_t *p, const wbc_geo_t *g, const double *H0, const double
         for (int j = 0; j < 12; j++)
         {
           wide[i * 12 + j] = net[i * 12 + j] / w2[j];
-          nt[j * 6 + i] = net[i * 12 + j] / w2[j];
         }
       }
       wbc_matmul(&p->blas, VIEW(wide, 12, 1), VIEW(net, 1, 12), M, 6, 1, 6, 12, 6);
@@ -408,7 +407,9 @@ int wbc_within(wbc_step_t *p, const wbc_geo_t *g, const double *H0, const double
       {
         return 1;
       }
-      wbc_matmul(&p->blas, VIEW(nt, 6, 1), VIEW(X, 12, 1), least, 12, 1, 12, 6, 12);
+      /* numpy's (net.T / w2[:, None]) is Fortran-ordered: read off wide transposed, as numpy's matmul hands it to
+         dgemm - laid row by row, an AVX-512 OpenBLAS's small kernels summed it in another order */
+      wbc_matmul(&p->blas, VIEW(wide, 1, 12), VIEW(X, 12, 1), least, 12, 1, 12, 6, 12);
       for (int i = 0; i < 12; i++)
       {
         for (int j = 0; j < 12; j++)
