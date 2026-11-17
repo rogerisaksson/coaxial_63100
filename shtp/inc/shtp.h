@@ -54,9 +54,6 @@ extern "C" {
 #define SH2_REPORT_GAME_ROTATION   0x08U
 #define SH2_REPORT_TIMEBASE        0xFBU
 
-/** The largest cargo this firmware will assemble. */
-#define SHTP_MAX_CARGO 256U
-
 typedef struct
 {
   uint16_t length;        /**< bytes 14:0, header included */

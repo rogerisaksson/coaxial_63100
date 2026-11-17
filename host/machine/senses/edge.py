@@ -211,12 +211,9 @@ class LimbBus:
         self._lib = lib
         self._counts = np.zeros(5, dtype=np.uint64)
         self._wire = ctypes.c_double(0.0)
-        self._buf = (ctypes.c_uint8 * 64)()
-        self._len = ctypes.c_int(0)
 
     def _pull(self):
-        self._lib.wbh_sil_stats(self.link, _cores().address(self._counts), ctypes.byref(self._wire),
-                                ctypes.byref(self._buf), ctypes.byref(self._len))
+        self._lib.wbh_sil_stats(self.link, _cores().address(self._counts), ctypes.byref(self._wire))
 
     def stats(self):
         """(frames, comm_errors, tx_bytes, stale) at once: one read of its counts (the robot's page's state,
@@ -251,11 +248,6 @@ class LimbBus:
     def wire_s(self):
         self._pull()
         return float(self._wire.value)
-
-    @property
-    def last_frame(self):
-        self._pull()
-        return bytes(self._buf[:self._len.value])
 
 
 @functools.cache

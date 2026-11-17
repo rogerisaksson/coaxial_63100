@@ -22,8 +22,7 @@ from rich.text import Text
 from coaxial.graphics import helicopter as heli_gfx
 from machine.aircraft import helicopter
 from terminal.views.helicopter import flight as flown
-from terminal.views.show_quad import (SIDE_PITCH, ZOOM, carried, compose_craft, flown_row,
-                                      look as quad_look, recorded, run_craft_view, size_of, wheeled)
+from terminal.views.show_quad import compose_craft, look as quad_look, run_craft_view
 
 TITLE = 'HELICOPTER 3D FLYING'
 ROTORS = flown.ROTORS
@@ -66,8 +65,7 @@ def main(argv=None):
                           YAW, NEAR_M)
 
 
-HELI_REEXPORTS = (SIDE_PITCH, ZOOM, carried, compose_craft, flown_row, recorded,
-                  run_craft_view, size_of, wheeled)
+HELI_REEXPORTS = (compose_craft, run_craft_view)
 
 
 if __name__ == '__main__':

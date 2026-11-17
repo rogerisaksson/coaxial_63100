@@ -213,9 +213,8 @@
         sat (:shoulder [:rate :seat brace-rate] :elbow [:rate locked air-rate])
         lift (:hip [:start 0.0 lift-rate] :knee [:start 0.0 air-rate])]
     (:constants (:fold fold :folded folded :down down :leant leant :locked locked :trunk trunk :gain gain
-                 :hip-lo hip-lo :hip-hi hip-hi :vaulted vaulted :air-rate air-rate :brace-rate brace-rate
-                 :lift-rate lift-rate :set-rate set-rate :square-rate square-rate :even-rate even-rate :bear bear
-                 :skim skim :ask ask :tol tol :stroke-turn stroke-turn :turn turn :half half)
+                 :hip-lo hip-lo :hip-hi hip-hi :bear bear :skim skim :ask ask :tol tol
+                 :stroke-turn stroke-turn :turn turn :half half)
      ;; a hip not moving holds the robot's trunk. The robot sits as both its feet lift (as HEAD's lift sat the
      ;; robot: none tipped in 10, its shoulders swung back as its feet lifted, 1 of 2); a step (lift,
      ;; set) moves its heel only, every step taken once the robot sits; past the last its arms reach back to

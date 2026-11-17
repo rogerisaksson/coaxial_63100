@@ -197,11 +197,6 @@ class HouseTour:
         return len(self.steps) if self.done else min(
             bisect.bisect_right(self._ends, self.t - 1e-5), max(0, len(self.steps) - 1))
 
-    @property
-    def step_t(self):
-        idx = self.step_idx
-        return self.t - self._starts[idx] if idx < len(self._starts) else 0.0
-
     def current_label(self):
         """The step under way."""
         idx = self.step_idx

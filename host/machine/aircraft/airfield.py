@@ -112,7 +112,7 @@ def _ramp(x):
 #: to KNIFE_M and the aerobat rolled onto its side over DESCENT_M at PASS_M_S, its top to the
 #: spectator (the other way it showed them its belly), rolled back and up over its last PULL_M; a
 #: teardrop to the far side on OPENING_M turns, its leg twice them so it closes on the line,
-#: and RUN_IN_M up it slowing to RUN_IN_M_S, before the spectator. Flown as timed turns the
+#: and RUN_IN_M up it before the spectator. Flown as timed turns the
 #: same figure ended 22 m beside the runway at 6 m/s, the teardrop 54 m out and 19 beside it;
 #: turned off the lift at 13 m/s on 8 m the aerobat bled to 3.6; the 1.4 m wing ran wide of 9 m
 #: turns. The aerobat's tip 4 cm over the runway on its side: at 0.45 m it struck.
@@ -120,7 +120,7 @@ LIFT_M, RUN_M, OPENING_M, OPEN_M_S = 20.0, 12.0, 11.0, 18.0
 PASS_M, PASS_M_S, KNIFE_M, DESCENT_M, PULL_M = 74.0, KNIFE_PASS['speed'], KNIFE_PASS['height'], 12.0, 15.0
 HARRIER_M, HARRIER_H, HARRIER_M_S, HARRIER_ROLL = (
     38.0, ROLLING_HARRIER['height'], ROLLING_HARRIER['speed'], ROLLING_HARRIER['roll'])
-RUN_IN_M, RUN_IN_M_S = 54.0, 12.0
+RUN_IN_M = 54.0
 #: Gusty, the opening's pass higher by the law's gusts times GUST_S, m (`aerobat.law.GUST_S`).
 GUST_S = 0.6
 _OPEN, _OPEN_AT = _laid((LIFT_M, 0.0), (RUN_M, (-90.0, OPENING_M), (270.0, OPENING_M), PASS_M,

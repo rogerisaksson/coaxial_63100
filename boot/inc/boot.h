@@ -20,7 +20,6 @@ extern "C" {
     around it 232 bytes on the wire, inside the 253 a PDU allows. */
 #define BOOT_CHUNK_BYTES     224U
 #define BOOT_WORD_BYTES      32U      /**< one flash word, 256 bits */
-#define BOOT_WORDS_PER_CHUNK (BOOT_CHUNK_BYTES / BOOT_WORD_BYTES)
 #define BOOT_UID_BYTES       12U      /**< the MCU's unique id, 96 bits */
 #define BOOT_UID_BITS        (BOOT_UID_BYTES * 8U)
 

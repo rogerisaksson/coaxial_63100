@@ -10,7 +10,6 @@ extern "C" {
 
 /* Input register addresses. */
 #define MB_IREG_ADC_BASE       0x0000U
-#define MB_IREG_ADC_COUNT_MAX  0x0010U
 #define MB_IREG_DCBUS_MV       0x0010U
 #define MB_IREG_NTC_CENTI_C    0x0011U
 #define MB_IREG_SYSCLK_HI      0x0020U

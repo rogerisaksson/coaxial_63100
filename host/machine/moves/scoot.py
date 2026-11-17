@@ -77,14 +77,13 @@ def _bent(chord):
 
 #: The move's numbers and phases as the suite's lisp says them, their reasons there (`defmove scoot`,
 #: moves.lisp): a stroke's knees folded (deg), a hip's lift and set, the robot's trunk within LEANT of its
-#: lean, the robot's braced elbows, the trunk its hips hold with their gain and range, its
-#: vaulted shoulders, the rates (deg/s), what bears and touches, a twist's ask and a turn's shares.
+#: lean, the robot's braced elbows, the trunk its hips hold with their gain and range, what bears and touches,
+#: a twist's ask and a turn's shares.
 _MOVE = anatomy.move('scoot')
-(FOLD, FOLDED, DOWN, LEANT, LOCKED, TRUNK, GAIN, HIP_LO, HIP_HI, VAULTED, AIR_RATE, BRACE_RATE, LIFT_RATE, SET_RATE,
- SQUARE_RATE, EVEN_RATE, BEAR, SKIM, ASK, TOL, STROKE_TURN, TURN, HALF) = (_MOVE['constants'][k] for k in (
-    'fold', 'folded', 'down', 'leant', 'locked', 'trunk', 'gain', 'hip-lo', 'hip-hi', 'vaulted', 'air-rate',
-    'brace-rate', 'lift-rate', 'set-rate', 'square-rate', 'even-rate', 'bear', 'skim', 'ask', 'tol', 'stroke-turn',
-    'turn', 'half'))
+(FOLD, FOLDED, DOWN, LEANT, LOCKED, TRUNK, GAIN, HIP_LO, HIP_HI,
+ BEAR, SKIM, ASK, TOL, STROKE_TURN, TURN, HALF) = (_MOVE['constants'][k] for k in (
+    'fold', 'folded', 'down', 'leant', 'locked', 'trunk', 'gain', 'hip-lo', 'hip-hi',
+    'bear', 'skim', 'ask', 'tol', 'stroke-turn', 'turn', 'half'))
 #: What the robot's body sets: a stroke's knees stretched where its hips have gone the stroke's
 #: length; its shoulders sat, its fists behind its braced at its lean
 #: (`seated.braced`); a stroke's knees' rate at a key held, its sweep in the robot's text's stance; the

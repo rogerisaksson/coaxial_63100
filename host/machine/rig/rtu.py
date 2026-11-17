@@ -47,9 +47,9 @@ GATE_OFF, GATE_ON, GATE_SHORT = 0, 1, 2
 STATE_FORMAT = '>iihHHH'
 STATE_BYTES = struct.calcsize(STATE_FORMAT)
 
-#: A poll's bytes and its reply's; a broadcast's around its setpoints, and a setpoint's; a gate
-#: write's, and its echo's.
-POLL_B, REPLY_B, FRAME_B, SETPOINT_B, GATE_B = 8, 5 + STATE_BYTES, 9, 4, 8
+#: A poll's bytes and its reply's; a broadcast's around its setpoints; a gate write's, and its
+#: echo's.
+POLL_B, REPLY_B, FRAME_B, GATE_B = 8, 5 + STATE_BYTES, 9, 8
 
 
 def framed(pdu):

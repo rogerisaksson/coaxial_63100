@@ -8,7 +8,6 @@
 #define NANO_PER_UNIT    1.0e9f     /**< nanohenries; nano kg m2 for the model */
 #define PPM_PER_UNIT     1.0e6f     /**< a ratio carried as parts per million */
 #define PPM_WHOLE        1000000U   /**< the same, as a record field's bound */
-#define MICRO_PER_MILLI  1000UL
 #define US_PER_S         1000000U   /**< cycles a microsecond: the clock over this */
 #define MS_PER_S         1000U
 #define KELVIN_AT_ZERO_C 273.15f

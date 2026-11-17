@@ -7,7 +7,6 @@ round the lodge's furniture walked through its corners (`machine.way.route`)."""
 import math
 import sys
 import time
-from types import SimpleNamespace
 
 import numpy as np
 

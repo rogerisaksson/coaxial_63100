@@ -12,7 +12,7 @@ and their thermal observers warmed on it, then its airfield's gate course (`mach
 from machine.aircraft import aerobat, airfield
 from terminal.views.helicopter import flight as hflight
 from terminal.views.quad import flight as qflight
-from terminal.views.quad.flight import asked, observers, reset, spun, struck, warmth
+from terminal.views.quad.flight import observers, reset, struck
 
 #: The aerobat's two 63100 drives: single tractor propeller and tail/vector drive.
 ROTORS = ('PROP', 'VECT')
@@ -52,4 +52,4 @@ def flown(rotors, sky, core, law, row, flight, dt):
     return hflight.flown(rotors, sky, core, law, row, flight, dt, aerobat)
 
 
-AERO_REEXPORTS = (arm, asked, observers, reset, spun, struck, warmth)
+AERO_REEXPORTS = (observers, reset, struck)

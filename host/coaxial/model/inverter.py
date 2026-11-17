@@ -49,11 +49,11 @@ RTH_JA_JEDEC = 25.9
 #: The junction limit the sheet states, degrees C: a leg's ceiling in the
 #: calibration record, judged on the junction.
 T_J_MAX = float(_INV['tj_max_c'])
-#: The inverter's nodes' ceilings, degrees C: the switches' copper, the laminate, the stator and the winding.
-CEILING_SWITCH_C, CEILING_LAMINATE_C, CEILING_STATOR_C, CEILING_WINDING_C = (
-    float(c) for c in _INV['ceiling_c'])
+#: The inverter's nodes' ceilings, degrees C: the switches' copper, the laminate and the stator.
+CEILING_SWITCH_C, CEILING_LAMINATE_C, CEILING_STATOR_C = (
+    float(c) for c in _INV['ceiling_c'][:3])
 CJO, M, VJ = 15.6e-9, 0.45, 0.7    #: output capacitance at 0 V, and its law
-CGS, QG, RG = 5.48e-9, 81e-9, 2.2
+QG, RG = 81e-9, 2.2
 
 L_LOOP = 4e-9                 #: power loop, tight layout: 0.25 nH/mm over
                               #: the half_bridge.asc geometry (L21+L22+L1)

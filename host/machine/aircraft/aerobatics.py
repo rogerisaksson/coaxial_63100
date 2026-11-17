@@ -7,11 +7,9 @@
 Spent - the quad's pack, its boards' envelopes - the routine comes down from wherever it is and waits
 on the floor until it is fit.
 """
-import math
 from typing import Any
 
 from machine.aircraft import quad
-from machine.aircraft.quad import FLOOR_M, HOVER_M
 
 #: A figure a row of setpoints: height, m over the floor, and the pace the quad may go there at, m/s,
 #: come to and stopped from in a second; climb and push, that height's own rate and pull, m/s
@@ -25,7 +23,7 @@ from machine.aircraft.quad import FLOOR_M, HOVER_M
 #: against, under none pointed down - half in a figure: leant against all of it while asked to
 #: fall, the thrust cut for the fall took the pull along the floor with it, over a crest at 0.3
 #: of its weight a bend had 0.6 of its pull and the frame ran 1.2 m wide.
-_ST, _KIN, _ENV_M = quad.STUNTS, quad.KINEMATICS, (FLOOR_M, HOVER_M)
+_ST, _KIN, HOVER_M = quad.STUNTS, quad.KINEMATICS, quad.HOVER_M
 HOVER = _ST['hover']
 #: Full tilt: a height out of reach, at any pace.
 SKY = _ST['sky']
@@ -40,12 +38,11 @@ STOP = _ST['stop']
 DOWN = _ST['down']
 #: A turn of the quad on its spot, as the discs' drag turns it.
 PIROUETTE = _ST['pirouette']
-#: An orbit: slid ORBIT_M_S round the point ORBIT_M ahead of the quad's nose, its nose on it, banked
-#: 25 degrees, a lap LAP_S. Mixed with a hover it keeps its circle - both its slide and its turn
+#: An orbit: slid round the point ORBIT_M ahead of the quad's nose, its nose on it, banked
+#: 25 degrees. Mixed with a hover it keeps its circle - both its slide and its turn
 #: are as much of theirs - and eased in and out alike it is as many laps as its seconds.
-ORBIT_M, ORBIT_M_S = _KIN['horizontal']['orbit_radius'], _KIN['horizontal']['orbit_speed']
+ORBIT_M = _KIN['horizontal']['orbit_radius']
 ORBIT = _ST['orbit']
-LAP_S = math.tau * ORBIT_M / ORBIT_M_S
 #: The orbit climbed: a corkscrew to TOP_M; and its way back, down again.
 TOP_M = _KIN['envelope']['top_height']
 CORKSCREW = _ST['corkscrew']
@@ -80,8 +77,7 @@ SPENT_TO = 'descend'
 KEYS = {'height': (1, 0), 'pace': (1, -1), 'climb': (1, -1), 'push': (1, -2), 'speed': (1, -1),
         'slide': (1, -1), 'surge': (1, -2), 'sway': (1, -2), 'turn': (0, -1), 'x': (1, 0),
         'z': (1, 0), 'lean': (1, -2), 'roll': (0, -1), 'flip': (0, -1)}
-_UNITS = {'ORBIT_M': (1, 0), 'ORBIT_M_S': (1, -1), 'LAP_S': (0, 1), 'TOP_M': (1, 0),
-          'FLOOR_M': (1, 0), 'HOVER_M': (1, 0)}
+_UNITS = {'ORBIT_M': (1, 0), 'TOP_M': (1, 0), 'HOVER_M': (1, 0)}
 _BUILT, _ROWS, _CARD = {}, [], []
 
 

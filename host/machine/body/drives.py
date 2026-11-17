@@ -92,8 +92,8 @@ LOOP_HZ = {k: float(v.get('loop_hz', 0.05 * float(v['pwm_hz'])))
            for k, v in _LIB['inverters'].items()}
 STACKS = {kind: tuple(stack) for kind, stack in _BUILD['stacks'].items()}
 _BOX = _LIB['gearboxes'][STACKS['knee'][1]]
-RATIO, GEAR_J, BOX_ZETA = _BOX['ratio'], _BOX['input_j_share'], _BOX['zeta']
-BACKLASH_DEG, BOX_FRICTION = _BOX['backlash_deg'], _BOX['friction_share']
+RATIO, BOX_ZETA = _BOX['ratio'], _BOX['zeta']
+BACKLASH_DEG = _BOX['backlash_deg']
 COOLING = float(_BUILD.get('cooling', 1.0))
 RIGID_PLAY_DEG = float(_BUILD.get('rigid_play_deg', 0.2 * BACKLASH_DEG))
 AHEAD_WIND = float(_BUILD.get('ahead_wind', 0.0))
@@ -489,7 +489,6 @@ STATOR_J_K = {k: float(m.get('stator_j_k', round(_CP_HOUS * m['kg']))) for k, m 
 _PRIMARY_INV = mechatronics.primary_inverter(_BUILD, _LIB)
 _REF_AMPS = INVERTERS[_PRIMARY_INV][1]
 MOUNT_BY_INV = {k: _mount_k_w(v[0]) for k, v in INVERTERS.items()}
-MOUNT_K_W, OFF_MOUNT_K_W = MOUNT_BY_INV[_PRIMARY_INV]
 
 
 def cloth_air(joint=None):

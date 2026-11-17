@@ -5,10 +5,9 @@ rotor's side. The page draws the helicopter (`coaxial.graphics.helicopter`) at t
 skids the sky stands it on.
 """
 
-#: The main rotor's plane and its radius; the tail rotor's hub (x, y, z) and radius; the mast's
-#: swashplate (y, radius); the head's hub (y, radius) and its grips along the blades (from, to,
-#: radius).
-DISC_Y, ROTOR, TAIL, TAIL_ROTOR = 0.475, 0.872, (0.064, 0.2435, 1.005), 0.1325
+#: The main rotor's radius; the tail rotor's hub (x, y, z); the mast's swashplate (y, radius);
+#: the head's hub (y, radius) and its grips along the blades (from, to, radius).
+ROTOR, TAIL = 0.872, (0.064, 0.2435, 1.005)
 SWASH, HUB, GRIPS = (0.37, 0.03), (0.465, 0.03), (0.028, 0.066, 0.016)
 
 #: A main blade from its root out (root, chord, thickness); a tail blade's chord.

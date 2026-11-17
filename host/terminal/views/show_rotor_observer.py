@@ -45,7 +45,7 @@ from coaxial.comm.hostclock import clock_of
 from coaxial.comm.session import standing
 from coaxial.control.commission import Commissioning
 from coaxial.draw import cross_section
-from coaxial.draw.gauges import TEMP_FLOOR_C, TEMP_SCALE_C, temp_share
+from coaxial.draw.gauges import temp_share
 from coaxial.errors import RigError
 from coaxial.model import thermal as _thermal
 from terminal.loader import answer
@@ -69,10 +69,6 @@ from terminal.views.rotor.thermal import (headrooms, held, ntc_bar, policy_margi
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
-
-#: The thermistor's colour ramp, C: the page's scale (`coaxial.draw.gauges`, one
-#: for every thermometer and the winding), not a limit.
-NTC_COLD_C, NTC_HOT_C = TEMP_FLOOR_C, TEMP_SCALE_C
 
 def sane(args):
     """Refuse a run outside LIMITS, and the two relations between them."""

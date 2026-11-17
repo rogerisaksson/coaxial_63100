@@ -76,7 +76,7 @@ def test_each_gutter_says_its_hottest_node(report):
 
 def test_both_gutters_run_on_one_scale(report):
     """Height is degrees, colour is margin, and they are two questions."""
-    from coaxial.draw import cross_section
+    from coaxial.draw import cross_section, gauges
     from terminal.views import show_rotor_observer as view
     from terminal.views.rotor import layout, thermal
 
@@ -98,10 +98,8 @@ def test_both_gutters_run_on_one_scale(report):
     report.check('the scale is stated, not taken from a limit the board '
                  'acts on: -35 to 130 on the bench\'s word, one ruler for '
                  'every tube',
-                 (view.TEMP_FLOOR_C, view.TEMP_SCALE_C) == (-35.0, 130.0)
-                 and view.NTC_COLD_C == view.TEMP_FLOOR_C
-                 and view.NTC_HOT_C == view.TEMP_SCALE_C,
-                 '%.0f to %.0f C' % (view.TEMP_FLOOR_C, view.TEMP_SCALE_C))
+                 (gauges.TEMP_FLOOR_C, gauges.TEMP_SCALE_C) == (-35.0, 130.0),
+                 '%.0f to %.0f C' % (gauges.TEMP_FLOOR_C, gauges.TEMP_SCALE_C))
     report.check('and the room sits on the tube, not under it',
                  abs(view.temp_share(25.0) - 60.0 / 165.0) < 1e-9,
                  '%.3f' % view.temp_share(25.0))
@@ -181,7 +179,7 @@ def test_the_ntc_is_shown_as_the_one_measurement(report):
 
 def test_two_headrooms_named_apart(report):
     """The board's margin and the motor's are different facts."""
-    from terminal.views import show_rotor_observer as view
+    from coaxial.draw import gauges
     from terminal.views.rotor import layout, thermal
 
     report.check('both scales are named, and named differently',
@@ -192,14 +190,14 @@ def test_two_headrooms_named_apart(report):
     # A motor at the scale's floor has all of its margin, a cooking one has
     # none, and neither ever leaves the scale - a headroom below zero would
     # draw a bar longer than its own track.
-    for celsius, want in ((view.TEMP_FLOOR_C, 1.0), (view.TEMP_SCALE_C, 0.0),
-                          (view.TEMP_SCALE_C + 80.0, 0.0)):
+    for celsius, want in ((gauges.TEMP_FLOOR_C, 1.0), (gauges.TEMP_SCALE_C, 0.0),
+                          (gauges.TEMP_SCALE_C + 80.0, 0.0)):
         got = thermal.motor_headroom_of(celsius)
         report.check('a winding at %.0f C leaves %.0f %% of the scale'
                      % (celsius, 100.0 * want),
                      abs(got - want) < 0.02, '%.3f' % got)
 
-    half = (view.TEMP_FLOOR_C + view.TEMP_SCALE_C) / 2.0
+    half = (gauges.TEMP_FLOOR_C + gauges.TEMP_SCALE_C) / 2.0
     report.check('and half way up the scale is half the margin',
                  abs(thermal.motor_headroom_of(half) - 0.5) < 0.02,
                  '%.3f at %.0f C' % (thermal.motor_headroom_of(half), half))

@@ -45,11 +45,6 @@ LIT = SHADE
 CLASS_RUNG = (0, 2, 4)
 
 
-#: The level band the ladder spans in mono; rung 0 is blank. With colour
-#: the glyph comes off `heat` (`_glow`).
-LEVEL_LO, LEVEL_HI = 0.0, 2.0
-
-
 #: The heat band the ladder spans, as a share of DIMMEST to the glow's top:
 #: fitted at zoom 1 - 368 lit cells, p5-p95 heat 1.87-3.83 - 0.22 to 0.52.
 #: The full range put every interior cell on one rung.

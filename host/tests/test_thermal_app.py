@@ -170,7 +170,7 @@ def test_heterogeneous_inverter_and_gearbox_derivations(report, _lib):
     raw_inv = mechatronics._toml(os.path.join(mechatronics.LIBRARY, 'inverters.toml'))
     raw_w = mechatronics._toml(os.path.join(mechatronics.LIBRARY, 'world.toml'))
     report.check('passive armatures, backlash stops and mesh smoothing generalize per stack',
-                 mjcf._passive_j('left_wrist') == mjcf.PASSIVE_J
+                 mjcf._passive_j('left_wrist') > 0.0
                  and mjcf._held_deg('left_gripper') == mjcf.HELD_DEG
                  and structural.FLEX_DEG == 0.5 * drives.BACKLASH_DEG
                  and gearbox.MESH_RAD_S > 0.0 and body_compile.ENC_RAD > 0.0

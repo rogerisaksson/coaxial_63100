@@ -11,7 +11,7 @@ observers warmed on it, then the 16-gate course (`machine.aircraft.course`).
 """
 from machine.aircraft import course, ornithopter, sweep
 from terminal.views.helicopter import flight as hflight
-from terminal.views.quad.flight import arm, asked, observers, reset, spun, struck, warmth
+from terminal.views.quad.flight import arm, observers, reset, struck
 
 #: The ornithopter's two 63100 wing drives: fore wing pair and aft wing pair on the carapace.
 ROTORS = ('FORE', 'AFT')
@@ -45,4 +45,4 @@ def flown(rotors, sky, core, law, row, flight, dt):
     return hflight.flown(rotors, sky, core, law, row, flight, dt, ornithopter)
 
 
-ORNI_REEXPORTS = (arm, asked, observers, reset, spun, struck, warmth)
+ORNI_REEXPORTS = (arm, observers, reset, struck)

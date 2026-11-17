@@ -323,8 +323,7 @@ typedef struct
     joints' setpoints and clamps laid (wbc_played_step) and, in wbc_sil_played, told. */
 double wbc_played_step(wbc_played_t *p, double t, double dt, const double *senses);
 double wbc_sil_played(wbc_played_t *p, double t, double dt, const double *senses);
-void wbc_sil_stats(int bus_id, unsigned long long *counts, double *wire_s,
-                   unsigned char *last_frame, int *last_len);
+void wbc_sil_stats(int bus_id, unsigned long long *counts, double *wire_s);
 /** The line's noise: each frame on the wire a bit flipped with the chance `ber` gives its 10
     bits a character; `seed` the draw's. */
 void wbc_sil_noise(double ber, uint32_t seed);

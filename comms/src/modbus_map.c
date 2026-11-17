@@ -171,7 +171,7 @@ static mb_exception_t read_counter(const mb_rtu_t *rtu, uint16_t offset, uint16_
 }
 
 static const ireg_span_t s_input_spans[] = {
-  { 0U,                    adc_words,          read_adc     },
+  { MB_IREG_ADC_BASE,      adc_words,          read_adc     },
   { MB_IREG_DCBUS_MV,      one_word,           read_dcbus   },
   { MB_IREG_NTC_CENTI_C,   one_word,           read_ntc     },
   { MB_IREG_SYSCLK_HI,     two_words,          read_sysclk  },

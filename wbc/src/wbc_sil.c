@@ -46,8 +46,6 @@ typedef struct
   int                burst;
   double             wire_s;
   uint32_t           ticks;
-  unsigned char      last_frame[64];
-  int                last_len;
 } wbc_sil_bus_t;
 
 static struct
@@ -249,8 +247,6 @@ int wbc_sil_transceive(wbc_world_t *w, int bus_id, const unsigned char *frame, i
   {
     bus->stale = refused ? bus->stale + 1 : 0;
   }
-  memcpy(bus->last_frame, wire, (size_t)len);
-  bus->last_len = len;
   return refused ? -3 : 0;
 }
 
@@ -389,8 +385,7 @@ double wbc_sil_played(wbc_played_t *p, double t, double dt, const double *senses
   return done;
 }
 
-void wbc_sil_stats(int bus_id, unsigned long long *counts, double *wire_s,
-                   unsigned char *last_frame, int *last_len)
+void wbc_sil_stats(int bus_id, unsigned long long *counts, double *wire_s)
 {
   const wbc_sil_bus_t *bus;
   unsigned long long   msgs = 0ULL;
@@ -411,14 +406,6 @@ void wbc_sil_stats(int bus_id, unsigned long long *counts, double *wire_s,
   counts[3] = msgs;
   counts[4] = (unsigned long long)bus->stale;
   *wire_s = bus->wire_s;
-  if ((last_frame != NULL) && (bus->last_len > 0))
-  {
-    memcpy(last_frame, bus->last_frame, (size_t)bus->last_len);
-  }
-  if (last_len != NULL)
-  {
-    *last_len = bus->last_len;
-  }
 }
 
 void wbc_sil_noise(double ber, uint32_t seed)

@@ -12,9 +12,8 @@ the 16-gate course (`machine.aircraft.course`).
 from coaxial.model import inverter
 from machine.aircraft import aerobatics, aerokin, course, flightpack, helicopter, pull, sweep, weather
 from terminal.views.quad import flight as qflight
-from terminal.views.quad.flight import (CRASHED, CRASH_S, FAULTS, THERMAL_S, TICK_S, _LIB,
-                                        _step_bus_and_heat, _step_drives, arm, asked, fallen, kept,
-                                        lined, observers, reset, spun, steps, struck, warmth)
+from terminal.views.quad.flight import (CRASHED, CRASH_S, TICK_S, _step_bus_and_heat, _step_drives,
+                                        arm, fallen, lined, observers, reset, spun, struck)
 
 #: The helicopter's two 63100 drives: main rotor on the mast and tail rotor on the boom.
 ROTORS = ('MAIN', 'TAIL')
@@ -150,6 +149,6 @@ def flown(rotors, sky, core, law, row, flight, dt, craft=helicopter):
     return out
 
 
-EXPORTED = (arm, asked, observers, spun, struck, FAULTS, THERMAL_S, _LIB, kept, steps, warmth)
+EXPORTED = (arm, observers, struck)
 
 

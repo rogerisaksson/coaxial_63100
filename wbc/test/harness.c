@@ -668,10 +668,9 @@ API int wbh_played_size(void)
   return (int)sizeof(wbc_played_t);
 }
 
-API void wbh_sil_stats(int bus_id, unsigned long long *counts, double *wire_s,
-                       unsigned char *last_frame, int *last_len)
+API void wbh_sil_stats(int bus_id, unsigned long long *counts, double *wire_s)
 {
-  wbc_sil_stats(bus_id, counts, wire_s, last_frame, last_len);
+  wbc_sil_stats(bus_id, counts, wire_s);
 }
 
 API void wbh_sil_noise(double ber, unsigned int seed)

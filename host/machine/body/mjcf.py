@@ -27,7 +27,6 @@ def _held_deg(joint):
     return float(drives._box(joint)['backlash_deg'])
 
 
-PASSIVE_J = _passive_j('left_wrist')
 HELD_DEG = float(drives.BACKLASH_DEG)
 
 #: Pelvis weld stand height and stiffness time constant for system identification (`peripherals.world`).

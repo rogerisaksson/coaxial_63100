@@ -40,7 +40,7 @@ FOAM = ' priority="2" condim="4" friction="%g 0.005 0.0001" solref="0.08 1" soli
 TERRAIN = ('sill', 'slip', 'brick_left', 'brick_right', 'board_base', 'slope_ramp', 'slope_top', 'ice', 'snow', 'rug')
 #: A ramp's grade, deg, and half sizes: 10, a steep street's.
 SLOPE_ANGLE_DEG, SLOPE_HALF = 10.0, (0.60, 0.05, 1.44)
-SLOPE_TOP_HALF, SLOPE_TOP_H = (0.60, 0.05, 0.60), 0.10
+SLOPE_TOP_HALF = (0.60, 0.05, 0.60)
 #: Ice under a rubber sole: 0.1; 0.02 is a skate blade's.
 ICE_HALF, ICE_FRICTION = (0.60, 0.02, 1.25), 0.1
 #: Where a surface the robot walks onto begins ahead of its ankles, m: past its toes' reach (`figure.BALL` +
