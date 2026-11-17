@@ -76,13 +76,13 @@ def test_a_job_cut_at_its_time_says_where_it_was(report):
 
 
 def test_the_red_suites_lead_those_that_run_first(report):
-    """`ci.led` on suites.py's own text: CI's red suites at the head of FAILED_FIRST, the rest after in their
+    """`ci.led` on suites_failed.py's own text: CI's red suites at the head of FAILED_FIRST, the rest after in their
     order, none twice, the text about the tuple untouched; nothing laid where they lead already."""
     import ast
-    from tools.dev import ci, suites
-    with open(os.path.join(os.path.dirname(os.path.abspath(suites.__file__)), 'suites.py'), encoding='utf-8') as f:
+    from tools.dev import ci, suites, suites_failed
+    with open(os.path.join(os.path.dirname(os.path.abspath(suites.__file__)), 'suites_failed.py'), encoding='utf-8') as f:
         source = f.read()
-    was = list(suites.FAILED_FIRST)
+    was = list(suites_failed.FAILED_FIRST)
     lead = [was[-1], 'test_never_there.py']
     laid = ci.led(source, lead)
     now = next(ast.literal_eval(node.value) for node in ast.parse(laid).body

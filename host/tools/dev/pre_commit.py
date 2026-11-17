@@ -15,7 +15,7 @@ requirements file, a requirements file setup never reads, a program setup never 
 while setup runs. README.md is laid out of docs/README.src.md and that tree (tools/dev/readme.py)
 and staged where it is behind, so a commit carries the README its tree says; one that names what
 the tree does not hold stops it. What GitHub's last host run left red is laid at the head of
-suites.FAILED_FIRST and staged too (tools/dev/ci.py): a run here leads with it. Once the rest passes,
+suites_failed.FAILED_FIRST and staged too (tools/dev/ci.py): a run here leads with it. Once the rest passes,
 every recording (introspect.RECORDINGS) is removed (purged()): each was made at the commit this one
 leaves behind (machine/process/commit.py); one a writer holds open is kept and named.
 """

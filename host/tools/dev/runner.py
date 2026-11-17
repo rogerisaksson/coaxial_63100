@@ -15,8 +15,9 @@ import time
 
 from tools.dev import counts, machine_detector
 from tools.dev.focus import LEDGER, TALLY_RE, WORKER_GB, Job, last_words, relay
-from tools.dev.suites import (ALONE, EMULATOR, EMULATOR_GROUPS, FAILED_FIRST, LIVE, LIVE_GYNOID, OLLAMA,
-                              PORT, REAL_TIME, ROOT, SHARDED, STRUCTURES, asked)
+from tools.dev.suites import (ALONE, EMULATOR, EMULATOR_GROUPS, LIVE, LIVE_GYNOID, OLLAMA, PORT, REAL_TIME, ROOT,
+                              SHARDED, STRUCTURES, asked)
+from tools.dev.suites_failed import FAILED_FIRST
 
 #: Per-run directory of shard CSVs outside the git worktree (`.../coaxial_63100/runs`).
 RUNS_DIR = os.path.join(os.path.dirname(LEDGER), 'runs')

@@ -4,7 +4,7 @@
     python tools/dev/ci.py          # GitHub asked (gh): the suites its last gate run on main left red
     python tools/dev/ci.py --green  # the last commit on main whose host, firmware and arch jobs, and whose gate whole, were green
 
-The run's red suites lead suites.FAILED_FIRST; what it measured raises tests/work.json (`machine_detector.py
+The run's red suites lead suites_failed.FAILED_FIRST; what it measured raises tests/work.json (`machine_detector.py
 --keep`). `--green` names the reference tree: the newest commit whose host jobs, whose firmware jobs, whose arch
 jobs and whose gate whole ended green (`jobs_green`, `green`, `whole`; the workflows that held each before the
 gate was one count on), each with how many commits HEAD is past it (`behind`) and its subject; a
@@ -30,7 +30,7 @@ import textwrap
 from tools.dev.suites import ROOT
 
 #: The file that holds FAILED_FIRST, from the repository's top; the workflow and the branch asked.
-SUITES, WORKFLOW, BRANCH = 'host/tools/dev/suites.py', 'gate.yml', 'main'
+SUITES, WORKFLOW, BRANCH = 'host/tools/dev/suites_failed.py', 'gate.yml', 'main'
 
 #: The gate's jobs whose greens are each a reference - the host's suites, the target's firmware, the robot's C on
 #: another target -, each with the workflow that held it before the gate was one (gate.yml): their greens count
@@ -49,7 +49,7 @@ PACE = re.compile(r'^host: a runner\b.*?; ([\d.]+) kernels a second a baton')
 #: What a job's log (gh run view --log) sets before each line: its job, its step, its time.
 LOGGED = re.compile(r'^(?:[^\t]*\t){0,2}\d{4}-\d\d-\d\dT[\d:.]+Z ')
 
-#: The tuple in suites.py's text, and how wide its lines are laid.
+#: The tuple in suites_failed.py's text, and how wide its lines are laid.
 FIRST, WIDTH, INDENT = re.compile(r'^FAILED_FIRST = \((.*?)\)$', re.M | re.S), 100, ' ' * 16
 
 
@@ -212,7 +212,7 @@ def said(named):
 
 
 def led(source, suites):
-    """`source`, suites.py's text, with `suites` at the head of its FAILED_FIRST and the others after them in
+    """`source`, suites_failed.py's text, with `suites` at the head of its FAILED_FIRST and the others after them in
     their order; `source` itself where they lead already, or it holds no such tuple."""
     found = FIRST.search(source)
     names = re.findall(r"'(test_\w+\.py)'", found.group(1)) if found else []
