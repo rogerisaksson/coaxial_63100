@@ -25,11 +25,10 @@
   (:export ;; A. Two Core Terrestrial Sled Gaits (Work Nominally AND with Broken Limbs!)
            #:xform-locomotion-seated-butt-scoot
            #:xform-locomotion-prone-low-crawl
-           ;; B. Composable Fault, Direction & Splinting Specializers
+           ;; B. Composable Fault & Direction Specializers
            #:specialize-with-actuator-fault-injection
            #:specialize-butt-scoot-propulsion-mode
-           #:specialize-low-crawl-frog-piston-topology
-           #:specialize-with-contralateral-leg-splinting))
+           #:specialize-low-crawl-frog-piston-topology))
 (in-package :ortho-dsp.degraded-crawl-xforms)
 
 ;; =============================================================================
@@ -192,24 +191,3 @@
             :sled-patches   [:ventral-prone-continuum :anterior-tibial-bilateral]
             :vault-unweight-ratio 0.51          ; the robot's forearms hold its belly and shins from 0.509 of it (0.48)
             :rowing-stroke-length-mm 270.0)))))
-
-;; 4. Self-Splinting / Cross-Ankle Hook Specializer (Carry Dead Leg Off the Floor!)
-;; When a leg actuator is completely dead (`:high-z-freewheel`) on rough terrain or gravel
-;; where dragging the dead foot would snag on rocks, uses the healthy leg (or hands prior
-;; to crawling) to hook the dead ankle OVER the healthy shin/achilles or into a figure-4
-;; pelvic lock so the dead limb is carried 100% off the ground!
-(defmodifier specialize-with-contralateral-leg-splinting
-  [crawl-state &key (broken-leg :hind-left)]
-  (let [dead-chain (if (eq broken-leg :hind-left)
-                       [:coxofemoral-l :tibiofemoral-l :talocrural-l]
-                       [:coxofemoral-r :tibiofemoral-r :talocrural-r])]
-    (-> crawl-state
-        (escort-passive-towed-limb :towing-strategy :contralateral-ankle-splint)
-        ;; Lock passive figure-4 / cross-ankle hook in dynamically consistent Null-Space:
-        (project-nullspace-posture
-          :free-nodes dead-chain
-          :target-angles '((:coxofemoral-flex 0.85)
-                           (:coxofemoral-ext-rot 0.436) ; the robot's own at its hip yaw's stop (0.72)
-                           (:coxofemoral-adduct 0.48)
-                           (:tibiofemoral-flex 1.25))
-          :nullspace-leakage-guard 0.0))))

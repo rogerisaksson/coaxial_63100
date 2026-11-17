@@ -24,9 +24,7 @@
            #:allow-sub-overhang-interactive-footholds
            #:xform-smooth-interactive-stereo-navigator
            ;; Composable Specializers
-           #:specialize-nav-zero-distance-furniture-dock
-           #:specialize-nav-zero-distance-object-pickup
-           #:specialize-nav-outdoor-smooth-trail-cruiser))
+           #:specialize-nav-zero-distance-furniture-dock))
 (in-package :ortho-dsp.smooth-interactive-nav)
 
 ;; -----------------------------------------------------------------------------
@@ -167,7 +165,7 @@
 
 
 ;; =============================================================================
-;; COMPOSABLE INTERACTION & TERRAIN SPECIALIZERS (PLUG-IN EXTENSIONS)
+;; COMPOSABLE INTERACTION SPECIALIZERS (PLUG-IN EXTENSIONS)
 ;; =============================================================================
 
 ;; 1. Zero-Distance Furniture Docking Specializer (Chair, High Stool, Bed Long-Side)
@@ -187,30 +185,3 @@
       (gate-affordance-contact-permeability
         :allow-contact-zones [:buttocks-ischial :thigh-femoral :shank-crural :palm-carpal]
         :target-object-id :active-interaction-quadric)))
-
-;; 2. Zero-Distance Table / Counter / Crate Manipulation Specializer
-;; Walks up to 0 mm chest/hand distance from a workbench, table, or box on the floor,
-;; stepping feet underneath any bottom recess while keeping hands ready for bimanual grasp.
-(defmodifier specialize-nav-zero-distance-object-pickup
-  [nav-state &key (standoff-mm 0.0)]
-  (-> nav-state
-      (carve-anisotropic-affordance-docking-funnel
-        :target-selection :nearest-goal-cluster
-        :preferred-face :minor-axis-front
-        :terminal-standoff-mm standoff-mm)
-      (allow-sub-overhang-interactive-footholds :shin-to-bevel-min-clearance-mm 12.0)
-      (gate-affordance-contact-permeability
-        :allow-contact-zones [:palm-carpal :forearm-ulnar :anterior-thorax]
-        :target-object-id :active-interaction-quadric)))
-
-;; 3. Outdoor Smooth Trail & Boulder Cruiser Specializer
-;; Widens the harmonic dipole swirl (0.58) so the robot initiates long, sweeping
-;; S-curves well ahead of boulders and trees while stepping over roots and ditches.
-(defmodifier specialize-nav-outdoor-smooth-trail-cruiser [nav-state]
-  (-> nav-state
-      (filter-streamline-via-se2-clothoid
-        :curvature-bandwidth-radps 5.2
-        :max-curvature-inv-m 1.01               ; 1.35! The robot's own 1.01, its arc
-        :harmonic-dipole-circulation 0.58)
-      (specialize-nav-forest-roots-and-boulders :max-root-rock-height-mm 245.0)
-      (specialize-nav-negative-ditches-and-curbs :ditch-depth-trigger-mm -40.0)))

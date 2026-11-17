@@ -1,12 +1,11 @@
 ;; -----------------------------------------------------------------------------
 ;; MODULE 1.4: plantar_transducers
-;; SYNOPSIS: Footwear as the plantar boundary: barefoot, a 32 mm soft flat sole, a 105 mm plantarflexed heel.
+;; SYNOPSIS: Footwear as the plantar boundary: barefoot, a 32 mm soft flat sole.
 ;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.transducers
   (:use :ortho-dsp.core)
   (:export #:transducer-unshod
-           #:transducer-viscoelastic-flat
-           #:transducer-point-plantarflexed))
+           #:transducer-viscoelastic-flat))
 (in-package :ortho-dsp.transducers)
 
 (deftransducer transducer-unshod [gait]
@@ -27,14 +26,3 @@
       (shape-transients :target :calcaneus
         :strike-mode (:set :heel-to-toe) :saturation (:set :tanh-viscoelastic)
         :attack-ms (:add 12.0) :decay-ms (:scale 0.65) :sustain (:set 0.25))))
-
-(deftransducer transducer-point-plantarflexed [gait]
-  (-> gait
-      (set-plantar-boundary
-        :sole-stack-z-mm 105.0 :foot-collision-w-mm 78.0
-        :talocrural-pitch-bias-rad 0.52 :support-polygon-x-mm 55.0
-        :windlass-arch-q 0.0 :metatarsal-splay-gain 0.0)
-      (shape-transients :target :calcaneus
-        :strike-mode (:set :point-dirac) :saturation (:set :hard-clip)
-        :attack-ms (:set 0.05) :decay-ms (:set 6.0) :sustain (:set 0.0))
-      (modulate-node :tibiofemoral :flexion-cushion-rad (:set 0.0) :compliance (:set 0.0))))

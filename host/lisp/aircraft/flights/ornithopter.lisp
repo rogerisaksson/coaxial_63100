@@ -1,4 +1,4 @@
-; The ornithopter's flights (`ornithopter.lisp` and its variants fly them): its streams, stunts, behaviours and routine,
+; The ornithopter's flights (`ornithopter.lisp` and its variants fly them): its streams, stunts and routine,
 ; its vehicle the text's that includes this one.
 
 (stream_inject
@@ -119,37 +119,8 @@
 (defstunt wing_rock
   (base high) (nose -2.0) (height 2.4m))
 
-(defstunt bank_rock
-  (base high) (nose -3.0) (height 2.4m))
-
 (defstunt dune_slash
   (base high) (flip -1.0) (turn 360.0deg_s) (height 2.4m))
-
-(defstunt coriolis_storm
-  (base high) (flip -1.0) (roll 1.0) (turn 540.0deg_s) (height 2.4m))
-
-(defstunt desert_unwind
-  (base ridge_soar) (height 2.0m) (pace 2.5m_s) (slide -3.0m_s) (turn UNWIND_TURN_DEG_S))
-
-(defbehavior atreides_dive_attack
-  (phase high_beat (stunt high) (duration 1.2s) (blend 100ms))
-  (phase fold_wings (stunt fold_entry) (duration 1.0s) (blend 80ms))
-  (phase stroke_rock (stunt wing_rock) (duration 2.0s) (blend 80ms))
-  (phase coriolis_burn (stunt coriolis_storm) (duration 0.8s) (blend 100ms))
-  (phase catch_high (stunt high) (duration 1.6s) (blend 150ms) (gate held)))
-
-(defbehavior arrakis_ridge_soar
-  (phase carve_ridge (stunt ridge_soar) (duration LAP_S) (blend 200ms))
-  (phase rising_thermal (stunt thermal_spiral) (duration LAP_S) (blend 200ms))
-  (phase desert_return (stunt desert_unwind) (duration 2.5s) (blend 180ms))
-  (phase unwind_home (stunt unwind) (duration LAP_S) (blend 200ms)))
-
-(defbehavior sandstorm_recovery
-  (phase fold_over (stunt fold_entry) (duration 1.0s) (blend 100ms))
-  (phase dive_hold (stunt sandstorm_dive) (duration 1.6s) (blend 120ms))
-  (phase dive_pirouette (stunt dive_piro) (duration 1.8s) (blend 100ms))
-  (phase slash_out (stunt dune_slash) (duration 1.0s) (blend 80ms))
-  (phase recovery (stunt high) (duration 1.8s) (blend 150ms) (gate held)))
 
 (defroutine ornithopter_dune
   (stage idle (stunt down) (duration 0.4s) (ramp 0.0s) (gate fit))

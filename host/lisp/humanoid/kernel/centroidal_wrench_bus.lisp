@@ -6,8 +6,7 @@
   (:use :ortho-dsp.core
         :ortho-dsp.aba-dynamics)
   (:export #:pan-wrench-homotopy
-           #:splice-auxiliary-manifold
-           #:project-nullspace-posture))
+           #:splice-auxiliary-manifold))
 (in-package :ortho-dsp.balance-core)
 
 (defprimitive pan-wrench-homotopy

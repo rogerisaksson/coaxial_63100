@@ -7,8 +7,7 @@
   (:export #:modulator-coronal-catwalk
            #:modulator-discrete-stairs
            #:modulator-continuous-slope
-           #:modulator-inertial-payload
-           #:modulator-antalgic-limp))
+           #:modulator-inertial-payload))
 (in-package :ortho-dsp.modulators)
 
 ;; 1. Coronal Catwalk (Footwear-Adaptive Track Narrowing & Gravity-Clamped Sidechain)
@@ -102,13 +101,3 @@
                                          (otherwise         0.0))))
         (modulate-node :glenohumeral
           :gain-db (:add (if (eq mount :anterior-carry) -24.0 0.0)))))) ; Lock arms if carrying in front
-
-;; 5. Antalgic / Injured Limb Bypass (Unilateral Pain-Avoidance Limp)
-(defmodifier modulator-antalgic-limp [gait &key (compromised-side :left) (severity 0.65)]
-  (-> gait
-      (modulate-oscillator
-        :inter-limb-phase-rad (:add (if (eq compromised-side :left) (* -0.45 severity) (* 0.45 severity)))
-        :duty-factor-l (:add (if (eq compromised-side :left)  (* -0.16 severity) (* +0.12 severity)))
-        :duty-factor-r (:add (if (eq compromised-side :right) (* -0.16 severity) (* +0.12 severity))))
-      (modulate-node :l4-l5-lumbar
-        :coronal-roll-bias-rad (:set (* 0.16 severity))))) ; Compensatory Trendelenburg lurch

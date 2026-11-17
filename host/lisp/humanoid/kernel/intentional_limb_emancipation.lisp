@@ -21,13 +21,7 @@
            #:evacuate-manifold-simplex-preemptively
            #:morph-stance-to-open-chain-admittance
            #:feedforward-cantilever-reaction-wrench
-           #:xform-intentional-limb-emancipation
-           ;; Composable Scenario Specializers
-           #:specialize-emancipation-locomotion-lockout
-           #:specialize-emancipation-seated-leg-stretch
-           #:specialize-emancipation-high-stool-dangling
-           #:specialize-emancipation-bed-leg-repositioning
-           #:specialize-emancipation-compliant-human-guidance))
+           #:xform-intentional-limb-emancipation))
 (in-package :ortho-dsp.emancipation)
 
 ;; -----------------------------------------------------------------------------
@@ -157,93 +151,3 @@
         :open-chain-kp-nm-rad 17.5
         :external-admittance-rad-nms 0.18)
       (feedforward-cantilever-reaction-wrench :feedforward-gain 1.00)))
-
-
-;; =============================================================================
-;; COMPOSABLE SCENARIO SPECIALIZERS (PLUG-IN EXTENSIONS)
-;; =============================================================================
-
-;; 1. Hard Locomotion Lockout Specializer (Walk, Brisk Walk, Double-Time, Run)
-;; Explicitly clamps iota_k = 0.0 and eta_release_k = 0.0 on stance limbs during
-;; dynamic bipedal locomotion so stance legs NEVER yield or drop out of the CWC.
-(defmodifier specialize-emancipation-locomotion-lockout [gait-state]
-  (-> gait-state
-      (evaluate-residual-cwc-sufficiency
-        :froude-lockout-ceiling 0.015
-        :min-complement-cwc-margin-nm 22.6)
-      (set-appendage-unload-intent
-        :appendages [:left-leg :right-leg]
-        :intent-iota 0.00)))
-
-;; 2. Seated on Buttocks + Hands Tripod -> Stretch Out Both Legs in Front
-;; ("Sit down on the buttocks and stretch the legs out, supported on the arms, hands and buttocks")
-;; - Verifies that `:ischial-bilateral` + `:ulnar-carpal-shove-bilateral` hold the CoM.
-;; - Pre-emptively evacuates `:plantar-bilateral` from the observer and QP.
-;; - Stretches both knees (`:tibiofemoral` -> 0.05 rad) in open-chain admittance while
-;;   feeding the +56 Nm forward leg-cantilever torque into the rear hands and spine!
-(defmodifier specialize-emancipation-seated-leg-stretch
-  [seated-tripod-state &key (target-knee-extension-rad 0.05)
-                            (target-hip-flexion-rad 1.42)
-                            (target-ankle-dorsiflex-rad -0.12)]
-  (-> seated-tripod-state
-      (xform-intentional-limb-emancipation)
-      ;; Request full intentional emancipation of both legs while hands + buttocks anchor:
-      (set-appendage-unload-intent
-        :appendages [:left-leg :right-leg]
-        :intent-iota 1.00
-        :require-active-anchors [:ischial-bilateral :ulnar-carpal-shove-bilateral])
-      ;; Command smooth open-chain leg extension in front of the torso:
-      (drive-emancipated-limb-posture
-        :appendages [:left-leg :right-leg]
-        :target-angles `((:coxofemoral ,target-hip-flexion-rad)
-                         (:tibiofemoral ,target-knee-extension-rad)
-                         (:talocrural ,target-ankle-dorsiflex-rad))
-        :open-chain-kp-nm-rad 28.0
-        :external-admittance-rad-nms 0.25))) ; Compliant if feet touch floor or an obstacle!
-
-;; 3. Overheight Chair / Stool Dangling & Free Leg Manipulation
-;; When seated on a high stool where feet don't reach the floor (or barely graze it),
-;; emancipates both legs into gravity-compensated pendulum admittance so they hang
-;; naturally and can be swung or pushed by hand without disturbing core balance on the stool!
-(defmodifier specialize-emancipation-high-stool-dangling
-  [high-seated-state &key (pendulum-stiffness-kp 12.0) (admittance-compliance 0.35)]
-  (-> high-seated-state
-      (xform-intentional-limb-emancipation)
-      (set-appendage-unload-intent
-        :appendages [:left-leg :right-leg]
-        :intent-iota 1.00
-        :require-active-anchors [:ischial-bilateral :posterior-femoral-bilateral])
-      (morph-stance-to-open-chain-admittance
-        :open-chain-kp-nm-rad pendulum-stiffness-kp
-        :open-chain-kd-nms-rad 2.5
-        :external-admittance-rad-nms admittance-compliance)))
-
-;; 4. Bedside Sequential Leg Lift & Repositioning (One Leg or Both Legs in Bed)
-;; Used when sitting on the bed edge leaning on forearms (`:olecranon-ulnar-sphinx`)
-;; to unload and lift one leg at a time onto the mattress without observer spikes.
-(defmodifier specialize-emancipation-bed-leg-repositioning
-  [bedside-state &key (active-lifting-leg :left-leg)]
-  (-> bedside-state
-      (xform-intentional-limb-emancipation)
-      (set-appendage-unload-intent
-        :appendages [active-lifting-leg]
-        :intent-iota 1.00
-        :require-active-anchors [:ischial-bilateral :olecranon-ulnar-sphinx])
-      (morph-stance-to-open-chain-admittance
-        :open-chain-kp-nm-rad 42.0
-        :external-admittance-rad-nms 0.22)))
-
-;; 5. Zero-Gravity "Lead-by-Hand" Compliant Limb Guidance (Physical Human Manipulation)
-;; Sets open-chain position stiffness Kp -> 0.0 on the emancipated limb(s) while keeping
-;; exact subtree gravity + Coriolis compensation active. A human operator can grab the
-;; robot's foot, shin, or hand and place it anywhere in its workspace with zero resistance!
-(defmodifier specialize-emancipation-compliant-human-guidance
-  [state &key (guided-appendages [:left-leg :right-leg]) (viscous-damping-nms 1.8)]
-  (-> state
-      (xform-intentional-limb-emancipation)
-      (set-appendage-unload-intent :appendages guided-appendages :intent-iota 1.00)
-      (morph-stance-to-open-chain-admittance
-        :open-chain-kp-nm-rad 0.0               ; Pure zero-G gravity compensation!
-        :open-chain-kd-nms-rad viscous-damping-nms
-        :external-admittance-rad-nms 0.65
-        :external-torque-deadzone-nm 0.8)))

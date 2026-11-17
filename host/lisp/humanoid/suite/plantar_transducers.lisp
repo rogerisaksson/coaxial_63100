@@ -6,7 +6,6 @@
   (:use :ortho-dsp.core)
   (:export #:transducer-barefoot
            #:transducer-elastomer-flat
-           #:transducer-rigid-stiletto
            #:transducer-heavy-lugged-boot))
 (in-package :ortho-dsp.transducers)
 
@@ -42,27 +41,7 @@
         :decay-ms        (:scale 0.65)
         :sustain         (:set 0.25))))
 
-;; 3. Rigid Point-Load Plantar Rig (105 mm Stiletto): Dirac impulse, plantarflexion lock
-(deftransducer transducer-rigid-stiletto [gait]
-  (-> gait
-      (set-plantar-boundary
-        :sole-thickness-z-mm 105.0
-        :foot-collision-w-mm 78.0
-        :talocrural-pitch-bias-rad 0.52
-        :support-polygon-x-mm 55.0
-        :windlass-arch-q 0.0
-        :metatarsal-splay-gain 0.0)
-      (modulate-node :calcaneus
-        :strike-topology (:set :point-dirac)
-        :saturation      (:set :hard-clip)
-        :attack-ms       (:set 0.05)
-        :decay-ms        (:set 6.0)
-        :sustain         (:set 0.0))
-      (modulate-node :tibiofemoral
-        :stance-yield-rad (:set 0.0)
-        :compliance       (:set 0.0))))
-
-;; 4. Heavy Tactical / Alpine Boot: High distal mass, immobilized talocrural joint
+;; 3. Heavy Tactical / Alpine Boot: High distal mass, immobilized talocrural joint
 (deftransducer transducer-heavy-lugged-boot [gait]
   (-> gait
       (set-plantar-boundary

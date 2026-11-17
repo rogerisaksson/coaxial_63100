@@ -3,7 +3,7 @@
     python -X utf8 tools/sim/fist.py --scene chair_behind --say sit_chair --start 8.0        # one puppet, its rows
     python -X utf8 tools/sim/fist.py --push -20,-30,-40 --elbow 10,20                          # a grid: the way a stroke
 
-Sat on a seat too high for the robot's feet (`transfer-egress-scoot`), its law's twist on planted fists never
+Sat on a seat too high for the robot's feet (`xform-overheight-arm-dip-egress`), its law's twist on planted fists never
 moved it: a 121 N push costs the shear's regularisation 5.9 against the twist's 0.36, and where it pushed the
 shoulders sat at their clamps. A stroke instead, as the bed pull's (`puppet.heel`): the fists planted beside the
 robot's hips, the elbows straightened so the fists bear and the seat unloads, the shoulders extended so the planted

@@ -1,4 +1,4 @@
-; The aerobat's flights (`aerobat.lisp` and its variants fly them): its streams, stunts, behaviours and routine,
+; The aerobat's flights (`aerobat.lisp` and its variants fly them): its streams, stunts and routine,
 ; its vehicle the text's that includes this one.
 
 (stream_inject
@@ -113,15 +113,6 @@
 (defstunt climbing_harrier
   (base knife_circle) (height 4.5m) (pace 2.0m_s))
 
-(defstunt snap_entry
-  (base high) (flip -0.5) (nose -1.0))
-
-(defstunt inverted
-  (base high) (nose -1.0))
-
-(defstunt flat_spin
-  (base inverted) (turn 240.0deg_s))
-
 (defstunt waterfall
   (base high) (nose -2.0))
 
@@ -133,15 +124,6 @@
   (base hover) (height 1.25m) (pace 5.0m_s) (speed 9.5m_s)
   (roll 0.70) (lean 147.15m_s2) (home 0.0) (lined 0.0))
 
-(defstunt lomcevak
-  (base high) (flip -1.0) (turn 360.0deg_s))
-
-(defstunt gyro_tumble
-  (base high) (flip -1.0) (roll 1.0) (turn 540.0deg_s))
-
-(defstunt cuban_unwind
-  (base knife_circle) (height 3.0m) (pace 2.5m_s) (slide -2.0m_s) (turn UNWIND_TURN_DEG_S))
-
 (defstunt unwind
   (base unwind) (height 0.9m) (pace 2.5m_s) (slide -2.0m_s))
 
@@ -150,20 +132,6 @@
 
 (defstunt parachute
   (base stop) (height 0.74m) (pace 4.0m_s))
-
-(defbehavior knife_edge_circuit
-  (phase carve_knife (stunt knife_circle) (duration LAP_S) (blend 200ms))
-  (phase harrier_climb (stunt climbing_harrier) (duration LAP_S) (blend 200ms))
-  (phase cuban_return (stunt cuban_unwind) (duration 2.5s) (blend 180ms))
-  (phase unwind_home (stunt unwind) (duration LAP_S) (blend 200ms)))
-
-
-(defbehavior unlimited_torque_hang
-  (phase punch_out (stunt high) (duration 3.5s) (blend 100ms))
-  (phase elevator_waterfall (stunt waterfall) (duration 0.8s) (blend 80ms))
-  (phase catch (stunt high) (duration 2.2s) (blend 100ms))
-  (phase snap_roll (stunt roll) (duration 0.8s) (blend 100ms))
-  (phase catch_high (stunt high) (duration 1.6s) (blend 150ms) (gate held)))
 
 (defroutine aerobat_3d
   (stage idle (stunt down) (duration 2.0s) (ramp 0.0s) (gate fit))

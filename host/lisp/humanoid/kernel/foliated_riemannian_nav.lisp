@@ -11,7 +11,6 @@
            #:synthesize-riemannian-metric
            #:inject-gyroscopic-obstacle-curl
            #:snap-foothold-to-plantar-gradient
-           #:guard-foothold-with-crural-capsules
            #:slice-narrow-aperture-axial))
 (in-package :ortho-dsp.nav-core)
 
@@ -111,16 +110,6 @@
           (:node :tarsal-sagittal
            :clearance-law (:max-intervening-sdf-z :add step-over-margin-z-mm)
            :contour :asymmetric-parabolic))))
-
-(defprimitive guard-foothold-with-crural-capsules
-  [state &key (checked-limb-capsules [:foot-shell-l :foot-shell-r :shank-crural-l :shank-crural-r
-                                      :knee-patellar-l :knee-patellar-r :thigh-femoral-l :thigh-femoral-r])
-              (crural-repulsion-weight 3.2)
-              (min-shin-clearance-mm 28.0)]
-  (-> state
-      (snap-foothold-to-plantar-gradient
-        :crural-capsule-repulsion-weight crural-repulsion-weight
-        :min-shin-clearance-mm min-shin-clearance-mm)))
 
 (defprimitive slice-narrow-aperture-axial
   [state &key (bi-deltoid-width-mm 480.0)

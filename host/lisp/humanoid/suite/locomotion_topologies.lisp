@@ -1,6 +1,6 @@
 ;; =============================================================================
 ;; FILE: locomotion_topologies.lisp
-;; DOMAIN: Fundamental Phase & CoM Engines (Walk, Run, Crouch, Skip, Hop, Retro, Lateral)
+;; DOMAIN: Fundamental Phase & CoM Engines (Walk, Run, Crouch, Skip, Retro, Lateral)
 ;; =============================================================================
 (defpackage :ortho-dsp.topologies
   (:use :ortho-dsp.core)
@@ -8,7 +8,6 @@
            #:topology-ballistic-slip-run
            #:topology-level-com-stealth
            #:topology-asymmetric-gallop
-           #:topology-synchronous-hop
            #:topology-retro-locomotion
            #:topology-coronal-sidestep))
 (in-package :ortho-dsp.topologies)
@@ -90,26 +89,7 @@
       (modulate-node :tibiofemoral
         :rebound-q (:set 1.85))))
 
-;; 5. Synchronous Bipedal Hop / Kangoo Bounce (In-Phase Lock: Delta-Phi = 0.0)
-(defmodifier topology-synchronous-hop [gait &key (bpm 126.0) (stride-mm 450.0)]
-  (-> gait
-      (modulate-oscillator
-        :bpm (:set bpm)
-        :inter-limb-phase-rad (:set 0.0)   ; Both legs fire simultaneously
-        :duty-factor-l (:set 0.38)
-        :duty-factor-r (:set 0.38))
-      (modulate-node :com-dynamics
-        :topology (:set :ballistic-slip)
-        :vertical-oscillation-mm (:set 85.0))
-      (modulate-node :tarsal-coronal
-        :track-width-mm (:clamp-min 140.0)) ; Widen stance for synchronous landing stability
-      (modulate-node :tarsal-sagittal
-        :stride-length-mm (:set stride-mm))
-      (modulate-node :glenohumeral
-        :phase-shift-rad (:set 0.0)        ; Arms swing synchronously in-phase with jump
-        :gain-db (:set 3.0))))
-
-;; 6. Retro-Locomotion (Backward Walk: Time-Reversed Plantar Roll & Hip Extension Drive)
+;; 5. Retro-Locomotion (Backward Walk: Time-Reversed Plantar Roll & Hip Extension Drive)
 (defmodifier topology-retro-locomotion [gait]
   (-> gait
       (modulate-oscillator

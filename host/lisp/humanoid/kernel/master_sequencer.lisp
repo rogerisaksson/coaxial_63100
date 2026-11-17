@@ -7,7 +7,6 @@
         :ortho-dsp.aba-dynamics
         :ortho-dsp.body-schema
         :ortho-dsp.transducers
-        :ortho-dsp.regimes
         :ortho-dsp.autonomics
         :ortho-dsp.surfaces
         :ortho-dsp.balance-core

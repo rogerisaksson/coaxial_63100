@@ -9,12 +9,6 @@
 (deftrait two_footed
   (latent_targets (mode_limb_lift 0.0)))
 
-;; The robot's arms held where they hang, as the suite's maneuvers hold them (`maneuver._armed`: its
-;; rest's stiffness times W_STILL over W_POSTURE): let go, lying back on the bed its shoulders turned
-;; 260-500 deg
-(deftrait arms_held
-  (impedance (stiffness mode_arm_swing 1198000) (damping mode_arm_swing 2395)))
-
 ;; sit_chair, rise_chair, lie_bed and rise_bed: the ortho-DSP suite's maneuvers (machine/texts/maneuver.py)
 
 

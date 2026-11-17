@@ -1,12 +1,11 @@
 ;; =============================================================================
 ;; FILE: momentum_pivots.lisp
-;; DOMAIN: Continuous-Momentum Pivots, Horizon Gaze Lock & Corkscrew Spirals
+;; DOMAIN: Continuous-Momentum Pivots & Horizon Gaze Lock
 ;; =============================================================================
 (defpackage :ortho-dsp.pivots
   (:use :ortho-dsp.core)
   (:export #:lock-horizon-gaze
-           #:pivot-single-anchor-arc
-           #:pivot-cross-under-corkscrew))
+           #:pivot-single-anchor-arc))
 (in-package :ortho-dsp.pivots)
 
 ;; -----------------------------------------------------------------------------
@@ -59,31 +58,3 @@
     :fire-below-rad eccentric-overlap-rad
     :unlatch-nodes [:tibiofemoral :coxofemoral :talocrural]
     :initial-descent-velocity-mps -0.28))
-
-;; -----------------------------------------------------------------------------
-;; 3. CROSS-UNDER CORKSCREW PIVOT (ASYMMETRIC SPIRAL FOR FLOOR-LEVEL TARGETS)
-;; Crosses trailing leg behind stance leg to descend to Z <= 200mm with upright torso
-;; -----------------------------------------------------------------------------
-(deftransition pivot-cross-under-corkscrew
-  [source-gait &key (target-yaw-rad 3.14159)
-                    (coronal-cross-offset-mm -135.0) ; Negative track = cross-behind curtsy
-                    (eccentric-overlap-rad 1.047)]   ; Begin spiral drop 60 deg into turn
-  (sync-trigger
-    :wait-for :penultimate-single-support
-    :anchor-node :calcaneus-r
-    :duration-bars 1)
-
-  (redirect-kinetic-vector
-    :linear-to-angular-coupling 0.92
-    :yaw-slew-curve :helical-spiral
-    :yaw-target-rad target-yaw-rad
-    :sweep-foot-node :calcaneus-l
-    :terminal-footprint (:coronal-track-mm coronal-cross-offset-mm
-                         :trailing-foot-supination-rad 0.38 ; Outer edge of foot/shank bears load
-                         :sagittal-stagger-mm 160.0))
-
-  (phase-overlap-trigger
-    :monitor-channel :pelvic-yaw-error-rad
-    :fire-below-rad eccentric-overlap-rad
-    :unlatch-nodes [:tibiofemoral :coxofemoral :talocrural :iliac-coronal]
-    :spiral-helicity :counter-clockwise))

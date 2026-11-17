@@ -14,8 +14,7 @@ suite's name it is the one voicing reads into that clause's slot of the robot's 
 `voicing.VOICES`): either where it stands. A root - a gait, a schedule, a stunt the robot plays, a behaviour
 of its gym, its walk its streams (WHOLE) - reaches its definitions, those they name, theirs. A
 literal moves the robot where its voices change as it does, by evaluation, nothing run: the rest are
-inert, their Jacobian's columns zero. The step's numbers are the text's (`knobs`); what the text names that
-the robot's loop does another way is named (INSTEAD).
+inert, their Jacobian's columns zero. The step's numbers are the text's (`knobs`).
 """
 import collections
 import functools

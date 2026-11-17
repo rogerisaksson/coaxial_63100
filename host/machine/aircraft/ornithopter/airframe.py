@@ -10,7 +10,7 @@ with open(LISP_PATH, encoding='utf-8') as _f:
     MANIFEST = aerolisp.compile_manifest(_f.read())
 
 AERO, DYNAMICS, KINEMATICS = MANIFEST['aerodynamics'], MANIFEST['dynamics'], MANIFEST['kinematics']
-STREAMS, STUNTS, BEHAVIORS = MANIFEST['streams'], MANIFEST['stunts'], MANIFEST['behaviors']
+STREAMS, STUNTS = MANIFEST['streams'], MANIFEST['stunts']
 CARD, COOLING = MANIFEST['routines']['ornithopter_dune'], DYNAMICS['cooling']
 _FW, _AF, _DL = AERO['flapping_wings'], AERO['airframe'], AERO['drive_load']
 _RB, _GOV, _IMP, _OBS = (
@@ -43,10 +43,7 @@ FLOOR_M, HOVER_M, TOP_M = (KINEMATICS['envelope'][k] for k in (
 WAKE_FLOOR_M_S, FLAP_ROCK_HZ, FLAP_ROCK_RAD = (
     KINEMATICS['vertical']['wake_floor'],
     *(KINEMATICS['oscillator'][k] for k in ('tictoc_frequency', 'tictoc_amplitude')))
-RIDGE_SOAR, THERMAL_SPIRAL, FOLD_ENTRY, SANDSTORM_DIVE, DIVE_PIRO = (STUNTS[k] for k in (
-    'ridge_soar', 'thermal_spiral', 'fold_entry', 'sandstorm_dive', 'dive_piro'))
-WING_ROCK, BANK_ROCK, DUNE_SLASH, CORIOLIS_STORM, DESERT_UNWIND, UNWIND = (STUNTS[k] for k in (
-    'wing_rock', 'bank_rock', 'dune_slash', 'coriolis_storm', 'desert_unwind', 'unwind'))
+SANDSTORM_DIVE = STUNTS['sandstorm_dive']
 #: The crank's gear from a drive's turn to a beat: 9.7 Hz at the governor, a 2 kg flapper's.
 #: A pair's lift pulses BEAT_PULSE of its mean twice a beat, the pairs in antiphase: their
 #: sum steady, a pitching moment at the beat.

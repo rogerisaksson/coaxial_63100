@@ -1,4 +1,4 @@
-; The quad's flights (`quadcopter.lisp` and its variants fly them): its streams, stunts, behaviours and routine,
+; The quad's flights (`quadcopter.lisp` and its variants fly them): its streams, stunts and routine,
 ; its vehicle the text's that includes this one.
 
 (stream_inject
@@ -73,24 +73,6 @@
 
 (defstunt flip
   (base high) (flip -1.25))
-
-(defbehavior corkscrew_climb
-  (phase enter_orbit (stunt orbit) (duration LAP_S) (blend 200ms))
-  (phase spiral_up (stunt corkscrew) (duration LAP_S) (blend 200ms))
-  (phase settle_top (stunt high) (duration 2.0s) (blend 150ms) (gate held)))
-
-(defbehavior toss_roll_flip
-  (phase toss_up (stunt toss) (duration 0.7s) (blend 50ms))
-  (phase snap_roll (stunt roll) (duration 0.8s) (blend 50ms))
-  (phase catch_roll (stunt high) (duration 3.0s) (blend 150ms))
-  (phase toss_again (stunt toss) (duration 0.7s) (blend 50ms))
-  (phase snap_flip (stunt flip) (duration 0.8s) (blend 50ms))
-  (phase catch_flip (stunt high) (duration 3.0s) (blend 150ms) (gate held)))
-
-(defbehavior sky_punch_stop
-  (phase full_tilt (stunt sky) (duration 2.0s) (blend 50ms))
-  (phase burn_stop (stunt stop) (duration 1.5s) (blend 50ms) (gate held))
-  (phase descend_over (stunt over) (duration 1.5s) (blend 150ms) (gate held)))
 
 (defroutine quadcopter
   (stage idle (stunt down) (duration 2.0s) (ramp 0.0s) (gate fit))

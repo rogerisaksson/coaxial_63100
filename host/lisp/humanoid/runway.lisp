@@ -1,4 +1,4 @@
-;; SYNOPSIS: The runway walk as a DSP patch: the dry gait, the sneaker sidechain, their phase-locked morph, the stream.
+;; SYNOPSIS: The runway walk as a DSP patch: the dry gait, the sneaker sidechain, their phase-locked morph.
 
 ;; =============================================================================
 ;; 1. DRY SIGNAL: NOMINAL BIOMECHANICAL BASELINE (DRYWALK)
@@ -104,16 +104,3 @@
                :curve :logarithmic-swell
                :window-bars [1.0 -> 2.0]
                :sidechain-threshold-ramp [0.0 -> 1.0])))
-
-
-;; =============================================================================
-;; 4. REAL-TIME EXECUTION STREAM (1 kHz DETERMINISTIC DMA RINGBUFFER)
-;; =============================================================================
-(defpatch runtime-locomotion-stream
-  (compile-to-soa
-    :align-bytes 64
-    :sample-rate-hz 1000
-    :schedule
-      [(bars 0 4  nominal-biped-gait)                           ; 4 bars drywalk (backstage)
-       (bars 4 6  morph-dry-to-catwalk)                         ; 2 bars phase-locked transition
-       (bars 6 32 (sneaker-sidechain-fx nominal-biped-gait))])) ; 26 bars full runway groove

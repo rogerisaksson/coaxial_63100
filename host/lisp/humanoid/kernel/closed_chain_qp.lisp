@@ -9,12 +9,7 @@
 ;; contact of the chain. =============================================================================
 (defpackage :ortho-dsp.closed-chain
   (:use :ortho-dsp.core)
-  (:export #:closed-chain-regime
-           #:contact-frame
-           #:closed-chain-unknowns
-           #:closed-chain-level-1
-           #:closed-chain-level-2
-           #:closed-chain-answer))
+  (:export #:closed-chain-regime))
 (in-package :ortho-dsp.closed-chain)
 
 ;; With no sole standing and the robot's knees, hands, hips or back bearing it, the inverted pendulum is gone: the
@@ -104,12 +99,6 @@
 ;; Each contact's frame Q (3 x 3, rows): the normal of what bears it - the robot's skin's capsule nearest the touch,
 ;; its outward radial there reversed (borne._normal), up where the robot has none -, then two tangents from a fixed
 ;; world axis.
-(defun contact-frame (n q at)
-  "q (9k) from at: n (3) unit, t1 = n x e (e = z where |n_x| > 0.9, else x), t2 = n x t1."
-  (declare (type (simple-array double-float (*)) n q) (type fixnum at))
-  (let* ((e (if (> (abs (aref n 0)) 0.9d0) #(0.0d0 0.0d0 1.0d0) #(1.0d0 0.0d0 0.0d0)))
-         (t1 (unit (cross n e))) (t2 (cross n t1)))
-    (replace q n :start1 (* 9 at)) (replace q t1 :start1 (+ (* 9 at) 3)) (replace q t2 :start1 (+ (* 9 at) 6))))
 
 ;; The unknowns: x (nd) and zeta, each contact's force in its frame - three (normal, two tangents), or one for the
 ;; robot's sled told a twist on a level slide (its normal up within 45 deg, along the way under slide-tilt) sliding past
@@ -120,10 +109,6 @@
 ;; standing sole are anchors at anchor-mu; what it sits or lies on (a body of its own, a patch under carpal) is its sled
 ;; at friction-mu. A touching contact's normal is held unless let go or on a foot told free (the robot's heels stepping
 ;; in turn); an anchor's tangents stick where its patch bears hold-n, its points together.
-(defun closed-chain-unknowns (contacts slide regime)
-  "(nz, span S (3k x nz), roles): zeta's width, the map zeta -> z in frames, each contact's role."
-  (declare (ignore contacts slide regime))
-  (values 0 nil nil))
 
 ;; Level 1 over u = (x, zeta). Affine maps through the robot's dynamics on the dofs no drive holds P, M_PP qdd_P +
 ;; M_PG qg
@@ -159,10 +144,6 @@
 ;; goes, and bearing hold-n again while the plan presses on it (al_n <= 0) it is held again. A held contact's soft normal row
 ;; alone had glued the robot's torso to a chair's back: no answer could leave it. Remembered a pass by its key (body, patch,
 ;; ordinal), wbc_step_t.chain_let in C.
-(defun closed-chain-level-1 (maps rows bounds warm)
-  "(u1, held1, met): level 1's answer, its held rows, whether the laws were met."
-  (declare (ignore maps rows bounds warm))
-  (values nil nil nil))
 
 ;; Level 2 in level 1's damped null space N = I - H1^-1 G1 (G1 the least squares' normal matrix, H1 with the damping):
 ;; u = u1 + N y, minimising posture-weight |P (x - want)| + lambda |y| - P the projector off the robot's held hands'
@@ -170,15 +151,7 @@
 ;; of its hands' motion and still holds every joint along the rest (asked of them it squeezed the robot's
 ;; fists 570 N into each other) - under the same laws shifted, A N y <= b - A u1, warm from the last pass's; none met,
 ;; the least squares alone.
-(defun closed-chain-level-2 (u1 maps posture bounds warm)
-  "(u, held2): the answer with the robot's posture laid in."
-  (declare (ignore u1 maps posture bounds warm))
-  (values nil nil))
 
 ;; The answer: x the robot's driven joints' accelerations, z = Q^T S zeta the forces in the world, qdd_P foreseen,
 ;; tau its drives' torques - those forces', never a Gauss-Seidel's over them again -; the complementarity's
 ;; residual the largest |min(al_n, z_n)| for the trace; its torques clipped to [lo, hi].
-(defun closed-chain-answer (u maps)
-  "(x qdd-p z tau residual)."
-  (declare (ignore u maps))
-  (values nil nil nil nil 0.0d0))

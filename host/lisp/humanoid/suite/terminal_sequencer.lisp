@@ -13,7 +13,6 @@
         :ortho-dsp.supervisor)
   (:export #:transfer-carpal-seat-boost
            #:specialize-mount-overheight-seat
-           #:transfer-egress-scoot
            #:transfer-egress-dip
            #:patch-sit-rigid-chair
            #:patch-supine-mattress-sleep
@@ -53,37 +52,6 @@
         :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.5708 -> 1.5708] :limb-lift 0.0)
         :talocrural-rad -0.24
         :manifold-pan '((:plantar-bilateral 0.0) (:ischial-bilateral 0.80) (:scapular-dorsal 0.0) (:palmar-carpal-bilateral 0.20)))))
-
-;; Down from a seat too high for the robot's feet to its front edge, as the kernel's arm-dip egress scoots the robot
-;; (`xform-overheight-arm-dip-egress`): its legs let go, its fists boosting it, its seat
-;; slid ahead at the kernel's tangent speed - its sled's twist in its closed chains' step, as far as the
-;; robot's soles do not yet bear what its legs weigh - till they bear it, then those soles told it and the
-;; robot's slide over: the sit-to-stand take's start, its feet on the floor under its knees. Risen from
-;; the seat's middle the robot's soles bore 0 N through its lean and thrust: locked 5.2 s; stroked open on its arms and
-;; knees, a puppet slid 0.29 m a stroke past the edge onto the floor.
-(defmaneuver transfer-egress-scoot [seated-state &key (slide-speed-mps 0.15) (reach-fz-ratio 0.15)]
-  (-> seated-state
-      (stage-sequential-manifold
-        :duration-ms 350.0
-        :contact-chain [:palmar-carpal-bilateral -> :ischial-bilateral]
-        :torso-pitch-ramp [0.0 -> 0.0]
-        :axial-yaw-ramp [0.0 -> 0.0]
-        :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.5708 -> 1.5708] :limb-lift 0.0)
-        :talocrural-rad 0.0
-        :slide-speed-mps slide-speed-mps
-        :manifold-pan '((:plantar-bilateral 0.0) (:ischial-bilateral 0.55) (:scapular-dorsal 0.0) (:palmar-carpal-bilateral 0.45)))
-      (on-contact-threshold
-        :sensor-bus :plantar-bilateral
-        :trigger-fz-ratio reach-fz-ratio
-        (stage-sequential-manifold
-          :duration-ms 350.0
-          :contact-chain [:ischial-bilateral -> :plantar-bilateral]
-          :torso-pitch-ramp [0.0 -> 0.0]
-          :axial-yaw-ramp [0.0 -> 0.0]
-          :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.5708 -> 1.5708] :limb-lift 0.0)
-          :talocrural-rad 0.0
-          :slide-speed-mps 0.0
-          :manifold-pan '((:plantar-bilateral 0.15) (:ischial-bilateral 0.65) (:scapular-dorsal 0.0) (:palmar-carpal-bilateral 0.20))))))
 
 ;; Down from a seat too high for the robot's feet onto them, as the kernel's egress from it lowers the robot on the
 ;; robot's arms (`specialize-for-overheight-seat` :egress, `xform-overheight-arm-dip-egress`): its joints

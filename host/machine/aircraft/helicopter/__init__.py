@@ -9,7 +9,7 @@ its flight in MuJoCo (`sky`), its law (`law`) and its observer (`observer`); `ki
 law's pieces it shares with the ornithopter and the aerobat.
 """
 from machine.aircraft.course import TWIN_SPHERE as COURSE_SPHERE
-from machine.aircraft.helicopter.airframe import (BEHAVIORS, BODY_CDA, CARD, COLL_DEG, COOLING,
+from machine.aircraft.helicopter.airframe import (BODY_CDA, CARD, COLL_DEG, COOLING,
                                          CYC_DEG, DISC_M, FLIP_IN, FLOOR_M, FOOT_M, GRAVITY, HALF_M,
                                          HOVER, IDLE_RAD_S, INERTIA, INVERTED, K_DRAG, K_TAIL,
                                          K_THRUST, LISP_PATH, MANIFEST, MASS_KG, PULL_MAX,

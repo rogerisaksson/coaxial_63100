@@ -19,9 +19,7 @@
            #:gate-supports-by-stillness
            #:read-floor-friction-from-settled-slides
            #:probe-unobserved-substrate-via-weight-shift
-           #:xform-prior-regularized-observer
-           #:specialize-observer-for-sensorless-soft-bed
-           #:specialize-observer-with-active-edge-probing))
+           #:xform-prior-regularized-observer))
 (in-package :ortho-dsp.prior-observer)
 
 ;; -----------------------------------------------------------------------------
@@ -203,7 +201,7 @@
               :write-estimated-rotational-stiffness-to-cwc true)))))
 
 ;; -----------------------------------------------------------------------------
-;; 6. MASTER PRIOR-REGULARIZED OBSERVER & COMPOSABLE SPECIALIZERS
+;; 6. MASTER PRIOR-REGULARIZED OBSERVER
 ;; -----------------------------------------------------------------------------
 (defmodifier xform-prior-regularized-observer [state]
   (-> state
@@ -218,25 +216,3 @@
       (probe-unobserved-substrate-via-weight-shift
         :probe-trigger-kappa 0.45
         :max-probe-com-shift-mm 16.0)))
-
-;; Specializer A: Sensorless Soft Bed / Sofa Mode (High Prior Trust + Continuous Probing)
-(defmodifier specialize-observer-for-sensorless-soft-bed
-  [state &key (prior-dominance 0.92) (probe-shift-mm 22.0)]
-  (-> state
-      (regularize-manifold-simplex-with-priors
-        :min-prior-floor-mg-ratio 0.15
-        :uninstrumented-prior-boost prior-dominance
-        :gravity-alignment-beta 8.0)
-      (probe-unobserved-substrate-via-weight-shift
-        :probe-trigger-kappa 0.30
-        :max-probe-com-shift-mm probe-shift-mm
-        :probe-frequency-hz 1.4)))
-
-;; Specializer B: Active Edge-Seeking Probe Before Sit-to-Stand or Roll
-(defmodifier specialize-observer-with-active-edge-probing
-  [state &key (test-direction :anterior-egress) (max-test-lean-rad 0.035)]
-  (-> state
-      (probe-unobserved-substrate-via-weight-shift
-        :probe-trigger-kappa 0.20
-        :max-probe-com-shift-mm 28.0
-        :edge-drop-tilt-ceiling-rad max-test-lean-rad)))

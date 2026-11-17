@@ -6,7 +6,6 @@
   (:use :ortho-dsp.core)
   (:export #:substrate-rigid-fixture
            #:substrate-viscoelastic-mattress
-           #:substrate-compliant-cushion
            #:gate-inverter-high-z
            #:wake-inverter-closed-loop))
 (in-package :ortho-dsp.substrates)
@@ -29,15 +28,6 @@
         :notch-attenuation-db -18.0
         :notch-q-factor 1.20
         :post-contact-limb-gain-db -36.0)))
-
-;; 3. Deep Compliant Upholstery (Sofa): Compensates for slow creep and sinkage offset
-(defmodifier substrate-compliant-cushion [state &key (sinkage-allowance-mm 65.0)]
-  (-> state
-      (configure-contact-compliance
-        :surface-stiffness-npmm 42.0
-        :creep-relaxation-ms 450.0
-        :z-sinkage-offset-mm (- sinkage-allowance-mm)
-        :post-contact-limb-gain-db -28.0)))
 
 ;; -----------------------------------------------------------------------------
 ;; HIGH-Z INVERTER GATE MANAGEMENT (ZERO-TORQUE STANDBY <-> ACTIVE PRECHARGE)

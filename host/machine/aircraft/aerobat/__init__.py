@@ -7,7 +7,7 @@ the coaxial contra stage: propwash over oversized surfaces gives attitude author
 airspeed. The aerobat's numbers, its wing and its XML (`airframe`), its form (`form`), its flight in
 MuJoCo (`sky`), its law (`law`) and its observer (`observer`).
 """
-from machine.aircraft.aerobat.airframe import (A_DISC, BEHAVIORS, BLADE_PITCH, BODY_CDA, CARD, CD0, CD_INDUCED,
+from machine.aircraft.aerobat.airframe import (A_DISC, BLADE_PITCH, BODY_CDA, CARD, CD0, CD_INDUCED,
                                       CL_ALPHA, COOLING, COURSE_SPHERE, FLOOR_M, FOOT_M, FORM,
                                       GEAR_MAIN_Z, GEAR_TAIL_Z, GRAVITY, HALF_M, IDLE_RAD_S, INERTIA,
                                       INFLOW_FLOOR, INFLOW_J0, K_DRAG, K_PITCH, K_PITCH_Q, K_ROLL, K_ROLL_Q,

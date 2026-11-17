@@ -291,8 +291,7 @@ def test_lisp_manifests_and_validation(report):
         ('(defdynamics h (impedance (stiffness warp_axis 1.0)))', 'warp_axis'),
         ('(defkinematics h (envelope (floor_height 1.0knots)))', '1.0knots'),
         ('(defstunt s (base no_such_stunt) (height 1.0m))', 'no_such_stunt'),
-        ('(defbehavior b (phase p (stunt no_stunt) (duration 1.0s)))', 'no_stunt'),
-        ('(defbehavior empty_behavior)', 'defbehavior requires'),
+        ('(defroutine r (stage p (stunt no_stunt) (duration 1.0s)))', 'no_stunt'),
         ('(defroutine empty_routine)', 'defroutine requires'),
         ('(stream_inject (sequence_id not_an_int))', 'integer'),
         ('(defblock unknown_kind b (x 1.0))', 'no block kind'),
@@ -309,36 +308,8 @@ def test_lisp_manifests_and_validation(report):
                  refused == len(bad_cases), '%d/%d refused' % (refused, len(bad_cases)))
 
 
-def test_helicopter_behaviors_and_streams(report):
-    """3D stunt behaviors, each from `high`, fly in MuJoCo; compiled `stream_inject` payloads
-    translate to stunt rows."""
-    dt = 1.0 / 120.0
-    for craft, s_cpg, s_tum in ((helicopter, 'aileron_tictoc', 'chaos'),
-                                (ornithopter, 'wing_rock', 'coriolis_storm'),
-                                (aerobat, 'waterfall', 'roll')):
-        pmax = craft.PULL_MAX
-        sky, core, law = craft.Sky(), craft.Core(), aerokin.fresh()
-        cpg_v, chaos_r, ends = [], [], []
-        for phases in craft.BEHAVIORS.values():
-            for _ in range(int(2.5 / dt)):
-                ans = core.step(law, craft.STUNTS['high'], sky.state(), dt, pmax)
-                sky.step(ans.speeds + ans.controls, dt)
-            for phase in phases:
-                for _ in range(int(phase['duration'] / dt)):
-                    st = sky.state()
-                    ans = core.step(law, phase['row'], st, dt, pmax)
-                    sky.step(ans.speeds + ans.controls, dt)
-                    if phase['stunt'] == s_cpg:
-                        cpg_v.append(float(st['turn'][1][1]))
-                    if phase['stunt'] == s_tum:
-                        chaos_r.append(math.hypot(*[float(x) for x in st['spin']]))
-            ends.append(sky.state()['h'] - phases[-1]['row']['height'])
-        report.check('%s multi-phase stunt behaviors fly in MuJoCo' % craft.__name__,
-                     bool(cpg_v) and max(cpg_v) - min(cpg_v) > 0.6 and bool(chaos_r) and max(chaos_r) > 6.0
-                     and max(abs(e) for e in ends) < 0.3 and sky.hit is None,
-                     'their ends %s m off their last rows, struck %s' % (
-                         ' '.join('%+.2f' % e for e in ends), sky.hit))
-
+def test_helicopter_streams(report):
+    """Compiled `stream_inject` payloads translate to stunt rows."""
     rows, orows, arows = ([c.row_from_payload(p) for p in c.STREAMS] for c in (helicopter, ornithopter, aerobat))
     rcpg = helicopter.row_from_payload(aerolisp.compiled(
         '(stream_inject (cpg_config (enable true) (frequency 1.25Hz) (amplitude mode_attitude_roll 52.0deg)))')[0])
@@ -352,7 +323,7 @@ def test_helicopter_behaviors_and_streams(report):
 ROSTER = (
     test_lisp_manifests_and_validation,
     test_helicopter_stunt_routine,
-    test_helicopter_behaviors_and_streams,
+    test_helicopter_streams,
     test_helicopter_wind_observer_and_inverted_hold,
     test_helicopter_course_laps,
     test_helicopter_boards_and_view,

@@ -1,6 +1,6 @@
 ;; -----------------------------------------------------------------------------
 ;; MODULE 2.6: situational_action_specializers
-;; SYNOPSIS: Acting on the scene: affordances, obstacles moved, furniture aligned, funnels chained, egress braced.
+;; SYNOPSIS: Acting on the scene: affordances, obstacles moved, funnels chained, egress braced.
 ;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.affordance-xforms
   (:use :ortho-dsp.core
@@ -18,7 +18,6 @@
         :ortho-dsp.affordance-core)
   (:export #:xform-situational-affordance-engine
            #:specialize-with-autonomous-obstacle-relocation
-           #:specialize-with-furniture-pose-alignment
            #:specialize-with-bidirectional-postural-chaining
            #:specialize-with-assistive-egress-bracing))
 (in-package :ortho-dsp.affordance-xforms)
@@ -44,18 +43,6 @@
               :shove-technique :ulnar-backrest-hook
               :clearing-offset-xy-mm (:compute-non-occluding-parking-pocket :margin-mm clearance-margin-mm))
             (release-bimanual-coupling :verify-object-static-fz true :update-registry-pose true)))))
-
-(defmodifier specialize-with-furniture-pose-alignment
-  [situational-state &key (preferred-room-gaze-yaw-rad 0.0) (min-legroom-x-mm 420.0)]
-  (-> situational-state
-      (when-target-affordance-occluded (:sit-on-fixture :reason [:insufficient-legroom :suboptimal-yaw])
-        (-> situational-state
-            (splice-manipulated-object-adjoint :object-slot :target-sit-quadric)
-            (reorient-coupled-quadric
-              :target-yaw-rad preferred-room-gaze-yaw-rad
-              :extract-from-under-overhang-mm min-legroom-x-mm
-              :max-wrist-torque-nm 18.0)
-            (release-bimanual-coupling :update-registry-pose true)))))
 
 (defmodifier specialize-with-bidirectional-postural-chaining [situational-state]
   (-> situational-state

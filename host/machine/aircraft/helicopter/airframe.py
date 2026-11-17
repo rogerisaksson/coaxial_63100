@@ -11,7 +11,7 @@ with open(LISP_PATH, encoding='utf-8') as _f:
 QUAD_LISP_PATH, QUAD_MANIFEST = quad.QUAD_LISP_PATH, quad.MANIFEST
 
 AERO, DYNAMICS, KINEMATICS = MANIFEST['aerodynamics'], MANIFEST['dynamics'], MANIFEST['kinematics']
-STREAMS, STUNTS, BEHAVIORS = MANIFEST['streams'], MANIFEST['stunts'], MANIFEST['behaviors']
+STREAMS, STUNTS = MANIFEST['streams'], MANIFEST['stunts']
 CARD, COOLING = MANIFEST['routines']['helicopter_3d'], DYNAMICS['cooling']
 _MR, _TR, _AF, _DL = AERO['main_rotor'], AERO['tail_rotor'], AERO['airframe'], AERO['drive_load']
 _RB, _GOV, _IMP, _OBS = (
@@ -43,9 +43,7 @@ WAKE_FLOOR_M_S, PULL_MAX = (
     KINEMATICS['vertical']['wake_floor'], K_THRUST * (GOV_RAD_S * STUNT_BOOST) ** 2 / MASS_KG)
 TICTOC_HZ, TICTOC_RAD = (
     KINEMATICS['oscillator'][k] for k in ('tictoc_frequency', 'tictoc_amplitude'))
-FUNNEL, SPIRAL, FLIP_IN, INVERTED, INV_PIRO, TICTOC, AILERON_TICTOC, PIRO_FLIP, CHAOS, HURRICANE, UNWIND = (
-    STUNTS[k] for k in ('funnel', 'spiral', 'flip_in', 'inverted', 'inv_piro', 'tictoc',
-                        'aileron_tictoc', 'piro_flip', 'chaos', 'hurricane', 'unwind'))
+FLIP_IN, INVERTED = STUNTS['flip_in'], STUNTS['inverted']
 
 
 def drive_loads(controls, _share=1.0):

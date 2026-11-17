@@ -60,7 +60,7 @@ SPLIT = {'stance-duty-pwm': ('duty-factor-l', 'duty-factor-r')}
 #: The runway's transient shaper's params that land on its soft-clip node, the knee.
 CLIP = ('stance-yield-rad', 'compliance')
 #: The runway's filter bank: each filter modulates its :target's params.
-FILTERS = ('dc-bias', 'butterworth-lpf', 'phase-delay', 'hard-mute', 'compressor-gain', 'brickwall-limit')
+FILTERS = ('dc-bias', 'butterworth-lpf', 'phase-delay', 'hard-mute')
 
 
 def node(key):
@@ -156,7 +156,7 @@ def _event(op):
 #: A maneuver's acts, each an event: (op, its params, the acts it releases).
 EVENTS = tuple('''trigger-one-shot-envelope on-contact-threshold crossfade-support-manifold stage-sequential-manifold
     configure-contact-compliance on-manifold-equilibrium cascade-actuator-gates latch-current-encoders
-    stage-coupled-pendulum absorb-and-rebound-manifold cascade-impedance-envelope seek-auxiliary-manifold'''.split())
+    stage-coupled-pendulum cascade-impedance-envelope seek-auxiliary-manifold'''.split())
 #: The anti-spasm insert's ops (anti_spasm_supervisor.lisp), each its node's params: the robot's loop's
 #: (`machine.law.supervisor`).
 GUARDS = {'apply-velocity-noise-gate': 'velocity-gate', 'filter-derivative-channel': 'derivative-channel',
@@ -164,9 +164,6 @@ GUARDS = {'apply-velocity-noise-gate': 'velocity-gate', 'filter-derivative-chann
           'enforce-joint-boundary-buffer': 'joint-boundary', 'configure-contact-comparators': 'contact-comparators',
           'enforce-bumpless-handover': 'bumpless-handover', 'apply-zero-crossing-governor': 'zero-crossing',
           'monitor-energy-tank': 'energy-tank'}
-def _targeted(g, args, env):
-    said = _plist(args, env)
-    return _modulated(g, node(said.pop('target')), said)
 
 
 def _keyed_on(at, key):
@@ -196,9 +193,7 @@ def _gated(op):
 #: The ops on a gait: (gait, raw args, env) -> a new gait.
 GAIT_OPS = {**{op: _event(op) for op in EVENTS}, **{op: _on(at) for op, at in GUARDS.items()},
     **{op: _on(at) for op, at in MECHANISMS.items()}, **{op: _keyed_on(*k) for op, k in KEYED.items()},
-    **{op: _gated(op) for op in ('when-modifier', 'when-funnel-active', 'when-target-affordance-occluded',
-                                 'when-funnel-transition')},
-    'engage-sub-oscillator': _targeted, 'sample-and-hold-terrain': _targeted,
+    **{op: _gated(op) for op in ('when-modifier', 'when-funnel-active', 'when-funnel-transition')},
     'modulate-oscillator': _on('oscillator'), 'quantize-grid': _on('oscillator'),
     'set-plantar-boundary': _on('plantar-boundary'), 'modulate-plantar-boundary': _on('plantar-boundary'),
     'modulate-node': lambda g, a, env: _modulated(g, node(a[0]), _plist(a[1:], env)),

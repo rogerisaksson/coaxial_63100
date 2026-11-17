@@ -217,22 +217,18 @@ def payload_to_row(p, base_row, hover_thrust=_DEF_HOVER_N, orbit_speed=_DEF_ORBI
     return row
 
 
-def _compile_phase_or_stage(row, tag, stunts, c, beh_c=None, prev_row=None):
-    if not isinstance(row, list) or len(row) < 3 or row[0] != tag or not isinstance(row[1], str):
-        raise SyntaxError(f'expected ({tag} NAME ...), not {row!r}')
-    s_keys = {'stunt', 'duration', 'blend' if tag == 'phase' else 'ramp', 'gate'}
-    o_keys = set(_BLOCKS) - {'sequence_id'} if tag == 'phase' else set()
+def _compile_stage(row, stunts, c):
+    if not isinstance(row, list) or len(row) < 3 or row[0] != 'stage' or not isinstance(row[1], str):
+        raise SyntaxError(f'expected (stage NAME ...), not {row!r}')
     props: dict[str, Any] = {'name': row[1], 'gate': ''}
-    sp, name = {}, row[1]
+    name = row[1]
     for item in row[2:]:
         h = item[0] if isinstance(item, list) and item else None
-        if isinstance(h, str) and h in o_keys:
-            sp[h] = _BLOCKS[h](item[1:])
-        elif not isinstance(h, str) or h not in s_keys or len(item) != 2 or not isinstance(item[1], str):
-            raise SyntaxError(f'no {tag} field {item!r}')
-        elif h == 'stunt':
+        if not isinstance(h, str) or h not in {'stunt', 'duration', 'ramp', 'gate'} or len(item) != 2 or not isinstance(item[1], str):
+            raise SyntaxError(f'no stage field {item!r}')
+        if h == 'stunt':
             if item[1] not in stunts:
-                raise SyntaxError(f'no stunt {item[1]!r} in {tag} {name!r}')
+                raise SyntaxError(f'no stunt {item[1]!r} in stage {name!r}')
             props['stunt'] = item[1]
         elif h == 'gate':
             if item[1] not in GATES:
@@ -240,21 +236,8 @@ def _compile_phase_or_stage(row, tag, stunts, c, beh_c=None, prev_row=None):
             props['gate'] = item[1]
         else:
             props[h] = c._val(item[1])
-    if 'duration' not in props or ('stunt' not in props and not sp):
-        raise SyntaxError(f'{tag} {name!r} requires stunt and duration')
-    if tag == 'phase' and beh_c is not None:
-        if 'stunt' in props:
-            beh_c.state = None
-        if 'blend' in props and 'blend_duration' not in sp:
-            sp['blend_duration'] = f"{props['blend']:g}s"
-        p = beh_c.compile(sp) if sp else None
-        if p is not None and 'blend_duration' in sp and 'blend' not in props:
-            props['blend'] = p.blend_duration_ms * 1e-3
-        base = dict(stunts[props['stunt']] if 'stunt' in props
-                    else (prev_row or stunts.get('hover') or next(iter(stunts.values()), {})))
-        props.update(payload=p, stunt=props.get('stunt', 'stream'),
-                     row=payload_to_row(p, base, c.symbols.get('HOVER_THRUST', _DEF_HOVER_N),
-                                        c.symbols.get('ORBIT_SPEED', _DEF_ORBIT_M_S)) if p is not None else base)
+    if 'duration' not in props or 'stunt' not in props:
+        raise SyntaxError(f'stage {name!r} requires stunt and duration')
     return props
 
 
@@ -328,31 +311,23 @@ def _apply_manifest_form(form, out, c, base_dir, seen):
         base.update(kv_block(rows, STUNT_FIELDS, c, req))
         stunts[name] = base
         return
-    if h in ('defbehavior', 'defroutine'):
+    if h == 'defroutine':
         if len(form) < 3 or not isinstance(form[1], str):
-            raise SyntaxError(f'{h} requires a name and at least one subform')
-        tag, beh_c = ('phase', AeroLispCompiler(c.symbols)) if h == 'defbehavior' else ('stage', None)
-        items, prev = [], None
-        for sub in form[2:]:
-            step = _compile_phase_or_stage(sub, tag, stunts, c, beh_c, prev)
-            prev = step.get('row')
-            items.append(step)
-        if h == 'defbehavior':
-            out['behaviors'][form[1]] = tuple(dict(i, blend=i.get('blend', 0.0)) for i in items)
-        else:
-            out['routines'][form[1]] = tuple(
-                (i['name'].replace('_', ' '), stunts[i['stunt']], i['duration'], i.get('ramp', 0.0), i['gate'])
-                for i in items)
+            raise SyntaxError('defroutine requires a name and at least one subform')
+        items = [_compile_stage(sub, stunts, c) for sub in form[2:]]
+        out['routines'][form[1]] = tuple(
+            (i['name'].replace('_', ' '), stunts[i['stunt']], i['duration'], i.get('ramp', 0.0), i['gate'])
+            for i in items)
         return
     raise SyntaxError(f'unknown or malformed manifest form {h!r}')
 
 
 def compile_manifest(text, symbols=None, base_dir=_BASE_DIR, blocks=None):
-    """A craft's text compiled: its vehicle, its blocks by kind, its streams, stunts, behaviors and routines;
+    """A craft's text compiled: its vehicle, its blocks by kind, its streams, stunts and routines;
     `blocks` what a `use` names, the compiled spec's (`aircraft.compile.blocks`) unless given."""
     c = AeroLispCompiler(symbols)
     out = {'includes': [], 'blocks': aircraft_compile.blocks() if blocks is None else blocks, 'vehicle': None, 'aerodynamics': {},
-           'dynamics': {}, 'kinematics': {}, 'streams': [], 'stunts': {}, 'behaviors': {}, 'routines': {}}
+           'dynamics': {}, 'kinematics': {}, 'streams': [], 'stunts': {}, 'routines': {}}
     for f in _trees(text):
         if not isinstance(f, list) or not f:
             raise SyntaxError(f'invalid form {f!r}')

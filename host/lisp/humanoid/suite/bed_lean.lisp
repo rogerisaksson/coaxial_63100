@@ -16,7 +16,6 @@
            #:specialize-recline-long-side
            #:transfer-carpal-recline
            #:specialize-sit-up-short-side
-           #:specialize-sit-up-long-side
            #:patch-bed-lean
            #:specialize-leg-over-edge
            #:patch-leg-bed
@@ -251,24 +250,6 @@
         :talocrural-rad 0.489
         :manifold-pan '((:plantar-bilateral 0.15) (:ischial-bilateral 0.85) (:scapular-dorsal 0.0) (:palmar-carpal-bilateral 0.0)))))
 
-;; From supine along it from its side: rotate back to the edge, plant feet, sit up
-(defmaneuver specialize-sit-up-long-side [state]
-  (-> state
-      (stage-sequential-manifold
-        :duration-ms 1200.0
-        :contact-chain [:scapular-dorsal -> :greater-trochanter-r]
-        :torso-pitch-ramp [-1.5708 -> -0.25]
-        :axial-yaw-ramp [-0.60 -> 0.0]
-        :counterweight-limb-sweep (:tibiofemoral-flex-rad [0.1047 -> 1.40] :limb-lift 0.0)
-        :manifold-pan '((:plantar-bilateral 0.06) (:ischial-bilateral 0.54) (:scapular-dorsal 0.30) (:palmar-carpal-bilateral 0.10)))
-      (stage-sequential-manifold
-        :duration-ms 700.0
-        :contact-chain [:greater-trochanter-r -> :ischial-bilateral]
-        :torso-pitch-ramp [-0.25 -> 0.0]
-        :axial-yaw-ramp [0.0 -> 0.0]
-        :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.40 -> 1.45] :limb-lift 0.0)
-        :manifold-pan '((:plantar-bilateral 0.15) (:ischial-bilateral 0.70) (:scapular-dorsal 0.0) (:palmar-carpal-bilateral 0.15)))))
-
 ;; Sat up as the edge the robot lay down from lets it, then up as from a chair, its trunk leaned a
 ;; chair's 0.74 rad: from its end, seated on its foam over its firm core, 1.00 threw the robot off its feet
 ;; at all 4 of 7 docks that thrust; 0.74 stood all 7. From its long side as from its end (the robot's bed exit's
@@ -278,9 +259,7 @@
 ;; arms and scoots it toward its feet till its shanks hang, whichever edge that is
 (defpatch patch-rise-bed [seated-state &key (bed-side *bed-side*)]
   (-> seated-state
-      (case bed-side
-        (:long (specialize-sit-up-short-side))
-        (otherwise (specialize-sit-up-short-side)))
+      (specialize-sit-up-short-side)
       (wake-inverter-closed-loop)
       (transfer-concentric-handover
         :source-manifold :ischial-bilateral

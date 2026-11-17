@@ -13,11 +13,7 @@
            #:lay-banded-traversability-costmap
            #:solve-permeability-sherman-morrison-streamline
            #:run-wayfinder-apart
-           #:guard-3d-swing-and-prealign-ankle-so3
-           #:specialize-nav-forest-roots-and-boulders
-           #:specialize-nav-negative-ditches-and-curbs
-           #:specialize-terrain-outdoor
-           #:specialize-with-recognized-classes))
+           #:guard-3d-swing-and-prealign-ankle-so3))
 (in-package :ortho-dsp.agnostic-nav)
 
 ;; The robot's ground: its soles' floor, flat under its map; the bands over it its
@@ -108,30 +104,3 @@
       (adapt-to-surface-normal
         :max-step-over-height-m (* 0.001 max-step-over-height-mm)
         :prealign-landing-sole prealign-ankle-to-terrain-normal)))
-
-;; Open ground: roots and rocks stepped over up to their height.
-(defmodifier specialize-nav-forest-roots-and-boulders
-  [nav-state &key (max-root-rock-height-mm 245.0)]
-  (-> nav-state
-      (adapt-to-surface-normal :max-step-over-height-m (* 0.001 max-root-rock-height-mm))))
-
-;; A ditch or a curb's drop: a hole in the robot's floor from its depth on.
-(defmodifier specialize-nav-negative-ditches-and-curbs
-  [nav-state &key (ditch-depth-trigger-mm -40.0)]
-  (-> nav-state
-      (fit-oriented-obstacle-boxes :ditch-depth-m (* 0.001 ditch-depth-trigger-mm))))
-
-;; Open ground: room to keep off things, what lies unseen mostly ground.
-(defmodifier specialize-terrain-outdoor [nav-state]
-  (-> nav-state
-      (weigh-traversability-layers
-        :clearance-weight 3.0
-        :clearance-decay-mm 400.0
-        :unknown-weight 0.2)))
-
-;; Recognition's names widen a thing's reach where its kind needs it: a window, glass the robot's
-;; stereo sees by its frame and its specks, not its pane.
-(defmodifier specialize-with-recognized-classes [nav-state]
-  (-> nav-state
-      (weigh-traversability-layers
-        :class-margins-mm (:window 100.0))))

@@ -1,4 +1,4 @@
-; The helicopter's flights (`helicopter.lisp` and its variants fly them): its streams, stunts, behaviours and routine,
+; The helicopter's flights (`helicopter.lisp` and its variants fly them): its streams, stunts and routine,
 ; its vehicle the text's that includes this one.
 
 (stream_inject
@@ -119,51 +119,8 @@
 (defstunt tictoc
   (base high) (nose -2.0) (height 0.95m))
 
-(defstunt aileron_tictoc
-  (base high) (nose -3.0) (height 0.95m))
-
 (defstunt piro_flip
   (base high) (flip -1.0) (turn 360.0deg_s) (height 0.95m))
-
-(defstunt chaos
-  (base high) (flip -1.0) (roll 1.0) (turn 540.0deg_s) (height 2.4m))
-
-(defstunt hurricane
-  (base funnel) (height 2.0m) (pace 2.5m_s) (slide -3.0m_s) (turn UNWIND_TURN_DEG_S))
-
-(defbehavior tareq_smackdown
-  (phase punch (stunt high) (duration 1.2s) (blend 100ms))
-  (phase flip_entry (stunt flip_in) (duration 1.0s) (blend 80ms))
-  (phase elevator_tictoc (stunt tictoc) (duration 2.0s) (blend 80ms)
-    (task_constraints (maintain_altitude 2.4m)))
-  (phase chaos_burn (stunt chaos) (duration 1.2s) (blend 100ms))
-  (phase catch_high (stunt high) (duration 1.6s) (blend 150ms) (gate held)))
-
-(defbehavior szabo_piro_routine
-  (phase inverted_entry (stunt flip_in) (duration 1.0s) (blend 100ms))
-  (phase inverted_poise (stunt inverted) (duration 1.6s) (blend 120ms))
-  (phase inverted_pirouette (stunt inv_piro) (duration 1.8s) (blend 100ms))
-  (phase piro_flip_out (stunt piro_flip) (duration 1.0s) (blend 80ms))
-  (phase recovery (stunt high) (duration 1.8s) (blend 150ms) (gate held)))
-
-(defbehavior aileron_rainbow
-  (phase climb_entry (stunt high) (duration 1.2s) (blend 120ms))
-  (phase knife_tictoc (stunt aileron_tictoc) (duration 2.2s) (blend 80ms))
-  (phase snap_roll (stunt roll) (duration 0.8s) (blend 80ms))
-  (phase settle (stunt high) (duration 1.6s) (blend 150ms) (gate held)))
-
-(defbehavior funnel_to_spiral
-  (phase carve_funnel (stunt funnel) (duration LAP_S) (blend 200ms))
-  (phase climbing_spiral (stunt spiral) (duration LAP_S) (blend 200ms))
-  (phase hurricane_back (stunt hurricane) (duration 2.5s) (blend 180ms))
-  (phase unwind_home (stunt unwind) (duration LAP_S) (blend 200ms)))
-
-(defbehavior inverted_pirouette_circuit
-  (phase flip_over (stunt flip_in) (duration 1.0s) (blend 100ms))
-  (phase inverted_hold (stunt inverted) (duration 1.5s) (blend 100ms))
-  (phase inverted_spin (stunt inv_piro) (duration 2.0s) (blend 100ms))
-  (phase flip_upright (stunt piro_flip) (duration 1.0s) (blend 100ms))
-  (phase lock_high (stunt high) (duration 1.5s) (blend 150ms) (gate held)))
 
 (defroutine helicopter_3d
   (stage idle (stunt down) (duration 2.0s) (ramp 0.0s) (gate fit))

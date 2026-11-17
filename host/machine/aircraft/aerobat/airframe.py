@@ -11,7 +11,7 @@ with open(LISP_PATH, encoding='utf-8') as _f:
     MANIFEST = aerolisp.compile_manifest(_f.read())
 
 AERO, DYNAMICS, KINEMATICS = MANIFEST['aerodynamics'], MANIFEST['dynamics'], MANIFEST['kinematics']
-STREAMS, STUNTS, BEHAVIORS = MANIFEST['streams'], MANIFEST['stunts'], MANIFEST['behaviors']
+STREAMS, STUNTS = MANIFEST['streams'], MANIFEST['stunts']
 #: The card: the routine's, its opening off the runway, its circuit and its final laid lines
 #: (`airfield.opening`, `circuit`, `approach`).
 _ROUTINE, COOLING = MANIFEST['routines']['aerobat_3d'], DYNAMICS['cooling']
