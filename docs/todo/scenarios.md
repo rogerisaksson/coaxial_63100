@@ -37,12 +37,15 @@ mechanism, the scenes it serves its DOD; none an entry a case.
    sensors against what its law assumes (its step's friction, a rigid floor)
    and estimated as data; outside that envelope a surface's text
    (`situations.lisp`) laid over the general law's - the friction its step
-   asks, its rhythm, its step's length, its stiffness -, no branch in the
-   law ([grip](../findings/grip.md)). Left: a floor its soles never slide on
-   (asphalt, snow) read from what its holding soles use alone; its insoles
-   reading their normal load alone; skates, a sole's room a line along its
-   blade. DOD: on skates the robot stands 10 s and goes 2 m by strides
-   across its blades.
+   asks, its rhythm, its step's length, its stiffness, its crouch and its
+   track -, no branch in the law ([grip](../findings/grip.md)). Left: a floor
+   its soles never slide on (asphalt, snow) read from what its holding soles
+   use alone; its insoles reading their normal load alone; skates, a sole's
+   room a line along its blade; carried faster than a stride can stop it on
+   its grip, a glide on both soles (its need to step read against its
+   sliding soles, `wbc_imp.c` beside it). DOD: on skates the robot stands
+   10 s and goes 2 m by strides across its blades; jogged onto ice untold it
+   glides across on both soles, crouched, no spasm (`ice_jog`).
 5. **Reachable landings ahead**: where each limb lands before the robot's
    capture point is past it, read from its reach (`machine.body.reach`);
    none, its height lowered and a limb set to meet the fall - knees, then

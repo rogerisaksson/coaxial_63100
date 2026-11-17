@@ -53,12 +53,12 @@ def test_a_grown_prop_bears_where_it_has_grown(report):
 
 
 def test_the_robots_grip_bounds_its_rhythm(report):
-    """The robot's text's slippery situation caps its rhythm under its grip, its targets kept; at the
-    robot's law's own grip nothing moves; a sliding sole's grip is what it used, a holding one's at least
-    that, a landing one's once it has settled."""
+    """The robot's text's slippery situation caps its rhythm under its grip, its targets kept, and over its
+    blend lowers the robot and widens its track to its floors; at the robot's law's own grip nothing moves; a
+    sliding sole's grip is what it used, a holding one's at least that, a landing one's once it has settled."""
     import numpy as np
     from machine.senses import grip, situation
-    from machine.law import latent, modal, motion
+    from machine.law import latent, modal
     from machine.texts import ortho
     from machine.stack.wbc import MU
     table = situation.text()
@@ -70,17 +70,32 @@ def test_the_robots_grip_bounds_its_rhythm(report):
     out[latent.REF], out[latent.RATE], out[latent.ACC] = rng.normal(size=(3, ortho.N))
     out[latent.SWAY], out[latent.PSI], out[latent.TURNS] = 0.6, rng.uniform(0, 6, ortho.N), 5.9
     stance, level = np.ones(2), np.array([MU, 0.0, 0.0, 1.0, 0.0, 0.0])
-    held = out.copy()
-    motion.gripped(held, np.full(2, MU), stance, table['caps'], situation.read(table, level))
+    held, eased = out.copy(), np.zeros((2, ortho.N))
+    floored = (table['floors'], table['period'])
+    situation.gripped(held, np.full(2, MU), stance, table['caps'], situation.read(table, level), *floored, eased, 0.01)
     report.check('at the robot\'s law\'s own grip its rhythm is the same to the bit', (held == out).all())
     iced, on_ice = out.copy(), level.copy()
     on_ice[0] = 0.1
-    motion.gripped(iced, np.full(2, 0.1), stance, table['caps'], situation.read(table, on_ice))
+    into = situation.read(table, on_ice)
+    situation.gripped(iced, np.full(2, 0.1), stance, table['caps'], into, *floored, eased, 0.0)
     target = lambda o: o[latent.REF] - o[latent.SWAY] * np.sin(o[latent.PSI])
     report.check('on ice (0.1) the robot\'s drive sways 0.20 at most, its soles rock none, its targets kept',
                  iced[latent.SWAY][modal.DRIVE] <= 0.2 + 1e-12 and iced[latent.SWAY][modal.ROCK] == 0.0
                  and np.allclose(target(iced), target(out)),
                  'drive %.3f, rock %.3f' % (iced[latent.SWAY][modal.DRIVE], iced[latent.SWAY][modal.ROCK]))
+    walked = out.copy()
+    walked[latent.REF][[modal.AXIAL, modal.WIDTH]] = 0.03, 0.0      # the walk's own crouch and track
+    capped = walked.copy()
+    situation.gripped(capped, np.full(2, 0.1), stance, table['caps'], into, *floored, np.zeros((2, ortho.N)), 0.0)
+    want, eased = into @ np.maximum(table['floors'] - capped[latent.REF], 0.0), np.zeros((2, ortho.N))
+    for _ in range(int(round(table['period'] / 1e-3))):
+        lifted = walked.copy()
+        situation.gripped(lifted, np.full(2, 0.1), stance, table['caps'], into, *floored, eased, 1e-3)
+    rise = lifted[latent.REF] - capped[latent.REF]
+    report.check("over the slippery floor's blend on ice the robot's crouch and track rise to its floors, 98 % there, "
+                 "its other modes kept", want[[modal.AXIAL, modal.WIDTH]].min() > 0.0
+                 and np.allclose(rise, want, rtol=0.02, atol=0.0) and (rise[want == 0.0] == 0.0).all(),
+                 'risen %s of %s' % (np.round(rise[[modal.AXIAL, modal.WIDTH]], 4), np.round(want[[modal.AXIAL, modal.WIDTH]], 4)))
     frames = np.broadcast_to(np.eye(3), (2, 2, 3, 3))
     touch = np.zeros((len(grip.edge.SKIN), 3))
     touch[grip.SOLES[:, 0]] = (8.0, 300.0, 0.0)

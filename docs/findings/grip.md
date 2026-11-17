@@ -31,8 +31,12 @@ it; tests/test_floor.py holds it, `ice_told` and the patches in
 - On it: the robot's centre of mass asked along the floor no harder than the
   robot's standing soles' grip times g; its going no faster than sqrt(2
   STRIDE_M grip g), 0.77 m/s on ice; a sole landing no further from the robot
-  than grip times its height, 0.09 m on ice; each sole's cone its grip
-  (`wrench`, `wbc_cone.c`); a surface's text capping the robot's rhythm. The
+  than grip times its height, 0.09 m on ice; each sole's shear bounded along
+  each way across the floor by the felt grip's inscribed square (`grip.sloped`,
+  `wrench`, `wbc_cone.c`): bounded by the grip itself a way, the robot planned
+  past the ice's round friction at the corners in 76 % of its standing passes
+  and its soles slid apart to a 0.45 m track; a surface's text capping the
+  robot's rhythm and flooring its crouch and track. The
   robot's law takes the grip only outside its envelope - under the highest
   surface's grip, 0.25 -; a sole landing starts from what it knows of the floor:
   kept from the slick patch, its reach was 5 cm on a floor of 1.0 for a second
@@ -41,8 +45,19 @@ it; tests/test_floor.py holds it, `ice_told` and the patches in
   (`lisp/humanoid/situations.lisp`, `(defsituation slippery (grip below 0.25)
   ..)`, [situation](situation.md)): under its grip the robot's rhythm's
   amplitudes no more than its, whatever the robot does, blended in over the
-  fifth under 0.25, `ice_walk`'s shape. What the robot is told of the floor - by
-  a player or its eyes, the `grip` command - is its grip's prior.
+  fifth under 0.25, `ice_walk`'s shape; and the robot 5 cm lower, its track 15 %
+  wider, under whatever row it walks, brakes or stands by, eased in over the
+  situation's 500 ms blend. Told so by a one-off row the robot walked the ice
+  6 of 6 and fell after its stop, as the brake's and stand's rows set it upright
+  and narrow again. Unaware ice now holds at 13 of 13 laid wobbles (-6e-4 to
+  6e-4 rad; 6 of 13 with the floors alone, the soles sliding apart), no stumble
+  and no spasm at the test's 3; told ice 13 of 13 still, but 2.84-2.94 m on
+  where 3.22 before - the floors 0.2 m of it, the inscribed square the rest: a
+  round cone, the grip's full friction along any one way, is what is left; jogged
+  onto it untold the robot still falls 0.8 s in (`ice_jog`, docs/todo/scenarios.md
+  item 4).
+  What the robot is told of the floor - by a player or its eyes, the `grip`
+  command - is its grip's prior.
 - The robot's level walk the same to the digit; the bench 60 of 90 scenes, 80 N
   standing 32 and walking 29 as before its grip. Told the ice's 0.1 the robot
   crosses it standing at 13 of 13 wobbles (`ice_told`); unaware ice 1 of 13,

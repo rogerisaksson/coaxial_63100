@@ -69,27 +69,6 @@ def seen(g, dt):
     return s
 
 
-def gripped(out, held, stance, caps, into):
-    """`out` in the situations the robot is in (`into` (S,), `situation.read`): each mode's sway and its
-    sine scaled down to each's caps (S, N; `situation.text`) as far as the robot is in it; the robot's drive's
-    further to its going no faster than sqrt(2 STRIDE_M grip g) on its standing soles' grip
-    (`held`) - a stride it can stop within: 0.77 m/s on ice (0.1), 1.9 at its law's own 0.6.
-    Asked 0.69 on ice at 0.02 the robot ran on and fell at 3.0-3.4 s."""
-    grip_now = ((stance + 1e-9) / (stance.sum() + 2e-9)) @ held
-    sway = np.abs(out[latent.SWAY])
-    under = into[:, None]
-    capped = np.where(np.isnan(caps), 1.0, np.minimum(1.0, np.nan_to_num(caps) / np.maximum(sway, 1e-9)))
-    k = np.min(1.0 - under + under * capped, axis=0, initial=1.0)
-    turns = out[latent.TURNS]
-    cruise = 2.0 / math.pi * stride.STRIDE_M * (sway[modal.DRIVE] * k[modal.DRIVE]) * np.sin(stride.swings(sway[modal.DRIVE] * k[modal.DRIVE], turns, 2.0 / math.pi * stride.STRIDE_M * (sway[modal.DRIVE] * k[modal.DRIVE]) * turns)) * turns
-    k[modal.DRIVE] *= np.minimum(1.0, np.sqrt(2.0 * stride.STRIDE_M * grip_now * modal.G) / np.maximum(cruise, 1e-9))
-    sine = out[latent.SWAY] * np.sin(out[latent.PSI])
-    out[latent.REF] += (k - 1.0) * sine
-    out[latent.RATE] += (k - 1.0) * out[latent.SWAY] * turns * np.cos(out[latent.PSI])
-    out[latent.ACC] -= (k - 1.0) * sine * turns * turns
-    out[latent.SWAY] *= k
-
-
 def _step_latent(g, dt):
     """The robot's latent state stepped: `waits.woken_rows` and `latent.step` in C (`g['waits']`,
     `g['latent']`)."""
@@ -150,7 +129,8 @@ def control(g, dt):
     unfelt, lean = float(weighed[0] - observer.said(told)[0]), float(told[ortho.FURNITURE].sum())
     g['seek'](g['field'], field.due(g['tab'], g['t'], dt * ev), y, lean, float(g['st'][latent.TO][latent.Z][modal.AXIAL]), dt * ev, out)
     se2.step_physical_twist(g, dt * ev, out)
-    g['gripped'](out, g['held'], g['a'][modal.STANCE], g['situations']['caps'], g['into'])
+    sits = g['situations']
+    g['gripped'](out, g['held'], g['a'][modal.STANCE], sits['caps'], g['into'], sits['floors'], sits['period'], g['eased'], dt * ev)
     touch.step(g, out, dt * ev)
     dq, imp = step_modal(g, s, y, y_in, out)
     w_back = float(g.get('_w_back', 0.0))
@@ -190,7 +170,7 @@ def control(g, dt):
     ask['posture'][g['head_idx']] -= gauge
     ask['posture'], g['schema'] = schema.shielded(body, g['clear'](g['schema_body'], s, g['schema_at']), s, ask,
                                                   float(y_in[edge.LINK][0]), g['shield'])
-    ask['mu'] = g['held']
+    ask['mu'] = grip.sloped(g['grip'], g['situations']['grips'])
     ask['hold'] = max(1.0, float((g['out'][latent.KS][ARMED] / g['rest'][latent.K][ARMED]).max()))
     w_gait = min(1.0, max(0.0, (0.05 - float(g['st'][latent.NOW][latent.GAIN])) / 0.05))
     w_drive = min(1.0, abs(float(g['st'][latent.TO][latent.AMP][modal.DRIVE])) / stride.STIRS)
@@ -273,7 +253,7 @@ def laid(g):
     g['told_on'] = bodied.on_args(emancipation.on_floor, 'told_on', tuple(range(6)))     # `emancipation.told_on`
     g['settling'] = bodied.on_args(emancipation.settling, 'settling', tuple(range(10)))     # `emancipation.settled`
     g['bounds'] = bodied.on_args(bemf.bounds, 'bounds', (0, 1))     # the robot's drives' torque bounds at their speeds
-    g['gripped'] = bodied.on_args(gripped, 'gripped', (0, 1, 2, 3, 4))
+    g['gripped'] = bodied.on_args(situation.gripped, 'gripped', tuple(range(9)))
     g['sured'] = bodied.on_args(brace.sured, 'sured', tuple(range(8)))     # the robot's ask and posture by its surety
     g['released'] = bodied.on_args(released, 'released', (0, 1, 2, 3))     # the robot's joints' clamps' shares
     g['poses'] = bodied.on_args(modal.poses, 'poses', (0, 1, 2, 3, 4, 5, 6, 7, 9, 10))

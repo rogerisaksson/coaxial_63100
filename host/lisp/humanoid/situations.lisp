@@ -3,12 +3,19 @@
 ;; Where it is, read from its sensors each pass: bounds on its readings - grip,
 ;; slope, borne, upright, pushed, raised - and what its law takes inside them,
 ;; whatever it is doing: its rhythm's amplitudes no more than the caps said,
-;; blended in over the fifth inside each bound.
+;; blended in over the fifth inside each bound, and its modes no lower than the
+;; latent targets said, eased in over the blend said (situation.gripped).
 ;; ============================================================================
 
 ;; a floor holding less than a quarter of a sole's load across - ice, a wet tile:
-;; short flat steps, the robot's pelvis and arms quiet
+;; short flat steps, the robot's pelvis and arms quiet, and under whatever the robot does its centre of mass
+;; down 5 cm and its track 15 % wider, eased in over the blend: a sliding sole's friction pitches the robot by
+;; the height of its centre over the floor. Told so on ice the robot walked all 6 s of it in 6 of 6 laid
+;; where upright and narrow it fell at 3.8-4.0 s, and fell after its stop only as the brake's and the
+;; stand's rows set it upright and narrow again on the ice
 (defsituation slippery (grip below 0.25)
+  (blend_duration 500ms)
+  (latent_targets (mode_axial_compression 0.35) (mode_stance_width 0.15))
   (cpg_config
     (amplitude mode_sagittal_drive 0.20) (amplitude mode_limb_lift 0.60)
     (amplitude mode_foot_rock 0.0) (amplitude mode_pelvis_list 0.10)

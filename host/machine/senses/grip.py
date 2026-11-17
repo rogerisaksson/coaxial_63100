@@ -63,6 +63,17 @@ def outside(grip, grips):
     return MU + out * (grip - MU)
 
 
+def sloped(grip, grips):
+    """Each sole's grip as the robot's step bounds its shear by, a slope along each way across the floor
+    (`ask['mu']`): its law's own, MU, inside its envelope - a slope whose corners, sqrt(2) MU, lie inside a
+    floor's real 1.0 -, the felt grip's inscribed square as far as the robot is outside it (`outside`): a felt
+    grip is the floor's whole friction, round, and on the ice the robot planned past it at the corners in 76 %
+    of its standing passes, its soles slid apart to a 0.45 m track and it fell."""
+    top = np.max(grips, initial=0.0)
+    out = np.clip((top - grip) / (0.2 * np.maximum(top, 1e-9)), 0.0, 1.0)
+    return MU + out * (grip / np.sqrt(2.0) - MU)
+
+
 def felt(grip, seen, settled, frames, touch, slip, weight, dt, prior=MU):
     """Each sole's grip `dt` s on (2,), `seen` (2, SEEN) its last shares used sliding (0 holding)
     and `settled` (2,) how long it has borne, to SETTLE_S, moved on: `frames` (2, 2, 3, 3) the robot's

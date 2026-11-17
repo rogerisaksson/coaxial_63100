@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from machine.world import floor as fl
 from machine.texts import takes
 from tools.sim import stunts
-from tools.sim.player import PLAYS, SHOVE_S, SHOVES, STOP, WALK, played
+from tools.sim.player import KEYS, PLAYS, SHOVE_S, SHOVES, STOP, WALK, played
 from tools.sim.staged import PLAYED_S, STUNTS
 
 #: What bears the robot, by the body it is: the props a scene places.
@@ -58,6 +58,8 @@ SCENARIOS = {
     'slip': ('slip', *_walk(5.0), 'past', 1.2),
     'ice': ('ice', *_walk(6.0), 'past', 1.7),
     'ice_told': ('ice', [(0.5, {'grip': 0.1})] + _walk(13.0)[0], _walk(13.0)[1], 'past', 2.8),
+    # the player's jog (W) onto the ice untold: across it gliding on both soles, crouched
+    'ice_jog': ('ice', [(1.0, {'twist': KEYS['W']}), (4.0, {'twist': STOP})], 4.0 + STILL_S, 'past', 2.5),
     'snow': ('snow', *_walk(6.0), 'past', 2.0),
     'asphalt': ('asphalt', *_walk(6.0), 'past', 2.0),
     'stairs': ('stairs', [(0.0, {'floor': fl.told_stairs()})] + _walk(10.0)[0], _walk(10.0)[1], 'rose', 0.70),

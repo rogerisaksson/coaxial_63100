@@ -180,14 +180,14 @@ def test_the_robots_law_in_c_as_it_walks(report, c):
     its drive's cap, its ask's poses, its sensing flat (`motion.laid`) - at every pass of its motion over PASSES of
     its walk, built at their first and held there, each beside its numpy on copies."""
     from machine.senses import estimate, grip, situation
-    from machine.law import modal, motion
+    from machine.law import modal
     from machine.stack import wbc
     from machine.process import worker
     from tools.cores import motion as c_motion, trace_mj
     s = worker.session(walks=True)
     g = s['g']
     parts = {'estimated': estimate.step, 'sensed': wbc.sense, 'felt': grip.felt, 'outside': grip.outside,
-             'readings': situation.readings, 'read': situation.read, 'gripped': motion.gripped, 'poses': modal.poses,
+             'readings': situation.readings, 'read': situation.read, 'gripped': situation.gripped, 'poses': modal.poses,
              'modal_sensed': modal.sensed}
     tallies, reals = {name: [0, 0, None] for name in parts}, {name: g[name] for name in parts}
     for name, fn in parts.items():

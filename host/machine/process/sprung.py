@@ -153,7 +153,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
          'legs': legs, 'leg_joints': np.concatenate(legs), 'leg_kp': world.gains[np.concatenate(legs), 0].copy(),
          'free_kp': world.gains[:, 0].copy(), 'clamp': world.limit.copy(), 'wep_lim': wep_lim, 'joints': joints,
          'hold': np.zeros(len(body.clamp)), 'left': WEP_S, 'rng': rng, 'ref_q': q0.copy(), 'ref_v': np.zeros(len(q0)),
-         'sense': sense, 'est': est, 'grip': grip.laid(), 'grip_prior': grip.laid(), 'situations': sit, 'into': np.zeros(len(sit['names'])),
+         'sense': sense, 'est': est, 'grip': grip.laid(), 'grip_prior': grip.laid(), 'situations': sit, 'into': np.zeros(len(sit['names'])), 'eased': np.zeros((2, ortho.N)),
          'grip_seen': np.zeros((2, grip.SEEN)), 'grip_settled': np.zeros(2),
          'grip_at': np.array([[m.body(s0 + part).id for part in ('foot', 'toes')] for s0 in ('left_', 'right_')]),
          'q_lo': rng[:, 0].copy(), 'q_hi': rng[:, 1].copy(),
