@@ -318,6 +318,8 @@ CONTROL_ARRAYS = ('y', 'fr', 'a', 'st', 'out', 'posture', 'jeff', 'leg_kp', 'rel
 CONTROL_NUMBERS = ('heading', 'surety', 'surety_probe', 'chained', '_w_back', '_backing_yaw', '_twist_clear')
 CONTROL_SKIP = frozenset({'world', 'body', 'drives', 'bus', 'cmd', 'tick', 'beat', 'gym', 'situations', 'planner',
                           'vision', 'keep', 'heat', 'schema_body', 'got', 'ask', 'solve_in', 's'})
+#: The robot's model's constants its wear corrects (`identified.correct`), laid onto the twin's as they change.
+MODEL = ('body_mass', 'body_ipos', 'body_inertia', 'body_iquat', 'dof_armature', 'dof_damping', 'dof_frictionloss')
 
 
 def _sync_control(g1, g2, skip):
@@ -356,6 +358,14 @@ def _sync_control(g1, g2, skip):
     b2.chain_let = {(int(p.chain_let[j][0]), int(p.chain_let[j][1]), int(p.chain_let[j][2]))
                     for j in range(p.chain_nlet)}
     b2.load = g1['body'].load.copy()
+    # the robot's model as its wear laid it this run (`wear.landed`, between passes): its links' and drives' constants
+    # - on Linux the wear laid 17 kg in its hands 8.504 s into the lie, the twin's model as built, and the pass parted
+    m1, m2 = g1['body'].m, b2.m
+    if any((getattr(m1, k) != getattr(m2, k)).any() for k in MODEL):
+        for k in MODEL:
+            getattr(m2, k)[...] = getattr(m1, k)
+        b2.mj.mj_setConst(m2, b2.d)
+        b2.mass = g1['body'].mass
 
 
 def test_the_robots_motion_control_in_c_is_its_python_twins(report, _c):
