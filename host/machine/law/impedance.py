@@ -25,11 +25,12 @@ import numpy as np
 from machine.body import gait
 from machine.senses import borne
 from machine.law import latent, poise, rocker, stride, swing, treads, vault
-from machine.law.modal import ANKLE_H, ARM_RAD, ARMS, AXIAL, AXIAL_M, BEGUN, BEND, BEND_RATE, BORNE, CELL, CLEAR_M, COM, COM_ACC, DRIVE, DT, DUCKING, EDGE, ELBOWED, ELBOWS, FLOOR, FOLD, FOLD_RATE, FOLDS, G, GOING, GRIP, GROUND, HANDS, HEADED, DIP, AIM, MEET, STRODE, HEELED, HIP, HIPS_BY, HOT, HSPIN, KDOT, KNEE, LATERAL, LEAD, LEG_M, LET_GO, LIFT, LIST, LIST_RAD, LOAD, LOWEST, MAP_ALONG, MAP_AT, MAP_N, MAP_RISE, MAP_WAY, MASS, MOMENT, NEED, OUTSIDE, PELVIS, PITCH, PITCH0, PLANTED, PITCH_RAD, PREFOLD, PROP, RAISE, REACH, REACH0, REACHED, RESTS, ROCK, ROLLED, ROT, SAGITTAL, SETTLE, SOLE, SOLE_ACC, SPLIT, STANCE, STRIDES, SWINGS, SWUNG, TILT, TILT_RATE, TIPPED, TURN, TURN_RAD, TURNED, UNIT, VCOM, VHEAD, VSOLE, W0, WANT, WEIGHT, WIDTH, reading, shortened, under
+from machine.law.posed import posed
+from machine.law.modal import ANKLE_H, AXIAL, AXIAL_M, BEGUN, BEND, BORNE, CELL, CLEAR_M, COM, COM_ACC, DRIVE, DT, DUCKING, EDGE, FLOOR, G, GOING, GRIP, GROUND, HANDS, DIP, AIM, MEET, STRODE, HEELED, HIP, HIPS_BY, HOT, KNEE, LATERAL, LEAD, LET_GO, LIFT, LOAD, LOWEST, MAP_ALONG, MAP_AT, MAP_N, MAP_RISE, MAP_WAY, MASS, NEED, OUTSIDE, PITCH, PLANTED, PITCH_RAD, PREFOLD, PROP, RAISE, REACH0, RESTS, ROCK, ROT, SAGITTAL, SETTLE, SOLE, SOLE_ACC, SPLIT, STANCE, STRIDES, SWINGS, TILT, TILT_RATE, TIPPED, UNIT, VCOM, VHEAD, VSOLE, W0, WEIGHT, WIDTH, reading, shortened, under
 from machine.law.poise import HALF_M, TINY
 from machine.law.stride import ALONG, LEFT, LIMBS, UP
 from machine.law.swing import BETWEEN, FREE_BY, HOT3
-from machine.stack.wbc import MOMENTUM_K, POSTURE_KD, TURN_KD
+from machine.stack.wbc import TURN_KD
 
 #: The robot's springs' numbers, its build's (`[gait.impedance]`: each with what it was found at,
 #: `machine.body.gait`).
@@ -38,23 +39,16 @@ _G = gait.table('impedance')
 ON = (_G['on_shift'], _G['on_shift_1_s'])
 #: The going: the soles' speed along the way, meaned over GOING_S.
 GOING_S = _G['going_s']
-#: The posture's knees are bent no more than this ahead of the height, of the axial unit.
-AHEAD = _G['ahead']
-#: Yaw momentum past its limit is bled this fast, 1/s.
-YAW_K = _G['yaw_1_s']
 #: The centre of mass is asked up no harder than this, m/s^2.
 THROW_M_S2 = _G['throw_m_s2']
 #: The height no lower than this for omega; a hip no lower over its ankle than this of its leg.
 LOW_M, LOW_LEG = _G['low_m'], _G['low_leg']
-FALLS, UPWARD = np.array([0.0, 0.0, -G]), np.array([0.0, 1.0, 0.0])
+FALLS = np.array([0.0, 0.0, -G])
 
 
 #: Borne off the robot's soles this share of its weight, it is supported there wholly: its support
 #: region spans where, its centre of mass asked of its springs, not let fall.
 PROP_ON = _G['prop_on']
-#: The robot's pelvis's axes a seat holds once it bears the robot - its list on its two ischia -, its pitch
-#: and turn its own: each let go, findings/spots.md and seat.md.
-SEAT_HOLDS = np.array([[0.0], [1.0], [0.0]])
 
 
 def ask(out, y, fr, a):
@@ -160,7 +154,7 @@ def ask(out, y, fr, a):
     zd += HOT[AXIAL] * (axial[1] - (bears @ (air * shod[:, UP]) + stance.max() * dvh[2]) / (AXIAL_M * fr[HIPS_BY]) - zd[AXIAL])
     pressed = acc[AXIAL] + kp[AXIAL] * (ref[AXIAL] + duck[0] / AXIAL_M - short_h / (AXIAL_M * fr[HIPS_BY]) - z[AXIAL]) + kd[AXIAL] * (rate[AXIAL] + duck[1] / AXIAL_M - zd[AXIAL])
     risen = vault.vaults(legs, v, shod, along, propped, pressed, AXIAL_M, fr[HIPS_BY], LOW_LEG * fr[REACH0], hips[:, UP] - floors, reach_h, duck, a[HEELED],
-                         poise.clip(out[latent.HELD], 0.0, 1.0) * flying[::-1], out[latent.ASKED][DRIVE], kp[AXIAL], kd[AXIAL])
+                         poise.clip(out[latent.HELD], 0.0, 1.0) * flying[::-1], out[latent.ASKED][DRIVE], kp[AXIAL], kd[AXIAL], fr[REACH0] / np.cos(0.5 * fr[KNEE]), fr[DT], out[latent.HELD])
     # borne off the robot's soles alone (propped, its floor sit's legs threw it back at 110-330 N), up as its
     # height asks
     lifted = upright * (bears @ risen) / fr[HIPS_BY] - (1.0 - upright) * AXIAL_M * pressed
@@ -185,7 +179,7 @@ def ask(out, y, fr, a):
                         + TURN_KD[1] * tilting) / TURN_KD[0]
     a[GOING] += fr[DT] / GOING_S * ((y[VSOLE].reshape(2, 3) @ rot[ALONG]).mean() - a[GOING])
     a[STANCE], a[COM_ACC], a[STRIDES], a[BORNE], a[BEGUN], a[DIP], a[STRODE] = stance, com @ rot, stepping, propped, stride.begins(begun, was, stood, stance, on, off, phi, phi_w, thrown), reach_h - (hips[:, UP] - floors), strides[:, 0]
-    _poses(out, y, fr, a, (z, ref, rate, acc, kp, kd), (turn, spun), up, aloft * (1.0 - limbs), still)
+    posed(out, y, fr, a, (z, ref, rate, acc, kp, kd), zd, (turn, spun), up, aloft * (1.0 - limbs), still)
     return a
 
 
@@ -232,55 +226,3 @@ def _landings(y, fr, a, rot, c, flat, xi, cruise, om, turns, wide, across, reach
     # each sole's landing and its aim this pass (`stride.guarded`), told in the ask
     a[MEET], a[AIM] = meet.ravel(), stride.guarded(meet, over, flat, apart, fr[PLANTED]).ravel()
     return cruise, meet, top, land, adj, over, apart
-
-
-def _poses(out, y, fr, a, said, turned, up, folds, still):
-    """The robot's turns, its arms and its knees into `a`: its trunk's and its pelvis's pitch,
-    each on the pitch's spring, its pelvis's list and its turn on theirs - its trunk upright
-    and on its way -, the loop's own turn law asked for what gives that; its arms on the
-    posture's own spring, asked ahead of it by what its damper holds back. `said` the modes' (as it
-    is, reference, rate, acceleration, 1/s^2, 1/s); `turned` the turns and their rates; `up` how far each sole
-    is asked up, `folds` which soles' knees are asked a fold."""
-    z, ref, rate, acc, kp, kd = said
-    turn, spun = turned
-    wh = fr[ROT].reshape(3, 3) @ y[HSPIN]
-    dwh = np.array([wh[LEFT] - spun[0, 1], wh[ALONG] - spun[1, 1], 0.0])
-    dwh4 = (dwh * dwh) ** 2
-    spun = spun + 0.5 * still * (1.0 - PELVIS) * (dwh * dwh4 / (dwh4 + 0.04))[:, None]
-    turn_dc = ref[TURN] - out[latent.SWAY][TURN] * np.sin(out[latent.PSI][TURN])
-    aim = np.stack([fr[PITCH0] + PITCH_RAD * ref[PITCH], PELVIS * LIST_RAD * ref[LIST], TURN_RAD * (PELVIS * ref[TURN] + (1.0 - PELVIS) * 1.10 * turn_dc)])
-    aim_rate = np.stack([PITCH_RAD * rate[PITCH] + 0.0 * PELVIS, PELVIS * LIST_RAD * rate[LIST], PELVIS * TURN_RAD * rate[TURN]])
-    aim_acc = np.stack([PITCH_RAD * acc[PITCH] + 0.0 * PELVIS, PELVIS * LIST_RAD * acc[LIST], PELVIS * TURN_RAD * acc[TURN]])
-    by = np.array([PITCH, LIST, TURN])
-    # borne, the robot's ZMP let go to it, its pelvis's turns have no spring of their own - what bears the
-    # robot holds it -, its rates its trunk's: sprung to its standing pitch on a seat, or on its trunk's
-    # error, it snapped 0.33 rad on in 0.11 s as its trunk came upright
-    sat = a[BORNE] * (1.0 - poise.clip(out[latent.HELD], 0.0, 1.0))
-    turning = aim_acc + kp[by][:, None] * (aim - turn) * (1.0 - sat * PELVIS * SEAT_HOLDS) + kd[by][:, None] * (aim_rate - spun)
-    a[WANT], a[ROLLED], a[HEADED] = turn + (turning + TURN_KD[1] * spun) / TURN_KD[0]
-    a[TURNED] = 1.0 * (kp[PITCH] + kd[PITCH] > 0.0)
-    a[SWUNG] = ARM_RAD * (ref[ARMS] + (acc[ARMS] + POSTURE_KD[1] * rate[ARMS]) / POSTURE_KD[0])
-    a[REACHED] = ARM_RAD * (ref[REACH] + (acc[REACH] + POSTURE_KD[1] * rate[REACH]) / POSTURE_KD[0])
-    a[ELBOWED] = ARM_RAD * (ref[ELBOWS] + (acc[ELBOWS] + POSTURE_KD[1] * rate[ELBOWS]) / POSTURE_KD[0])
-    # the robot's posture's knees bent as its height is, AHEAD of it toward what is asked: bent as asked, a
-    # throw's step threw its knees straight at 100 rad/s^2 and it over forward, 8 kg m^2/s about it; bent as
-    # it is, a crouch asked 0.6 stopped at 0.56
-    bent = z[AXIAL] + poise.clip(ref[AXIAL] - z[AXIAL], -AHEAD, AHEAD)
-    cosine = np.cos(0.5 * fr[KNEE]) - AXIAL_M * bent * fr[HIPS_BY] / LEG_M
-    a[BEND] = 2.0 * np.arccos(poise.clip(cosine, -1.0, 1.0)) - fr[KNEE]
-    # and at the told height's rate where the rows let the robot's soles go (a throw's ZMP NONE): damped
-    # against still, the stack's knee rows held a push's knees at 0.2 of their clamp, its height at its band's
-    # floor, 3 m/s^2 under its ask; at the told rate under a held polygon the seats' texts, laid against that
-    # damping, sat the robot onto the bed at 1.86 of its weight and it fell, or had it bear 0.00 of it; at its
-    # own rate past AHEAD, a stride's instant throw left its knees undamped and the leap flew 0.20 s for 0.23
-    a[BEND_RATE] = (2.0 * AXIAL_M * fr[HIPS_BY] * rate[AXIAL] * float(abs(cosine) < 1.0) / LEG_M
-                    / np.sqrt(np.maximum(1.0 - cosine * cosine, TINY))) * (1.0 - poise.clip(out[latent.HELD], 0.0, 1.0))
-    # a sole asked up where the robot stands: its knee folded as its leg is shorter by the lift
-    # under its hip. Striding, a limb's knee is its sole's place's alone
-    short = poise.clip(np.cos(0.5 * (fr[KNEE] + a[BEND])) - CLEAR_M * np.maximum(up, 0.0) / LEG_M, -1.0, 1.0)
-    a[FOLD] = 2.0 * np.arccos(short) - fr[KNEE] - a[BEND]
-    a[FOLD_RATE] = (2.0 * CLEAR_M * LIMBS * rate[LIFT] * (up > 0.0) / LEG_M
-                    / np.sqrt(np.maximum(1.0 - short * short, TINY)))
-    a[FOLDS] = folds
-    k = y[MOMENT]
-    a[KDOT] = -MOMENTUM_K * k - UPWARD * YAW_K * (k[1] - poise.clip(k[1], -out[latent.YAWED], out[latent.YAWED]))

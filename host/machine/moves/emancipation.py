@@ -215,7 +215,7 @@ def opened(g, s, ask, dt):
     are while it bears; let go, its knee drawn to the robot's text's over the cascade's slew, its hip and
     ankle where that knee puts its sole on the floor from its hip's height over its ankle as it was let go
     (`modal.seat`'s chain, that height held) and the robot's pelvis on its pitch's aim
-    (`impedance._poses`) while the leg's sole is down - its weight, out ahead of the robot, holds it there; on
+    (`posed.posed`) while the leg's sole is down - its weight, out ahead of the robot, holds it there; on
     the robot's pelvis as it was the robot's legs let it roll back 48 -> 61 deg and the robot's trunk -5 ->
     -31 deg, the floor sit fell at 7.1 s - and on its pelvis's pitch as sensed as the leg is lifted -
     on the aim its lifted legs' weight hauled its pelvis to the ask, 37 deg forward at the

@@ -65,7 +65,7 @@ FURNITURE = slice(1, PALMAR)
 SLIDE, P = MANIFOLD.stop, MANIFOLD.stop + 1
 #: A row on the wire: id, at ms, blend ms, flags as u32; the parameters as f32.
 ROW = struct.Struct('<4I%df' % P)
-#: A row's flags: REST every parameter back to the robot's rest (a behaviour's last row, blended REST_MS);
+#: A row's flags: REST every parameter back to the robot's rest (a behaviour's last row, blended as it left rest);
 #: CURVE a curve's sample - a take's frame - blended as one with the rows about it (`latent.CONTIG`),
 #: a text's rows each their own way; it and the rows after it wait (`waits.borne_rows`) till a seat
 #: or bed bears the robot (CONTACT), its soles SHARE of it (SOLES, thousandths from SHARE_BIT),
@@ -365,7 +365,8 @@ def _behavior(body, base=(), traits=None, row_traits=()):
         wire, at, names = wire + _packed(r, at), at + r[_LASTS], names + [p_name]
         raw.append((p_name, r))
         scope[p_name] = r
-    return wire + ROW.pack(0, at, REST_MS, REST, *[math.nan] * P), tuple(names), raw
+    return wire + ROW.pack(0, at, max([REST_MS] + [r[_BLEND] for _p, r in raw[:1]]), REST,
+                           *[math.nan] * P), tuple(names), raw
 
 
 def key(path):

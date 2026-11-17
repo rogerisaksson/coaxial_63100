@@ -59,12 +59,12 @@ _SETTLE = _from_rest(_damped(SWELL_DB / 20.0 * math.log(10.0)))
 #: landing Hermite's quintic, unaccelerated at both ends -; the equal-power and the swell least
 #: squares; the exponential and the settle as a critically damped step's response (`_damped`) -
 #: leaving at their own slope, a rise's preload asked its centre of mass 1.8 m/s at its first pass
-#: and lifted the robot off the chair in 50 ms.
+#: and lifted the robot off the chair in 50 ms; a push's parabola from rest, its rate at its end twice a line's.
 QUINTICS = {
     'linear': _LINE, 'linear_fast': _LINE, 'hermite_soft_landing': _JERK, 'hermite_s_curve': (0.0, 3.0, -2.0, 0.0, 0.0),
     'minimum_jerk_deceleration': _JERK, 'equal_power': _from_rest(CURVES['equal-power']),
     'exponential_fast': _from_rest(_damped(SPAN_E)), 'logarithmic_swell': _from_rest(_swell),
-    'logarithmic_settle': _SETTLE, 'logarithmic_brake': _SETTLE,
+    'logarithmic_settle': _SETTLE, 'logarithmic_brake': _SETTLE, 'parabolic': (0.0, 1.0, 0.0, 0.0, 0.0),
 }
 #: Each blend's greatest |S''| on [0, 1], its acceleration in its way over its time squared
 #: (`maneuver._paced`).

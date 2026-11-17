@@ -1,8 +1,5 @@
-"""The step's unknowns and its rounds' clips (wbc_rounds.c). A sole's cone, a contact's push, the faces a wrench
-is past, what the floor cannot give taken.
+"""The step's unknowns, its soles' faces and a stride's share taken (wbc_rounds.c).
 
-    at, moved = rounds.bounded(u, frames, stance, edge, mu)   # each standing sole's wrench in its cone
-    at, kept = rounds.pushed(u, bears, cap, slips)            # each contact's force pressing, in its pyramid
     at, out, to = rounds.faced(u, frames, stance, edge, mu)   # the faces a sole's wrench is past
     at = rounds.taken(u0, metric, up, frames, stance, edge, band, grounded, mu)  # striding, the robot's inertia's share
 
@@ -34,61 +31,21 @@ MOMENT = np.array([1.0, 1.0, 1.0, 0.0, 0.0, 0.0] * 2 + [0.0] * len(UPPER))
 #: sole's yaw moment's arm, m.
 EDGE_M, YAW_M = 0.003, 0.04
 ROOM = np.array([SOLE_HALF - EDGE_M, (BALL + HEEL) / 2.0 - EDGE_M])
-#: Rounds of clipping.
+#: Rounds of a stride's faces (`taken`).
 ROUNDS = 4
 #: A contact's push no more than this over what it bears now, N a pass (`wrench.W_STILL`).
 GROW_N = 30.0
+#: A contact's friction's sixteen-sided pyramid inscribed in its round cone (the world's: elliptic): its faces'
+#: directions on the world's x and z, k pi / 8, and their reach, cos(pi / 16) of the cone's - square roots alone, so
+#: the C's the same bits. The box pyramid planned a seat 1.41 of its friction across its corner, the robot slid off it;
+#: the eight-sided one 0.92 along its faces, a chair's dismount fell short of the floor.
+_RH = float(np.sqrt(0.5))
+_C8, _S8 = float(np.sqrt(0.5 + 0.5 * _RH)), float(np.sqrt(0.5 - 0.5 * _RH))
+CONE = ((1.0, 0.0), (_C8, _S8), (_RH, _RH), (_S8, _C8), (0.0, 1.0), (-_S8, _C8), (-_RH, _RH), (-_C8, _S8),
+        (-1.0, 0.0), (-_C8, -_S8), (-_RH, -_RH), (-_S8, -_C8), (0.0, -1.0), (_S8, -_C8), (_RH, -_RH), (_C8, -_S8))
+COS16 = float(np.sqrt(0.5 + 0.5 * _C8))
 _EYE3 = np.eye(3)
 _GIVES = 1e-9 * (np.arange(13) == 12)
-
-
-def bounded(u, frames, stance, edge=(0.0, 0.0), mu=(MU, MU)):
-    """`u` with each standing sole's wrench (moment, force; world) inside its bounds - pressing,
-    in its friction's pyramid (`mu` each's), its centre of pressure in its room -, and which
-    parts moved. A sole on an `edge` - 1 its ball, -1 its heel, a share between - has its centre
-    of pressure that far to it."""
-    out = u.copy()
-    for k, R in enumerate(frames):
-        uk = u[6 * k:6 * k + 6]
-        m = R.T @ uk[:3]
-        fx, fy, fz = float(uk[3]), max(float(uk[4]), 0.0), float(uk[5])
-        ek, muk = float(edge[k]), float(mu[k])
-        c0, c1, c2, mf = ROOM[1] * fy, muk * YAW_M * fy, ROOM[0] * fy, muk * fy
-        lo0 = -c0 * (1.0 - 2.0 * max(-ek, 0.0))
-        hi0 = c0 * (1.0 - 2.0 * max(ek, 0.0))
-        mc = np.array([min(max(float(m[0]), lo0), hi0),
-                       min(max(float(m[1]), -c1), c1),
-                       min(max(float(m[2]), -c2), c2)])
-        inside = np.empty(6)
-        inside[:3] = R @ mc
-        inside[3] = min(max(fx, -mf), mf)
-        inside[4] = fy
-        inside[5] = min(max(fz, -mf), mf)
-        out[6 * k:6 * k + 6] += stance[k] * (inside - uk)
-    return out, (np.abs(out - u) > 1e-9).astype(float)
-
-
-def pushed(u, bears, cap=np.inf, slips=None, give=1.0):
-    """`u` with each contact's force (world, after the soles' and the robot's upper body's unknowns)
-    pressing, no more than GROW_N over what it `bears` now (N up, one a contact) nor `cap` (N, one a
-    contact or one for all), of that `give` the robot's own to plan (none where what bears it carries
-    the robot as felt, `wrench.step`), and in its friction's pyramid - a point sliding (`slips`: each one's
-    (sliding, its slip along the world's x and z, m/s), `wrench._patch`) has its friction the kinetic one
-    against its slip, given -, and which parts moved."""
-    k = len(bears)
-    if not k:
-        return u.copy(), np.zeros(len(u))
-    out = u.copy()
-    f = out[NU:NU + 3 * k].reshape(k, 3)
-    held = np.asarray(bears, float)
-    f[:, 1] = np.clip(f[:, 1], 0.0, np.minimum(held + GROW_N, cap) * give)
-    slid = np.zeros((k, 3)) if slips is None else np.asarray(slips, float).reshape(k, 3)
-    sliding, way = slid[:, :1], slid[:, 1:]
-    speed = np.hypot(way[:, 0], way[:, 1])
-    f[:, [0, 2]] = ((1.0 - sliding) * np.clip(f[:, [0, 2]], -MU * f[:, 1:2], MU * f[:, 1:2])
-                    - sliding * MU * f[:, 1:2] * way / np.maximum(speed, 1e-12)[:, None])
-    out[NU:NU + 3 * k] = f.ravel()
-    return out, (np.abs(out - u) > 1e-9).astype(float)
 
 
 def faced(u, frames, stance, edge=(0.0, 0.0), mu=(MU, MU)):

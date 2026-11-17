@@ -188,14 +188,14 @@ def test_the_shield_holds_a_closing_pair(report):
 def test_the_robots_drives_back_emf_bounds(report):
     """The robot's drives' torque bounds under their back-EMF (`machine.body.bemf`): still, each its peak or
     its winding's volts' torque both ways; motoring falls with speed to 0 at V m / E, braking keeps its peak.
-    The robot's law's three steps (`wrench.step`, wbc_step.c, the board's wbc_wrench.c) under a box that
-    binds: its ask not shrunk for it, each drive clipped inside it, the same torques within the twins'
-    own 5e-3 N m."""
+    The robot's law's three steps (`wrench.step`, wbc_step.c, the board's wbc_wrench.c beside its rounds'
+    twin `clipped.solve`) under a box that binds: its ask not shrunk for it, each drive clipped inside it, the
+    same torques within the twins' own 5e-3 N m."""
     import math
     import numpy as np
     from machine.body import bemf, drives, figure
     from machine.world import physics
-    from machine.stack import wbc, wrench
+    from machine.stack import clipped, wbc, wrench
     from tools.cores import step as c_step
     from tools.cores.wbc import shared, wrench_step
     volts = drives.PACK_V
@@ -224,7 +224,8 @@ def test_the_robots_drives_back_emf_bounds(report):
     ours = wrench.step(b, sense, boxed)
     solve = c_step.wrench_laid(b)
     theirs, board = solve(b, wbc.sense(b, world.data.qpos, qvel), boxed), wrench_step(b, sense, boxed, shared())
-    apart = max(float(np.abs(ours['tau'] - theirs['tau']).max()), float(np.abs(ours['tau'] - board['tau']).max()))
+    rounds = clipped.step(b, sense, boxed)
+    apart = max(float(np.abs(ours['tau'] - theirs['tau']).max()), float(np.abs(rounds['tau'] - board['tau']).max()))
     report.check('a box half the robot\'s torques each way: its ask carried %.3f as without it, each drive clipped to the box, '
                  'its C twins %.1e N m apart' % (ours['scale'], apart),
                  ours['scale'] == plain['scale'] and np.array_equal(ours['tau'], np.clip(plain['tau'], lo, hi))

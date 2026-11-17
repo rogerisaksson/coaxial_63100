@@ -51,7 +51,8 @@ void wbc_imp_heels(const wbc_imp_t *k, const double place[2][3], const double ti
     the ankle at the length the axial spring asks (`pressed`); its heel asked up (`heeled`), the hip held at the
     height the heel rises for (`reach_h`, heels'), on that spring (`kp`, `kd`). `leg` hip from ankle, `len`,
     `lrate`; `high` the hips over the floor. */
-void wbc_imp_vaults(const wbc_imp_t *k, const double leg[2][3], const double len[2], const double lrate[2],
+void wbc_imp_vaults(const wbc_imp_t *k, const double leg[2][3], const double len[2], const double lrate[2], double full, double dt,
+                    double hold,
                     const double v[3], const double shod[2][3], const double along[2], double propped, double pressed,
                     double hips_by, double low, const double high[2], const double reach_h[2], const double duck[2],
                     const double heeled[2], const double striding[2], double asked, double kp, double kd, double risen[2]);

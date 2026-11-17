@@ -47,14 +47,14 @@ def _doubles():
     """wbc_imp_t's doubles in its order: (name, value) - a tuple or an array lays that many."""
     from machine.senses import borne
     from machine.body import figure
-    from machine.law import impedance as imp, modal, poise, stride
+    from machine.law import impedance as imp, modal, poise, posed, stride
     from machine.moves import leap
     from machine.stack import wbc as law
-    return (('on', imp.ON), ('going_s', imp.GOING_S), ('ahead', imp.AHEAD), ('yaw_k', imp.YAW_K),
+    return (('on', imp.ON), ('going_s', imp.GOING_S), ('ahead', posed.AHEAD), ('yaw_k', posed.YAW_K),
             ('throw_m_s2', imp.THROW_M_S2), ('prop_on', imp.PROP_ON), ('prop_engage', borne.PROP_ENGAGE),
             ('prop_release', borne.PROP_RELEASE), ('prop_dwell_s', borne.PROP_DWELL_S), ('prop_blank_s', borne.PROP_BLANK_S),
             ('low_m', imp.LOW_M), ('low_leg', imp.LOW_LEG),
-            ('falls', imp.FALLS), ('upward', imp.UPWARD), ('between', imp.BETWEEN),
+            ('falls', imp.FALLS), ('upward', posed.UPWARD), ('between', imp.BETWEEN),
             ('g', modal.G), ('axial_m', modal.AXIAL_M), ('pitch_rad', modal.PITCH_RAD), ('clear_m', modal.CLEAR_M),
             ('list_rad', modal.LIST_RAD), ('turn_rad', modal.TURN_RAD), ('arm_rad', modal.ARM_RAD),
             ('leg_m', modal.LEG_M), ('pelvis', modal.PELVIS), ('momentum_k', law.MOMENTUM_K),

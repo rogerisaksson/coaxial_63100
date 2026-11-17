@@ -221,13 +221,13 @@ def test_the_ortho_row_is_the_wires(report, c, b, rows):
 
 
 def test_the_step_in_c_is_the_steps(report, c, b, rows):
-    """wbc_wrench.c beside `machine.stack.wrench.step` on the stand's pose under random velocities:
-    both soles standing, one with the other swung and its knee folded (still and striding),
-    neither - the torques, every acceleration and the soles' loads; a tick's microseconds here."""
+    """wbc_wrench.c beside its twin (`clipped.step`) on the stand's pose under random velocities: both soles
+    standing, one with the other swung and its knee folded (still and striding), neither - the torques, every
+    acceleration and the soles' loads; a tick's microseconds here."""
     import numpy as np
     from machine.body import figure
     from machine.world import physics
-    from machine.stack import wbc, wrench
+    from machine.stack import clipped, wbc
     from tools.cores.wbc import state_of, wrench_step
     world, rng, worst, stride_worst = physics.World(), np.random.default_rng(5), np.zeros(3), np.zeros(3)
     world.reset(figure.stand())
@@ -243,7 +243,7 @@ def test_the_step_in_c_is_the_steps(report, c, b, rows):
                                     ((False, False), swung, {})):
             ask = {'stance': stance, 'com_acc': rng.normal(size=3), 'posture': s['q'] + 0.05 * rng.normal(size=len(s['q'])),
                    'turns': turns[:2 * any(stance)], 'swing': swing, 'fold': fold, 'wep': False}
-            ours, theirs = wrench.step(b, s, ask), wrench_step(b, s, ask, c)
+            ours, theirs = clipped.step(b, s, ask), wrench_step(b, s, ask, c)
             worst = np.maximum(worst, [np.abs(ours['tau'] - theirs['tau']).max(),
                                        np.abs(ours['qacc'] - theirs['qacc']).max(),
                                        max(abs(x - y) for x, y in zip(ours['bears'], theirs['bears']))])
@@ -251,7 +251,7 @@ def test_the_step_in_c_is_the_steps(report, c, b, rows):
                       'posture': s['q'] + 0.05 * rng.normal(size=len(s['q'])), 'turns': turns,
                       'swing': {1: swung[1]}, 'fold': {1: (0.6, 0.0, 0.0)}, 'strides': 0.8,
                       'edge': (0.5, 0.0), 'mu': (0.3, 0.6), 'wep': False}
-        ours, theirs = wrench.step(b, s, ask_stride), wrench_step(b, s, ask_stride, c)
+        ours, theirs = clipped.step(b, s, ask_stride), wrench_step(b, s, ask_stride, c)
         stride_worst = np.maximum(stride_worst, [np.abs(ours['tau'] - theirs['tau']).max(),
                                                  np.abs(ours['qacc'] - theirs['qacc']).max(),
                                                  max(abs(x - y) for x, y in zip(ours['bears'], theirs['bears']))])
@@ -267,15 +267,15 @@ def test_the_step_in_c_is_the_steps(report, c, b, rows):
 
 
 def test_the_step_in_c_strides_as_the_steps(report, c, b, rows):
-    """wbc_wrench.c beside `machine.stack.wrench.step` at every solve of the walk from rest, WALK_S s
-    on the python step: striding, by its standing soles - one, the rows' own answer; two, as
-    far apart as what the two share between them is free."""
+    """wbc_wrench.c beside its twin (`clipped.step`) at every solve of the walk from rest, WALK_S s on it:
+    striding, by its standing soles - one, the rows' own answer; two, within what the two share."""
     import numpy as np
     from machine.process import sprung
+    from machine.stack import clipped
     from tools.cores.wbc import wrench_step
     g = sprung.laid(sprung.STACK_EVERY)
     sprung.walked(g)
-    python, worst, count = g['solves'][0], {1: 0.0, 2: 0.0}, {1: 0, 2: 0}
+    python, worst, count = clipped.step, {1: 0.0, 2: 0.0}, {1: 0, 2: 0}
 
     def both(body, s, ask):
         ours, theirs = python(body, s, ask), wrench_step(body, s, ask, c)

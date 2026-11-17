@@ -550,7 +550,6 @@ ROWS = {
         },
         'wbc_rounds.c': {
             'taken': (1, 1, 1),
-            'wbc_rounds': (0, 0, 1),
         },
         'wbc_shrunk.c': {
             'wbc_wrench_motion': (3, 3, 3),

@@ -92,9 +92,13 @@
                       (contact_manifolds (plantar 0.0) (ischial 0.92) (palmar 0.08)))))
 
 
+;; hop down: its drop's push lets its ZMP go and throws its centre of mass toward its toes (held, it was the hop's own
+;; in place, braked at its take-off 1.4 V under its link's onset); it still lands on the seat, 5 cm on
 (defbehavior hop_down_chair (extends hop stance_hold)
   (phase step_off)
-  (phase drop)
+  (phase drop
+    (latent_targets (mode_sagittal_shift 1.0))
+    (task_constraints (maintain_zmp (polygon 0))))
   (phase absorb)
   (phase recover (use soft_land)
     (duration 500ms) (blend_duration 350ms)

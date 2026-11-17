@@ -74,12 +74,12 @@ typedef struct
   double hands[WBC_IMP_N * 6];
 } wbc_imp_said_t;
 
-/** machine.law.impedance._poses (wbc_poses.c): the robot's turns, its arms and its knees into `a`; `z` its modes
+/** machine.law.posed.posed (wbc_poses.c): the robot's turns, its arms and its knees into `a`; `z` its modes
     as it is, `up` how far each sole is asked up, `folds` which soles' knees are asked a fold, `still` its
     rhythm's. */
 void wbc_imp_poses(const wbc_imp_t *k, const double *out, const double *y, const double *fr, double *a,
-                   const double *z, const wbc_imp_said_t *s, const double turn[3][2], const double rates[3][2],
-                   const double up[2], const double folds[2], double still);
+                   const double *z, const double *zd, const wbc_imp_said_t *s, const double turn[3][2],
+                   const double rates[3][2], const double up[2], const double folds[2], double still);
 
 /** machine.law.swing.free and rested (wbc_swing.c). */
 void wbc_imp_swings(const wbc_imp_t *k, const double *y, const double *fr, const double v[3], double om,

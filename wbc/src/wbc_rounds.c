@@ -1,7 +1,8 @@
-/** wbc_rounds.c - the step's rounds (wbc_step.h): machine.stack.wrench's bounded, pushed, faced, _taken
-    and _rounds, numpy's arithmetic and numpy's own OpenBLAS (wbc_blas.h) operation for operation.
+/** wbc_rounds.c - the step's solve (wbc_step.h): machine.stack.wrench's _bounds and _within, machine.stack.rounds'
+    faced and taken, numpy's arithmetic and numpy's own OpenBLAS (wbc_blas.h) operation for operation.
     Portable C11, the host's alone. */
 #include "wbc_np.h"
+#include "wbc_qp.h"
 #include "wbc_step.h"
 
 #include <math.h>
@@ -26,62 +27,6 @@ static double clipped(double x, double lo, double hi)
   const double m = isnan(x) ? x : (x > lo ? x : lo);
 
   return isnan(m) ? m : (m < hi ? m : hi);
-}
-
-/** machine.stack.wrench.bounded: each standing sole's wrench inside its bounds, and which parts moved. */
-static void bounded(const wbc_step_t *p, const wbc_geo_t *g, const double *u, double *out, double *moved)
-{
-  memcpy(out, u, (size_t)g->nu * sizeof(double));
-  for (int k = 0; k < 2; k++)
-  {
-    const double *uk = u + 6 * k, *R = g->frames[k];
-    const double  fx = uk[3], fy = pymax(uk[4], 0.0), fz = uk[5], ek = g->edges[k], muk = g->mu[k];
-    const double  c0 = p->room[1] * fy, c1 = (muk * p->yaw_m) * fy, c2 = p->room[0] * fy, mf = muk * fy;
-    const double  lo0 = (-c0) * (1.0 - 2.0 * pymax(-ek, 0.0)), hi0 = c0 * (1.0 - 2.0 * pymax(ek, 0.0));
-    double        m[3], mc[3], inside[6];
-
-    wbc_matmul(&p->blas, VIEW(R, 1, 3), VIEW(uk, 1, 0), m, 1, 0, 3, 3, 1);
-    mc[0] = pymin(pymax(m[0], lo0), hi0);
-    mc[1] = pymin(pymax(m[1], -c1), c1);
-    mc[2] = pymin(pymax(m[2], -c2), c2);
-    wbc_matmul(&p->blas, VIEW(R, 3, 1), VIEW(mc, 1, 0), inside, 1, 0, 3, 3, 1);
-    inside[3] = pymin(pymax(fx, -mf), mf);
-    inside[4] = fy;
-    inside[5] = pymin(pymax(fz, -mf), mf);
-    for (int j = 0; j < 6; j++)
-    {
-      out[6 * k + j] += g->stance[k] * (inside[j] - uk[j]);
-    }
-  }
-  for (int j = 0; j < g->nu; j++)
-  {
-    moved[j] = (double)(fabs(out[j] - u[j]) > 1e-9);
-  }
-}
-
-/** machine.stack.rounds.pushed: each contact's force pressing, no more than GROW_N over what it bears nor
-    its cap, of that geo->give the robot's own to plan, in its pyramid - a point sliding (geo->slips: sliding, its slip along the
-    world's x and z) has its friction the kinetic one against its slip, given -; which parts moved. */
-static void pushed(const wbc_step_t *p, const wbc_geo_t *g, const double *u, const double *bears, double *out,
-                   double *kept)
-{
-  const int nc = g->k3 / 3;
-
-  memcpy(out, u, (size_t)g->nu * sizeof(double));
-  for (int i = 0; i < nc; i++)
-  {
-    double      *f = out + p->nu0 + 3 * i;
-    const double sliding = g->slips[3 * i], speed = hypot(g->slips[3 * i + 1], g->slips[3 * i + 2]);
-    const double den = pymax(speed, 1e-12), still = 1.0 - sliding;
-
-    f[1] = clipped(f[1], 0.0, fmin(bears[i] + p->grow_n, g->caps[i]) * g->give);
-    f[0] = still * clipped(f[0], (-p->mu) * f[1], p->mu * f[1]) - (((sliding * p->mu) * f[1]) * g->slips[3 * i + 1]) / den;
-    f[2] = still * clipped(f[2], (-p->mu) * f[1], p->mu * f[1]) - (((sliding * p->mu) * f[1]) * g->slips[3 * i + 2]) / den;
-  }
-  for (int j = 0; j < g->nu; j++)
-  {
-    kept[j] = nc ? (double)(fabs(out[j] - u[j]) > 1e-9) : 0.0;
-  }
 }
 
 /** machine.stack.wrench.faced: each standing sole's wrench in its cone, the faces it was past, each
@@ -230,182 +175,294 @@ static int taken(const wbc_step_t *p, const wbc_geo_t *g, const double *u0, doub
   return 0;
 }
 
-int wbc_rounds(wbc_step_t *p, const wbc_geo_t *g, const double *H0, const double *g0, const double *S,
+/** One row of A u <= b laid zeroed, its right-hand side `c`: the row. */
+static double *row(double *A, double *b, int *m, int nu, double c)
+{
+  double *a = A + (*m) * nu;
+
+  memset(a, 0, (size_t)nu * sizeof(double));
+  b[*m] = c;
+  *m += 1;
+  return a;
+}
+
+/** machine.stack.wrench._bounds: each standing sole's bounds and each contact's as rows A u <= b, in its order; their
+    count. */
+static int bounds(const wbc_step_t *p, const wbc_geo_t *g, const double *bears, const double *pressed, double *A,
+                  double *b)
+{
+  const int    nu = g->nu, nc = g->k3 / 3;
+  const double rh = sqrt(0.5), c8 = sqrt(0.5 + 0.5 * rh), s8 = sqrt(0.5 - 0.5 * rh), cos16 = sqrt(0.5 + 0.5 * c8);
+  const double cone[16][2] = {{1.0, 0.0}, {c8, s8},     {rh, rh},     {s8, c8},     {0.0, 1.0},  {-s8, c8},
+                              {-rh, rh},  {-c8, s8},    {-1.0, 0.0},  {-c8, -s8},   {-rh, -rh},  {-s8, -c8},
+                              {0.0, -1.0}, {s8, -c8},   {rh, -rh},    {c8, -s8}};
+  int          m = 0;
+  double      *a;
+
+  for (int k = 0; k < 2; k++)
+  {
+    if (g->stance[k] > 0.0)
+    {
+      const int     fy = 6 * k + 4;
+      const double  e = g->edges[k], muk = g->mu[k], *R = g->frames[k];
+      const double  hi0 = p->room[1] * (1.0 - 2.0 * pymax(e, 0.0)), lo0 = (-p->room[1]) * (1.0 - 2.0 * pymax(-e, 0.0));
+      const double  cj[3] = {0.0, muk * p->yaw_m, p->room[0]};
+
+      a = row(A, b, &m, nu, 0.0);
+      a[fy] = -1.0;
+      for (int f = 6 * k + 3; f <= 6 * k + 5; f += 2)
+      {
+        a = row(A, b, &m, nu, 0.0);
+        a[f] = 1.0;
+        a[fy] = -muk;
+        a = row(A, b, &m, nu, 0.0);
+        a[f] = -1.0;
+        a[fy] = -muk;
+      }
+      a = row(A, b, &m, nu, 0.0);
+      for (int i = 0; i < 3; i++)
+      {
+        a[6 * k + i] = R[3 * i];
+      }
+      a[fy] = -hi0;
+      a = row(A, b, &m, nu, 0.0);
+      for (int i = 0; i < 3; i++)
+      {
+        a[6 * k + i] = -R[3 * i];
+      }
+      a[fy] = lo0;
+      for (int j = 1; j < 3; j++)
+      {
+        a = row(A, b, &m, nu, 0.0);
+        for (int i = 0; i < 3; i++)
+        {
+          a[6 * k + i] = R[3 * i + j];
+        }
+        a[fy] = -cj[j];
+        a = row(A, b, &m, nu, 0.0);
+        for (int i = 0; i < 3; i++)
+        {
+          a[6 * k + i] = -R[3 * i + j];
+        }
+        a[fy] = -cj[j];
+      }
+    }
+  }
+  for (int i = 0; i < nc; i++)
+  {
+    const int    fy = p->nu0 + 3 * i + 1, f[2] = {p->nu0 + 3 * i, p->nu0 + 3 * i + 2};
+    const double sliding = g->slips[3 * i], sv[2] = {g->slips[3 * i + 1], g->slips[3 * i + 2]};
+    const double den = pymax(hypot(sv[0], sv[1]), 1e-12);
+    const double top = pressed[i] != 0.0 ? pymax(pymin(bears[i] + p->grow_n, g->caps[i]) * g->give, 0.0) : 0.0;
+
+    a = row(A, b, &m, nu, 0.0);
+    a[fy] = -1.0;
+    a = row(A, b, &m, nu, top);
+    a[fy] = 1.0;
+    for (int t = 0; sliding > 0.0 && t < 2; t++)
+    {
+      const double c = (p->mu * sv[t]) / den;
+
+      a = row(A, b, &m, nu, 0.0);
+      a[f[t]] = 1.0;
+      a[fy] = c;
+      a = row(A, b, &m, nu, 0.0);
+      a[f[t]] = -1.0;
+      a[fy] = -c;
+    }
+    /* its friction within the sixteen-sided pyramid inscribed in its round cone (machine.stack.rounds.CONE) */
+    for (int q = 0; !(sliding > 0.0) && q < 16; q++)
+    {
+      a = row(A, b, &m, nu, 0.0);
+      a[f[0]] = cone[q][0];
+      a[f[1]] = cone[q][1];
+      a[fy] = -(p->mu * cos16);
+    }
+  }
+  return m;
+}
+
+/** The least squares within the rows (m of them, A u <= b) by the stack's dual active set, the height's band - the
+    last two - let go where nothing meets them: 0, 1 where none meets it, 2 where numpy would raise. */
+static int answered(wbc_step_t *p, const double *H, const double *ng, const double *A, const double *b, int nu, int m,
+                    int banded, double *at, int *act, double *mult, double *work)
+{
+  int nact = 0, got = wbc_qp_solve(&p->blas, H, ng, A, b, nu, m, act, 0, 0, at, act, &nact, mult, work);
+
+  if (got == 1 && banded)
+  {
+    got = wbc_qp_solve(&p->blas, H, ng, A, b, nu, m - 2, act, 0, 0, at, act, &nact, mult, work);
+  }
+  return (got == 0 && nact > 0) ? -1 : got;
+}
+
+int wbc_within(wbc_step_t *p, const wbc_geo_t *g, const double *H0, const double *g0, const double *S,
                const double *r, const double *bears, double lo, double hi, double *at, double *first, double *work)
 {
   const int nu = g->nu, nc = g->k3 / 3;
-  double   *Hr = work, *gr = Hr + nu * nu, *K = gr + nu, *H = K + nu * nu, *B = H + nu * nu, *X = B + 2 * nu;
-  double   *pS = X + 2 * nu, *T = pS + 4 * nu, *ht = T + nu * nu, *sumH = ht + nu, *sumg = sumH + nu * nu;
-  double   *pinned = sumg + nu, *hard = pinned + nu, *soft = hard + nu, *free = soft + nu, *un = free + nu;
-  double   *moved = un + nu, *kept = moved + nu, *held = kept + nu, *rest = held + nu;
-  double    pressed[WBC_STEP_C], band = 0.0, edge = 0.0;
-  int       done = 0, rounds = p->rounds, any = 0;
+  double   *Hr = work, *gr = Hr + nu * nu, *K = gr + nu, *A = K + nu * nu, *b = A + WBC_QP_M * nu, *ng = b + WBC_QP_M;
+  double   *ones = ng + nu, *mult = ones + nu, *T = mult + (nu + WBC_QP_M + 1), *ht = T + nu * nu, *pS = ht + nu;
+  double   *sumH = pS + 4 * nu, *sumg = sumH + nu * nu, *rest = sumg + nu;
+  double    pressed[WBC_STEP_C];
+  int       act[WBC_QP_M], m, got;
 
-  /* a contact told to bear nothing is let go, as one the step would have pull */
+  /* a contact told to bear nothing is let go */
   for (int i = 0; i < nc; i++)
   {
     pressed[i] = (double)(g->caps[i] > 0.0);
   }
-  memset(pinned, 0, (size_t)nu * sizeof(double));
-  memset(at, 0, (size_t)nu * sizeof(double));
-  while (done < rounds)
+  if (nc)
   {
-    if (nc)
-    {
-      for (int c = 0; c < nc; c++)
-      {
-        const double *Sc = S + 4 * nu * c;
-
-        for (int j = 0; j < 4 * nu; j++)
-        {
-          pS[j] = pressed[c] * Sc[j];
-        }
-        wbc_matmul(&p->blas, VIEW(pS, 1, nu), VIEW(Sc, nu, 1), T, nu, 1, nu, 4, nu);
-        wbc_matmul(&p->blas, VIEW(pS, 1, nu), VIEW(r + 4 * c, 1, 0), ht, 1, 0, nu, 4, 1);
-        for (int j = 0; j < nu * nu; j++)
-        {
-          sumH[j] = (c ? sumH[j] : 0.0) + T[j];
-        }
-        for (int j = 0; j < nu; j++)
-        {
-          sumg[j] = (c ? sumg[j] : 0.0) + ht[j];
-        }
-      }
-      for (int j = 0; j < nu * nu; j++)
-      {
-        Hr[j] = H0[j] + sumH[j];
-      }
-      for (int j = 0; j < nu; j++)
-      {
-        gr[j] = g0[j] + sumg[j];
-      }
-    }
-    else
-    {
-      memcpy(Hr, H0, (size_t)(nu * nu) * sizeof(double));
-      memcpy(gr, g0, (size_t)nu * sizeof(double));
-    }
-    /* a clipped force held by a row, a clipped moment its value, the rest solved round them */
-    for (int j = 0; j < nu; j++)
-    {
-      const double s = ((p->w_pin * pinned[j]) * (1.0 - g->moment[j])) * g->part[j];
-
-      hard[j] = pinned[j] * g->moment[j];
-      soft[j] = s * s;
-      free[j] = 1.0 - hard[j];
-      held[j] = hard[j] * at[j];
-    }
-    for (int i = 0; i < nu; i++)
-    {
-      for (int j = 0; j < nu; j++)
-      {
-        H[i * nu + j] = Hr[i * nu + j] + (i == j ? soft[i] : 0.0);
-      }
-    }
     for (int c = 0; c < nc; c++)
     {
-      const int    ix = p->nu0 + 3 * c, ni = ix + 1, iz = ix + 2;
-      const double on = (double)(pinned[ni] == 0.0 && at[ni] > 1e-9), den = npmax(at[ni], 1e-9);
-      const double rx = on * (at[ix] / den), rz = on * (at[iz] / den);
+      const double *Sc = S + 4 * nu * c;
 
-      H[ix * nu + ni] += (-soft[ix]) * rx;
-      H[ni * nu + ix] += (-soft[ix]) * rx;
-      H[iz * nu + ni] += (-soft[iz]) * rz;
-      H[ni * nu + iz] += (-soft[iz]) * rz;
-      H[ni * nu + ni] += soft[ix] * (rx * rx) + soft[iz] * (rz * rz);
-    }
-    for (int i = 0; i < nu; i++)
-    {
+      for (int j = 0; j < 4 * nu; j++)
+      {
+        pS[j] = pressed[c] * Sc[j];
+      }
+      wbc_matmul(&p->blas, VIEW(pS, 1, nu), VIEW(Sc, nu, 1), T, nu, 1, nu, 4, nu);
+      wbc_matmul(&p->blas, VIEW(pS, 1, nu), VIEW(r + 4 * c, 1, 0), ht, 1, 0, nu, 4, 1);
+      for (int j = 0; j < nu * nu; j++)
+      {
+        sumH[j] = (c ? sumH[j] : 0.0) + T[j];
+      }
       for (int j = 0; j < nu; j++)
       {
-        K[i * nu + j] = H[i * nu + j] * (free[i] * free[j]) + (i == j ? hard[i] : 0.0);
+        sumg[j] = (c ? sumg[j] : 0.0) + ht[j];
       }
     }
-    wbc_matmul(&p->blas, VIEW(H, nu, 1), VIEW(held, 1, 0), ht, 1, 0, nu, nu, 1);
+    for (int j = 0; j < nu * nu; j++)
+    {
+      Hr[j] = H0[j] + sumH[j];
+    }
     for (int j = 0; j < nu; j++)
     {
-      const int    nj = p->nu0 + 3 * ((j - p->nu0) / 3) + 1;
-      const double cone = (double)(j >= p->nu0 && j != nj && pinned[nj] == 0.0 && at[nj] > 1e-9);
-
-      B[j] = free[j] * ((gr[j] + (soft[j] * at[j]) * (1.0 - cone)) - ht[j]) + hard[j] * at[j];
-      B[nu + j] = g->up[j];
+      gr[j] = g0[j] + sumg[j];
     }
-    if (solved(p, K, nu, VIEW(B, 1, nu), 2, free, X, rest))
+  }
+  else
+  {
+    memcpy(Hr, H0, (size_t)(nu * nu) * sizeof(double));
+    memcpy(gr, g0, (size_t)nu * sizeof(double));
+  }
+  for (int j = 0; j < nu; j++)
+  {
+    ones[j] = 1.0;
+  }
+  /* the first answer, the floor unbounded (told where asked); of the acceleration it gives the robot, at w_keep
+     (machine.stack.within.W_KEEP), a sliding contact's push kept near what it bears and two standing soles' inner
+     wrench - what their net says nothing of, past its least in the part metric - least */
+  {
+    double *own = first != NULL ? first : sumg, *kk = ht, *Hk = sumH;
+
+    memcpy(K, Hr, (size_t)(nu * nu) * sizeof(double));
+    if (solved(p, K, nu, VIEW(gr, 1, 0), 1, ones, own, rest))
     {
       return 1;
     }
-    {
-      const double d1 = wbc_dot(&p->blas, g->up, 1, X, 2, nu), d2 = wbc_dot(&p->blas, g->up, 1, X + 1, 2, nu);
-      const double by = (band * (edge - d1)) / ((d2 + 1.0) - band);
-      double       ay, past, was;
-
-      for (int j = 0; j < nu; j++)
-      {
-        un[j] = X[2 * j] + by * X[2 * j + 1];
-      }
-      /* the first answer, the floor unbounded, told where asked */
-      if (done == 0 && first != NULL)
-      {
-        memcpy(first, un, (size_t)nu * sizeof(double));
-      }
-      /* the robot's height's band: past an edge, held to it */
-      ay = wbc_dot(&p->blas, g->lift, 1, un, 1, nu) / g->mass - p->g;
-      past = pymin(pymax(ay, lo), hi) + p->g;
-      was = band;
-      band = pymax(band, g->grounded * (double)(fabs((past - p->g) - ay) > 1e-9));
-      edge = edge + (1.0 - was) * (past - edge);
-    }
-    bounded(p, g, un, at, moved);
-    if (nc)
-    {
-      pushed(p, g, at, bears, rest, kept);
-      memcpy(at, rest, (size_t)nu * sizeof(double));
-      for (int c = 0; c < nc; c++)
-      {
-        pressed[c] = pressed[c] * (double)(un[p->nu0 + 1 + 3 * c] >= 0.0);
-      }
-      for (int j = 0; j < nu; j++)
-      {
-        pinned[j] = npmax(pinned[j], npmax(moved[j], kept[j]));
-      }
-    }
-    else
-    {
-      for (int j = 0; j < nu; j++)
-      {
-        pinned[j] = npmax(pinned[j], moved[j]);
-      }
-    }
-    done += 1;
-    {
-      const double ay = wbc_dot(&p->blas, g->lift, 1, at, 1, nu) / g->mass - p->g, m = pymin(pymax(ay, lo), hi);
-
-      if (done == rounds && rounds < p->rounds + p->past && !(g->strides != 0.0)
-          && g->grounded * fabs(m - ay) > 1e-9)
-      {
-        band = 1.0;
-        edge = m + p->g;
-        rounds += 1;
-      }
-    }
-    any = 0;
     for (int j = 0; j < nu; j++)
     {
-      any |= pinned[j] != 0.0;
+      const int    c = (j - (nu - g->k3)) / 3, axis = (j - (nu - g->k3)) - 3 * c;
+      const double each = j < nu - g->k3 ? 0.0 : (double)(axis == 1) * (double)(g->slips[3 * c] > 0.0);
+      const double kp = ((p->w_keep * p->g) * each) * g->part[j];
+      const double to = j < nu - g->k3 ? 0.0 : (double)(axis == 1) * bears[c];
+
+      kk[j] = kp * kp;
+      ng[j] = -(gr[j] + kk[j] * to);
     }
-    if ((!any && !(band != 0.0)) || (g->strides >= 1.0 && g->k3 == 0))
+    for (int i = 0; i < nu; i++)
     {
-      break;
+      for (int j = 0; j < nu; j++)
+      {
+        Hk[i * nu + j] = Hr[i * nu + j] + (i == j ? kk[i] : 0.0);
+      }
+    }
+    if (g->inner)
+    {
+      double *net = rest, *wide = net + 72, *M = wide + 72, *X = M + 36, *nt = X + 72, *least = nt + 72;
+      double *in = least + 144, *inner = in + 144, *more = inner + 144, w2[12];
+
+      for (int j = 0; j < 12; j++)
+      {
+        w2[j] = g->part[j] * g->part[j];
+      }
+      for (int i = 0; i < 3; i++)
+      {
+        for (int j = 0; j < 12; j++)
+        {
+          net[i * 12 + j] = g->about[i * nu + j];
+          net[(3 + i) * 12 + j] = g->sumf[i * nu + j];
+        }
+      }
+      for (int i = 0; i < 6; i++)
+      {
+        for (int j = 0; j < 12; j++)
+        {
+          wide[i * 12 + j] = net[i * 12 + j] / w2[j];
+          nt[j * 6 + i] = net[i * 12 + j] / w2[j];
+        }
+      }
+      wbc_matmul(&p->blas, VIEW(wide, 12, 1), VIEW(net, 1, 12), M, 6, 1, 6, 12, 6);
+      if (wbc_solve(&p->blas, VIEW(M, 6, 1), VIEW(net, 12, 1), 6, 12, X, more))
+      {
+        return 1;
+      }
+      wbc_matmul(&p->blas, VIEW(nt, 6, 1), VIEW(X, 12, 1), least, 12, 1, 12, 6, 12);
+      for (int i = 0; i < 12; i++)
+      {
+        for (int j = 0; j < 12; j++)
+        {
+          in[i * 12 + j] = (p->w_keep * p->g) * (g->part[i] * ((double)(i == j) - least[i * 12 + j]));
+        }
+      }
+      wbc_matmul(&p->blas, VIEW(in, 1, 12), VIEW(in, 12, 1), inner, 12, 1, 12, 12, 12);
+      for (int i = 0; i < 12; i++)
+      {
+        for (int j = 0; j < 12; j++)
+        {
+          Hk[i * nu + j] = Hk[i * nu + j] + inner[i * 12 + j];
+        }
+      }
     }
   }
-  if (g->strides > 0.0 && (any || band != 0.0))
+  m = bounds(p, g, bears, pressed, A, b);
+  if (g->grounded > 0.0)
   {
-    double *u0 = rest, *tk = u0 + nu, *ones = tk + nu, *more = ones + nu;
+    double *up = row(A, b, &m, nu, hi + p->g), *down = row(A, b, &m, nu, -(lo + p->g));
 
     for (int j = 0; j < nu; j++)
     {
-      ones[j] = 1.0;
+      up[j] = g->lift[j] / g->mass;
+      down[j] = (-g->lift[j]) / g->mass;
     }
+  }
+  got = answered(p, sumH, ng, A, b, nu, m, g->grounded > 0.0, at, act, mult, rest);
+  /* no inverse, or none found where nothing pushing meets every bound - two bearing points 16 mm apart, their split
+     said by no row -: ridged as `solved` ridges */
+  if (got > 0)
+  {
+    double most = sumH[0];
+
+    memcpy(K, sumH, (size_t)(nu * nu) * sizeof(double));
+    for (int i = 1; i < nu; i++)
+    {
+      most = npmax(most, K[i * nu + i]);
+    }
+    for (int i = 0; i < nu; i++)
+    {
+      K[i * nu + i] = K[i * nu + i] + (ones[i] * p->ridge) * most;
+    }
+    got = answered(p, K, ng, A, b, nu, m, g->grounded > 0.0, at, act, mult, rest);
+  }
+  if (got > 0)
+  {
+    return 1;
+  }
+  if (g->strides > 0.0 && got < 0)
+  {
+    double *u0 = rest, *tk = u0 + nu, *more = tk + nu;
+
     if (solved(p, Hr, nu, VIEW(gr, 1, 0), 1, ones, u0, more) || taken(p, g, u0, lo, hi, tk, more))
     {
       return 1;

@@ -1,4 +1,4 @@
-/** wbc_poses.c - under the ask (wbc_imp.h): machine.law.impedance._poses, the robot's turns, its arms and its knees
+/** wbc_poses.c - under the ask (wbc_imp.h): machine.law.posed.posed, the robot's turns, its arms and its knees
     into `a` - numpy's arithmetic operation for operation (wbc_np.h), the same bit for bit. Portable C11, the
     host's alone. */
 #include "wbc_imp.h"
@@ -6,13 +6,13 @@
 
 #include <math.h>
 
-/** machine.law.impedance._poses: the robot's turns, its arms and its knees into `a`; `z` its modes
-    as it is, `up` how far each sole is asked up, `folds` which soles' knees are asked a fold,
+/** machine.law.posed.posed: the robot's turns, its arms and its knees into `a`; `z` its modes
+    as it is and `zd` their rates, `up` how far each sole is asked up, `folds` which soles' knees are asked a fold,
     `still` how still its rhythm is - its trunk's rates then its head's, shrunk where they are
     small. */
 void wbc_imp_poses(const wbc_imp_t *k, const double *out, const double *y, const double *fr, double *a,
-                   const double *z, const wbc_imp_said_t *s, const double turn[3][2], const double rates[3][2],
-                   const double up[2], const double folds[2], double still)
+                   const double *z, const double *zd, const wbc_imp_said_t *s, const double turn[3][2],
+                   const double rates[3][2], const double up[2], const double folds[2], double still)
 {
   const double *sway = out + k->o_sway, *psi = out + k->o_psi, *mom = y + k->y_moment, *rot = fr + k->f_rot;
   const double  turn_dc = s->ref[k->turn] - sway[k->turn] * sin(psi[k->turn]);
@@ -61,8 +61,16 @@ void wbc_imp_poses(const wbc_imp_t *k, const double *out, const double *y, const
   bent = z[k->axial] + npclip(s->ref[k->axial] - z[k->axial], -k->ahead, k->ahead);
   cosine = cos(0.5 * knee) - ((k->axial_m * bent) * fr[k->f_hips_by]) / k->leg_m;
   a[k->a_bend] = 2.0 * acos(npclip(cosine, -1.0, 1.0)) - knee;
-  a[k->a_bend_rate] = ((((((2.0 * k->axial_m) * fr[k->f_hips_by]) * s->rate[k->axial]) * (double)(fabs(cosine) < 1.0)) / k->leg_m)
-                       / sqrt(npmax(1.0 - cosine * cosine, k->tiny))) * (1.0 - npclip(out[k->o_held], 0.0, 1.0));
+  /* the bend's rate: the told height's while it leads the robot's by less than ahead or carries it further toward
+     itself, else the robot's own - never braking the robot on toward it */
+  {
+    const double toward = npmax((double)(fabs(s->ref[k->axial] - z[k->axial]) < k->ahead),
+                                (double)((s->ref[k->axial] - z[k->axial]) * (s->rate[k->axial] - zd[k->axial]) > 0.0));
+    const double bent_rate = zd[k->axial] + toward * (s->rate[k->axial] - zd[k->axial]);
+
+    a[k->a_bend_rate] = ((((((2.0 * k->axial_m) * fr[k->f_hips_by]) * bent_rate) * (double)(fabs(cosine) < 1.0)) / k->leg_m)
+                         / sqrt(npmax(1.0 - cosine * cosine, k->tiny))) * (1.0 - npclip(out[k->o_held], 0.0, 1.0));
+  }
   for (int b = 0; b < 2; b++)
   {
     const double shorter = npclip(cos(0.5 * (knee + a[k->a_bend])) - (k->clear_m * npmax(up[b], 0.0)) / k->leg_m,

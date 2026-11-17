@@ -225,7 +225,11 @@ def standing_leap(base_wire, fr, ch=0.0):
         t = k * push_ms * 1e-3
         throw['at'][k], throw['blend'][k], throw['flags'][k] = t0 + k * push_ms, push_ms, ortho.CURVE
         throw['p'][k, axial] = max(STRAIGHT, z0 - 0.5 * a_z * t * t)
-        throw['p'][k, pitch] = LEAN * depth * (1.0 - t / seconds)
+        # its lean let go over the push, leaving the held crouch over the throw's first row: straight on from the held
+        # crouch its curve's first row asked the trunk 149 rad/s^2, its soles 175 N m of pitch, and a 5 ms hop stayed
+        tb = push_ms * 1e-3
+        went = (0.5 * t * t / tb if t <= tb else t - 0.5 * tb) / (seconds - 0.5 * tb)
+        throw['p'][k, pitch] = LEAN * depth * (1.0 - min(went, 1.0))
         throw['p'][k, sagittal] = z_d[-1, modal.SAGITTAL] * depth
     # the robot's flight at the push's end speed, its legs long and soft (no height spring) and its
     # centre of mass where the crouch had it over the robot's soles, 0.21 m forward over the jump
@@ -245,7 +249,7 @@ def standing_leap(base_wire, fr, ch=0.0):
     deep = bottom(fr, v_off)
     n_f, n_b = max(1, int(round(1e3 * flight_s / push_ms))), max(2, int(round(1e3 * v_off / a_z / push_ms)))
     t_off = t0 + (n + 1) * push_ms
-    sag0, sag_deep = float(z_d[-1, modal.SAGITTAL] * depth), fold * float(z_h[deepest, modal.SAGITTAL])
+    sag0 = float(z_d[-1, modal.SAGITTAL] * depth)
     flight = np.repeat(rows[2:3], n_f)
     for k in range(n_f):
         flight['at'][k], flight['blend'][k], flight['flags'][k] = t_off + k * push_ms, push_ms, ortho.CURVE
@@ -257,7 +261,9 @@ def standing_leap(base_wire, fr, ch=0.0):
     for k in range(n_b):
         brake['at'][k], brake['blend'][k], brake['flags'][k] = t_land + k * push_ms, push_ms, ortho.CURVE
         brake['p'][k, axial], brake['p'][k, latent.K.start + modal.AXIAL] = deep, 0.0
-        brake['p'][k, sagittal] = sag0 + (sag_deep - sag0) * k / max(1, n_b - 1)
+        # its centre of mass brought over its soles' middle: to his deepest's (behind them, the way to its heels'
+        # edge by the fold) it landed on its heels' edge, its trunk's unfold rocked it back and it stepped on back
+        brake['p'][k, sagittal] = sag0 * (1.0 - k / max(1, n_b - 1))
         brake['p'][k, pitch], brake['p'][k, latent.ZMP] = fold * z_h[deepest, modal.PITCH], modal.SUPPORT
     rows['at'][3] = t_land + n_b * push_ms
     rows['blend'][3] = int(round(1e3 * (t_h[-1] - t_h[deepest])))

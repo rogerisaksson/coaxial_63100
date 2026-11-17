@@ -330,7 +330,8 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   /* the hold a stride's lone stance's: the other sole swinging (machine.law.vault) */
   striding[0] = npclip(out[k->o_held], 0.0, 1.0) * flying[1];
   striding[1] = npclip(out[k->o_held], 0.0, 1.0) * flying[0];
-  wbc_imp_vaults(k, leg, len, lrate, v, shod, along, propped, pressed, fr[k->f_hips_by], k->low_leg * fr[k->f_reach0], hip_h, reach_h,
+  wbc_imp_vaults(k, leg, len, lrate, fr[k->f_reach0] / cos(0.5 * fr[k->f_knee]), fr[k->f_dt], out[k->o_held],
+                 v, shod, along, propped, pressed, fr[k->f_hips_by], k->low_leg * fr[k->f_reach0], hip_h, reach_h,
                  duck, rocked, striding, asked[k->drive], s.kp[ax], s.kd[ax], risen);
   smax = npmax(stance[0], stance[1]);
   {
@@ -476,5 +477,5 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   a[k->a_borne] = propped;
   folds[0] = aloft[0] * (1.0 - limbs[0]);
   folds[1] = aloft[1] * (1.0 - limbs[1]);
-  wbc_imp_poses(k, out, y, fr, a, z, &s, turn, spun, up_h, folds, still);
+  wbc_imp_poses(k, out, y, fr, a, z, zd, &s, turn, spun, up_h, folds, still);
 }

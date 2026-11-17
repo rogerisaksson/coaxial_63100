@@ -1,4 +1,4 @@
-/** wbc_step.c - machine.stack.wrench.step in C (wbc_step.h): maps, rows, rounds (wbc_rounds.c), shrink -
+/** wbc_step.c - machine.stack.wrench.step in C (wbc_step.h): maps, rows, its solve (wbc_rounds.c), shrink -
     numpy's arithmetic and its OpenBLAS (wbc_blas.h) operation for operation. Portable C11. */
 #include "wbc_np.h"
 #include "wbc_step.h"
@@ -407,6 +407,9 @@ static int stepped(wbc_step_t *p)
   }
   geo.nu = nu;
   geo.k3 = k3;
+  geo.inner = (int)((stance[0] > 0.0) && (stance[1] > 0.0));
+  geo.about = about;
+  geo.sumf = sumf;
   geo.moment = moment;
   geo.part = part;
   geo.up = row;
@@ -431,7 +434,7 @@ static int stepped(wbc_step_t *p)
   }
   /* the ask's answer, and nothing's: accelerations 0, weight borne */
   wbc_matmul(l, VIEW(R0, 1, nu), VIEW(rhs, 1, 0), g0, 1, 0, nu, at, 1);
-  if (wbc_rounds(p, &geo, H0, g0, S, r, felt, p->com_acc[1] - p->height_band, p->com_acc[1] + p->height_band,
+  if (wbc_within(p, &geo, H0, g0, S, r, felt, p->com_acc[1] - p->height_band, p->com_acc[1] + p->height_band,
                  whole, u, rest))
   {
     return 1;
@@ -468,7 +471,7 @@ static int stepped(wbc_step_t *p)
     int    over0 = 0;
 
     wbc_matmul(l, VIEW(R0, 1, nu), VIEW(rhs0, 1, 0), g0, 1, 0, nu, at, 1);
-    if (wbc_rounds(p, &geo, H0, g0, S, r0, felt, -p->height_band, p->height_band, stood, NULL, rest))
+    if (wbc_within(p, &geo, H0, g0, S, r0, felt, -p->height_band, p->height_band, stood, NULL, rest))
     {
       return 1;
     }

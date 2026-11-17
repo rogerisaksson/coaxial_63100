@@ -1,6 +1,7 @@
 """The robot's hip over a standing leg: the arc about its ankle, or held where its heel rises for.
 
-    risen = vault.vaults(legs, v, shod, along, propped, pressed, axial_m, hips_by, low, high, reach, duck, heeled, striding, asked, kp, kd)
+    risen = vault.vaults(legs, v, shod, along, propped, pressed, axial_m, hips_by, low, high, reach, duck, heeled, striding, asked, kp, kd,
+                         full, dt, hold)
 
 Arrays in, arrays out and no branch (tests/test_ortho.py); `machine.law.impedance` renders with it, the
 robot's heel's rise and the height it reaches for from `machine.law.rocker.heels`.
@@ -11,11 +12,13 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine.body.compile import G_M_S2 as G
 from machine.law.poise import TINY, clip
 from machine.law.stride import EDGE_RAD, UP
 
 
-def vaults(legs, v, shod, along, propped, pressed, axial_m, hips_by, low, high, reach, duck, heeled, striding, asked, kp, kd):
+def vaults(legs, v, shod, along, propped, pressed, axial_m, hips_by, low, high, reach, duck, heeled, striding, asked, kp, kd,
+           full, dt, hold):
     """Each standing leg's hip's acceleration up, m/s^2 (2,). Over a flat sole, as the leg's length (`legs`:
     hip from ankle, length, rate) follows `pressed` (the axial spring's, units of `axial_m` m a unit of the
     robot's centre's, `hips_by` of its hips') while its hip arcs over the ankle: what the
@@ -35,10 +38,16 @@ def vaults(legs, v, shod, along, propped, pressed, axial_m, hips_by, low, high, 
     robot's weight. Gated on the robot's speed over the pace `stride.cruises` reckons instead, its
     march, 15 % faster than that reckoning, lost 15 % of its hold and the 143 N m/rad leaf's squatted to 52-89
     deg; on the ask over the sway running, rhythm.modulated's re-asking of the drive every pass of a turn cut
-    the hold through the turn and its stop fell (143 leaf's turns 9/9 -> 8/9)."""
+    the hold through the turn and its stop fell (143 leaf's turns 9/9 -> 8/9). A leg's length stretched no faster,
+    near its `full` length - its knee straight -, than gravity stops it there in a pass (`dt`), where the rows
+    hold the robot's polygon (`hold`, `latent.HELD`, whole from 1; a throw lets it go): pushed on past it, the
+    robot's walk on a world 15 % off its figure misfit its trunk's model by 2.3 N m; held through a throw, the walk's
+    leap cleared 36.8 mm under its soles."""
     push = 1.0 - (np.abs(asked) <= TINY)
     la = legs[0][:, :2] @ along
+    free = -axial_m * hips_by * pressed
+    stretch = free + clip(hold, 0.0, 1.0) * (np.minimum(free, (np.sqrt(2.0 * G * np.maximum(full - legs[1], 0.0)) - legs[2]) / dt) - free)
     arc = ((legs[2] ** 2 - ((v - shod) ** 2).sum(axis=1) - np.maximum(la, (1.0 - propped) * la)
-            - legs[1] * axial_m * hips_by * pressed) / np.maximum(legs[0][:, UP], low))
+            + legs[1] * stretch) / np.maximum(legs[0][:, UP], low))
     held = kp * (reach + duck[0] * hips_by - high) + kd * (duck[1] * hips_by - hips_by * v[UP])
     return arc + striding * push * clip(heeled / EDGE_RAD, 0.0, 1.0) * (held - arc)

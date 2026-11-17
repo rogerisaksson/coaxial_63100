@@ -65,7 +65,7 @@ SEEK_M_S, YIELD_NS_M = -float(_ADMITTANCE['seek-velocity-mps'][2]), float(_ADMIT
 
 def axial(knee, modes, body):
     """The robot's height's mode at a knee's bend, rad: its legs' shortening (`modal.shortened`) as
-    the robot's posture bends its knees for it (`impedance._poses`), a leg's mass off the robot's own
+    the robot's posture bends its knees for it (`posed.posed`), a leg's mass off the robot's own
     (`statics.frame`)."""
     hips_by = body['mass'] / (body['mass'] - modes['mode_limb_lift'][3])
     return ((math.cos(0.5 * math.radians(body['knee'])) - math.cos(0.5 * knee)) * (figure.THIGH + figure.SHANK)
@@ -88,7 +88,7 @@ def hips(knee, ankle):
 def posed(knee, ankle, trunk):
     """{joint: deg}: the robot's knees and ankles bent `knee`, `ankle`, its pelvis and trunk `trunk` rad
     forward
-    - its pitch turns both (`impedance._poses`) -, its soles flat, the rest of it as it stands."""
+    - its pitch turns both (`posed.posed`) -, its soles flat, the rest of it as it stands."""
     deg = figure.stand()
     for side in ('left_', 'right_'):
         deg[side + 'hip'] = math.degrees(ankle - knee - trunk)

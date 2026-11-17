@@ -28,7 +28,7 @@ def _step_typed():
     i, f, p = ctypes.c_int, ctypes.c_double, ctypes.c_void_p
     fields = [(name, i) for name in 'n nd nu0 nupper nheld npass nact npairs nbuffers'.split()]
     fields += [('act', i * d), ('legs', (i * 6) * 2), ('knees', i * 2), ('upper', i * d), ('held', i * n),
-               ('passive', i * n), ('active', i * n), ('pairs', (i * 2) * d), ('rounds', i), ('past', i),
+               ('passive', i * n), ('active', i * n), ('pairs', (i * 2) * d), ('rounds', i), ('rounds_pad', i),
                ('buffer_at', i * (2 * d)), ('sides', i * d), ('carpal', i), ('buffer_stop', f * (2 * d)), ('buffer_side', f * (2 * d)), ('buffer', f * 4),
                ('mass', f), ('moment', f * u), ('room', f * 2), ('arms', f * d)]
     fields += [(name, f) for name in ('yaw_m damp2 w_com w_turn w_swing w_knee w_posture w_height w_moment '
@@ -70,14 +70,14 @@ def _laid(b, sensed):
     step's constants laid once, its mass, clamps and WEP read at each call - its model's masses
     move as its wear finds a load. `s` the robot's compiled sensing's last (`sensed`, `bodied.on_body`),
     the step pointed at its block in one write (POINTED)."""
-    from machine.stack import rounds, wbc as law, wrench
+    from machine.stack import rounds, wbc as law, within, wrench
     Step, _steps, (most_n, most_d, most_c) = _step_typed()
     passive, active = np.flatnonzero(b.passive), np.flatnonzero(b.active_dof)
     if b.n > most_n or len(b.act) > most_d or rounds.NU > most_d:
         raise ValueError('wbc_step.c lays %d dofs and %d drives at most' % (most_n, most_d))
     k = Step(n=b.n, nd=len(b.act), nu0=rounds.NU, nupper=len(rounds.UPPER), nheld=len(b.held), npass=len(passive),
-             nact=len(active), npairs=len(b.pairs), nbuffers=len(b.buffers[0]), rounds=rounds.ROUNDS, past=wrench.PAST,
-             yaw_m=rounds.YAW_M, damp2=wrench.DAMP ** 2, grow_n=rounds.GROW_N, ridge=wrench.RIDGE,
+             nact=len(active), npairs=len(b.pairs), nbuffers=len(b.buffers[0]), rounds=rounds.ROUNDS,
+             yaw_m=rounds.YAW_M, damp2=wrench.DAMP ** 2, grow_n=rounds.GROW_N, ridge=within.RIDGE,
              contact_k=law.CONTACT_K, height_band=law.HEIGHT_BAND, held_k=law.HELD_K, momentum_k=law.MOMENTUM_K,
              mu=law.MU, g=law.G, slide_m_s=law.SLIDE_M_S)
     k.act[:len(b.act)] = [int(x) for x in b.act]

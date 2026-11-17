@@ -20,19 +20,23 @@
     (latent_targets (mode_axial_compression 0.6))
     (impedance (stiffness mode_axial_compression 8000) (damping mode_axial_compression 1200))))
 
-;; 9: hop: loaded, thrown by a spring that lets go 17 mm under the robot's standing height, its
-;; trunk free through the throw, landed on soft knees
+;; 9: hop: loaded leant 13 deg, thrown by a spring that lets go 17 mm under the robot's standing
+;; height - what it lets go to drawn as a push from rest over the throw: stepped, its knees were asked
+;; 600 rad/s^2 more than the push could give and the step pitched the robot over -, its trunk turned
+;; back through the throw to 6 deg behind upright, taking up what its legs' straightening spins it (held
+;; upright it left with 4.7 N m s, landed 14 cm behind its take-off and stepped off the chair it hopped
+;; on; 1.0 so, within 15 deg either way), landed on soft knees
 (defbehavior hop
   (phase load
     (duration 600ms) (blend_duration 450ms)
-    (latent_targets (mode_axial_compression 0.85) (mode_sagittal_shift -0.1))
+    (latent_targets (mode_axial_compression 0.85) (mode_sagittal_shift -0.1) (mode_pitch_attitude 0.45))
     (impedance
       (stiffness mode_axial_compression 6000) (damping mode_axial_compression 900)
       (stiffness mode_sagittal_shift 1200) (damping mode_sagittal_shift 400))
     (cpg_override (halt_oscillators)))
   (phase throw
-    (duration 150ms)
-    (latent_targets (mode_axial_compression 0.15))
+    (duration 150ms) (blend_duration 150ms) (shape parabolic)
+    (latent_targets (mode_axial_compression 0.15) (mode_pitch_attitude -0.2))
     (impedance
       (stiffness mode_axial_compression 20000) (damping mode_axial_compression 0)
       (stiffness mode_pitch_attitude 0) (damping mode_pitch_attitude 200)))

@@ -36,7 +36,7 @@ typedef struct
   int           n, nd, nu0, nupper, nheld, npass, nact, npairs, nbuffers;
   int           act[WBC_STEP_D], legs[2][6], knees[2], upper[WBC_STEP_D];
   int           held[WBC_STEP_N], passive[WBC_STEP_N], active[WBC_STEP_N], pairs[WBC_STEP_D][2];
-  int           rounds, past, buffer_at[2 * WBC_STEP_D];
+  int           rounds, rounds_pad, buffer_at[2 * WBC_STEP_D]; /**< a stride's faces' rounds; padded explicit */
   int           sides[WBC_STEP_D], carpal; /**< each upper drive's side (machine.stack.wrench.SIDES); the robot's hands' first patch
                                                 (machine.senses.borne.CARPAL), a side's CARPAL on */
   double        buffer_stop[2 * WBC_STEP_D], buffer_side[2 * WBC_STEP_D], buffer[4];
@@ -163,14 +163,15 @@ void wbc_step_turn_error(const wbc_blas_t *l, const double want[4], const double
 int wbc_step_maps(const wbc_step_t *p, const double *want, double *T, double *E, double *t0, double *a6,
                   double asked[2], int nu, double *work);
 
-/** machine.stack.wrench._rounds: the unknowns `at` (nu) for the rows' normal matrix H0 and right-hand
-    side g0, the contacts' held rows (S (3, nu) and r (3) each, nc of them) pressing on what they
-    bear, the robot's height's band lo to hi; geo and stride as machine.stack.wrench lays them. 0 or 1
-    raised. */
+/** machine.stack.within.within: the unknowns `at` (nu) for the rows' normal matrix H0 and right-hand side g0, the
+    contacts' held rows (S (4, nu) and r (4) each, nc of them) pressing on what they bear, within each standing
+    sole's and each contact's bounds and the robot's height's band lo to hi, by the stack's dual active set
+    (wbc_qp.c), each call its own; geo and stride as machine.stack.wrench lays them. 0 or 1 raised. */
 typedef struct
 {
-  int           nu, k3;
+  int           nu, k3, inner; /**< inner: both soles stand, their inner wrench kept least */
   const double *moment, *part, *up, *lift, *stance, *kinetic, *caps, *slips, *frames[2];
+  const double *about, *sumf; /**< the support's moment about the centre of mass and its force, rows (3, nu) */
   double        mass, grounded, strides, edges[2], mu[2], give; /**< give: the share of a contact's push the robot's own to plan */
 } wbc_geo_t;
 
@@ -188,7 +189,7 @@ void wbc_patch_rows(const wbc_step_t *p, int n, int nu, int nc, const double *fu
     none). */
 void wbc_patch_caps(const wbc_step_t *p, int nc, const double *felt, const double *slips, double *caps, double *borne);
 
-int wbc_rounds(wbc_step_t *p, const wbc_geo_t *geo, const double *H0, const double *g0, const double *S,
+int wbc_within(wbc_step_t *p, const wbc_geo_t *geo, const double *H0, const double *g0, const double *S,
                const double *r, const double *bears, double lo, double hi, double *at, double *first, double *work);
 
 #endif
