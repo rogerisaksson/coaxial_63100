@@ -188,6 +188,9 @@ ROWS = {
         'wbc_chain_tasks.c': {
             'wbc_chain_tasks': (1, 1),
         },
+        'wbc_classes.c': {
+            'laid': (1, 1),
+        },
         'wbc_cone.c': {
             'faced': (1, 1),
             'kinetic': (5, 5),
@@ -218,6 +221,21 @@ ROWS = {
             'wbc_law_couple': (2, 2),
             'wbc_law_latent': (3, 3),
         },
+        'wbc_libm.c': {
+            'lm_reduce_run': (1, 1),
+            'lm_run_arccos': (1, 1),
+            'lm_run_arcsin': (1, 1),
+            'lm_run_arctan': (1, 1),
+            'lm_run_arctan2': (1, 1),
+            'lm_run_cos': (1, 1),
+            'lm_run_exp': (1, 1),
+            'lm_run_expm1': (1, 1),
+            'lm_run_hypot': (1, 1),
+            'lm_run_log': (1, 1),
+            'lm_run_sin': (1, 1),
+            'lm_run_sincos': (1, 1),
+            'lm_run_tan': (1, 1),
+        },
         'wbc_maps.c': {
             'wbc_step_maps': (3, 3),
         },
@@ -239,6 +257,7 @@ ROWS = {
         },
         'wbc_rounds.c': {
             'taken': (2, 2),
+            'wbc_within': (1, 1),
         },
         'wbc_shrunk.c': {
             'wbc_wrench_motion': (2, 2),
@@ -275,8 +294,12 @@ ROWS = {
             'wbc_wait_risen': (1, 1),
             'wbc_wait_woken': (1, 1),
         },
+        'wbc_wholes.c': {
+            'laid': (1, 1),
+        },
         'wbc_world.c': {
             'wbc_world_held': (1, 1),
+            'wbc_world_stuck': (1, 1),
         },
         'wbc_wrench.c': {
             'maps': (5, 5),
@@ -323,6 +346,9 @@ ROWS = {
             'laid': (1, 1, 1),
             'wbc_chain_tasks': (1, 1, 1),
         },
+        'wbc_classes.c': {
+            'laid': (1, 1, 1),
+        },
         'wbc_cone.c': {
             'faced': (1, 1, 1),
             'kinetic': (5, 5, 5),
@@ -355,6 +381,21 @@ ROWS = {
             'wbc_law_couple': (1, 1, 2),
             'wbc_law_latent': (3, 3, 3),
         },
+        'wbc_libm.c': {
+            'lm_reduce_run': (1, 1, 1),
+            'lm_run_arccos': (1, 1, 1),
+            'lm_run_arcsin': (1, 1, 1),
+            'lm_run_arctan': (1, 1, 1),
+            'lm_run_arctan2': (1, 1, 1),
+            'lm_run_cos': (1, 1, 1),
+            'lm_run_exp': (1, 1, 1),
+            'lm_run_expm1': (1, 1, 1),
+            'lm_run_hypot': (1, 1, 1),
+            'lm_run_log': (1, 1, 1),
+            'lm_run_sin': (1, 1, 1),
+            'lm_run_sincos': (1, 1, 1),
+            'lm_run_tan': (1, 1, 1),
+        },
         'wbc_maps.c': {
             'wbc_step_maps': (2, 2, 4),
         },
@@ -381,7 +422,7 @@ ROWS = {
         },
         'wbc_rounds.c': {
             'taken': (2, 2, 2),
-            'wbc_rounds': (0, 0, 2),
+            'wbc_within': (1, 1, 2),
         },
         'wbc_shrunk.c': {
             'wbc_wrench_motion': (3, 3, 3),
@@ -426,9 +467,14 @@ ROWS = {
             'wbc_wait_risen': (1, 1, 1),
             'wbc_wait_woken': (0, 0, 1),
         },
+        'wbc_wholes.c': {
+            'laid': (1, 1, 1),
+        },
         'wbc_world.c': {
             'wbc_world_contacted': (0, 0, 1),
             'wbc_world_held': (1, 1, 2),
+            'wbc_world_slipped': (1, 1, 1),
+            'wbc_world_stuck': (1, 1, 1),
         },
         'wbc_wrench.c': {
             'maps': (6, 6, 7),
