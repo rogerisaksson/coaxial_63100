@@ -78,7 +78,7 @@ static void spanned_of(const double low[2][2], const double high[2][2], const do
 void wbc_imp_stands(const wbc_imp_t *k, double zmp[2], const double xi[2], const double low[2][2],
                     const double high[2][2], double om, double held, const double up[2], int swaying,
                     const double beat[4][2], const double bears[3][2], double rising, double borne,
-                    const double stood[2], const double prop[2][2], double by, double stance[2])
+                    const double stood[2], const double prop[2][2], double by, double driven, double stance[2])
 {
   const double *sweep = beat[0], *off = beat[1], *flying = beat[2], *toes = beat[3];
   const double *loads = bears[0], *over = bears[1], *felt = bears[2];
@@ -88,7 +88,9 @@ void wbc_imp_stands(const wbc_imp_t *k, double zmp[2], const double xi[2], const
 
   for (int b = 0; b < 2; b++)
   {
-    level[b] = npmax(over[b], felt[b]);
+    const int aloft = (off[b] < 0.5) && (stood[b] <= 0.5) && (stood[1 - b] > 0.5) && (loads[b] <= k->tiny);
+
+    level[b] = npmax(over[b], felt[b]) + (((k->big * foot) * (1.0 - by)) * driven) * (double)aloft;
   }
   spanned_of(low, high, NULL, prop, by, slo, shi);
   into(k, zmp, xi, slo, shi, om, 1.0 - foot, got);

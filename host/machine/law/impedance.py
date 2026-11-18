@@ -125,7 +125,7 @@ def ask(out, y, fr, a):
     stance, zmp = poise.stands(c[:2] + both[:2] / om ** 2, xi, low, high, om, out[latent.HELD], up,
                                swaying, (sweep, off, flying, 1.0 * (tilt - rocker.pitched(fr[GROUND]) >= stride.HEEL_RAD)),
                                (y[LOAD], y[LOWEST] - floors, y[LOWEST] - fr[FLOOR], y[VCOM][1], y[PROP] * fr[WEIGHT]),
-                               stood, prop)
+                               stood, prop, poise.clip(np.abs(sway[DRIVE]) / stride.STIRS, 0.0, 1.0))
     stance = stance * (1.0 - a[LET_GO])
     grounded, aloft, upright = np.maximum(stance.max(), propped), 1.0 - stance, stance.max() * (1.0 - propped)
     flew = swing.flew(thrown, grounded, v, y[LOWEST] - floors, shod)

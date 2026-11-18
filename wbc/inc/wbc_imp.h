@@ -104,7 +104,7 @@ void wbc_imp_spanned(const double lo[2], const double hi[2], const double plo[2]
 void wbc_imp_stands(const wbc_imp_t *k, double zmp[2], const double xi[2], const double low[2][2],
                     const double high[2][2], double om, double held, const double up[2], int swaying,
                     const double beat[4][2], const double bears[3][2], double rising, double borne,
-                    const double stood[2], const double prop[2][2], double by, double stance[2]);
+                    const double stood[2], const double prop[2][2], double by, double driven, double stance[2]);
 
 /** machine.law.surety.field's reading of the robot's law's arrays, laid once: machine.senses.edge's
     offsets in y_in, machine.law.latent's in st and out, the arrays themselves. */

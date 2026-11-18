@@ -68,21 +68,23 @@ def into(zmp, xi, lo, hi, om, share):
     return plain + share * (viable - plain)
 
 
-def stands(zmp, xi, low, high, om, held, up, swaying, beat, bears, stood, prop):
+def stands(zmp, xi, low, high, om, held, up, swaying, beat, bears, stood, prop, driven=0.0):
     """(which soles stand, the robot's ZMP): `zmp` as its springs ask it, `xi` the robot's capture
     point, `low` and `high` its soles' boxes, `held` the polygon said (0 none, 1 the robot's
     support's, 2 the dynamic footprint); `up` how far each sole is asked up, `swaying` whether it sways
     as asked; `beat` its stride's (sweep, off, flying, toes), `bears` (loads N, heights over the floor
     as it runs on under them and over the floor felt m, the robot's speed up, what bears it off them
     N), `stood` the soles that stood the pass before; `prop` what bears it off them (`spanned`), the
-    robot's support with them."""
+    robot's support with them; `driven` how far its drive sways."""
     sweep, off, flying, toes = beat
     loads, over, felt, rising, borne = bears
-    # a sole stands by its height alone only over a floor felt: at a 10 deg ramp's top a swing
+    # a sole stands by its height alone only over a floor felt, and on a driven dynamic footprint
+    # beside a sole that stood only once its insole feels the floor: at a 10 deg ramp's top a swing
     # that ended in the air on the ramp's plane run on stood at 0 N, the other was let go and
     # the robot came down at 1.8 kN
-    level = np.maximum(over, felt)
     kept, foot = clip(held, 0.0, 1.0), clip(held - 1.0, 0.0, 1.0)
+    aloft = driven * (off < 0.5) * (stood <= 0.5) * (stood[::-1] > 0.5) * (loads <= TINY)
+    level = np.maximum(over, felt) + BIG * foot * (1.0 - prop[2]) * aloft
     zmp = zmp + kept * (into(zmp, xi, *spanned(low.min(axis=0), high.max(axis=0), prop), om, 1.0 - foot) - zmp)
     # which soles stand. One asked up leaves the floor once that ZMP lies in the other and the
     # other bears as much of the robot: let go bearing 196 N, the other 43, it dropped onto it

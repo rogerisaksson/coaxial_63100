@@ -249,7 +249,8 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     zmp[0] = c[0] + both[0] / om2;
     zmp[1] = c[1] + both[1] / om2;
     wbc_imp_stands(k, zmp, xi, low, high, om, out[k->o_held], up_h, swaying, beat4, bears3, y[k->y_vcom + 1],
-                   y[k->y_prop] * fr[k->f_weight], stood, prop, propped, stance);
+                   y[k->y_prop] * fr[k->f_weight], stood, prop, propped,
+                   npclip(fabs(sway[k->drive]) / k->stirs, 0.0, 1.0), stance);
   }
   /* a leg let go as the robot's release has it (machine.moves.emancipation): its foot then a contact
    * (machine.senses.borne) */
