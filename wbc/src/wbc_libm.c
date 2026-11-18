@@ -4,7 +4,8 @@
     large and lays the loop in vector registers (sin, cos and tan reduced first, near for every element and far for
     the few past 2^22, their kernels then in a loop of their own), over chunks of LM_CHUNK straight from the
     caller's array, so that a chunk stays in the first cache between the loops; the last elements under a block
-    through a block of its own on the stack, its other lanes zero. Portable C11, no allocation.
+    through a block of its own on the stack, its other lanes zero - or, under half a block (LM_FEW), through the run
+    as they are, a call each: an array of one to three costs what as many calls do. Portable C11, no allocation.
 
     This file alone is told by gcc that no floating trap is read (none is, anywhere: no fenv) and to vectorise a loop
     where its cost model finds it pays: without the first, gcc's vectorizer leaves a select the optimizer split as a
@@ -18,6 +19,9 @@
 #include "wbc_libm_arc.h"
 
 #define LM_CHUNK 256 /* a run's elements at most: 2 kB of input, of output, of each reduction's part */
+/* A tail under half a block goes through its run as it is, a call an element (the loop's own remainder): a block of
+   its own costs the whole block's lanes, 40 to 85 ns for one element where a call is 11 to 42. */
+#define LM_FEW (WBC_LIBM_LANES / 2)
 
 /** 2^(32k - 190): the weight of the fraction's word k. */
 static const double lm_far_weight[6] = {0x1p-190, 0x1p-158, 0x1p-126, 0x1p-94, 0x1p-62, 0x1p-30};
@@ -99,7 +103,8 @@ typedef void (*lm_run1_t)(const double *restrict x, double *restrict y, int32_t 
 /** A run of two inputs. */
 typedef void (*lm_run2_t)(const double *restrict a, const double *restrict b, double *restrict y, int32_t n);
 
-/** x's n elements by run: whole blocks a chunk at a time from x itself, the rest through a block of zeros. */
+/** x's n elements by run: whole blocks a chunk at a time from x itself, the rest through a block of zeros - a few
+    (under LM_FEW) through the run itself. */
 static void lm_drive1(lm_run1_t run, const double *restrict x, double *restrict y, int32_t n)
 {
   double  xb[WBC_LIBM_LANES] = {0.0}, yb[WBC_LIBM_LANES];
@@ -109,7 +114,11 @@ static void lm_drive1(lm_run1_t run, const double *restrict x, double *restrict 
   {
     run(&x[i], &y[i], ((whole - i) < LM_CHUNK) ? (whole - i) : LM_CHUNK);
   }
-  if (whole < n)
+  if ((n - whole) > 0 && (n - whole) < LM_FEW)
+  {
+    run(&x[whole], &y[whole], n - whole);
+  }
+  else if (whole < n)
   {
     for (j = 0; j < (n - whole); j++)
     {
@@ -133,7 +142,11 @@ static void lm_drive2(lm_run2_t run, const double *restrict a, const double *res
   {
     run(&a[i], &b[i], &y[i], ((whole - i) < LM_CHUNK) ? (whole - i) : LM_CHUNK);
   }
-  if (whole < n)
+  if ((n - whole) > 0 && (n - whole) < LM_FEW)
+  {
+    run(&a[whole], &b[whole], &y[whole], n - whole);
+  }
+  else if (whole < n)
   {
     for (j = 0; j < (n - whole); j++)
     {
@@ -238,7 +251,11 @@ void wbc_libm_sincos(const double *restrict x, double *restrict s, double *restr
   {
     lm_run_sincos(&x[i], &s[i], &c[i], ((whole - i) < LM_CHUNK) ? (whole - i) : LM_CHUNK);
   }
-  if (whole < n)
+  if ((n - whole) > 0 && (n - whole) < LM_FEW)
+  {
+    lm_run_sincos(&x[whole], &s[whole], &c[whole], n - whole);
+  }
+  else if (whole < n)
   {
     for (j = 0; j < (n - whole); j++)
     {

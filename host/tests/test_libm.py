@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """The robot's own elementary functions (machine.libm, wbc_libm.h): one set of bits, under one ulp.
 
+What the robot's code calls (`machine.libm`: a number or an array through an extension of this interpreter, the
+numpy twin where none is built) gives the twin's bits by every way in: floats one at a time over every draw, arrays
+whole, of every length to 20, strided, of two dimensions, numpy's scalars, ints, an array with a number, two to
+broadcast.
+
 The same bits in C as in Python on every machine, under one unit in the last place, and IEEE 754's and C11 Annex
 F's every special value. Each of sin, cos, tan, exp, expm1, log, arctan, arcsin, arccos, arctan2 and hypot: its C over arrays (wbc_libm.c),
 its C a call at a time as another core inlines it, and its numpy twin, bit for bit over draws across its range and
@@ -85,8 +90,8 @@ def _same(a, b):
 
 
 def _twin(name, a, b):
-    from machine import libm
-    return getattr(libm, name)(a) if b is None else getattr(libm, name)(a, b)
+    from machine import libm_twin
+    return getattr(libm_twin, name)(a) if b is None else getattr(libm_twin, name)(a, b)
 
 
 def test_c_arrays_scalars_and_twin_agree_to_the_bit(report):
@@ -207,6 +212,49 @@ def test_every_length_through_tails_and_chunks(report):
     report.check('every length the scalar calls\' bits', not bad, ', '.join(bad[:6]) or '29 lengths, 11 functions')
 
 
+def test_the_codes_calls_are_the_twins_bits(report):
+    """`machine.libm` as the robot's code calls it, every way in, against the twin at every draw: a float a call, the
+    whole array, arrays of every length to 20 (the few a call each, a block, its tail), strided and of two
+    dimensions, numpy's float64 and a 0-d array, an int where the draw is whole, sin and cos together, an array with
+    a number and two broadcast."""
+    from machine import libm
+    from tools.cores import libm_quick
+    bad = []
+    for name, (a, b) in _cases().items():
+        twin, fn = _twin(name, a, b), getattr(libm, name)
+        args = (a,) if b is None else (a, b)
+        ways = {'whole': fn(*args), 'floats': [fn(*[float(v) for v in row]) for row in zip(*args)],
+                'strided': fn(*[v[::3] for v in args]), 'numpy scalars': [fn(*row) for row in zip(*[v[:400] for v in args])],
+                '0-d': [fn(*[np.array(v) for v in row]) for row in zip(*[v[:50] for v in args])]}
+        wants = {'whole': twin, 'floats': twin, 'strided': twin[::3], 'numpy scalars': twin[:400], '0-d': twin[:50]}
+        n2 = (a.size // 7) * 7
+        ways['two dimensions'], wants['two dimensions'] = fn(*[v[:n2].reshape(7, -1) for v in args]), twin[:n2].reshape(7, -1)
+        for n in range(0, 21):
+            ways['n=%d' % n], wants['n=%d' % n] = fn(*[v[40:40 + n].copy() for v in args]), twin[40:40 + n]
+        whole = np.flatnonzero((a == np.round(a)) & (np.abs(a) < 2.0 ** 53) & ((b is None) or (b == np.round(b)) & (np.abs(b) < 2.0 ** 53)))[:200]
+        ways['ints'] = [fn(*[int(v[i]) for v in args]) for i in whole]
+        wants['ints'] = _twin(name, *([np.array([float(int(v[i])) for i in whole]) for v in args] + [None] * (b is None)))
+        if b is not None:
+            ways['with a number'], wants['with a number'] = fn(a[:300], float(b[7])), _twin(name, a[:300], np.full(300, b[7]))
+            ways['a number with'], wants['a number with'] = fn(float(a[7]), b[:300]), _twin(name, np.full(300, a[7]), b[:300])
+            ways['broadcast'] = fn(a[:60].reshape(60, 1), b[:9])
+            wants['broadcast'] = _twin(name, *[np.ascontiguousarray(v) for v in np.broadcast_arrays(a[:60].reshape(60, 1), b[:9])])
+        bad += ['%s %s' % (name, way) for way, got in ways.items()
+                if np.shape(got) != np.shape(wants[way]) or not _same(got, wants[way]).all()]
+    a = _cases()['sin'][0]
+    (s, c), (ts, tc) = libm.sincos(a), (_twin('sin', a, None), _twin('cos', a, None))
+    pairs = [libm.sincos(float(v)) for v in a]
+    if not (_same(s, ts).all() and _same(c, tc).all() and _same([p[0] for p in pairs], ts).all() and _same([p[1] for p in pairs], tc).all()):
+        bad.append('sincos')
+    report.check("the robot's code's calls (%s) are the twin's bits every way in" % (
+        'the extension' if libm_quick.module() is not None else 'the twin itself: no extension built'), not bad,
+        ', '.join(bad[:8]) or '%d functions, 30 ways each' % len(_cases()))
+    report.check('a float in, a float out; an array in, a float64 array of its shape',
+                 isinstance(libm.sin(0.5), float) and isinstance(libm.arctan2(1, 2.0), float)
+                 and libm.exp(np.zeros((2, 3))).shape == (2, 3) and libm.exp(np.zeros((2, 3))).dtype == np.float64,
+                 '%s %s' % (type(libm.sin(0.5)).__name__, libm.exp(np.zeros((2, 3))).dtype))
+
+
 def test_values_stay_in_their_ranges(report):
     """|sin|, |cos| <= 1; arcsin and arctan within pi/2, arccos in [0, pi], arctan2 within pi; exp >= 0, hypot at
     least either magnitude: at every draw."""
@@ -237,7 +285,8 @@ def test_the_tables_are_their_tools(report):
 
 ROSTER = (test_the_tables_are_their_tools, test_c_arrays_scalars_and_twin_agree_to_the_bit, test_the_draws_digest_is_pinned,
           test_errors_under_one_unit_in_the_last_place, test_special_values_as_annex_f, test_odd_and_even_to_the_bit,
-          test_every_length_through_tails_and_chunks, test_values_stay_in_their_ranges)
+          test_every_length_through_tails_and_chunks, test_the_codes_calls_are_the_twins_bits,
+          test_values_stay_in_their_ranges)
 
 
 def main(argv=None):

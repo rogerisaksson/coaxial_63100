@@ -7,7 +7,8 @@
 
 Pace: the C's arrays (wbc_libm.c, a vector of lanes at a time), the C a call at a time as another core inlines it
 (wbc_sin, ...), and numpy into its own `out=` (no allocation either side), timed by turns over the same draws, each
-the best of REPEATS rounds of at least TIMED seconds. Accuracy: both against the function to 60 digits
+the best of REPEATS rounds of at least TIMED seconds; then a call from Python as the robot's code makes it
+(`machine.libm`): a float beside math's, an array of 3 and of 16 beside numpy's, ns a call. Accuracy: both against the function to 60 digits
 (tools.cores.libm.reference) at the same draws: the worst and the mean error in units in the last place, and the
 share past half a unit (not the nearest double).
 """
@@ -73,6 +74,29 @@ def pace(names, sizes):
     return rows
 
 
+def called(names):
+    """[(function, ours on a float, math's, ours on an array of 3, numpy's, ours on 16, numpy's: ns a call)]: a call
+    as the robot's code makes it."""
+    import math
+    from machine import libm
+    from tools.cores import libm_c
+    theirs = {'arctan': 'atan', 'arcsin': 'asin', 'arccos': 'acos', 'arctan2': 'atan2'}
+    rows, rng = [], np.random.default_rng(SEED)
+    for name in names:
+        two = name in libm_c.TWO
+        ours, maths, ufunc = getattr(libm, name), getattr(math, str(theirs.get(name, name))), getattr(np, name)
+        a3, a16 = draws(name, 3, rng), draws(name, 16, rng)
+        x = float(a3[0])
+        args = lambda v: (v, v) if two else (v,)
+        calls = (lambda: ours(*args(x)), lambda: maths(*args(x)), lambda: ours(*args(a3)), lambda: ufunc(*args(a3)),
+                 lambda: ours(*args(a16)), lambda: ufunc(*args(a16)))
+        times = [float('inf')] * len(calls)
+        for _ in range(2):
+            times = [min(t, _best(c)) for t, c in zip(times, calls)]
+        rows.append((name,) + tuple(1e9 * t for t in times))
+    return rows
+
+
 def accuracy(names, points):
     """[(function, ours' worst, mean, share past half; numpy's the same)], over the same draws."""
     from tools.cores import libm as reference
@@ -102,6 +126,9 @@ def main(argv=None):
     print('pace, ns an element: ours over arrays | ours a call at a time | numpy (x: numpy over ours\' arrays)')
     for name, n, arr, one, theirs in pace(args.only, args.sizes):
         print('  %-8s n=%-8d %8.2f | %8.2f | %8.2f   x%.2f' % (name, n, arr, one, theirs, theirs / arr))
+    print("a call from Python, ns: a float ours | math's; an array of 3 ours | numpy's; of 16 ours | numpy's")
+    for name, of, mf, o3, n3, o16, n16 in called(args.only):
+        print('  %-8s %6.0f | %6.0f   %6.0f | %6.0f   %6.0f | %6.0f' % (name, of, mf, o3, n3, o16, n16))
     print('\naccuracy at %d draws, units in the last place: ours worst, mean, past 1/2 | numpy the same' % args.points)
     for name, ow, om, op, nw, nm, nump in accuracy(args.only, args.points):
         print('  %-8s %6.3f %6.3f %6.1f%% | %6.3f %6.3f %6.1f%%' % (name, ow, om, 100 * op, nw, nm, 100 * nump))

@@ -56,7 +56,7 @@ def module():
         return _BUILT[0]
 
 
-def _interpreter():
+def interpreter():
     """What the extension links against: on Windows this interpreter's own DLL, elsewhere nothing."""
     if os.name != 'nt':
         return []
@@ -68,7 +68,7 @@ def _interpreter():
 def _loaded():
     """The extension built (numpy's version in its flags: a build its headers') and loaded, or None."""
     try:
-        extra = ('-O2', '-DQUICK_NUMPY=%s' % np.__version__, *_interpreter())
+        extra = ('-O2', '-DQUICK_NUMPY=%s' % np.__version__, *interpreter())
         path = build.cached(list(SOURCES), [sysconfig.get_paths()['include'], np.get_include()], 'quick', extra)[0]
         loader = importlib.machinery.ExtensionFileLoader('_quick', path)
         spec = importlib.util.spec_from_loader('_quick', loader)
