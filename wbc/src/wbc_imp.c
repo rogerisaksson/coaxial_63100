@@ -79,7 +79,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   {
     up[b] = k->limbs[b] * s.ref[k->lift];
   }
-  /* the robot's capture point past the soles that stood steps it; still, past those not lifting */
+  /* the robot's capture point past the soles that stood steps it from its heels' edge on; still, past those not lifting */
   still = 1.0 - npclip(sqrt(wbc_dot(&k->blas, sway, 1, sway, 1, n)) / k->tiny, 0.0, 1.0);
   edge0[0] = 0.0 * a[k->a_edge];
   edge0[1] = 0.0 * a[k->a_edge + 1];
@@ -110,9 +110,10 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
       past[j] = xi[j] - npclip(xi[j], slo[j], shi[j]);
     }
     smax = npmax(stood[0], stood[1]);
-    a[k->a_need] = (((1.0 - propped) * smax)
-                    * npclip(sqrt(wbc_dot(&k->blas, past, 1, past, 1, 2)) / k->margin_m, 0.0, 1.0))
-                   * npclip(out[k->o_held], 0.0, 1.0);
+    a[k->a_need] = ((((1.0 - propped) * smax)
+                     * npclip(sqrt(wbc_dot(&k->blas, past, 1, past, 1, 2)) / k->margin_m, 0.0, 1.0))
+                    * npclip(out[k->o_held], 0.0, 1.0))
+                   * (double)(s.ref[k->sagittal] >= -1.0);
   }
   lat0 = s.ref[k->lateral] - sway[k->lateral] * sin(psi[k->lateral]);
   wbc_imp_beat(k, sway[k->drive], psi[k->drive], sway[k->lateral], psi[k->lateral], turns, a + k->a_swings,

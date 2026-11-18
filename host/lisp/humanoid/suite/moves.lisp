@@ -141,7 +141,7 @@
 ;; onto it (-23.3 and 41.2 on it, the kernel's dip suspension's -26 and 43); then the robot's elbows braced to their
 ;; stop (the scoot's `locked`) lift it and carry its shoulders forward over its fists - at 30
 ;; deg/s, the kernel's tangent speed on its arm's reach - and its shoulders drawn back after them at
-;; 14 (0.15 m/s on 0.61 m), its hips and knees held as it sits, till its soles bear it
+;; 20, its hips and knees held as it sits, till its soles bear it
 ;; as its rise unlatches its seat (`:feet` at the concentric handover's 0.82): the robot's palms bore up to
 ;; 284 N, its pelvis 0.18 m forward, its soles 0.96 of it. The robot's text's rows wait while
 ;; it plays. Folded from the vault's start (to -102 deg at 20 deg/s), the robot's hips slid its pelvis along the
@@ -156,7 +156,7 @@
      :phases [(:name :place :ends :reached :next :press :with [square]
                :goals (:shoulder [-35.5 60.0] :elbow [63.9 120.0] :hip [-90.0 11.0] :knee [90.0 15.0]))
               (:name :press :ends :reached :next :vault :goals (:shoulder [-23.3 30.0] :elbow [41.2 30.0]))
-              (:name :vault :ends :feet :next :done :goals (:shoulder [-45.0 14.0] :elbow [-5.0 30.0]))
+              (:name :vault :ends :feet :next :done :goals (:shoulder [-45.0 20.0] :elbow [-5.0 30.0]))
               (:name :done :ends :reached :next :done)])))
 
 ;; The robot's scoot on the floor as its twist tells it (machine.moves.scoot, wbc_scoot.c): a crab on the

@@ -70,14 +70,14 @@ def ask(out, y, fr, a):
     ref, rate, acc = (out[part] - HOT[LIFT] * t for part, t in zip((latent.REF, latent.RATE, latent.ACC), tone))
     up = LIMBS * ref[LIFT]
     # the robot's capture point past the soles that stood - past its ZMP's margin in them - steps it while the
-    # rows hold the polygon: let go, a push stepped a sole at its end (0/497 N)
+    # rows hold the polygon from its heels' edge on: let go, a push stepped a sole at its end (0/497 N)
     still = 1.0 - poise.clip(np.linalg.norm(sway) / TINY, 0.0, 1.0)
     out_of = poise.BIG * (1.0 - stood)[:, None]
     lifted = out_of * np.maximum(1.0 - still, np.maximum(a[SWINGS], up > poise.LIFT_EPS))[:, None]
     lo, hi = poise.boxes(flat, 0.0 * a[EDGE], tilt)
     beyond = xi - poise.clip(xi, *poise.spanned((lo + out_of).min(axis=0), (hi - out_of).max(axis=0), prop))
     past = np.linalg.norm(xi - poise.clip(xi, *poise.spanned((lo + lifted).min(axis=0), (hi - lifted).max(axis=0), prop)))
-    a[NEED] = (1.0 - propped) * stood.max() * poise.clip(past / poise.MARGIN_M, 0.0, 1.0) * poise.clip(out[latent.HELD], 0.0, 1.0)
+    a[NEED] = (1.0 - propped) * stood.max() * poise.clip(past / poise.MARGIN_M, 0.0, 1.0) * poise.clip(out[latent.HELD], 0.0, 1.0) * float(ref[SAGITTAL] >= -1.0)
     phi_w, lat0 = stride.swings(sway[DRIVE], turns, a[GOING]), ref[LATERAL] - sway[LATERAL] * np.sin(psi[LATERAL])
     stepping, way, sweep, phi, on, off, u, flying, swung = stride.beat(
         sway[DRIVE], psi[DRIVE], sway[LATERAL], psi[LATERAL], turns,
