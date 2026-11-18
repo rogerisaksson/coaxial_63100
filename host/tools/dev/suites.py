@@ -145,6 +145,10 @@ LIBM = 'test_libm.py'
 #: Each layer under the robot's arithmetic on seeded work, held by its class: what every machine computes alike and
 #: what each its own way (tools.dev.arithmetic).
 PLATFORM = 'test_platform.py'
+#: The arithmetic family, first on every machine and in every part of a gate - a part's runner its own processor:
+#: what this machine computes (test_platform, each layer by its class) and the robot's own libm one set of bits under
+#: one ulp (test_libm), before any suite whose outcome its arithmetic decides.
+ARITHMETIC = (PLATFORM, LIBM)
 #: The robot's processes placed by its host's topology, on hosts of other shapes and live on this one
 #: (machine.process.placed).
 PLACED = 'test_placed.py'

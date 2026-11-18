@@ -15,7 +15,7 @@ import time
 
 from tools.dev import counts, machine_detector
 from tools.dev.focus import LEDGER, TALLY_RE, WORKER_GB, Job, last_words, relay
-from tools.dev.suites import (ALONE, EMULATOR, EMULATOR_GROUPS, LIVE, LIVE_GYNOID, OLLAMA, PORT, REAL_TIME, ROOT,
+from tools.dev.suites import (ALONE, ARITHMETIC, EMULATOR, EMULATOR_GROUPS, LIVE, LIVE_GYNOID, OLLAMA, PORT, REAL_TIME, ROOT,
                               SHARDED, STRUCTURES, asked)
 from tools.dev.suites_failed import FAILED_FIRST
 
@@ -235,10 +235,11 @@ def _write_shard_csv(dirs, job, out, parsed):
 
 
 def _priority(job, failed):
-    """Sort key so structural checks run first, previously failed suites next, then longest first."""
-    suite = job.name.split()[0]
-    if suite in STRUCTURES:
-        return (0, STRUCTURES.index(suite))
+    """Sort key so the arithmetic and structural checks run first, previously failed suites next, then longest
+    first."""
+    suite, first = job.name.split()[0], ARITHMETIC + STRUCTURES
+    if suite in first:
+        return (0, first.index(suite))
     if suite in failed:
         return (1, -failed[suite])
     if suite in FAILED_FIRST:

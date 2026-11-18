@@ -219,6 +219,7 @@ jobs:
             || true
 
   # The robot's C built for another target than the gate's, its parity suites beside the robot's python on a runner
+  # (the relay's arithmetic family first, as everywhere: test_platform, test_libm)
   # that runs it: SVE2 on GitHub's arm64 runner (Cobalt 100, Neoverse N2 - numpy's einsums fused there, its
   # OpenBLAS's own kernels), AVX-512 where the runner GitHub gives has it (EPYC 9V74, Xeon 8573C; an EPYC 7763 has
   # none, and the job says so). SME2 is emulated on a desk alone (run_tests.py --linux --arch arm64 --isa sme2):
@@ -254,7 +255,7 @@ jobs:
         run: >-
           python tools/dev/run_tests.py --offline --file test_aero_core.py --file test_borne.py --file test_mppi_core.py
           --file test_native.py --file test_qp.py --file test_quick.py --file test_registry.py --file test_se3_core.py --file test_se3_grip.py --file test_tick.py
-          --file test_wbc_core.py --file test_wear.py --file test_compiled.py --file test_sysid.py --file test_platform.py 2>&1 | tee run.log;
+          --file test_wbc_core.py --file test_wear.py --file test_compiled.py --file test_sysid.py 2>&1 | tee run.log;
           exit ${PIPESTATUS[0]}
         shell: bash
         working-directory: host

@@ -29,7 +29,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from tools.dev import background, counts, machine_detector
 from tools.dev.runner import _results
 from tools.dev.scope import _plan, hold_model, release_model
-from tools.dev.suites import (ALL_SUITES, ALONE, BENCHMARKS, CONFORMANCE, DEFAULT_SUITES,
+from tools.dev.suites import (ALL_SUITES, ALONE, ARITHMETIC, BENCHMARKS, CONFORMANCE, DEFAULT_SUITES,
                               FULL_EVERY, LIVE, NEEDS_BOARD, ROOT, STRUCTURES, TIERS)
 from tools.target import find_board
 
@@ -196,6 +196,10 @@ def _run(args, tags, live_sections):
     if args.part:
         k, n = args.part
         suites = machine_detector.parts(suites, n)[k - 1]
+    if not args.match and not args.only:
+        # a part's runner its own processor: each part tells its own arithmetic first
+        suites[:0] = [name for name in ARITHMETIC if name not in suites]
+    if args.part:
         print('part %d of %d: %d suites - %s' % (k, n, len(suites), ', '.join(suites)), flush=True)
 
     # The model is held here, released in the finally.

@@ -4,7 +4,7 @@ import subprocess
 from coaxial_ollama import client as clientmod
 from coaxial_ollama.capability import choose, probe
 from tools.dev import pick_tests
-from tools.dev.suites import (CHEAP, CONFORMANCE, DEFAULT_SUITES, FULL_EVERY, LIVE, OLLAMA, ROOT,
+from tools.dev.suites import (ARITHMETIC, CHEAP, CONFORMANCE, DEFAULT_SUITES, FULL_EVERY, LIVE, OLLAMA, ROOT,
                               STRUCTURES, plan_for)
 from tools.dev.touches import TOUCHES
 
@@ -58,7 +58,7 @@ def _within_tier(args, live_sections):
         return live_sections
 
     allowed, sections = plan_for(args.coverage)
-    keep = set(allowed) | set(STRUCTURES) | set(OLLAMA)
+    keep = set(allowed) | set(ARITHMETIC) | set(STRUCTURES) | set(OLLAMA)
     dropped = [name for name in args.file if name not in keep]
 
     args.file = [name for name in args.file if name in keep]
@@ -93,9 +93,9 @@ def _ask_model(args, live_sections):
         print('   falling back to the path map above')
         return None, live_sections
 
-    # Structure is not the model's to drop.
-    args.file = list(STRUCTURES) + [f for f in plan.suites
-                                    if f not in (LIVE,) + STRUCTURES]
+    # The arithmetic and the structure are not the model's to drop.
+    args.file = list(ARITHMETIC + STRUCTURES) + [f for f in plan.suites
+                                                 if f not in (LIVE,) + ARITHMETIC + STRUCTURES]
     tags = ','.join(plan.tags) or None
     live_sections = '' if plan.live == 'none' else plan.live
     args.live = bool(live_sections)
