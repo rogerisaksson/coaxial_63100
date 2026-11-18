@@ -1,6 +1,8 @@
-"""machine.stack.qp.solve in C through ctypes (wbc_qp.c), bit for bit on an exact host.
+"""machine.stack.qp.solve in C (wbc_qp.c), its QR and its sums: bit for bit on an exact host.
 
     x, held, u = qp.solve(H, g, A, b, warm=(), most=None)   # machine.stack.qp.solve's tuple; x None where none meets it
+    Q, R = qp.qr(a)                                         # wbc_qr: machine.stack.qp.householder's bits, every machine's
+    s = qp.npsum(a)                                         # wbc_np.h's npsum: numpy's pairwise sum of a run
 """
 import ctypes
 import functools
@@ -39,3 +41,30 @@ def solve(H, g, A, b, warm=(), most=None):
         return None, (), np.zeros(0)
     k = int(nact.value)
     return x, tuple(int(i) for i in act[:k]), u[:k].copy()
+
+
+@functools.lru_cache(maxsize=None)
+def _harness():
+    """The QR and the sum typed."""
+    lib = wbc.library()
+    lib.wbh_qr.argtypes = [_vp, _vp, _i, _i, _vp, _vp]
+    lib.wbh_qr.restype = _i
+    lib.wbh_npsum.argtypes = [_vp, _i]
+    lib.wbh_npsum.restype = _d
+    return lib
+
+
+def qr(a):
+    """(Q, R) of `a` (m, q), q <= m, by wbc_qr - the robot's own Householder in numpy's qr(a, 'complete')'s shapes -;
+    None where it fails."""
+    a = np.ascontiguousarray(a, float)
+    m, q = a.shape
+    Q, R = np.zeros((m, m)), np.zeros((m, q))
+    got = _harness().wbh_qr(ctypes.addressof(held.blas()), wbc.address(a), m, q, wbc.address(Q), wbc.address(R))
+    return None if got else (Q, R)
+
+
+def npsum(a):
+    """numpy's pairwise sum of the run `a`, in C (wbc_np.h's npsum)."""
+    a = np.ascontiguousarray(a, float).reshape(-1)
+    return float(_harness().wbh_npsum(wbc.address(a if a.size else np.zeros(1)), int(a.size)))

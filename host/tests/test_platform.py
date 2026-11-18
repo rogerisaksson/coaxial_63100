@@ -110,6 +110,9 @@ TURNS = {
     'Linux-x86_64': {'turns': 'fb5ad14be5cb1784'},
     'Windows-AMD64': {'turns': 'ac8f2de3b6ae3690'},
 }
+#: The robot's own QR (wbc_qr) over seeded shapes and its pairwise sums (npsum): no BLAS and no libm in them - one
+#: digest on every machine (laid on Windows, held on Linux x86-64 and arm64's SVE2 build).
+QR_ALIKE = 'd68c8b1c522d5f93'
 #: The functions read, numpy's names: math's of each, numpy's, and its draws' names (two where it takes two); power2
 #: is MuJoCo's own: an impedance's pow at its solimp's power 2 in every soft contact's step.
 FUNCS = (('sin', math.sin, np.sin, ('wide',)), ('cos', math.cos, np.cos, ('wide',)), ('tan', math.tan, np.tan, ('wide',)),
@@ -280,6 +283,41 @@ def test_the_robots_qp_in_c(report):
           {'qp': _digest(np.concatenate(out))})
 
 
+def test_the_robots_sums_and_qr_alike(report):
+    """The robot's pairwise sum (npsum) beside numpy's at every length to 1100, a run and a row of a block; its QR
+    (wbc_qr) beside its twin (machine.stack.qp.householder) on every shape to 24 by 24 and on a zero, a repeated and a
+    scaled column: the same bits, Q orthogonal and QR its matrix within 8 m units, one digest on every machine."""
+    from machine.stack import qp as twin
+    from tools.cores import qp
+    rng = np.random.default_rng(SEED + 4)
+    runs = [rng.uniform(-1.0, 1.0, n) * rng.uniform(0.5, 2.0) for n in range(1101)]
+    block = np.ascontiguousarray(rng.uniform(-1.0, 1.0, (9, 300)))
+    apart = sum(qp.npsum(r) != float(np.sum(r)) for r in runs) + int(np.sum(np.array([qp.npsum(row) for row in block])
+                                                                         != np.sum(block, axis=1)))
+    report.check("the robot's pairwise sum is numpy's: every length to 1100 and a block's rows", apart == 0,
+                 '%d apart' % apart)
+    shapes = [rng.uniform(-1.0, 1.0, (m, q)) for m in range(1, 25) for q in range(1, m + 1)]
+    edge = rng.uniform(-1.0, 1.0, (12, 6))
+    edge[:, 1], edge[:, 3], edge[:, 4], edge[:, 5] = 0.0, edge[:, 2], edge[:, 4] * 1e150, edge[:, 5] * 1e-150
+    out, unlike, worst = [], 0, 0.0
+    for a in shapes + [edge]:
+        got, (tq, tr) = qp.qr(a), twin.householder(a)
+        if got is None:
+            unlike += 1
+            continue
+        cq, cr = got
+        unlike += int(not (np.array_equal(cq.view(np.uint64), tq.view(np.uint64)) and np.array_equal(cr.view(np.uint64), tr.view(np.uint64))))
+        m, scale = a.shape[0], float(np.abs(a).max())
+        worst = max(worst, float(np.abs(cq.T @ cq - np.eye(m)).max()) / (m * 2.0 ** -52),
+                    float(np.abs((cq @ cr - a) / np.maximum(np.abs(a).max(axis=0), 1e-300)).max()) / (m * 2.0 ** -52) if scale else 0.0)
+        out += [cq.ravel(), cr.ravel()]
+    report.check("the robot's QR in C is its twin's bits on %d shapes, Q orthogonal and QR its matrix within 8 m units"
+                 % (len(shapes) + 1), unlike == 0 and worst <= 8.0, '%d unlike, worst %.2f m units' % (unlike, worst))
+    got = _digest(np.concatenate(out + [np.array([qp.npsum(r) for r in runs])]))
+    report.check("the robot's QR and sums: the digest every machine has", got == QR_ALIKE or not QR_ALIKE,
+                 '%s, laid %s' % (got, QR_ALIKE or 'none: told'))
+
+
 def test_an_x86_is_held_to_the_desks_arithmetic(report):
     """Under the relay an x86-64 runs no numpy path past X86_V3 (`tools.dev.arithmetic`); its OpenBLAS kernels its own
     pick, told - its products and LAPACK held by them above."""
@@ -293,6 +331,7 @@ def test_an_x86_is_held_to_the_desks_arithmetic(report):
 
 ROSTER = (test_basic_operations_and_square_root_alike, test_the_platforms_libm, test_numpys_float64_functions,
           test_openblas_products_and_solves, test_lapacks_factorings, test_mujocos_compiler_turns, test_the_robots_qp_in_c,
+          test_the_robots_sums_and_qr_alike,
           test_an_x86_is_held_to_the_desks_arithmetic)
 
 
