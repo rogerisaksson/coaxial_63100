@@ -2,6 +2,7 @@
     dot, its linalg's solve and inv, transcribed from numpy 2.5's umath/matmul.c.src, arraytypes'
     DOUBLE_dot and umath_linalg.cpp. Portable C11, the host's alone. */
 #include "wbc_blas.h"
+#include "wbc_np.h"
 
 #include <math.h>
 
@@ -239,51 +240,38 @@ int wbc_potrf(const wbc_blas_t *l, wbc_view_t a, int n, double *x, double *work)
   return info != 0;
 }
 
-/** dgeqrf or dorgqr (`k` under 0) on `af` (m, cols) with its workspace asked first, as umath_linalg's init_geqrf and
-    init_gqr_common size it: 0, or 1 failed or `avail` doubles too few. */
-static int lapack_qr(const wbc_blas_t *l, int m, int cols, int64_t k, double *af, double *tau, double *lw, int64_t avail)
+/** Reflector k of `af` (m, q, C-ordered) on columns j0..cols-1 of `x` (m, cols): each column's sum along the
+    reflector - its row k and numpy's pairwise sum of the rest (`t` m doubles) - times tau, taken down the reflector. */
+static void reflected(const double *af, int m, int q, int k, double tau, double *x, int cols, int j0, double *t)
 {
-  int64_t mm = m, nn = cols, lwork = -1, info = 0;
-  double  asked = 0.0;
+  const int len = m - k - 1;
 
-  if (k < 0)
+  for (int j = j0; j < cols; j++)
   {
-    l->geqrf(&mm, &nn, af, &mm, tau, &asked, &lwork, &info);
+    for (int i = 0; i < len; i++)
+    {
+      t[i] = af[(k + 1 + i) * q + k] * x[(k + 1 + i) * cols + j];
+    }
+    const double c = tau * (x[k * cols + j] + npsum(t, len));
+
+    x[k * cols + j] -= c;
+    for (int i = 0; i < len; i++)
+    {
+      x[(k + 1 + i) * cols + j] -= af[(k + 1 + i) * q + k] * c;
+    }
   }
-  else
-  {
-    l->orgqr(&mm, &nn, &k, af, &mm, tau, &asked, &lwork, &info);
-  }
-  lwork = (int64_t)asked;
-  lwork = lwork > nn ? lwork : (nn > 1 ? nn : 1);
-  if (info != 0 || lwork > avail)
-  {
-    return 1;
-  }
-  if (k < 0)
-  {
-    l->geqrf(&mm, &nn, af, &mm, tau, lw, &lwork, &info);
-  }
-  else
-  {
-    l->orgqr(&mm, &nn, &k, af, &mm, tau, lw, &lwork, &info);
-  }
-  return info != 0;
 }
 
 int wbc_qr(const wbc_blas_t *l, wbc_view_t a, int m, int q, double *Q, double *R, double *work, int nwork)
 {
-  /* numpy's qr: qr_r_raw's dgeqrf on the Fortran-ordered copy, R its upper triangle; qr_complete's (qr_reduced's at
-     q = m) dorgqr on the m by m copy of the reflectors, its first q columns */
-  double       *af = work, *qf = af + m * q, *tau = qf + m * m, *lw = tau + q;
-  const int64_t avail = (int64_t)nwork - (int64_t)(m * q + m * m + q);
+  /* The robot's own Householder QR in numpy's qr's shapes: LAPACK's dgeqr2 and dorg2r step for step - a reflector as
+     dlarfg lays it, beta -sign(alpha) times the column's norm, tau (beta - alpha) / beta, the reflector the column
+     times 1 / (alpha - beta) - each sum numpy's pairwise (npsum), so that its numpy twin (machine.stack.qp.householder)
+     agrees to the bit; no LAPACK, whose Fortran auxiliaries part dgeqrf's bits between Windows and Linux */
+  double *af = work, *t = af + m * q, *tau = t + m;
 
-  if (avail < 1 || q > m)
-  {
-    return 1;
-  }
-  fortran(a, m, q, af);
-  if (lapack_qr(l, m, q, -1, af, tau, lw, avail))
+  (void)l;
+  if (q > m || (int64_t)nwork < (int64_t)m * q + m + q)
   {
     return 1;
   }
@@ -291,25 +279,50 @@ int wbc_qr(const wbc_blas_t *l, wbc_view_t a, int m, int q, double *Q, double *R
   {
     for (int j = 0; j < q; j++)
     {
-      R[i * q + j] = j >= i ? af[i + j * m] : 0.0;
+      af[i * q + j] = a.at[i * a.s0 + j * a.s1];
     }
   }
-  for (int j = 0; j < m; j++)
+  for (int k = 0; k < q; k++)
   {
-    for (int i = 0; i < m; i++)
+    const int    len = m - k - 1;
+    const double alpha = af[k * q + k];
+
+    for (int i = 0; i < len; i++)
     {
-      qf[i + j * m] = j < q ? af[i + j * m] : 0.0;
+      t[i] = af[(k + 1 + i) * q + k] * af[(k + 1 + i) * q + k];
     }
-  }
-  if (lapack_qr(l, m, m, q, qf, tau, lw, avail))
-  {
-    return 1;
+    const double xnorm2 = npsum(t, len);
+
+    tau[k] = 0.0;
+    if (xnorm2 != 0.0)
+    {
+      const double beta = -copysign(sqrt(alpha * alpha + xnorm2), alpha), s = 1.0 / (alpha - beta);
+
+      tau[k] = (beta - alpha) / beta;
+      af[k * q + k] = beta;
+      for (int i = 0; i < len; i++)
+      {
+        af[(k + 1 + i) * q + k] *= s;
+      }
+      reflected(af, m, q, k, tau[k], af, q, k + 1, t);
+    }
   }
   for (int i = 0; i < m; i++)
   {
+    for (int j = 0; j < q; j++)
+    {
+      R[i * q + j] = j >= i ? af[i * q + j] : 0.0;
+    }
     for (int j = 0; j < m; j++)
     {
-      Q[i * m + j] = qf[i + j * m];
+      Q[i * m + j] = i == j ? 1.0 : 0.0;
+    }
+  }
+  for (int k = q - 1; k >= 0; k--)
+  {
+    if (tau[k] != 0.0)
+    {
+      reflected(af, m, q, k, tau[k], Q, m, k, t);
     }
   }
   return 0;

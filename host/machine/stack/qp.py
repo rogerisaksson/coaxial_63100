@@ -14,6 +14,7 @@ multiplier stays held below it - leaving it would cost that level its optimum - 
 equalities whose null space the lower levels search: kept an inequality, the feasible set below
 had no interior and both methods failed on it (a shove).
 """
+import math
 import os
 
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
@@ -40,12 +41,44 @@ EPS, LOWER = 1e-6, 1e-3
 STRONG = 1e-6
 
 
+def _reflect(a, k, tau, x, j0):
+    """Reflector k of `a` on `x`'s columns from j0 (in place): each column's sum along it - its row k and the rest's
+    pairwise sum, a contiguous run - times tau, taken down it."""
+    v = np.ascontiguousarray(a[k + 1:, k])
+    for j in range(j0, x.shape[1]):
+        c = tau * (float(x[k, j]) + float(np.sum(v * x[k + 1:, j])))
+        x[k, j] -= c
+        x[k + 1:, j] -= v * c
+
+
+def householder(a):
+    """(Q, R) of `a` (m, q), q <= m, in numpy's qr(a, mode='complete')'s shapes - the robot's own: LAPACK's dgeqr2 and
+    dorg2r step for step, a reflector as dlarfg lays it, each sum numpy's pairwise, as wbc_qr does to the bit. LAPACK's
+    own (np.linalg.qr) parts its bits between Windows and Linux: its Fortran auxiliaries take the platform's runtime."""
+    a = np.array(a, dtype=np.float64)
+    m, q = a.shape
+    taus = np.zeros(q)
+    for k in range(q):
+        alpha, tail = float(a[k, k]), np.ascontiguousarray(a[k + 1:, k])
+        xnorm2 = float(np.sum(tail * tail))
+        if xnorm2 != 0.0:
+            beta = -math.copysign(math.sqrt(alpha * alpha + xnorm2), alpha)
+            taus[k] = (beta - alpha) / beta
+            a[k, k], a[k + 1:, k] = beta, tail * (1.0 / (alpha - beta))
+            _reflect(a, k, taus[k], a, k + 1)
+    Q = np.eye(m)
+    for k in range(q - 1, -1, -1):
+        if taus[k] != 0.0:
+            _reflect(a, k, taus[k], Q, k)
+    return Q, np.triu(a)
+
+
 def _factor(J0, N):
     """(J, R): J0'N = Q [R; 0], J = J0 Q."""
     q = N.shape[1]
     if not q:
         return J0, np.zeros((0, 0))
-    Q, R = np.linalg.qr(J0.T @ N, mode='complete')
+    Q, R = householder(J0.T @ N)
     return J0 @ Q, R[:q, :q]
 
 

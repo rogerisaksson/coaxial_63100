@@ -171,10 +171,10 @@ def exact_host(draws=1000):
 
 class Blas(ctypes.Structure):
 
-    """wbc_blas_t: numpy's own OpenBLAS - cblas_dgemm, cblas_dsyrk, cblas_dgemv, cblas_ddot, dgesv, dpotrf, dgeqrf,
-    dorgqr -, and the order numpy's einsum sums the robot's hand ports' two in here (`einsums`)."""
+    """wbc_blas_t: numpy's own OpenBLAS - cblas_dgemm, cblas_dsyrk, cblas_dgemv, cblas_ddot, dgesv, dpotrf -, and the
+    order numpy's einsum sums the robot's hand ports' two in here (`einsums`)."""
 
-    _fields_ = ([(name, ctypes.c_void_p) for name in ('gemm', 'syrk', 'gemv', 'dot', 'gesv', 'potrf', 'geqrf', 'orgqr')]
+    _fields_ = ([(name, ctypes.c_void_p) for name in ('gemm', 'syrk', 'gemv', 'dot', 'gesv', 'potrf')]
                 + [('einsum', ctypes.c_int32 * 2)])
 
 
@@ -200,7 +200,7 @@ def numpy_blas():
         raise RuntimeError("numpy carries no scipy-openblas64 beside it: the robot's law in C needs numpy's own BLAS")
     lib = ctypes.CDLL(os.path.abspath(found[0]))
     names = ('scipy_cblas_dgemm64_', 'scipy_cblas_dsyrk64_', 'scipy_cblas_dgemv64_', 'scipy_cblas_ddot64_',
-             'scipy_dgesv_64_', 'scipy_dpotrf_64_', 'scipy_dgeqrf_64_', 'scipy_dorgqr_64_')
+             'scipy_dgesv_64_', 'scipy_dpotrf_64_')
     return Blas(*[ctypes.cast(getattr(lib, n), ctypes.c_void_p).value for n in names],
                 einsum=(ctypes.c_int32 * 2)(*einsums()))
 

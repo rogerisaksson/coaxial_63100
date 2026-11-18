@@ -8,8 +8,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/** numpy's OpenBLAS: cblas_dgemm, cblas_dsyrk, cblas_dgemv, cblas_ddot and LAPACK's dgesv, dpotrf, dgeqrf and
-    dorgqr (its linalg's cholesky and qr), each as numpy's umath_linalg calls it; and the order numpy's einsum sums
+/** numpy's OpenBLAS: cblas_dgemm, cblas_dsyrk, cblas_dgemv, cblas_ddot and LAPACK's dgesv and dpotrf (its linalg's
+    solve and cholesky), each as numpy's umath_linalg calls it - its qr is the robot's own (wbc_qr) -; and the order numpy's einsum sums
     the robot's hand ports' two in here (npsumof's `order`, an index of tools.cores.orders.ORDERS): 'nia,ia->n' of
     six contiguous, then 'nia,n->ia'. */
 typedef struct
@@ -24,10 +24,6 @@ typedef struct
   void   (*gesv)(const int64_t *n, const int64_t *nrhs, double *a, const int64_t *lda, int64_t *ipiv, double *b,
                  const int64_t *ldb, int64_t *info);
   void   (*potrf)(const char *uplo, const int64_t *n, double *a, const int64_t *lda, int64_t *info);
-  void   (*geqrf)(const int64_t *m, const int64_t *n, double *a, const int64_t *lda, double *tau, double *work,
-                  const int64_t *lwork, int64_t *info);
-  void   (*orgqr)(const int64_t *m, const int64_t *n, const int64_t *k, double *a, const int64_t *lda, const double *tau,
-                  double *work, const int64_t *lwork, int64_t *info);
   int32_t einsum[2];
 } wbc_blas_t;
 
@@ -64,9 +60,10 @@ int wbc_inv(const wbc_blas_t *l, wbc_view_t a, int n, double *x, double *work);
     where numpy raises (not positive definite). `work` n n doubles. */
 int wbc_potrf(const wbc_blas_t *l, wbc_view_t a, int n, double *x, double *work);
 
-/** numpy's linalg.qr(a, mode='complete'), a (m, q) view with q <= m: Q (m, m) and R (m, q), the upper triangle of
-    the factor with zeros below, both C-ordered: 0, or 1 where LAPACK fails or `work` (nwork doubles: m q + m m + q
-    and the workspace LAPACK asks) is short. */
+/** The QR of a (m, q) view with q <= m in numpy's linalg.qr(a, mode='complete')'s shapes, the robot's own Householder
+    (LAPACK's dgeqr2 and dorg2r step for step, numpy's pairwise sums; LAPACK's own parts its bits between systems): Q
+    (m, m) and R (m, q), the upper triangle of the factor with zeros below, both C-ordered: 0, or 1 where `work`
+    (nwork doubles: m q + m + q) is short. */
 int wbc_qr(const wbc_blas_t *l, wbc_view_t a, int m, int q, double *Q, double *R, double *work, int nwork);
 
 #endif

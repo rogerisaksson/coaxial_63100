@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """What each machine computes its own way and what every one computes alike: each layer under the robot's
 arithmetic on seeded work alone, not a step of MuJoCo's. IEEE 754's basic operations and square root, and the
-robot's C on whatever target it is built for (COAXIAL_ISA: its QP, wbc_qp.c, by system while its QR is LAPACK's)
-- one set of bits on every machine; the platform's libm (math's: UCRT's on Windows, glibc's on Linux, each rounding its last bit its own way), numpy's
+robot's C on whatever target it is built for (COAXIAL_ISA: its QP, wbc_qp.c, by OpenBLAS's kernels alone - its QR the
+robot's own) - one set of bits on every machine; the platform's libm (math's: UCRT's on Windows, glibc's on Linux, each rounding its last bit its own way), numpy's
 float64 functions over arrays (its own SIMD paths where it dispatches them - X86_V3, ASIMD, SVE -, the platform's
 libm where it does not), OpenBLAS's products and solves (by its kernels), numpy's LAPACK (by its kernels and system:
 its Fortran's auxiliaries take the platform's runtime) and MuJoCo's compiler turning a geom by
@@ -28,13 +28,9 @@ from gynoid_kit import Report
 SEED, N = 63100, 20000
 #: The basic operations' and square root's digest: one on every machine.
 IEEE = '1f828e7967236254'
-#: The robot's QP in C (wbc_qp.c) by system, processor and OpenBLAS's kernels: its products and QR are numpy's
-#: OpenBLAS's and LAPACK's (wbc_blas.c's dgeqrf and dorgqr), whose bits part between systems and kernels.
-QPS = {
-    'Linux-aarch64-armv9sme': {'qp': 'c55295a6adee197d'},
-    'Linux-x86_64-Haswell': {'qp': 'd279562f122b1ba0'},
-    'Windows-AMD64-Haswell': {'qp': '67d868fd7078b09f'},
-}
+#: The robot's QP in C (wbc_qp.c) by OpenBLAS's kernels alone: its products OpenBLAS's, its QR the robot's own (wbc_qr:
+#: LAPACK's dgeqrf parted it between Windows and Linux) - one digest on every system with those kernels.
+QPS = {'Haswell': {'qp': '6e8f44995e48e95a'}, 'armv9sme': {'qp': 'ec34a4dc2e335bd4'}}
 #: The platform's libm, a function at a time, by system and processor.
 LIBM = {
     'Linux-aarch64': {'sin': '05499355fafc2a34', 'cos': '707818489ee348fd', 'tan': 'f8ae32e49e14a496',
@@ -268,8 +264,8 @@ def test_mujocos_compiler_turns(report):
 
 def test_the_robots_qp_in_c(report):
     """The robot's QP in C (wbc_qp.c, built for this host's target) over seeded problems built of elementwise
-    operations alone: by system, processor and OpenBLAS's kernels, every target alike (avx, avx2 and native one digest on
-    the desk)."""
+    operations alone: by OpenBLAS's kernels, Windows and Linux alike on them and every target alike (avx, avx2 and
+    native one digest on the desk)."""
     from tools.cores import qp
     rng = np.random.default_rng(SEED + 2)
     out = []
@@ -280,7 +276,7 @@ def test_the_robots_qp_in_c(report):
         x, _held_rows, mult = qp.solve(h, rng.uniform(-1.0, 1.0, n), rng.uniform(-1.0, 1.0, (m, n)), rng.uniform(-1.0, 1.0, m))
         out.append(np.zeros(n) if x is None else x)
         out.append(np.asarray(mult, dtype=np.float64).ravel() if mult is not None else np.zeros(0))
-    _held(report, "the robot's QP in C (%s)" % os.environ.get('COAXIAL_ISA', 'native'), QPS, '%s-%s' % (_class(), _kernels()),
+    _held(report, "the robot's QP in C (%s)" % os.environ.get('COAXIAL_ISA', 'native'), QPS, _kernels(),
           {'qp': _digest(np.concatenate(out))})
 
 
