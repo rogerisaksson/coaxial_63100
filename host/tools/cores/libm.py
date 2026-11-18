@@ -237,7 +237,7 @@ def reference(name, a, b=None):
         s, c = ((s, c), (c, -s), (-s, -c), (-c, s))[q]
         return {'sin': s, 'cos': c, 'tan': s / c}[name]
     one = {'exp': lambda x: D(x).exp(), 'expm1': _expm1, 'log': lambda x: D(x).ln(), 'arctan': atan, 'arcsin': asin,
-           'arccos': lambda x: PI / 2 - asin(x)}
+           'arccos': lambda x: PI / 2 - asin(x), 'tanh': lambda x: (lambda e: e / (e + 2))(_expm1(2 * D(x)))}
     if name in one:
         return one[name](a)
     if b is None:

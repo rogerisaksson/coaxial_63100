@@ -101,6 +101,7 @@ ONE(log)
 ONE(arctan)
 ONE(arcsin)
 ONE(arccos)
+ONE(tanh)
 
 static PyObject *lq_sincos(PyObject *self, PyObject *x)
 {
@@ -237,6 +238,7 @@ static PyMethodDef methods[] = {
   SAYS_ONE(arctan),
   SAYS_ONE(arcsin),
   SAYS_ONE(arccos),
+  SAYS_ONE(tanh),
   SAYS_TWO(arctan2),
   SAYS_TWO(hypot),
   {NULL, NULL, 0, NULL}};

@@ -1,7 +1,7 @@
 """The robot's own elementary functions in numpy, wbc_libm.h's twin: one set of bits on every machine.
 
     from machine import libm_twin
-    y = libm_twin.sin(x)   # cos, tan, sincos, exp, expm1, log, arctan, arctan2, arcsin, arccos, hypot: numpy's names
+    y = libm_twin.sin(x)   # cos, tan, sincos, exp, expm1, tanh, log, arctan, arctan2, arcsin, arccos, hypot
 
 What holds the C to its bits (test_libm) and what `machine.libm` falls back on where no compiler builds its
 extension: 81 us a call, no way to call it from the robot's loop - `machine.libm` is what its code calls.
@@ -237,6 +237,35 @@ def expm1(x):
         bb = s - h
         s = (s + (((h - (s - bb)) + (ar - bb)) + (lo + f * (q + rr * (1.0 + r))))) * _pow2(k - k1, 1023)
     return _out(_copysign(s, x), scalar)
+
+
+def tanh(x):
+    """wbc_tanh: E / (E + 2), E = e^(2|x|) - 1 as expm1 sums it kept in two parts; the quotient one division and its
+    residual by Dekker's product; |x| held to 22."""
+    x, scalar = _given(x)
+    with np.errstate(all='ignore'):
+        a = np.abs(x)
+        r, q, rr, k, k1 = _exp_core(2.0 * np.where(a > 22.0, 22.0, a))
+        f, b = _pow2(k1, 1023), -_pow2(U(0) - (k - k1), 1023)
+        h = f + b
+        bb = h - f
+        lo = (f - (h - bb)) + (b - bb)
+        ar = f * r
+        s = h + ar
+        bb = s - h
+        c = ((h - (s - bb)) + (ar - bb)) + (lo + f * (q + rr * (1.0 + r)))
+        nh = s + c
+        bb = nh - s
+        nl = (s - (nh - bb)) + (c - bb)
+        g = -2.0 * b
+        dh = nh + g
+        bb = dh - nh
+        dl = ((nh - (dh - bb)) + (g - bb)) + nl
+        qh = nh / dh
+        p, pe = _two_prod(qh, dh)
+        y = qh + ((((nh - p) - pe) + nl) - qh * dl) / dh
+        y = np.where(np.isnan(x), x, _copysign(y, x))
+    return _out(y, scalar)
 
 
 def log(x):

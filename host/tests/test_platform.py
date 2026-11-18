@@ -39,7 +39,7 @@ FUNCS = (('sin', math.sin, np.sin, ('wide',)), ('cos', math.cos, np.cos, ('wide'
                                                             ('base',)),
          ('tanh', math.tanh, np.tanh, ('wide',)))
 #: The robot's own of the functions (machine.libm): what the platform's part from, told.
-OWN = ('sin', 'cos', 'tan', 'exp', 'expm1', 'log', 'arcsin', 'arccos', 'arctan', 'arctan2', 'hypot')
+OWN = ('sin', 'cos', 'tan', 'exp', 'expm1', 'log', 'arcsin', 'arccos', 'arctan', 'arctan2', 'hypot', 'tanh')
 #: A scene of the geoms MuJoCo's compiler turns: capsules along x, along y, along -z and slanting (the robot's thigh's),
 #: a cylinder up y, boxes a right angle about x and 30 deg about y.
 SCENE = ('<mujoco><worldbody><body>'

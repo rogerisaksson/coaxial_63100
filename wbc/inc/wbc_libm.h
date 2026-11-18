@@ -311,6 +311,37 @@ static inline double wbc_expm1(double x)
   return lm_copysign(s, x);
 }
 
+/** tanh x = E / (E + 2), E = e^(2|x|) - 1 summed as wbc_expm1 sums it and kept in two parts, nh + nl, before its last
+    rounding; the quotient of nh + nl by nh + nl + 2 (both over 2^ceil(k/2)) one division and its residual by
+    Dekker's product. |x| held to 22, past which tanh rounds to 1; the sign that of x (its zeros). */
+static inline double wbc_tanh(double x)
+{
+  double   q, rr, r, f, b, h, bb, lo, ar, s, c, nh, nl, g, dh, dl, qh, p, pe;
+  uint64_t k, k1;
+
+  r = lm_exp_core(2.0 * lm_sel(fabs(x) > 22.0, 22.0, fabs(x)), &q, &rr, &k, &k1);
+  f = lm_pow2(k1, 1023U);
+  b = -lm_pow2(0U - (k - k1), 1023U);
+  h = f + b;
+  bb = h - f;
+  lo = (f - (h - bb)) + (b - bb);
+  ar = f * r;
+  s = h + ar;
+  bb = s - h;
+  c = ((h - (s - bb)) + (ar - bb)) + (lo + f * (q + rr * (1.0 + r)));
+  nh = s + c;
+  bb = nh - s;
+  nl = (s - (nh - bb)) + (c - bb);
+  g = -2.0 * b;
+  dh = nh + g;
+  bb = dh - nh;
+  dl = ((nh - (dh - bb)) + (g - bb)) + nl;
+  qh = nh / dh;
+  p = lm_two_prod(qh, dh, &pe);
+  qh = qh + ((((nh - p) - pe) + nl) - qh * dl) / dh;
+  return lm_sel(lm_nan(x), x, lm_copysign(qh, x));
+}
+
 /** log x, fdlibm's: x = 2^k (1 + f), 1 + f in [sqrt(2)/2, sqrt(2)) by x's bits (a subnormal scaled by 2^54 first), s
     = f/(2 + f), log(1 + f) = f - f^2/2 + s (f^2/2 + R(s^2)) or f - s (f - R) as fdlibm picks by f; k ln 2's high
     part exact. */
@@ -340,6 +371,7 @@ void wbc_libm_tan(const double *restrict x, double *restrict y, int32_t n);
 void wbc_libm_sincos(const double *restrict x, double *restrict s, double *restrict c, int32_t n);
 void wbc_libm_exp(const double *restrict x, double *restrict y, int32_t n);
 void wbc_libm_expm1(const double *restrict x, double *restrict y, int32_t n);
+void wbc_libm_tanh(const double *restrict x, double *restrict y, int32_t n);
 void wbc_libm_log(const double *restrict x, double *restrict y, int32_t n);
 void wbc_libm_arctan(const double *restrict x, double *restrict y, int32_t n);
 void wbc_libm_arcsin(const double *restrict x, double *restrict y, int32_t n);

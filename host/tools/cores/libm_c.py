@@ -13,10 +13,9 @@ import functools
 import numpy as np
 
 from tools.cores import wbc
+from tools.cores.libm_quick import ONE, TWO
 
-#: The functions of one argument and of two, numpy's names; wbh_libm_scalar's order after them.
-ONE = ('sin', 'cos', 'tan', 'exp', 'expm1', 'log', 'arctan', 'arcsin', 'arccos')
-TWO = ('arctan2', 'hypot')
+#: wbh_libm_scalar's order: the functions of one argument and of two (`libm_quick`'s, numpy's names), then sincos's.
 SCALAR = ONE + TWO + ('sincos_sin', 'sincos_cos')
 _dp, _i = ctypes.POINTER(ctypes.c_double), ctypes.c_int32
 

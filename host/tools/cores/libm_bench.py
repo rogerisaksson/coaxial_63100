@@ -31,7 +31,7 @@ def draws(name, n, rng):
     pick = {'sin': lambda: u(-10, 10, n), 'cos': lambda: u(-10, 10, n), 'tan': lambda: u(-1.5, 1.5, n),
             'exp': lambda: u(-700, 700, n), 'expm1': lambda: u(-2, 2, n), 'log': lambda: np.exp(u(-700, 700, n)),
             'arctan': lambda: u(-5, 5, n), 'arcsin': lambda: u(-1, 1, n), 'arccos': lambda: u(-1, 1, n),
-            'arctan2': lambda: u(-10, 10, n), 'hypot': lambda: u(-10, 10, n)}
+            'arctan2': lambda: u(-10, 10, n), 'hypot': lambda: u(-10, 10, n), 'tanh': lambda: u(-5, 5, n)}
     return pick[name]()
 
 

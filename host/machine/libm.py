@@ -1,7 +1,7 @@
 """The robot's own elementary functions as its code calls them: every machine's bits, a call as math's.
 
     from machine import libm
-    y = libm.sin(x)        # cos, tan, exp, expm1, log, arctan, arcsin, arccos: numpy's names, a float or an array
+    y = libm.sin(x)        # cos, tan, exp, expm1, log, arctan, arcsin, arccos, tanh: numpy's names, a float or an array
     s, c = libm.sincos(x)  # both of one reduction: a pair for less than the platform's two calls
     a = libm.arctan2(y, x), libm.hypot(x, y)
 
@@ -40,5 +40,5 @@ def _other(name, *args):
 
 if _QUICK is not None:
     _QUICK.laid(_other)
-(sin, cos, tan, exp, expm1, log, arctan, arcsin, arccos, sincos, arctan2, hypot) = (
+(sin, cos, tan, exp, expm1, log, arctan, arcsin, arccos, tanh, sincos, arctan2, hypot) = (
     getattr(_QUICK if _QUICK is not None else libm_twin, name) for name in NAMES)

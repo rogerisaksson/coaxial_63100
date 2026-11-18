@@ -29,7 +29,8 @@ from tools.cores import build, quick
 SOURCES = (os.path.join(os.path.dirname(os.path.abspath(__file__)), 'libm_quick.c'),
            os.path.join(REPO, 'wbc', 'src', 'wbc_libm.c'))
 #: The functions it has: of one argument, sin and cos together, of two.
-ONE, PAIR, TWO = ('sin', 'cos', 'tan', 'exp', 'expm1', 'log', 'arctan', 'arcsin', 'arccos'), ('sincos',), ('arctan2', 'hypot')
+ONE = ('sin', 'cos', 'tan', 'exp', 'expm1', 'log', 'arctan', 'arcsin', 'arccos', 'tanh')
+PAIR, TWO = ('sincos',), ('arctan2', 'hypot')
 
 
 @functools.lru_cache(maxsize=None)

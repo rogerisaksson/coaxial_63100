@@ -296,6 +296,19 @@ void wbc_libm_expm1(const double *restrict x, double *restrict y, int32_t n)
   lm_drive1(lm_run_expm1, x, y, n);
 }
 
+static void lm_run_tanh(const double *restrict x, double *restrict y, int32_t n)
+{
+  for (int32_t i = 0; i < n; i++)
+  {
+    y[i] = wbc_tanh(x[i]);
+  }
+}
+
+void wbc_libm_tanh(const double *restrict x, double *restrict y, int32_t n)
+{
+  lm_drive1(lm_run_tanh, x, y, n);
+}
+
 static void lm_run_log(const double *restrict x, double *restrict y, int32_t n)
 {
   for (int32_t i = 0; i < n; i++)

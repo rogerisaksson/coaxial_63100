@@ -7,7 +7,8 @@ whole, of every length to 20, strided, of two dimensions, numpy's scalars, ints,
 broadcast.
 
 The same bits in C as in Python on every machine, under one unit in the last place, and IEEE 754's and C11 Annex
-F's every special value. Each of sin, cos, tan, exp, expm1, log, arctan, arcsin, arccos, arctan2 and hypot: its C over arrays (wbc_libm.c),
+F's every special value. Each of sin, cos, tan, exp, expm1, tanh, log, arctan, arcsin, arccos, arctan2 and hypot: its C
+over arrays (wbc_libm.c),
 its C a call at a time as another core inlines it, and its numpy twin, bit for bit over draws across its range and
 where it is hard (near multiples of pi/2, past 2^22 up to the largest double, exp's edges, log near 1, subnormals);
 the draws' digest pinned, so that a machine whose bits part fails here; its error against the function to 60
@@ -29,7 +30,7 @@ from gynoid_kit import Report
 SEED = 63100
 #: The draws' digest: the twin's bits over every draw, NaNs as one NaN - laid on Windows (UCRT) and held by the
 #: Linux runner's containers (glibc) alike; a change of a coefficient or of an order lays it anew.
-DIGEST = 'ce51a149b55cb111d222f62d750f12e68613d90a7049ccdef67409dc21c9bf30'
+DIGEST = '5b27874ff7bdeac752d300283152254ced25cdb023dce425449167317c0d191b'
 #: Points a function's error is read at against its 60 digits (the Decimal reference takes milliseconds a point).
 READ = 120
 INF, NAN = math.inf, math.nan
@@ -59,6 +60,8 @@ def _draws(name, rng):
         'expm1': np.concatenate([u(-40, 710, 4000), u(-2, 2, 4000), e(-1074, -3, 600), -e(-1074, -3, 600), u(-60, -30, 200)]),
         'log': np.concatenate([e(-1074, 1023, 5000), u(0.5, 2, 3000), 1.0 + u(-1e-2, 1e-2, 1000), 1.0 + e(-53, -26, 300),
                                1.0 - e(-53, -26, 300), e(-1074, -1022, 300)]),
+        'tanh': np.concatenate([u(-22.5, 22.5, 5000), u(-1, 1, 3000), e(-1074, -3, 500), -e(-1074, -3, 500), u(18, 23, 300),
+                                -u(18, 23, 300)]),
         'arctan': np.concatenate([u(-4, 4, 6000), e(-1074, 1023, 1500), -e(-1074, 1023, 1500), u(0.43, 0.45, 300), u(0.68, 0.69, 300)]),
         'arcsin': np.concatenate([u(-1, 1, 6000), 1.0 - e(-55, -3, 800), -1.0 + e(-55, -3, 800), e(-1074, -3, 500), u(0.97, 0.98, 300),
                                   u(0.49, 0.51, 300)]),
@@ -146,6 +149,8 @@ ANNEX = [('sin', (0.0,), 0.0), ('sin', (-0.0,), -0.0), ('sin', (INF,), NAN), ('s
          ('exp', (709.782712893384,), 1.7976931348622732e308), ('exp', (1.0,), math.e),
          ('expm1', (0.0,), 0.0), ('expm1', (-0.0,), -0.0), ('expm1', (INF,), INF), ('expm1', (-INF,), -1.0),
          ('expm1', (NAN,), NAN), ('expm1', (5e-324,), 5e-324), ('expm1', (-40.0,), -1.0), ('expm1', (710.0,), INF),
+         ('tanh', (0.0,), 0.0), ('tanh', (-0.0,), -0.0), ('tanh', (INF,), 1.0), ('tanh', (-INF,), -1.0), ('tanh', (NAN,), NAN),
+         ('tanh', (5e-324,), 5e-324), ('tanh', (-1e-300,), -1e-300), ('tanh', (40.0,), 1.0), ('tanh', (-1e300,), -1.0),
          ('log', (0.0,), -INF), ('log', (-0.0,), -INF), ('log', (1.0,), 0.0), ('log', (-1.0,), NAN), ('log', (-INF,), NAN),
          ('log', (INF,), INF), ('log', (NAN,), NAN), ('log', (math.e,), 1.0), ('log', (-5e-324,), NAN),
          ('arctan', (0.0,), 0.0), ('arctan', (-0.0,), -0.0), ('arctan', (INF,), math.pi / 2), ('arctan', (-INF,), -math.pi / 2),
@@ -181,10 +186,11 @@ def test_special_values_as_annex_f(report):
 
 
 def test_odd_and_even_to_the_bit(report):
-    """sin, tan, arctan, arcsin and arctan2's y odd, cos even, hypot even in each argument and symmetric: to the bit."""
+    """sin, tan, arctan, arcsin, tanh and arctan2's y odd, cos even, hypot even in each argument and symmetric: to the
+    bit."""
     from tools.cores import libm_c
     cases = _cases()
-    for name, kind in (('sin', -1.0), ('tan', -1.0), ('arctan', -1.0), ('arcsin', -1.0), ('cos', 1.0)):
+    for name, kind in (('sin', -1.0), ('tan', -1.0), ('arctan', -1.0), ('arcsin', -1.0), ('tanh', -1.0), ('cos', 1.0)):
         a = cases[name][0]
         report.check('%s %s' % (name, 'odd' if kind < 0 else 'even'), bool(_same(libm_c.call(name, -a), kind * libm_c.call(name, a)).all()),
                      '%d draws' % a.size)
@@ -256,20 +262,21 @@ def test_the_codes_calls_are_the_twins_bits(report):
 
 
 def test_values_stay_in_their_ranges(report):
-    """|sin|, |cos| <= 1; arcsin and arctan within pi/2, arccos in [0, pi], arctan2 within pi; exp >= 0, hypot at
-    least either magnitude: at every draw."""
+    """|sin|, |cos|, |tanh| <= 1; arcsin and arctan within pi/2, arccos in [0, pi], arctan2 within pi; exp >= 0,
+    hypot at least either magnitude: at every draw."""
     from tools.cores import libm_c
     c, ok = _cases(), []
     with np.errstate(invalid='ignore'):
         for name, lo, hi in (('sin', -1.0, 1.0), ('cos', -1.0, 1.0), ('arcsin', -math.pi / 2, math.pi / 2),
-                             ('arctan', -math.pi / 2, math.pi / 2), ('arccos', 0.0, math.pi), ('exp', 0.0, INF)):
+                             ('arctan', -math.pi / 2, math.pi / 2), ('arccos', 0.0, math.pi), ('exp', 0.0, INF),
+                             ('tanh', -1.0, 1.0)):
             y = libm_c.call(name, c[name][0])
             ok.append((name, bool(((y >= lo) & (y <= hi) | np.isnan(y)).all())))
         y, x = c['arctan2']
         t, h = libm_c.call('arctan2', y, x), libm_c.call('hypot', y, x)
         ok += [('arctan2', bool(((np.abs(t) <= math.pi) | np.isnan(t)).all())),
                ('hypot', bool(((h >= np.fmax(np.abs(y), np.abs(x))) | np.isnan(h)).all()))]
-    report.check('every value in its range', all(v for _n, v in ok), ', '.join(n for n, v in ok if not v) or '8 functions')
+    report.check('every value in its range', all(v for _n, v in ok), ', '.join(n for n, v in ok if not v) or '9 functions')
 
 
 def test_the_tables_are_their_tools(report):
