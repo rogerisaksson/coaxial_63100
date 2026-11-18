@@ -132,8 +132,9 @@ void wbc_pass_tick(wbc_tick_t *t, double dt, double now, double wo, double limp)
   const double k_to = t->field->st[t->field->k_to], k_from = t->field->st[t->field->k_from];
   const double k = (k_from > k_to) ? k_from : k_to;
   const double striding = t->field->a[t->imp->a_strides] * npclip(t->field->out[t->field->held_out], 0.0, 1.0);
-  const double stood0 = t->field->a[t->imp->a_stance] * striding;
-  const double stood1 = t->field->a[t->imp->a_stance + 1] * striding;
+  const double st0 = t->field->a[t->imp->a_stance], st1 = t->field->a[t->imp->a_stance + 1];
+  const double stood0 = (st0 * (1.0 - st1)) * striding;
+  const double stood1 = (st1 * (1.0 - st0)) * striding;
   double       left;
 
   t->surety = ys;

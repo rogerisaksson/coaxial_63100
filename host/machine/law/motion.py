@@ -345,8 +345,9 @@ def drives_twin(g, dt):
     drv = 1.0 - (1.0 - ys) ** 3
     wo_s = wo * drv
     striding = float(g['a'][modal.STRIDES]) * min(max(float(g['out'][latent.HELD]), 0.0), 1.0)
-    stood0 = float(g['a'][modal.STANCE][0]) * striding
-    stood1 = float(g['a'][modal.STANCE][1]) * striding
+    st0, st1 = float(g['a'][modal.STANCE][0]), float(g['a'][modal.STANCE][1])
+    stood0 = (st0 * (1.0 - st1)) * striding
+    stood1 = (st1 * (1.0 - st0)) * striding
     in_hop = int(axial_k(g['st']) > HOP_K)
     step(ctypes.byref(p), dt, wo_s, wo_s ** 3, drv, stood0, stood1, in_hop, 1)
     # a setpoint within its drive's range (the manifest's): asked compression 4.0 the pattern's
