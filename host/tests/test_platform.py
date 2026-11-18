@@ -9,7 +9,7 @@ its Fortran's auxiliaries take the platform's runtime) and MuJoCo's compiler tur
 its fromto, zaxis or euler (by the platform's atan2, sin and cos: a right angle's half UCRT's 0.7071067811865476,
 glibc's ...475 - one XML, two models), each held to the digests its class laid (LIBM, NUMPY, BLAS, LAPACKS, TURNS: by
 system and processor, numpy's target for a function, OpenBLAS's kernels). A class none laid is told with its
-digests, to be laid; an x86-64 under the relay is held to the desk's kernels and paths (`tools.dev.arithmetic`).
+digests, to be laid; an x86-64 under the relay is held to the desk's numpy paths (`tools.dev.arithmetic`).
 Where two machines part - a walk that falls on one and stands on the other - this says which layer and which
 function parts, its work a second's."""
 import hashlib
@@ -285,16 +285,14 @@ def test_the_robots_qp_in_c(report):
 
 
 def test_an_x86_is_held_to_the_desks_arithmetic(report):
-    """Under the relay an x86-64 runs OpenBLAS's Haswell kernels where it can and no numpy path past X86_V3
-    (`tools.dev.arithmetic`): GitHub's AVX-512 runners' own kernels parted their walks from the desk's."""
+    """Under the relay an x86-64 runs no numpy path past X86_V3 (`tools.dev.arithmetic`); its OpenBLAS kernels its own
+    pick, told - its products and LAPACK held by them above."""
     from tools.dev import arithmetic
-    held = arithmetic.held()
-    if not held:
+    if platform.machine().lower() not in arithmetic.X86:
         report.check('not an x86-64 (%s): its own arithmetic, held to its class' % _class(), True)
         return
-    kernels, wider = _kernels(), sorted(set(_targets().values()) & set(arithmetic.WIDER))
-    report.check("an x86-64's OpenBLAS runs the desk's kernels and numpy no path past X86_V3",
-                 kernels == held.get('OPENBLAS_CORETYPE', kernels) and not wider, 'kernels %s, wider paths %s' % (kernels, wider))
+    wider = sorted(set(_targets().values()) & set(arithmetic.WIDER))
+    report.check("an x86-64's numpy runs no path past X86_V3", not wider, 'wider paths %s, OpenBLAS %s' % (wider, _kernels()))
 
 
 ROSTER = (test_basic_operations_and_square_root_alike, test_the_platforms_libm, test_numpys_float64_functions,
