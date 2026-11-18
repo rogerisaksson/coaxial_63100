@@ -22,16 +22,26 @@ from tools.dev import background, census
 from tools.dev.focus import LEDGER, POLL_S, RESERVE_GB, _Locked, booked, queued, tally, waiting
 
 
+def short(gb, room):
+    """What a request that waits says beside its cores where the commit is what it waits for: `gb` asked of the
+    `room` free over what is owed and the reserve (None: untold); '' where the commit holds it. A container waited
+    153 s for 2 cores with 6 free: 5.0 GB of commit was asked, 3.5 free."""
+    if room is None or room >= gb:
+        return ''
+    return ', short of commit (%.1f GB asked, %.1f free over the reserve)' % (gb, room)
+
+
 class reserved:
     """`cores` of the machine and `gb` of its commit booked as `name` in the ledger while the block runs, waited for
     till they fit: the width (`background.widths`, or `width`) less what is taken and what the wide requests waiting
     since before it wait for (`focus.queued`: its turn kept, theirs left), and the free commit (measured, or `free`)
     less what is owed and RESERVE_GB; asked again every POLL_S, `wait_s` at most (None: as long as it takes) -
-    `path` the booking, None where it never fit, `waited` the seconds it took."""
+    `path` the booking, None where it never fit, `waited` the seconds it took; `say` told once, where the request
+    must wait, what for (`short`)."""
 
-    def __init__(self, cores, gb, name, ledger=LEDGER, width=None, wait_s=None, free=None):
+    def __init__(self, cores, gb, name, ledger=LEDGER, width=None, wait_s=None, free=None, say=None):
         self.cores, self.gb, self.name, self.ledger = cores, gb, name, ledger
-        self.width, self.wait_s, self.free = width, wait_s, free
+        self.width, self.wait_s, self.free, self.say = width, wait_s, free, say
         self.path, self.waited = None, 0.0
 
     def __enter__(self):
@@ -42,14 +52,18 @@ class reserved:
                 width = background.widths()[-1] if self.width is None else self.width
                 used, owed, *_rest = tally(self.ledger)
                 free = census.free_commit_gb() if self.free is None else self.free
+                room = None if free is None else free - owed - RESERVE_GB
                 if (used + self.cores + queued(self.ledger, ticket, since) <= width
-                        and (free is None or free - owed - RESERVE_GB >= self.gb)):
+                        and (room is None or room >= self.gb)):
                     self.path = os.path.join(self.ledger, '%d-%s' % (os.getpid(), self.name))
                     booked(self.path, self.gb, None, os.getpid(), self.cores)
                     waiting(ticket, 0)
                     self.waited = time.monotonic() - started
                     return self
-                waiting(ticket, self.cores, since)
+                waiting(ticket, self.cores, since, self.gb)
+            if self.say is not None:
+                self.say('waiting for %d cores%s (run_tests.py --ledger)' % (self.cores, short(self.gb, room)))
+                self.say = None
             if self.wait_s is not None and time.monotonic() - started >= self.wait_s:
                 waiting(ticket, 0)
                 return self
@@ -93,14 +107,16 @@ def clean(ledger=LEDGER, client=None):
     return gone
 
 
-def said(ledger=LEDGER, width=None):
+def said(ledger=LEDGER, width=None, free=None):
     """The machine as the ledger tells it, a line each: its cores, those kept for the desk, the width and what is
-    taken of it; the commit free, owed and reserved; then each relay alive with its tree, jobs and commit, each
-    container with its cores; last the queue - each relay waiting with its jobs, its first wide job and each
-    container with their cores, and how long each has waited."""
+    taken of it; the commit free (measured, or `free`), owed and reserved; then each relay alive with its tree, jobs
+    and commit, each container with its cores; last the queue - each relay waiting with its jobs, its first wide
+    job and each container with their cores, the commit where that is what one waits for (`short`), and how long
+    each has waited."""
     used, owed, _running, cores = tally(ledger)
     width = background.widths()[-1] if width is None else width
-    free = census.free_commit_gb()
+    free = census.free_commit_gb() if free is None else free
+    room = None if free is None else free - owed - RESERVE_GB
     lines = ['machine: %d cores, %d kept for the desk, width %d: %d taken (%d jobs\' processes, %d cores booked by '
              'containers and emulators), %d free' % (census.physical_cores(), background.kept(), width, used,
                                                    used - cores, cores, max(0, width - used)),
@@ -114,9 +130,9 @@ def said(ledger=LEDGER, width=None):
                     if census.alive(held['relay']):
                         what = name.split('-', 2)[2]
                         who = {'jobs': 'relay', 'wide': "a relay's wide job"}.get(what, 'container ' + what)
-                        queue.append('waiting: %s (relay %s): %d %s, %.0f s' % (
+                        queue.append('waiting: %s (relay %s): %d %s%s, %.0f s' % (
                             who, held['relay'], held['count'], 'jobs' if what == 'jobs' else 'cores',
-                            time.time() - held['since']))
+                            short(float(held.get('gb', 0.0)), room), time.time() - held['since']))
                 continue
             if name.startswith('.'):
                 continue

@@ -305,11 +305,11 @@ def main(argv=None):
         if chosen is None:
             return 0
         return _run(args, *chosen)
-    except KeyboardInterrupt:
+    except KeyboardInterrupt as stop:
         # Ctrl+C reaches the child suite too - it is in this process group - so
         # what is left to do here is say so and let the finally release the
-        # model.
-        print('\nstopped - the suites after this point did not run')
+        # model. A relay whose console is gone stops the same way and says why (focus.relay).
+        print('\nstopped%s - the suites after this point did not run' % (': %s' % stop if stop.args else ''))
         return STOPPED
     finally:
         # Every exit path.

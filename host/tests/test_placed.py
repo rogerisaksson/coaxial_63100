@@ -5,12 +5,14 @@ The placement policy is of masks alone: asked here of a host of one cache for al
 fast and slow cores each cluster its own cache, of two memory nodes of two caches each; Linux's sysfs read off a tree
 laid in a folder; and live where this host tells its topology - two of the robot's loops each take a cache group none
 else holds, another process leaves both; a job on the relay is sent its emulator's cores and Renode bound to them
-(`tools.dev.focus.run`, `tools.emu.probes.Cored`)."""
+(`tools.dev.focus.run`, `tools.emu.probes.Cored`), and a relay whose console is gone stops (`tools.dev.focus.relay`)."""
 import json
 import os
+import signal
 import subprocess
 import sys
 import tempfile
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -21,6 +23,16 @@ from gynoid_kit import Report
 CHILD = ('import sys; from machine.process import placed; ok = placed.placed(%s); '
          'print("%%d %%x %%x" %% (ok, placed.now(), placed._MINE[1] if len(placed._MINE) > 1 else 0), flush=True); '
          'sys.stdin.read()')
+#: A relay of two batons over eight jobs that sleep, 'ready' once up and begun on a line of its stdin: each job's
+#: exit code told as the job ends, 'stopped' where the relay is.
+RELAY = ('import sys, tempfile; from tools.dev import focus; print("ready", flush=True); input()\n'
+         'jobs = [focus.Job("j%d" % k, [sys.executable, "-c", "import time; time.sleep(4)"], 0.1, 60.0) for k in range(8)]\n'
+         'try:\n'
+         '    with tempfile.TemporaryDirectory() as folder:\n'
+         '        for _job, _out, code, _took in focus.relay(jobs, batons=2, ledger=folder):\n'
+         '            print("ended %s" % code, flush=True)\n'
+         'except KeyboardInterrupt as stop:\n'
+         '    print("stopped: %s" % stop, flush=True)\n')
 
 
 def _host(cores, threads, caches):
@@ -307,11 +319,36 @@ def test_a_job_is_sent_its_emulator_s_cores(report):
                  % (mine, sent, none, booked, pair, with_sent, with_none, sum(cores)))
 
 
+def test_a_relay_whose_console_is_gone_stops(report):
+    """`focus.relay` begun in a console whose host is then killed, as with who started the relay: the relay ends as
+    stopped, its running jobs killed and none told - the relay ran on before, each job started after ending at once
+    (0xC0000142), 110 suites told red in 11 s (`census.console`; Windows' consoles alone)."""
+    from tools.dev import census, focus
+    if os.name != 'nt':
+        report.check("a relay whose console is gone stops (Windows' consoles alone)", True)
+        return
+    import psutil
+    proc = subprocess.Popen([sys.executable, '-X', 'utf8', '-c', RELAY], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, text=True, env=focus.environment(),
+                            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW'))
+    assert proc.stdin is not None and proc.stdout is not None
+    proc.stdout.readline()                            # up and waiting, a console of its own
+    hosts =[pid for pid in census.Snapshot().kids.get(proc.pid, []) if psutil.Process(pid).name().lower() == 'conhost.exe']
+    proc.stdin.write('\n')
+    proc.stdin.flush()
+    time.sleep(2.0)                                   # two jobs running
+    for pid in hosts:
+        os.kill(pid, signal.SIGTERM)
+    out, _ = proc.communicate(timeout=60)
+    report.check('a relay whose console is gone ends as stopped, its jobs killed, none told as ended',
+                 len(hosts) == 1 and 'stopped' in out and 'ended' not in out, '%d hosts: %r' % (len(hosts), out[-300:]))
+
+
 ROSTER = (test_the_robots_loop_takes_a_cache_of_its_own_on_hosts_of_other_shapes,
           test_each_process_takes_a_core_of_its_own_on_hosts_of_other_shapes, test_a_batch_binds_its_jobs_each_to_a_core,
           test_linux_tells_its_topology_in_sysfs, test_a_container_s_processors_are_its_cpuset,
           test_two_loops_take_each_a_cache_and_another_process_leaves_both,
-          test_a_job_is_sent_its_emulator_s_cores)
+          test_a_job_is_sent_its_emulator_s_cores, test_a_relay_whose_console_is_gone_stops)
 
 
 def main(argv=None):

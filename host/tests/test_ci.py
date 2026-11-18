@@ -66,13 +66,19 @@ def test_a_tail_tells_the_runner_s_work(report):
 def test_a_job_cut_at_its_time_says_where_it_was(report):
     """`focus.run` in the relay's environment (`focus.environment`) on a job printing and then held past its
     time: what it printed comes back, not lost in a pipe's buffer - test_sight cut at 300 s on the runner
-    said nothing -, on POSIX with its threads' stacks; its code None."""
+    said nothing -, on POSIX with its threads' stacks; its code None. The job's tree goes with it: a grandchild in
+    a session of its own that ignores SIGABRT, the job's pipe in hand, held the baton its whole life."""
     from tools.dev import focus
     job = focus.Job('held', [sys.executable, '-c', "print('-- held --'); import time; time.sleep(60)"], timeout=3.0)
     out, code, took = focus.run(job, focus.environment())
     report.check('a job cut at its time: what it printed and its code None, at its time',
                  '-- held --' in out and code is None and took < 30.0, '%r %r %.1f s' % (out[:80], code, took))
     report.check('on POSIX its stacks with it', ('most recent call first' in out) == (os.name != 'nt'), out[-200:])
+    grand = "import signal, time; signal.signal(signal.SIGABRT, signal.SIG_IGN); print('grand', flush=True); time.sleep(60)"
+    child = 'import subprocess, sys, time; subprocess.Popen([sys.executable, "-c", %r], start_new_session=True); time.sleep(60)'
+    out, code, took = focus.run(focus.Job('tree', [sys.executable, '-c', child % grand], timeout=3.0), focus.environment())
+    report.check('a job cut at its time takes its tree with it, its baton free at its time (25 s for 3 before)',
+                 'grand' in out and code is None and took < 30.0, '%r %r %.1f s' % (out[:80], code, took))
 
 
 def test_the_red_suites_lead_those_that_run_first(report):
@@ -284,6 +290,12 @@ def test_a_wide_request_keeps_its_turn(report):
             beside = fits.path is not None
         ages = sorted(float(line.rsplit(', ', 1)[1].split()[0]) for line in ledger.said(folder, width=8)
                       if line.startswith(("waiting: a relay's wide job", 'waiting: container linux-3.12')))
+        focus.waiting(box, 2, now - 50.0, 2.5)
+        heard = [line for line in ledger.said(folder, width=8, free=3.5) if 'linux-3.12' in line]
+        with ledger.reserved(2, 2.5, 'linux-3.14', ledger=folder, width=64, wait_s=0, free=3.5, say=heard.append):
+            pass
+    report.check('a request the commit holds back says so, in the view and to who waits: 2.5 GB asked, 1.0 free',
+                 len(heard) == 2 and all('short of commit (2.5 GB asked, 1.0 free' in line for line in heard), heard)
     report.check("the wide requests' cores told - a relay's count of jobs and a dead owner's out -, one's own and the "
                  'later left out; a container asking after them takes no room they wait for, and its cores where the '
                  'width holds both; the view tells their ages',

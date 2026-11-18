@@ -61,13 +61,21 @@ SENT = 'COAXIAL_RENODE'
 SHARD_RE = re.compile(r'^(\d+)/(\d+)$')
 
 
-def kill_tree(pid):
-    """The process and every descendant, gone."""
+def kill_tree(pid, known=None):
+    """The process and every descendant, gone. Windows': by a taskkill in a console of its own - started in one
+    that answers no more (`census.console`) the taskkill ended at once. Elsewhere the group by its own id, its
+    leader reaped or not, then the live of `known` - its tree read before its leader went (`last_words`), read now
+    where none is given - with what they started: a child in a session of its own is no member of the group, and
+    an orphan is init's."""
     if os.name == 'nt':
-        subprocess.run(['taskkill', '/F', '/T', '/PID', str(pid)], capture_output=True)
+        subprocess.run(['taskkill', '/F', '/T', '/PID', str(pid)], capture_output=True,
+                       creationflags=getattr(subprocess, 'CREATE_NO_WINDOW'))
         return
     with suppress(OSError):
-        os.killpg(os.getpgid(pid), signal.SIGKILL)
+        os.killpg(pid, signal.SIGKILL)
+    for each in census.Snapshot().tree([pid] if known is None else known):
+        with suppress(OSError):
+            os.kill(each, signal.SIGKILL)
 
 
 #: A job out of time: its Python processes' stacks said this long before its tree is killed, s.
@@ -76,13 +84,16 @@ SAY_S = 10.0
 
 def last_words(proc):
     """(stdout, stderr) of `proc` out of time, its tree killed: on POSIX each Python process of its
-    group says its threads' stacks first (faulthandler on SIGABRT), SAY_S s at the most."""
+    group says its threads' stacks first (faulthandler on SIGABRT), SAY_S s at the most, its tree read before - a
+    grandchild in a session of its own, the job's pipe in hand, held a baton 25 s past a limit of 3."""
+    known = None
     if os.name != 'nt':
+        known = census.Snapshot().tree([proc.pid])
         with suppress(OSError):
             os.killpg(proc.pid, signal.SIGABRT)
         with suppress(subprocess.TimeoutExpired):
             proc.wait(timeout=SAY_S)
-    kill_tree(proc.pid)
+    kill_tree(proc.pid, known)
     return proc.communicate()
 
 
@@ -137,17 +148,17 @@ def booked(path, gb, pid=None, owner=None, cores=0):
     os.replace(part, path)
 
 
-def waiting(path, count=0, since=None):
+def waiting(path, count=0, since=None, gb=0.0):
     """A ticket in the ledger beside the bookings while a relay or a container waits for room - `count` jobs or
-    cores, waiting since `since` (now where none is told: laid anew at every poll, a ticket read 0 s for ever) -,
-    gone when `count` is 0: the queue as `tools.dev.ledger.said` lists it (`.wait-<relay>-<name>`)."""
+    cores and `gb` of commit, waiting since `since` (now where none is told: laid anew at every poll, a ticket read
+    0 s for ever) -, gone when `count` is 0: the queue as `tools.dev.ledger.said` lists it (`.wait-<relay>-<name>`)."""
     if not count:
         with suppress(OSError):
             os.remove(path)
         return
     with suppress(OSError):
         with open(path + '.part', 'w', encoding='utf-8') as f:
-            json.dump({'relay': os.getpid(), 'count': count, 'since': since or time.time()}, f)
+            json.dump({'relay': os.getpid(), 'count': count, 'since': since or time.time(), 'gb': gb}, f)
         os.replace(path + '.part', path)
 
 
@@ -318,8 +329,10 @@ def relay(jobs, batons=None, bench=False, ledger=LEDGER):
     from its start and `placed.BENCH` set for every process of the robot's own it starts (`placed.raised`),
     its wall times less at the mercy of the host's other loads - a runner has none, its jobs run as they are.
     `ledger` the machine's, or a folder of its own for a relay that asks nothing of the machine (a test's).
-    (job, output, exit code - None out of time -, seconds) as each ends."""
-    bench = bench and not background.runner()
+    (job, output, exit code - None out of time -, seconds) as each ends. A relay whose console answers no more
+    (`census.console`: who started the relay stopped it) ends as stopped, KeyboardInterrupt, its jobs' trees
+    killed and none told: every job started after ended at once, 110 suites burnt as red in 11 s."""
+    bench, console = bench and not background.runner(), census.console()
     waiting = collections.deque(jobs)
     count = len(waiting)
     held = {'running': 0, 'locks': set(), 'n': 0, 'asked': 0.0, 'idle': 0.0, 'since': 0.0}
@@ -376,12 +389,13 @@ def relay(jobs, batons=None, bench=False, ledger=LEDGER):
                         # The tickets: the jobs that wait, since the relay last took one; its first wide job's
                         # cores, since that job came first - the next one's turn begins when the first has gone.
                         held['idle'] = 0.0 if job else held['idle'] or time.time()
-                        ticket(tickets[0], 0 if job else len(waiting), held['idle'])
+                        ticket(tickets[0], 0 if job else len(waiting), held['idle'],
+                               min((j.gb for j in waiting), default=0.0))
                         if job is wide:
                             held['since'] = 0.0
                         wide = next((j for j in waiting if j.cores > 1), None)
                         held['since'] = (held['since'] or time.time()) if wide else 0.0
-                        ticket(tickets[1], min(wide.cores, width) if wide else 0, held['since'])
+                        ticket(tickets[1], min(wide.cores, width) if wide else 0, held['since'], wide.gb if wide else 0.0)
                     if job is not None:
                         return job, path
                     held['asked'] = time.monotonic()
@@ -411,7 +425,13 @@ def relay(jobs, batons=None, bench=False, ledger=LEDGER):
         threading.Thread(target=baton, name='baton', daemon=True).start()
     try:
         for _ in range(count):
-            yield ended.get()
+            got = None
+            while got is None:
+                with suppress(queue.Empty):
+                    got = ended.get(timeout=POLL_S)
+                if console and not census.console():
+                    raise KeyboardInterrupt("the relay's console is gone: who started the relay stopped it")
+            yield got
     finally:
         with turn:
             waiting.clear()

@@ -351,10 +351,11 @@ def main(argv=None):
         say('linux: Python %s, %s, processors %s (%d cores, %d threads), %s' % (
             minor, tag, ','.join(str(c) for c in range(cpus.bit_length()) if cpus >> c & 1),
             held_cores, bin(cpus).count('1'), MEMORY))
-        # its cores booked in the machine's ledger beside every relay's jobs, waited for while the machine is taken
-        with ledger.reserved(held_cores, BOOKED_GB, 'linux-%s' % minor) as booking:
+        # its cores booked in the machine's ledger beside every relay's jobs, waited for while the machine is taken:
+        # what it waits for said as it begins to - silent, it waited for commit as long as none was let go
+        with ledger.reserved(held_cores, BOOKED_GB, 'linux-%s' % minor, say=lambda what: say('linux: ' + what)) as booking:
             if booking.waited >= ledger.POLL_S:
-                say('linux: waited %.0f s for %d cores of the machine (run_tests.py --ledger)' % (booking.waited, held_cores))
+                say('linux: waited %.0f s for the machine' % booking.waited)
             codes[minor] = ran(client, tag, info, cpus, relayed, say, checkout, name)
 
     jobs = [threading.Thread(target=one, args=(minor, tag, sets[k] if side else sets[0]), daemon=True)

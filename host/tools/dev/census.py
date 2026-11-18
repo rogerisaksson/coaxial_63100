@@ -2,6 +2,7 @@
 
     census.physical_cores(), census.threads()     # the machine's - a container's, its own
     census.free_commit_gb()                       # the commit charge still free (Windows)
+    census.console()                              # whether this process's console answers (Windows)
     census.alive(pid)                             # whether the process lives
     taken = census.Snapshot()                     # every process and its parent, read once
     taken.tree(pids, own)                         # the live processes in the trees `pids` root, less `own`'s
@@ -72,6 +73,13 @@ def free_commit_gb():
     if not ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
         return None
     return status.commit_free / 2 ** 30
+
+
+def console():
+    """Whether this process has a console that answers (Windows': its code page told): begun in one, a process
+    lives on when the console's host is killed - with who started the process -, and each process started in that
+    console after ends at once, 0xC0000142. False with none, and off Windows."""
+    return os.name == 'nt' and bool(ctypes.windll.kernel32.GetConsoleCP())
 
 
 def alive(pid):
