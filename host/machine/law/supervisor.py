@@ -19,6 +19,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.body import drives
 from machine.stack import wbc
 from machine.errors import MachineError
@@ -96,7 +97,7 @@ def _formed(k):
 
 def low_pass(hz, rate):
     """(b, a): a second-order Butterworth low-pass at `hz` on samples `rate` Hz apart, bilinear, prewarped."""
-    c = math.tan(math.pi * hz / rate)
+    c = libm.tan(math.pi * hz / rate)
     norm = 1.0 / (1.0 + math.sqrt(2.0) * c + c * c)
     b0 = c * c * norm
     return (b0, 2.0 * b0, b0), (2.0 * (c * c - 1.0) * norm, (1.0 - math.sqrt(2.0) * c + c * c) * norm)
@@ -106,7 +107,7 @@ def high_pass(hz, rate):
     """(b, a): a second-order Butterworth high-pass at `hz` on samples `rate` Hz apart, bilinear, prewarped.
     A window of one band-pass biquad (Q 0.5 about 14.5 Hz) let the robot's stride's 1.8 Hz through at -12 dB:
     its walk's own 4.5 W, the tank at its floor in 2.6 s of it."""
-    c = math.tan(math.pi * hz / rate)
+    c = libm.tan(math.pi * hz / rate)
     norm = 1.0 / (1.0 + math.sqrt(2.0) * c + c * c)
     return (norm, -2.0 * norm, norm), (2.0 * (c * c - 1.0) * norm, (1.0 - math.sqrt(2.0) * c + c * c) * norm)
 
@@ -130,7 +131,7 @@ def constants(rate):
                lp_b=lp_b, lp_a=lp_a,
                period_s=1.0 / lo, reversals=detector['max-consecutive-reversals'],
                trip_w=detector['trigger-power-threshold-watts'], inject=violation['damping-injection-gain'],
-               rollback=10.0 ** (violation['stiffness-rollback-db'] / 20.0), recover_s=1e-3 * violation['recovery-release-ms'])
+               rollback=libm.power(10.0, violation['stiffness-rollback-db'] / 20.0), recover_s=1e-3 * violation['recovery-release-ms'])
 
 
 #: The bus's arrays laid once, kept by a reset.

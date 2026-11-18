@@ -2,6 +2,7 @@
     the null space of the levels above (Goldfarb and Idnani), the drives' loads through their
     rods. */
 #include "wbc_solve.h"
+#include "wbc_libm_arc.h"
 
 #include <math.h>
 #include <string.h>
@@ -192,7 +193,7 @@ void wbc_turn_error(const double want[4], const double have[4], double out[3])
   s = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
   for (int k = 0; k < 3; k++)
   {
-    out[k] = (s > 1e-12) ? v[k] * (2.0 * atan2(s, w) / s) : 2.0 * v[k];
+    out[k] = (s > 1e-12) ? v[k] * (2.0 * wbc_arctan2(s, w) / s) : 2.0 * v[k];
   }
 }
 

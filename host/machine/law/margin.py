@@ -16,6 +16,7 @@ of it, no further than their floors.
 """
 import math
 
+from machine import libm
 from machine.texts import kernel
 
 _PROBE = kernel.node('monitor-discrete-phase-margin', 'phase-margin')
@@ -23,6 +24,8 @@ _PROBE = kernel.node('monitor-discrete-phase-margin', 'phase-margin')
 HZ = tuple(_PROBE['probe-frequencies-hz'])
 WINDOW_S = 1e-3 * _PROBE['demod-window-ms']
 MARGIN_DEG = _PROBE['min-phase-margin-deg']
+#: ln 10, the robot's libm's: a gain in dB is 20 log(gain) / LN10.
+LN10 = libm.log(10.0)
 #: A frequency's turn, s: its leak settled to e^-6 of a step.
 DWELL_S = 6.0 * WINDOW_S
 #: The floors K_d and gamma are rolled back to.
@@ -44,7 +47,7 @@ def _turn(t):
 
 def injected(probe, t, amps):
     """The probe's sine at `t` s, `amps` N m, at the frequency whose turn it is."""
-    return amps * math.sin(2.0 * math.pi * HZ[_turn(t)] * t)
+    return amps * libm.sin(2.0 * math.pi * HZ[_turn(t)] * t)
 
 
 def step(probe, u, c, t, dt):
@@ -55,7 +58,7 @@ def step(probe, u, c, t, dt):
         probe['taken'][probe['turn']] = (complex(*probe['u']), complex(*probe['c']))
         probe['u'], probe['c'], probe['turn'] = [0.0, 0.0], [0.0, 0.0], k
     leak, w = min(1.0, dt / WINDOW_S), 2.0 * math.pi * HZ[k] * t
-    co, si = math.cos(w), -math.sin(w)
+    co, si = libm.cos(w), -libm.sin(w)
     for p, x in ((probe['u'], u), (probe['c'], c)):
         p[0] += leak * (x * co - p[0])
         p[1] += leak * (x * si - p[1])
@@ -66,8 +69,8 @@ def read(probe):
     out = []
     for f, got in zip(HZ, probe['taken']):
         L = -got[1] / got[0] if got and abs(got[0]) > 0.0 else complex(0.0)
-        phase = math.degrees(math.atan2(L.imag, L.real))
-        out.append({'hz': f, 'gain_db': 20.0 * math.log10(max(abs(L), 1e-300)), 'phase_deg': phase,
+        phase = math.degrees(libm.arctan2(L.imag, L.real))
+        out.append({'hz': f, 'gain_db': 20.0 * libm.log(max(abs(L), 1e-300)) / LN10, 'phase_deg': phase,
                     'margin_deg': 180.0 + phase if phase <= 0.0 else phase - 180.0})
     return out
 

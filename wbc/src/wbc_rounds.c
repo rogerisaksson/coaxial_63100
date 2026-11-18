@@ -4,6 +4,7 @@
 #include "wbc_np.h"
 #include "wbc_qp.h"
 #include "wbc_step.h"
+#include "wbc_libm_arc.h"
 
 #include <math.h>
 #include <string.h>
@@ -252,7 +253,7 @@ static int bounds(const wbc_step_t *p, const wbc_geo_t *g, const double *bears, 
   {
     const int    fy = p->nu0 + 3 * i + 1, f[2] = {p->nu0 + 3 * i, p->nu0 + 3 * i + 2};
     const double sliding = g->slips[3 * i], sv[2] = {g->slips[3 * i + 1], g->slips[3 * i + 2]};
-    const double den = pymax(hypot(sv[0], sv[1]), 1e-12);
+    const double den = pymax(wbc_hypot(sv[0], sv[1]), 1e-12);
     const double top = pressed[i] != 0.0 ? pymax(pymin(bears[i] + p->grow_n, g->caps[i]) * g->give, 0.0) : 0.0;
     /* sliding, its push no less than grow_n under what it bears: its kinetic friction given, not shed in a pass */
     const double low =

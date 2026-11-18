@@ -12,6 +12,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.body.compile import G_M_S2 as G
 from machine.law.poise import TINY, clip
 from machine.law.stride import EDGE_RAD, UP
@@ -47,7 +48,7 @@ def vaults(legs, v, shod, along, propped, pressed, axial_m, hips_by, low, high, 
     la = legs[0][:, :2] @ along
     free = -axial_m * hips_by * pressed
     stretch = free + clip(hold, 0.0, 1.0) * (np.minimum(free, (np.sqrt(2.0 * G * np.maximum(full - legs[1], 0.0)) - legs[2]) / dt) - free)
-    arc = ((legs[2] ** 2 - ((v - shod) ** 2).sum(axis=1) - np.maximum(la, (1.0 - propped) * la)
+    arc = ((legs[2] * legs[2] - (libm.sq(v - shod)).sum(axis=1) - np.maximum(la, (1.0 - propped) * la)
             + legs[1] * stretch) / np.maximum(legs[0][:, UP], low))
     held = kp * (reach + duck[0] * hips_by - high) + kd * (duck[1] * hips_by - hips_by * v[UP])
     return arc + striding * push * clip(heeled / EDGE_RAD, 0.0, 1.0) * (held - arc)

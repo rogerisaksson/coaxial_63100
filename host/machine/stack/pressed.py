@@ -8,6 +8,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.senses.borne import CARPAL, LET
 from machine.stack.rounds import NU
 from machine.stack.wbc import CONTACT_K, SLIDE_M_S
@@ -49,7 +50,7 @@ def patch(cs, idx, nu, full, full0, v, slide, pin, palmed=False, hold=(0.0, 0.0)
         let = let * (1.0 - float(np.asarray(hold, float)[int(c.get('side', 0))]))
         body = (c.get('patch', 0) < CARPAL) | (c.get('patch', 0) >= LET)
         way = jv[[0, 2]]
-        sliding = float(body & (np.hypot(way[0], way[1]) > SLIDE_M_S) & (way @ said > 0.0))
+        sliding = float(body & (libm.hypot(way[0], way[1]) > SLIDE_M_S) & (way @ said > 0.0))
         freed = max(sliding, float(let), float(body & palmed & (pin == 0.0) & (said @ said > 0.0)))
         mix = (1.0 - freed) * _EYE3 + freed * np.outer(_UP, _UP)
         left = -c['dJv'] - c['J'] @ full0

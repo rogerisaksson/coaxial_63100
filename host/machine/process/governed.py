@@ -5,6 +5,7 @@
 import functools
 import math
 
+from machine import libm
 from machine.process import gaits, sprung
 
 
@@ -60,7 +61,7 @@ def govern_twist(g, gym, dt):
     a_accel, dwz_wind = 2.0 * a_brake, 2.0 * se2.WALK_HZ * se2.YAW_RATE * mu
     dwz_unwind = 2.0 * dwz_wind
     h = float(g['heading'])
-    vxp = max(0.0, float(g['est']['vel'][0]) * math.sin(h) + float(g['est']['vel'][2]) * math.cos(h))
+    vxp = max(0.0, float(g['est']['vel'][0]) * libm.sin(h) + float(g['est']['vel'][2]) * libm.cos(h))
     fast = abs(az) > still_wz and (vx > se2.MARCH_FROM or ae == 'jog' or g.get('_jog_until', 0.0) > g['t'])
     wz_goal = 0.0 if fast else az
     vx_goal = se2.WALK_SPEED if (fast or (ax > se2.WALK_SPEED and abs(wz) > still_wz)) else ax

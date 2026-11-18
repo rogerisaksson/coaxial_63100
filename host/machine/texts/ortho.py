@@ -89,7 +89,7 @@ _UNIT = re.compile(r'(-?\d+(?:\.\d+)?)(ms|s|Hz|deg)')
 _SCALE = {'ms': ('s', 1e-3), 's': ('s', 1.0), 'Hz': ('Hz', 1.0), 'deg': ('rad', math.pi / 180.0)}
 #: A text's time goes as the root of the robot's build's leg, its rate as its inverse root
 #: (`machine.body.gait`).
-_SIMILAR = {'s': gait.SIMILAR ** 0.5, 'Hz': gait.SIMILAR ** -0.5, 'rad': 1.0}
+_SIMILAR = {'s': math.sqrt(gait.SIMILAR), 'Hz': 1.0 / math.sqrt(gait.SIMILAR), 'rad': 1.0}
 _WANTS = {'s': 'ms or s', 'Hz': 'Hz', 'rad': 'deg'}
 _MODE = {'mode_' + m: (i,) for i, m in enumerate(MODES)}
 _SPRUNG = {**_MODE, 'global': tuple(range(N))}

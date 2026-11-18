@@ -18,13 +18,13 @@ and the trunk's turns, a swinging sole and each sole's centre of pressure inside
 forces - and each drive within its clamp (soft). Each level's tie-break is the levels below.
 """
 import importlib
-import math
 import os
 
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.body import drives, gait, linkage
 from machine.body.compile import G_M_S2 as G
 from machine.stack import qp
@@ -107,7 +107,7 @@ def turn_error(want, have):
     if w < 0.0:
         w, v = -w, -v
     s = float(np.linalg.norm(v))
-    return v * (2.0 * math.atan2(s, w) / s) if s > 1e-12 else 2.0 * v
+    return v * (2.0 * libm.arctan2(s, w) / s) if s > 1e-12 else 2.0 * v
 
 
 class Body:
@@ -317,8 +317,8 @@ def _held(b, s, ask, stance):
         stop[np.arange(len(dof)), dof] = 1.0
         stop[len(dof) + np.arange(len(dof)), dof] = -1.0
         Gs.append(stop)
-        hs.append(np.concatenate([2.0 * (b.stop_hi - STOP_RAD - ahead) / LIMIT_S ** 2,
-                                  -2.0 * (b.stop_lo + STOP_RAD - ahead) / LIMIT_S ** 2]))
+        hs.append(np.concatenate([2.0 * (b.stop_hi - STOP_RAD - ahead) / (LIMIT_S * LIMIT_S),
+                                  -2.0 * (b.stop_lo + STOP_RAD - ahead) / (LIMIT_S * LIMIT_S)]))
     return (np.vstack(E), np.concatenate(e), np.vstack(Gs), np.concatenate(hs), T, t0, Th, th,
             nominal)
 

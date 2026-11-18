@@ -4,6 +4,7 @@
 #include "wbc_imp.h"
 #include "wbc_stride.h"
 #include "wbc_np.h"
+#include "wbc_libm_arc.h"
 
 #include <math.h>
 #include <stddef.h>
@@ -40,8 +41,8 @@ double wbc_imp_under(const wbc_imp_t *k, const double *y, const double *fr, cons
 
   wbc_imp_shares(k, stance, bears);
   wbc_imp_pitched(k, fr + k->f_ground, pitched);
-  pitched[0] = -tan(pitched[0]);
-  pitched[1] = -tan(pitched[1]);
+  pitched[0] = -wbc_tan(pitched[0]);
+  pitched[1] = -wbc_tan(pitched[1]);
   rise = wbc_dot(&k->blas, bears, 1, pitched, 1, 2);
   {
     double d[2][2], under[2];
@@ -103,9 +104,9 @@ void wbc_imp_reading(const wbc_imp_t *k, const double *y, const double *fr, cons
   wbc_mv(&k->blas, spin, 2, 3, rot + 6, spun[2]);
   for (int b = 0; b < 2; b++)
   {
-    turn[0][b] = atan2(up_a[b], up[b][1]);
-    turn[1][b] = atan2(left[b][1], left_l[b]);
-    turn[2][b] = atan2(on_l[b], on_a[b]);
+    turn[0][b] = wbc_arctan2(up_a[b], up[b][1]);
+    turn[1][b] = wbc_arctan2(left[b][1], left_l[b]);
+    turn[2][b] = wbc_arctan2(on_l[b], on_a[b]);
   }
   wbc_mm3(&k->blas, &dp[0][0], 2, rot, 1, &place[0][0]);
   wbc_mm3(&k->blas, &dsp[0][0], 2, rot, 1, &speed[0][0]);
@@ -114,7 +115,7 @@ void wbc_imp_reading(const wbc_imp_t *k, const double *y, const double *fr, cons
   for (int b = 0; b < 2; b++)
   {
     const double t = y[k->y_tilt + b];
-    const double spoke[3] = {sin(t), 0.0 * t, cos(t)}, inward[3] = {cos(t), 0.0 * t, -sin(t)};
+    const double spoke[3] = {wbc_sin(t), 0.0 * t, wbc_cos(t)}, inward[3] = {wbc_cos(t), 0.0 * t, -wbc_sin(t)};
     double       sq[3], pr[3];
 
     for (int i = 0; i < 3; i++)
@@ -178,16 +179,16 @@ void wbc_imp_beat(const wbc_imp_t *k, double drive, double psi, double sway, dou
   double waits[2], held[2];
 
   *stepping = npmax(npclip(fabs(drive) / k->stirs, 0.0, 1.0), need);
-  *way = 1.0 - 2.0 * (double)(sin(lateral - psi) * copysign(1.0, sway) < -k->back);
+  *way = 1.0 - 2.0 * (double)(wbc_sin(lateral - psi) * copysign(1.0, sway) < -k->back);
   for (int b = 0; b < 2; b++)
   {
     const double side = ((-k->limbs[b]) * copysign(1.0, drive)) * *way;
 
-    const double s = sin(psi) * cos(split[b]) + cos(psi) * sin(split[b]);
-    const double c = cos(psi) * cos(split[b]) - sin(psi) * sin(split[b]);
+    const double s = wbc_sin(psi) * wbc_cos(split[b]) + wbc_cos(psi) * wbc_sin(split[b]);
+    const double c = wbc_cos(psi) * wbc_cos(split[b]) - wbc_sin(psi) * wbc_sin(split[b]);
 
     sweep[b] = side * s;
-    phi[b] = atan2(side * s, side * c);
+    phi[b] = wbc_arctan2(side * s, side * c);
     u[b] = npclip((0.5 * (phi[b] / phi_w + 1.0) - begun[b]) / (1.0 - begun[b]) + lead[b], 0.0, 1.0);
   }
   for (int b = 0; b < 2; b++)
@@ -225,7 +226,7 @@ void wbc_imp_hurried(const wbc_imp_t *k, const double aside[2], double om, const
 {
   for (int b = 0; b < 2; b++)
   {
-    const double due = log(npmax(k->reach_m / npmax(aside[b], k->tiny), 1.0)) / om;
+    const double due = wbc_log(npmax(k->reach_m / npmax(aside[b], k->tiny), 1.0)) / om;
 
     hurry[b] = npmax(1.0, (1.0 - u[b]) / (npmax(rate[b], k->tiny) * npmax(due, sqrt(6.0 / kp[b]))));
   }
@@ -233,7 +234,7 @@ void wbc_imp_hurried(const wbc_imp_t *k, const double aside[2], double om, const
 
 double wbc_imp_cruises(const wbc_imp_t *k, double way, double drive, double turns, double going, double phi_w)
 {
-  const double cruise = ((((way * 2.0) / PI) * k->stride_m) * fabs(drive)) * sin(phi_w) * turns;
+  const double cruise = ((((way * 2.0) / PI) * k->stride_m) * fabs(drive)) * wbc_sin(phi_w) * turns;
 
   return npclip(cruise, going - k->ahead_m_s, going + k->ahead_m_s);
 }
@@ -242,7 +243,7 @@ void wbc_imp_meets(const wbc_imp_t *k, const double xi[2], const double c[3], co
                    double cruise, double om, double turns, double wide, double across, double reach,
                    double apart, const double planted[2], double meet[2][2])
 {
-  const double step_s = PI / npmax(turns, k->tiny), grown = exp(om * step_s);
+  const double step_s = PI / npmax(turns, k->tiny), grown = wbc_exp(om * step_s);
   const double led = k->leads * npmax((xi[0] - c[0]) - cruise / om, -0.04), s_ac = npsign(across);
   const double led_lat = s_ac * npclip(s_ac * (xi[1] - c[1]) - (1.35 * fabs(across)) / om, -0.052, 0.042);
   const double w_side = npclip((fabs(across) - 0.07) / 0.03, 0.0, 1.0);
@@ -257,9 +258,9 @@ void wbc_imp_meets(const wbc_imp_t *k, const double xi[2], const double c[3], co
      * (machine.law.stride.meets) */
     meet[b][0] = c[0] + npclip(m0 - c[0], -reach, reach);
     {
-      const double side = flat[1 - b][1] + (flat[1 - b][0] - meet[b][0]) * tan(planted[1 - b]);
+      const double side = flat[1 - b][1] + (flat[1 - b][0] - meet[b][0]) * wbc_tan(planted[1 - b]);
 
-      meet[b][1] = side + k->limbs[b] * npmax(k->limbs[b] * (m1 - side), span / cos(planted[1 - b]));
+      meet[b][1] = side + k->limbs[b] * npmax(k->limbs[b] * (m1 - side), span / wbc_cos(planted[1 - b]));
     }
   }
 }
@@ -273,10 +274,10 @@ void wbc_imp_guarded(const wbc_imp_t *k, const double meet[2][2], const double o
     const double overlap = npclip(1.0 - fabs(flat[b][0] - flat[1 - b][0]) / (2.0 * k->half_m), 0.0, 1.0);
     const double floor_ = apart + (k->apart_m - apart) * overlap;
     /* the other sole's side as it was planted (machine.law.stride.guarded) */
-    const double side = flat[1 - b][1] + (flat[1 - b][0] - t0) * tan(planted[1 - b]);
+    const double side = flat[1 - b][1] + (flat[1 - b][0] - t0) * wbc_tan(planted[1 - b]);
 
     held[b][0] = t0;
-    held[b][1] = t1 + k->limbs[b] * npmax(floor_ / cos(planted[1 - b]) - k->limbs[b] * (t1 - side), 0.0);
+    held[b][1] = t1 + k->limbs[b] * npmax(floor_ / wbc_cos(planted[1 - b]) - k->limbs[b] * (t1 - side), 0.0);
   }
 }
 
@@ -317,7 +318,7 @@ void wbc_imp_folds(const wbc_imp_t *k, const double off[2], const double loads[2
   for (int b = 0; b < 2; b++)
   {
     fold[b] = (k->fold_rad * off[b]) * (1.0 - loads[b] / npmax(sum, k->tiny));
-    shorter[b] = k->leg_m * (cos(0.5 * bent) - cos(0.5 * (bent + fold[b])));
+    shorter[b] = k->leg_m * (wbc_cos(0.5 * bent) - wbc_cos(0.5 * (bent + fold[b])));
   }
 }
 
@@ -340,16 +341,16 @@ void wbc_imp_heels(const wbc_imp_t *k, const double place[2][3], const double ti
   wbc_imp_pitched(k, ground, pitched);
   for (int b = 0; b < 2; b++)
   {
-    const double spoke[3] = {sin(tilt[b]), 0.0 * tilt[b], cos(tilt[b])};
-    const double inward[3] = {cos(tilt[b]), 0.0 * tilt[b], -sin(tilt[b])};
+    const double spoke[3] = {wbc_sin(tilt[b]), 0.0 * tilt[b], wbc_cos(tilt[b])};
+    const double inward[3] = {wbc_cos(tilt[b]), 0.0 * tilt[b], -wbc_sin(tilt[b])};
     const double ball0 = place[b][0] + k->half_m * inward[0], ball1 = place[b][2] + k->half_m * inward[2];
     const double hip = hips[b] - ball0, high = (((floors[b] + k->ankle_h) + leg) - k->dip_m) - ball1;
-    const double lever = hypot(hip * k->ball - high * k->ankle_h, hip * k->ankle_h + high * k->ball);
+    const double lever = wbc_hypot(hip * k->ball - high * k->ankle_h, hip * k->ankle_h + high * k->ball);
     const double reach = leg - shorter[b];
     const double cosine = ((((reach * reach - hip * hip) - high * high) - k->ball * k->ball) - k->ankle_h * k->ankle_h)
                           / (2.0 * lever);
-    const double need = npclip(atan2(-(hip * k->ankle_h + high * k->ball), hip * k->ball - high * k->ankle_h)
-                               + acos(npclip(cosine, -1.0, 1.0)), 0.0, k->heel_rad)
+    const double need = npclip(wbc_arctan2(-(hip * k->ankle_h + high * k->ball), hip * k->ball - high * k->ankle_h)
+                               + wbc_arccos(npclip(cosine, -1.0, 1.0)), 0.0, k->heel_rad)
                         * npclip(hip / k->ball, 0.0, 1.0);
     const double lean = tilt[b] - pitched[b];
     double       sign;
@@ -366,9 +367,9 @@ void wbc_imp_heels(const wbc_imp_t *k, const double place[2][3], const double ti
     }
     /* the hip's height over the floor the leg reaches with its heel up as its length needs (stride.heels) */
     {
-      const double ankle_x = (hip + k->ball * cos(need)) - k->ankle_h * sin(need);
+      const double ankle_x = (hip + k->ball * wbc_cos(need)) - k->ankle_h * wbc_sin(need);
 
-      reach_h[b] = (((ball1 - floors[b]) + k->ball * sin(need)) + k->ankle_h * cos(need))
+      reach_h[b] = (((ball1 - floors[b]) + k->ball * wbc_sin(need)) + k->ankle_h * wbc_cos(need))
                    + sqrt(npmax(reach * reach - ankle_x * ankle_x, 0.0));
     }
   }
@@ -422,15 +423,15 @@ void wbc_imp_clears(const wbc_imp_t *k, const double u[2], const double flying[2
     const double down = npmax(tip[b], tilt[b]), toes = k->half_m + k->toe_m * e00;
 
     clear[0][b] = (((((high[b] * flying[b]) * e00) * e01) - k->reach_m_s * late[b]) + (land[b] * flying[b]) * (1.0 - e01))
-                  + flying[b] * (k->half_m * npmax(-sin(tip[b]), 0.0) + toes * npmax(sin(down), 0.0));
+                  + flying[b] * (k->half_m * npmax(-wbc_sin(tip[b]), 0.0) + toes * npmax(wbc_sin(down), 0.0));
     clear[1][b] = (((((high[b] * flying[b]) * (e10 * e01 + e00 * e11)) * swung[b]) - k->reach_m_s * (double)(late[b] > 0.0))
                    - ((land[b] * flying[b]) * e11) * swung[b])
-                  + ((flying[b] * ((-k->half_m) * (double)(tip[b] < 0.0) + toes * (double)(tip[b] > 0.0))) * cos(tip[b]))
+                  + ((flying[b] * ((-k->half_m) * (double)(tip[b] < 0.0) + toes * (double)(tip[b] > 0.0))) * wbc_cos(tip[b]))
                     * tipping[b]
-                  + (((flying[b] * k->toe_m) * e10) * swung[b]) * npmax(sin(down), 0.0);
+                  + (((flying[b] * k->toe_m) * e10) * swung[b]) * npmax(wbc_sin(down), 0.0);
     clear[2][b] = ((((high[b] * flying[b]) * (e20 * e01 + e00 * e21)) * (swung[b] * swung[b]))
                    - ((land[b] * flying[b]) * e21) * (swung[b] * swung[b]))
-                  + (((flying[b] * k->toe_m) * e20) * (swung[b] * swung[b])) * npmax(sin(down), 0.0);
+                  + (((flying[b] * k->toe_m) * e20) * (swung[b] * swung[b])) * npmax(wbc_sin(down), 0.0);
   }
 }
 

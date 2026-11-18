@@ -35,6 +35,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.texts import kernel
 from machine.eyes import stacked
 from machine.eyes.gimbal import DOWN_DEG, EYES
@@ -69,10 +70,10 @@ SLOT = (('on', 'f8', ()), ('kind', 'i4', ()), ('centre', 'f8', (3,)), ('half', '
         ('clear', 'f8', ()))
 #: The robot's eyes' half angles' tangents, up and across; their look down its head's z, rad; their axis and
 #: their up in its head's frame.
-TAN_UP = math.tan(math.radians(FOVY_DEG) / 2.0)
+TAN_UP = libm.tan(math.radians(FOVY_DEG) / 2.0)
 TAN_ACROSS = TAN_UP * W / H
 DOWN = math.radians(DOWN_DEG)
-AXIS, UP = np.array([0.0, -math.sin(DOWN), math.cos(DOWN)]), np.array([0.0, math.cos(DOWN), math.sin(DOWN)])
+AXIS, UP = np.array([0.0, -libm.sin(DOWN), libm.cos(DOWN)]), np.array([0.0, libm.cos(DOWN), libm.sin(DOWN)])
 
 
 def laid(twin=False):
@@ -153,7 +154,7 @@ def seen_of(centre, half, R, eye, turn):
 def _w2(centre, half, at, halves, scale):
     """(n, m) the Wasserstein metric squared of each thing (`centre`, `half` (n, 3)) to each slot (`at`, `halves`
     (m, 3)), over the variances `scale` (m,)."""
-    d, h = (at - centre[:, None]) ** 2, (halves - half[:, None]) ** 2
+    d, h = libm.sq(at - centre[:, None]), libm.sq(halves - half[:, None])
     # a sum over 3 in order, as .sum(2) adds it, without its reduction's setup on a 3-long axis
     return ((d[..., 0] + d[..., 1] + d[..., 2]) + (h[..., 0] + h[..., 1] + h[..., 2])) / scale
 
@@ -328,7 +329,7 @@ def boxed(slots, least=TAKEN):
     r, kinds = slots['rows'], slots['kinds']
     taken = np.flatnonzero((r['on'] > 0.0) & (r['salience'] >= least))
     wake = np.array([kinds[i] == 'door' for i in taken], float) * r['shown'][taken]
-    swell = r['swell'][taken] + sight.LOOK_S * wake * np.hypot(r['vel'][taken, 0], r['vel'][taken, 2])
+    swell = r['swell'][taken] + sight.LOOK_S * wake * libm.hypot(r['vel'][taken, 0], r['vel'][taken, 2])
     return ([kinds[i] for i in taken], r['centre'][taken], r['half'][taken], r['R'][taken], taken.tolist(),
             r['clear'][taken].tolist(), swell.tolist())
 

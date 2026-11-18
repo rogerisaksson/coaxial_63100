@@ -22,6 +22,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.law import rocker
 from machine.moves import leap
 from machine.texts import ortho
@@ -176,7 +177,7 @@ def pitched(y, rot):
     """The pelvis's and the trunk's pitch along the robot's way, rad (2,): `_turns`' first row alone."""
     w, x, j, k = y[QUAT].reshape(2, 4).T
     up = np.stack([2.0 * (x * j - w * k), 1.0 - 2.0 * (x * x + k * k), 2.0 * (j * k + w * x)], axis=1)
-    return np.arctan2(up @ rot[ALONG], up[:, 1])
+    return libm.arctan2(up @ rot[ALONG], up[:, 1])
 
 
 def _turns(y, rot):
@@ -186,15 +187,15 @@ def _turns(y, rot):
     left = np.stack([1.0 - 2.0 * (j * j + k * k), 2.0 * (x * j + w * k), 2.0 * (x * k - w * j)], axis=1)
     on = np.stack([2.0 * (x * k + w * j), 2.0 * (j * k - w * x), 1.0 - 2.0 * (x * x + j * j)], axis=1)
     spin = y[SPIN].reshape(2, 3)
-    return (np.stack([pitched(y, rot), np.arctan2(left[:, 1], left @ rot[LEFT]),
-                      np.arctan2(on @ rot[LEFT], on @ rot[ALONG])]),
+    return (np.stack([pitched(y, rot), libm.arctan2(left[:, 1], left @ rot[LEFT]),
+                      libm.arctan2(on @ rot[LEFT], on @ rot[ALONG])]),
             np.stack([spin @ rot[LEFT], spin @ rot[ALONG], spin @ rot[UP]]))
 
 
 def _turned(yaw, pitch, roll):
     """Quaternions (n, 4): a turn about up, then a pitch about the left, then a roll about
     the way on, rad."""
-    (cy, cp, cr), (sy, sp, sr) = np.cos(0.5 * np.stack([yaw, pitch, roll])), np.sin(0.5 * np.stack([yaw, pitch, roll]))
+    (cy, cp, cr), (sy, sp, sr) = libm.cos(0.5 * np.stack([yaw, pitch, roll])), libm.sin(0.5 * np.stack([yaw, pitch, roll]))
     return np.stack([cy * cp * cr + sy * sp * sr, cy * sp * cr + sy * cp * sr,
                      sy * cp * cr - cy * sp * sr, cy * cp * sr - sy * sp * cr], axis=1)
 
@@ -210,8 +211,8 @@ def _legs(y, rot):
 def _leg(y, rot):
     """`_legs`'s first: each leg, its hip from its ankle in the robot's way's frame (2, 3)."""
     tilt = y[TILT]
-    spoke = np.stack([np.sin(tilt), 0.0 * tilt, np.cos(tilt)], axis=1)
-    inward = np.stack([np.cos(tilt), 0.0 * tilt, -np.sin(tilt)], axis=1)
+    spoke = np.stack([libm.sin(tilt), 0.0 * tilt, libm.cos(tilt)], axis=1)
+    inward = np.stack([libm.cos(tilt), 0.0 * tilt, -libm.sin(tilt)], axis=1)
     return (y[HIP].reshape(2, 3) - y[SOLE].reshape(2, 3)) @ rot.T - ANKLE_H * spoke + leap.MIDDLE * inward
 
 
@@ -221,7 +222,7 @@ def under(y, fr, stance):
     half `stride.EDGE_RAD`. Read level, each swing up a 10 deg ramp came down on it early, 0.05
     to 0.09 m behind the robot's centre of mass, and it ran on to 1.7 m/s and fell at 5.1 s."""
     bears = (stance + TINY) / (stance.sum() + 2.0 * TINY)
-    rise = bears @ -np.tan(rocker.pitched(fr[GROUND]))
+    rise = bears @ -libm.tan(rocker.pitched(fr[GROUND]))
     return fr[FLOOR] + rise * ((y[SOLE].reshape(2, 3)[:, [0, 2]] - fr[FLOOR_AT]) @ fr[ROT][[0, 2]]), rise
 
 
@@ -274,7 +275,7 @@ def sensed(s, loads, y):
     y[HIP], y[ARM], y[ELBOW] = np.ravel(s['hips']), s['arms'], s['elbows']
     y[PROP], y[PROP_LO], y[PROP_HI] = s.get('prop', (0.0, 0.0, 0.0))
     y[PALMS] = s.get('palms', (0.0, 0.0))
-    y[TILT] = [np.arcsin(clip(-f['R'][1, 2], -1.0, 1.0)) for f in feet]
+    y[TILT] = [libm.arcsin(clip(-f['R'][1, 2], -1.0, 1.0)) for f in feet]
     y[TILT_RATE] = [(f['J6'][:3] @ s['v']) @ f['R'][:, 0] for f in feet]
     y[VHEAD], y[HQUAT], y[HSPIN] = head['v'], head['quat'], head['w']
     return y
@@ -288,8 +289,8 @@ def seat(y, fr, pose):
     leg = _legs(y, rot)[0]
     knee = FLEX[1] * pose[CHAIN[:, 1]]
     high = np.sqrt(leg[:, UP] * leg[:, UP] + leg[:, LEFT] * leg[:, LEFT])
-    behind = np.sqrt(np.maximum(SHANK * SHANK + THIGH * THIGH + 2.0 * SHANK * THIGH * np.cos(knee) - high * high, 0.0))
-    lean = np.arctan2(-behind, high) + np.arctan2(THIGH * np.sin(knee), SHANK + THIGH * np.cos(knee))
+    behind = np.sqrt(np.maximum(SHANK * SHANK + THIGH * THIGH + 2.0 * SHANK * THIGH * libm.cos(knee) - high * high, 0.0))
+    lean = libm.arctan2(-behind, high) + libm.arctan2(THIGH * libm.sin(knee), SHANK + THIGH * libm.cos(knee))
     return np.stack([FLEX[0] * (knee - lean + pitched(y, rot)[0]), FLEX[1] * knee, FLEX[2] * lean], axis=1)
 
 
@@ -314,7 +315,7 @@ def poses(a, y, fr, posture, bend, arms, reaches, folds, knees, w, clear=0.0):
     pose[CHAIN] += w[ISCHIAL] * (seat(y, fr, pose) - pose[CHAIN])
     dorsal = a[BORNE] * clip((-a[WANT][1] - 0.35) / (0.85 - 0.35), 0.0, 1.0)
     headed = (1.0 - dorsal) * a[HEADED] + dorsal * (0.5 * np.pi / 0.6) * a[HEADED][0]
-    rolled = (1.0 - dorsal) * a[ROLLED] * (np.cos(headed) ** 2)
+    rolled = (1.0 - dorsal) * a[ROLLED] * (libm.sq(libm.cos(headed)))
     turns = _turned(fr[HEADING] + headed, a[WANT], rolled)
     tips = _turned(fr[HEADING] + 0.0 * a[TIPPED], a[TIPPED], 0.0 * a[TIPPED])
     return sw_at, pose, turns, tips

@@ -3,6 +3,7 @@
     host's alone. */
 #include "wbc_imp.h"
 #include "wbc_np.h"
+#include "wbc_libm_arc.h"
 
 #include <math.h>
 
@@ -15,7 +16,7 @@ void wbc_imp_poses(const wbc_imp_t *k, const double *out, const double *y, const
                    const double rates[3][2], const double up[2], const double folds[2], double still)
 {
   const double *sway = out + k->o_sway, *psi = out + k->o_psi, *mom = y + k->y_moment, *rot = fr + k->f_rot;
-  const double  turn_dc = s->ref[k->turn] - sway[k->turn] * sin(psi[k->turn]);
+  const double  turn_dc = s->ref[k->turn] - sway[k->turn] * wbc_sin(psi[k->turn]);
   const int     by[3] = {k->pitch, k->list, k->turn}, at[3] = {k->a_want, k->a_rolled, k->a_headed};
   const double  knee = fr[k->f_knee], yawed = out[k->o_yawed];
   double        bent, cosine, wh[3], spun[3][2];
@@ -59,8 +60,8 @@ void wbc_imp_poses(const wbc_imp_t *k, const double *out, const double *y, const
   a[k->a_reached] = k->arm_rad * (s->ref[k->reach] + (s->acc[k->reach] + k->posture_kd[1] * s->rate[k->reach]) / k->posture_kd[0]);
   a[k->a_elbowed] = k->arm_rad * (s->ref[k->elbows] + (s->acc[k->elbows] + k->posture_kd[1] * s->rate[k->elbows]) / k->posture_kd[0]);
   bent = z[k->axial] + npclip(s->ref[k->axial] - z[k->axial], -k->ahead, k->ahead);
-  cosine = cos(0.5 * knee) - ((k->axial_m * bent) * fr[k->f_hips_by]) / k->leg_m;
-  a[k->a_bend] = 2.0 * acos(npclip(cosine, -1.0, 1.0)) - knee;
+  cosine = wbc_cos(0.5 * knee) - ((k->axial_m * bent) * fr[k->f_hips_by]) / k->leg_m;
+  a[k->a_bend] = 2.0 * wbc_arccos(npclip(cosine, -1.0, 1.0)) - knee;
   /* the bend's rate: the told height's, where the rows let the robot's soles go */
   a[k->a_bend_rate] = ((((((2.0 * k->axial_m) * fr[k->f_hips_by]) * s->rate[k->axial]) * (double)(fabs(cosine) < 1.0))
                         / k->leg_m)
@@ -68,10 +69,10 @@ void wbc_imp_poses(const wbc_imp_t *k, const double *out, const double *y, const
                       * (1.0 - npclip(out[k->o_held], 0.0, 1.0));
   for (int b = 0; b < 2; b++)
   {
-    const double shorter = npclip(cos(0.5 * (knee + a[k->a_bend])) - (k->clear_m * npmax(up[b], 0.0)) / k->leg_m,
+    const double shorter = npclip(wbc_cos(0.5 * (knee + a[k->a_bend])) - (k->clear_m * npmax(up[b], 0.0)) / k->leg_m,
                                   -1.0, 1.0);
 
-    a[k->a_fold + b] = ((2.0 * acos(shorter)) - knee) - a[k->a_bend];
+    a[k->a_fold + b] = ((2.0 * wbc_arccos(shorter)) - knee) - a[k->a_bend];
     a[k->a_fold_rate + b] = (((((2.0 * k->clear_m) * k->limbs[b]) * s->rate[k->lift]) * (double)(up[b] > 0.0)) / k->leg_m)
                             / sqrt(npmax(1.0 - shorter * shorter, k->tiny));
     a[k->a_folds + b] = folds[b];

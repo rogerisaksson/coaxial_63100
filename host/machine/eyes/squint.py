@@ -18,6 +18,7 @@ robot's pushrods' play, it moves as the robot's pictures show it and no further.
 """
 import math
 
+from machine import libm
 from machine.eyes import epipolar, gimbal
 from machine.eyes.stereo import H, W, WINDOW, _boxed, _grey, _np, indices
 
@@ -35,9 +36,9 @@ def _vee(R):
     """(3,) the rotation vector of `R` (the log on SO(3))."""
     np = _np()
     c = max(-1.0, min(1.0, (float(np.trace(R)) - 1.0) / 2.0))
-    a = math.acos(c)
+    a = libm.arccos(c)
     v = np.array([R[2, 1] - R[1, 2], R[0, 2] - R[2, 0], R[1, 0] - R[0, 1]])
-    return 0.5 * v if a < 1e-8 else a / (2.0 * math.sin(a)) * v
+    return 0.5 * v if a < 1e-8 else a / (2.0 * libm.sin(a)) * v
 
 
 def _known():
@@ -50,7 +51,7 @@ def _known():
     # (`gimbal.played`)
     play = {s: np.radians(np.asarray(gimbal.PLAY[s])) * abs(gimbal.CHURCH[s]) for s in ('left', 'right')}
     both = np.array([play['left'][1] + play['right'][1], play['left'][0] + play['right'][0], 0.0])
-    return np.diag((sq['left'] + sq['right']) ** 2), np.diag(both ** 2)
+    return np.diag(libm.sq(sq['left'] + sq['right'])), np.diag(both * both)
 
 
 def _rays(at, rows, cols):
@@ -75,7 +76,7 @@ def _smoothed(g, xp=None):
     np = _np()
     xp = xp or np
     r = int(math.ceil(3.0 * SMOOTH))
-    k = np.exp(-0.5 * (np.arange(-r, r + 1) / SMOOTH) ** 2)
+    k = np.exp(-0.5 * libm.sq(np.arange(-r, r + 1) / SMOOTH))
     k = k / k.sum()
     p, rows, out = xp.pad(g, r, mode='edge'), xp.zeros((g.shape[0], g.shape[1] + 2 * r)), xp.zeros(g.shape)
     for i in range(2 * r + 1):
@@ -96,7 +97,7 @@ def matches(laid, a, b, disp, kept):
     gx, gy = xp.zeros_like(gl), xp.zeros_like(gl)
     gx[:, 1:-1], gy[1:-1, :] = (gl[:, 2:] - gl[:, :-2]) / 2.0, (gl[2:, :] - gl[:-2, :]) / 2.0
     sxx, syy, sxy = (_boxed(g, r0, xp) for g in (gx * gx, gy * gy, gx * gy))
-    least = epipolar.host((sxx + syy) / 2.0 - xp.sqrt(((sxx - syy) / 2.0) ** 2 + sxy * sxy))
+    least = epipolar.host((sxx + syy) / 2.0 - xp.sqrt(libm.sq((sxx - syy) / 2.0) + sxy * sxy))
     gl, gr = epipolar.host(gl), epipolar.host(gr)
     rows, cols = indices(np)
     right = cols - np.rint(disp).astype(np.int64)

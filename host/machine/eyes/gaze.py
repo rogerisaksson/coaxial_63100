@@ -22,6 +22,7 @@ target (`fix`) and lead ground (`_ahead`) before `rest`.
 """
 import math
 
+from machine import libm
 from machine.eyes import gimbal, registry
 from machine.senses import inekf
 from machine.eyes.epipolar import F
@@ -31,7 +32,7 @@ from machine.eyes.voxels import FAR_M, NEAR_M
 
 #: The robot's eyes' reach, rad: across either way, and down past their rest from up - a person's eyes'; its
 #: vergence's, from parallel to NEAR_M's (`voxels.NEAR_M`, 0.7 m: what it matches no nearer, 9.8 deg).
-YAW, PITCH, VERGE = math.radians(50.0), (math.radians(-25.0), math.radians(35.0)), 2.0 * math.atan(BASELINE_M / 2.0 / 0.7)
+YAW, PITCH, VERGE = math.radians(50.0), (math.radians(-25.0), math.radians(35.0)), 2.0 * libm.arctan(BASELINE_M / 2.0 / 0.7)
 #: A servo's pace, rad/s: an ordinary one's, 60 deg in 0.1 s.
 RATE = math.radians(60.0) / 0.1
 #: A saccade's time: the main sequence's, s and s a degree (a person's); the robot's vergence's lag, s.
@@ -42,7 +43,7 @@ REST = (0.0, 0.0, 0.0)
 #: HIT a look to its TAKEN.
 HELD = math.ceil(registry.TAKEN / registry.HIT)
 #: The robot's view's half across and half up, rad (`stereo.W`, `stereo.H`, `epipolar.F`).
-HALF = (math.atan(W / 2.0 / F), math.atan(H / 2.0 / F))
+HALF = (libm.arctan(W / 2.0 / F), libm.arctan(H / 2.0 / F))
 #: What the robot explores: the world round it in bearings a view's half apart, two rows - at rest and a
 #: view's half down past it -, each a look's fixation FAR_M off (`voxels.FAR_M`, its map's reach) till a look
 #: has shown it.
@@ -75,9 +76,9 @@ def _bearings(head, point):
     np = _np()
     R = _frame(head['quat'])
     d = R.T @ (np.asarray(point, float) - np.asarray(head['pos'], float)) - np.asarray(EYES, float)
-    across = [math.atan2(d[0] + dx, d[2]) for dx in (0.0, BASELINE_M)]
+    across = [libm.arctan2(d[0] + dx, d[2]) for dx in (0.0, BASELINE_M)]
     diff = math.remainder(across[1] - across[0], math.tau)
-    down = math.atan2(-d[1], math.hypot(d[0] + BASELINE_M / 2.0, d[2])) - math.radians(DOWN_DEG)
+    down = libm.arctan2(-d[1], math.hypot(d[0] + BASELINE_M / 2.0, d[2])) - math.radians(DOWN_DEG)
     return math.remainder(across[0] + 0.5 * diff, math.tau), down, diff
 
 
@@ -97,7 +98,7 @@ def _reached(head, point, told=None):
 def _heading(head):
     """rad: the robot's `head`'s bearing across the floor, the world's (its z's)."""
     R = _frame(head['quat'])
-    return math.atan2(R[0, 2], R[2, 2])
+    return libm.arctan2(R[0, 2], R[2, 2])
 
 
 def _shown(head, sector):
@@ -106,7 +107,7 @@ def _shown(head, sector):
     np = _np()
     down = math.radians(DOWN_DEG) + sector[1]
     eye = np.asarray(head['pos'], float) + _frame(head['quat']) @ np.asarray(EYES, float)
-    return eye + FAR_M * np.array([math.sin(sector[0]) * math.cos(down), -math.sin(down), math.cos(sector[0]) * math.cos(down)])
+    return eye + FAR_M * np.array([libm.sin(sector[0]) * libm.cos(down), -libm.sin(down), libm.cos(sector[0]) * libm.cos(down)])
 
 
 def _head(g):
@@ -194,11 +195,11 @@ def _anchored(g):
     from machine.eyes.sight import LOOK_S
     head, T = _head(g), HELD * LOOK_S
     vx, vy, wz = (float(v) for v in g.get('twist', (0.0, 0.0, 0.0)))
-    a = (math.atan2(float(g['inekf']['R'][0, 2]), float(g['inekf']['R'][2, 2])) if g.get('eyes') and 'inekf' in g
+    a = (libm.arctan2(float(g['inekf']['R'][0, 2]), float(g['inekf']['R'][2, 2])) if g.get('eyes') and 'inekf' in g
          else (float(g['heading']) if 'heading' in g else _heading(head)))
     b = a + wz * T
     # the robot's heading's sine and cosine walked over T: a turn's arc, or a line
-    sn, cs = ((math.cos(a) - math.cos(b)) / wz, (math.sin(b) - math.sin(a)) / wz) if abs(wz) * T > 1e-9 else (math.sin(a) * T, math.cos(a) * T)
+    sn, cs = ((libm.cos(a) - libm.cos(b)) / wz, (libm.sin(b) - libm.sin(a)) / wz) if abs(wz) * T > 1e-9 else (libm.sin(a) * T, libm.cos(a) * T)
     p = (float(head['pos'][0]) + vx * sn + vy * cs, _floor(g),
          float(head['pos'][2]) + vx * cs - vy * sn)
     if _reached(head, p):
@@ -210,7 +211,7 @@ def _anchored(g):
     a_c, down = max(-0.95 * YAW, min(0.95 * YAW, a_c)), math.radians(DOWN_DEG) + 0.95 * PITCH[1]
     R = _frame(head['quat'])
     mid = np.asarray(head['pos'], float) + R @ (np.asarray(EYES, float) - np.array([0.5 * BASELINE_M, 0.0, 0.0]))
-    ray = R @ np.array([math.sin(a_c) * math.cos(down), -math.sin(down), math.cos(a_c) * math.cos(down)])
+    ray = R @ np.array([libm.sin(a_c) * libm.cos(down), -libm.sin(down), libm.cos(a_c) * libm.cos(down)])
     dist = (float(mid[1]) - _floor(g)) / max(-float(ray[1]), 0.25)
     q = tuple(map(float, mid + min(FAR_M, max(NEAR_M + 0.35, dist)) * ray))
     return q if _reached(head, q) else None
@@ -307,7 +308,7 @@ def moved(g):
     else:
         reach = RATE * dt
         turn = tuple(a + max(-reach, min(reach, b - a)) for a, b in zip(at[:2], aim[:2]))
-    verge = aim[2] + (at[2] - aim[2]) * math.exp(-dt / TAU)
+    verge = aim[2] + (at[2] - aim[2]) * libm.exp(-dt / TAU)
     st['on'] = t >= st['t0'] + st['T'] and all(abs(a - b) <= RATE * dt for a, b in zip(turn, aim[:2]))
     st['at'], st['t'] = turn + (verge,), t
     return st['at']

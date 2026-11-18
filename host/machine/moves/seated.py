@@ -14,6 +14,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.body import figure
 from machine.moves import leap
 from machine.law import modal, poise
@@ -68,21 +69,21 @@ def axial(knee, modes, body):
     the robot's posture bends its knees for it (`posed.posed`), a leg's mass off the robot's own
     (`statics.frame`)."""
     hips_by = body['mass'] / (body['mass'] - modes['mode_limb_lift'][3])
-    return ((math.cos(0.5 * math.radians(body['knee'])) - math.cos(0.5 * knee)) * (figure.THIGH + figure.SHANK)
+    return ((libm.cos(0.5 * math.radians(body['knee'])) - libm.cos(0.5 * knee)) * (figure.THIGH + figure.SHANK)
             / (modes['mode_axial_compression'][0] * hips_by))
 
 
 def knee(hips, ankle):
     """The knee's bend, rad, the robot's hip joints `hips` m over the floor at, the ankle `ankle` bent."""
-    rise = (hips - figure.ANKLE_H - figure.SHANK * math.cos(ankle)) / figure.THIGH
-    return ankle + math.acos(max(-1.0, min(1.0, rise)))
+    rise = (hips - figure.ANKLE_H - figure.SHANK * libm.cos(ankle)) / figure.THIGH
+    return ankle + libm.arccos(max(-1.0, min(1.0, rise)))
 
 
 def hips(knee, ankle):
     """The robot's hip joint's place over its ankle, (ahead, up) m, its knee and ankle bent `knee`,
     `ankle`."""
-    return (figure.SHANK * math.sin(ankle) - figure.THIGH * math.sin(knee - ankle),
-            figure.SHANK * math.cos(ankle) + figure.THIGH * math.cos(knee - ankle))
+    return (figure.SHANK * libm.sin(ankle) - figure.THIGH * libm.sin(knee - ankle),
+            figure.SHANK * libm.cos(ankle) + figure.THIGH * libm.cos(knee - ankle))
 
 
 def posed(knee, ankle, trunk):
@@ -100,7 +101,7 @@ def sagittal(p, knee, ankle, trunk):
     """A point `p` of the robot's `posed` (its pelvis's frame, its pelvis at its origin turned
     `trunk` forward) as (ahead of the robot's ankles, up off the floor), m."""
     hx, hy = hips(knee, ankle)
-    return (p[2] + figure.HIP_DROP * math.sin(trunk) + hx, p[1] + figure.HIP_DROP * math.cos(trunk) + hy + figure.ANKLE_H)
+    return (p[2] + figure.HIP_DROP * libm.sin(trunk) + hx, p[1] + figure.HIP_DROP * libm.cos(trunk) + hy + figure.ANKLE_H)
 
 
 def ahead(knee, ankle, trunk):
@@ -123,12 +124,12 @@ def clear(knee, ankle, edge, top):
     the robot's knee and ankle bent `knee`, `ankle` - negative, in it: the robot's thigh's capsules (THIGHS)
     in its sagittal plane, the edge a line across it."""
     hx, hy = hips(knee, ankle)
-    ux, uy = (figure.SHANK * math.sin(ankle) - hx) / figure.THIGH, (figure.SHANK * math.cos(ankle) - hy) / figure.THIGH
+    ux, uy = (figure.SHANK * libm.sin(ankle) - hx) / figure.THIGH, (figure.SHANK * libm.cos(ankle) - hy) / figure.THIGH
     ex, ey = -edge - hx, top - figure.ANKLE_H - hy
     gaps = []
     for r, a, b in THIGHS:
         ax, ay, bx, by = -a[1] * ux - a[2] * uy, -a[1] * uy + a[2] * ux, -b[1] * ux - b[2] * uy, -b[1] * uy + b[2] * ux
-        t = max(0.0, min(1.0, ((ex - ax) * (bx - ax) + (ey - ay) * (by - ay)) / ((bx - ax) ** 2 + (by - ay) ** 2)))
+        t = max(0.0, min(1.0, ((ex - ax) * (bx - ax) + (ey - ay) * (by - ay)) / (libm.sq(bx - ax) + libm.sq(by - ay))))
         gaps.append(math.hypot(ex - ax - t * (bx - ax), ey - ay - t * (by - ay)) - r)
     return min(gaps)
 
@@ -160,8 +161,8 @@ def legs(hips, behind):
     robot's ankles: its leg's two links from the ankle (`figure.SHANK`, `THIGH`), its knee by the
     cosines."""
     up, shank, thigh = hips - figure.ANKLE_H, figure.SHANK, figure.THIGH
-    knee = math.acos(max(-1.0, min(1.0, (behind * behind + up * up - shank * shank - thigh * thigh) / (2.0 * shank * thigh))))
-    return knee, math.atan2(-behind, up) + math.atan2(thigh * math.sin(knee), shank + thigh * math.cos(knee))
+    knee = libm.arccos(max(-1.0, min(1.0, (behind * behind + up * up - shank * shank - thigh * thigh) / (2.0 * shank * thigh))))
+    return knee, libm.arctan2(-behind, up) + libm.arctan2(thigh * libm.sin(knee), shank + thigh * libm.cos(knee))
 
 
 def sat(seat):
@@ -228,7 +229,7 @@ def planted(ahead, modes=None):
 
 def _turned(a, up, ahead):
     """(up, ahead) turned by `a` rad in the robot's sagittal plane, up toward ahead."""
-    return np.cos(a) * up - np.sin(a) * ahead, np.sin(a) * up + np.cos(a) * ahead
+    return libm.cos(a) * up - libm.sin(a) * ahead, libm.sin(a) * up + libm.cos(a) * ahead
 
 
 def fist(shoulder, elbow):
@@ -244,7 +245,7 @@ def _pitch(w, x, j, k, rot):
     """The pitch along the robot's way, rad, of a body's quaternion (w, x, j, k): its up toward the robot's way
     (`modal.pitched`)."""
     up0, up1, up2 = 2.0 * (x * j - w * k), 1.0 - 2.0 * (x * x + k * k), 2.0 * (j * k + w * x)
-    return np.arctan2(up0 * rot[modal.ALONG][0] + up1 * rot[modal.ALONG][1] + up2 * rot[modal.ALONG][2], up1)
+    return libm.arctan2(up0 * rot[modal.ALONG][0] + up1 * rot[modal.ALONG][1] + up2 * rot[modal.ALONG][2], up1)
 
 
 def reach(point, spine, high):
@@ -255,11 +256,11 @@ def reach(point, spine, high):
     at = np.stack(_turned(spine, SHOULDER[0] - HINGE[0], SHOULDER[1] - HINGE[1])) + HINGE
     du, da = _turned(-spine, point[0] - at[0] - high, point[1] - at[1] + 0.0 * high)
     l1, l2 = (np.sqrt(v[0] * v[0] + v[1] * v[1]) for v in LINKS)
-    hang = np.arctan2(LINKS[0][1], LINKS[0][0]) - np.arctan2(LINKS[1][1], LINKS[1][0])
-    elbow = np.arccos(np.clip((du * du + da * da - l1 * l1 - l2 * l2) / (2.0 * l1 * l2), -1.0, 1.0)) - hang
+    hang = libm.arctan2(LINKS[0][1], LINKS[0][0]) - libm.arctan2(LINKS[1][1], LINKS[1][0])
+    elbow = libm.arccos(np.clip((du * du + da * da - l1 * l1 - l2 * l2) / (2.0 * l1 * l2), -1.0, 1.0)) - hang
     vu, va = _turned(-elbow, LINKS[1][0], LINKS[1][1])
-    shoulder = np.arctan2(LINKS[0][1] + va, LINKS[0][0] + vu) - np.arctan2(da, du)
-    return np.arctan2(np.sin(shoulder), np.cos(shoulder)), elbow
+    shoulder = libm.arctan2(LINKS[0][1] + va, LINKS[0][0] + vu) - libm.arctan2(da, du)
+    return libm.arctan2(libm.sin(shoulder), libm.cos(shoulder)), elbow
 
 
 def _at(spine, shoulder, elbow):
@@ -274,7 +275,7 @@ def _at(spine, shoulder, elbow):
 
 #: How far the two links' fist (`fist`, `_at`) is from `figure`'s at worst over the robot's arm's travel, m:
 #: how near a text's point must lie within of the seat to be a fist planted on it (`kept`).
-LEAD = max(float(np.hypot(*(np.array(figure.fist(dict(_HUNG, spine=sp, left_shoulder=sh, left_elbow=el))[1:])
+LEAD = max(float(libm.hypot(*(np.array(figure.fist(dict(_HUNG, spine=sp, left_shoulder=sh, left_elbow=el))[1:])
                               - np.array(_at(math.radians(sp), math.radians(sh), math.radians(el))))))
            for sp in (-30.0, 0.0, 30.0) for sh in (-60.0, -30.0, 0.0, 20.0) for el in (10.0, 50.0, 90.0, 130.0))
 

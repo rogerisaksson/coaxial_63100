@@ -17,6 +17,7 @@ import atexit
 import math
 import weakref
 
+from machine import libm
 from machine.eyes.stereo import BASELINE_M, FOVY_DEG, H, W, _np, indices
 from machine.eyes.voxels import CELL_M, X_M, Z_M
 from machine.eyes import epipolar, gimbal, grids, ground, instances, squint, voxels
@@ -56,7 +57,7 @@ ALPHA = {'glass': 0.7}
 #: smaller than a cell of it - its points every EVERY'th pixel each way - its picture leaves untold,
 #: points.
 VIEW = (32, 24)
-LUMP = (W // VIEW[0]) * (H // VIEW[1]) // EVERY ** 2
+LUMP = (W // VIEW[0]) * (H // VIEW[1]) // (EVERY * EVERY)
 #: Each class's ink for the page, (r, g, b) (`classes`); the classes under and over all else, one region each.
 INK = {'wall': (120, 190, 255), 'window': (160, 235, 255), 'post': (140, 160, 210), 'door': (255, 120, 90),
        'railing': (175, 185, 205), 'roof': (235, 240, 250), 'ceiling': (210, 215, 235), 'floor': (150, 120, 90),
@@ -91,7 +92,7 @@ def lights():
 
 def focal():
     """The focal length, px."""
-    return (H / 2.0) / math.tan(math.radians(FOVY_DEG) / 2.0)
+    return (H / 2.0) / libm.tan(math.radians(FOVY_DEG) / 2.0)
 
 
 def eye_pose(head, turn=None, at=gimbal.EYES):

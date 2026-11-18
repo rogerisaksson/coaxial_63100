@@ -16,6 +16,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.senses import edge
 from machine.body import figure
 
@@ -34,7 +35,7 @@ ABOVE = sorted(set(range(len(edge.SKIN))) - set(SOLES[0] + SOLES[1] + ARMS[0] + 
 #: on as it was told RESUME_S after it is gone; one within ALONG_COS of the robot's going it
 #: walks out. Walking at 0.69 m/s an 80 N shove felled the robot's 5 ways of 8 going on; stopped 0.1 s after
 #: it, 3 - those along the robot's way among them.
-RESUME_S, ALONG_COS = 1.5, math.cos(math.radians(50.0))
+RESUME_S, ALONG_COS = 1.5, libm.cos(math.radians(50.0))
 #: What the robot felt stays a while: its going toward where it pushed the robot from is cut for
 #: FELT_S after.
 FELT_S = 3.0
@@ -105,7 +106,7 @@ def stepped(y_in, vel, y, fr, a, st, out, rest, state, soled, asked, twist, tw_o
     u_s = min(1.0, max(0.0, float(state[U_STAND]) + u_set * (dt / 0.40) - (1.0 - u_act) * (dt / 0.20)))
     state[U_BRAKE], state[U_STAND] = u_b, u_s
     sway, turns, psi = out[latent.SWAY].copy(), float(out[latent.TURNS]), out[latent.PSI]
-    z0 = out[latent.REF] - sway * np.sin(psi)
+    z0 = out[latent.REF] - sway * libm.sin(psi)
     zb = np.zeros(ortho.N)
     zb[modal.AXIAL] = 0.04
     z_new = (1.0 - u_b) * z0 + u_b * (1.0 - u_s) * zb + u_b * u_s * rest[latent.Z]
@@ -116,9 +117,9 @@ def stepped(y_in, vel, y, fr, a, st, out, rest, state, soled, asked, twist, tw_o
     u_drv = min(1.0, max(0.0, float(state[U_DRV]) * (1.0 - w_opp) + (1.0 - u_act) * (dt / 0.65) - u_act * (dt / 0.50)))
     state[U_DRV] = u_drv
     sway_new[modal.DRIVE] = u_drv * float(sway[modal.DRIVE]) + (1.0 - u_drv) * min(float(sway[modal.DRIVE]), 0.04) * (1.0 - u_b)
-    sine_new = sway_new * np.sin(psi)
+    sine_new = sway_new * libm.sin(psi)
     out[latent.REF] = z_new + sine_new
-    out[latent.RATE] = (1.0 - u_b) * (out[latent.RATE] - sway * turns * np.cos(psi)) + sway_new * turns * np.cos(psi)
+    out[latent.RATE] = (1.0 - u_b) * (out[latent.RATE] - sway * turns * libm.cos(psi)) + sway_new * turns * libm.cos(psi)
     # the curve's own acceleration reaches the impedance only with no polygon held (a throw's rows): held, a take's
     # frames 31 ms apart bent 118 sagittal/s^2 and 56 pitch/s^2 of noise and the sit-down take fell seated
     out[latent.ACC] = (1.0 - u_b) * out[latent.BEND] * (1.0 - np.clip(out[latent.HELD], 0.0, 1.0)) - sine_new * turns * turns
@@ -134,7 +135,7 @@ def stepped(y_in, vel, y, fr, a, st, out, rest, state, soled, asked, twist, tw_o
     w_up = np.clip((up - EDGE_M) / 0.004, 0.0, 1.0) * np.maximum(up, 0.0)
     p_arr, s_arr = np.asarray(pushed), np.asarray(sizes)
     w_edge = (np.clip((s_arr - edge.TOUCHED_N) / edge.TOUCHED_N, 0.0, 1.0)
-              * np.clip((np.hypot(p_arr[:, :, 0], p_arr[:, :, 2]) - np.abs(p_arr[:, :, 1])) / edge.TOUCHED_N, 0.0, 1.0)).max(axis=1)
+              * np.clip((libm.hypot(p_arr[:, :, 0], p_arr[:, :, 2]) - np.abs(p_arr[:, :, 1])) / edge.TOUCHED_N, 0.0, 1.0)).max(axis=1)
     a[modal.RAISE] = max(float(a[modal.RAISE]), float((clear * w_edge * w_up).max()))
     unfelt = np.clip(1.0 - s_arr.max(axis=1) / edge.TOUCHED_N, 0.0, 1.0)
     state[CLEAR] = aloft * np.maximum(clear, unfelt)
@@ -170,7 +171,7 @@ def _against(felt, heading, tw):
     ox, oz = felt
     rem = math.hypot(ox, oz)
     w = min(1.0, rem / 0.10)
-    nx, nz, sh, ch = ox / max(rem, 1e-9), oz / max(rem, 1e-9), math.sin(heading), math.cos(heading)
+    nx, nz, sh, ch = ox / max(rem, 1e-9), oz / max(rem, 1e-9), libm.sin(heading), libm.cos(heading)
     cx, cy = sh * nx + ch * nz, ch * nx - sh * nz
     kx = 1.0 - w * (1.0 - min(1.0, max(0.0, (math.copysign(cx, tw[0]) + ALONG_COS) / (1.0 - ALONG_COS))))
     ky = 1.0 - w * (1.0 - min(1.0, max(0.0, (math.copysign(cy, tw[1]) + ALONG_COS) / (1.0 - ALONG_COS))))

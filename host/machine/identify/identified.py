@@ -126,7 +126,7 @@ def _fit(lay, body, Y, tau, ridge):
     D *= unit
     G = D.T @ (rows_.T @ rows_) @ D
     lam = ridge * float(np.sqrt(np.diag(G).mean()))
-    G += lam ** 2 * np.eye(len(moved))
+    G += (lam * lam) * np.eye(len(moved))
     rhs = D.T @ (rows_.T @ left)
     # No mass under KEPT of itself, no drive parameter under none: a bound met is held there
     # and the rest fitted again.

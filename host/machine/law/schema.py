@@ -137,7 +137,7 @@ def shield(d, J, M, v, q, posture, volts, act):
     reach = np.maximum(C * lo, C * hi).sum(1)
     rate = J @ v
     closing = np.maximum(0.0, -rate)
-    h = d - FLOOR - np.minimum(closing ** 2 / (2.0 * np.maximum(reach, 1e-9)), closing * HORIZON)
+    h = d - FLOOR - np.minimum((closing * closing) / (2.0 * np.maximum(reach, 1e-9)), closing * HORIZON)
     want = POSTURE_KD[0] * (posture - q) - POSTURE_KD[1] * v[act]
     return h, -KD * rate - KP * h - J[:, act] @ want
 
@@ -154,7 +154,7 @@ def _shielded(body, near, s, ask, volts):
     rate = J @ s['v']
     reach = braking(J, s['M'], act, s['v'][act], volts)
     closing = np.maximum(0.0, -rate)
-    h = near['d'][which] - FLOOR[which] - np.minimum(closing ** 2 / (2.0 * np.maximum(reach, 1e-9)), closing * HORIZON)
+    h = near['d'][which] - FLOOR[which] - np.minimum((closing * closing) / (2.0 * np.maximum(reach, 1e-9)), closing * HORIZON)
     want = POSTURE_KD[0] * (posture - s['q']) - POSTURE_KD[1] * s['v'][act]
     free = np.flatnonzero(EVADES[which].any(0))
     k, f = len(which), len(free)

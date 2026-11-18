@@ -7,6 +7,8 @@ import bisect
 import itertools
 import math
 
+from machine import libm
+
 #: (twists, m/s and rad/s) a walk, a stop, an arc each way.
 WALK, STOP, LEFT, RIGHT = (0.69, 0.0, 0.0), (0.0, 0.0, 0.0), (0.69, 0.0, 0.7), (0.69, 0.0, -0.7)
 
@@ -243,7 +245,7 @@ def _send_scene(value, state):
 
 def _send_push(value, state):
     yaw = math.radians(state.get('yaw', 180.0))
-    state['body'].send(push=(-value * math.sin(yaw), 0.0, -value * math.cos(yaw)), seconds=0.12)
+    state['body'].send(push=(-value * libm.sin(yaw), 0.0, -value * libm.cos(yaw)), seconds=0.12)
 
 
 def _send_look(value, state):

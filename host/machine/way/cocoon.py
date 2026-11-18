@@ -19,6 +19,7 @@ props its touch's and its situation's.
 """
 import math
 
+from machine import libm
 from machine.body import figure, footprint
 from machine.eyes import classes, registry, voxels
 from machine.law import schema, se2
@@ -86,8 +87,8 @@ def clear_of_rise(g):
     if v <= 1e-6:
         return False
     h = float(g['heading'])
-    d = axes @ np.array([(tw[0] * math.sin(h) + tw[1] * math.cos(h)) / v,
-                         (tw[0] * math.cos(h) - tw[1] * math.sin(h)) / v])
+    d = axes @ np.array([(tw[0] * libm.sin(h) + tw[1] * libm.cos(h)) / v,
+                         (tw[0] * libm.cos(h) - tw[1] * libm.sin(h)) / v])
     return bool((inside & _deeper(o, d, half, off, pad)).any())
 
 
@@ -115,7 +116,7 @@ def _spin_blocked(g, wz, cut=False):
     if carry_m <= 1e-6:
         return False
     h = float(g['heading'])
-    way = ((cf * math.sin(h) + cl * math.cos(h)) / carry_m, (cf * math.cos(h) - cl * math.sin(h)) / carry_m)
+    way = ((cf * libm.sin(h) + cl * libm.cos(h)) / carry_m, (cf * libm.cos(h) - cl * libm.sin(h)) / carry_m)
     need = carry_m + (2.0 * se2.STOP_SPREAD_M if cut else 0.0)
     return not _spared(g, need, things) and need >= _room(g, way, things)
 
@@ -175,7 +176,7 @@ def _way(g, tw, dh=0.0):
     if not (physics.ROOM or g.get('eyes')) or g.get('_errand') or v < 1e-6 or not _seen(g) or _rising(g):
         return None
     h = float(g['heading']) + dh
-    return (tw[0] * math.sin(h) + tw[1] * math.cos(h)) / v, (tw[0] * math.cos(h) - tw[1] * math.sin(h)) / v
+    return (tw[0] * libm.sin(h) + tw[1] * libm.cos(h)) / v, (tw[0] * libm.cos(h) - tw[1] * libm.sin(h)) / v
 
 
 def _arc_room(g, tw, v_ref):

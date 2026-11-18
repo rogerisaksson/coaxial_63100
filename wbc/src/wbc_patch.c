@@ -6,6 +6,7 @@
     felt along it - pinned at w_pin in shares of the robot's weight, as a clipped force is held. */
 #include "wbc_np.h"
 #include "wbc_step.h"
+#include "wbc_libm_arc.h"
 
 #include <math.h>
 
@@ -91,7 +92,7 @@ void wbc_patch_rows(const wbc_step_t *p, int n, int nu, int nc, const double *fu
       way[1] = jv[2];
       said[0] = p->slide[0];
       said[1] = p->slide[2];
-      sliding = (body && hypot(way[0], way[1]) > p->slide_m_s && wbc_dot(l, way, 1, said, 1, 2) > 0.0) ? 1.0 : 0.0;
+      sliding = (body && wbc_hypot(way[0], way[1]) > p->slide_m_s && wbc_dot(l, way, 1, said, 1, 2) > 0.0) ? 1.0 : 0.0;
       freed = pymax(pymax(sliding, (double)let * (1.0 - p->let_hold[let ? p->cpatch[m] / (3 * p->carpal) - 1 : 0])),
                     (body && palmed && pin == 0.0 && wbc_dot(l, said, 1, said, 1, 2) > 0.0) ? 1.0 : 0.0);
       for (int i = 0; i < 3; i++)

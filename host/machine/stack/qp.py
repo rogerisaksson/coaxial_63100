@@ -21,6 +21,8 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
+
 #: A constraint violated by more than TOL (its row unit-norm) is added; a direction or a
 #: multiplier under TINY is none.
 TOL, TINY = 1e-9, 1e-12
@@ -221,7 +223,7 @@ def interior(H, g, A, b, most=60):
         try:
             dx, dl, ds = newton(s * lam, C)
             a = min(reach(s, ds), reach(lam, dl))
-            sigma = (float((s + a * ds) @ (lam + a * dl)) / m / mu) ** 3
+            sigma = libm.cube(float((s + a * ds) @ (lam + a * dl)) / m / mu)
             dx, dl, ds = newton(s * lam + ds * dl - sigma * mu, C)
         except np.linalg.LinAlgError:
             return None, (), np.zeros(0)

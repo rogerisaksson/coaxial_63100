@@ -20,6 +20,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.texts import curves, ortho
 
 N, P = ortho.N, ortho.P
@@ -180,9 +181,9 @@ def step(st, tab, now, dt, out):
     st[THETA] = (st[THETA] + turns * dt) % math.tau
     psi = st[THETA] + p[PHASE]
     sway = p[GAIN] * p[AMP]
-    out[REF] = p[Z] + sway * np.sin(psi)
-    out[RATE] = rate + sway * turns * np.cos(psi)
-    out[ACC] = bend - sway * turns * turns * np.sin(psi)
+    out[REF] = p[Z] + sway * libm.sin(psi)
+    out[RATE] = rate + sway * turns * libm.cos(psi)
+    out[ACC] = bend - sway * turns * turns * libm.sin(psi)
     out[KS], out[DS], out[PSI], out[SWAY] = p[K], p[D], psi, sway
     out[TURNS], out[HELD], out[YAWED] = turns, p[ZMP], p[YAW]
     out[BEND] = bend

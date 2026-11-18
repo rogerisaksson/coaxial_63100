@@ -6,6 +6,7 @@
 import functools
 import math
 import os
+from machine import libm
 from machine.body import mechatronics, peripherals
 from machine.way import planner
 from machine.eyes import camera, vision
@@ -116,7 +117,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
     rest = statics.rest(fr)
     modes_g = gait.table('modes')
     k_g = float(fr[modal.WEIGHT] / fr[modal.H0])
-    k_ax = float(round(modes_g['rest_axial_w'] ** 2 * k_g))
+    k_ax = float(round(libm.sq(modes_g['rest_axial_w']) * k_g))
     k_lat, k_sag = modes_g['rest_lateral_share'] * k_ax, modes_g['rest_sagittal_share'] * k_ax
     d_ax = float(round(2.0 * modes_g['rest_axial_zeta'] * math.sqrt(k_ax * body.mass)))
     d_sag = float(round(2.0 * modes_g['rest_sagittal_zeta'] * math.sqrt(k_sag * body.mass)))
@@ -203,9 +204,9 @@ def relaid(g, where=(0.0, 0.0), yaw=0.0):
     from machine.body import figure
     from machine.law import latent, melt, modal
     world, body, d = g['world'], g['body'], g['world'].data
-    sh, ch = math.sin(yaw), math.cos(yaw)
+    sh, ch = libm.sin(yaw), libm.cos(yaw)
     world.reset(figure.stand(), where=(float(where[0]), g['rest_y'], float(where[1])),
-                turn=(math.cos(0.5 * yaw), 0.0, math.sin(0.5 * yaw), 0.0))
+                turn=(libm.cos(0.5 * yaw), 0.0, libm.sin(0.5 * yaw), 0.0))
     g['est'], g['grip'], g['grip_prior'] = estimate.laid(body, d.qpos[0:3]), grip.laid(), grip.laid()
     from machine.eyes import registry
     g['inekf'], g['registry'], g['things'], g['things_at'] = inekf.laid(d.qpos[0:3], d.qpos[3:7]), registry.laid(), (), -math.inf

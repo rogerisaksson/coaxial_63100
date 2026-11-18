@@ -32,6 +32,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.body import figure
 from machine.eyes.grids import convex, grown, joined as _joined
 from machine.world import room
@@ -121,9 +122,8 @@ class Map:
         at = flat[on]
         np.add.at(self.hits.reshape(-1), at, 1)
         np.maximum.at(self.top.reshape(-1), at, xyz[on, 1])
-        p = xyz[on]
-        np.add.at(self.moments.reshape(-1, 7), at, np.column_stack([np.ones(len(p)), p[:, 0], p[:, 0] ** 2, p[:, 2],
-                                                                    p[:, 2] ** 2, p[:, 1], p[:, 1] ** 2]))
+        x, y, z = xyz[on].T
+        np.add.at(self.moments.reshape(-1, 7), at, np.column_stack([np.ones(len(x)), x, x * x, z, z * z, y, y * y]))
         self.told.reshape(-1)[:] += np.bincount(at, minlength=self.hits.size) >= HITS
         np.add.at(self.colour.reshape(-1, 3), at, rgb[on])
         self.looks, self._made = self.looks + 1, None
@@ -225,7 +225,7 @@ class Map:
         above[:, :-1] = self.free[:, 1:] > 0
         top = occ & ~stood & above
         # sharpened: a voxel held from a top though nothing stands over it, seen through above and its points level
-        level = (self.moments[..., 0] > 0) & (np.sqrt(np.maximum(self.moments[..., 6] / n - mean_y ** 2, 0.0))
+        level = (self.moments[..., 0] > 0) & (np.sqrt(np.maximum(self.moments[..., 6] / n - mean_y * mean_y, 0.0))
                                               < self.voxel / math.sqrt(12.0))
         capped = np.zeros_like(occ)
         capped[:, :-1] = occ[:, 1:]
@@ -352,7 +352,7 @@ class Map:
         lo, hi = FLOOR_M + j_lo * self.voxel, FLOOR_M + (j_hi + 1) * self.voxel
         if n.sum():
             m, cell = sums[n > 0] / n[n > 0, None], at[n > 0]
-            spread = math.sqrt(3.0) * np.sqrt(np.maximum(m[:, [2, 4]] - m[:, [1, 3]] ** 2, 0.0))
+            spread = math.sqrt(3.0) * np.sqrt(np.maximum(m[:, [2, 4]] - libm.sq(m[:, [1, 3]]), 0.0))
             ends = [np.clip(m[:, [1, 3]] + s * spread, cell - 0.5 * pad, cell + 0.5 * pad) for s in (-1.0, 1.0)]
             at, pad = np.concatenate([np.column_stack([e[:, 0], f[:, 1]]) for e in ends for f in ends]), 0.0
             if j_lo == j_hi or surface:
@@ -382,8 +382,8 @@ def least_area(at, voxel):
     floats - the same doubles, the same arithmetic -: of numpy's scalars its chain's crosses were 35 ms a look."""
     h = np.array(convex(list(map(tuple, at.tolist()))), float).reshape(-1, 2)
     e = np.roll(h, -1, axis=0) - h
-    th = np.arctan2(e[:, 1], e[:, 0]) % (0.5 * math.pi)
-    c, s = np.cos(th), np.sin(th)
+    th = libm.arctan2(e[:, 1], e[:, 0]) % (0.5 * math.pi)
+    c, s = libm.cos(th), libm.sin(th)
     along, across = np.ptp(h @ np.stack([c, s]), axis=0) + voxel, np.ptp(h @ np.stack([-s, c]), axis=0) + voxel
     k = int(np.argmin(along * across))
     a, b = np.array([c[k], s[k]]), np.array([-s[k], c[k]])

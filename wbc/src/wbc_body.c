@@ -7,6 +7,7 @@
     its inertia about it, a frame its rotation and its origin: no 6x6 is formed. Lynch and
     Park, Modern Robotics, chapter 8. */
 #include "wbc.h"
+#include "wbc_libm_arc.h"
 
 #include <math.h>
 #include <string.h>
@@ -61,7 +62,7 @@ static void compose(const wbc_frame_t *a, const wbc_frame_t *b, wbc_frame_t *out
 static void twist_exp(const double s[6], double q, wbc_frame_t *out)
 {
   const double *w = s;
-  const double  c = cos(q), sn = sin(q);
+  const double  c = wbc_cos(q), sn = wbc_sin(q);
   const double  wx[9] = {0.0, -w[2], w[1], w[2], 0.0, -w[0], -w[1], w[0], 0.0};
   double        ww[9], g[9];
 

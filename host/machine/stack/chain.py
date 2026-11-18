@@ -25,6 +25,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.senses.borne import CARPAL, LET
 from machine.stack import chain_qp
 from machine.stack.rounds import LEGS
@@ -225,8 +226,8 @@ def stop_rows(b, s, nd):
     rows = np.zeros((2 * len(k), nd))
     rows[np.arange(len(k)), k], rows[len(k) + np.arange(len(k)), k] = 1.0, -1.0
     ahead = s['q'][k] + s['v'][np.asarray(b.act, int)[k]] * LIMIT_S
-    return rows, np.concatenate([2.0 * (b.stop_hi - STOP_RAD - ahead) / LIMIT_S ** 2,
-                                 -2.0 * (b.stop_lo + STOP_RAD - ahead) / LIMIT_S ** 2])
+    return rows, np.concatenate([2.0 * (b.stop_hi - STOP_RAD - ahead) / (LIMIT_S * LIMIT_S),
+                                 -2.0 * (b.stop_lo + STOP_RAD - ahead) / (LIMIT_S * LIMIT_S)])
 
 
 def gives_of(b, contacts, regime, compliant, tc=None):
@@ -249,7 +250,7 @@ def gives_of(b, contacts, regime, compliant, tc=None):
     for c in contacts:
         k = int(c.get('body', 0))
         t = (tc or {}).get(b.m.body(k).name if k >= 0 else ('left', 'right')[-1 - k] + '_foot', 0.0)
-        out.append(regime.soft * (t / foam) ** 2 if t > 0.02 + 1e-9 else 0.0)
+        out.append(regime.soft * libm.sq(t / foam) if t > 0.02 + 1e-9 else 0.0)
     return np.array(out)
 
 

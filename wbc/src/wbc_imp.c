@@ -4,6 +4,7 @@
 #include "wbc_imp.h"
 #include "wbc_stride.h"
 #include "wbc_np.h"
+#include "wbc_libm_arc.h"
 
 #include <math.h>
 #include <string.h>
@@ -43,7 +44,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   wbc_mv(&k->blas, rot, 3, 3, y + k->y_vcom, v);
   wbc_mv(&k->blas, rot, 3, 3, y + k->y_vhead, vh);
   om = sqrt(k->g / npmax(c[2] - fr[k->f_floor], k->low_m));
-  om2 = pow(om, 2.0);
+  om2 = wbc_sq(om);
   /* how far round the robot's rhythm a limb swings this pass: its drive's pace within its going's band
    * (stride.swings) */
   phi_w = wbc_imp_swing_w(k, sway[k->drive], turns, a[k->a_going]);
@@ -65,9 +66,9 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   {
     const double beat = psi[k->lift];
 
-    tone[0] = sway[k->lift] * sin(beat);
-    tone[1] = sway[k->lift] * (turns * cos(beat));
-    tone[2] = sway[k->lift] * (((-turns) * turns) * sin(beat));
+    tone[0] = sway[k->lift] * wbc_sin(beat);
+    tone[1] = sway[k->lift] * (turns * wbc_cos(beat));
+    tone[2] = sway[k->lift] * (((-turns) * turns) * wbc_sin(beat));
   }
   for (int m = 0; m < n; m++)
   {
@@ -114,7 +115,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
                     * npclip(sqrt(wbc_dot(&k->blas, past, 1, past, 1, 2)) / k->margin_m, 0.0, 1.0))
                    * npclip(out[k->o_held], 0.0, 1.0);
   }
-  lat0 = s.ref[k->lateral] - sway[k->lateral] * sin(psi[k->lateral]);
+  lat0 = s.ref[k->lateral] - sway[k->lateral] * wbc_sin(psi[k->lateral]);
   wbc_imp_beat(k, sway[k->drive], psi[k->drive], sway[k->lateral], psi[k->lateral], turns, a + k->a_swings,
                a[k->a_need], a + k->a_lead, a + k->a_split, begun, stood, phi_w, gone, &stepping, &way, &swung, sweep, phi, on, off, u, flying);
   {
@@ -183,8 +184,8 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
      and the robot's height's spring lifted by what its speed off its rhythm's asks
      */
   {
-    const double dv2 = pow((v[0] - cruise) - k->half_m * s.rate[k->sagittal], 2.0)
-                       + pow((v[1] - across) - fr[k->f_w0] * s.rate[k->lateral], 2.0);
+    const double dv2 = wbc_sq((v[0] - cruise) - k->half_m * s.rate[k->sagittal])
+                       + wbc_sq((v[1] - across) - fr[k->f_w0] * s.rate[k->lateral]);
     const double lift = npclip(((0.5 * dv2) * ((dv2 * dv2) / ((dv2 * dv2) + 0.02))) / (k->g * k->axial_m), 0.0, 0.25);
 
     dvh[0] = (vh[0] - v[0]) - (k->half_m * k->pitch_rad) * s.rate[k->pitch];
@@ -331,7 +332,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   /* the hold a stride's lone stance's: the other sole swinging (machine.law.vault) */
   striding[0] = npclip(out[k->o_held], 0.0, 1.0) * flying[1];
   striding[1] = npclip(out[k->o_held], 0.0, 1.0) * flying[0];
-  wbc_imp_vaults(k, leg, len, lrate, fr[k->f_reach0] / cos(0.5 * fr[k->f_knee]), fr[k->f_dt], out[k->o_held],
+  wbc_imp_vaults(k, leg, len, lrate, fr[k->f_reach0] / wbc_cos(0.5 * fr[k->f_knee]), fr[k->f_dt], out[k->o_held],
                  v, shod, along, propped, pressed, fr[k->f_hips_by], k->low_leg * fr[k->f_reach0], hip_h, reach_h,
                  duck, rocked, striding, asked[k->drive], s.kp[ax], s.kd[ax], risen);
   smax = npmax(stance[0], stance[1]);

@@ -5,6 +5,7 @@
 """
 import math
 
+from machine import libm
 from machine.eyes import wholes
 from machine.law.se2 import doing
 from machine.moves import leap
@@ -33,7 +34,7 @@ def tilt(g):
     """The robot's pelvis's tilt from upright, deg, as the world has it: the referee's, not the robot's
     law's."""
     q = g['world'].data.qpos
-    return math.degrees(math.acos(max(-1.0, min(1.0, 1.0 - 2.0 * float(q[4] ** 2 + q[6] ** 2)))))
+    return math.degrees(libm.arccos(max(-1.0, min(1.0, 1.0 - 2.0 * float(q[4] * q[4] + q[6] * q[6])))))
 
 
 def staged(g, fallen_at):
@@ -83,7 +84,7 @@ def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None, head
             'watts': float(watts), 'where': tuple(d.qpos[0:3].tolist()), 'turn': tuple(d.qpos[3:7].tolist()),
             'heading': hd, 'twist': tuple(g.get('twist', (0.0, 0.0, 0.0))),
             'twist_actual': tuple(g.get('twist_actual', (0.0, 0.0, 0.0))),
-            'speed': float(vxz[0] * math.sin(hd) + vxz[1] * math.cos(hd)), 'velocity': vxz,
+            'speed': float(vxz[0] * libm.sin(hd) + vxz[1] * libm.cos(hd)), 'velocity': vxz,
             'phase': float(g['st'][latent.THETA]) / math.tau, 'cadence': float(out[latent.TURNS]) / math.tau,
             'stage': staged(g, fallen_at),
             'fallen': fallen_at is not None, 'loads': tuple(g['loads']), 'props': props, 'rounds': world.rounds(props), 'dents': world.dents(),

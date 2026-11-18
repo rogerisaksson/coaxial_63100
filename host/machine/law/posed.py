@@ -8,6 +8,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.body import gait
 from machine.law import latent, poise
 from machine.law.modal import (ARM_RAD, ARMS, AXIAL, AXIAL_M, BEND, BEND_RATE, BORNE, CLEAR_M, ELBOWED, ELBOWS,
@@ -42,9 +43,9 @@ def posed(out, y, fr, a, said, turned, up, folds, still):
     turn, spun = turned
     wh = fr[ROT].reshape(3, 3) @ y[HSPIN]
     dwh = np.array([wh[LEFT] - spun[0, 1], wh[ALONG] - spun[1, 1], 0.0])
-    dwh4 = (dwh * dwh) ** 2
+    dwh4 = libm.sq(dwh * dwh)
     spun = spun + 0.5 * still * (1.0 - PELVIS) * (dwh * dwh4 / (dwh4 + 0.04))[:, None]
-    turn_dc = ref[TURN] - out[latent.SWAY][TURN] * np.sin(out[latent.PSI][TURN])
+    turn_dc = ref[TURN] - out[latent.SWAY][TURN] * libm.sin(out[latent.PSI][TURN])
     aim = np.stack([fr[PITCH0] + PITCH_RAD * ref[PITCH], PELVIS * LIST_RAD * ref[LIST], TURN_RAD * (PELVIS * ref[TURN] + (1.0 - PELVIS) * 1.10 * turn_dc)])
     aim_rate = np.stack([PITCH_RAD * rate[PITCH] + 0.0 * PELVIS, PELVIS * LIST_RAD * rate[LIST], PELVIS * TURN_RAD * rate[TURN]])
     aim_acc = np.stack([PITCH_RAD * acc[PITCH] + 0.0 * PELVIS, PELVIS * LIST_RAD * acc[LIST], PELVIS * TURN_RAD * acc[TURN]])
@@ -63,8 +64,8 @@ def posed(out, y, fr, a, said, turned, up, folds, still):
     # throw's step threw its knees straight at 100 rad/s^2 and it over forward, 8 kg m^2/s about it; bent as
     # it is, a crouch asked 0.6 stopped at 0.56
     bent = z[AXIAL] + poise.clip(ref[AXIAL] - z[AXIAL], -AHEAD, AHEAD)
-    cosine = np.cos(0.5 * fr[KNEE]) - AXIAL_M * bent * fr[HIPS_BY] / LEG_M
-    a[BEND] = 2.0 * np.arccos(poise.clip(cosine, -1.0, 1.0)) - fr[KNEE]
+    cosine = libm.cos(0.5 * fr[KNEE]) - AXIAL_M * bent * fr[HIPS_BY] / LEG_M
+    a[BEND] = 2.0 * libm.arccos(poise.clip(cosine, -1.0, 1.0)) - fr[KNEE]
     # and at the told height's rate where the rows let the robot's soles go (a throw's ZMP NONE): damped
     # against still, the stack's knee rows held a push's knees at 0.2 of their clamp, its height at its band's
     # floor, 3 m/s^2 under its ask; at the told rate under a held polygon the seats' texts, laid against that
@@ -76,8 +77,8 @@ def posed(out, y, fr, a, said, turned, up, folds, still):
                     / np.sqrt(np.maximum(1.0 - cosine * cosine, TINY))) * (1.0 - poise.clip(out[latent.HELD], 0.0, 1.0))
     # a sole asked up where the robot stands: its knee folded as its leg is shorter by the lift
     # under its hip. Striding, a limb's knee is its sole's place's alone
-    short = poise.clip(np.cos(0.5 * (fr[KNEE] + a[BEND])) - CLEAR_M * np.maximum(up, 0.0) / LEG_M, -1.0, 1.0)
-    a[FOLD] = 2.0 * np.arccos(short) - fr[KNEE] - a[BEND]
+    short = poise.clip(libm.cos(0.5 * (fr[KNEE] + a[BEND])) - CLEAR_M * np.maximum(up, 0.0) / LEG_M, -1.0, 1.0)
+    a[FOLD] = 2.0 * libm.arccos(short) - fr[KNEE] - a[BEND]
     a[FOLD_RATE] = (2.0 * CLEAR_M * LIMBS * rate[LIFT] * (up > 0.0) / LEG_M
                     / np.sqrt(np.maximum(1.0 - short * short, TINY)))
     a[FOLDS] = folds

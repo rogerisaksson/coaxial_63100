@@ -3,6 +3,7 @@
     (wbc_np.h). Portable C11, the host's alone. */
 #include "wbc_imp.h"
 #include "wbc_np.h"
+#include "wbc_libm_arc.h"
 
 #include <math.h>
 #include <stddef.h>
@@ -15,7 +16,7 @@ void wbc_imp_boxes(const wbc_imp_t *k, const double flat[2][2], const double edg
     for (int j = 0; j < 2; j++)
     {
       const double on_edge = edge[b] * k->along_on[j];
-      const double mid = flat[b][j] + (on_edge * k->half_m) * cos(tilt[b]);
+      const double mid = flat[b][j] + (on_edge * k->half_m) * wbc_cos(tilt[b]);
 
       low[b][j] = mid - k->extent[j] * (1.0 - fabs(on_edge));
       high[b][j] = mid + k->extent[j] * (1.0 - fabs(on_edge));

@@ -9,6 +9,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.stack import qp
 from machine.stack.rounds import CONE, COS16, GROW_N, NU, ROOM, YAW_M, taken
 from machine.stack.wbc import MU, G
@@ -72,7 +73,7 @@ def bounds(nu, frames, stance, edges, mu, caps, pressed, bears, slips, give):
             row([(i, -v) for i, v in axis[j]] + [(fy, -cj)])
     for i in range(len(bears)):
         fy, sliding, sx, sz = NU + 3 * i + 1, float(slips[i][0]), float(slips[i][1]), float(slips[i][2])
-        den = max(float(np.hypot(sx, sz)), 1e-12)
+        den = max(float(libm.hypot(sx, sz)), 1e-12)
         top = max(min(float(bears[i]) + GROW_N, float(caps[i])) * give, 0.0) if pressed[i] else 0.0
         low = max(min(float(bears[i]) - GROW_N, float(caps[i])) * give, 0.0) if pressed[i] and sliding > 0.0 else 0.0
         row([(fy, -1.0)], 0.0 - low)

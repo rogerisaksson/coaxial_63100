@@ -13,6 +13,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.stack.rounds import GROW_N, NU, ROOM, ROUNDS, YAW_M, taken
 from machine.stack.wbc import MU, G
 from machine.stack import wrench
@@ -65,7 +66,7 @@ def pushed(u, bears, cap=np.inf, slips=None, give=1.0):
     f[:, 1] = np.clip(f[:, 1], 0.0, np.minimum(held + GROW_N, cap) * give)
     slid = np.zeros((k, 3)) if slips is None else np.asarray(slips, float).reshape(k, 3)
     sliding, way = slid[:, :1], slid[:, 1:]
-    speed = np.hypot(way[:, 0], way[:, 1])
+    speed = libm.hypot(way[:, 0], way[:, 1])
     f[:, [0, 2]] = ((1.0 - sliding) * np.clip(f[:, [0, 2]], -MU * f[:, 1:2], MU * f[:, 1:2])
                     - sliding * MU * f[:, 1:2] * way / np.maximum(speed, 1e-12)[:, None])
     out[NU:NU + 3 * k] = f.ravel()
@@ -94,7 +95,7 @@ def solve(H0, g0, held, bears, lo, hi, geo, stride):
         # value and the robot's height at its band's edge is met, the rest solved round them: as rows
         # of W_PIN they were 1e7 on the diagonal, and what the robot's soles share came 0.6 N m apart
         # from one solve to another
-        hard, soft = pinned * moment, (W_PIN * pinned * (1.0 - moment) * part) ** 2
+        hard, soft = pinned * moment, libm.sq(W_PIN * pinned * (1.0 - moment) * part)
         s_t, rhs_s = np.zeros((nu, nu)), soft * at
         if k3:
             c_idx, n_idx = NU + np.arange(k3), NU + 3 * (np.arange(k3) // 3) + 1

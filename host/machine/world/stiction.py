@@ -41,6 +41,7 @@ as stiffly, the robot's law, which counts on no stiction, lost seven of its chec
 import importlib
 import math
 
+from machine import libm
 from machine.body import mechatronics
 
 #: The contacts kept a geom of the model: a contact past them keeps MuJoCo's rows.
@@ -50,7 +51,7 @@ A_GEOM = 4
 KINETIC = float(mechatronics.environment()['kinetic_share'])
 #: The friction's fade from rest to its sliding share by a contact's slip speed, 1 / v^2 (`world.toml`'s
 #: stribeck_m_s): the SE(3) core's law (se3_rubs).
-FADE = 1.0 / float(mechatronics.environment()['stribeck_m_s']) ** 2
+FADE = 1.0 / libm.sq(float(mechatronics.environment()['stribeck_m_s']))
 #: A surface's own sliding share, by its geom's name: ice bears a sole on a film of its own melt, at rest as
 #: sliding (on KINETIC of its 0.1 the robot fell on the ice in each of its six scenarios).
 SURFACES = {'ice': 1.0}

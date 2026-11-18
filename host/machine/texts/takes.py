@@ -21,6 +21,7 @@ at its edge as the human did and collapsed back from there (stunts.md).
 import math
 import os
 
+from machine import libm
 from machine.law import latent, modal
 from machine.texts import ortho
 
@@ -109,9 +110,9 @@ def amounts(key):
     line = np.abs(np.fft.rfft(x * np.hanning(len(x)), n)) * (f >= 1.0 / t[-1])
     hz = float(f[int(np.argmax(line))])
     w = math.tau * hz * t
-    c, *_ = np.linalg.lstsq(np.stack([np.ones_like(t), np.sin(w), np.cos(w)], 1), z, rcond=None)
+    c, *_ = np.linalg.lstsq(np.stack([np.ones_like(t), libm.sin(w), libm.cos(w)], 1), z, rcond=None)
     std = gait.standard()
-    got = {'pace': hz, **{name: float(np.hypot(c[1, i], c[2, i])) for name, i in SUNG.items()},
+    got = {'pace': hz, **{name: float(libm.hypot(c[1, i], c[2, i])) for name, i in SUNG.items()},
            **{name: float(c[0, i]) for name, i in HELD.items()}}
     return {name: value - float(std[gait.MODIFIERS[name]]) for name, value in got.items()}
 

@@ -19,6 +19,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.stack.pressed import W_STILL, patches
 from machine.stack.rounds import DRIVEN, KNEES, LEGS, MOMENT, NU, ROOM, UPPER
 from machine.stack.shrunk import box, shrunk
@@ -106,7 +107,7 @@ def _maps(b, s, ask, want):
             a6[6 * k:6 * k + 6] = hung * opened
             asked[k] = hung
             continue
-        inv = _inv(f['J6'][:, cols], DAMP ** 2)
+        inv = _inv(f['J6'][:, cols], DAMP * DAMP)
         T[cols] = -inv @ f['J6'][:, :6]
         if ask['stance'][k]:
             t0[cols] = inv @ (settle[k] - f['dJv'] - CONTACT_K * twist)
@@ -219,7 +220,7 @@ def step(b, s, ask, solve=None):
     H0 = R0.T @ R0 + 1e-12 * (_EYE_NU if not k3 else np.eye(nu))
     frames, moment = [f['R'] for f in feet], (MOMENT if not k3 else np.concatenate([MOMENT, np.zeros(k3)]))
     keep = W_KEEP * np.concatenate([each, np.zeros(nu - 12)]) * part
-    kinetic = (full.T @ M @ full + np.diag((W_SWING * swung + spare) ** 2 + keep ** 2)) if strides > 0.0 else None
+    kinetic = (full.T @ M @ full + np.diag(libm.sq(W_SWING * swung + spare) + keep * keep)) if strides > 0.0 else None
     net = np.vstack([about[:, :12], sumf[:, :12]]) if float(stance.min()) > 0.0 else None
     geo, stride = (nu, k3, moment, part, up, sumf[1], mass, grounded, stance, frames, edges, mu, caps, slips, 1.0, net), (strides, kinetic)
     felt = [c['f'][1] for c in contacts]

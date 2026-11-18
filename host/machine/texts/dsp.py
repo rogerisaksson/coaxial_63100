@@ -19,6 +19,7 @@ import operator
 import struct
 from typing import Any
 
+from machine import libm
 from machine.texts import kept, ortho, patch
 from machine.texts.kernel import KEYED, MECHANISMS, QUERIES
 from machine.texts.packages import modules
@@ -219,7 +220,7 @@ CONSTANTS = {'pi': math.pi}
 #: The lisp's functions, their arguments evaluated; arithmetic on a Law of the robot's world a Law.
 FUNCS = {**{k: (lambda k, f: lambda *a: Law(k, a) if Law in map(type, a) else f(*a))(k, f) for k, f in {
              '+': lambda *a: sum(a), '-': lambda a, *b: a - sum(b) if b else -a, '*': lambda *a: math.prod(a),
-             '/': operator.truediv, 'abs': abs, 'max': max, 'min': min}.items()}, 'not': operator.not_, 'tan': math.tan,
+             '/': operator.truediv, 'abs': abs, 'max': max, 'min': min}.items()}, 'not': operator.not_, 'tan': libm.tan,
          'values': lambda *a: a, 'coerce': lambda x, kind: COERCE[kind](x), 'elt': lambda seq, k: seq[int(k)],
          # an order a truth of the text's own: numpy's False is not False to `_gated`
          '>': lambda a, b: bool(a > b), '<': lambda a, b: bool(a < b), '>=': lambda a, b: bool(a >= b),

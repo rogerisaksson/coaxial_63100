@@ -566,7 +566,7 @@ ROWS = {
             'added': (1, 1, 1),
             'closest': (1, 1, 1),
             'columns': (1, 1, 1),
-            'expect': (1, 1, 1),
+            'expect': (2, 2, 2),
             'left': (1, 1, 1),
             'lessened': (1, 1, 1),
             'pushes': (0, 0, 1),

@@ -22,6 +22,7 @@ robot's build the least that fits the campaign and lays it over the robot's law'
 """
 import math
 
+from machine import libm
 from machine.body import peripherals, servos
 from machine.senses import edge
 from machine.identify import campaign, regressor
@@ -178,7 +179,7 @@ def _state(lay, body, ys, dt, every, extra=None):
     if extra is not None:
         qpos[:, extra[0]], qvel[:, extra[1]], qacc[:, extra[1]] = extra[2:]
     a0 = np.einsum('nij,nj->ni', _rotations(then[:, edge.QUAT]), then[:, edge.ACCEL])
-    wacc = (then[:, edge.QM] - 2.0 * now[:, edge.QM] + before[:, edge.QM])[:, lay['joint']] / dt ** 2
+    wacc = (then[:, edge.QM] - 2.0 * now[:, edge.QM] + before[:, edge.QM])[:, lay['joint']] / (dt * dt)
     for i, (j, name) in enumerate(zip(lay['joint'], lay['drives'])):
         if series(name):
             s0 = servos.SERVO[kind(name)][3]
@@ -361,7 +362,7 @@ def base(lay, Y):
     L = np.zeros((P, 0))
     while True:
         k = int(np.argmax(left >= (1.0 - TIE) * left.max()))
-        if left[k] <= INDEPENDENT ** 2:
+        if left[k] <= INDEPENDENT * INDEPENDENT:
             break
         col = (G[:, k] - L @ L[k]) / math.sqrt(left[k])
         L = np.column_stack([L, col])
@@ -406,8 +407,8 @@ def identify(b, Y, tau, min_condition=1e-9):
     eig, V = np.linalg.eigh(weighed.T @ weighed)
     singular, V = np.sqrt(np.maximum(eig[::-1], 0.0)), V[:, ::-1]
     left, seen = tau - Y[:, :, ind] @ theta, read(Y)
-    spent = float((w * (target - A @ theta) ** 2).sum())
-    err = np.sqrt(spent / max(1, on.size - len(ind)) * ((V / singular) ** 2).sum(axis=1)) / scale
+    spent = float((w * libm.sq(target - A @ theta)).sum())
+    err = np.sqrt(spent / max(1, on.size - len(ind)) * (libm.sq(V / singular)).sum(axis=1)) / scale
     unc = err / np.maximum(np.abs(theta), 1e-12)
     return {'theta': theta, 'names': b['names'], 'uncertainty': unc, 'trusted': unc < TRUST,
             'condition': condition, 'residual': np.sqrt((left * left).sum(axis=0) / np.maximum(seen, 1)),
@@ -426,7 +427,7 @@ def motor(t, q, tau, gear=1.0, hz=None):
     dt, hz = float(np.median(np.diff(t))), hz or campaign.SMOOTH_HZ
     qs, taus = campaign.lowpass(q, dt, hz), campaign.lowpass(tau, dt, hz)
     w = np.gradient(qs, t)
-    A = np.column_stack([np.gradient(w, t), w, np.sign(w), np.sin(qs / gear), np.ones(len(t))])
+    A = np.column_stack([np.gradient(w, t), w, np.sign(w), libm.sin(qs / gear), np.ones(len(t))])
     keep = (t > t[0] + 1.0) & (t < t[-1] - 1.0)
     near = np.unique(np.clip(np.flatnonzero(np.diff(t) > 1.5 * dt)[:, None] + np.arange(-2, 4), 0, len(t) - 1))
     gaps = int(keep[near].sum())
@@ -434,4 +435,4 @@ def motor(t, q, tau, gear=1.0, hz=None):
     x, *_ = np.linalg.lstsq(A[keep], taus[keep], rcond=None)
     left = taus[keep] - A[keep] @ x
     return dict(zip(('J', 'b', 'f', 'gravity', 'offset'), map(float, x)),
-                residual=float(np.sqrt(np.mean(left ** 2))), rms=float(np.sqrt(np.mean(taus[keep] ** 2))), gaps=gaps)
+                residual=float(np.sqrt(np.mean(left * left))), rms=float(np.sqrt(np.mean(taus[keep] * taus[keep]))), gaps=gaps)

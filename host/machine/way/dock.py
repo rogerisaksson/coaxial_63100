@@ -28,6 +28,7 @@ import heapq
 import itertools
 import math
 
+from machine import libm
 from machine.body import figure, footprint
 from machine.law import poise, se2, stride
 from machine.moves import seated
@@ -52,7 +53,7 @@ def shown(er):
     (`docked`'s 'reach') on its top, 'chosen' the one the robot's planner laid} -, None before its answer."""
     if not er or not er.get('docks'):
         return None
-    hn = math.atan2(er['nx'], er['nz'])
+    hn = libm.arctan2(er['nx'], er['nz'])
     off = [abs(math.remainder(h - hn, math.tau)) for h, _x, _z in er['docks']]
     return {'at': [(x, er['top'], z) for _h, x, z in er['docks']], 'chosen': min(range(len(off)), key=off.__getitem__),
             'kind': er['kind'], 'slot': er.get('slot')}
@@ -153,7 +154,7 @@ def docked(at, things, floor, sc, box, standoff):
                     else s_dock + np.arange(0.0, carried + voxels.CELL_M + se2.STOP_SPREAD_M, 0.25 * voxels.CELL_M))
     rows = []
     for hn in furniture.GOES[sc][2](box, things):
-        n, tan = np.array([math.sin(hn), math.cos(hn)]), np.array([math.cos(hn), -math.sin(hn)])
+        n, tan = np.array([libm.sin(hn), libm.cos(hn)]), np.array([libm.cos(hn), -libm.sin(hn)])
         span = affordance.support(box, hn + 0.5 * math.pi)
         edge, lat = affordance.support(box, hn), span - (min(across, span) if span >= figure.HIP_HALF else across)
         mid = np.array([float(box[1][0]), float(box[1][2])]) + edge * n
@@ -169,7 +170,7 @@ def docked(at, things, floor, sc, box, standoff):
         """(len(outs),) whether the robot's turn onto the dock from arrival `a` at each stage, and where the
         robot's stop's spread along `a` toward the face carries its nearest, leaves its things
         the robot's skin and its end's spread."""
-        heading, stop = hn + math.pi + a, se2.STOP_SPREAD_M * max(0.0, math.cos(a))
+        heading, stop = hn + math.pi + a, se2.STOP_SPREAD_M * max(0.0, libm.cos(a))
         poses = np.column_stack([edge + outs[:, None] * n, np.full(len(outs), heading)])
         near = np.column_stack([edge + (outs - stop)[:, None] * n, np.full(len(outs), heading)])
         return np.any([np.minimum(gaps(poses, footprint.swept(d, w)), gaps(near, footprint.swept(d, w)))

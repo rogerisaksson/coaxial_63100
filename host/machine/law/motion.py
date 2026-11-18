@@ -17,6 +17,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.law import barrier, brace, composer, impedance, latent, melt, modal, schema, se2, somatic, stride, supervisor, waits
 from machine.body import bemf, capsules, figure, servos
 from machine.senses import estimate, field, grip, inekf, observer, situation, touch
@@ -34,14 +35,14 @@ ARMED = np.array([modal.ARMS, modal.REACH, modal.ELBOWS])
 #: The robot's axial stiffness in its latent state, where it goes and where it comes from; past HOP_K
 #: (midpoint between resting axial stiffness and knee-lever throw stiffness, N/m) a hop's.
 _AXIAL_K = tuple(block.start + latent.K.start + modal.AXIAL for block in (latent.TO, latent.FROM))
-_L_CR = 0.5 * modal.LEG_M * math.sin(math.radians(abs(figure.SQUAT['left_ankle'])))
+_L_CR = 0.5 * modal.LEG_M * libm.sin(math.radians(abs(figure.SQUAT['left_ankle'])))
 HOP_K = round(0.5 * (0.625 * modal.LIMB_KD[0] * figure.mass() + servos.SERVO['knee'][1] / (_L_CR * _L_CR)), -2)
 #: The robot's surety its brace takes it over below (`bw`): a stumble.
 BRACE_SURETY = 0.58
 #: A joint none of what bears the robot needs, of its clamp: the suite's passive cone (-32 dB). The robot's
 #: ankles and knees are its soles' (`ortho.MANIFOLDS`), the rest of its let go as it lies (dorsal) or on its
 #: side (trochanter): lying back on the bed, its law held to its soles, its legs swung 483 deg/s.
-RELEASED = 10.0 ** (-32.0 / 20.0)
+RELEASED = libm.power(10.0, -32.0 / 20.0)
 DISTAL = ('knee', 'ankle', 'ankle_roll')
 def axial_k(st):
     """The robot's axial stiffness asked in its latent `st`, the stiffer of where it goes and where it
@@ -139,7 +140,7 @@ def control(g, dt):
     gauge = wayfinder.gauged(g, s)
     imp[modal.HEADED][1] += gauge
     sr = surety(g, dt * ev)
-    bw = max(0.0, 1.0 - (sr / BRACE_SURETY) ** 4) ** 2
+    bw = libm.sq(max(0.0, 1.0 - libm.quart(sr / BRACE_SURETY)))
     sw = 1.0 - bw
     _, _, d_ax, d_lat = g['surety_vec']
     w_hop = float((axial_k(g['st']) > HOP_K) & (g['st'][latent.TO][latent.AMP][modal.DRIVE] < 0.1))
@@ -342,14 +343,14 @@ def drives_twin(g, dt):
     p, _kept, step = g['drives']
     held, wo = float(g['hold'].any()), g['wo']
     ys = surety(g, dt)
-    drv = 1.0 - (1.0 - ys) ** 3
+    drv = 1.0 - libm.cube(1.0 - ys)
     wo_s = wo * drv
     striding = float(g['a'][modal.STRIDES]) * min(max(float(g['out'][latent.HELD]), 0.0), 1.0)
     st0, st1 = float(g['a'][modal.STANCE][0]), float(g['a'][modal.STANCE][1])
     stood0 = (st0 * (1.0 - st1)) * striding
     stood1 = (st1 * (1.0 - st0)) * striding
     in_hop = int(axial_k(g['st']) > HOP_K)
-    step(ctypes.byref(p), dt, wo_s, wo_s ** 3, drv, stood0, stood1, in_hop, 1)
+    step(ctypes.byref(p), dt, wo_s, wo_s * wo_s * wo_s, drv, stood0, stood1, in_hop, 1)
     # a setpoint within its drive's range (the manifest's): asked compression 4.0 the pattern's
     # ankle ask of -77 deg wound the joint to 215.8 of its -45..42 and felled the robot at 3.0 s.
     np.minimum(np.maximum(g['ref_q'], g['rng'][:, 0], out=g['ref_q']), g['rng'][:, 1], out=g['ref_q'])

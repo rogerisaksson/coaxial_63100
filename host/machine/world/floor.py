@@ -4,6 +4,7 @@ Bodies (`ground`, `rug`) placed on the way (`place`) or parked (`park`), drawn a
 """
 import math
 
+from machine import libm
 from machine.body import figure
 from machine.errors import MachineError
 from machine.world.chair import CHAIR_SEAT, CHAIR_SEAT_H, chair
@@ -61,7 +62,7 @@ SCENARIOS = (
 
 
 def _rock():
-    return math.degrees(math.atan(BOARD_HINGE_M / BOARD[0]))
+    return math.degrees(libm.arctan(BOARD_HINGE_M / BOARD[0]))
 
 
 def flight(top=TOP_M, rise=RISE_M, run=RUN_M):
@@ -212,11 +213,11 @@ def park(world):
 
 
 def _turn(heading):
-    return (math.cos(heading / 2.0), 0.0, math.sin(heading / 2.0), 0.0)
+    return (libm.cos(heading / 2.0), 0.0, libm.sin(heading / 2.0), 0.0)
 
 
 def _on(at, heading, x, y, z):
-    c, s = math.cos(heading), math.sin(heading)
+    c, s = libm.cos(heading), libm.sin(heading)
     return (at[0] + x * c + z * s, y, at[1] - x * s + z * c)
 
 
@@ -235,18 +236,18 @@ def lay_rug(world, at, heading=0.0):
 
 def _place_slope(world, kind, at, heading, top):
     rad = math.radians(SLOPE_ANGLE_DEG)
-    c, s = math.cos(heading), math.sin(heading)
-    ch, sh = math.cos(heading / 2.0), math.sin(heading / 2.0)
-    hz, hy = SLOPE_HALF[2] * math.cos(rad), SLOPE_HALF[2] * math.sin(rad)
+    c, s = libm.cos(heading), libm.sin(heading)
+    ch, sh = libm.cos(heading / 2.0), libm.sin(heading / 2.0)
+    hz, hy = SLOPE_HALF[2] * libm.cos(rad), SLOPE_HALF[2] * libm.sin(rad)
     k_ramp = world.model.body_mocapid[world.model.body('slope_ramp').id]
     if kind == 'slope':
-        cr, sr = math.cos(-rad / 2.0), math.sin(-rad / 2.0)
-        ramp_at = _on(at, heading, 0.0, hy - SLOPE_HALF[1] * math.cos(rad), hz + SLOPE_HALF[1] * math.sin(rad))
+        cr, sr = libm.cos(-rad / 2.0), libm.sin(-rad / 2.0)
+        ramp_at = _on(at, heading, 0.0, hy - SLOPE_HALF[1] * libm.cos(rad), hz + SLOPE_HALF[1] * libm.sin(rad))
         world.data.mocap_pos[k_ramp], world.data.mocap_quat[k_ramp] = ramp_at, (ch * cr, ch * sr, sh * cr, -sh * sr)
         _sized(world, 'slope_top', (SLOPE_TOP_HALF[0], SLOPE_TOP_HALF[1], top / 2.0))
         mocap(world, 'slope_top', _on(at, heading, 0.0, 2.0 * hy - SLOPE_TOP_HALF[1], 2.0 * hz + top / 2.0), heading)
         return
-    cr, sr = math.cos(rad / 2.0), math.sin(rad / 2.0)
+    cr, sr = libm.cos(rad / 2.0), libm.sin(rad / 2.0)
     pad = abs(s) * SLOPE_HALF[0]
     if kind == 'slope_down':
         _beyond(world, at[1], c, pad)
@@ -256,10 +257,10 @@ def _place_slope(world, kind, at, heading, top):
         slab(world, min(at[1], at[1] + span) - pad, max(at[1], at[1] + span) + pad)
     world.hole_x = None
     if kind == 'slope_down':
-        ramp_at = _on(at, heading, 0.0, -hy - SLOPE_HALF[1] * math.cos(rad), hz - SLOPE_HALF[1] * math.sin(rad))
+        ramp_at = _on(at, heading, 0.0, -hy - SLOPE_HALF[1] * libm.cos(rad), hz - SLOPE_HALF[1] * libm.sin(rad))
         q = (ch * cr, ch * sr, sh * cr, -sh * sr)
     else:
-        ramp_at = _on(at, heading, 0.0, -SLOPE_HALF[1] * math.cos(rad), SLOPE_HALF[2])
+        ramp_at = _on(at, heading, 0.0, -SLOPE_HALF[1] * libm.cos(rad), SLOPE_HALF[2])
         q = (ch * cr, sh * sr, sh * cr, ch * sr)
     world.data.mocap_pos[k_ramp], world.data.mocap_quat[k_ramp] = ramp_at, q
 
@@ -276,7 +277,7 @@ _SIMPLE_PROPS = {
 
 
 def place(world, kind, z, x=0.0, heading=0.0, top=None, rise=RISE_M, run=RUN_M):
-    c, s = math.cos(heading), math.sin(heading)
+    c, s = libm.cos(heading), libm.sin(heading)
     at = (x * c + z * s, -x * s + z * c)
     if kind in _SIMPLE_PROPS:
         body, dy, dz = _SIMPLE_PROPS[kind]

@@ -5,6 +5,7 @@
     for operation, its clip and its pairwise sum, so a pass is the same bit for bit. Portable C11. */
 #include "wbc_pass.h"
 #include "wbc_np.h"
+#include "wbc_libm_arc.h"
 
 #include <math.h>
 #include <stddef.h>
@@ -128,7 +129,7 @@ void wbc_pass_tick(wbc_tick_t *t, double dt, double now, double wo, double limp)
     held = (p->hold[i] != 0.0) ? 1.0 : held;
   }
   const double ys = wbc_imp_surety(t->imp, t->field, t->surety, dt, NAN, now, t->vec);
-  const double drv = 1.0 - pow(1.0 - ys, 3.0), wo_s = wo * drv, rest = 1.0 - limp;
+  const double drv = 1.0 - wbc_cube(1.0 - ys), wo_s = wo * drv, rest = 1.0 - limp;
   const double k_to = t->field->st[t->field->k_to], k_from = t->field->st[t->field->k_from];
   const double k = (k_from > k_to) ? k_from : k_to;
   const double striding = t->field->a[t->imp->a_strides] * npclip(t->field->out[t->field->held_out], 0.0, 1.0);
@@ -138,7 +139,7 @@ void wbc_pass_tick(wbc_tick_t *t, double dt, double now, double wo, double limp)
   double       left;
 
   t->surety = ys;
-  wbc_pass_drives(p, dt, wo_s, pow(wo_s, 3.0), drv, stood0, stood1, (k > t->hop_k) ? 1 : 0, 1);
+  wbc_pass_drives(p, dt, wo_s, wbc_cube(wo_s), drv, stood0, stood1, (k > t->hop_k) ? 1 : 0, 1);
   for (int i = 0; i < n; i++)
   {
     p->ref_q[i] = npminimum(npmaximum(p->ref_q[i], t->rng[2 * i]), t->rng[2 * i + 1]);
@@ -605,7 +606,7 @@ void wbc_pass_hem(int n, double dt, const double *ap, const double *om, const do
 
   for (int t = 0; t < n; t++)
   {
-    const double cx = cos(qx), sx = sin(qx), cz = cos(qz), sz = sin(qz);
+    const double cx = wbc_cos(qx), sx = wbc_sin(qx), cz = wbc_cos(qz), sz = wbc_sin(qz);
     const double p0 = ap[3 * t], p1 = ap[3 * t + 1], p2 = ap[3 * t + 2];
     const double o0 = om[3 * t], o1 = om[3 * t + 1], o2 = om[3 * t + 2];
     const double b0 = alb[3 * t], b1 = alb[3 * t + 1], b2 = alb[3 * t + 2];

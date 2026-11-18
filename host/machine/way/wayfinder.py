@@ -14,6 +14,7 @@ coupling - the robot's flow bent by the rows a shield holds against the room - w
 import functools
 import math
 
+from machine import libm
 from machine.texts import kernel
 from machine.law import composer
 from machine.body.figure import BODY, SEGMENTS
@@ -67,8 +68,8 @@ def sliced(width, nominal, depth):
     through a gap `width` m wide: 0 where it fits square on; else past the twist its depth
     first widens it to, nominal cos t + depth sin t = width; TWIST at most - past it the gap is under
     the robot's contorted width."""
-    rho, phi = math.hypot(nominal, depth), math.atan2(depth, nominal)
-    fit = phi + math.acos(max(-1.0, min(1.0, width / rho)))
+    rho, phi = math.hypot(nominal, depth), libm.arctan2(depth, nominal)
+    fit = phi + libm.arccos(max(-1.0, min(1.0, width / rho)))
     return min(TWIST, fit) * float(width < nominal)
 
 
@@ -77,7 +78,7 @@ def ahead(boxes, at, heading, speed, floor, margin, gap=gap):
     (`schema.room`), `at` its pelvis (x, z) going `speed` m/s along `heading`, its lower sole
     at `floor`, each side's `margin` its skin's - by `gap`, this module's or its C (`gauged`)."""
     import numpy as np
-    sh, ch = math.sin(heading), math.cos(heading)
+    sh, ch = libm.sin(heading), libm.cos(heading)
     reach = max(0.0, speed) * AHEAD_S
     width = gap(boxes['centre'], boxes['half'], boxes['R'], np.array([at[0] + reach * sh, at[1] + reach * ch]),
                 np.array([sh, ch]), floor, NOMINAL)

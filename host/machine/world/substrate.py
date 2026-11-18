@@ -18,6 +18,8 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
+
 
 def loop(fz, zdot, dt):
     """(J into the substrate as it is pressed down, J back as it rises, their ratio) of normal force `fz` (..., n) N
@@ -38,7 +40,7 @@ def regime(eta, ceiling, floor):
 def damping(eta):
     """The damping ratio of a linear spring-damper contact that returns `eta` of an impact's energy: eta =
     exp(-2 pi zeta / sqrt(1 - zeta^2)) inverted."""
-    lost = -np.log(eta)
+    lost = -libm.log(eta)
     return lost / np.sqrt(4.0 * np.pi * np.pi + lost * lost)
 
 
@@ -68,7 +70,7 @@ def tangent(force, sink, n):
 def phase(z, zdot, omega):
     """rad: a bed's phase oscillating at `omega` rad/s, atan2(zdot / omega, z) (`couple-port-hamiltonian-to-membrane`'s
     theta_mem): its top 0, its bottom pi."""
-    return np.arctan2(zdot / omega, z)
+    return libm.arctan2(zdot / omega, z)
 
 
 def bed(z, zdot, force, mass, k, d, dt):

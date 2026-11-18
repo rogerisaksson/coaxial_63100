@@ -3,6 +3,7 @@
     host's alone. */
 #include "wbc_imp.h"
 #include "wbc_np.h"
+#include "wbc_libm_arc.h"
 
 #include <math.h>
 
@@ -12,9 +13,9 @@
  * (machine.senses.edge.tilt). */
 static double tilt_deg(const double *q)
 {
-  const double s = pow(q[1], 2.0) + pow(q[3], 2.0);
+  const double s = wbc_sq(q[1]) + wbc_sq(q[3]);
 
-  return acos(npmax(-1.0, npmin(1.0, 1.0 - 2.0 * s))) * (180.0 / PI);
+  return wbc_arccos(npmax(-1.0, npmin(1.0, 1.0 - 2.0 * s))) * (180.0 / PI);
 }
 
 double wbc_imp_surety(const wbc_imp_t *k, const wbc_surety_t *s, double prev, double dt, double ct, double t,
@@ -65,16 +66,16 @@ double wbc_imp_surety(const wbc_imp_t *k, const wbc_surety_t *s, double prev, do
   theta_e = npmax(0.0, theta - npmax(fabs(a[k->a_want]), borne * (0.5 * PI)));
   v_norm = sqrt(wbc_dot(&k->blas, v, 1, v, 1, 3));
   w_ext = npmin(1.0, npmax(0.0, (ap_y / k->g - f_soles) / 0.45))
-          * exp(((-pow(w_gyro / 1.2, 2.0)) - pow(v_norm / 0.18, 2.0)) - pow(theta_e / 0.65, 4.0));
-  probe = ((0.008 * npmax(0.0, (4.0 * f_soles) * (1.0 - f_soles))) * exp(-pow(w_gyro / 0.6, 2.0)))
-          * sin(((2.0 * PI) * 6.0) * t);
+          * wbc_exp(((-wbc_sq(w_gyro / 1.2)) - wbc_sq(v_norm / 0.18)) - wbc_quart(theta_e / 0.65));
+  probe = ((0.008 * npmax(0.0, (4.0 * f_soles) * (1.0 - f_soles))) * wbc_exp(-wbc_sq(w_gyro / 0.6)))
+          * wbc_sin(((2.0 * PI) * 6.0) * t);
   w_sum = (w[0] + w[1]) + 1e-9;
   w_both = npmin(w[0], w[1]);
   w_air = npmax(npmax(npmax(0.0, 1.0 - s->out[s->zmp_out]), 1.0 - s->out[s->held_out]), w_jump);
   w_prop = npmax(npmax(w_ext, borne), w_air);
   w_sup = npmin(1.0, ((0.42 + 0.30 * (w[0] + w[1])) + 0.22 * npmax(w[0], w[1])) + 0.55 * w_prop);
   r_gait = 0.28 * npmin(1.0, st[s->gain_now]);
-  w_tilt = hypot(gyro[0], gyro[2]);
+  w_tilt = wbc_hypot(gyro[0], gyro[2]);
   {
     const wbc_view_t wv = {w, 2, 1}, lov = {&lo[0][0], 2, 1}, hiv = {&hi[0][0], 2, 1};
 
@@ -99,7 +100,7 @@ double wbc_imp_surety(const wbc_imp_t *k, const wbc_surety_t *s, double prev, do
     r_hi[j] = npmaximum(b_hi[j], hmax[j] + r_gait);
     out_xi[j] = (xi[j] - npclip(xi[j], r_lo[j], r_hi[j])) * (1.0 - w_prop);
     o = out_xi[j] / 0.24;
-    s_dir[j] = cap[j] * (0.45 + 0.55 * exp(((-(o * o)) - 0.04 * (vp * vp)) - pow(0.22 * w_tilt, 2.0)));
+    s_dir[j] = cap[j] * (0.45 + 0.55 * wbc_exp(((-(o * o)) - 0.04 * (vp * vp)) - wbc_sq(0.22 * w_tilt)));
     u_xy[j] = wbc_dot(&k->blas, up_w, 1, rot + 3 * j, 1, 3);
     e_vec[j] = ((xi[j] - mid[j]) * (1.0 - w_ext) + 0.35 * u_xy[j]) + 0.15 * v[j];
   }
@@ -107,7 +108,7 @@ double wbc_imp_surety(const wbc_imp_t *k, const wbc_surety_t *s, double prev, do
   e3[1] = e_vec[1];
   e3[2] = 0.08;
   h = pyhypot(e3, 3);
-  f_att = pow(npmax(0.0, 1.0 - pow(theta_e / 1.20, 4.0)), 2.0);
+  f_att = wbc_sq(npmax(0.0, 1.0 - wbc_quart(theta_e / 1.20)));
   for (int j = 0; j < 2; j++)
   {
     d_xy[j] = e_vec[j] / h;
@@ -116,7 +117,7 @@ double wbc_imp_surety(const wbc_imp_t *k, const wbc_surety_t *s, double prev, do
   raw = npsum(s_vec, 2) / 2.0;
   diff = raw - prev;
   step = npmin(1.0, dt / 0.012) * npmin(diff, 0.0)
-         + (npmin(1.0, dt / 0.12) * npmax(pow(prev, 3.0), 0.08 * borne)) * npmax(diff, 0.0);
+         + (npmin(1.0, dt / 0.12) * npmax(wbc_cube(prev), 0.08 * borne)) * npmax(diff, 0.0);
   vec[0] = s_vec[0];
   vec[1] = s_vec[1];
   vec[2] = d_xy[0];

@@ -3,6 +3,7 @@
     host's alone. */
 #include "wbc_imp.h"
 #include "wbc_np.h"
+#include "wbc_libm_arc.h"
 
 #include <math.h>
 
@@ -18,7 +19,7 @@ static double hypot2(double a, double b)
 static void against(double ox, double oz, double heading, double along_cos, const double tw[3], double got[3])
 {
   const double rem = hypot2(ox, oz), w = npmin(1.0, rem / 0.10);
-  const double nx = ox / npmax(rem, 1e-9), nz = oz / npmax(rem, 1e-9), sh = sin(heading), ch = cos(heading);
+  const double nx = ox / npmax(rem, 1e-9), nz = oz / npmax(rem, 1e-9), sh = wbc_sin(heading), ch = wbc_cos(heading);
   const double cx = sh * nx + ch * nz, cy = ch * nx - sh * nz;
   const double kx = 1.0 - w * (1.0 - npmin(1.0, npmax(0.0, (copysign(cx, tw[0]) + along_cos) / (1.0 - along_cos))));
   const double ky = 1.0 - w * (1.0 - npmin(1.0, npmax(0.0, (copysign(cy, tw[1]) + along_cos) / (1.0 - along_cos))));
@@ -95,7 +96,7 @@ void wbc_touch_step(const wbc_imp_t *k, const wbc_touch_t *t, const double asked
   {
     sway[m] = out0[k->o_sway + m];
     psi[m] = out0[k->o_psi + m];
-    z0[m] = out0[k->o_ref + m] - sway[m] * sin(psi[m]);
+    z0[m] = out0[k->o_ref + m] - sway[m] * wbc_sin(psi[m]);
     zb[m] = m == k->axial ? 0.04 : 0.0;
     z_new[m] = ((1.0 - u_b) * z0[m] + (u_b * (1.0 - u_s)) * zb[m]) + (u_b * u_s) * t->rest[t->r_z + m];
     sway_b[m] = 0.0;
@@ -111,7 +112,7 @@ void wbc_touch_step(const wbc_imp_t *k, const wbc_touch_t *t, const double asked
   sway_new[k->drive] = u_drv * sway[k->drive] + ((1.0 - u_drv) * npmin(sway[k->drive], 0.04)) * (1.0 - u_b);
   for (int m = 0; m < n; m++)
   {
-    sine_new[m] = sway_new[m] * sin(psi[m]);
+    sine_new[m] = sway_new[m] * wbc_sin(psi[m]);
     kb[m] = out0[k->o_ks + m];
     db[m] = out0[k->o_ds + m];
   }
@@ -126,8 +127,8 @@ void wbc_touch_step(const wbc_imp_t *k, const wbc_touch_t *t, const double asked
   for (int m = 0; m < n; m++)
   {
     out[k->o_ref + m] = z_new[m] + sine_new[m];
-    out[k->o_rate + m] = (1.0 - u_b) * (out0[k->o_rate + m] - (sway[m] * turns) * cos(psi[m]))
-                         + (sway_new[m] * turns) * cos(psi[m]);
+    out[k->o_rate + m] = (1.0 - u_b) * (out0[k->o_rate + m] - (sway[m] * turns) * wbc_cos(psi[m]))
+                         + (sway_new[m] * turns) * wbc_cos(psi[m]);
     out[k->o_acc + m] = ((1.0 - u_b) * out0[k->o_bend + m]) * (1.0 - npclip(out0[k->o_held], 0.0, 1.0))
                         - (sine_new[m] * turns) * turns;
     out[k->o_sway + m] = sway_new[m];
@@ -175,7 +176,7 @@ void wbc_touch_step(const wbc_imp_t *k, const wbc_touch_t *t, const double asked
       const double *p = pushed[s][j];
 
       edge[j] = npclip((sizes[s][j] - t->touched_n) / t->touched_n, 0.0, 1.0)
-                * npclip((hypot(p[0], p[2]) - fabs(p[1])) / t->touched_n, 0.0, 1.0);
+                * npclip((wbc_hypot(p[0], p[2]) - fabs(p[1])) / t->touched_n, 0.0, 1.0);
     }
     w_edge[s] = npmaximum(edge[0], edge[1]);
     unfelt[s] = npclip(1.0 - npmaximum(sizes[s][0], sizes[s][1]) / t->touched_n, 0.0, 1.0);

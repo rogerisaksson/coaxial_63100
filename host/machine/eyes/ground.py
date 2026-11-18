@@ -22,6 +22,7 @@ look changed its mosaic alone (`add`): blurred whole each look, its 347 x 347 ce
 """
 import math
 
+from machine import libm
 from machine.eyes import voxels
 from machine.eyes.stereo import _np
 
@@ -42,7 +43,7 @@ ROUNDS, HUBER, MAD = 3, 1.345, 1.4826
 def _turned(w, angle):
     """Floor offsets `w` (n, 2: x, z) turned `angle` rad about up: x cos + z sin, z cos - x sin."""
     np = _np()
-    c, s = math.cos(angle), math.sin(angle)
+    c, s = libm.cos(angle), libm.sin(angle)
     return np.column_stack([c * w[:, 0] + s * w[:, 1], c * w[:, 1] - s * w[:, 0]])
 
 
@@ -115,13 +116,13 @@ class Mosaic:
         # told uniform within a cell (sd 0.58 cm) its gate let 23-50 % of them in
         np = _np()
         cell = span * 0.5 * (voxels.NEAR_M + voxels.FAR_M)
-        self.cell, self.finest = cell, 1.0 / cell ** 2
+        self.cell, self.finest = cell, 1.0 / (cell * cell)
         self.nx = int(round((voxels.X_M[1] - voxels.X_M[0]) / cell))
         self.nz = int(round((voxels.Z_M[1] - voxels.Z_M[0]) / cell))
         self.sums = np.zeros((4, self.nx, self.nz))
         self.looks = 0
         # the robot's blurs, coarse to fine: half its map's voxel, halved to its mosaic's own cell
-        self.blurs = [int(r) for r in 2 ** np.arange(int(math.log2(max(voxels.CELL_M / cell / 2.0, 1.0))), -1, -1)] + [0]
+        self.blurs = [1 << k for k in range(math.frexp(max(voxels.CELL_M / cell / 2.0, 1.0))[1] - 1, -1, -1)] + [0]
         self._blurred = [(np.zeros((self.nx, self.nz)), np.zeros((self.nx, self.nz), bool)) for _ in self.blurs]
         self._dirty = None
 
@@ -154,7 +155,7 @@ class Mosaic:
         r = y[held] - self.sums[3].ravel()[at] / count[held]
         s_r = _scale(r)
         wgt = _huber(r - _median(r), s_r)
-        return -float(wgt @ r / wgt.sum()), min(len(np.unique(at)) / s_r ** 2, self.finest)
+        return -float(wgt @ r / wgt.sum()), min(len(np.unique(at)) / (s_r * s_r), self.finest)
 
     def add(self, xyz, grey):
         """A look's floor points `xyz` (n, 3) and their `grey` (n,) into the robot's mosaic, summed over the cells
@@ -243,10 +244,10 @@ class Mosaic:
                 r = dg - gain * dm
                 fit = 1.0 - float(r @ r) / max(float(dg @ dg), 1e-12)
                 s_r = _scale(r)
-                wgt = _huber(r, s_r) / s_r ** 2
+                wgt = _huber(r, s_r) / (s_r * s_r)
                 qo, duo, dvo = q[ok], du[ok], dv[ok]
                 J = -gain * np.column_stack([duo * qo[:, 1] - dvo * qo[:, 0], duo, dvo])
-                reach = math.sqrt(float(np.mean(qo[:, 0] ** 2 + qo[:, 1] ** 2)))
+                reach = math.sqrt(float(np.mean(qo[:, 0] * qo[:, 0] + qo[:, 1] * qo[:, 1])))
                 scale = np.array([reach, 1.0, 1.0])
                 Jw = J * wgt[:, None]
                 lam, U = np.linalg.eigh(Jw.T @ J / np.outer(scale, scale))

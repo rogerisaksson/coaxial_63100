@@ -1,6 +1,7 @@
 /** wbc_gmo.c - the robot's generalized momentum observer (wbc_gmo.h). */
 #include "wbc_gmo.h"
 #include "wbc_solve.h"
+#include "wbc_libm_arc.h"
 
 #include <float.h>
 #include <math.h>
@@ -300,7 +301,7 @@ static void expect(wbc_gmo_t *o)
   }
   for (int p = 0; p < WBC_GMO_POINTS; p++)
   {
-    o->prior[p] = exp(logit[p] - top);
+    o->prior[p] = wbc_exp(logit[p] - top);
     sum += o->prior[p];
   }
   memset(o->expected, 0, sizeof o->expected);
@@ -420,7 +421,7 @@ static int left(wbc_gmo_t *o, int at[NF], int n, int p)
   }
   for (int j = p; j < n - 1; j++)
   {
-    const double a = o->k[j][j], b = o->k[j][j + 1], r = hypot(a, b), c = a / r, s = b / r;
+    const double a = o->k[j][j], b = o->k[j][j + 1], r = wbc_hypot(a, b), c = a / r, s = b / r;
 
     for (int i = j; i < n - 1; i++)
     {
@@ -609,7 +610,7 @@ static void split(wbc_gmo_t *o)
   }
   for (int h = 0; h < NH; h++)
   {
-    band[h] = o->loss[6 + h] * (1.0 - fabs(tanh(o->u[6 + h] / o->slip)));
+    band[h] = o->loss[6 + h] * (1.0 - fabs(wbc_tanh(o->u[6 + h] / o->slip)));
   }
   for (int round = 0; round < WBC_GMO_ROUNDS; round++)
   {
@@ -670,7 +671,7 @@ static void shared(wbc_gmo_t *o)
 void wbc_gmo_step(wbc_gmo_t *o, const wbc_frame_t *base, const double q[NH], const double u[WBC_N], double dt)
 {
   const double span = o->span > dt ? o->span : dt;
-  const double k = o->primed * (1.0 - exp(-o->alpha * dt));
+  const double k = o->primed * (1.0 - wbc_exp(-o->alpha * dt));
   double       ud[WBC_N], tau[WBC_N];
 
   wbc_body_pose(&o->body, base, q);
@@ -679,7 +680,7 @@ void wbc_gmo_step(wbc_gmo_t *o, const wbc_frame_t *base, const double q[NH], con
   accelerations(o, base, u, span, dt, ud);
   for (int i = 0; i < WBC_N; i++)
   {
-    tau[i] = -o->loss[i] * tanh(u[i] / o->slip);
+    tau[i] = -o->loss[i] * wbc_tanh(u[i] / o->slip);
   }
   for (int i = 0; i < WBC_DRIVEN; i++)
   {

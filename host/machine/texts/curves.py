@@ -7,6 +7,8 @@ A morph's bands take the curves (`patch.morph`), the robot's rows' blends the qu
 """
 import math
 
+from machine import libm
+
 #: An exponential with e^-SPAN_E of its way left at its end; an audio taper's swell over SWELL_DB.
 SPAN_E, SWELL_DB = 4.0, 40.0
 #: Samples a quintic is fitted on, u in [0, 1].
@@ -14,14 +16,14 @@ FIT_N = 65
 
 
 def _swell(u):
-    return (10.0 ** (SWELL_DB / 20.0 * u) - 1.0) / (10.0 ** (SWELL_DB / 20.0) - 1.0)
+    return (libm.power(10.0, SWELL_DB / 20.0 * u) - 1.0) / (libm.power(10.0, SWELL_DB / 20.0) - 1.0)
 
 
 #: The curves by the suite's names: an exponential, the equal-power crossfade's energy share, an
 #: audio taper's swell and its mirror settling, Hermite's smoothstep, a line.
 CURVES = {
-    'exponential-fast': lambda u: (1.0 - math.exp(-SPAN_E * u)) / (1.0 - math.exp(-SPAN_E)),
-    'equal-power': lambda u: math.sin(0.5 * math.pi * u) ** 2,
+    'exponential-fast': lambda u: (1.0 - libm.exp(-SPAN_E * u)) / (1.0 - libm.exp(-SPAN_E)),
+    'equal-power': lambda u: libm.sq(libm.sin(0.5 * math.pi * u)),
     'logarithmic-swell': _swell,
     'logarithmic-settle': lambda u: 1.0 - _swell(1.0 - u),
     'hermite-s-curve': lambda u: u * u * (3.0 - 2.0 * u),
@@ -32,15 +34,15 @@ CURVES = {
 def _damped(a):
     """An exponential approach from rest, `a` its rate over the way: a critically damped step's
     response, (1 - (1 + a u) e^-au) normalized to 1 at its end."""
-    return lambda u: (1.0 - (1.0 + a * u) * math.exp(-a * u)) / (1.0 - (1.0 + a) * math.exp(-a))
+    return lambda u: (1.0 - (1.0 + a * u) * libm.exp(-a * u)) / (1.0 - (1.0 + a) * libm.exp(-a))
 
 
 def _from_rest(f):
     """f's least squares quintic on u in [0, 1], still at 0 and 1 at 1: its coefficients on u..u^5,
     c2..c4 of the normal equations of u^k - u^5 against f - u^5 (Cramer's rule)."""
     us = [i / (FIT_N - 1.0) for i in range(FIT_N)]
-    cols = [[u ** k - u ** 5 for u in us] for k in range(2, 5)]
-    rhs = [f(u) - u ** 5 for u in us]
+    cols = [[libm.power(u, k) - libm.power(u, 5) for u in us] for k in range(2, 5)]
+    rhs = [f(u) - libm.power(u, 5) for u in us]
     a = [[sum(p * q for p, q in zip(ci, cj)) for cj in cols] for ci in cols]
     b = [sum(p * q for p, q in zip(ci, rhs)) for ci in cols]
 
@@ -53,7 +55,7 @@ def _from_rest(f):
 
 
 _LINE, _JERK = (1.0, 0.0, 0.0, 0.0, 0.0), (0.0, 0.0, 10.0, -15.0, 6.0)
-_SETTLE = _from_rest(_damped(SWELL_DB / 20.0 * math.log(10.0)))
+_SETTLE = _from_rest(_damped(SWELL_DB / 20.0 * libm.log(10.0)))
 #: Each curve as a row's blend on the robot's loop (`ortho.SHAPES`, in this order), a quintic's coefficients
 #: on u..u^5, leaving still: a line, Hermite's smoothstep and the minimum jerk's exact - a soft
 #: landing Hermite's quintic, unaccelerated at both ends -; the equal-power and the swell least
@@ -68,5 +70,5 @@ QUINTICS = {
 }
 #: Each blend's greatest |S''| on [0, 1], its acceleration in its way over its time squared
 #: (`maneuver._paced`).
-BENT = {name: max(abs(sum((k + 1) * k * c[k] * (i / (FIT_N - 1.0)) ** (k - 1) for k in range(1, 5))) for i in range(FIT_N))
+BENT = {name: max(abs(sum((k + 1) * k * c[k] * libm.power(i / (FIT_N - 1.0), k - 1) for k in range(1, 5))) for i in range(FIT_N))
         for name, c in QUINTICS.items()}

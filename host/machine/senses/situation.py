@@ -21,6 +21,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.law import latent, modal, stride
 from machine.texts import ortho
 from machine.senses import touch
@@ -115,11 +116,11 @@ def gripped(out, held, stance, caps, into, floors, period, eased, dt):
     capped = np.where(np.isnan(caps), 1.0, np.minimum(1.0, np.nan_to_num(caps) / np.maximum(sway, 1e-9)))
     k = np.min(1.0 - under + under * capped, axis=0, initial=1.0)
     turns = out[latent.TURNS]
-    cruise = 2.0 / math.pi * stride.STRIDE_M * (sway[modal.DRIVE] * k[modal.DRIVE]) * np.sin(stride.swings(sway[modal.DRIVE] * k[modal.DRIVE], turns, 2.0 / math.pi * stride.STRIDE_M * (sway[modal.DRIVE] * k[modal.DRIVE]) * turns)) * turns
+    cruise = 2.0 / math.pi * stride.STRIDE_M * (sway[modal.DRIVE] * k[modal.DRIVE]) * libm.sin(stride.swings(sway[modal.DRIVE] * k[modal.DRIVE], turns, 2.0 / math.pi * stride.STRIDE_M * (sway[modal.DRIVE] * k[modal.DRIVE]) * turns)) * turns
     k[modal.DRIVE] *= np.minimum(1.0, np.sqrt(2.0 * stride.STRIDE_M * grip_now * modal.G) / np.maximum(cruise, 1e-9))
-    sine = out[latent.SWAY] * np.sin(out[latent.PSI])
+    sine = out[latent.SWAY] * libm.sin(out[latent.PSI])
     out[latent.REF] += (k - 1.0) * sine
-    out[latent.RATE] += (k - 1.0) * out[latent.SWAY] * turns * np.cos(out[latent.PSI])
+    out[latent.RATE] += (k - 1.0) * out[latent.SWAY] * turns * libm.cos(out[latent.PSI])
     out[latent.ACC] -= (k - 1.0) * sine * turns * turns
     out[latent.SWAY] *= k
     want = np.max(under * np.maximum(floors - out[latent.REF], 0.0), axis=0, initial=0.0)

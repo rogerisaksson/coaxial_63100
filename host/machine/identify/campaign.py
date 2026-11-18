@@ -11,6 +11,7 @@ drives' torques a step, on the world or on a robot of its build, its boards' cur
 """
 import math
 
+from machine import libm
 from machine.body import drives, figure, peripherals, terms
 from machine.senses import edge
 from machine.errors import MachineError
@@ -48,7 +49,7 @@ def pose():
 def lowpass(x, dt, hz=SMOOTH_HZ):
     """`x` (N, ..) low-passed at `hz` both ways: no phase, first order each way."""
     import numpy as np
-    a = math.exp(-2.0 * math.pi * hz * dt)
+    a = libm.exp(-2.0 * math.pi * hz * dt)
     x = np.array(x, float)
     for k in range(1, len(x)):
         x[k] += a * (x[k - 1] - x[k])
@@ -79,7 +80,7 @@ def tone(t, tones, phase, amp):
     import numpy as np
     ease = np.minimum(1.0, np.minimum(t - t[0], t[-1] - t) / RAMP_S)
     tones = np.asarray(tones, float)
-    return ease * (amp * tones[0] / tones * np.sin(2.0 * math.pi * np.outer(t, tones) + phase)).sum(axis=1)
+    return ease * (amp * tones[0] / tones * libm.sin(2.0 * math.pi * np.outer(t, tones) + phase)).sum(axis=1)
 
 
 def _box(delta, rel, passed):
@@ -127,8 +128,8 @@ def boxes(body, ys, taus, dt, armature, every=1):
     delta = 0.5 * (wound_up[at] + wound_up[at + 1])[:, driven]
     rel = (wound_up[at + 1] - wound_up[at])[:, driven] / dt
     qm = ys[:, edge.QM]
-    wacc = (qm[at + 2] - qm[at + 1] - qm[at] + qm[at - 1])[:, driven] / (2.0 * dt ** 2)
-    second = (qm[at + 1] - 2.0 * qm[at] + qm[at - 1])[:, driven] / dt ** 2
+    wacc = (qm[at + 2] - qm[at + 1] - qm[at] + qm[at - 1])[:, driven] / (2.0 * (dt * dt))
+    second = (qm[at + 1] - 2.0 * qm[at] + qm[at - 1])[:, driven] / (dt * dt)
     mean = 0.5 * (taus[at] + taus[at - 1])[:, driven]
     motor = taus[at][:, driven]
     out = np.zeros((len(driven), len(BOX)))
@@ -180,7 +181,7 @@ def setpoints(world, seconds, rng):
             mid, amp = swing(world, i)
             hz = np.array(TONES[i % len(TONES)])
             phase = rng.uniform(0.0, 2.0 * math.pi, size=len(hz))
-            swung = mid + amp * np.sin(2.0 * math.pi * np.outer(t, hz) + phase).sum(axis=1) / len(hz)
+            swung = mid + amp * libm.sin(2.0 * math.pi * np.outer(t, hz) + phase).sum(axis=1) / len(hz)
             ref[s * per:(s + 1) * per, i] = world.target[i] + ease * (swung - world.target[i])
     return ref
 
@@ -268,7 +269,7 @@ def hemming(lay, body, ys, dt, every, state_holder=None):
                 q, qd, qdd_j = ys[:n, edge.Q][:, ji], qd_all[:, ji:ji + 1], qdd_all[:, ji:ji + 1]
                 sw = np.einsum('nij,j->ni', R, ax)
                 al, wv = al + sw * qdd_j + np.cross(wv, sw) * qd, wv + sw * qd
-                c, s = np.cos(0.5 * q), np.sin(0.5 * q)
+                c, s = libm.cos(0.5 * q), libm.sin(0.5 * q)
                 R = R @ rot(np.column_stack([c, s * ax[0], s * ax[1], s * ax[2]]))
         dp = np.einsum('nij,j->ni', R, m.body_pos[b])
         ap = np.einsum('nji,nj->ni', R, a + np.cross(al, dp) + np.cross(wv, np.cross(wv, dp)))

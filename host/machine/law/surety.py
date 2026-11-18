@@ -9,6 +9,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.law import latent, modal, poise
 from machine.senses import edge
 
@@ -42,8 +43,8 @@ def field(y_in, y, fr, a, st, out, prev, dt, ct, t):
     # flat, rolled back over it
     theta_e = max(0.0, theta - max(abs(float(a[modal.WANT][0])), float(a[modal.BORNE]) * (0.5 * math.pi)))
     v_norm = float(np.linalg.norm(v))
-    w_ext = min(1.0, max(0.0, (ap_y / modal.G - f_soles) / 0.45)) * math.exp(-(w_gyro / 1.2) ** 2 - (v_norm / 0.18) ** 2 - (theta_e / 0.65) ** 4)
-    probe = 0.008 * max(0.0, 4.0 * f_soles * (1.0 - f_soles)) * math.exp(-(w_gyro / 0.6) ** 2) * math.sin(math.tau * 6.0 * t)
+    w_ext = min(1.0, max(0.0, (ap_y / modal.G - f_soles) / 0.45)) * libm.exp(-libm.sq(w_gyro / 1.2) - libm.sq(v_norm / 0.18) - libm.quart(theta_e / 0.65))
+    probe = 0.008 * max(0.0, 4.0 * f_soles * (1.0 - f_soles)) * libm.exp(-libm.sq(w_gyro / 0.6)) * libm.sin(math.tau * 6.0 * t)
     w_sum, w_both = float(w[0] + w[1]) + 1e-9, float(min(w[0], w[1]))
     lo_1, hi_1 = (w @ lo) / w_sum, (w @ hi) / w_sum
     b_lo = (1.0 - w_both) * lo_1 + w_both * lo.min(axis=0) - w_ext * 0.16
@@ -59,15 +60,15 @@ def field(y_in, y, fr, a, st, out, prev, dt, ct, t):
     r_gait = 0.28 * min(1.0, float(st[latent.NOW][latent.GAIN]))
     r_lo, r_hi = np.minimum(b_lo, lo.min(axis=0) - r_gait), np.maximum(b_hi, hi.max(axis=0) + r_gait)
     out_xi = (xi - np.clip(xi, r_lo, r_hi)) * (1.0 - w_prop)
-    w_tilt = float(np.hypot(gyro[0], gyro[2]))
-    s_dir = cap * (0.45 + 0.55 * np.exp(-((out_xi / 0.24) ** 2) - 0.04 * ((v[:2] * (1.0 - w_prop)) ** 2) - (0.22 * w_tilt) ** 2))
+    w_tilt = float(libm.hypot(gyro[0], gyro[2]))
+    s_dir = cap * (0.45 + 0.55 * libm.exp(-(libm.sq(out_xi / 0.24)) - 0.04 * (libm.sq(v[:2] * (1.0 - w_prop))) - libm.sq(0.22 * w_tilt)))
     u_xy = np.array([float(up_w @ rot[0]), float(up_w @ rot[1])])
     e_vec = (xi - mid) * (1.0 - w_ext) + 0.35 * u_xy + 0.15 * v[:2]
     d_xy = e_vec / math.hypot(float(e_vec[0]), float(e_vec[1]), 0.08)
-    f_att = max(0.0, 1.0 - (theta_e / 1.20) ** 4) ** 2
+    f_att = libm.sq(max(0.0, 1.0 - libm.quart(theta_e / 1.20)))
     s_vec = np.clip(s_dir * f_att, 0.0, 1.0)
     raw = float(np.mean(s_vec))
     diff = raw - prev
-    step = min(1.0, dt / 0.012) * min(diff, 0.0) + min(1.0, dt / 0.12) * max(prev ** 3, 0.08 * float(a[modal.BORNE])) * max(diff, 0.0)
+    step = min(1.0, dt / 0.012) * min(diff, 0.0) + min(1.0, dt / 0.12) * max(prev * prev * prev, 0.08 * float(a[modal.BORNE])) * max(diff, 0.0)
     cur = min(1.0, max(0.0, prev + step))
     return cur, np.array([s_vec[0], s_vec[1], d_xy[0], d_xy[1], probe])

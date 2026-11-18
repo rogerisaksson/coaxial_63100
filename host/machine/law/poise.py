@@ -15,6 +15,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.body import gait
 from machine.moves import leap
 from machine.body.figure import BALL, HEEL, SOLE_HALF
@@ -49,7 +50,7 @@ def boxes(flat, edge, tilt):
     its edge alone as far as it stands on it (`edge`: 1 its ball, -1 its heel), pitched
     `tilt`."""
     on_edge = edge[:, None] * ON
-    mid = flat + on_edge * HALF_M * np.cos(tilt)[:, None]
+    mid = flat + on_edge * HALF_M * libm.cos(tilt)[:, None]
     return mid - EXTENT * (1.0 - np.abs(on_edge)), mid + EXTENT * (1.0 - np.abs(on_edge))
 
 

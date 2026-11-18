@@ -3,6 +3,7 @@
     Python's arithmetic operation for operation (wbc_np.h). Portable C11, the host's alone. */
 #include "wbc_imp.h"
 #include "wbc_np.h"
+#include "wbc_libm_arc.h"
 
 #include <math.h>
 
@@ -37,7 +38,7 @@ static double pymod(double x, double w)
 
 static double wrap(double angle)
 {
-  return atan2(sin(angle), cos(angle));
+  return wbc_arctan2(wbc_sin(angle), wbc_cos(angle));
 }
 
 /** machine.law.se2.floored: the floor under the robot's bearing soles' lowest corners, where it is
@@ -111,21 +112,21 @@ static void modulate(const wbc_imp_t *k, const wbc_twist_t *t, double vx, double
    * walk's */
   w_short = (w_on * (1.0 - npmin(1.0, npmax(0.0, (t->spin_still_m_s - vx) / t->edge_m_s)))) * npmax(0.0, 1.0 - vx / t->walk_m_s);
   sw = out[k->o_sway + k->drive];
-  out[k->o_ref + k->drive] -= (w_short * sw) * sin(bt_d);
-  out[k->o_rate + k->drive] -= ((w_short * sw) * w) * cos(bt_d);
-  out[k->o_acc + k->drive] += (((w_short * sw) * w) * w) * sin(bt_d);
+  out[k->o_ref + k->drive] -= (w_short * sw) * wbc_sin(bt_d);
+  out[k->o_rate + k->drive] -= ((w_short * sw) * w) * wbc_cos(bt_d);
+  out[k->o_acc + k->drive] += (((w_short * sw) * w) * w) * wbc_sin(bt_d);
   out[k->o_sway + k->drive] -= w_short * sw;
   out[k->o_sway + k->drive] += w_spin * (drv - out[k->o_sway + k->drive]);
-  out[k->o_ref + k->drive] += w_spin * (drv * sin(bt_d) - out[k->o_ref + k->drive]);
-  out[k->o_rate + k->drive] += w_spin * ((drv * w) * cos(bt_d) - out[k->o_rate + k->drive]);
-  out[k->o_acc + k->drive] += w_spin * ((((-drv) * w) * w) * sin(bt_d) - out[k->o_acc + k->drive]);
+  out[k->o_ref + k->drive] += w_spin * (drv * wbc_sin(bt_d) - out[k->o_ref + k->drive]);
+  out[k->o_rate + k->drive] += w_spin * ((drv * w) * wbc_cos(bt_d) - out[k->o_rate + k->drive]);
+  out[k->o_acc + k->drive] += w_spin * ((((-drv) * w) * w) * wbc_sin(bt_d) - out[k->o_acc + k->drive]);
   out[k->o_sway + k->lift] += w_spin * npmax(0.0, g_sw * t->spin_lift - out[k->o_sway + k->lift]);
   amp_t = g_sw * (w_vy * fabs(ts) + (1.0 - w_vy) * t->turn_sway);
   bt = st[t->st_theta] + st[t->st_now_phase + k->turn];
   out[k->o_sway + k->turn] += w_turn * (amp_t - out[k->o_sway + k->turn]);
-  out[k->o_ref + k->turn] += w_turn * ((ts + amp_t * sin(bt)) - out[k->o_ref + k->turn]);
-  out[k->o_rate + k->turn] += w_turn * ((amp_t * w) * cos(bt) - out[k->o_rate + k->turn]);
-  out[k->o_acc + k->turn] += w_turn * ((((-amp_t) * w) * w) * sin(bt) - out[k->o_acc + k->turn]);
+  out[k->o_ref + k->turn] += w_turn * ((ts + amp_t * wbc_sin(bt)) - out[k->o_ref + k->turn]);
+  out[k->o_rate + k->turn] += w_turn * ((amp_t * w) * wbc_cos(bt) - out[k->o_rate + k->turn]);
+  out[k->o_acc + k->turn] += w_turn * ((((-amp_t) * w) * w) * wbc_sin(bt) - out[k->o_acc + k->turn]);
   w_slip = (npmin(1.0, npmax(0.0, (t->slip_grip - npmin(held[0], held[1])) / t->slip_grip_edge))
             * npmin(1.0, npmax(0.0, (npmin(prior[0], prior[1]) - t->slip_grip) / t->slip_grip_edge)))
            * npmin(1.0, npmax(0.0, (fabs(vx) - t->slip_m_s) / t->edge_m_s));
@@ -161,8 +162,8 @@ void wbc_twist_step(const wbc_imp_t *k, const wbc_twist_t *t, double dt, const d
   double        active, w_back, tl_back, tl_fwd, tl_side, tl_way, tl, look, tw_on;
 
   heading = wrap(w[t->w_heading] + has_thd * npmax(-t->slew_rad_s * dt, npmin(t->slew_rad_s * dt, wrap(w[t->w_target] - w[t->w_heading]))));
-  sh = sin(heading);
-  ch = cos(heading);
+  sh = wbc_sin(heading);
+  ch = wbc_cos(heading);
   floored(k, t, dt);
   vxp = vel[0] * sh + vel[2] * ch;
   vyp = vel[0] * ch - vel[2] * sh;
@@ -175,14 +176,14 @@ void wbc_twist_step(const wbc_imp_t *k, const wbc_twist_t *t, double dt, const d
   w[t->w_actual] = act[0] + kv * (vxp - act[0]);
   w[t->w_actual + 1] = act[1] + ky * (w_ty * vyp - act[1]);
   w[t->w_actual + 2] = act[2] + kz * (w_tz * wzp - act[2]);
-  pelvis_yaw = 2.0 * atan2(y_in[t->quat_at + 2], y_in[t->quat_at]);
+  pelvis_yaw = 2.0 * wbc_arctan2(y_in[t->quat_at + 2], y_in[t->quat_at]);
   unborne = 1.0 - a[k->a_borne];
   w_yaw = (npmin(1.0, fabs(wz) / 1e-4) * (1.0 - has_thd)) * unborne;
   l0 = y[k->y_load];
   l1 = y[k->y_load + 1];
   wz_way = (1.0 - 2.0 * (double)(vx < -t->backing_m_s)) * wz;
   tz_sgn = copysign(1.0, wz_way);
-  out_st = t->stance_turn - t->stance_turn_load * tanh(((t->stance_turn_k * (l0 - l1)) * tz_sgn) / npmax(l0 + l1, t->touch_n));
+  out_st = t->stance_turn - t->stance_turn_load * wbc_tanh(((t->stance_turn_k * (l0 - l1)) * tz_sgn) / npmax(l0 + l1, t->touch_n));
   d_yaw = wrap(pelvis_yaw - heading);
   w_step_yaw = (double)(d_yaw * tz_sgn >= -t->lag_rad);
   w_lead_yaw = (double)(d_yaw * wz_way > 0.0);
@@ -190,14 +191,14 @@ void wbc_twist_step(const wbc_imp_t *k, const wbc_twist_t *t, double dt, const d
   v_horz = hypot2(y[k->y_vcom], y[k->y_vcom + 2]);
   w_align = (((w_yaw * (double)(vx >= t->align_m_s)) * (double)(fabs(vy) < t->align_side_m_s)) * (double)(v_horz > t->align_speed_m_s))
             * (double)(vxp > t->align_own_m_s);
-  err_v = wrap(atan2(y[k->y_vcom], y[k->y_vcom + 2]) - heading);
+  err_v = wrap(wbc_arctan2(y[k->y_vcom], y[k->y_vcom + 2]) - heading);
   err_v_ex = copysign(npmax(0.0, fabs(err_v) - t->align_rad), err_v);
   heading = wrap(heading + ((w_align * t->align_1_s) * err_v_ex) * dt);
   err_yaw = wrap(pelvis_yaw - heading);
   err_yaw_ex = copysign(npmax(0.0, fabs(err_yaw) - t->slack_rad), err_yaw);
   heading = wrap(heading + w_yaw * err_yaw_ex);
-  sh_n = sin(heading);
-  ch_n = cos(heading);
+  sh_n = wbc_sin(heading);
+  ch_n = wbc_cos(heading);
   fr[t->f_heading] = heading;
   fr[k->f_rot] = sh_n;
   fr[k->f_rot + 1] = 0.0;
@@ -218,7 +219,7 @@ void wbc_twist_step(const wbc_imp_t *k, const wbc_twist_t *t, double dt, const d
   l_psi = out[k->o_psi + k->lateral];
   d_psi = out[k->o_psi + k->drive];
   l_sgn = copysign(1.0, out[k->o_sway + k->lateral]);
-  cw = copysign(1.0, sin(l_psi - d_psi) * l_sgn + 0.5);
+  cw = copysign(1.0, wbc_sin(l_psi - d_psi) * l_sgn + 0.5);
   last_way = isnan(state[t->s_last_way]) ? cw : state[t->s_last_way];
   w_flip = (double)(cw * last_way < 0.0)
            * npmax((double)(st[t->st_now_gain] > t->flip_gain), (double)(fabs(out[k->o_sway + k->drive]) > t->flip_drive));
@@ -231,8 +232,8 @@ void wbc_twist_step(const wbc_imp_t *k, const wbc_twist_t *t, double dt, const d
   for (int m = 0; m < n; m++)
   {
     out[k->o_psi + m] = st[t->st_theta] + st[t->st_now_phase + m];
-    out[k->o_ref + m] += ((-2.0 * w_flip) * out[k->o_sway + m]) * sin(old_psi[m]);
-    out[k->o_rate + m] += (((-2.0 * w_flip) * turns) * out[k->o_sway + m]) * cos(old_psi[m]);
+    out[k->o_ref + m] += ((-2.0 * w_flip) * out[k->o_sway + m]) * wbc_sin(old_psi[m]);
+    out[k->o_rate + m] += (((-2.0 * w_flip) * turns) * out[k->o_sway + m]) * wbc_cos(old_psi[m]);
     out[k->o_acc + m] *= 1.0 - 2.0 * w_flip;
   }
   state[t->s_last_way] = cw;

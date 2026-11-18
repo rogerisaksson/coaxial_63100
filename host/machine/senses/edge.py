@@ -23,6 +23,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.body import compile as _compile, peripherals
 from machine.body.figure import BALL, HEEL, JOINTS, SEGMENTS
 
@@ -179,13 +180,13 @@ def touched(y):
 def tilt(y):
     """The robot's pelvis's tilt from upright as its IMU has it, deg."""
     q = y[QUAT]
-    return math.degrees(math.acos(max(-1.0, min(1.0, 1.0 - 2.0 * float(q[1] ** 2 + q[3] ** 2)))))
+    return math.degrees(libm.arccos(max(-1.0, min(1.0, 1.0 - 2.0 * float(q[1] * q[1] + q[3] * q[3])))))
 
 
 def yaw(y):
     """The robot's pelvis's turn about up as its IMU has it, rad."""
     q = y[QUAT]
-    return 2.0 * math.atan2(float(q[2]), float(q[0]))
+    return 2.0 * libm.arctan2(float(q[2]), float(q[0]))
 
 
 BAUD = _bus['baud']

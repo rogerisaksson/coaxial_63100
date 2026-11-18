@@ -2,6 +2,7 @@
 import functools
 import math
 
+from machine import libm
 from machine.body import gait
 from machine.law import rhythm
 from machine.texts import ortho
@@ -158,7 +159,7 @@ def closing(vx, vz, dx, dz):
 
 
 def wrap_angle(angle):
-    return math.atan2(math.sin(angle), math.cos(angle))
+    return libm.arctan2(libm.sin(angle), libm.cos(angle))
 
 
 _INF, _SV, _SW = math.inf, rhythm.R['backing_m_s'], rhythm.R['still_rad_s']
@@ -267,7 +268,7 @@ def twisted(y_in, vel, y, fr, a, st, out, posture, held, prior, state, words, dt
     s, back = STEER, rhythm.R['backing_m_s']
     has_thd = float(words[W_HAS])
     heading = wrap_angle(float(words[W_HEADING]) + has_thd * max(-s['slew_rad_s'] * dt, min(s['slew_rad_s'] * dt, wrap_angle(float(words[W_TARGET]) - float(words[W_HEADING])))))
-    sh, ch = math.sin(heading), math.cos(heading)
+    sh, ch = libm.sin(heading), libm.cos(heading)
     floored(y, fr, dt)
     vx, vy, wz = (float(v) for v in words[W_TWIST])
     vxp, vyp, wzp = float(vel[0]) * sh + float(vel[2]) * ch, float(vel[0]) * ch - float(vel[2]) * sh, float(y_in[edge.GYRO][1])
@@ -283,7 +284,7 @@ def twisted(y_in, vel, y, fr, a, st, out, posture, held, prior, state, words, dt
     l0, l1 = float(y[modal.LOAD][0]), float(y[modal.LOAD][1])
     wz_way = (1.0 - 2.0 * float(vx < -back)) * wz
     tz_sgn = math.copysign(1.0, wz_way)
-    out_st = s['stance_turn'] - s['stance_turn_load'] * math.tanh(s['stance_turn_k'] * (l0 - l1) * tz_sgn / max(l0 + l1, leap.TOUCH_N))
+    out_st = s['stance_turn'] - s['stance_turn_load'] * libm.tanh(s['stance_turn_k'] * (l0 - l1) * tz_sgn / max(l0 + l1, leap.TOUCH_N))
     d_yaw = wrap_angle(pelvis_yaw - heading)
     w_step_yaw = float(d_yaw * tz_sgn >= -s['lag_rad'])
     w_lead_yaw = float(d_yaw * wz_way > 0.0)
@@ -291,13 +292,13 @@ def twisted(y_in, vel, y, fr, a, st, out, posture, held, prior, state, words, dt
     v_horz = math.hypot(float(y[modal.VCOM][0]), float(y[modal.VCOM][2]))
     w_align = (w_yaw * float(vx >= s['align_m_s']) * float(abs(vy) < s['align_side_m_s']) * float(v_horz > s['align_speed_m_s'])
                * float(vxp > s['align_own_m_s']))
-    err_v = wrap_angle(math.atan2(float(y[modal.VCOM][0]), float(y[modal.VCOM][2])) - heading)
+    err_v = wrap_angle(libm.arctan2(float(y[modal.VCOM][0]), float(y[modal.VCOM][2])) - heading)
     err_v_ex = math.copysign(max(0.0, abs(err_v) - s['align_rad']), err_v)
     heading = wrap_angle(heading + w_align * s['align_1_s'] * err_v_ex * dt)
     err_yaw = wrap_angle(pelvis_yaw - heading)
     err_yaw_ex = math.copysign(max(0.0, abs(err_yaw) - s['slack_rad']), err_yaw)
     heading = wrap_angle(heading + w_yaw * err_yaw_ex)
-    sh_n, ch_n = math.sin(heading), math.cos(heading)
+    sh_n, ch_n = libm.sin(heading), libm.cos(heading)
     fr[modal.HEADING] = heading
     fr[modal.ROT][:] = (sh_n, 0.0, ch_n, ch_n, 0.0, -sh_n, 0.0, 1.0, 0.0)
     # each standing sole's turn of the robot's way since it was planted, naught for one in the air
@@ -305,7 +306,7 @@ def twisted(y_in, vel, y, fr, a, st, out, posture, held, prior, state, words, dt
     fr[modal.PLANTED] = a[modal.STANCE] * (fr[modal.PLANTED] + wrap_angle(heading - float(words[W_HEADING])))
     l_psi, d_psi = float(out[latent.PSI][modal.LATERAL]), float(out[latent.PSI][modal.DRIVE])
     l_sgn = math.copysign(1.0, float(out[latent.SWAY][modal.LATERAL]))
-    cw = math.copysign(1.0, math.sin(l_psi - d_psi) * l_sgn + 0.5)
+    cw = math.copysign(1.0, libm.sin(l_psi - d_psi) * l_sgn + 0.5)
     last_way = float(np.nan_to_num(state[LAST_WAY], nan=cw))
     w_flip = float(cw * last_way < 0.0) * max(float(st[latent.NOW][latent.GAIN] > s['flip_gain']),
                                               float(abs(float(out[latent.SWAY][modal.DRIVE])) > s['flip_drive']))
@@ -313,8 +314,8 @@ def twisted(y_in, vel, y, fr, a, st, out, posture, held, prior, state, words, dt
     st[latent.THETA] = (float(st[latent.THETA]) + w_flip * math.pi) % math.tau
     out[latent.PSI] = st[latent.THETA] + st[latent.NOW][latent.PHASE]
     sway, turns = out[latent.SWAY], float(out[latent.TURNS])
-    out[latent.REF] += (-2.0 * w_flip * sway) * [math.sin(float(p)) for p in old_psi]
-    out[latent.RATE] += (-2.0 * w_flip * turns * sway) * [math.cos(float(p)) for p in old_psi]
+    out[latent.REF] += (-2.0 * w_flip * sway) * [libm.sin(float(p)) for p in old_psi]
+    out[latent.RATE] += (-2.0 * w_flip * turns * sway) * [libm.cos(float(p)) for p in old_psi]
     out[latent.ACC] *= 1.0 - 2.0 * w_flip
     state[LAST_WAY] = cw
     rhythm.modulated(st, out, held, prior, state, float(words[W_ACTIVE]), vx, vy, wz, vxp)

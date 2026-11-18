@@ -12,6 +12,8 @@ The robot's map's and its picture's (`machine.eyes.voxels`, `machine.eyes.sight`
 import heapq
 import math
 
+from machine import libm
+
 
 def grown(cells, r, join=None):
     """`cells` (nx, nz) grown by `r` of them round each, `join` of a cell and each neighbour's (numpy's or without)."""
@@ -150,7 +152,7 @@ def nearest_free(blocked, cell):
     free = np.argwhere(~blocked)
     if len(free) == 0:
         return cell
-    k = np.argmin(((free - np.array(cell)) ** 2).sum(axis=1))
+    k = np.argmin((libm.sq(free - np.array(cell))).sum(axis=1))
     return (int(free[k][0]), int(free[k][1]))
 
 

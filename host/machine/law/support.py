@@ -15,6 +15,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.body import gait
 from machine.law import latent
 from machine.law.modal import LATERAL, N, TURN
@@ -42,7 +43,7 @@ def couple(q, qd, ref_q, ref_v, eso_z, out):
     """`dq` (driven,) rad of upper-body posture admittance, `out[latent.REF]` shifted by `PI @ phi`
     and `eso_z` bled on obstructed non-weight-bearing joints."""
     err, s2, z0 = q - ref_q, SIGMA * SIGMA, ESO_S * ESO_S
-    e2, z2 = err * err, np.maximum(eso_z * np.copysign(1.0, err) - ESO_0, 0.0) ** 2
+    e2, z2 = err * err, libm.sq(np.maximum(eso_z * np.copysign(1.0, err) - ESO_0, 0.0))
     e4, z4, s4, sz4 = e2 * e2, z2 * z2, s2 * s2, z0 * z0
     e8, s8 = e4 * e4, s4 * s4
     phi = (z4 / (z4 + sz4)) * (e8 / (e8 + s8)) * (err + TAU_V * (qd - ref_v) * e2 / (e2 + s2))

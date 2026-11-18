@@ -20,6 +20,7 @@ last service meets its band. The same rows off a robot's boards, its currents it
 """
 import math
 
+from machine import libm
 from machine.senses import borne
 from machine.identify import campaign, identified, sysid
 from machine.body import drives, mechatronics, peripherals
@@ -89,7 +90,7 @@ def laid(body, build=None):
     hem_limb = np.array([(lay['limb'] @ (lay['above'][k, lay['driven']] @ lay['limb'])) > 0 for k in hems], bool)
     return {'lay': lay, 'body': body, 'nominal': nominal, 'names': names, 'unit': unit,
             'pace': np.array([PACE[k] for k in kinds]), 'D': D * unit[:D.shape[1]], 'band': band,
-            'z': np.zeros(len(names)), 'P': PRIOR ** 2 * np.eye(len(names)), 'hours': 0.0, 'serviced_at': 0.0,
+            'z': np.zeros(len(names)), 'P': (PRIOR * PRIOR) * np.eye(len(names)), 'hours': 0.0, 'serviced_at': 0.0,
             'residual': np.zeros(n_d), 'read': np.zeros(n_d, int), 'armature': built[at:].reshape(n_d, 3)[:, 0].copy(),
             'boxes': np.zeros((n_d, len(campaign.BOX))), 'box_n': np.zeros(n_d, int),
             'zero': np.zeros(n_d), 'torso': (0.0, (0.0, 0.0, 0.0)), 'hems': hems, 'hem_limb': hem_limb,
@@ -168,7 +169,7 @@ def step(w, got):
     import numpy as np
     A, left, drive = got['A'], got['left'], got['drive']
     n_d = len(w['residual'])
-    w['P'] = w['P'] + np.diag(w['pace'] ** 2 * got['seconds'])
+    w['P'] = w['P'] + np.diag(libm.sq(w['pace']) * got['seconds'])
     if len(left):
         sigma = np.maximum(NOISE, w['residual'])[drive]
         A, left = A / sigma[:, None], left / sigma

@@ -22,6 +22,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.body import gait
 from machine.senses import borne
 from machine.law import latent, poise, rocker, stride, swing, treads, vault
@@ -66,7 +67,7 @@ def ask(out, y, fr, a):
     floors, rise = under(y, fr, stood)
     propped, prop = borne.latched(y, rot, a, fr[DT])
     # the lift's own rhythm is the stride's clearance, not a sole's place
-    tone = sway[LIFT] * np.array([np.sin(beat), turns * np.cos(beat), -turns * turns * np.sin(beat)])
+    tone = sway[LIFT] * np.array([libm.sin(beat), turns * libm.cos(beat), -turns * turns * libm.sin(beat)])
     ref, rate, acc = (out[part] - HOT[LIFT] * t for part, t in zip((latent.REF, latent.RATE, latent.ACC), tone))
     up = LIMBS * ref[LIFT]
     # the robot's capture point past the soles that stood - past its ZMP's margin in them - steps it while the
@@ -78,7 +79,7 @@ def ask(out, y, fr, a):
     beyond = xi - poise.clip(xi, *poise.spanned((lo + out_of).min(axis=0), (hi - out_of).max(axis=0), prop))
     past = np.linalg.norm(xi - poise.clip(xi, *poise.spanned((lo + lifted).min(axis=0), (hi - lifted).max(axis=0), prop)))
     a[NEED] = (1.0 - propped) * stood.max() * poise.clip(past / poise.MARGIN_M, 0.0, 1.0) * poise.clip(out[latent.HELD], 0.0, 1.0)
-    phi_w, lat0 = stride.swings(sway[DRIVE], turns, a[GOING]), ref[LATERAL] - sway[LATERAL] * np.sin(psi[LATERAL])
+    phi_w, lat0 = stride.swings(sway[DRIVE], turns, a[GOING]), ref[LATERAL] - sway[LATERAL] * libm.sin(psi[LATERAL])
     stepping, way, sweep, phi, on, off, u, flying, swung = stride.beat(
         sway[DRIVE], psi[DRIVE], sway[LATERAL], psi[LATERAL], turns,
         a[SWINGS], a[NEED], a[LEAD], a[SPLIT], begun, stood, phi_w, thrown)
@@ -99,9 +100,9 @@ def ask(out, y, fr, a):
     # stopped between steps and each sole waited for its
     lat_dc = stepping * lat0
     cruise, across = stride.cruises(way, sway[DRIVE], turns, a[GOING], phi_w), 2.5 * lat_dc
-    dv2 = (v[ALONG] - cruise - HALF_M * rate[SAGITTAL]) ** 2 + (v[LEFT] - across - fr[W0] * rate[LATERAL]) ** 2
+    dv2 = libm.sq(v[ALONG] - cruise - HALF_M * rate[SAGITTAL]) + libm.sq(v[LEFT] - across - fr[W0] * rate[LATERAL])
     dvh = np.array([vh[ALONG] - v[ALONG] - HALF_M * PITCH_RAD * rate[PITCH], vh[LEFT] - v[LEFT], vh[UP] - v[UP]])
-    dvh4 = (dvh * dvh) ** 2
+    dvh4 = libm.sq(dvh * dvh)
     # the robot's head's lag on its trunk's asked pitch is no speed of its centre's while something bears it:
     # read so, a rise's preload asked its centre 5.9 m/s^2 ahead off the floor's grip and pitched its back
     dvh = 0.5 * still * (1.0 - propped) * dvh * dvh4 / (dvh4 + 0.02)
@@ -122,7 +123,7 @@ def ask(out, y, fr, a):
     # the excess (`pressed`): down they bore 0.61 of it on the bed; by the prop's share it brushed its frame
     short_h = propped * np.maximum((hips[:, UP] - floors).mean() - (ANKLE_H + long), 0.0)
     up = up + short_h / CLEAR_M
-    stance, zmp = poise.stands(c[:2] + both[:2] / om ** 2, xi, low, high, om, out[latent.HELD], up,
+    stance, zmp = poise.stands(c[:2] + both[:2] / (om * om), xi, low, high, om, out[latent.HELD], up,
                                swaying, (sweep, off, flying, 1.0 * (tilt - rocker.pitched(fr[GROUND]) >= stride.HEEL_RAD)),
                                (y[LOAD], y[LOWEST] - floors, y[LOWEST] - fr[FLOOR], y[VCOM][1], y[PROP] * fr[WEIGHT]),
                                stood, prop, poise.clip(np.abs(sway[DRIVE]) / stride.STIRS, 0.0, 1.0))
@@ -130,7 +131,7 @@ def ask(out, y, fr, a):
     grounded, aloft, upright = np.maximum(stance.max(), propped), 1.0 - stance, stance.max() * (1.0 - propped)
     flew = swing.flew(thrown, grounded, v, y[LOWEST] - floors, shod)
     bears = (stance + TINY) / (stance.sum() + 2.0 * TINY)
-    along = om ** 2 * (c[:2] - zmp)
+    along = (om * om) * (c[:2] - zmp)
     # along the floor no harder than the standing soles' grip gives: on ice (0.02) a step asked a sole 0.85 of
     # its load across and it slid
     along = along * np.minimum(1.0, (bears @ y[GRIP]) * G / np.maximum(np.linalg.norm(along), TINY))
@@ -154,7 +155,7 @@ def ask(out, y, fr, a):
     zd += HOT[AXIAL] * (axial[1] - (bears @ (air * shod[:, UP]) + stance.max() * dvh[2]) / (AXIAL_M * fr[HIPS_BY]) - zd[AXIAL])
     pressed = acc[AXIAL] + kp[AXIAL] * (ref[AXIAL] + duck[0] / AXIAL_M - short_h / (AXIAL_M * fr[HIPS_BY]) - z[AXIAL]) + kd[AXIAL] * (rate[AXIAL] + duck[1] / AXIAL_M - zd[AXIAL])
     risen = vault.vaults(legs, v, shod, along, propped, pressed, AXIAL_M, fr[HIPS_BY], LOW_LEG * fr[REACH0], hips[:, UP] - floors, reach_h, duck, a[HEELED],
-                         poise.clip(out[latent.HELD], 0.0, 1.0) * flying[::-1], out[latent.ASKED][DRIVE], kp[AXIAL], kd[AXIAL], fr[REACH0] / np.cos(0.5 * fr[KNEE]), fr[DT], out[latent.HELD])
+                         poise.clip(out[latent.HELD], 0.0, 1.0) * flying[::-1], out[latent.ASKED][DRIVE], kp[AXIAL], kd[AXIAL], fr[REACH0] / libm.cos(0.5 * fr[KNEE]), fr[DT], out[latent.HELD])
     # borne off the robot's soles alone (propped, its floor sit's legs threw it back at 110-330 N), up as its
     # height asks
     lifted = upright * (bears @ risen) / fr[HIPS_BY] - (1.0 - upright) * AXIAL_M * pressed

@@ -5,6 +5,7 @@ import math
 import os
 import queue
 import time
+from machine import libm
 from machine.process import apart, gaits, governed, sprung, worn
 from machine.world import physics, referee
 from machine.senses import edge
@@ -137,7 +138,7 @@ def told_floor(g, profile):
     if profile is None:
         return
     pts, hd = np.array(profile, float)[:modal.MAP_K], float(g['heading'])
-    fr[modal.MAP_AT], fr[modal.MAP_WAY] = (g['est']['pos'][0], g['est']['pos'][2]), (math.sin(hd), math.cos(hd))
+    fr[modal.MAP_AT], fr[modal.MAP_WAY] = (g['est']['pos'][0], g['est']['pos'][2]), (libm.sin(hd), libm.cos(hd))
     fr[modal.MAP_ALONG][:len(pts)], fr[modal.MAP_RISE][:len(pts)] = pts[:, 0], pts[:, 1]
     fr[modal.MAP_N] = float(len(pts))
 

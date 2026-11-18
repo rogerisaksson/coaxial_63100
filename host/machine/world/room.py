@@ -17,6 +17,7 @@ and swings out as the robot pushes it; the lamp's switch sits on the wall by it.
 import math
 import re
 
+from machine import libm
 from machine.world.chair import CHAIR_LEG_IN, CHAIR_SEAT, SEAT_GRIP
 from machine.world.floor import CHAIR_LOW_H, FOAM, RISE_M, RUN_M, STEPS, core
 from machine.world import loose
@@ -98,7 +99,7 @@ def _round(name, at, radius, half, contacts, extra=''):
 
 def roof_y(x):
     """The roof's underside over the walls at `x`, m: the ridge over the middle, the eaves at HIGH."""
-    return HIGH + (WIDE - abs(x)) * math.tan(math.radians(PITCH_DEG))
+    return HIGH + (WIDE - abs(x)) * libm.tan(math.radians(PITCH_DEG))
 
 
 def _gable(contacts):
@@ -120,13 +121,13 @@ def _roof():
     """The two slabs, each from its eave up to the ridge, turned about z by the pitch; nothing
     collides with them."""
     p = math.radians(PITCH_DEG)
-    reach, half = WIDE + EAVE_M, ((WIDE + EAVE_M) / math.cos(math.radians(PITCH_DEG)) / 2.0, ROOF_T,
+    reach, half = WIDE + EAVE_M, ((WIDE + EAVE_M) / libm.cos(math.radians(PITCH_DEG)) / 2.0, ROOF_T,
                                   (TO - FROM) / 2.0 + EAVE_M)
-    y_mid = HIGH + WIDE * math.tan(p) - reach / 2.0 * math.tan(p)
+    y_mid = HIGH + WIDE * libm.tan(p) - reach / 2.0 * libm.tan(p)
     out = []
     for name, side in (('roof_left', -1.0), ('roof_right', 1.0)):
-        at = (side * reach / 2.0 + side * ROOF_T * math.sin(p), y_mid + ROOF_T * math.cos(p), (FROM + TO) / 2.0)
-        out.append(_box(name, at, half, '', ' quat="%g 0 0 %g"' % (math.cos(p / 2.0), -side * math.sin(p / 2.0))))
+        at = (side * reach / 2.0 + side * ROOF_T * libm.sin(p), y_mid + ROOF_T * libm.cos(p), (FROM + TO) / 2.0)
+        out.append(_box(name, at, half, '', ' quat="%g 0 0 %g"' % (libm.cos(p / 2.0), -side * libm.sin(p / 2.0))))
     return out
 
 

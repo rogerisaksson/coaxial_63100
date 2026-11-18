@@ -8,6 +8,7 @@ twin (wbc_twist_t, wbc_twist.c).
 """
 import math
 
+from machine import libm
 from machine.body import gait
 
 #: The robot's rhythm's numbers in the order wbc_twist_t lays them.
@@ -53,21 +54,21 @@ def modulated(st, out, held, prior, state, tw_on, vx, vy, wz, vxp):
     # round - its arc is its speed over its turn
     w_short = w_on * (1.0 - min(1.0, max(0.0, (r['spin_still_m_s'] - vx) / r['edge_m_s']))) * max(0.0, 1.0 - vx / se2.WALK_SPEED)
     sw = float(out[latent.SWAY][modal.DRIVE])
-    out[latent.REF][modal.DRIVE] -= w_short * sw * math.sin(bt_d)
-    out[latent.RATE][modal.DRIVE] -= w_short * sw * w * math.cos(bt_d)
-    out[latent.ACC][modal.DRIVE] += w_short * sw * w * w * math.sin(bt_d)
+    out[latent.REF][modal.DRIVE] -= w_short * sw * libm.sin(bt_d)
+    out[latent.RATE][modal.DRIVE] -= w_short * sw * w * libm.cos(bt_d)
+    out[latent.ACC][modal.DRIVE] += w_short * sw * w * w * libm.sin(bt_d)
     out[latent.SWAY][modal.DRIVE] -= w_short * sw
     out[latent.SWAY][modal.DRIVE] += w_spin * (drv - float(out[latent.SWAY][modal.DRIVE]))
-    out[latent.REF][modal.DRIVE] += w_spin * (drv * math.sin(bt_d) - float(out[latent.REF][modal.DRIVE]))
-    out[latent.RATE][modal.DRIVE] += w_spin * (drv * w * math.cos(bt_d) - float(out[latent.RATE][modal.DRIVE]))
-    out[latent.ACC][modal.DRIVE] += w_spin * (-drv * w * w * math.sin(bt_d) - float(out[latent.ACC][modal.DRIVE]))
+    out[latent.REF][modal.DRIVE] += w_spin * (drv * libm.sin(bt_d) - float(out[latent.REF][modal.DRIVE]))
+    out[latent.RATE][modal.DRIVE] += w_spin * (drv * w * libm.cos(bt_d) - float(out[latent.RATE][modal.DRIVE]))
+    out[latent.ACC][modal.DRIVE] += w_spin * (-drv * w * w * libm.sin(bt_d) - float(out[latent.ACC][modal.DRIVE]))
     out[latent.SWAY][modal.LIFT] += w_spin * max(0.0, g_sw * r['spin_lift'] - float(out[latent.SWAY][modal.LIFT]))
     amp_t = g_sw * (w_vy * abs(ts) + (1.0 - w_vy) * r['turn_sway'])
     bt = float(st[latent.THETA] + st[latent.NOW][latent.PHASE][modal.TURN])
     out[latent.SWAY][modal.TURN] += w_turn * (amp_t - float(out[latent.SWAY][modal.TURN]))
-    out[latent.REF][modal.TURN] += w_turn * (ts + amp_t * math.sin(bt) - float(out[latent.REF][modal.TURN]))
-    out[latent.RATE][modal.TURN] += w_turn * (amp_t * w * math.cos(bt) - float(out[latent.RATE][modal.TURN]))
-    out[latent.ACC][modal.TURN] += w_turn * (-amp_t * w * w * math.sin(bt) - float(out[latent.ACC][modal.TURN]))
+    out[latent.REF][modal.TURN] += w_turn * (ts + amp_t * libm.sin(bt) - float(out[latent.REF][modal.TURN]))
+    out[latent.RATE][modal.TURN] += w_turn * (amp_t * w * libm.cos(bt) - float(out[latent.RATE][modal.TURN]))
+    out[latent.ACC][modal.TURN] += w_turn * (-amp_t * w * w * libm.sin(bt) - float(out[latent.ACC][modal.TURN]))
     w_slip = (min(1.0, max(0.0, (r['slip_grip'] - min(held)) / r['slip_grip_edge']))
               * min(1.0, max(0.0, (min(prior) - r['slip_grip']) / r['slip_grip_edge']))
               * min(1.0, max(0.0, (abs(vx) - r['slip_m_s']) / r['edge_m_s'])))

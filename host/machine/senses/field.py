@@ -25,6 +25,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.body import figure
 from machine.law import impedance, latent, modal
 from machine.texts import kernel, maneuver
@@ -45,7 +46,7 @@ def _folded():
     """The robot's knee's bend where its thigh's last capsule meets its shank's first (`figure.BODY`), rad."""
     (_a, rt, t0, t1), (_b, rs, _s0, _s1) = [c for c in figure.BODY if c[0] == 'thigh'][-1], [c for c in figure.BODY if c[0] == 'shank'][0]
     span = math.dist(t0, t1)
-    return math.pi - 2.0 * math.asin((rt + rs) / (2.0 * span))
+    return math.pi - 2.0 * libm.arcsin((rt + rs) / (2.0 * span))
 
 
 #: The robot's axial's floor: its knee bent to where its thigh meets its shank less the text's clearance -

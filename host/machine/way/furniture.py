@@ -8,6 +8,7 @@ lie on; the door its kind.
 import math
 import operator
 
+from machine import libm
 from machine.way import affordance
 
 #: What `verb` goes to among the robot's things: whether a box affords it, whether it is the thing itself, and
@@ -125,8 +126,8 @@ def _near(kept, things, index):
         return moved
     near = moved.copy()
     for c, h in ((now[0], now[1]), (was[0], was[1])):
-        plan, r = c[:, [0, 2]], np.hypot(h[:, 0], h[:, 2])
-        gap = np.hypot(*(plan[:, None, :] - plan[None, moved, :]).transpose(2, 0, 1))
+        plan, r = c[:, [0, 2]], libm.hypot(h[:, 0], h[:, 2])
+        gap = libm.hypot(*(plan[:, None, :] - plan[None, moved, :]).transpose(2, 0, 1))
         near |= (gap <= r[:, None] + affordance.ROOT2 * r[None, moved] + CELL_M + 1e-9).any(axis=1)
     return near
 
@@ -220,7 +221,7 @@ def lain(g, verb='lie_bed'):
     room as its eyes tell it - not the robot's dead reckoning, whose estimate drifted 0.28 m along a
     bed as it lay down on it and stroked up it."""
     q, data = where(g), g['world'].data
-    speed = float(math.sqrt(sum(float(v) ** 2 for v in data.qvel[:3])))
+    speed = float(math.sqrt(sum(libm.sq(float(v)) for v in data.qvel[:3])))
     hit = _found(g, verb, edge=False)
     if hit is None:
         return 0.0, 0.0, speed
@@ -250,10 +251,10 @@ def seen(g, stunt, at=None, thing=None):
     _kind, (px, py, pz), half, turn = hit[2][:4]
     root = where(g) - g['est']['pos']
     mid, yaw = g['y'][modal.SOLE].reshape(2, 3).mean(axis=0) + root, edge.yaw(g['sense'])
-    way, off = (math.sin(yaw), math.cos(yaw)), (px - float(mid[0]), pz - float(mid[2]))
+    way, off = (libm.sin(yaw), libm.cos(yaw)), (px - float(mid[0]), pz - float(mid[2]))
     dots = [way[0] * turn[0][j] + way[1] * turn[2][j] for j in (0, 2)]
     k = int(abs(dots[1]) > abs(dots[0]))
     j, cos = 2 * k, abs(dots[k])
     face = (-math.copysign(1.0, dots[k]) * (off[0] * turn[0][j] + off[1] * turn[2][j]) - half[j]) / cos
     return (py + half[1], face, off[0] * way[1] - off[1] * way[0],
-            math.remainder(math.atan2(turn[0][2], turn[2][2]) - yaw, 0.5 * math.pi), 2.0 * half[j], 2.0 * half[2 - j])
+            math.remainder(libm.arctan2(turn[0][2], turn[2][2]) - yaw, 0.5 * math.pi), 2.0 * half[j], 2.0 * half[2 - j])

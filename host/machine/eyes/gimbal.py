@@ -19,6 +19,7 @@ eyes' line held to their build.
 import functools
 import math
 
+from machine import libm
 from machine.body import peripherals
 from machine.eyes.stereo import BASELINE_M, FOVY_DEG, _np
 from machine.eyes import epipolar
@@ -33,15 +34,15 @@ CHURCH = _eyes['church']
 
 #: The robot's eyes' frame at rest in the head's (`cameras`' xyaxes, the rows): x its right, y up and DOWN_DEG
 #: forward, z back.
-_EYE_R = ((-1.0, 0.0, 0.0), (0.0, math.cos(math.radians(DOWN_DEG)), math.sin(math.radians(DOWN_DEG))),
-          (0.0, math.sin(math.radians(DOWN_DEG)), -math.cos(math.radians(DOWN_DEG))))
+_EYE_R = ((-1.0, 0.0, 0.0), (0.0, libm.cos(math.radians(DOWN_DEG)), libm.sin(math.radians(DOWN_DEG))),
+          (0.0, libm.sin(math.radians(DOWN_DEG)), -libm.cos(math.radians(DOWN_DEG))))
 
 
 def turned(a):
     """(3, 3) a gimbal turned (across, down) `a` rad in the robot's head's frame: across about its up, then
     down."""
     np = _np()
-    (cy, sy), (cp, sp) = (math.cos(a[0]), math.sin(a[0])), (math.cos(a[1]), math.sin(a[1]))
+    (cy, sy), (cp, sp) = (libm.cos(a[0]), libm.sin(a[0])), (libm.cos(a[1]), libm.sin(a[1]))
     return np.array([[cy, sy * sp, sy * cp], [0.0, cp, -sp], [-sy, cy * sp, cy * cp]])
 
 

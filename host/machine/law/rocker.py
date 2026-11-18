@@ -14,6 +14,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.body.figure import ANKLE_H, BALL, SHANK, THIGH
 from machine.law.poise import BIG, HALF_M, TINY, clip
 from machine.law.stride import ALONG, DIP_M, EDGE_RAD, FLAT_K, FOLD_RAD, HEEL_RAD, HEEL_RAD_S, HEEL_UP, LIMBS, ROCK_RAD, UP
@@ -34,7 +35,7 @@ def folds(off, loads, bent):
     share done): at the swing's end its sole lands, and the fold leaked there bent the robot's landing knee
     37-39 deg, a woman's 0-12."""
     fold = FOLD_RAD * off * (1.0 - loads / np.maximum(loads.sum(), TINY))
-    return fold, (THIGH + SHANK) * (np.cos(0.5 * bent) - np.cos(0.5 * (bent + fold)))
+    return fold, (THIGH + SHANK) * (libm.cos(0.5 * bent) - libm.cos(0.5 * (bent + fold)))
 
 
 def heels(sole, hips, floor, long, short, off, tip, stance, stepping, was, dt, ground):
@@ -54,14 +55,14 @@ def heels(sole, hips, floor, long, short, off, tip, stance, stepping, was, dt, g
     s ago. A sole's pitch is read against the floor's under it (`ground`, each's): flat on a 10 deg ramp, read as
     on its heel, a sole's box was its heel's line and the robot fell 1.9 m up it."""
     place, tilt, tilting = sole
-    spoke = np.stack([np.sin(tilt), 0.0 * tilt, np.cos(tilt)], axis=1)
-    inward = np.stack([np.cos(tilt), 0.0 * tilt, -np.sin(tilt)], axis=1)
+    spoke = np.stack([libm.sin(tilt), 0.0 * tilt, libm.cos(tilt)], axis=1)
+    inward = np.stack([libm.cos(tilt), 0.0 * tilt, -libm.sin(tilt)], axis=1)
     ball = (place + HALF_M * inward)[:, [ALONG, UP]]
     hip = hips - ball[:, 0]
     high = floor + ANKLE_H + long - DIP_M - ball[:, 1]
-    lever = np.hypot(hip * BALL - high * ANKLE_H, hip * ANKLE_H + high * BALL)
-    need = clip(np.arctan2(-(hip * ANKLE_H + high * BALL), hip * BALL - high * ANKLE_H) + np.arccos(clip(
-        ((long - short) ** 2 - hip * hip - high * high - BALL * BALL - ANKLE_H * ANKLE_H) / (2.0 * lever),
+    lever = libm.hypot(hip * BALL - high * ANKLE_H, hip * ANKLE_H + high * BALL)
+    need = clip(libm.arctan2(-(hip * ANKLE_H + high * BALL), hip * BALL - high * ANKLE_H) + libm.arccos(clip(
+        (libm.sq(long - short) - hip * hip - high * high - BALL * BALL - ANKLE_H * ANKLE_H) / (2.0 * lever),
         -1.0, 1.0)),
         0.0, HEEL_RAD) * clip(hip / BALL, 0.0, 1.0)
     rocked, lean = np.maximum(off * np.maximum(tip, 0.0), need), tilt - pitched(ground)
@@ -71,8 +72,8 @@ def heels(sole, hips, floor, long, short, off, tip, stance, stepping, was, dt, g
     # the hip's height over the floor the leg reaches with its heel up as its length needs: the asked height while
     # the heel can give it, the rocker's past HEEL_RAD - held to the asked height, a woman's heel capped, the hold
     # was never met; with the rock's heel, the hold lifted a crouch asked 0.25 (text 102) to 0.15
-    reach = (ball[:, 1] - floor + BALL * np.sin(need) + ANKLE_H * np.cos(need)
-             + np.sqrt(np.maximum((long - short) ** 2 - (hip + BALL * np.cos(need) - ANKLE_H * np.sin(need)) ** 2, 0.0)))
+    reach = (ball[:, 1] - floor + BALL * libm.sin(need) + ANKLE_H * libm.cos(need)
+             + np.sqrt(np.maximum(libm.sq(long - short) - libm.sq(hip + BALL * libm.cos(need) - ANKLE_H * libm.sin(need)), 0.0)))
     return (rocked, flatten, stepping * stance * edge * clip(np.maximum(np.abs(lean), rocked) / EDGE_RAD, 0.0, 1.0),
             (edge * HALF_M)[:, None] * (flatten[:, None] * spoke + (tilting * tilting)[:, None] * inward), reach)
 

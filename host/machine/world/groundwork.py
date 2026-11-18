@@ -21,6 +21,8 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
+
 #: The ring's quarters, rad of roll: the robot's back, the side it rolls onto, its front, the other side, its
 #: back.
 QUARTERS = 0.5 * np.pi * np.arange(5)
@@ -30,14 +32,14 @@ def pitched(phi):
     """(m, 3): the floor's up in the robot's frame, its pitched `phi` (m,) rad - 0 upright, pi/2 on its back,
     -pi/2 on its front."""
     phi = np.atleast_1d(phi)
-    return np.stack([np.zeros_like(phi), np.cos(phi), np.sin(phi)], axis=1)
+    return np.stack([np.zeros_like(phi), libm.cos(phi), libm.sin(phi)], axis=1)
 
 
 def rolled(theta, side):
     """(m, 3): the floor's up in the robot's frame, on its back rolled `theta` (m,) rad about its long axis onto
     `side` (1 its left, -1 its right): pi/2 on that side, pi on its front."""
     theta = np.atleast_1d(theta)
-    return np.stack([-side * np.sin(theta), np.zeros_like(theta), np.cos(theta)], axis=1)
+    return np.stack([-side * libm.sin(theta), np.zeros_like(theta), libm.cos(theta)], axis=1)
 
 
 def low(points, radii, up):
@@ -90,7 +92,7 @@ def escape(weight, r, sink, theta):
     from the edge it rolls over: weight (r sin theta + sink / 2 cos theta). The text's m g / (2 k_sub
     L_contact) is a length only with k_sub L_contact the substrate's d Fz / dz, as its roll law reads it: half
     the sinkage."""
-    return weight * (r * np.sin(theta) + 0.5 * sink * np.cos(theta))
+    return weight * (r * libm.sin(theta) + 0.5 * sink * libm.cos(theta))
 
 
 def substrate(k, above, below):

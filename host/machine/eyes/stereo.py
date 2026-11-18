@@ -17,12 +17,13 @@ block match's 0.122. `COAXIAL_GPU=0` keeps it on the CPU.
 import math
 import os
 
+from machine import libm
 from machine.body import peripherals
 from machine.eyes.voxels import NEAR_M
 
 _EY = peripherals.eyes()
 W, H, FOVY_DEG, BASELINE_M = _EY['w'], _EY['h'], _EY['fovy_deg'], _EY['baseline_m']
-DISPARITIES = int(math.ceil((H / 2.0) / math.tan(math.radians(FOVY_DEG) / 2.0) * BASELINE_M / NEAR_M)) + 2
+DISPARITIES = int(math.ceil((H / 2.0) / libm.tan(math.radians(FOVY_DEG) / 2.0) * BASELINE_M / NEAR_M)) + 2
 WINDOW, TEXTURE, UNIQUE = _EY['window'], _EY['texture'], _EY['unique']
 CENSUS, P1, P2 = _EY['census'], _EY['p1'], _EY['p2']
 QUANTUM = _EY['quantum']
@@ -313,8 +314,8 @@ def _array_disparity(left, right, xp, card=False):
     disp = best + xp.clip(sub, -0.5, 0.5)
     apart = xp.abs(xp.arange(DISPARITIES)[:, None, None] - best[None, :, :]) > 2
     second = xp.where(apart, total, xp.inf).min(axis=0)
-    mean = _boxed(gl, r, xp) / WINDOW ** 2
-    spread = xp.sqrt(xp.maximum(_boxed(gl * gl, r, xp) / WINDOW ** 2 - mean * mean, 0.0))
+    mean = _boxed(gl, r, xp) / (WINDOW * WINDOW)
+    spread = xp.sqrt(xp.maximum(_boxed(gl * gl, r, xp) / (WINDOW * WINDOW) - mean * mean, 0.0))
     if card:
         seen = _card_backed(paths, xp)
     else:

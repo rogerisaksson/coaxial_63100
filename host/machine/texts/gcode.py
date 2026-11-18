@@ -26,6 +26,7 @@ rig's leg to the robot's own), each joint clamped to its drive's range and each 
 import math
 import os
 
+from machine import libm
 from machine.body import defrobot, figure, mechatronics
 from machine.errors import MachineError
 
@@ -61,12 +62,12 @@ def _dot(a, b):
 
 def _angle(u, v):
     import numpy as np
-    return np.degrees(np.arccos(np.clip(_dot(_unit(u), _unit(v)), -1.0, 1.0)))
+    return np.degrees(libm.arccos(np.clip(_dot(_unit(u), _unit(v)), -1.0, 1.0)))
 
 
 def _asin(x):
     import numpy as np
-    return np.degrees(np.arcsin(np.clip(x, -1.0, 1.0)))
+    return np.degrees(libm.arcsin(np.clip(x, -1.0, 1.0)))
 
 
 def _frame(up, left):
@@ -84,7 +85,7 @@ def _bend(child, bone, forward, left, sign):
     b = child - _dot(child, bone)[:, None] * bone
     n = np.linalg.norm(b, axis=-1)
     b = b / np.maximum(n, 1e-9)[:, None]
-    return np.degrees(np.arctan2(sign * _dot(b, left), _dot(b, forward))) * (n > math.sin(math.radians(BENT)))
+    return np.degrees(libm.arctan2(sign * _dot(b, left), _dot(b, forward))) * (n > libm.sin(math.radians(BENT)))
 
 
 def rig(joints):
@@ -95,16 +96,16 @@ def rig(joints):
     f_t, u_t, l_t = _frame(J['Neck'] - J['Spine'], J['LeftArm'] - J['RightArm'])
     head = _unit(J['Head'] - J['Neck'])
     out = {'X': J['Hips'][:, 0], 'Y': J['Hips'][:, 1], 'Z': J['Hips'][:, 2],
-           'A': np.degrees(np.arctan2(l_p[:, 1], u_p[:, 1])), 'B': _asin(f_p[:, 1]),
-           'C': np.degrees(np.arctan2(f_p[:, 0], f_p[:, 2])),
-           'SPF': np.degrees(np.arctan2(_dot(u_t, f_p), _dot(u_t, u_p))), 'SPL': _asin(_dot(u_t, l_p)),
-           'SPY': np.degrees(np.arctan2(-_dot(l_t, f_p), _dot(l_t, l_p))),
-           'NKF': np.degrees(np.arctan2(_dot(head, f_t), _dot(head, u_t))), 'NKL': _asin(_dot(head, l_t))}
+           'A': np.degrees(libm.arctan2(l_p[:, 1], u_p[:, 1])), 'B': _asin(f_p[:, 1]),
+           'C': np.degrees(libm.arctan2(f_p[:, 0], f_p[:, 2])),
+           'SPF': np.degrees(libm.arctan2(_dot(u_t, f_p), _dot(u_t, u_p))), 'SPL': _asin(_dot(u_t, l_p)),
+           'SPY': np.degrees(libm.arctan2(-_dot(l_t, f_p), _dot(l_t, l_p))),
+           'NKF': np.degrees(libm.arctan2(_dot(head, f_t), _dot(head, u_t))), 'NKL': _asin(_dot(head, l_t))}
     for s, side, sign in SIDES:
         d, sh = _unit(J[side + 'Leg'] - J[side + 'UpLeg']), _unit(J[side + 'Foot'] - J[side + 'Leg'])
         toe = _unit(J[side + 'ToeBase'] - J[side + 'Foot'])
-        hf = np.arctan2(_dot(d, f_p), -_dot(d, u_p))
-        f_thigh = np.cos(hf)[:, None] * f_p + np.sin(hf)[:, None] * u_p
+        hf = libm.arctan2(_dot(d, f_p), -_dot(d, u_p))
+        f_thigh = libm.cos(hf)[:, None] * f_p + libm.sin(hf)[:, None] * u_p
         out[s + 'HF'], out[s + 'HA'] = np.degrees(hf), _asin(sign * _dot(d, l_p))
         out[s + 'HR'] = _bend(sh, d, -f_thigh, -l_p, sign)
         out[s + 'KF'], out[s + 'AF'] = _angle(d, sh), _angle(sh, toe) - 90.0
@@ -113,8 +114,8 @@ def rig(joints):
         out[s + 'AR'] = _asin(sign * _dot(toe, knee)) * (_angle(d, sh) > BENT)
         a, r = _unit(J[side + 'ForeArm'] - J[side + 'Arm']), _unit(J[side + 'Hand'] - J[side + 'ForeArm'])
         h = _unit(J[side + 'HandMiddle1'] - J[side + 'Hand'])
-        sf = np.arctan2(_dot(a, f_t), -_dot(a, u_t))
-        f_arm = np.cos(sf)[:, None] * f_t + np.sin(sf)[:, None] * u_t
+        sf = libm.arctan2(_dot(a, f_t), -_dot(a, u_t))
+        f_arm = libm.cos(sf)[:, None] * f_t + libm.sin(sf)[:, None] * u_t
         out[s + 'SF'], out[s + 'SA'] = np.degrees(sf), _asin(sign * _dot(a, l_t))
         out[s + 'SR'], out[s + 'EF'] = _bend(r, a, f_arm, l_t, sign), _angle(a, r)
         c = r - _dot(r, a)[:, None] * a

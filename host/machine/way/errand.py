@@ -17,6 +17,7 @@ the robot's dock and way its planner's (`machine.way.planner`), the stunt on it
 import functools
 import math
 
+from machine import libm
 from machine.way.tour import STOP
 from machine.way.words import (
     _arrived, _asked, _at_hand, _begun, _cornered, _ended, _faced, _fixed, _glimpsed, _halted, _held, _laid, _looking,
@@ -168,8 +169,8 @@ def settled(y, fr, a, sway):
     xi = c[:2] + drift
     lo, hi = poise.boxes((y[modal.SOLE].reshape(2, 3) @ rot.T)[:, :2], a[modal.EDGE], y[modal.TILT])
     inside = np.minimum((xi - lo.min(axis=0)).min(), (hi.max(axis=0) - xi).min())
-    swayed = np.hypot(sway[modal.DRIVE], sway[modal.LATERAL])
-    return np.minimum(inside - swayed, figure.SOLE_HALF - np.hypot(drift[0], drift[1])) * a[modal.STANCE].prod()
+    swayed = libm.hypot(sway[modal.DRIVE], sway[modal.LATERAL])
+    return np.minimum(inside - swayed, figure.SOLE_HALF - libm.hypot(drift[0], drift[1])) * a[modal.STANCE].prod()
 
 
 def _settled(g):
@@ -238,24 +239,24 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
     # eased to a steady walk before the panel so it neither slams it nor stalls on its spring
     door_push = e['phase'] == 'door' and len(e['way']) <= 1
     off = max(0.0, gap - stride.STRIDE_M - voxels.CELL_M)
-    door_pace = math.sqrt((0.65 * se2.WALK_SPEED) ** 2 + 2.0 * route.BRAKE * max(0.0, s_par - stride.STRIDE_M))
+    door_pace = math.sqrt(libm.sq(0.65 * se2.WALK_SPEED) + 2.0 * route.BRAKE * max(0.0, s_par - stride.STRIDE_M))
     walk_pace = min(se2.WALK_SPEED, door_pace if door_push
-                    else (math.sqrt(route.CORNER_SPEED ** 2 + 2.0 * route.BRAKE * off) if len(e['way']) > 1 else se2.WALK_SPEED))
-    way_hd = e['hdd'] if door_push else math.atan2(stop[0] - gx, stop[1] - gz)
-    aim = (gx + math.sin(way_hd), gz + math.cos(way_hd)) if door_push and s_par <= 0.0 else stop
+                    else (math.sqrt(route.CORNER_SPEED * route.CORNER_SPEED + 2.0 * route.BRAKE * off) if len(e['way']) > 1 else se2.WALK_SPEED))
+    way_hd = e['hdd'] if door_push else libm.arctan2(stop[0] - gx, stop[1] - gz)
+    aim = (gx + libm.sin(way_hd), gz + libm.cos(way_hd)) if door_push and s_par <= 0.0 else stop
     e['k'], (ax, az), along, _there, pace, _bend = (
         route.ahead(e['curve'], e['k'], (gx, gz)) if len(e['curve'])
         else (e['k'], aim, way_hd, pyaw, walk_pace, 0.0))
     # on the robot's curve its stop is what is left of it, the robot's speed along it: by the line to it,
     # round the bed 1 m off and more walked, the robot was told to stand mid-curve at 0.84 m/s and fell
     gap, closing = ((float(e['curve'][-1, 2] - e['curve'][e['k'], 2]) + math.hypot(float(e['curve'][e['k'], 0]) - gx, float(e['curve'][e['k'], 1]) - gz),
-                     max(0.0, vx_w * math.sin(along) + vz_w * math.cos(along))) if len(e['curve']) else (gap, closing))
+                     max(0.0, vx_w * libm.sin(along) + vz_w * libm.cos(along))) if len(e['curve']) else (gap, closing))
     run_out = len(e['curve']) > 0 and (float(e['curve'][-1, 2] - e['curve'][e['k'], 2])
                                        <= stride.STRIDE_M + voxels.CELL_M * float(len(e['way']) > 1))
     ctx = _Context(g, {
         'gx': gx, 'gz': gz, 'pyaw': pyaw, 's_par': s_par, 'v_par': vx_w * e['nx'] + vz_w * e['nz'], 's_perp': s_perp,
         's_perp_stop': s_perp_stop, 's_perp_side': s_perp_side,
-        'way_left': -e.get('side_from', s_perp) * (e['tx'] * math.cos(pyaw) - e['tz'] * math.sin(pyaw)),
+        'way_left': -e.get('side_from', s_perp) * (e['tx'] * libm.cos(pyaw) - e['tz'] * libm.sin(pyaw)),
         'door_out': (s_par < -min(stride.STRIDE_M, e['d_stage'] - 1.5 * stride.STRIDE_M)
                      and e['d_stage'] + s_par <= max(closing * t_stop, 1.5 * stride.STRIDE_M)),
         'stops_in': not e['way'] and (s_par_stop <= e['d_stage'] and abs(s_perp_stop) <= e['lat_tol']
@@ -268,12 +269,12 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
         # asked that speed 1.8 cm short of the run-out, stepped in place 30 s and never closed in
         'corner': bool(e['way']) and (gap <= max(closing * t_stop, stride.STRIDE_M * float(closing > 0.0))
                                       + voxels.CELL_M * float(len(e['way']) > 1) or run_out),
-        'err_w': se2.wrap_angle(math.atan2(ax - gx, az - gz) - pyaw), 'off_w': se2.wrap_angle(along - pyaw),
+        'err_w': se2.wrap_angle(libm.arctan2(ax - gx, az - gz) - pyaw), 'off_w': se2.wrap_angle(along - pyaw),
         'aim_m': math.hypot(ax - gx, az - gz), 'pace': pace,
         'err_yaw': se2.wrap_angle(e['hdd'] - pyaw),
         'off': abs(se2.wrap_angle(e['hdd'] - pyaw)) > modal.LIST_RAD,
-        'facing': e['nx'] * math.sin(pyaw) + e['nz'] * math.cos(pyaw) < -math.cos(dock.ARRIVALS[1]),
-        'away': e['nx'] * math.sin(pyaw) + e['nz'] * math.cos(pyaw) > math.cos(dock.ARRIVALS[1]),
+        'facing': e['nx'] * libm.sin(pyaw) + e['nz'] * libm.cos(pyaw) < -libm.cos(dock.ARRIVALS[1]),
+        'away': e['nx'] * libm.sin(pyaw) + e['nz'] * libm.cos(pyaw) > libm.cos(dock.ARRIVALS[1]),
         'still': float(g['st'][latent.NOW][latent.GAIN]) < 1e-6,
         'even': dock.even(g, e),
         'answer': g['planner'].answer(g['t']),

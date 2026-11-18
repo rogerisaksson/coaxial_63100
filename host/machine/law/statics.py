@@ -11,6 +11,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.body.figure import ANKLE_H
 from machine.law import latent
 from machine.law.modal import (ARM, ARM0, ARM_RAD, AXIAL, AXIAL_M, CLEAR_M, COM, DT, ELBOW, ELBOW0, FLOOR, FLOOR_AT,
@@ -28,8 +29,8 @@ def frame(y, mass, limb, trunk, arm, forearm, knee, dt):
     """The robot's statics of what is sensed standing: `mass` its own, a `limb`'s, its `trunk`'s, an
     `arm`'s and a `forearm`'s, kg; `knee` its knees' bend, rad; `dt` s from an ask to the next."""
     q = y[QUAT]
-    yaw = 2.0 * np.arctan2(q[2], q[0])
-    s, c = np.sin(yaw), np.cos(yaw)
+    yaw = 2.0 * libm.arctan2(q[2], q[0])
+    s, c = libm.sin(yaw), libm.cos(yaw)
     rot = np.array([[s, 0.0, c], [c, 0.0, -s], [0.0, 1.0, 0.0]])
     soles = y[SOLE].reshape(2, 3)
     legs = y[HIP].reshape(2, 3) - soles + leap.MIDDLE * rot[ALONG] - ANKLE_H * rot[UP]

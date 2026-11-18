@@ -10,6 +10,7 @@ import functools
 import math
 import operator
 
+from machine import libm
 from machine.way.tour import STOP
 from machine.way.steer import steer, tell
 
@@ -126,7 +127,7 @@ def _docked(sc, laid):
     """The errand's fields of its dock `laid` (`dock.docked`), the robot's heading docked (`_FACES`)."""
     from machine.law import se2
     hn, (x_dock, z_dock), stage = laid['hn'], laid['edge'], laid['stage']
-    nx, nz = math.sin(hn), math.cos(hn)
+    nx, nz = libm.sin(hn), libm.cos(hn)
     return {'docks': tuple((float(h), float(x), float(z)) for h, (x, z) in laid.get('reach', ())),
             'x_dock': x_dock, 'z_dock': z_dock, 'nx': nx, 'nz': nz, 'tx': nz, 'tz': -nx, 'face': laid['face'],
             'xd': stage[0], 'zd': stage[1], 'hdd': se2.wrap_angle(hn + _FACES.get(sc, 0.0)), 'lat_tol': laid['lat_tol'],
@@ -140,8 +141,8 @@ def _looking(g, sc, at):
     from machine.way import furniture
     q, yaw = furniture.where(g), edge.yaw(g['sense'])
     return {'kind': sc, 'phase': 'look', 'thing': None, 'at': at, 'swept': 0.0, 'yaw_was': yaw,
-            'x_dock': float(q[0]), 'z_dock': float(q[2]), 'nx': math.sin(yaw), 'nz': math.cos(yaw),
-            'tx': math.cos(yaw), 'tz': -math.sin(yaw), 'xd': float(q[0]), 'zd': float(q[2]), 'hdd': yaw,
+            'x_dock': float(q[0]), 'z_dock': float(q[2]), 'nx': libm.sin(yaw), 'nz': libm.cos(yaw),
+            'tx': libm.cos(yaw), 'tz': -libm.sin(yaw), 'xd': float(q[0]), 'zd': float(q[2]), 'hdd': yaw,
             'lat_tol': 0.0, 'd_stage': 0.0, 'd_most': 0.0, 'turn_dir': 0.0, 'standoff': 0.0, 'retreats': 0,
             'way': [], 'curve': (), 'k': 0, 'held': (), 'slot': -1, 'face': None, 'docks': (), 'scanned': False}
 
@@ -231,10 +232,10 @@ def _refreshed(g, er):
     box = furniture.nearest(g, er['kind'], (er['x_dock'], er['z_dock']), thing=er.get('thing'))[6]
     if box is None or affordance.distance(box, (er['x_dock'], er['z_dock'])) > stride.STRIDE_M:
         return
-    hn0 = math.atan2(er['nx'], er['nz'])
+    hn0 = libm.arctan2(er['nx'], er['nz'])
     faces = _faces(g, er['kind'], box)
     hn = min(faces, key=lambda h: abs(se2.wrap_angle(h - hn0))) if faces else hn0
-    nx, nz = math.sin(hn), math.cos(hn)
+    nx, nz = libm.sin(hn), libm.cos(hn)
     tx, tz = nz, -nx
     over = er['kind'] == 'sit_chair' and affordance.top(box) > seated.POPLITEAL
     across = seated.across() if over else dock.docks()[er['kind']][0]
@@ -394,4 +395,4 @@ def _to_edge(g, gym, er, c, heard_fn, _say_fn):
     modal = _modal()
     er['stepped'] = bool(er.get('stepped') or float(g['a'][modal.STANCE].min()) < 0.5)
     g['has_heading'] = 1.0
-    g['target_heading'] = er['hdd'] + math.atan2(c['s_perp'], er['d_stage'])
+    g['target_heading'] = er['hdd'] + libm.arctan2(c['s_perp'], er['d_stage'])

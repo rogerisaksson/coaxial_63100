@@ -17,6 +17,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.body import figure
 from machine.texts import kernel
 
@@ -74,14 +75,14 @@ def footprint(box):
 def distance(box, at):
     """m from `at` (x, z) to a box's footprint, 0 within it."""
     c, axes, h = footprint(box)
-    return float(np.hypot(*np.maximum(np.abs(axes @ (np.asarray(at, float) - c)) - h, 0.0)))
+    return float(libm.hypot(*np.maximum(np.abs(axes @ (np.asarray(at, float) - c)) - h, 0.0)))
 
 
 def support(box, heading):
     """The half extent of a box's footprint along `heading` (rad, (sin, cos) along x, z): its edge's
     distance from its centre that way."""
     _c, axes, h = footprint(box)
-    return float(np.abs(axes @ np.array([math.sin(heading), math.cos(heading)])) @ h)
+    return float(np.abs(axes @ np.array([libm.sin(heading), libm.cos(heading)])) @ h)
 
 
 def _within(box, other, fb=None):
@@ -129,8 +130,8 @@ def _covers(box, things, fb, slab, reach):
     centre, half, R = things.arrays
     c, axes, h = fb
     bottoms = centre[:, 1] - half[:, 1]
-    near = (np.hypot(centre[:, 0] - c[0], centre[:, 2] - c[1])
-            <= reach + ROOT2 * np.hypot(half[:, 0], half[:, 2]) + 1e-9)
+    near = (libm.hypot(centre[:, 0] - c[0], centre[:, 2] - c[1])
+            <= reach + ROOT2 * libm.hypot(half[:, 0], half[:, 2]) + 1e-9)
     others = np.fromiter((t is not box for t in things), bool, len(things))
     k = np.flatnonzero((bottoms >= slab[0]) & (bottoms <= slab[1]) & near & others)
     oaxes = np.ascontiguousarray(R[k][:, ::2, ::2].transpose(0, 2, 1))
@@ -198,13 +199,13 @@ def faced(box, things):
     mid = _within(box, back).mean(axis=1)
     k = int(np.argmax(np.abs(mid) / np.maximum(h, 1e-9)))
     s = -math.copysign(1.0, float(mid[k]))
-    return math.atan2(s * float(axes[k][0]), s * float(axes[k][1]))
+    return libm.arctan2(s * float(axes[k][0]), s * float(axes[k][1]))
 
 
 def faces(box, _things):
     """The headings of a box's four sides' outward normals, rad: its footprint's axes either way."""
     _c, axes, _h = footprint(box)
-    return tuple(math.atan2(s * float(a[0]), s * float(a[1])) for a in axes for s in (1.0, -1.0))
+    return tuple(libm.arctan2(s * float(a[0]), s * float(a[1])) for a in axes for s in (1.0, -1.0))
 
 
 def fronts(box, things):
@@ -217,11 +218,11 @@ def sides(box, _things):
     """The headings of a box's long sides' outward normals, rad: a bed's sat on, a door's walked through."""
     _c, axes, h = footprint(box)
     a = axes[int(np.argmin(h))]
-    return (math.atan2(float(a[0]), float(a[1])), math.atan2(-float(a[0]), -float(a[1])))
+    return (libm.arctan2(float(a[0]), float(a[1])), libm.arctan2(-float(a[0]), -float(a[1])))
 
 
 def ends(box, _things):
     """The headings of a box's short sides' outward normals, rad: a bed's ends, sat on to lie along it."""
     _c, axes, h = footprint(box)
     a = axes[int(np.argmax(h))]
-    return (math.atan2(float(a[0]), float(a[1])), math.atan2(-float(a[0]), -float(a[1])))
+    return (libm.arctan2(float(a[0]), float(a[1])), libm.arctan2(-float(a[0]), -float(a[1])))

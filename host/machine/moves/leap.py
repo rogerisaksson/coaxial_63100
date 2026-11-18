@@ -14,6 +14,7 @@ next.
 """
 import math
 
+from machine import libm
 from machine.body import gait, reach
 from machine.body.compile import G_M_S2 as G
 from machine.body.figure import ANKLE_H, BALL, HEEL
@@ -49,12 +50,12 @@ def landing(limb, hip, heading, yaw, com, vcom, off, target=(0.0, 0.0), pitch=0.
     dh, dz = target
     drop = reach.THIGH + reach.SHANK - LAND_DROP_M - dh
     omega = math.sqrt(G / max(0.3, com[1] - (hip[1] - drop - ANKLE_H)))
-    c, s = math.cos(yaw), math.sin(yaw)
+    c, s = libm.cos(yaw), libm.sin(yaw)
     want = ((com[0] + vcom[0] / omega + off[0] + (dz - MIDDLE) * s, hip[1] - drop,
              com[2] + vcom[2] / omega + off[1] + (dz - MIDDLE) * c), yaw)
     (ankle, yaw), _m = reach.land(limb, hip, heading, want, LAND_SHORT_M, pitch)
-    c, s = math.cos(yaw), math.sin(yaw)
-    cy, sy, cp, sp = math.cos(0.5 * yaw), math.sin(0.5 * yaw), math.cos(0.5 * pitch), math.sin(0.5 * pitch)
+    c, s = libm.cos(yaw), libm.sin(yaw)
+    cy, sy, cp, sp = libm.cos(0.5 * yaw), libm.sin(0.5 * yaw), libm.cos(0.5 * pitch), libm.sin(0.5 * pitch)
     return ((ankle[0] + MIDDLE * s, ankle[1] - ANKLE_H, ankle[2] + MIDDLE * c),
             (vcom[0], vcom[1], vcom[2]), (0.0, -G, 0.0),
             (cy * cp, cy * sp, sy * cp, -sy * sp))
@@ -71,9 +72,9 @@ def step(ask, loads, s, hips, floor=0.0):
     count = sum(bool(m) for m in meant)
     mid = [sum(float(f['sole'][i]) * bool(m) for f, m in zip(feet, meant)) / max(1, count) for i in (0, 2)]
     w, x, y, z = (float(v) for v in s['turns'][0]['quat'])
-    heading = math.atan2(2.0 * (x * z + w * y), 1.0 - 2.0 * (x * x + y * y))
+    heading = libm.arctan2(2.0 * (x * z + w * y), 1.0 - 2.0 * (x * x + y * y))
     swing = dict(ask.get('swing', {}))
-    swing.update({k: landing(k, hips[k], heading, math.atan2(feet[k]['R'][0][2], feet[k]['R'][2][2]),
+    swing.update({k: landing(k, hips[k], heading, libm.arctan2(feet[k]['R'][0][2], feet[k]['R'][2][2]),
                              s['com'], s['vcom'], (float(feet[k]['sole'][0]) - mid[0],
                                                    float(feet[k]['sole'][2]) - mid[1]))
                   for k in (0, 1) if meant[k] and not stance[k]})
@@ -110,8 +111,8 @@ def _a_z(fr, z):
     from machine.body import drives, figure
     from machine.law import modal
     reach = fr[modal.REACH0] - modal.AXIAL_M * fr[modal.HIPS_BY] * z
-    cos_knee = (figure.THIGH ** 2 + figure.SHANK ** 2 - reach ** 2) / (2.0 * figure.THIGH * figure.SHANK)
-    lever = figure.THIGH * figure.SHANK * math.sqrt(1.0 - max(-1.0, min(1.0, cos_knee)) ** 2) / reach
+    cos_knee = (figure.THIGH * figure.THIGH + figure.SHANK * figure.SHANK - reach * reach) / (2.0 * figure.THIGH * figure.SHANK)
+    lever = figure.THIGH * figure.SHANK * math.sqrt(1.0 - libm.sq(max(-1.0, min(1.0, cos_knee)))) / reach
     force = 2.0 * PUSH * drives.peak('left_knee') / lever
     return (force / fr[modal.WEIGHT] * G - G) / (modal.AXIAL_M * fr[modal.HIPS_BY])
 

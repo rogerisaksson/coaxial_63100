@@ -6,6 +6,7 @@ The kernel's `bind-stiffness-to-support-share` on the robot's loop.
 """
 import math
 
+from machine import libm
 from machine.texts import acts, kernel, ortho
 from machine.law import composer, latent
 from machine.moves.seated import POPLITEAL, RESTS
@@ -29,7 +30,7 @@ def melted(melt, share, was, dt):
     every flicker of the seat's touch stiffened them and no sit held."""
     grows, falls = float(share > was), float(share < was)
     melt = grows * min(share, 1.0) + (1.0 - grows - falls) * melt + falls * melt * (1.0 - min(1.0, dt / MELT_S))
-    return 10.0 ** (MELT_DB * melt / 20.0), melt
+    return libm.power(10.0, MELT_DB * melt / 20.0), melt
 
 
 def melting(g, _out, told, _weighed, _dt):
@@ -67,6 +68,6 @@ def step(g, out, told, weighed, dt):
     g['rested'] = (free * melted(rested, rests, g.get('rested_was', 0.0), dt)[1]
                    + (1.0 - free) * rested * (1.0 - min(1.0, dt / MELT_S)))
     g['melt_was'], g['rested_was'] = share, rests
-    gain = min(gain, 10.0 ** (MELT_DB * g['rested'] / 20.0))
+    gain = min(gain, libm.power(10.0, MELT_DB * g['rested'] / 20.0))
     out[latent.KS][LEGGED] *= gain
     out[latent.DS][LEGGED] *= math.sqrt(gain)

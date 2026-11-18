@@ -24,6 +24,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.body import drives, figure, mechatronics
 from machine.law import se2
 from machine.senses import edge
@@ -52,9 +53,9 @@ def _exp(phi):
     a = np.linalg.norm(phi)
     k = _skew(phi)
     small, b = a < 1e-9, np.maximum(a, 1e-9)
-    s = np.where(small, 1.0, np.sin(b) / b)
-    c = np.where(small, 0.5, (1.0 - np.cos(b)) / (b * b))
-    j = np.where(small, 1.0 / 6.0, (b - np.sin(b)) / b ** 3)
+    s = np.where(small, 1.0, libm.sin(b) / b)
+    c = np.where(small, 0.5, (1.0 - libm.cos(b)) / (b * b))
+    j = np.where(small, 1.0 / 6.0, (b - libm.sin(b)) / (b * b * b))
     return np.eye(3) + s * k + c * k @ k, np.eye(3) + c * k + j * k @ k
 
 
@@ -136,11 +137,11 @@ def stepped(f, body, y, shares, dt, points, step):
     # sole come down or let go, its weight shifted heel to toe in a turn on the spot, jumps its point, no roll
     # (the robot's drift 0.2-1.2 m a look so); summed in floats over its contacts - as numpy arrays it
     # was 14 us of the robot's pass, 4.7 so
-    cap = (ROLL_M_S * dt) ** 2
+    cap = libm.sq(ROLL_M_S * dt)
     rolled = sum(min(x * x + y * y + z * z, cap) * (s >= observer.RELEASE) * (o > 0.5) for (x, y, z), s, o in
                  zip((soles - anchors).tolist(), sh.tolist(), f['on'].tolist()))
     drift = f['drift']
-    drift[0, 0] += GYRO ** 2 * dt
+    drift[0, 0] += (GYRO * GYRO) * dt
     drift[1, 1] += rolled
     drift[2, 2] += rolled
     drift[3, 3] += rolled
@@ -164,13 +165,13 @@ def step(f, y, soles, anchors, shares, dt):
     for k, block in enumerate((None, f['v'], f['p'], d[0], d[1], d[2])):
         ad[3 * k:3 * k + 3, 0:3] = 0.0 if block is None else _skew(block) @ f['R']
         ad[3 * k:3 * k + 3, 3 * k:3 * k + 3] = f['R']
-    q = np.diag([GYRO ** 2] * 3 + [ACCEL ** 2] * 3 + [0.0] * 3 + [(GRAIN * REACH) ** 2 / dt] * (3 * CONTACTS))
+    q = np.diag([GYRO * GYRO] * 3 + [ACCEL * ACCEL] * 3 + [0.0] * 3 + [libm.sq(GRAIN * REACH) / dt] * (3 * CONTACTS))
     P = phi @ P @ phi.T + ad @ q @ ad.T * dt
     r = np.concatenate([f['R'] @ soles[k] - (d[k] - f['p']) for k in range(CONTACTS)])
     H = np.zeros((3 * CONTACTS, N))
     for k in range(CONTACTS):
         H[3 * k:3 * k + 3, 6:9], H[3 * k:3 * k + 3, 9 + 3 * k:12 + 3 * k] = -np.eye(3), np.eye(3)
-    fk = (GRAIN * REACH) ** 2 / np.maximum(np.asarray(shares, float), 1e-12)
+    fk = libm.sq(GRAIN * REACH) / np.maximum(np.asarray(shares, float), 1e-12)
     S0 = H @ P @ H.T + np.diag(np.repeat(fk, 3))
     slid = np.array([r[3 * k:3 * k + 3] @ np.linalg.solve(S0[3 * k:3 * k + 3, 3 * k:3 * k + 3], r[3 * k:3 * k + 3]) > GATE
                      for k in range(CONTACTS)])
@@ -189,7 +190,7 @@ def step(f, y, soles, anchors, shares, dt):
         d[k] = f['p'] + f['R'] @ anchors[k]
         P[idx, :] *= 1.0 - anew
         P[:, idx] *= 1.0 - anew
-        P[idx, idx] += anew * (P[6:9, 6:9] + np.eye(3) * (GRAIN * REACH) ** 2)
+        P[idx, idx] += anew * (P[6:9, 6:9] + np.eye(3) * libm.sq(GRAIN * REACH))
     f['P'], f['on'] = P, (np.asarray(shares) >= observer.RELEASE).astype(float)
     return f
 
@@ -204,10 +205,10 @@ def seen(f, fix, info, eye):
     robot is, and its filter's own spread said so to 0.3-2 mm while its head read 0.142 m high in 21 s
     of a bed errand."""
     drift = f['drift']
-    told = np.linalg.inv(np.linalg.inv(drift + np.eye(4) * (GRAIN * REACH) ** 2) + info)
+    told = np.linalg.inv(np.linalg.inv(drift + np.eye(4) * libm.sq(GRAIN * REACH)) + info)
     held = float(fix @ (info - info @ told @ info) @ fix <= GATE)
     step = held * (told @ info @ fix)
-    c, s = math.cos(step[0]), math.sin(step[0])
+    c, s = libm.cos(step[0]), libm.sin(step[0])
     turn = np.array([[c, 0.0, s], [0.0, 1.0, 0.0], [-s, 0.0, c]])
     e = np.asarray(eye, float)
     f['R'][...], f['v'][...] = turn @ f['R'], turn @ f['v']

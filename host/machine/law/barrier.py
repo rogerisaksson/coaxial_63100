@@ -17,6 +17,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.texts import kernel
 
 #: The text's barrier: its decay, /s; the robot's capture point kept this far in of its support's
@@ -75,7 +76,7 @@ def ahead(law, left):
         return
     k = left[0]
     angle = np.arange(k) * (2.0 * np.pi / k)
-    law(np.zeros(3), np.zeros(3), np.zeros(3), 3.0, 0.1 * np.stack([np.cos(angle), np.sin(angle)], axis=1), 0.0)
+    law(np.zeros(3), np.zeros(3), np.zeros(3), 3.0, 0.1 * np.stack([libm.cos(angle), libm.sin(angle)], axis=1), 0.0)
     part = getattr(law, 'part', None)
     if part is None or part.made is not None or part.why is not None:
         left.pop(0)

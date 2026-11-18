@@ -19,10 +19,11 @@ baseline over their tangents' gap, along it that times the left's (`points`).
 """
 import math
 
+from machine import libm
 from machine.eyes.stereo import BASELINE_M, FOVY_DEG, H, W, WINDOW, _array_disparity, _boxed, _np, card, indices
 
 #: The robot's eyes' focal length, px (`sight.focal`).
-F = (H / 2.0) / math.tan(math.radians(FOVY_DEG) / 2.0)
+F = (H / 2.0) / libm.tan(math.radians(FOVY_DEG) / 2.0)
 #: The line from the robot's left eye to its right in its head's frame at rest: its right (`gimbal.cameras`'
 #: places).
 LINE = (-1.0, 0.0, 0.0)
@@ -60,7 +61,7 @@ def turn(w):
     if a == 0.0:
         return np.eye(3)
     k = np.array([[0.0, -w[2], w[1]], [w[2], 0.0, -w[0]], [-w[1], w[0], 0.0]])
-    return np.eye(3) + math.sin(a) / a * k + (1.0 - math.cos(a)) / (a * a) * k @ k
+    return np.eye(3) + libm.sin(a) / a * k + (1.0 - libm.cos(a)) / (a * a) * k @ k
 
 
 class Laid:
@@ -86,8 +87,8 @@ class Laid:
         e3 = -(o - (o @ e1) * e1)
         e3 = e3 / np.linalg.norm(e3)
         self.E = np.column_stack([e1, np.cross(e3, e1), e3])
-        self.beta = math.asin(max(-1.0, min(1.0, float(o @ e1))))
-        self.fv = F * math.cos(self.beta)
+        self.beta = libm.arcsin(max(-1.0, min(1.0, float(o @ e1))))
+        self.fv = F * libm.cos(self.beta)
         rows, cols = indices(xp, float)
         t = (H / 2.0 - rows) / self.fv
         c = 1.0 / xp.sqrt(1.0 + t * t)
@@ -167,7 +168,7 @@ def points(rows, cols, disp, beta, fv, B=BASELINE_M):
     np = _np()
     t = (H / 2.0 - rows) / fv
     c = 1.0 / np.sqrt(1.0 + t * t)
-    tb = math.tan(beta)
+    tb = libm.tan(beta)
     gl, gr = ((tb + a) / (1.0 - tb * a) for a in ((cols - W / 2.0) * c / F, (cols - np.maximum(disp, 1e-3) - W / 2.0) * c / F))
     rho = B / (gl - gr)
     return np.stack([rho * gl, rho * t * c, -rho * c], axis=1)

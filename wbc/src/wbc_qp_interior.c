@@ -3,6 +3,7 @@
     python's order and layout. Portable C11, the host's alone. */
 #include "wbc_np.h"
 #include "wbc_qp.h"
+#include "wbc_libm.h"
 
 #include <math.h>
 
@@ -216,7 +217,7 @@ int wbc_qp_interior(const wbc_blas_t *l, const double *H, const double *g, const
       w1[i] = s[i] + a * ds[i];
       la[i] = lam[i] + a * dl[i];
     }
-    sigma = nppow((wbc_dot(l, w1, 1, la, 1, m) / (double)m) / mu, 3.0);
+    sigma = wbc_cube((wbc_dot(l, w1, 1, la, 1, m) / (double)m) / mu);
     for (int i = 0; i < m; i++)
     {
       rc[i] = (s[i] * lam[i] + ds[i] * dl[i]) - sigma * mu;

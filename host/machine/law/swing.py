@@ -125,7 +125,7 @@ def hung(free, step, strides, flies, heights, gains):
     held = np.maximum(kp[FREE_BY][UP] * (high - low) - kd[FREE_BY][UP] * shod[:, UP] + G, 0.0)
     free = free + trails * (HOT3[UP] * held[:, None] - free)
     left = np.maximum((v[UP] + np.sqrt(v[UP] * v[UP] + 2.0 * G * np.maximum(low, 0.0))) / G, SOON_S)[:, None]
-    down = ease[:, None] * (np.minimum(6.0 / left ** 2, kp[FREE_BY][:2]) * (aim + left * v[:2] - flat)
+    down = ease[:, None] * (np.minimum(6.0 / (left * left), kp[FREE_BY][:2]) * (aim + left * v[:2] - flat)
                             - np.minimum(4.0 / left, kd[FREE_BY][:2]) * shod[:, :2])
     return (free, np.concatenate([went + leads * (down - went), ease[:, None] * free[:, UP:]], axis=1),
             strides[:, None], 1.0 - trails[:, 0])

@@ -38,6 +38,7 @@ of its 1.07) and the bench refused the lie.
 import functools
 import os
 
+from machine import libm
 from machine.body import drives, figure
 from machine.body.servos import SERVO
 from machine.errors import MachineError
@@ -149,8 +150,8 @@ def ended(g):
         modal = _modal()
         w, x, j, k = (float(v) for v in g['y'][modal.QUAT][:4])
         if 1.0 - 2.0 * (x * x + k * k) > 0.5:
-            yaw = math.atan2(2.0 * (w * j + x * k), 1.0 - 2.0 * (x * x + j * j))
-            sh, ch = math.sin(yaw), math.cos(yaw)
+            yaw = libm.arctan2(2.0 * (w * j + x * k), 1.0 - 2.0 * (x * x + j * j))
+            sh, ch = libm.sin(yaw), libm.cos(yaw)
             g['heading'] = g['target_heading'] = yaw
             g['has_heading'] = 0.0
             g['fr'][modal.HEADING], g['fr'][modal.PLANTED] = yaw, 0.0
@@ -213,7 +214,7 @@ class _Felt(dict):
         elif name == 'heading':
             import math
             w, x, j, k = (float(v) for v in g['y'][modal.QUAT][:4])
-            self['heading'] = math.degrees(math.atan2(2.0 * (w * j + x * k), 1.0 - 2.0 * (j * j + x * x)))
+            self['heading'] = math.degrees(libm.arctan2(2.0 * (w * j + x * k), 1.0 - 2.0 * (j * j + x * x)))
         else:
             raise KeyError(name)
         return self[name]

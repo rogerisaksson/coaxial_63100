@@ -17,6 +17,7 @@ import math
 import os
 from typing import Any
 
+from machine import libm
 from machine.body import compile as _compile, dclink, drives, gearbox, heat, linkage, mechatronics, peripherals
 from machine.world import boxed, floor, harness, loose, passing, room, shown, steps, stiction
 from machine.body.drives import kind
@@ -82,7 +83,7 @@ class World:
         #: Each drive's copper loss a torque squared, W/(N m)^2: R/kt^2 of its motor through its
         #: cycloid (`machine.body.drives`), a pair's two. The work it does is metered only where
         #: positive - a drive does not charge its battery braking.
-        self.loss = np.array([drives.motors(j) * drives.r_ohm(j) / drives.kt(j) ** 2
+        self.loss = np.array([drives.motors(j) * drives.r_ohm(j) / libm.sq(drives.kt(j))
                               for j in JOINTS])
         #: Each joint's N m an amp (`drives.kt`); each parallel pair, (joint, its roll): each's
         #: current the first's share plus or less the second's, within its own board's (wbc_pass.c).
@@ -530,7 +531,7 @@ class World:
                     self._mj.mj_contactForce(m, d, i, force)
                     loads[side] += float(force[0])
         if LOAD_S and self.borne_at is not None:
-            k = 1.0 - math.exp(-(d.time - self.borne_at) / LOAD_S)
+            k = 1.0 - libm.exp(-(d.time - self.borne_at) / LOAD_S)
             loads = [w + k * (v - w) for w, v in zip(self.borne, loads)]
         self.borne, self.borne_at = loads, d.time
         com, v = d.subtree_com[self.pelvis].tolist(), d.qvel[0:3].tolist()

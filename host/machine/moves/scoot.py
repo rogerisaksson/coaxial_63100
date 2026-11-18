@@ -29,6 +29,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.body import figure
 from machine.body.figure import JOINTS
 from machine.errors import MachineError
@@ -71,8 +72,8 @@ def _bent(chord):
     """The knee, deg, that sets the robot's hip joints `chord` m behind its ankle sat on the floor
     (`clocked.chord`'s)."""
     up = clocked.SAT - figure.ANKLE_H
-    c = (chord * chord + up * up - figure.THIGH ** 2 - figure.SHANK ** 2) / (2.0 * figure.THIGH * figure.SHANK)
-    return math.degrees(math.acos(min(max(c, -1.0), 1.0)))
+    c = (chord * chord + up * up - figure.THIGH * figure.THIGH - figure.SHANK * figure.SHANK) / (2.0 * figure.THIGH * figure.SHANK)
+    return math.degrees(libm.arccos(min(max(c, -1.0), 1.0)))
 
 
 #: The move's numbers and phases as the suite's lisp says them, their reasons there (`defmove scoot`,

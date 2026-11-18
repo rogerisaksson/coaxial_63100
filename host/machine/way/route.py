@@ -13,19 +13,20 @@ The robot's planner runs these apart (`machine.way.planner`).
 import bisect
 import math
 
+from machine import libm
 from machine.way import obstacles
 from machine.law import rhythm, se2, stride
 from machine.eyes import grids, sight, voxels
 #: Setting off the robot walks while its heading is CONE off its leg at most, its
 #: walk's arc (WALK_SPEED / YAW_RATE round) a cell off it at most.
-CONE = math.acos(1.0 - voxels.CELL_M * se2.YAW_RATE / se2.WALK_SPEED)
+CONE = libm.arccos(1.0 - voxels.CELL_M * se2.YAW_RATE / se2.WALK_SPEED)
 
 #: The robot's walk's arc told, ARC_M round; its aim AIM_M on along its way, where pure
 #: pursuit on that arc runs a cell inside it (ARC_M - sqrt(ARC_M^2 - AIM_M^2) = CELL_M); a stage STRAIGHT_M
 #: out: the robot's aim, its run-out STOP_M and a cell - told to stand mid-turn on (0.42, 0.03) the
 #: robot went on 0.5 rad off its heading, 0.82 m into the chair's margin.
 ARC_M = se2.WALK_SPEED / se2.YAW_RATE
-AIM_M = ARC_M * math.sin(CONE)
+AIM_M = ARC_M * libm.sin(CONE)
 STRAIGHT_M = AIM_M + se2.STOP_M + voxels.CELL_M
 #: The robot's walking turn as it makes it, rad/s: told YAW_RATE, the robot's heading turns its
 #: stance's share of it (`[gait.steer]` stance_turn) - told 0.7 rad/s the robot turned 0.46-0.50 at 0.25-0.68
@@ -35,7 +36,7 @@ STRAIGHT_M = AIM_M + se2.STOP_M + voxels.CELL_M
 TURN = se2.YAW_RATE * se2.STEER['stance_turn']
 #: The robot's braking, m/s^2 - its walk's speed run out over STOP_M - and its run-out's time, s; its slowest
 #: walk, m/s: told slower it turns on the spot (`[gait.rhythm]` spin_still_m_s).
-BRAKE, RUN_OUT_S = se2.WALK_SPEED ** 2 / (2.0 * se2.STOP_M), se2.STOP_M / se2.WALK_SPEED
+BRAKE, RUN_OUT_S = (se2.WALK_SPEED * se2.WALK_SPEED) / (2.0 * se2.STOP_M), se2.STOP_M / se2.WALK_SPEED
 SLOWEST = rhythm.R['spin_still_m_s']
 CORNER_SPEED = SLOWEST + rhythm.R['edge_m_s']
 
@@ -127,20 +128,20 @@ def staged(dock, out, most, cells):
 def _aim(v):
     """m the robot's aim runs on ahead of it at `v` m/s: where pure pursuit on its arc at that
     speed (v / YAW_RATE round) runs a cell inside it, a cell at least - AIM_M at the robot's walk."""
-    return math.sqrt(max(2.0 * voxels.CELL_M * v / se2.YAW_RATE - voxels.CELL_M ** 2, voxels.CELL_M ** 2))
+    return math.sqrt(max(2.0 * voxels.CELL_M * v / se2.YAW_RATE - voxels.CELL_M * voxels.CELL_M, voxels.CELL_M * voxels.CELL_M))
 
 
 def _arc(p, a, b, r):
     """[(x, z)] the robot's arc of radius `r` round the corner `p` from its leg in along `a` to its leg out
     along `b` (units), a half cell apart, from its tangent on the one to its tangent on the other."""
-    turn = math.atan2(a[0] * b[1] - a[1] * b[0], a[0] * b[0] + a[1] * b[1])
-    tau, side = r * math.tan(0.5 * abs(turn)), math.copysign(1.0, turn)
+    turn = libm.arctan2(a[0] * b[1] - a[1] * b[0], a[0] * b[0] + a[1] * b[1])
+    tau, side = r * libm.tan(0.5 * abs(turn)), math.copysign(1.0, turn)
     t0 = (p[0] - tau * a[0], p[1] - tau * a[1])
     c = (t0[0] - side * r * a[1], t0[1] + side * r * a[0])
     ox, oz = t0[0] - c[0], t0[1] - c[1]
     n = int(math.ceil(2.0 * r * abs(turn) / voxels.CELL_M)) + 1
     phis = [turn * k / max(n - 1, 1) for k in range(n)]
-    return [(c[0] + ox * math.cos(f) - oz * math.sin(f), c[1] + ox * math.sin(f) + oz * math.cos(f)) for f in phis]
+    return [(c[0] + ox * libm.cos(f) - oz * libm.sin(f), c[1] + ox * libm.sin(f) + oz * libm.cos(f)) for f in phis]
 
 
 def _line(a, b):
@@ -182,7 +183,7 @@ def rounded(cells, pts):
     p = np.asarray(pts, float)
     ell = np.hypot(*np.diff(p, axis=0).T)
     u = np.diff(p, axis=0) / np.maximum(ell, 1e-12)[:, None]
-    tans = [max(math.tan(0.5 * abs(math.atan2(a[0] * b[1] - a[1] * b[0], a @ b))), 1e-12) for a, b in zip(u, u[1:])]
+    tans = [max(libm.tan(0.5 * abs(libm.arctan2(a[0] * b[1] - a[1] * b[0], a @ b))), 1e-12) for a, b in zip(u, u[1:])]
     tight, n, radii = SLOWEST / TURN, len(p) - 1, []
     for i in range(1, n):
         r = _room(ell[i - 1] * (0.5 + 0.5 * float(i == 1)), tans[i - 1], ell[i] * (0.5 + 0.5 * float(i == n - 1)), i == n - 1)
@@ -218,9 +219,9 @@ def rounded(cells, pts):
     v = q[:, 2].copy()
     v[s >= s[-1] - stop] = np.minimum(v[s >= s[-1] - stop], CORNER_SPEED)
     for k in range(1, len(v)):
-        v[k] = min(v[k], math.sqrt(v[k - 1] ** 2 + 2.0 * BRAKE * ds[k - 1]))
+        v[k] = min(v[k], math.sqrt(libm.sq(v[k - 1]) + 2.0 * BRAKE * ds[k - 1]))
     for k in range(len(v) - 2, -1, -1):
-        v[k] = min(v[k], math.sqrt(v[k + 1] ** 2 + 2.0 * BRAKE * ds[k]))
+        v[k] = min(v[k], math.sqrt(libm.sq(v[k + 1]) + 2.0 * BRAKE * ds[k]))
     return np.column_stack([q[:, :2], s, v, q[:, 3]]), last
 
 
@@ -260,7 +261,7 @@ def ahead(curve, k, at):
     n = len(s)
     j = min(bisect.bisect_left(s, s[k] + _aim(pace[k])), n - 1)
     (k1, k0), (j1, j0) = ((min(i + 1, n - 1), min(i, n - 2)) for i in (k, j))
-    along, there = math.atan2(x[k1] - x[k0], z[k1] - z[k0]), math.atan2(x[j1] - x[j0], z[j1] - z[j0])
+    along, there = libm.arctan2(x[k1] - x[k0], z[k1] - z[k0]), libm.arctan2(x[j1] - x[j0], z[j1] - z[j0])
     return k, (x[j], z[j]), along, there, pace[k], max(bend[k], bend[j] * float(pace[k] < se2.WALK_SPEED))
 
 

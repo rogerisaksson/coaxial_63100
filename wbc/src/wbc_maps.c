@@ -2,6 +2,7 @@
     holds, each swinging sole's asked acceleration - numpy's arithmetic and its OpenBLAS operation for operation. */
 #include "wbc_np.h"
 #include "wbc_step.h"
+#include "wbc_libm_arc.h"
 
 #include <math.h>
 #include <string.h>
@@ -27,7 +28,7 @@ void wbc_step_turn_error(const wbc_blas_t *l, const double want[4], const double
   s = sqrt(wbc_dot(l, v, 1, v, 1, 3));
   for (int i = 0; i < 3; i++)
   {
-    out[i] = s > 1e-12 ? v[i] * ((2.0 * atan2(s, w)) / s) : 2.0 * v[i];
+    out[i] = s > 1e-12 ? v[i] * ((2.0 * wbc_arctan2(s, w)) / s) : 2.0 * v[i];
   }
 }
 

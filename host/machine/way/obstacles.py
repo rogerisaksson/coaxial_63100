@@ -23,6 +23,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.way import affordance
 from machine.body import footprint
 from machine.texts import kernel
@@ -36,7 +37,7 @@ STAGES = ('xform-smooth-interactive-stereo-navigator', 'specialize-nav-zero-dist
 #: robot's sides; its strides' lies along it. One radius for all (0.215 m) let the robot's hand meet a
 #: chair's back.
 ACROSS = [k for k in range(footprint.K)
-          if abs(math.cos(2.0 * math.pi * k / footprint.K)) <= math.sin(2.0 * math.pi / footprint.K) + 1e-9]
+          if abs(libm.cos(2.0 * math.pi * k / footprint.K)) <= libm.sin(2.0 * math.pi / footprint.K) + 1e-9]
 
 
 @functools.cache
@@ -66,7 +67,7 @@ def apart(points, things):
     off = np.asarray(points, float)[:, None, :] - c[None]
     turned = (0.0 + axes[None, :, :, 0] * off[:, :, None, 0]) + axes[None, :, :, 1] * off[:, :, None, 1]
     out = np.maximum(np.abs(turned) - half[None], 0.0)
-    return np.hypot(out[..., 0], out[..., 1])
+    return libm.hypot(out[..., 0], out[..., 1])
 
 
 def apart_twin(points, things):
@@ -76,7 +77,7 @@ def apart_twin(points, things):
     axes = np.array([p[1] for p in prints], float).reshape(-1, 2, 2)
     half = np.array([p[2] for p in prints], float).reshape(-1, 2)
     out = np.maximum(np.abs(np.einsum('mij,nmj->nmi', axes, np.asarray(points, float)[:, None, :] - c[None])) - half[None], 0.0)
-    return np.hypot(out[..., 0], out[..., 1])
+    return libm.hypot(out[..., 0], out[..., 1])
 
 
 def _class_margin(field, node):
@@ -89,7 +90,7 @@ def _clearance(field, node):
     """w exp(-m / decay) a metre at m past the nearest grown footprint of those the robot keeps off: its way
     kept off them where the room leaves it the width."""
     m = np.where(field['kept'][None, :], field['d'] - field['margin'], math.inf).min(axis=1, initial=math.inf)
-    field['cost'] = field['cost'] + node['clearance-weight'] * np.exp(-np.maximum(m, 0.0) / (1e-3 * node['clearance-decay-mm']))
+    field['cost'] = field['cost'] + node['clearance-weight'] * libm.exp(-np.maximum(m, 0.0) / (1e-3 * node['clearance-decay-mm']))
 
 
 def _unknown(field, node):
@@ -113,8 +114,8 @@ def _affordance_aperture(field, node):
     target = field['things'][k]
     hit = goes | (apart(field['centres'], [target])[:, 0] <= 0.0)
     off = field['points'] - np.array([target[1][0], target[1][2]], float)
-    cos = off @ np.asarray(field['face'], float) / np.maximum(np.hypot(off[:, 0], off[:, 1]), 1e-9)
-    s = (0.5 * (1.0 + cos)) ** funnel['cone-exponent']
+    cos = off @ np.asarray(field['face'], float) / np.maximum(libm.hypot(off[:, 0], off[:, 1]), 1e-9)
+    s = libm.power(0.5 * (1.0 + cos), funnel['cone-exponent'])
     margin = np.broadcast_to(field['margin'], (len(field['points']), len(hit))).copy()
     ahead = np.minimum(margin[0, hit], margin[0, hit] - field['reach'][hit] + field['ahead'][k] + funnel['touch-standoff-m'])
     margin[:, hit] = (1.0 - s[:, None]) * margin[:, hit] + s[:, None] * ahead[None, :]

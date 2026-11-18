@@ -18,12 +18,14 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
+
 
 def coronal(twist):
     """1: floor twists' (..., 3) [vx vy wz] coronal index |vy| / |(vx, vy)| - 0 ahead, 1 sideways, 0 a spin
     (`align-hinge-joints-to-se2-vector`'s kappa_lat)."""
     twist = np.asarray(twist, float)
-    return np.abs(twist[..., 1]) / np.maximum(np.hypot(twist[..., 0], twist[..., 1]), 1e-12)
+    return np.abs(twist[..., 1]) / np.maximum(libm.hypot(twist[..., 0], twist[..., 1]), 1e-12)
 
 
 def turnout(twist, most):
@@ -34,7 +36,7 @@ def turnout(twist, most):
 def sled(phase, gamma):
     """1: the robot's weight on the sled at axial `phase` rad, 1 - gamma sin+ phase
     (`modulate-stick-slip-sled-ratchet`'s F_z,sled over m g); the anchors bear the rest."""
-    return 1.0 - gamma * np.clip(np.sin(phase), 0.0, None)
+    return 1.0 - gamma * np.clip(libm.sin(phase), 0.0, None)
 
 
 def slip(phase, gamma, mu_anchor, mu_sled):
@@ -48,7 +50,7 @@ def held(gamma, mu_anchor, mu_sled):
     """1: of the vault's half turn, where the anchors hold the sled's drag (`slip` at most 1): sin phase at least
     mu_sled / (gamma (mu_anchor + mu_sled)), none where that passes 1."""
     least = mu_sled / (gamma * (mu_anchor + mu_sled))
-    return 1.0 - 2.0 / np.pi * np.arcsin(np.clip(least, 0.0, 1.0))
+    return 1.0 - 2.0 / np.pi * libm.arcsin(np.clip(least, 0.0, 1.0))
 
 
 def partitioned(M, h, free):
@@ -65,7 +67,7 @@ def partitioned(M, h, free):
 def lifted(across, roll):
     """m: a hip `across` m from the buttock the robot rolls onto, lifted by `roll` rad
     (`escort-passive-towed-limb`)."""
-    return across * np.sin(roll)
+    return across * libm.sin(roll)
 
 
 def boost(hands, heel):

@@ -16,6 +16,7 @@ board is which joint is measured (`fit`), never read from a name.
 import math
 import time
 
+from machine import libm
 from machine.rig.alarms import Alarms
 from machine.rig.controller import Feedback
 from machine.errors import MachineError
@@ -31,9 +32,9 @@ SETTLED_S = 1e9
 
 def _mean_angle(degrees):
     """The mean of angles near each other, across the 0/360 seam."""
-    s = sum(math.sin(math.radians(d)) for d in degrees)
-    c = sum(math.cos(math.radians(d)) for d in degrees)
-    return math.degrees(math.atan2(s, c)) % 360.0
+    s = sum(libm.sin(math.radians(d)) for d in degrees)
+    c = sum(libm.cos(math.radians(d)) for d in degrees)
+    return math.degrees(libm.arctan2(s, c)) % 360.0
 
 
 class Actuator:

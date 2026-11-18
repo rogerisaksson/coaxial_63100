@@ -20,6 +20,8 @@ robot's last blend done, or at rest its last blend done - its own blend the mini
 import ctypes
 import math
 
+from machine import libm
+
 #: A raw pass's head: its time and the sequence laid, the tank (J), the robot's drives' watts, its
 #: centre of mass (m), its feet's gap (mm, nan between its ROW_S), how many contacts the robot had,
 #: when it fell (s, nan standing; its session's).
@@ -59,7 +61,7 @@ def margin(p, points):
     if len(hull) < 3:
         a, b = hull[0], hull[-1]
         ab = (b[0] - a[0], b[1] - a[1])
-        t = max(0.0, min(1.0, ((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1]) / max(ab[0] ** 2 + ab[1] ** 2, 1e-300)))
+        t = max(0.0, min(1.0, ((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1]) / max(ab[0] * ab[0] + ab[1] * ab[1], 1e-300)))
         return -math.hypot(p[0] - a[0] - t * ab[0], p[1] - a[1] - t * ab[1])
     return min(((p[1] - a[1]) * (b[0] - a[0]) - (p[0] - a[0]) * (b[1] - a[1])) / math.hypot(b[0] - a[0], b[1] - a[1])
                for a, b in zip(hull, hull[1:] + hull[:1]))
@@ -113,8 +115,8 @@ def cooked(raws):
     f_on = np.einsum('nkji,nkj->ni', frame, f * np.where(c[..., C['hers1']] > 0, -1.0, 1.0)[..., None])
     normal = np.abs(f[..., 0])
     borne, grip = normal.sum(1), (c[..., C['mu']] * normal).sum(1)
-    slip = (normal * np.hypot(c[..., C['va']], c[..., C['vb']])).sum(1) / np.where(borne > 0.0, borne, 1.0)
-    cone = np.hypot(f[..., 1], f[..., 2]).sum(1) / np.where(grip > 0.0, grip, 1.0)
+    slip = (normal * libm.hypot(c[..., C['va']], c[..., C['vb']])).sum(1) / np.where(borne > 0.0, borne, 1.0)
+    cone = libm.hypot(f[..., 1], f[..., 2]).sum(1) / np.where(grip > 0.0, grip, 1.0)
     pivot = np.full(len(x), math.nan)
     for i in np.flatnonzero((f_on[:, 1] > 0.0) & held.any(1)):
         pts, com = c[i, held[i]][:, [C['px'], C['pz']]], head[i, HE['cx']:HE['cz'] + 1]

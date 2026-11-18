@@ -14,12 +14,13 @@ it); the robot's drives' bounds `bemf`'s at `drives.PACK_V`. Flat arrays and ari
 """
 import math
 
+from machine import libm
 from machine.body import bemf, drives, figure, servos
 from machine.body.compile import G_M_S2 as G
 
 #: The robot's knee among its drives (`bemf.DRIVEN`); unilateral throw height spring, N/m, from knee servo
 #: stiffness mapped through its countermovement crouch lever.
-_CROUCH_LEVER = 0.5 * (figure.THIGH + figure.SHANK) * math.sin(math.radians(abs(figure.SQUAT['left_ankle'])))
+_CROUCH_LEVER = 0.5 * (figure.THIGH + figure.SHANK) * libm.sin(math.radians(abs(figure.SQUAT['left_ankle'])))
 THROW_K = round(servos.SERVO['knee'][1] / (_CROUCH_LEVER * _CROUCH_LEVER), -2)
 KNEE = bemf.DRIVEN.index('left_knee')
 
@@ -27,7 +28,7 @@ KNEE = bemf.DRIVEN.index('left_knee')
 def froude(v, leg):
     """1: a gait's Froude number at `v` m/s on a leg `leg` m long, hip over sole."""
     import numpy as np
-    return np.asarray(v, float) ** 2 / (G * leg)
+    return libm.sq(np.asarray(v, float)) / (G * leg)
 
 
 def duty(fr, knots, values):
@@ -41,8 +42,8 @@ def duty(fr, knots, values):
     f = np.clip(np.asarray(fr, float), x[0], x[-1])
     k = np.clip(np.searchsorted(x, f) - 1, 0, len(h) - 1)
     t = (f - x[k]) / h[k]
-    return ((2 * t ** 3 - 3 * t ** 2 + 1) * y[k] + (t ** 3 - 2 * t ** 2 + t) * h[k] * m[k]
-            + (3 * t ** 2 - 2 * t ** 3) * y[k + 1] + (t ** 3 - t ** 2) * h[k] * m[k + 1])
+    return ((2 * (t * t * t) - 3 * (t * t) + 1) * y[k] + (t * t * t - 2 * (t * t) + t) * h[k] * m[k]
+            + (3 * (t * t) - 2 * (t * t * t)) * y[k + 1] + (t * t * t - t * t) * h[k] * m[k + 1])
 
 
 def braked(mu, cap, period):
@@ -65,10 +66,10 @@ def _push(depth, legs, n):
     import numpy as np
     straight = figure.THIGH + figure.SHANK
     x = np.linspace(straight - depth, straight, n + 1)[:-1]
-    cos = (figure.THIGH ** 2 + figure.SHANK ** 2 - x ** 2) / (2.0 * figure.THIGH * figure.SHANK)
-    lever = figure.THIGH * figure.SHANK * np.sqrt(1.0 - cos ** 2) / x
+    cos = (figure.THIGH * figure.THIGH + figure.SHANK * figure.SHANK - x * x) / (2.0 * figure.THIGH * figure.SHANK)
+    lever = figure.THIGH * figure.SHANK * np.sqrt(1.0 - cos * cos) / x
     m = figure.mass()
-    big = m + legs * drives.armature('left_knee') / lever ** 2
+    big = m + legs * drives.armature('left_knee') / (lever * lever)
     dx = x[1] - x[0]
     energy, v = np.zeros(n), np.zeros(n)
     dq = np.zeros(len(bemf.DRIVEN))

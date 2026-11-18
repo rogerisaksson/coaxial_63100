@@ -20,6 +20,8 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
+
 TAU = 2.0 * np.pi
 
 
@@ -33,14 +35,15 @@ def clock_of(g):
 def clock(phi, lag, hz, k, dt):
     """`phi` (n,) rad a tick `dt` on: each limb turned at `hz` and pulled by `k` (1/s) toward lagging the first
     by its `lag` (n,) - phi_a' = 2 pi hz + k sum_b sin(phi_b - phi_a + lag_b - lag_a)."""
-    pull = np.sin(phi[None, :] - phi[:, None] + lag[None, :] - lag[:, None]).sum(axis=1)
+    pull = libm.sin(phi[None, :] - phi[:, None] + lag[None, :] - lag[:, None]).sum(axis=1)
     return (phi + (TAU * hz + k * pull) * dt) % TAU
 
 
 def toward(lag, to, s):
     """Lags `s` of the way from `lag` to `to` along the torus's shortest arc: taken as numbers, the trot's
     [0 .5 .5 0] to the crawl's [0 .25 .5 .75] turns the right fore three quarters and one limb bears alone."""
-    return lag + s * np.angle(np.exp(1j * (to - lag)))
+    d = to - lag
+    return lag + s * libm.arctan2(libm.sin(d), libm.cos(d))
 
 
 def bearing(phi, duty):
@@ -103,4 +106,4 @@ def bend(upper, lower, length):
     """A two-link limb's middle joint's flexion, rad (0 straight), that sets its ends `length` apart: the law of
     cosines, clipped to straight and to folded flat."""
     c = (length * length - upper * upper - lower * lower) / (2.0 * upper * lower)
-    return np.arccos(np.clip(c, -1.0, 1.0))
+    return libm.arccos(np.clip(c, -1.0, 1.0))

@@ -24,6 +24,7 @@ import numpy as np
 # np.clip's own ufunc, its Python layers left out: the same bits, 3.7 -> 1.3 us a call, 14 a law pass here
 from numpy._core.umath import clip as CLIP  # pyright: ignore[reportAttributeAccessIssue]
 
+from machine import libm
 from machine.senses import borne, field, observer, edge
 from machine.texts import kernel, ortho
 from machine.law import composer, latent, modal
@@ -193,7 +194,7 @@ def counterweighted(acc, g):
     full = 2.0 * MARGIN_NM / weight
     short = CLIP(full - m, 0.0, full) * float(np.isfinite(m))
     out = np.array(acc, float)
-    out[[0, 2]] -= e['iota'][k] * e['om'] ** 2 * short * edge
+    out[[0, 2]] -= e['iota'][k] * libm.sq(e['om']) * short * edge
     return out
 
 

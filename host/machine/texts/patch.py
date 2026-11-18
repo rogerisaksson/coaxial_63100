@@ -18,6 +18,7 @@ stiffened for the heel's transient felled it alone.
 import math
 import re
 
+from machine import libm
 from machine.law import modal, stride
 from machine.texts import ortho
 from machine.texts.curves import CURVES
@@ -144,6 +145,6 @@ def locked(y, fr, a):
     from machine.law import poise
     rot = fr[modal.ROT].reshape(3, 3)
     c = rot @ y[modal.COM]
-    zmp = c[:2] - (rot @ a[modal.COM_ACC])[:2] / float(fr[modal.OMEGA]) ** 2
+    zmp = c[:2] - (rot @ a[modal.COM_ACC])[:2] / libm.sq(float(fr[modal.OMEGA]))
     lo, hi = poise.boxes((y[modal.SOLE].reshape(2, 3) @ rot.T)[:, :2], a[modal.EDGE], y[modal.TILT])
     return bool(a[modal.STANCE].min() > 0.5 and (zmp >= lo.min(axis=0)).all() and (zmp <= hi.max(axis=0)).all())

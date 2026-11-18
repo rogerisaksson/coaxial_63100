@@ -15,6 +15,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.law import impedance, latent, melt, modal, poise
 from machine.law.stride import STRIDE_M
 from machine.moves.seated import POPLITEAL, RESTS
@@ -67,8 +68,8 @@ LEG_JOINTS = np.array(rounds.LEGS)
 #: mm over the robot's 0.5 m reach.
 DIRECTIONS = 64
 
-_U = np.stack([np.cos(np.arange(DIRECTIONS) * 2.0 * np.pi / DIRECTIONS),
-               np.sin(np.arange(DIRECTIONS) * 2.0 * np.pi / DIRECTIONS)], axis=1)
+_U = np.stack([libm.cos(np.arange(DIRECTIONS) * 2.0 * np.pi / DIRECTIONS),
+               libm.sin(np.arange(DIRECTIONS) * 2.0 * np.pi / DIRECTIONS)], axis=1)
 
 
 def smooth(x):
@@ -95,7 +96,7 @@ def nothing(told):
 def lift(out):
     """The robot's text's lift of a leg, a 0-d array: + the first of `impedance.LIMBS`, its rhythm aside (the
     robot's stride's clearance is no lift)."""
-    return out[latent.REF][modal.LIFT] - out[latent.SWAY][modal.LIFT] * np.sin(out[latent.PSI][modal.LIFT])
+    return out[latent.REF][modal.LIFT] - out[latent.SWAY][modal.LIFT] * libm.sin(out[latent.PSI][modal.LIFT])
 
 
 def intent(told, out):
@@ -107,7 +108,7 @@ def intent(told, out):
 def leave(xi, pts, room, soles, vcom, shares, loads, weight):
     """`gate`'s arithmetic, of arrays alone: (eta, froude's, anchors', margin's, margin N m, the reach `reached`)."""
     froude = (vcom[0] * vcom[0] + vcom[2] * vcom[2]) / (modal.G * LEG_M)
-    by_froude = np.exp(-(froude / FROUDE) ** 2)
+    by_froude = libm.exp(-libm.sq(froude / FROUDE))
     own = shares[PLANTAR] * loads / np.maximum(loads.sum(), observer.TINY)
     by_anchors = smooth((shares.sum() - own - ANCHORS) / (1.0 - ANCHORS))
     reach = reached(xi, pts, room, 1.0 - soles)
@@ -194,16 +195,16 @@ def opening(let, q, fr, a, y, out, high, iota, freed, told, sat, posture, bend, 
             * (1.0 - window(impedance.LIMBS * lift(out), (0.0, poise.LIFT_EPS))) * (1.0 - driven))
     down = 0.42 * (1.0 - lifted) + 0.08 * lifted
     high = (let * (high + dt * bed * (down - 0.04 * up - high) / SLEW_S)
-            + (1.0 - let) * np.sqrt(leg[:, modal.UP] ** 2 + leg[:, modal.LEFT] ** 2))
-    cosine = np.cos(0.5 * fr[modal.KNEE]) - modal.AXIAL_M * out[latent.REF][modal.AXIAL] * fr[modal.HIPS_BY] / modal.LEG_M
-    bent = (1.0 - bed * (1.0 - rising)) * (2.0 * np.arccos(np.clip(cosine, -1.0, 1.0)) - fr[modal.KNEE] - a[modal.BEND]) + 0.15 * bed * up
+            + (1.0 - let) * np.sqrt(leg[:, modal.UP] * leg[:, modal.UP] + leg[:, modal.LEFT] * leg[:, modal.LEFT]))
+    cosine = libm.cos(0.5 * fr[modal.KNEE]) - modal.AXIAL_M * out[latent.REF][modal.AXIAL] * fr[modal.HIPS_BY] / modal.LEG_M
+    bent = (1.0 - bed * (1.0 - rising)) * (2.0 * libm.arccos(np.clip(cosine, -1.0, 1.0)) - fr[modal.KNEE] - a[modal.BEND]) + 0.15 * bed * up
     said = posture[modal.CHAIN[:, 1]] + bend[modal.CHAIN[:, 1]] * bent
     # the placed knee solved from the text's knee `said` (the slewed reference carries dq and ran away straight):
     # the ankle as far ahead of the hip as that knee puts it at this height, less `back`, under the hip at most
     flexed = modal.FLEX[1] * said
-    was = np.maximum(np.sqrt(np.maximum(modal.SHANK ** 2 + modal.THIGH ** 2 + 2.0 * modal.SHANK * modal.THIGH * np.cos(flexed)
-                                        - high ** 2, 0.0)) - back, 0.0)
-    placed = np.arccos(np.clip((was ** 2 + high ** 2 - modal.SHANK ** 2 - modal.THIGH ** 2)
+    was = np.maximum(np.sqrt(np.maximum(modal.SHANK * modal.SHANK + modal.THIGH * modal.THIGH + 2.0 * modal.SHANK * modal.THIGH * libm.cos(flexed)
+                                        - high * high, 0.0)) - back, 0.0)
+    placed = libm.arccos(np.clip((was * was + high * high - modal.SHANK * modal.SHANK - modal.THIGH * modal.THIGH)
                                / (2.0 * modal.SHANK * modal.THIGH), -1.0, 1.0)) / modal.FLEX[1]
     said = said + driven * (placed - said)
     # hung, its knee and ankle asked where they are - passive in the robot's step; asked at the kernel's origin (90
@@ -213,9 +214,9 @@ def opening(let, q, fr, a, y, out, high, iota, freed, told, sat, posture, bend, 
     ref = q_open.copy()
     ref[modal.CHAIN[:, 1]] += dt * let * (said - ref[modal.CHAIN[:, 1]]) / SLEW_S
     knee = modal.FLEX[1] * ref[modal.CHAIN[:, 1]]
-    behind = np.sqrt(np.maximum(modal.SHANK ** 2 + modal.THIGH ** 2 + 2.0 * modal.SHANK * modal.THIGH * np.cos(knee)
-                                - high ** 2, 0.0))
-    lean = np.arctan2(-behind, high) + np.arctan2(modal.THIGH * np.sin(knee), modal.SHANK + modal.THIGH * np.cos(knee))
+    behind = np.sqrt(np.maximum(modal.SHANK * modal.SHANK + modal.THIGH * modal.THIGH + 2.0 * modal.SHANK * modal.THIGH * libm.cos(knee)
+                                - high * high, 0.0))
+    lean = libm.arctan2(-behind, high) + libm.arctan2(modal.THIGH * libm.sin(knee), modal.SHANK + modal.THIGH * libm.cos(knee))
     # the robot's pelvis's pitch as asked while its legs are to stand or rest - their weight, out ahead of
     # it, holds its pelvis there, the floor sit's - and as sensed (`modal.pitched`'s first, spelled
     # out) as its back is told to bear, its legs to lift: asked then, their weight hauled the
@@ -225,7 +226,7 @@ def opening(let, q, fr, a, y, out, high, iota, freed, told, sat, posture, bend, 
     told_up = (1.0 - rising) * np.clip(told[DORSAL] / 0.10, 0.0, 1.0)
     qw, qx, qj, qk = y[modal.QUAT][0], y[modal.QUAT][1], y[modal.QUAT][2], y[modal.QUAT][3]
     up0, up1, up2 = 2.0 * (qx * qj - qw * qk), 1.0 - 2.0 * (qx * qx + qk * qk), 2.0 * (qj * qk + qw * qx)
-    sensed = np.arctan2(up0 * rot[modal.ALONG][0] + up1 * rot[modal.ALONG][1] + up2 * rot[modal.ALONG][2], up1)
+    sensed = libm.arctan2(up0 * rot[modal.ALONG][0] + up1 * rot[modal.ALONG][1] + up2 * rot[modal.ALONG][2], up1)
     aim = (1.0 - told_up) * (fr[modal.PITCH0][0] + modal.PITCH_RAD * out[latent.REF][modal.PITCH]) + told_up * sensed
     hip = modal.FLEX[0] * (knee - lean + aim)
     ankle = (1.0 - bed) * modal.FLEX[2] * lean + bed * laid[modal.CHAIN[:, 2]]

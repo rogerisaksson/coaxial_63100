@@ -25,6 +25,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.body import gait
 from machine.body.figure import TOE_M
 from machine.law.poise import EARLY, HALF_M, TINY, clip
@@ -103,11 +104,11 @@ def beat(drive, psi, sway, lateral, turns, was, need, lead, split, begun, stood,
     stride has it off; its swing's share done from `begun`, `lead` ahead (`hurried`); whether it swings; its
     rhythm's rate of that share, 1/s)."""
     stepping = np.maximum(clip(np.abs(drive) / STIRS, 0.0, 1.0), need)
-    way = 1.0 - 2.0 * (np.sin(lateral - psi) * np.copysign(1.0, sway) < -BACK)
+    way = 1.0 - 2.0 * (libm.sin(lateral - psi) * np.copysign(1.0, sway) < -BACK)
     side = -LIMBS * np.copysign(1.0, drive) * way
-    s = np.sin(psi) * np.cos(split) + np.cos(psi) * np.sin(split)
-    c = np.cos(psi) * np.cos(split) - np.sin(psi) * np.sin(split)
-    sweep, phi = side * s, np.arctan2(side * s, side * c)
+    s = libm.sin(psi) * libm.cos(split) + libm.cos(psi) * libm.sin(split)
+    c = libm.cos(psi) * libm.cos(split) - libm.sin(psi) * libm.sin(split)
+    sweep, phi = side * s, libm.arctan2(side * s, side * c)
     u = clip((0.5 * (phi / phi_w + 1.0) - begun) / (1.0 - begun) + lead, 0.0, 1.0)
     window = (phi > phi_w - np.pi) * (phi < phi_w) * (1.0 - (stood > 0.5) * (was <= 0.5) * (need <= TINY) * (sweep > EARLY))
     came = (stood * was * (u > 1.0 - FALL_U) * (u < 1.0))[::-1] * (u <= 0.0)
@@ -152,7 +153,7 @@ def hurried(aside, om, u, rate, kp):
     from 10 s of its plain walk on; with no sole standing it read 1000 m, a swing slammed down 3 times its
     pace and the robot fell. A limb's stance let go, a turn reversed landed its swing 0.54 s on and the robot
     fell; its whole rhythm hurried for it turned its pelvis with it and spun it 1.9 rad."""
-    due = np.log(np.maximum(REACH_M / np.maximum(aside, TINY), 1.0)) / om
+    due = libm.log(np.maximum(REACH_M / np.maximum(aside, TINY), 1.0)) / om
     return np.maximum(1.0, (1.0 - u) / (np.maximum(rate, TINY) * np.maximum(due, np.sqrt(6.0 / kp))))
 
 
@@ -161,7 +162,7 @@ def cruises(way, drive, turns, going, phi_w):
     -, no further than AHEAD_M_S from its `going`, the speed its soles have made of late: asked 0.48 m/s under
     a sway its soles refused, it leant to its toes' edge standing and went over them; damped to its going
     alone it never set out."""
-    cruise = way * 2.0 / np.pi * STRIDE_M * np.abs(drive) * np.sin(phi_w) * turns
+    cruise = way * 2.0 / np.pi * STRIDE_M * np.abs(drive) * libm.sin(phi_w) * turns
     return clip(cruise, going - AHEAD_M_S, going + AHEAD_M_S)
 
 
@@ -172,17 +173,17 @@ def meets(xi, c, flat, cruise, om, turns, wide, across=0.0, reach=REACH_M, apart
     own side of the other sole `flat` as planted (`planted` rad the robot's way turned since, so an inside
     sole in a begun turn never lands under its centre)."""
     step_s = np.pi / np.maximum(turns, TINY)
-    grown = np.exp(om * step_s)
+    grown = libm.exp(om * step_s)
     led = LEADS * np.maximum((xi[ALONG] - c[ALONG]) - cruise / om, -0.04)
     s_ac = np.sign(across)
     led_lat = s_ac * clip(s_ac * (xi[LEFT] - c[LEFT]) - 1.35 * np.abs(across) / om, -0.052, 0.042)
     meet = xi - np.stack([LAND_SHARE * (cruise * step_s / (grown - 1.0)) - led + 0.0 * LIMBS,
                           -led_lat - LIMBS * wide / (grown + 1.0)], axis=1)
     landed = c[ALONG] + clip(meet[:, ALONG] - c[ALONG], -reach, reach)
-    side = flat[::-1, LEFT] + (flat[::-1, ALONG] - landed) * np.tan(planted[::-1])
+    side = flat[::-1, LEFT] + (flat[::-1, ALONG] - landed) * libm.tan(planted[::-1])
     w_side = clip((np.abs(across) - 0.07) / 0.03, 0.0, 1.0)
     span = apart + w_side * np.maximum(wide - apart, 0.0)
-    return np.stack([landed, side + LIMBS * np.maximum(LIMBS * (meet[:, LEFT] - side), span / np.cos(planted[::-1]))], axis=1)
+    return np.stack([landed, side + LIMBS * np.maximum(LIMBS * (meet[:, LEFT] - side), span / libm.cos(planted[::-1]))], axis=1)
 
 
 def guarded(meet, over, flat, apart, planted=UNTURNED):
@@ -195,8 +196,8 @@ def guarded(meet, over, flat, apart, planted=UNTURNED):
     target, other = flat + (meet - flat) * over[:, None], flat[::-1]
     overlap = clip(1.0 - np.abs(flat[:, ALONG] - other[:, ALONG]) / (2.0 * HALF_M), 0.0, 1.0)
     floor = apart + (APART_M - apart) * overlap
-    side = other[:, LEFT] + (other[:, ALONG] - target[:, ALONG]) * np.tan(planted[::-1])
-    held = LIMBS * np.maximum(floor / np.cos(planted[::-1]) - LIMBS * (target[:, LEFT] - side), 0.0)
+    side = other[:, LEFT] + (other[:, ALONG] - target[:, ALONG]) * libm.tan(planted[::-1])
+    held = LIMBS * np.maximum(floor / libm.cos(planted[::-1]) - LIMBS * (target[:, LEFT] - side), 0.0)
     return np.stack([target[:, ALONG], target[:, LEFT] + held], axis=1)
 
 
@@ -236,18 +237,18 @@ def clears(u, flying, swung, high, tip, tipping, tilt, late, land):
                        by * by * by * (10.0 + by * (6.0 * by - 15.0))],
                       [30.0 * on * on * (1.0 - on) * (1.0 - on) / RISE_U,
                        -30.0 * by * by * (1.0 - by) * (1.0 - by) / FALL_U],
-                      [60.0 * on * (1.0 - on) * (1.0 - 2.0 * on) / RISE_U ** 2,
-                       60.0 * by * (1.0 - by) * (1.0 - 2.0 * by) / FALL_U ** 2]])
+                      [60.0 * on * (1.0 - on) * (1.0 - 2.0 * on) / (RISE_U * RISE_U),
+                       60.0 * by * (1.0 - by) * (1.0 - 2.0 * by) / (FALL_U * FALL_U)]])
     down, toes = np.maximum(tip, tilt), TOE_M * eased[0, 0]
     return np.array([
         high * flying * eased[0, 0] * eased[0, 1] - REACH_M_S * late + land * flying * (1.0 - eased[0, 1])
-        + flying * (HALF_M * np.maximum(-np.sin(tip), 0.0) + (HALF_M + toes) * np.maximum(np.sin(down), 0.0)),
+        + flying * (HALF_M * np.maximum(-libm.sin(tip), 0.0) + (HALF_M + toes) * np.maximum(libm.sin(down), 0.0)),
         high * flying * (eased[1, 0] * eased[0, 1] + eased[0, 0] * eased[1, 1]) * swung - REACH_M_S * (late > 0.0)
         - land * flying * eased[1, 1] * swung
-        + flying * (-HALF_M * (tip < 0.0) + (HALF_M + toes) * (tip > 0.0)) * np.cos(tip) * tipping
-        + flying * TOE_M * eased[1, 0] * swung * np.maximum(np.sin(down), 0.0),
-        high * flying * (eased[2, 0] * eased[0, 1] + eased[0, 0] * eased[2, 1]) * swung ** 2
-        - land * flying * eased[2, 1] * swung ** 2 + flying * TOE_M * eased[2, 0] * swung ** 2 * np.maximum(np.sin(down), 0.0)])
+        + flying * (-HALF_M * (tip < 0.0) + (HALF_M + toes) * (tip > 0.0)) * libm.cos(tip) * tipping
+        + flying * TOE_M * eased[1, 0] * swung * np.maximum(libm.sin(down), 0.0),
+        high * flying * (eased[2, 0] * eased[0, 1] + eased[0, 0] * eased[2, 1]) * (swung * swung)
+        - land * flying * eased[2, 1] * (swung * swung) + flying * TOE_M * eased[2, 0] * (swung * swung) * np.maximum(libm.sin(down), 0.0)])
 
 
 def rising(u):
@@ -309,4 +310,4 @@ def goes(meet, flat, shod, v, u, off, turns, kp, kd, phi_w):
     and its march's swing at 1.3 Hz, 0.31 s, landed under its centre and it fell - its march is at 1.1 Hz for
     it."""
     to_go = np.maximum((ARRIVE_U - u) * 2.0 * phi_w / np.maximum(turns, TINY), SOON_S)[:, None]
-    return eased(u, off)[:, None] * (np.minimum(6.0 / to_go ** 2, kp) * (meet - flat) - np.minimum(4.0 / to_go, kd) * (shod[:, :2] - v[:2]))
+    return eased(u, off)[:, None] * (np.minimum(6.0 / (to_go * to_go), kp) * (meet - flat) - np.minimum(4.0 / to_go, kd) * (shod[:, :2] - v[:2]))

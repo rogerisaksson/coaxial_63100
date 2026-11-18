@@ -19,6 +19,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.body.compile import G_M_S2 as G
 
 
@@ -62,12 +63,12 @@ def unweighted(s, alpha, sigma):
     """1: the share of the robot's weight its thighs and buttocks may bear `s` m past a seat's edge (on the seat +),
     1 - alpha exp(-s^2 / 2 sigma^2) (`execute-bevel-arch-vault-homotopy`'s capstan unweighting); its arms bear the
     rest."""
-    return 1.0 - alpha * np.exp(-0.5 * (np.asarray(s, float) / sigma) ** 2)
+    return 1.0 - alpha * libm.exp(-0.5 * libm.sq(np.asarray(s, float) / sigma))
 
 
 def capstan(mu, wrap):
     """1: the drag of a band wrapping an edge `wrap` rad, over its plain friction mu N: exp(mu wrap)."""
-    return np.exp(mu * np.asarray(wrap, float))
+    return libm.exp(mu * np.asarray(wrap, float))
 
 
 def cop(points, forces, weight):

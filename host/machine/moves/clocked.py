@@ -16,6 +16,7 @@ in High-Z - is refused by name.
 import math
 import os
 
+from machine import libm
 from machine.texts import acts, dsp, kernel, maneuver, ortho
 from machine.body import figure, mechatronics
 from machine.moves import seated
@@ -136,7 +137,7 @@ def robot_own(q, modes, body):
 def chord(knee):
     """m the robot's hip joints sit behind its ankle, sat on the floor (SAT), its knee bent `knee`."""
     up = SAT - figure.ANKLE_H
-    return math.sqrt(max(figure.THIGH ** 2 + figure.SHANK ** 2 + 2.0 * figure.THIGH * figure.SHANK * math.cos(knee) - up * up, 0.0))
+    return math.sqrt(max(figure.THIGH * figure.THIGH + figure.SHANK * figure.SHANK + 2.0 * figure.THIGH * figure.SHANK * libm.cos(knee) - up * up, 0.0))
 
 
 def rowed(q0, columns, m, metres):

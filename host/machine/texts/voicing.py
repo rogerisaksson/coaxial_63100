@@ -9,6 +9,7 @@ what it has instead (VOICELESS), what it cannot do refused by name (REFUSED), an
 """
 import math
 
+from machine import libm
 from machine.texts import dsp, ortho, patch
 from machine.law import modal, se2, statics, supervisor
 from machine.errors import MachineError
@@ -44,7 +45,7 @@ RULES = {'ratio': lambda base, v, vd, unit: base * v / vd,
          'shift': lambda base, v, vd, unit: base + (v - vd) / unit,
          'drop': lambda base, v, vd, unit: base + 1e-3 * (vd - v) / unit,
          'width': lambda base, v, vd, unit: (1.0 + base) * v / vd - 1.0,
-         'db': lambda base, v, vd, unit: base * 10.0 ** ((v - vd) / 20.0),
+         'db': lambda base, v, vd, unit: base * libm.power(10.0, (v - vd) / 20.0),
          'phase': lambda base, v, vd, unit: base + (v - vd),
          'lag': lambda base, v, vd, unit: base - (v - vd),
          'milli': lambda base, v, vd, unit: 1e-3 * v}
@@ -169,7 +170,7 @@ def voiced(g, dry, fr, gym=None):
     stride_of = lambda x: x.get('tarsal-sagittal', {}).get('stride-length-mm', 1.0)
     speed = se2.WALK_SPEED * stride_of(g) / stride_of(dry) * osc.get('bpm', 1.0) / dry_osc.get('bpm', 1.0)
     heading = osc.get('direction-angle-rad', 0.0)
-    asked = (speed * math.cos(heading), speed * math.sin(heading), osc.get('yaw-rate-radps', 0.0))
+    asked = (speed * libm.cos(heading), speed * libm.sin(heading), osc.get('yaw-rate-radps', 0.0))
     told = {'twist': (min(asked[0], math.nextafter(WALK_TOP, 0.0)),) + asked[1:]}
     told.update({'grip': g['wrench-cone']['mu-static']} if 'wrench-cone' in g else {})
     told.update({'asked': asked} if told['twist'] != asked else {})

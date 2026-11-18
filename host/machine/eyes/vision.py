@@ -13,6 +13,7 @@ here no more (`Kept`).
 """
 import math
 
+from machine import libm
 from machine.process import aside, placed
 from machine.senses import inekf
 from machine.eyes import gaze, registry
@@ -94,7 +95,7 @@ def _floored(g, t, fix):
     told, refused, run = told + 1, refused + (not taken), (run + 1) * (not taken)
     share = (refused + 1.0) / (told + 2.0)
     g['floor_runs'] = (told, refused, run)
-    if run >= max(voxels.TOLD, math.log(1.0 - _confidence()) / math.log(share)):
+    if run >= max(voxels.TOLD, libm.log(1.0 - _confidence()) / libm.log(share)):
         g['floor_runs'], g['unfloor'] = (told, refused, 0), True
 
 
@@ -102,7 +103,7 @@ def _confidence():
     """The robot's floor's gate's confidence: the chi square with 3 degrees of freedom - a look's turn and place
     along its floor - below `inekf.GATE` (the text's visual gate), in closed form."""
     x = inekf.GATE
-    return math.erf(math.sqrt(0.5 * x)) - math.sqrt(2.0 * x / math.pi) * math.exp(-0.5 * x)
+    return math.erf(math.sqrt(0.5 * x)) - math.sqrt(2.0 * x / math.pi) * libm.exp(-0.5 * x)
 
 
 def joined(g):

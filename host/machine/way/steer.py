@@ -2,6 +2,8 @@
 import functools
 import math
 
+from machine import libm
+
 
 def tell(g, gym, heard_fn, cmd):
     """`cmd` as the errand's word to the robot, once: the same twist again would restart its gait."""
@@ -45,7 +47,7 @@ def steer(g, gym, heard_fn, err, wz_dir, speed, off, aim_m=1.0, pushing=False):
     turn = _away(se2.wrap_angle(err - dyaw), se2.wrap_angle(off - dyaw)) > (1.0 - w) * modal.LIST_RAD + w * route.CONE
     arc = not turn and speed > 0.0 and not pushing
     err_f = se2.wrap_angle(pyaw + err - float(g['heading']))
-    wz = max(-se2.YAW_RATE, min(se2.YAW_RATE, speed * 2.0 * math.sin(err_f) / max(aim_m, 1e-6) / se2.STEER['stance_turn']))
+    wz = max(-se2.YAW_RATE, min(se2.YAW_RATE, speed * 2.0 * libm.sin(err_f) / max(aim_m, 1e-6) / se2.STEER['stance_turn']))
     steer = float(not turn) * float(not arc)
     g['has_heading'] = steer * float(speed > 0.0)
     g['target_heading'] = se2.wrap_angle(pyaw + err) * steer + float(g.get('target_heading', 0.0)) * (1.0 - steer)

@@ -17,6 +17,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine import libm
 from machine.senses import edge
 from machine.stack.wbc import MU, SLIDE_M_S
 from machine.texts import kernel
@@ -94,7 +95,7 @@ def felt(grip, seen, settled, frames, touch, slip, weight, dt, prior=MU):
     # friction on a sliding sole is against its slide: the robot's estimator's slip past SLIDE_M_S in a
     # turnabout's pivot, a trip or a shove read as slides, and walking 80 N shoves fell 30 -> 25
     against = across @ slip <= -AGAINST * np.linalg.norm(across, axis=1) * np.linalg.norm(slip)
-    moving = bears & (np.hypot(slip[0], slip[2]) > SLIDE_M_S) & against
+    moving = bears & (libm.hypot(slip[0], slip[2]) > SLIDE_M_S) & against
     seen[:, :-1], seen[:, -1] = seen[:, 1:].copy(), moving * used - ~bears
     slides = (moving & (settled >= SETTLE_S) & (seen.min(axis=1) > 0.0)
               & (seen.max(axis=1) - seen.min(axis=1) <= PLATEAU * seen.mean(axis=1)))
