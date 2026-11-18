@@ -210,9 +210,10 @@ API void wbh_ortho_row(const void *wire, uint32_t *head, float *p)
   memcpy(p, row.p, sizeof(row.p));
 }
 
-API void wbh_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, double ys, int in_hop, int wb)
+API void wbh_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, double ys, double stood0, double stood1,
+                         int in_hop, int wb)
 {
-  wbc_pass_drives(p, dt, wo, wo3, ys, in_hop, wb);
+  wbc_pass_drives(p, dt, wo, wo3, ys, stood0, stood1, in_hop, wb);
 }
 
 API void wbh_pass_tick(wbc_tick_t *t, double dt, double now, double wo, double limp)

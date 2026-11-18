@@ -300,9 +300,11 @@ def laid(g):
     g['distal_side'] = np.array([int(nm.startswith('right_')) for nm in names])
     g['got'] = {'qacc': kept['qacc'].copy(), 'tau': kept['tau'].copy(), 'over': kept['over'].copy()}
     k, bus, _arrays = g['bus'] = supervisor.bus(names, g['rate_hz'])
+    stop_width, _stiff, _damp, stop_reach = body.buffers[1]
     p = cores.Drives(n=n, q_at=edge.Q.start, qd_at=edge.QD.start, qm_at=edge.QM.start, knee_nm=se2.KNEE_NM,
                      knee_soft=se2.KNEE_SOFT, leak_s=se2.LEAK_S, wep_hold_s=se2.WEP_HOLD_S,
-                     bus_k=ctypes.addressof(k), bus=ctypes.addressof(bus), posture_kd=supervisor.POSTURE_KD)
+                     bus_k=ctypes.addressof(k), bus=ctypes.addressof(bus), posture_kd=supervisor.POSTURE_KD,
+                     stop_width=stop_width, stop_reach=stop_reach)
     p.knee[0], p.knee[1] = body.knees
     p.cervical[0], p.cervical[1] = g['cervical']
     for name, arr in (('joints', kept['joints']), ('act', kept['act'])):
@@ -342,8 +344,11 @@ def drives_twin(g, dt):
     ys = surety(g, dt)
     drv = 1.0 - (1.0 - ys) ** 3
     wo_s = wo * drv
+    striding = float(g['a'][modal.STRIDES]) * min(max(float(g['out'][latent.HELD]), 0.0), 1.0)
+    stood0 = float(g['a'][modal.STANCE][0]) * striding
+    stood1 = float(g['a'][modal.STANCE][1]) * striding
     in_hop = int(axial_k(g['st']) > HOP_K)
-    step(ctypes.byref(p), dt, wo_s, wo_s ** 3, drv, in_hop, 1)
+    step(ctypes.byref(p), dt, wo_s, wo_s ** 3, drv, stood0, stood1, in_hop, 1)
     # a setpoint within its drive's range (the manifest's): asked compression 4.0 the pattern's
     # ankle ask of -77 deg wound the joint to 215.8 of its -45..42 and felled the robot at 3.0 s.
     np.minimum(np.maximum(g['ref_q'], g['rng'][:, 0], out=g['ref_q']), g['rng'][:, 1], out=g['ref_q'])

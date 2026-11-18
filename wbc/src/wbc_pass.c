@@ -10,27 +10,33 @@
 #include <stddef.h>
 #include <string.h>
 
-void wbc_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, double ys, int in_hop, int wb)
+void wbc_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, double ys, double stood0, double stood1,
+                     int in_hop, int wb)
 {
   const int    n = p->n;
   const double c3 = 3.0 * wo, c33 = (3.0 * wo) * wo;
   const double leak = npmin(1.0, dt / npmax(1e-6, p->leak_s * ys));
   const double bleed = npmin(1.0, leak * (1.0 - ys));
   const double under = in_hop ? 0.0 : 0.02, pull = in_hop ? 0.0 : 35.0;
+  const double stood[2] = {stood0, stood1};
   double      *eso0 = p->eso, *eso1 = p->eso + n, *eso2 = p->eso + 2 * n;
 
   for (int i = 0; i < n; i++)
   {
     p->sb[i] = 0.0;
   }
-  /* the robot's knees' spring: back from straight, and against folding back past it */
+  /* the robot's knees' spring: back from straight, and against folding back past straight (engaged ahead where
+     a standing knee's stopping point crosses `under` over a held stride) */
   for (int k = 0; k < 2; k++)
   {
     const int    j = p->knee[k];
     const double qk = p->y[p->q_at + p->joints[j]], qvk = p->y[p->qd_at + p->joints[j]];
+    const double qk_stop = qk + (stood[k] * p->stop_reach) * npmin(0.0, qvk);
+    const double ramp = (p->stop_width > 0.0) ? npmax((0.20 - qk) / 0.15, (under - qk_stop) / p->stop_width)
+                                              : (0.20 - qk) / 0.15;
 
     p->sb[j] = npclip(((p->knee_nm * npclip(1.0 - qk / p->knee_soft, 0.0, 3.0) + 2400.0 * npmax(0.0, under - qk))
-                       - (pull * npclip((0.20 - qk) / 0.15, 0.0, 1.5)) * npmin(0.0, qvk)) * ys,
+                       - (pull * npclip(ramp, 0.0, 1.5)) * npmin(0.0, qvk)) * ys,
                       -p->clamp_j[j], p->clamp_j[j]);
   }
   for (int i = 0; i < n; i++)
@@ -125,10 +131,13 @@ void wbc_pass_tick(wbc_tick_t *t, double dt, double now, double wo, double limp)
   const double drv = 1.0 - pow(1.0 - ys, 3.0), wo_s = wo * drv, rest = 1.0 - limp;
   const double k_to = t->field->st[t->field->k_to], k_from = t->field->st[t->field->k_from];
   const double k = (k_from > k_to) ? k_from : k_to;
+  const double striding = t->field->a[t->imp->a_strides] * npclip(t->field->out[t->field->held_out], 0.0, 1.0);
+  const double stood0 = t->field->a[t->imp->a_stance] * striding;
+  const double stood1 = t->field->a[t->imp->a_stance + 1] * striding;
   double       left;
 
   t->surety = ys;
-  wbc_pass_drives(p, dt, wo_s, pow(wo_s, 3.0), drv, (k > t->hop_k) ? 1 : 0, 1);
+  wbc_pass_drives(p, dt, wo_s, pow(wo_s, 3.0), drv, stood0, stood1, (k > t->hop_k) ? 1 : 0, 1);
   for (int i = 0; i < n; i++)
   {
     p->ref_q[i] = npminimum(npmaximum(p->ref_q[i], t->rng[2 * i]), t->rng[2 * i + 1]);

@@ -73,7 +73,8 @@ class Drives(ctypes.Structure):
                 ('joints', _vp), ('act', _vp), ('y', _vp), ('qacc', _vp), ('tau', _vp), ('over', _vp),
                 ('jeff', _vp), ('clamp', _vp), ('wep', _vp), ('wep_lim', _vp), ('clamp_j', _vp), ('q_lo', _vp),
                 ('q_hi', _vp), ('eso', _vp), ('ref_q', _vp), ('ref_v', _vp), ('hold', _vp), ('sb', _vp),
-                ('feed', _vp), ('limit', _vp), ('release', _vp), ('bus_k', _vp), ('bus', _vp), ('posture_kd', _d)]
+                ('feed', _vp), ('limit', _vp), ('release', _vp), ('bus_k', _vp), ('bus', _vp), ('posture_kd', _d),
+                ('stop_width', _d), ('stop_reach', _d)]
 
 
 class World(ctypes.Structure):
@@ -219,7 +220,7 @@ def typed(lib):
     lib.wbh_ortho_row_size.restype = i
     lib.wbh_ortho_row_size.argtypes = []
     lib.wbh_ortho_row.argtypes = [ctypes.c_void_p, u32p, fp]
-    lib.wbh_pass_drives.argtypes = [ctypes.POINTER(Drives), d, d, d, d, i, i]
+    lib.wbh_pass_drives.argtypes = [ctypes.POINTER(Drives), d, d, d, d, d, d, i, i]
     lib.wbh_pass_ctrl.argtypes = [ctypes.POINTER(World), d, _vp, _vp]
     lib.wbh_pass_motor.argtypes = [ctypes.POINTER(World), d]
     lib.wbh_pass_metered.argtypes = [ctypes.POINTER(World), _vp, d]

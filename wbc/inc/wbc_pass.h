@@ -54,12 +54,15 @@ typedef struct
   const wbc_bus_k     *bus_k;      /**< the master bus insert (machine.law.supervisor): its numbers, its state */
   wbc_bus_t           *bus;
   double               posture_kd; /**< a drive's own damping over its inertia, 1/s */
+  double               stop_width; /**< the joint boundary buffer's width, rad, and stopping reach, s */
+  double               stop_reach;
 } wbc_drives_t;
 
 /** The step, `dt` s on: `wo` the observers' bandwidth and `wo3` its cube, `ys` the robot's law's yield as
-    it tilts (1 upright), `in_hop` whether it is in a hop, `wb` whether the raised WEP limit
-    is its own. */
-void wbc_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, double ys, int in_hop, int wb);
+    it tilts (1 upright), `stood0` and `stood1` each sole's share of a held stride, `in_hop` whether the
+    robot is in a hop, `wb` whether the raised WEP limit is its own. */
+void wbc_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, double ys, double stood0, double stood1,
+                     int in_hop, int wb);
 
 /** The robot's drives' pass whole (machine.law.motion.drives): its surety field stepped, the
     robot's observers' bandwidth eased by it, a hop by the robot's axial stiffness asked, the step, each
