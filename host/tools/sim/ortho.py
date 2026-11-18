@@ -34,14 +34,16 @@ AT_S, TO_S, GOING_S, HELD_DEG, LOW = 1.0, 2.0, 3.0, 25.0, 0.5
 AIR_N = 5.0
 
 
-def went(plan, to=TO_S, trace=0, every=None):
+def went(plan, to=TO_S, trace=0, every=None, wobble=0.0):
     """{stood, t, tilt, modes {mode: (asked, furthest, as the last asked ended, at the end)},
     strode {mode: its mean over the robot's whole strides past the last asked blended in - a sole's first
     landing to its last -}, strides, loads then and at the end (N), up m/s, air s, went m, speed m/s,
     landings, us a pass, rows}: `plan` [(s, label, wire, names)] (`sprung.entries`) - each begun at
     its second - from a stand on the loop, followed `to` s past the last; `trace` a row every that
-    many ms; the loop solved every `every` passes, the page's (`sprung.STACK_EVERY`) with none. A
+    many ms; the loop solved every `every` passes, the page's (`sprung.STACK_EVERY`) with none; the robot
+    laid turned `wobble` rad about up, as test_scenarios lays its scenes - its margin. A
     mode walking swings within each stride: its value at the end is the stride's phase there."""
+    import math
     import time
     import numpy as np
     from machine.law import latent, modal
@@ -49,6 +51,12 @@ def went(plan, to=TO_S, trace=0, every=None):
     from machine.process import sprung
     from machine.errors import MachineError
     g = sprung.laid(every or sprung.STACK_EVERY)
+    if wobble:
+        world = g['world']
+        q, cw, sw = world.data.qpos[3:7].copy(), math.cos(wobble / 2.0), math.sin(wobble / 2.0)
+        world.data.qpos[3:7] = (q[0] * cw - q[2] * sw, q[1] * cw + q[3] * sw, q[2] * cw + q[0] * sw,
+                                q[3] * cw - q[1] * sw)
+        world._mj.mj_forward(world.model, world.data)
     for at, label, wire, names in sorted(plan, key=lambda item: item[0]):
         sprung.said(g, label, wire, names, at)
     rows = [(at, row) for at, _label, wire, _names in plan for row in ortho.rows(wire)]
@@ -196,6 +204,7 @@ def main(argv=None):
     parser.add_argument('--file', help="a text's entries, not lisp/humanoid/gynoid_mesomorph_medium.lisp's")
     parser.add_argument('--to', type=float, default=TO_S, help='s followed past the last asked')
     parser.add_argument('--every', type=int, help='the loop solved every that many passes; the page has its own')
+    parser.add_argument('--wobble', type=float, default=0.0, help='the robot laid turned this many rad about up')
     parser.add_argument('-v', nargs='?', type=int, const=25, default=0, metavar='MS',
                         help='a row every MS ms (25)')
     parser.add_argument('--look', action='store_true', help="the robot's walk's look: its band, its words, its form")
@@ -226,7 +235,7 @@ def main(argv=None):
             print('  a landing: %.2f of the robot\'s weight, %.2f after, a fall of %.0f mm; its head nods %.0f deg' % (
                 m['landing load'], m['unloading'], m['dip'], m['head nod']))
         return 0 if got['stood'] else 1
-    got = went(plan, args.to, args.v, args.every)
+    got = went(plan, args.to, args.v, args.every, args.wobble)
     for row in got.pop('rows'):
         print(row)
     print(json.dumps(got))
