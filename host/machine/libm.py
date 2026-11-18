@@ -30,7 +30,11 @@ _QUICK = libm_quick.module()
 
 def _other(name, *args):
     """`name` of what C does not take as it is: numbers as floats, arrays as float64 in C's order - two broadcast to
-    one shape -, then C's again."""
+    one shape -, then C's again; an array the robot's tracer follows (`tools.cores.trace`'s) its own statement."""
+    for a in args:
+        own = getattr(a, 'own', None)
+        if own is not None:
+            return own(name, *args)
     fn, laid = getattr(_QUICK, name), [np.asarray(a, dtype=np.float64) for a in args]
     shape = laid[0].shape if len(laid) == 1 else np.broadcast_shapes(*[a.shape for a in laid])
     if not shape:

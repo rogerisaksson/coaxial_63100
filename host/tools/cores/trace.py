@@ -322,6 +322,10 @@ class Traced:
     def __rpow__(self, other):
         return np.power(other, self)
 
+    def own(self, name, *inputs):
+        """`machine.libm`'s `name` of `inputs`, this among them (`trace_np.own`)."""
+        return _np('own')(self.prog, name, *inputs)
+
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
         from tools.cores import trace_np
         if ufunc is np.matmul and method == '__call__' and not kwargs:

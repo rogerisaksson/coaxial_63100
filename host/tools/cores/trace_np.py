@@ -2,7 +2,8 @@
 
 The functions over `tools.cores.trace`'s arrays: einsum, cross, matmul, stack, vstack and concatenate; the reductions - sum, mean, min, max - in
 numpy's own order (`emit`'s 'reduce'), any and all; where, clip, nan_to_num, power and astype elementwise; full and
-full_like; diag, repeat and roll copies; linalg's norm, solve and inv.
+full_like; diag, repeat and roll copies; linalg's norm, solve and inv. And the robot's own libm's (`own`): what
+`machine.libm` is handed a traced array for.
 """
 import numpy as np
 
@@ -15,6 +16,16 @@ GESV_MOST = 128
 #: numpy's power where its exponent's stride is 0 (DOUBLE_power), by the exponent: an elementwise tree of x.
 FAST_POWER = {-1.0: lambda x: ('reciprocal', x), 0.0: lambda x: ('positive', ('scalar', 1.0)),
               0.5: lambda x: ('sqrt', x), 1.0: lambda x: ('positive', x), 2.0: lambda x: ('square', x)}
+
+
+def own(prog, name, *inputs):
+    """`machine.libm`'s `name` of `inputs`, a traced array among them: its value the libm's on their views, an
+    elementwise statement of its own node - `emit`'s wbc_libm.h call, the same bits on every machine where numpy's
+    ufunc of that name is the platform's -; sincos its sine and its cosine."""
+    from machine import libm
+    if name == 'sincos':
+        return own(prog, 'sin', *inputs), own(prog, 'cos', *inputs)
+    return trace._ufunc(prog, getattr(libm, name), inputs, None, lambda *ops: ('own_' + name,) + ops)
 
 
 def _einsum(prog, subscripts, *operands, **kwargs):

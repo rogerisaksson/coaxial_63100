@@ -35,6 +35,9 @@ STATES = 64
 APART_GB = 1.5
 #: numpy's matmul in C (`wbc_matmul`), built beside a program that has one.
 BLAS_C = os.path.join(REPO, 'wbc', 'src', 'wbc_blas.c')
+#: The robot's libm's reduction past 2^22 (wbc_libm.c's lm_reduce_far, its arrays' runs left out), built beside a
+#: program that calls its sin, cos or tan (FAR); the rest of the libm a program inlines from its header.
+LIBM_C, FAR, FAR_ONLY = os.path.join(REPO, 'wbc', 'src', 'wbc_libm.c'), ('wbc_sin(', 'wbc_cos(', 'wbc_tan('), '-DWBC_LIBM_FAR_ONLY'
 _count = itertools.count()
 #: The builds of this process by their source's digest, one thread building them in turn.
 _BUILDING = {}
@@ -80,7 +83,7 @@ def digest(*parts):
 
 def built(source, name, matmul, heads=None):
     """The library of `source` built once, its path: the C kept beside the builds, numpy's matmul
-    built with it where it has one, named by its source - a process builds any number at once; `heads`
+    built with it where it has one and the libm's far reduction where it calls its sin, cos or tan, named by its source - a process builds any number at once; `heads`
     its headers' bytes as a round of builds read them (`build.headers`)."""
     folder = os.path.join(build.OUT, 'gen')
     os.makedirs(folder, exist_ok=True)
@@ -90,7 +93,9 @@ def built(source, name, matmul, heads=None):
         with open(path + '.%d' % os.getpid(), 'w', encoding='utf-8', newline='\n') as f:
             f.write(source)
         os.replace(path + '.%d' % os.getpid(), path)
-    return build.cached([path] + ([BLAS_C] if matmul else []), INCLUDES, '%s_%s' % (name, key), GENERATED, heads)[0]
+    far = any(call in source for call in FAR)
+    return build.cached([path] + ([BLAS_C] if matmul else []) + ([LIBM_C] if far else []), INCLUDES, '%s_%s' % (name, key),
+                        GENERATED + ((FAR_ONLY,) if far else ()), heads)[0]
 
 
 def loaded(path, name, batch=False, solves=False):

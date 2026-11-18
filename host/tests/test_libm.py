@@ -4,7 +4,8 @@
 What the robot's code calls (`machine.libm`: a number or an array through an extension of this interpreter, the
 numpy twin where none is built) gives the twin's bits by every way in: floats one at a time over every draw, arrays
 whole, of every length to 20, strided, of two dimensions, numpy's scalars, ints, an array with a number, two to
-broadcast.
+broadcast; and an array the robot's tracer follows takes each call as a statement of its own, wbc_libm.h's in the C
+it writes, held bit for bit (`tools.cores.held`).
 
 The same bits in C as in Python on every machine, under one unit in the last place, and IEEE 754's and C11 Annex
 F's every special value. Each of sin, cos, tan, exp, expm1, tanh, log, arctan, arcsin, arccos, arctan2 and hypot: its C
@@ -261,6 +262,40 @@ def test_the_codes_calls_are_the_twins_bits(report):
                  '%s %s' % (type(libm.sin(0.5)).__name__, libm.exp(np.zeros((2, 3))).dtype))
 
 
+def _owns(x, y):
+    """The robot's own libm on traced arrays (`machine.libm`): each function, sin and cos together, an array with a
+    number, one function of another."""
+    from machine import libm
+    unit, pos = np.clip(y, -1.0, 1.0), np.abs(x) + 0.1
+    return {'trig': (libm.sin(x), libm.cos(y), libm.tan(0.3 * x)), 'pair': libm.sincos(x + y),
+            'exps': (libm.exp(y), libm.expm1(x), libm.log(pos), libm.tanh(y)),
+            'arcs': (libm.arctan(x), libm.arcsin(unit), libm.arccos(unit), libm.arctan2(y, x), libm.hypot(x, y)),
+            'mixed': libm.arctan2(x, 0.5) + libm.hypot(2.0, libm.sin(y)), 'row': libm.cos(x[1]) * libm.sin(y[:, 2:3])}
+
+
+def test_traced_arrays_take_it_in_c(report):
+    """`_owns` compiled (`held.compiled`): `machine.libm` on traced arrays a statement of its own, wbc_libm.h's calls
+    in C, held bit for bit on its traced arrays and fresh draws - on every host, numpy's last bits no part of it."""
+    from tools.cores import held, trace
+    rng = np.random.default_rng(17)
+    args = (rng.normal(size=(4, 9)) * 3.0, rng.normal(size=(4, 9)))
+    try:
+        run = held.compiled(_owns, args, (0, 1), 'owns', fresh=4)
+        kinds = {node for st in run.prog.statements if st.kind == 'ew' for node in _kinds(st.args)}
+        report.check("the robot's own libm on traced arrays in C bit for bit, each call a node of its own",
+                     {'own_' + n for n in ('sin', 'cos', 'tan', 'exp', 'expm1', 'log', 'tanh', 'arctan', 'arcsin', 'arccos',
+                                           'arctan2', 'hypot')} <= kinds, '%d statements' % len(run.prog.statements))
+    except (trace.Untraced, AssertionError, RuntimeError) as e:
+        report.check("the robot's own libm on traced arrays in C bit for bit, each call a node of its own", False, str(e)[:300])
+
+
+def _kinds(tree):
+    """The kinds of an elementwise tree's nodes."""
+    if not isinstance(tree, tuple) or not tree or not isinstance(tree[0], str):
+        return set()
+    return {tree[0]} | {k for kid in tree[1:] for k in _kinds(kid)}
+
+
 def test_values_stay_in_their_ranges(report):
     """|sin|, |cos|, |tanh| <= 1; arcsin and arctan within pi/2, arccos in [0, pi], arctan2 within pi; exp >= 0,
     hypot at least either magnitude: at every draw."""
@@ -293,7 +328,7 @@ def test_the_tables_are_their_tools(report):
 ROSTER = (test_the_tables_are_their_tools, test_c_arrays_scalars_and_twin_agree_to_the_bit, test_the_draws_digest_is_pinned,
           test_errors_under_one_unit_in_the_last_place, test_special_values_as_annex_f, test_odd_and_even_to_the_bit,
           test_every_length_through_tails_and_chunks, test_the_codes_calls_are_the_twins_bits,
-          test_values_stay_in_their_ranges)
+          test_traced_arrays_take_it_in_c, test_values_stay_in_their_ranges)
 
 
 def main(argv=None):

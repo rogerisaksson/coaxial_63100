@@ -97,6 +97,8 @@ double lm_reduce_far(double x, double *lo, double *q)
   return (fabs(x) < INFINITY) ? (flip ? -h : h) : (x - x);
 }
 
+#ifndef WBC_LIBM_FAR_ONLY /* built beside a generated program (tools.cores.held), the far reduction alone */
+
 /** A run of one input: n elements, each written once. */
 typedef void (*lm_run1_t)(const double *restrict x, double *restrict y, int32_t n);
 
@@ -386,3 +388,5 @@ void wbc_libm_hypot(const double *restrict x, const double *restrict y, double *
 {
   lm_drive2(lm_run_hypot, x, y, out, n);
 }
+
+#endif
