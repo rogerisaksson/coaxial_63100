@@ -73,8 +73,13 @@ API void wbh_libm_hypot(const double *x, const double *y, double *out, int32_t n
   wbc_libm_hypot(x, y, out, n);
 }
 
+API void wbh_libm_power(const double *x, const double *y, double *out, int32_t n)
+{
+  wbc_libm_power(x, y, out, n);
+}
+
 /** The scalar function `which` (0 sin, 1 cos, 2 tan, 3 exp, 4 expm1, 5 log, 6 arctan, 7 arcsin, 8 arccos, 9 tanh,
-    10 arctan2, 11 hypot, 12 sincos's sine, 13 its cosine) of each element, a call at a time as another core inlines
+    10 arctan2, 11 hypot, 12 power, 13 sincos's sine, 14 its cosine) of each element, a call at a time as another core inlines
     it. */
 API void wbh_libm_scalar(int32_t which, const double *a, const double *b, double *out, int32_t n)
 {
@@ -121,6 +126,9 @@ API void wbh_libm_scalar(int32_t which, const double *a, const double *b, double
       out[i] = wbc_hypot(a[i], b[i]);
       break;
     case 12:
+      out[i] = wbc_power(a[i], b[i]);
+      break;
+    case 13:
       wbc_sincos(a[i], &s, &c);
       out[i] = s;
       break;

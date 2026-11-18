@@ -62,6 +62,20 @@ static const double lm_inv_ln2[1] = {
 static const double lm_ln2[2] = {
   0x1.62e42ff000000p-1, -0x1.718432a1b0e26p-35,
 };
+static const double lm_ln1_5[2] = {
+  0x1.9f323ecbf984cp-2, -0x1.a92e513217f5cp-59,
+};
+static const double lm_third[2] = {
+  0x1.5555555555555p-2, 0x1.5555555555555p-56,
+};
+static const double lm_pow_log[9] = {
+  0x1.999999999999ap-3, 0x1.2492492492492p-3, 0x1.c71c71c71c71cp-4, 0x1.745d1745d1746p-4,
+  0x1.3b13b13b13b14p-4, 0x1.1111111111111p-4, 0x1.e1e1e1e1e1e1ep-5, 0x1.af286bca1af28p-5,
+  0x1.8618618618618p-5,
+};
+static const double lm_pow_cut[2] = {
+  0x1.3988e1409212ep+0, 0x1.bb67ae8584caap+0,
+};
 static const uint32_t lm_two_over_pi_words[38] = {
   0xa2f9836eU, 0x4e441529U, 0xfc2757d1U, 0xf534ddc0U,
   0xdb629599U, 0x3c439041U, 0xfe5163abU, 0xdebbc561U,

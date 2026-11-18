@@ -30,7 +30,7 @@ SOURCES = (os.path.join(os.path.dirname(os.path.abspath(__file__)), 'libm_quick.
            os.path.join(REPO, 'wbc', 'src', 'wbc_libm.c'))
 #: The functions it has: of one argument, sin and cos together, of two.
 ONE = ('sin', 'cos', 'tan', 'exp', 'expm1', 'log', 'arctan', 'arcsin', 'arccos', 'tanh')
-PAIR, TWO = ('sincos',), ('arctan2', 'hypot')
+PAIR, TWO = ('sincos',), ('arctan2', 'hypot', 'power')
 
 
 @functools.lru_cache(maxsize=None)

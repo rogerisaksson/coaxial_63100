@@ -105,3 +105,9 @@ TURNS = {
 #: The robot's own QR (wbc_qr) over seeded shapes and its pairwise sums (npsum): no BLAS and no libm in them - one
 #: digest on every machine (laid on Windows, held on Linux x86-64 and arm64's SVE2 build).
 QR_ALIKE = 'd68c8b1c522d5f93'
+#: The calls into the platform's math library still standing (`tools.cores.libm_calls`), by package of machine/ and
+#: by C tree: what has not moved to the robot's own libm (`machine.libm`, wbc_libm.h) yet. A package or a tree not
+#: here has none; one that moves is taken off, and no count grows.
+PLATFORM_CALLS = {'aircraft': 236, 'body': 175, 'daq/src': 2, 'eyes': 79, 'identify': 17, 'law': 145, 'moves': 106,
+                  'mppi/src': 7, 'process': 22, 'rig': 3, 'senses': 31, 'solver': 3, 'stack': 14, 'texts': 41,
+                  'thermal/src': 3, 'way': 94, 'wbc/inc': 1, 'wbc/src': 124, 'world': 41, 'world/src': 12}

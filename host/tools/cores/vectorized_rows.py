@@ -508,6 +508,9 @@ ROWS = {
         },
     }),
     'gcc 16 x86_64': (('avx', 'avx2', 'avx512'), {
+        'wbc_blas.c': {
+            'wbc_qr': (0, 0, 1),
+        },
         'wbc_body.c': {
             'bracket_t': (1, 1, 1),
             'compose': (2, 2, 2),
@@ -592,9 +595,11 @@ ROWS = {
             'lm_run_expm1': (1, 1, 1),
             'lm_run_hypot': (1, 1, 1),
             'lm_run_log': (1, 1, 1),
+            'lm_run_power': (1, 1, 1),
             'lm_run_sin': (1, 1, 1),
             'lm_run_sincos': (1, 1, 1),
             'lm_run_tan': (1, 1, 1),
+            'lm_run_tanh': (1, 1, 1),
         },
         'wbc_maps.c': {
             'wbc_step_maps': (2, 2, 4),

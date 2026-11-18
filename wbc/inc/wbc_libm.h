@@ -365,6 +365,127 @@ static inline double wbc_log(double x)
   return lm_sel(lm_nan(x), x, y);
 }
 
+/** lm_exp_core for x held in range with a rest beside it (the power's y log x): the rest joins the reduction's
+    low part. */
+static inline double lm_exp_tail(double xc, double tail, double *q, double *rr, uint64_t *k, uint64_t *k1)
+{
+  double t = xc * lm_inv_ln2[0] + LM_MAGIC, n = t - LM_MAGIC, rh = xc - n * lm_ln2[0], rl = tail - n * lm_ln2[1];
+  double r = rh + rl;
+
+  *rr = (rh - r) + rl;
+  *q = (r * r) * lm_e11(lm_exp, r);
+  *k = lm_bits(t);
+  *k1 = lm_bits((0.5 * n - 0.25) + LM_MAGIC);
+  return r;
+}
+
+/** log of a finite ax > 0 as a sum of two, the value and *lo. ax = 2^n m with m in [1, 2), taken over c = 1 below
+    sqrt 1.5, over 1.5 below sqrt 3, else halved over 1 (n one more), so that s = (m - c)/(m + c) stays under 0.102
+    and no part cancels another; log(m/c) = 2 s (1 + s^2/3 + s^4/5 + ...), s and s^2/3 sums of two by Dekker's
+    products, the further terms a polynomial (what it leaves out under 2^-76); n ln 2 + ln c + that by Knuth's
+    sums. */
+static inline double lm_log_sum(double ax, double *lo)
+{
+  bool     sub = ax < 0x1p-1022, top, mid;
+  uint64_t u = lm_bits(lm_sel(sub, ax * 0x1p54, ax));
+  double   m = lm_double((u & 0x000FFFFFFFFFFFFFU) | 0x3FF0000000000000U);
+  double   dk = (lm_double((u >> 52) | 0x4330000000000000U) - 4503599627371519.0) - lm_sel(sub, 54.0, 0.0);
+  double   c, n, v, bb, vl, sh, p, pe, sl, zh, ze, zl, far, ah, ae, al, wh, wl, qh, qe, ql, th, tl, a, b, t2;
+  double   s1, e1, s2, e2, l, lh;
+
+  top = m >= lm_pow_cut[1];
+  mid = (m >= lm_pow_cut[0]) && !top;
+  m = lm_sel(top, 0.5 * m, m);
+  dk = dk + lm_sel(top, 1.0, 0.0);
+  c = lm_sel(mid, 1.5, 1.0);
+  n = m - c;
+  v = m + c;
+  bb = v - m;
+  vl = (m - (v - bb)) + (c - bb);
+  sh = n / v;
+  p = lm_two_prod(sh, v, &pe);
+  sl = (((n - p) - pe) - sh * vl) / v;
+  zh = lm_two_prod(sh, sh, &ze);
+  zl = ze + (2.0 * sh) * sl;
+  far = (zh * zh) * (lm_pow_log[0] + zh * (lm_pow_log[1] + zh * (lm_pow_log[2] + zh * (lm_pow_log[3] + zh * (
+    lm_pow_log[4] + zh * (lm_pow_log[5] + zh * (lm_pow_log[6] + zh * (lm_pow_log[7] + zh * lm_pow_log[8]))))))));
+  ah = lm_two_prod(zh, lm_third[0], &ae);
+  al = (ae + (zh * lm_third[1] + zl * lm_third[0])) + far;
+  wh = ah + al;
+  wl = (ah - wh) + al;
+  qh = lm_two_prod(sh, wh, &qe);
+  ql = qe + (sh * wl + sl * wh);
+  th = sh + qh;
+  tl = ((sh - th) + qh) + (sl + ql);
+  a = dk * lm_ln2[0];
+  b = lm_sel(mid, lm_ln1_5[0], 0.0);
+  t2 = 2.0 * th;
+  s1 = a + b;
+  bb = s1 - a;
+  e1 = (a - (s1 - bb)) + (b - bb);
+  s2 = s1 + t2;
+  bb = s2 - s1;
+  e2 = (s1 - (s2 - bb)) + (t2 - bb);
+  l = (e1 + e2) + ((dk * lm_ln2[1] + lm_sel(mid, lm_ln1_5[1], 0.0)) + 2.0 * tl);
+  lh = s2 + l;
+  *lo = (s2 - lh) + l;
+  return lh;
+}
+
+/** x^y (numpy's power, C's pow) = e^(y log|x|): the logarithm a sum of two (lm_log_sum), y times it a sum of two
+    (Dekker's product, y held to 2^900: past it the value is 0, 1 or an infinity either way), e to it by exp's core
+    with the rest beside; the sign that of x where y is an odd whole number, and Annex F's cases by selection: 1 at
+    y = 0 and at x = 1 whatever the other, a NaN for a negative x at a y not whole, zeros and infinities by y's
+    sign. A value a double holds exactly - 3^2, 10^3, 16^0.25 - is that double. No branch, no table; whether y is
+    whole and whether odd are kept as 1.0 or 0.0 and every case is a selection inside a selection: a truth value
+    read by two selections keeps gcc's loop out of vector registers. */
+static inline double wbc_power(double x, double y)
+{
+  double   ax = fabs(x), ay = fabs(y), ll, lh = lm_log_sum(ax, &ll), yc, eh, ee, el, q, rr, r, s, w, hw, whole, odd;
+  uint64_t k, k1;
+  bool     far, big;
+
+  yc = lm_sel(ay > 0x1p900, lm_copysign(0x1p900, y), y);
+  eh = lm_two_prod(yc, lh, &ee);
+  el = ee + yc * ll;
+  far = fabs(eh) > 746.0;
+  r = lm_exp_tail(lm_sel(far, lm_copysign(746.0, eh), eh), lm_sel(far, 0.0, el), &q, &rr, &k, &k1);
+  s = 1.0 + r;
+  s = s + (((1.0 - s) + r) + (q + rr * (1.0 + r)));
+  s = (s * lm_pow2(k1, 1023U)) * lm_pow2(k - k1, 1023U);
+  big = ay >= 0x1p53;
+  w = lm_sel(ay >= 0x1p52, ay - 0x1p52, ay);
+  w = lm_sel(w >= 0x1p51, w - 0x1p51, w);
+  hw = 0.5 * w;
+  whole = lm_sel(big, 1.0, lm_sel(((w + LM_MAGIC) - LM_MAGIC) == w, 1.0, 0.0));
+  odd = lm_sel(big, 0.0, lm_sel(((hw + LM_MAGIC) - LM_MAGIC) != hw, whole, 0.0));
+  s = lm_sel(ax == 0.0, lm_sel(y < 0.0, INFINITY, 0.0), s);
+  s = lm_sel(ax == INFINITY, lm_sel(y < 0.0, 0.0, INFINITY), s);
+  s = lm_sel(odd != 0.0, lm_copysign(s, x), s);
+  s = lm_sel(x < 0.0, lm_sel(ax != INFINITY, lm_sel(whole != 0.0, s, NAN), s), s);
+  s = lm_sel(lm_nan(x), x + y, lm_sel(lm_nan(y), x + y, s));
+  return lm_sel(y == 0.0, 1.0, lm_sel(x == 1.0, 1.0, s));
+}
+
+/** x^2, x^3 and x^4 as products, a rounding a product ((x x) x, (x x)(x x)): the same on every machine, where the
+    platform's pow at a whole exponent is not x x once in 2000. */
+static inline double wbc_sq(double x)
+{
+  return x * x;
+}
+
+static inline double wbc_cube(double x)
+{
+  return (x * x) * x;
+}
+
+static inline double wbc_quart(double x)
+{
+  const double s = x * x;
+
+  return s * s;
+}
+
 void wbc_libm_sin(const double *restrict x, double *restrict y, int32_t n);
 void wbc_libm_cos(const double *restrict x, double *restrict y, int32_t n);
 void wbc_libm_tan(const double *restrict x, double *restrict y, int32_t n);
@@ -378,5 +499,6 @@ void wbc_libm_arcsin(const double *restrict x, double *restrict y, int32_t n);
 void wbc_libm_arccos(const double *restrict x, double *restrict y, int32_t n);
 void wbc_libm_arctan2(const double *restrict y, const double *restrict x, double *restrict out, int32_t n);
 void wbc_libm_hypot(const double *restrict x, const double *restrict y, double *restrict out, int32_t n);
+void wbc_libm_power(const double *restrict x, const double *restrict y, double *restrict out, int32_t n);
 
 #endif

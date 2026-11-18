@@ -24,7 +24,7 @@ import numpy as np
 
 from tools.dev.focus import chosen
 from gynoid_kit import Report
-from platform_laid import BLAS, IEEE, LAPACKS, LIBM, NUMPY, QPS, QR_ALIKE, TURNS
+from platform_laid import BLAS, IEEE, LAPACKS, LIBM, NUMPY, PLATFORM_CALLS, QPS, QR_ALIKE, TURNS
 
 SEED, N = 63100, 20000
 LAPACK = ('qr', 'lstsq', 'svd', 'eigh', 'solve', 'cholesky', 'inv')
@@ -244,10 +244,25 @@ def test_an_x86_is_held_to_the_desks_arithmetic(report):
     report.check("an x86-64's numpy runs no path past X86_V3", not wider, 'wider paths %s, OpenBLAS %s' % (wider, _kernels()))
 
 
+def test_the_platforms_math_is_called_no_more(report):
+    """The robot's code's calls into the platform's math library (`tools.cores.libm_calls`: math's, numpy's and
+    <math.h>'s elementary functions and every `**`), by package and by C tree: none where the code has moved to its
+    own libm, no more than laid where it has not yet - a new one is written with `machine.libm` or wbc_libm.h."""
+    from tools.cores import libm_calls
+    found = libm_calls.counted()
+    left = libm_calls.totals(found)
+    over = ['%s %d, laid %d: %s' % (where, n, PLATFORM_CALLS.get(where, 0), ', '.join(sorted(found[where])[:6]))
+            for where, n in sorted(left.items()) if n > PLATFORM_CALLS.get(where, 0)]
+    report.check("no call into the platform's math library but those laid", not over,
+                 '; '.join(over[:3]) or '%d left in %s' % (sum(left.values()), ', '.join(sorted(left))))
+    under = ['%s %d of %d' % (where, left.get(where, 0), n) for where, n in sorted(PLATFORM_CALLS.items()) if left.get(where, 0) < n]
+    report.check('what is laid is what is left: a call that moved is taken off', not under, '; '.join(under) or 'each as laid')
+
+
 ROSTER = (test_basic_operations_and_square_root_alike, test_the_platforms_libm, test_numpys_float64_functions,
           test_openblas_products_and_solves, test_lapacks_factorings, test_mujocos_compiler_turns, test_the_robots_qp_in_c,
-          test_the_robots_sums_and_qr_alike,
-          test_an_x86_is_held_to_the_desks_arithmetic)
+          test_the_robots_sums_and_qr_alike, test_an_x86_is_held_to_the_desks_arithmetic,
+          test_the_platforms_math_is_called_no_more)
 
 
 def main(argv=None):

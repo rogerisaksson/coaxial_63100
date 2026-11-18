@@ -12,7 +12,10 @@ data: a gather is no vector instruction on every machine, nor one every compiler
 - pi/2 in three parts, 31 bits, 31 bits and the rest: k times either high part is exact for |k| < 2^22;
 - ln 2 in two, the high part of 32 bits: k times it is exact for every k exp and log meet;
 - arctan(1/2) and pi/4 on the grid of 2^-51, as pi/2 and pi are, so that their differences are exact;
-- 2/pi's bits in words of 32, for the reduction of arguments past 2^22.
+- 2/pi's bits in words of 32, for the reduction of arguments past 2^22;
+- for the power's logarithm, a sum of two (lm_log_sum): ln 1.5 and 1/3 each a nearest double and the rest, the
+  series' further terms 1/5 .. 1/21 (2 s (1 + s^2/3 + s^4/5 + ...), |s| under 0.102: what is left out under
+  2^-76), and the two cuts (sqrt 1.5, sqrt 3) that part a mantissa's three ranges.
 """
 import argparse
 import functools
@@ -242,6 +245,10 @@ def reference(name, a, b=None):
         return one[name](a)
     if b is None:
         raise ValueError('%s takes two arguments' % name)
+    if name == 'power':
+        if b == 0 or a == 1:
+            return D(1)
+        return (D(b) * abs(D(a)).ln()).exp() * (-1 if a < 0 and b % 2 == 1 else 1)
     return _atan2(a, b) if name == 'arctan2' else (D(a) ** 2 + D(b) ** 2).sqrt()
 
 
@@ -267,7 +274,11 @@ def tables():
          ('GRID_PI_2', split(PI / 2, grid(PI / 2, -51))),
          ('ATAN_C', split(PI / 4, grid(PI / 4, -51)) + split(at, grid(at, -51))),
          ('INV_LN2', [nearest(1 / LN2)]),
-         ('LN2', split(LN2, bits(LN2, 32)))]
+         ('LN2', split(LN2, bits(LN2, 32))),
+         ('LN1_5', split(ln(Fraction(3, 2)), nearest(ln(Fraction(3, 2))))),
+         ('THIRD', split(Fraction(1, 3), nearest(Fraction(1, 3)))),
+         ('POW_LOG', [nearest(Fraction(1, 2 * j + 1)) for j in range(2, 11)]),
+         ('POW_CUT', [nearest((D(3) / 2).sqrt()), nearest(D(3).sqrt())])]
     out: list = [(name, 'double', values) for name, values in t]
     out.append(('TWO_OVER_PI_WORDS', 'uint32_t', two_over_pi()))
     return out

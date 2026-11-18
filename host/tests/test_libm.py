@@ -8,7 +8,7 @@ broadcast; and an array the robot's tracer follows takes each call as a statemen
 it writes, held bit for bit (`tools.cores.held`).
 
 The same bits in C as in Python on every machine, under one unit in the last place, and IEEE 754's and C11 Annex
-F's every special value. Each of sin, cos, tan, exp, expm1, tanh, log, arctan, arcsin, arccos, arctan2 and hypot: its C
+F's every special value. Each of sin, cos, tan, exp, expm1, tanh, log, arctan, arcsin, arccos, arctan2, hypot and power: its C
 over arrays (wbc_libm.c),
 its C a call at a time as another core inlines it, and its numpy twin, bit for bit over draws across its range and
 where it is hard (near multiples of pi/2, past 2^22 up to the largest double, exp's edges, log near 1, subnormals);
@@ -27,11 +27,12 @@ import numpy as np
 
 from tools.dev.focus import chosen
 from gynoid_kit import Report
+from libm_laid import ANNEX, EXACT
 
 SEED = 63100
 #: The draws' digest: the twin's bits over every draw, NaNs as one NaN - laid on Windows (UCRT) and held by the
 #: Linux runner's containers (glibc) alike; a change of a coefficient or of an order lays it anew.
-DIGEST = '5b27874ff7bdeac752d300283152254ced25cdb023dce425449167317c0d191b'
+DIGEST = 'f9e56defe8d1fa3c175a87d2a414cce4eeb8b03c3a143586a845a8e3cf96e9c6'
 #: Points a function's error is read at against its 60 digits (the Decimal reference takes milliseconds a point).
 READ = 120
 INF, NAN = math.inf, math.nan
@@ -84,6 +85,12 @@ def _cases():
     y, x = np.concatenate([y, np.repeat(SPECIAL, SPECIAL.size)]), np.concatenate([x, np.tile(SPECIAL, SPECIAL.size)])
     for name in libm_c.TWO:
         out[name] = (y, x)
+    m, u, n, sign = (lambda lo, hi, k: _mags(rng, lo, hi, k)), rng.uniform, 600, lambda k: rng.choice([-1.0, 1.0], k)
+    base = [m(-30, 30, 5 * n), u(0.5, 2.0, 3 * n), 1.0 + m(-53, -20, n) * sign(n), np.full(2 * n, 10.0), u(0.0, 30.0, 2 * n),
+            -u(0.0, 30.0, n), m(-1074, -960, n), y[-SPECIAL.size ** 2:]]
+    to = [u(-30, 30, 5 * n), u(-1000, 1000, 3 * n), m(20, 60, n) * sign(n), u(-300, 300, 2 * n), np.round(u(-8, 8, 2 * n)),
+          np.round(u(-8, 8, n)), u(0.9, 1.1, n), x[-SPECIAL.size ** 2:]]
+    out['power'] = (np.concatenate(base), np.concatenate(to))
     return out
 
 
@@ -140,38 +147,6 @@ def test_errors_under_one_unit_in_the_last_place(report):
         report.check('%s: under one unit in the last place' % name, worst < 1.0, 'worst %.3f at %r' % (worst, at))
 
 
-#: Annex F's values (F.10): (function, arguments, the value to the bit; NaN any NaN).
-ANNEX = [('sin', (0.0,), 0.0), ('sin', (-0.0,), -0.0), ('sin', (INF,), NAN), ('sin', (-INF,), NAN), ('sin', (NAN,), NAN),
-         ('sin', (5e-324,), 5e-324), ('sin', (-1e-300,), -1e-300),
-         ('cos', (0.0,), 1.0), ('cos', (-0.0,), 1.0), ('cos', (INF,), NAN), ('cos', (NAN,), NAN),
-         ('tan', (0.0,), 0.0), ('tan', (-0.0,), -0.0), ('tan', (INF,), NAN), ('tan', (NAN,), NAN), ('tan', (-1e-300,), -1e-300),
-         ('exp', (0.0,), 1.0), ('exp', (-0.0,), 1.0), ('exp', (INF,), INF), ('exp', (-INF,), 0.0), ('exp', (NAN,), NAN),
-         ('exp', (710.0,), INF), ('exp', (1e300,), INF), ('exp', (-746.0,), 0.0), ('exp', (-1e300,), 0.0),
-         ('exp', (709.782712893384,), 1.7976931348622732e308), ('exp', (1.0,), math.e),
-         ('expm1', (0.0,), 0.0), ('expm1', (-0.0,), -0.0), ('expm1', (INF,), INF), ('expm1', (-INF,), -1.0),
-         ('expm1', (NAN,), NAN), ('expm1', (5e-324,), 5e-324), ('expm1', (-40.0,), -1.0), ('expm1', (710.0,), INF),
-         ('tanh', (0.0,), 0.0), ('tanh', (-0.0,), -0.0), ('tanh', (INF,), 1.0), ('tanh', (-INF,), -1.0), ('tanh', (NAN,), NAN),
-         ('tanh', (5e-324,), 5e-324), ('tanh', (-1e-300,), -1e-300), ('tanh', (40.0,), 1.0), ('tanh', (-1e300,), -1.0),
-         ('log', (0.0,), -INF), ('log', (-0.0,), -INF), ('log', (1.0,), 0.0), ('log', (-1.0,), NAN), ('log', (-INF,), NAN),
-         ('log', (INF,), INF), ('log', (NAN,), NAN), ('log', (math.e,), 1.0), ('log', (-5e-324,), NAN),
-         ('arctan', (0.0,), 0.0), ('arctan', (-0.0,), -0.0), ('arctan', (INF,), math.pi / 2), ('arctan', (-INF,), -math.pi / 2),
-         ('arctan', (NAN,), NAN), ('arctan', (1.0,), math.pi / 4), ('arctan', (-5e-324,), -5e-324),
-         ('arcsin', (0.0,), 0.0), ('arcsin', (-0.0,), -0.0), ('arcsin', (1.0,), math.pi / 2), ('arcsin', (-1.0,), -math.pi / 2),
-         ('arcsin', (1.0000000000000002,), NAN), ('arcsin', (INF,), NAN), ('arcsin', (NAN,), NAN), ('arcsin', (5e-324,), 5e-324),
-         ('arccos', (1.0,), 0.0), ('arccos', (-1.0,), math.pi), ('arccos', (0.0,), math.pi / 2), ('arccos', (-0.0,), math.pi / 2),
-         ('arccos', (1.0000000000000002,), NAN), ('arccos', (-INF,), NAN), ('arccos', (NAN,), NAN),
-         ('hypot', (INF, NAN), INF), ('hypot', (NAN, -INF), INF), ('hypot', (NAN, 1.0), NAN), ('hypot', (-3.0, 4.0), 5.0),
-         ('hypot', (0.0, -0.0), 0.0), ('hypot', (-2.5, 0.0), 2.5), ('hypot', (1e308, 1e308), 1.4142135623730951e308),
-         ('hypot', (3e-320, 4e-320), 5e-320)]
-for _y, _sy in ((0.0, 1.0), (-0.0, -1.0)):
-    ANNEX += [('arctan2', (_y, -0.0), _sy * math.pi), ('arctan2', (_y, 0.0), _y), ('arctan2', (_y, -2.0), _sy * math.pi),
-              ('arctan2', (_y, 2.0), _y), ('arctan2', (_sy * 2.0, -INF), _sy * math.pi), ('arctan2', (_sy * 2.0, INF), _y),
-              ('arctan2', (_sy * INF, 3.0), _sy * math.pi / 2), ('arctan2', (_sy * INF, -INF), _sy * 3 * math.pi / 4),
-              ('arctan2', (_sy * INF, INF), _sy * math.pi / 4)]
-ANNEX += [('arctan2', (-2.0, 0.0), -math.pi / 2), ('arctan2', (-2.0, -0.0), -math.pi / 2), ('arctan2', (2.0, 0.0), math.pi / 2),
-          ('arctan2', (NAN, 1.0), NAN), ('arctan2', (1.0, NAN), NAN), ('arctan2', (1.0, 1.0), math.pi / 4)]
-
-
 def test_special_values_as_annex_f(report):
     """Zeros by their sign, infinities, NaNs, the domains' edges, exp's range and arctan2's quadrants: each value as
     Annex F has it, to the bit, in the C and in the twin."""
@@ -184,6 +159,17 @@ def test_special_values_as_annex_f(report):
             if not _same(got, want):
                 wrong.append('%s%r = %r, not %r' % (name, args, float(got), want))
     report.check('every special value as Annex F has it', not wrong, '; '.join(wrong[:4]) or '%d values' % len(ANNEX))
+
+
+def test_powers_a_double_holds_are_exact(report):
+    """A power whose value a double holds - 2^k across the doubles, a whole base's while under 2^53, a square's root,
+    x^1 - is that double: in the C's arrays, a call at a time, and the twin."""
+    from tools.cores import libm_c
+    x, y, want = (np.array(v, dtype=np.float64) for v in zip(*EXACT))
+    bad = ['%r^%r = %r, not %r' % (float(x[i]), float(y[i]), float(got[i]), float(want[i]))
+           for got in (libm_c.call('power', x, y), libm_c.scalar('power', x, y), _twin('power', x, y))
+           for i in np.flatnonzero(~_same(got, want))]
+    report.check('every power a double holds is that double', not bad, '; '.join(bad[:4]) or '%d powers' % len(EXACT))
 
 
 def test_odd_and_even_to_the_bit(report):
@@ -270,7 +256,8 @@ def _owns(x, y):
     return {'trig': (libm.sin(x), libm.cos(y), libm.tan(0.3 * x)), 'pair': libm.sincos(x + y),
             'exps': (libm.exp(y), libm.expm1(x), libm.log(pos), libm.tanh(y)),
             'arcs': (libm.arctan(x), libm.arcsin(unit), libm.arccos(unit), libm.arctan2(y, x), libm.hypot(x, y)),
-            'mixed': libm.arctan2(x, 0.5) + libm.hypot(2.0, libm.sin(y)), 'row': libm.cos(x[1]) * libm.sin(y[:, 2:3])}
+            'mixed': libm.arctan2(x, 0.5) + libm.hypot(2.0, libm.sin(y)), 'row': libm.cos(x[1]) * libm.sin(y[:, 2:3]),
+            'powers': (libm.power(pos, y), libm.power(pos, 2.5), libm.sq(x) + libm.cube(y) - libm.quart(unit))}
 
 
 def test_traced_arrays_take_it_in_c(report):
@@ -284,7 +271,7 @@ def test_traced_arrays_take_it_in_c(report):
         kinds = {node for st in run.prog.statements if st.kind == 'ew' for node in _kinds(st.args)}
         report.check("the robot's own libm on traced arrays in C bit for bit, each call a node of its own",
                      {'own_' + n for n in ('sin', 'cos', 'tan', 'exp', 'expm1', 'log', 'tanh', 'arctan', 'arcsin', 'arccos',
-                                           'arctan2', 'hypot')} <= kinds, '%d statements' % len(run.prog.statements))
+                                           'arctan2', 'hypot', 'power')} <= kinds, '%d statements' % len(run.prog.statements))
     except (trace.Untraced, AssertionError, RuntimeError) as e:
         report.check("the robot's own libm on traced arrays in C bit for bit, each call a node of its own", False, str(e)[:300])
 
@@ -327,7 +314,7 @@ def test_the_tables_are_their_tools(report):
 
 ROSTER = (test_the_tables_are_their_tools, test_c_arrays_scalars_and_twin_agree_to_the_bit, test_the_draws_digest_is_pinned,
           test_errors_under_one_unit_in_the_last_place, test_special_values_as_annex_f, test_odd_and_even_to_the_bit,
-          test_every_length_through_tails_and_chunks, test_the_codes_calls_are_the_twins_bits,
+          test_powers_a_double_holds_are_exact, test_every_length_through_tails_and_chunks, test_the_codes_calls_are_the_twins_bits,
           test_traced_arrays_take_it_in_c, test_values_stay_in_their_ranges)
 
 

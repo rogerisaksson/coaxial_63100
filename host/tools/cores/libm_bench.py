@@ -31,7 +31,8 @@ def draws(name, n, rng):
     pick = {'sin': lambda: u(-10, 10, n), 'cos': lambda: u(-10, 10, n), 'tan': lambda: u(-1.5, 1.5, n),
             'exp': lambda: u(-700, 700, n), 'expm1': lambda: u(-2, 2, n), 'log': lambda: np.exp(u(-700, 700, n)),
             'arctan': lambda: u(-5, 5, n), 'arcsin': lambda: u(-1, 1, n), 'arccos': lambda: u(-1, 1, n),
-            'arctan2': lambda: u(-10, 10, n), 'hypot': lambda: u(-10, 10, n), 'tanh': lambda: u(-5, 5, n)}
+            'arctan2': lambda: u(-10, 10, n), 'hypot': lambda: u(-10, 10, n), 'tanh': lambda: u(-5, 5, n),
+            'power': lambda: u(0.1, 10, n)}
     return pick[name]()
 
 
@@ -80,7 +81,7 @@ def called(names):
     import math
     from machine import libm
     from tools.cores import libm_c
-    theirs = {'arctan': 'atan', 'arcsin': 'asin', 'arccos': 'acos', 'arctan2': 'atan2'}
+    theirs = {'arctan': 'atan', 'arcsin': 'asin', 'arccos': 'acos', 'arctan2': 'atan2', 'power': 'pow'}
     rows, rng = [], np.random.default_rng(SEED)
     for name in names:
         two = name in libm_c.TWO

@@ -36,7 +36,7 @@ C_OF = {'add': '(%s + %s)', 'subtract': '(%s - %s)', 'multiply': '(%s * %s)', 'd
         'arctan': 'atan(%s)', 'arctan2': 'atan2(%s, %s)', 'exp': 'exp(%s)', 'log': 'log(%s)',
         'hypot': 'hypot(%s, %s)', 'floor': 'floor(%s)', 'ceil': 'ceil(%s)',
         **{'own_' + f: 'wbc_%s(%s)' % (f, ', '.join(['%s'] * n)) for n, fs in (
-            (1, 'sin cos tan exp expm1 log arctan arcsin arccos tanh'), (2, 'arctan2 hypot')) for f in fs.split()},
+            (1, 'sin cos tan exp expm1 log arctan arcsin arccos tanh'), (2, 'arctan2 hypot power')) for f in fs.split()},
         'where': '(%s != 0.0 ? %s : %s)', 'clip': 'npclip(%s, %s, %s)', 'nan_to_num': 'npnan_to_num(%s)',
         'isnan': '(isnan(%s) ? 1.0 : 0.0)', 'greater': '(%s > %s ? 1.0 : 0.0)', 'greater_equal': '(%s >= %s ? 1.0 : 0.0)',
         'less': '(%s < %s ? 1.0 : 0.0)', 'less_equal': '(%s <= %s ? 1.0 : 0.0)', 'equal': '(%s == %s ? 1.0 : 0.0)',

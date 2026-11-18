@@ -389,4 +389,26 @@ void wbc_libm_hypot(const double *restrict x, const double *restrict y, double *
   lm_drive2(lm_run_hypot, x, y, out, n);
 }
 
+/* The power is past what gcc inlines by its own measure (the logarithm's sum of two, then exp's core), and a call
+   left in the loop keeps it out of vector registers (57 ns an element, a call's): this run is told to take every
+   call it makes into itself. No value changes; another compiler reads no attribute here. */
+#if defined(__GNUC__)
+#define LM_WHOLE __attribute__((flatten))
+#else
+#define LM_WHOLE
+#endif
+
+static LM_WHOLE void lm_run_power(const double *restrict a, const double *restrict b, double *restrict y, int32_t n)
+{
+  for (int32_t i = 0; i < n; i++)
+  {
+    y[i] = wbc_power(a[i], b[i]);
+  }
+}
+
+void wbc_libm_power(const double *restrict x, const double *restrict y, double *restrict out, int32_t n)
+{
+  lm_drive2(lm_run_power, x, y, out, n);
+}
+
 #endif

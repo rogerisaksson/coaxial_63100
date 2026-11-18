@@ -1,7 +1,7 @@
 """The robot's own elementary functions in numpy, wbc_libm.h's twin: one set of bits on every machine.
 
     from machine import libm_twin
-    y = libm_twin.sin(x)   # cos, tan, sincos, exp, expm1, tanh, log, arctan, arctan2, arcsin, arccos, hypot
+    y = libm_twin.sin(x)   # cos, tan, sincos, exp, expm1, tanh, log, arctan, arctan2, arcsin, arccos, hypot, power
 
 What holds the C to its bits (test_libm) and what `machine.libm` falls back on where no compiler builds its
 extension: 81 us a call, no way to call it from the robot's loop - `machine.libm` is what its code calls.
@@ -410,3 +410,91 @@ def hypot(x, y):
         h = np.where(ax == np.inf, np.inf, h)
         h = np.where(ay == np.inf, np.inf, h)
     return _out(h, sx and sy)
+
+
+def _exp_tail(xc, tail):
+    """lm_exp_tail: lm_exp_core for x held in range with a rest beside it, joined to the reduction's low part."""
+    t = xc * T.INV_LN2[0] + MAGIC
+    n = t - MAGIC
+    rh, rl = xc - n * T.LN2[0], tail - n * T.LN2[1]
+    r = rh + rl
+    return r, (r * r) * _e(T.EXP, r), (rh - r) + rl, _bits(t), _bits((0.5 * n - 0.25) + MAGIC)
+
+
+def _log_sum(ax):
+    """lm_log_sum: log of a finite ax > 0 as a sum of two. ax = 2^n m with m in [1, 2), taken over c = 1 below
+    sqrt 1.5, over 1.5 below sqrt 3, else halved over 1 (n one more), so that s = (m - c)/(m + c) stays under 0.102
+    and no part cancels another; log(m/c) = 2 s (1 + s^2/3 + s^4/5 + ...), s and s^2/3 sums of two by Dekker's
+    products, the further terms a polynomial; n ln 2 + ln c + that by Knuth's sums."""
+    sub = ax < ldexp(1.0, -1022)
+    u = _bits(np.where(sub, ax * ldexp(1.0, 54), ax))
+    m = _double((u & U(0x000FFFFFFFFFFFFF)) | U(0x3FF0000000000000))
+    dk = (_double((u >> U(52)) | U(0x4330000000000000)) - 4503599627371519.0) - np.where(sub, 54.0, 0.0)
+    top = m >= T.POW_CUT[1]
+    mid = (m >= T.POW_CUT[0]) & ~top
+    m = np.where(top, 0.5 * m, m)
+    dk = dk + np.where(top, 1.0, 0.0)
+    c = np.where(mid, 1.5, 1.0)
+    n, v = m - c, m + c
+    bb = v - m
+    vl = (m - (v - bb)) + (c - bb)
+    sh = n / v
+    p, pe = _two_prod(sh, v)
+    sl = (((n - p) - pe) - sh * vl) / v
+    zh, ze = _two_prod(sh, sh)
+    zl = ze + (2.0 * sh) * sl
+    g = T.POW_LOG
+    far = (zh * zh) * (g[0] + zh * (g[1] + zh * (g[2] + zh * (g[3] + zh * (g[4] + zh * (g[5] + zh * (g[6] + zh * (
+        g[7] + zh * g[8]))))))))
+    ah, ae = _two_prod(zh, T.THIRD[0])
+    al = (ae + (zh * T.THIRD[1] + zl * T.THIRD[0])) + far
+    wh = ah + al
+    wl = (ah - wh) + al
+    qh, qe = _two_prod(sh, wh)
+    ql = qe + (sh * wl + sl * wh)
+    th = sh + qh
+    tl = ((sh - th) + qh) + (sl + ql)
+    a, b, t2 = dk * T.LN2[0], np.where(mid, T.LN1_5[0], 0.0), 2.0 * th
+    s1 = a + b
+    bb = s1 - a
+    e1 = (a - (s1 - bb)) + (b - bb)
+    s2 = s1 + t2
+    bb = s2 - s1
+    e2 = (s1 - (s2 - bb)) + (t2 - bb)
+    lo = (e1 + e2) + ((dk * T.LN2[1] + np.where(mid, T.LN1_5[1], 0.0)) + 2.0 * tl)
+    lh = s2 + lo
+    return lh, (s2 - lh) + lo
+
+
+def power(x, y):
+    """|x|^y = e^(y log|x|): the logarithm a sum of two (`_log_sum`), y times it a sum of two (Dekker's product, y
+    held to 2^900), e to it by exp's core with the rest beside; the sign that of x where y is an odd whole number, and
+    Annex F's cases by selection: 1 at y = 0 and at x = 1 whatever the other, a NaN for a negative x at a y not
+    whole, zeros and infinities by y's sign."""
+    x, sx = _given(x)
+    y, sy = _given(y)
+    x, y = np.broadcast_arrays(x, y)
+    with np.errstate(all='ignore'):
+        ax, ay = np.abs(x), np.abs(y)
+        lh, ll = _log_sum(ax)
+        yc = np.where(ay > ldexp(1.0, 900), _copysign(np.full_like(y, ldexp(1.0, 900)), y), y)
+        eh, ee = _two_prod(yc, lh)
+        el = ee + yc * ll
+        far = np.abs(eh) > 746.0
+        r, q, rr, k, k1 = _exp_tail(np.where(far, _copysign(np.full_like(eh, 746.0), eh), eh), np.where(far, 0.0, el))
+        s = 1.0 + r
+        s = s + (((1.0 - s) + r) + (q + rr * (1.0 + r)))
+        s = (s * _pow2(k1, 1023)) * _pow2(k - k1, 1023)
+        big = ay >= ldexp(1.0, 53)
+        w = np.where(ay >= ldexp(1.0, 52), ay - ldexp(1.0, 52), ay)
+        w = np.where(w >= ldexp(1.0, 51), w - ldexp(1.0, 51), w)
+        hw = 0.5 * w
+        whole = big | ((w + MAGIC) - MAGIC == w)
+        odd = ~big & whole & ((hw + MAGIC) - MAGIC != hw)
+        s = np.where(ax == 0.0, np.where(y < 0.0, np.inf, 0.0), s)
+        s = np.where(ax == np.inf, np.where(y < 0.0, 0.0, np.inf), s)
+        s = np.where(odd, _copysign(s, x), s)
+        s = np.where((x < 0.0) & (ax != np.inf) & ~whole, np.nan, s)
+        s = np.where(np.isnan(x) | np.isnan(y), x + y, s)
+        s = np.where((y == 0.0) | (x == 1.0), 1.0, s)
+    return _out(s, sx and sy)

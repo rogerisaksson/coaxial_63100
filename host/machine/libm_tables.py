@@ -59,6 +59,20 @@ INV_LN2 = tuple(map(H, (
 LN2 = tuple(map(H, (
     '0x1.62e42ff000000p-1', '-0x1.718432a1b0e26p-35',
 )))
+LN1_5 = tuple(map(H, (
+    '0x1.9f323ecbf984cp-2', '-0x1.a92e513217f5cp-59',
+)))
+THIRD = tuple(map(H, (
+    '0x1.5555555555555p-2', '0x1.5555555555555p-56',
+)))
+POW_LOG = tuple(map(H, (
+    '0x1.999999999999ap-3', '0x1.2492492492492p-3', '0x1.c71c71c71c71cp-4', '0x1.745d1745d1746p-4',
+    '0x1.3b13b13b13b14p-4', '0x1.1111111111111p-4', '0x1.e1e1e1e1e1e1ep-5', '0x1.af286bca1af28p-5',
+    '0x1.8618618618618p-5',
+)))
+POW_CUT = tuple(map(H, (
+    '0x1.3988e1409212ep+0', '0x1.bb67ae8584caap+0',
+)))
 TWO_OVER_PI_WORDS = (
     0xa2f9836e, 0x4e441529, 0xfc2757d1, 0xf534ddc0,
     0xdb629599, 0x3c439041, 0xfe5163ab, 0xdebbc561,

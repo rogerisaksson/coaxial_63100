@@ -221,6 +221,7 @@ static PyObject *run_two(run2_t run, PyObject *x, PyObject *y)
 
 TWO(arctan2)
 TWO(hypot)
+TWO(power)
 
 #define SAYS_ONE(NAME) {#NAME, lq_##NAME, METH_O, #NAME "(x): wbc_libm's, a float or an array laid; else Python's."}
 #define SAYS_TWO(NAME) \
@@ -241,6 +242,7 @@ static PyMethodDef methods[] = {
   SAYS_ONE(tanh),
   SAYS_TWO(arctan2),
   SAYS_TWO(hypot),
+  SAYS_TWO(power),
   {NULL, NULL, 0, NULL}};
 
 static struct PyModuleDef libm_quick = {PyModuleDef_HEAD_INIT, "_libm_quick",
