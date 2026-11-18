@@ -257,6 +257,23 @@ static inline void wbc_sincos(double x, double *s, double *c)
   *c = lm_cos_at(h, lo, q);
 }
 
+/** sin x and cos x of one reduction, by value: what a core takes where it needs both of an angle, or either
+    twice - a call is not merged with another of the same angle (the far reduction lies outside the file), so
+    each costs its reduction again. wbc_sin's and wbc_cos's bits. */
+typedef struct
+{
+  double s; /**< sin x */
+  double c; /**< cos x */
+} wbc_sc_t;
+
+static inline wbc_sc_t wbc_sc(double x)
+{
+  wbc_sc_t out;
+
+  wbc_sincos(x, &out.s, &out.c);
+  return out;
+}
+
 /** exp's and expm1's common part for x held in their range (a NaN kept): x = k ln2 + r + *rr with |r| <= ln2/2
     (ln 2's high part times k exact, the sum's rounding kept), e^r = 1 + r + *q; k's bits *k, floor(k/2)'s *k1. */
 static inline double lm_exp_core(double xc, double *q, double *rr, uint64_t *k, uint64_t *k1)

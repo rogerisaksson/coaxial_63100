@@ -115,7 +115,8 @@ void wbc_imp_reading(const wbc_imp_t *k, const double *y, const double *fr, cons
   for (int b = 0; b < 2; b++)
   {
     const double t = y[k->y_tilt + b];
-    const double spoke[3] = {wbc_sin(t), 0.0 * t, wbc_cos(t)}, inward[3] = {wbc_cos(t), 0.0 * t, -wbc_sin(t)};
+    const wbc_sc_t at = wbc_sc(t);
+    const double spoke[3] = {at.s, 0.0 * t, at.c}, inward[3] = {at.c, 0.0 * t, -at.s};
     double       sq[3], pr[3];
 
     for (int i = 0; i < 3; i++)
@@ -184,8 +185,9 @@ void wbc_imp_beat(const wbc_imp_t *k, double drive, double psi, double sway, dou
   {
     const double side = ((-k->limbs[b]) * copysign(1.0, drive)) * *way;
 
-    const double s = wbc_sin(psi) * wbc_cos(split[b]) + wbc_cos(psi) * wbc_sin(split[b]);
-    const double c = wbc_cos(psi) * wbc_cos(split[b]) - wbc_sin(psi) * wbc_sin(split[b]);
+    const wbc_sc_t beat = wbc_sc(psi), part = wbc_sc(split[b]);
+    const double s = beat.s * part.c + beat.c * part.s;
+    const double c = beat.c * part.c - beat.s * part.s;
 
     sweep[b] = side * s;
     phi[b] = wbc_arctan2(side * s, side * c);
@@ -341,8 +343,9 @@ void wbc_imp_heels(const wbc_imp_t *k, const double place[2][3], const double ti
   wbc_imp_pitched(k, ground, pitched);
   for (int b = 0; b < 2; b++)
   {
-    const double spoke[3] = {wbc_sin(tilt[b]), 0.0 * tilt[b], wbc_cos(tilt[b])};
-    const double inward[3] = {wbc_cos(tilt[b]), 0.0 * tilt[b], -wbc_sin(tilt[b])};
+    const wbc_sc_t at = wbc_sc(tilt[b]);
+    const double spoke[3] = {at.s, 0.0 * tilt[b], at.c};
+    const double inward[3] = {at.c, 0.0 * tilt[b], -at.s};
     const double ball0 = place[b][0] + k->half_m * inward[0], ball1 = place[b][2] + k->half_m * inward[2];
     const double hip = hips[b] - ball0, high = (((floors[b] + k->ankle_h) + leg) - k->dip_m) - ball1;
     const double lever = wbc_hypot(hip * k->ball - high * k->ankle_h, hip * k->ankle_h + high * k->ball);
@@ -367,9 +370,10 @@ void wbc_imp_heels(const wbc_imp_t *k, const double place[2][3], const double ti
     }
     /* the hip's height over the floor the leg reaches with its heel up as its length needs (stride.heels) */
     {
-      const double ankle_x = (hip + k->ball * wbc_cos(need)) - k->ankle_h * wbc_sin(need);
+      const wbc_sc_t up = wbc_sc(need);
+      const double ankle_x = (hip + k->ball * up.c) - k->ankle_h * up.s;
 
-      reach_h[b] = (((ball1 - floors[b]) + k->ball * wbc_sin(need)) + k->ankle_h * wbc_cos(need))
+      reach_h[b] = (((ball1 - floors[b]) + k->ball * up.s) + k->ankle_h * up.c)
                    + sqrt(npmax(reach * reach - ankle_x * ankle_x, 0.0));
     }
   }
@@ -420,18 +424,19 @@ void wbc_imp_clears(const wbc_imp_t *k, const double u[2], const double flying[2
     const double e11 = ((((-30.0 * by) * by) * (1.0 - by)) * (1.0 - by)) / k->fall_u;
     const double e20 = (((60.0 * on) * (1.0 - on)) * (1.0 - 2.0 * on)) / k->rise_u2;
     const double e21 = (((60.0 * by) * (1.0 - by)) * (1.0 - 2.0 * by)) / k->fall_u2;
-    const double down = npmax(tip[b], tilt[b]), toes = k->half_m + k->toe_m * e00;
+    const double down = npmax(tip[b], tilt[b]), toes = k->half_m + k->toe_m * e00, dip = wbc_sin(down);
+    const wbc_sc_t tipped = wbc_sc(tip[b]);
 
     clear[0][b] = (((((high[b] * flying[b]) * e00) * e01) - k->reach_m_s * late[b]) + (land[b] * flying[b]) * (1.0 - e01))
-                  + flying[b] * (k->half_m * npmax(-wbc_sin(tip[b]), 0.0) + toes * npmax(wbc_sin(down), 0.0));
+                  + flying[b] * (k->half_m * npmax(-tipped.s, 0.0) + toes * npmax(dip, 0.0));
     clear[1][b] = (((((high[b] * flying[b]) * (e10 * e01 + e00 * e11)) * swung[b]) - k->reach_m_s * (double)(late[b] > 0.0))
                    - ((land[b] * flying[b]) * e11) * swung[b])
-                  + ((flying[b] * ((-k->half_m) * (double)(tip[b] < 0.0) + toes * (double)(tip[b] > 0.0))) * wbc_cos(tip[b]))
+                  + ((flying[b] * ((-k->half_m) * (double)(tip[b] < 0.0) + toes * (double)(tip[b] > 0.0))) * tipped.c)
                     * tipping[b]
-                  + (((flying[b] * k->toe_m) * e10) * swung[b]) * npmax(wbc_sin(down), 0.0);
+                  + (((flying[b] * k->toe_m) * e10) * swung[b]) * npmax(dip, 0.0);
     clear[2][b] = ((((high[b] * flying[b]) * (e20 * e01 + e00 * e21)) * (swung[b] * swung[b]))
                    - ((land[b] * flying[b]) * e21) * (swung[b] * swung[b]))
-                  + (((flying[b] * k->toe_m) * e20) * (swung[b] * swung[b])) * npmax(wbc_sin(down), 0.0);
+                  + (((flying[b] * k->toe_m) * e20) * (swung[b] * swung[b])) * npmax(dip, 0.0);
   }
 }
 

@@ -606,7 +606,8 @@ void wbc_pass_hem(int n, double dt, const double *ap, const double *om, const do
 
   for (int t = 0; t < n; t++)
   {
-    const double cx = wbc_cos(qx), sx = wbc_sin(qx), cz = wbc_cos(qz), sz = wbc_sin(qz);
+    const wbc_sc_t ax = wbc_sc(qx), az = wbc_sc(qz);
+    const double cx = ax.c, sx = ax.s, cz = az.c, sz = az.s;
     const double p0 = ap[3 * t], p1 = ap[3 * t + 1], p2 = ap[3 * t + 2];
     const double o0 = om[3 * t], o1 = om[3 * t + 1], o2 = om[3 * t + 2];
     const double b0 = alb[3 * t], b1 = alb[3 * t + 1], b2 = alb[3 * t + 2];

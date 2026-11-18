@@ -19,7 +19,8 @@ static double hypot2(double a, double b)
 static void against(double ox, double oz, double heading, double along_cos, const double tw[3], double got[3])
 {
   const double rem = hypot2(ox, oz), w = npmin(1.0, rem / 0.10);
-  const double nx = ox / npmax(rem, 1e-9), nz = oz / npmax(rem, 1e-9), sh = wbc_sin(heading), ch = wbc_cos(heading);
+  const wbc_sc_t at = wbc_sc(heading);
+  const double nx = ox / npmax(rem, 1e-9), nz = oz / npmax(rem, 1e-9), sh = at.s, ch = at.c;
   const double cx = sh * nx + ch * nz, cy = ch * nx - sh * nz;
   const double kx = 1.0 - w * (1.0 - npmin(1.0, npmax(0.0, (copysign(cx, tw[0]) + along_cos) / (1.0 - along_cos))));
   const double ky = 1.0 - w * (1.0 - npmin(1.0, npmax(0.0, (copysign(cy, tw[1]) + along_cos) / (1.0 - along_cos))));
@@ -39,6 +40,7 @@ void wbc_touch_step(const wbc_imp_t *k, const wbc_touch_t *t, const double asked
   double        drv0, w_opp, tw[3], blocked, gain_on, hold, u_act, u_b, need, u_set, u_s, u_drv, turns;
   double        sway[WBC_IMP_N], psi[WBC_IMP_N], z0[WBC_IMP_N], zb[WBC_IMP_N], z_new[WBC_IMP_N], sway_b[WBC_IMP_N];
   double        sway_new[WBC_IMP_N], sine_new[WBC_IMP_N], kb[WBC_IMP_N], db[WBC_IMP_N], aloft[2], clear[2];
+  wbc_sc_t      beat[WBC_IMP_N];
   double        pushed[2][2][3], sizes[2][2], lowest[2], floors[2], up[2], w_up[2], w_edge[2], unfelt[2], stance[2];
 
   /* the robot's core's touch turned out of its segments, summed; the largest of them */
@@ -96,7 +98,8 @@ void wbc_touch_step(const wbc_imp_t *k, const wbc_touch_t *t, const double asked
   {
     sway[m] = out0[k->o_sway + m];
     psi[m] = out0[k->o_psi + m];
-    z0[m] = out0[k->o_ref + m] - sway[m] * wbc_sin(psi[m]);
+    beat[m] = wbc_sc(psi[m]);
+    z0[m] = out0[k->o_ref + m] - sway[m] * beat[m].s;
     zb[m] = m == k->axial ? 0.04 : 0.0;
     z_new[m] = ((1.0 - u_b) * z0[m] + (u_b * (1.0 - u_s)) * zb[m]) + (u_b * u_s) * t->rest[t->r_z + m];
     sway_b[m] = 0.0;
@@ -112,7 +115,7 @@ void wbc_touch_step(const wbc_imp_t *k, const wbc_touch_t *t, const double asked
   sway_new[k->drive] = u_drv * sway[k->drive] + ((1.0 - u_drv) * npmin(sway[k->drive], 0.04)) * (1.0 - u_b);
   for (int m = 0; m < n; m++)
   {
-    sine_new[m] = sway_new[m] * wbc_sin(psi[m]);
+    sine_new[m] = sway_new[m] * beat[m].s;
     kb[m] = out0[k->o_ks + m];
     db[m] = out0[k->o_ds + m];
   }
@@ -127,8 +130,8 @@ void wbc_touch_step(const wbc_imp_t *k, const wbc_touch_t *t, const double asked
   for (int m = 0; m < n; m++)
   {
     out[k->o_ref + m] = z_new[m] + sine_new[m];
-    out[k->o_rate + m] = (1.0 - u_b) * (out0[k->o_rate + m] - (sway[m] * turns) * wbc_cos(psi[m]))
-                         + (sway_new[m] * turns) * wbc_cos(psi[m]);
+    out[k->o_rate + m] = (1.0 - u_b) * (out0[k->o_rate + m] - (sway[m] * turns) * beat[m].c)
+                         + (sway_new[m] * turns) * beat[m].c;
     out[k->o_acc + m] = ((1.0 - u_b) * out0[k->o_bend + m]) * (1.0 - npclip(out0[k->o_held], 0.0, 1.0))
                         - (sine_new[m] * turns) * turns;
     out[k->o_sway + m] = sway_new[m];

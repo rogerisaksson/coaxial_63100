@@ -62,7 +62,8 @@ static void compose(const wbc_frame_t *a, const wbc_frame_t *b, wbc_frame_t *out
 static void twist_exp(const double s[6], double q, wbc_frame_t *out)
 {
   const double *w = s;
-  const double  c = wbc_cos(q), sn = wbc_sin(q);
+  const wbc_sc_t at = wbc_sc(q);
+  const double  c = at.c, sn = at.s;
   const double  wx[9] = {0.0, -w[2], w[1], w[2], 0.0, -w[0], -w[1], w[0], 0.0};
   double        ww[9], g[9];
 

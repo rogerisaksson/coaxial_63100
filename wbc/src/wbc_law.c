@@ -158,9 +158,11 @@ void wbc_law_latent(const wbc_law_t *k, double *st, const double *tab, int ntab,
                                        + (6.0 - 12.0 * u) * to[j]) + (6.0 * u - 2.0) * (span * v1[j])) / (span * span))
                                      - flat);
 
-    out[k->ref + m] = p[j] + sway * wbc_sin(psi);
-    out[k->rate + m] = rate + (sway * turns) * wbc_cos(psi);
-    out[k->acc + m] = bend - ((sway * turns) * turns) * wbc_sin(psi);
+    const wbc_sc_t at = wbc_sc(psi);
+
+    out[k->ref + m] = p[j] + sway * at.s;
+    out[k->rate + m] = rate + (sway * turns) * at.c;
+    out[k->acc + m] = bend - ((sway * turns) * turns) * at.s;
     out[k->bend + m] = bend;
     out[k->ks + m] = p[k->k + m];
     out[k->ds + m] = p[k->d + m];

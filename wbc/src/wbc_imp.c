@@ -64,11 +64,11 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   propped = wbc_imp_latched(k, y, fr, rot, a, plo, phig);
   /* the lift's own rhythm is the robot's stride's clearance */
   {
-    const double beat = psi[k->lift];
+    const wbc_sc_t beat = wbc_sc(psi[k->lift]);
 
-    tone[0] = sway[k->lift] * wbc_sin(beat);
-    tone[1] = sway[k->lift] * (turns * wbc_cos(beat));
-    tone[2] = sway[k->lift] * (((-turns) * turns) * wbc_sin(beat));
+    tone[0] = sway[k->lift] * beat.s;
+    tone[1] = sway[k->lift] * (turns * beat.c);
+    tone[2] = sway[k->lift] * (((-turns) * turns) * beat.s);
   }
   for (int m = 0; m < n; m++)
   {

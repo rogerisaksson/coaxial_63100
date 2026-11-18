@@ -38,7 +38,9 @@ static double pymod(double x, double w)
 
 static double wrap(double angle)
 {
-  return wbc_arctan2(wbc_sin(angle), wbc_cos(angle));
+  const wbc_sc_t at = wbc_sc(angle);
+
+  return wbc_arctan2(at.s, at.c);
 }
 
 /** machine.law.se2.floored: the floor under the robot's bearing soles' lowest corners, where it is
@@ -93,6 +95,7 @@ static void modulate(const wbc_imp_t *k, const wbc_twist_t *t, double vx, double
                              * npmin(1.0, npmax(0.0, (t->edge_m_s - fabs(vy)) / t->edge_m_s));
   double        w_vy, w_wz, w_wz5, w_spin, wz_way, ts_raw, ts, w_turn, bt_d, w, w_vxp, drv, amp_t, bt, w_slip, w_vx_hi, w_vy_hi;
   double        w_back_hi, w_wz_hi, w_hz, hz_m, w_boost_fwd, w_boost_back, w_short, sw;
+  wbc_sc_t      at;
 
   st[t->st_to_amp + k->drive] += (w_rest * w_fast_fwd) * npmax(0.0, t->rest_drive - st[t->st_to_amp + k->drive]);
   w_vy = npmin(1.0, npmax(0.0, (fabs(vy) - t->side_m_s) / t->edge_m_s));
@@ -112,21 +115,23 @@ static void modulate(const wbc_imp_t *k, const wbc_twist_t *t, double vx, double
    * walk's */
   w_short = (w_on * (1.0 - npmin(1.0, npmax(0.0, (t->spin_still_m_s - vx) / t->edge_m_s)))) * npmax(0.0, 1.0 - vx / t->walk_m_s);
   sw = out[k->o_sway + k->drive];
-  out[k->o_ref + k->drive] -= (w_short * sw) * wbc_sin(bt_d);
-  out[k->o_rate + k->drive] -= ((w_short * sw) * w) * wbc_cos(bt_d);
-  out[k->o_acc + k->drive] += (((w_short * sw) * w) * w) * wbc_sin(bt_d);
+  at = wbc_sc(bt_d);
+  out[k->o_ref + k->drive] -= (w_short * sw) * at.s;
+  out[k->o_rate + k->drive] -= ((w_short * sw) * w) * at.c;
+  out[k->o_acc + k->drive] += (((w_short * sw) * w) * w) * at.s;
   out[k->o_sway + k->drive] -= w_short * sw;
   out[k->o_sway + k->drive] += w_spin * (drv - out[k->o_sway + k->drive]);
-  out[k->o_ref + k->drive] += w_spin * (drv * wbc_sin(bt_d) - out[k->o_ref + k->drive]);
-  out[k->o_rate + k->drive] += w_spin * ((drv * w) * wbc_cos(bt_d) - out[k->o_rate + k->drive]);
-  out[k->o_acc + k->drive] += w_spin * ((((-drv) * w) * w) * wbc_sin(bt_d) - out[k->o_acc + k->drive]);
+  out[k->o_ref + k->drive] += w_spin * (drv * at.s - out[k->o_ref + k->drive]);
+  out[k->o_rate + k->drive] += w_spin * ((drv * w) * at.c - out[k->o_rate + k->drive]);
+  out[k->o_acc + k->drive] += w_spin * ((((-drv) * w) * w) * at.s - out[k->o_acc + k->drive]);
   out[k->o_sway + k->lift] += w_spin * npmax(0.0, g_sw * t->spin_lift - out[k->o_sway + k->lift]);
   amp_t = g_sw * (w_vy * fabs(ts) + (1.0 - w_vy) * t->turn_sway);
   bt = st[t->st_theta] + st[t->st_now_phase + k->turn];
   out[k->o_sway + k->turn] += w_turn * (amp_t - out[k->o_sway + k->turn]);
-  out[k->o_ref + k->turn] += w_turn * ((ts + amp_t * wbc_sin(bt)) - out[k->o_ref + k->turn]);
-  out[k->o_rate + k->turn] += w_turn * ((amp_t * w) * wbc_cos(bt) - out[k->o_rate + k->turn]);
-  out[k->o_acc + k->turn] += w_turn * ((((-amp_t) * w) * w) * wbc_sin(bt) - out[k->o_acc + k->turn]);
+  at = wbc_sc(bt);
+  out[k->o_ref + k->turn] += w_turn * ((ts + amp_t * at.s) - out[k->o_ref + k->turn]);
+  out[k->o_rate + k->turn] += w_turn * ((amp_t * w) * at.c - out[k->o_rate + k->turn]);
+  out[k->o_acc + k->turn] += w_turn * ((((-amp_t) * w) * w) * at.s - out[k->o_acc + k->turn]);
   w_slip = (npmin(1.0, npmax(0.0, (t->slip_grip - npmin(held[0], held[1])) / t->slip_grip_edge))
             * npmin(1.0, npmax(0.0, (npmin(prior[0], prior[1]) - t->slip_grip) / t->slip_grip_edge)))
            * npmin(1.0, npmax(0.0, (fabs(vx) - t->slip_m_s) / t->edge_m_s));
@@ -162,8 +167,7 @@ void wbc_twist_step(const wbc_imp_t *k, const wbc_twist_t *t, double dt, const d
   double        active, w_back, tl_back, tl_fwd, tl_side, tl_way, tl, look, tw_on;
 
   heading = wrap(w[t->w_heading] + has_thd * npmax(-t->slew_rad_s * dt, npmin(t->slew_rad_s * dt, wrap(w[t->w_target] - w[t->w_heading]))));
-  sh = wbc_sin(heading);
-  ch = wbc_cos(heading);
+  wbc_sincos(heading, &sh, &ch);
   floored(k, t, dt);
   vxp = vel[0] * sh + vel[2] * ch;
   vyp = vel[0] * ch - vel[2] * sh;
@@ -197,8 +201,7 @@ void wbc_twist_step(const wbc_imp_t *k, const wbc_twist_t *t, double dt, const d
   err_yaw = wrap(pelvis_yaw - heading);
   err_yaw_ex = copysign(npmax(0.0, fabs(err_yaw) - t->slack_rad), err_yaw);
   heading = wrap(heading + w_yaw * err_yaw_ex);
-  sh_n = wbc_sin(heading);
-  ch_n = wbc_cos(heading);
+  wbc_sincos(heading, &sh_n, &ch_n);
   fr[t->f_heading] = heading;
   fr[k->f_rot] = sh_n;
   fr[k->f_rot + 1] = 0.0;
@@ -231,9 +234,11 @@ void wbc_twist_step(const wbc_imp_t *k, const wbc_twist_t *t, double dt, const d
   turns = out[k->o_turns];
   for (int m = 0; m < n; m++)
   {
+    const wbc_sc_t old = wbc_sc(old_psi[m]);
+
     out[k->o_psi + m] = st[t->st_theta] + st[t->st_now_phase + m];
-    out[k->o_ref + m] += ((-2.0 * w_flip) * out[k->o_sway + m]) * wbc_sin(old_psi[m]);
-    out[k->o_rate + m] += (((-2.0 * w_flip) * turns) * out[k->o_sway + m]) * wbc_cos(old_psi[m]);
+    out[k->o_ref + m] += ((-2.0 * w_flip) * out[k->o_sway + m]) * old.s;
+    out[k->o_rate + m] += (((-2.0 * w_flip) * turns) * out[k->o_sway + m]) * old.c;
     out[k->o_acc + m] *= 1.0 - 2.0 * w_flip;
   }
   state[t->s_last_way] = cw;
