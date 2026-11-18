@@ -43,12 +43,12 @@ STRONG = 1e-6
 
 def _reflect(a, k, tau, x, j0):
     """Reflector k of `a` on `x`'s columns from j0 (in place): each column's sum along it - its row k and the rest's
-    pairwise sum, a contiguous run - times tau, taken down it."""
+    pairwise sum, each column's products a contiguous row (numpy's sum along a row its pairwise one, as of a run) -
+    times tau, taken down it."""
     v = np.ascontiguousarray(a[k + 1:, k])
-    for j in range(j0, x.shape[1]):
-        c = tau * (float(x[k, j]) + float(np.sum(v * x[k + 1:, j])))
-        x[k, j] -= c
-        x[k + 1:, j] -= v * c
+    c = tau * (x[k, j0:] + np.sum(np.ascontiguousarray((v[:, None] * x[k + 1:, j0:]).T), axis=1))
+    x[k, j0:] -= c
+    x[k + 1:, j0:] -= v[:, None] * c[None, :]
 
 
 def householder(a):
