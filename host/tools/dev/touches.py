@@ -1,7 +1,7 @@
 """What a change to each part of the tree reaches: a path's prefix, its suites."""
 from tools.dev.suites import (AERO_CORE, MPPI_CORE, BENCH, BUSES, BOARD_MEM, BOOT, BOOT_CLIENT,
                               BOOT_CORE, CI, WORKFLOW, DEPENDS, ATLAS, PLACED, BROKER, COMPILED, TICK,
-                              VECTORIZED, LIBM, CONFORMANCE, PORTED, BORNE, REGISTRY, CLASSES, CONTROLLER, CORE,
+                              VECTORIZED, LIBM, PLATFORM, CONFORMANCE, PORTED, BORNE, REGISTRY, CLASSES, CONTROLLER, CORE,
                               CTRL_CORE, DAQ_API, DAQ_CORE, DRIVE, DRIVE_OBSERVER, DSP, KERNEL, SHIELD,
                               WAYFINDER, TUNE, EMULATOR, ERRANDS, FILTER, GVS, GROUND, HEATED,
                               LEAP, NATIVE, NATIVE_HEAT, NATIVE_SYSID, OLLAMA, ORTHO, POSTURES, FOURS,
@@ -163,7 +163,8 @@ TOUCHES = (
     ('filter/',                                (FILTER,)),
     ('ctrl/',                                  (CTRL_CORE,)),
     ('aero/',                                  QUADS + (AERO_CORE, STREAMS, WIRE, NATIVE, EMULATOR)),
-    ('wbc/',                                   (WBC_CORE, LEAP, EMULATOR, PORTED, BORNE, REGISTRY, CLASSES, VECTORIZED, LIBM)),
+    ('wbc/',                                   (WBC_CORE, LEAP, EMULATOR, PORTED, BORNE, REGISTRY, CLASSES, VECTORIZED, LIBM,
+                                                PLATFORM)),
     ('world/',                                 (WORLD_CORE, NATIVE, NATIVE_HEAT, EMULATOR)),
     ('host/coaxial/acquire/bessel.py',         (FILTER, STRUCTURE)),
     # The control law is hardware-free like the SHTP layer; its suite closes
@@ -241,7 +242,7 @@ TOUCHES = (
     ('setup/',                                 (STRUCTURE, DEPENDS)),
     # What the tree asks of a new machine, written where setup reads it.
     ('host/requirements',                      (DEPENDS, STRUCTURE)),
-    ('host/constraints.txt',                   (DEPENDS, WORKFLOW)),
+    ('host/constraints.txt',                   (DEPENDS, WORKFLOW, PLATFORM)),
     ('host/tools/dev/pinned.py',               (DEPENDS, STRUCTURE)),
     ('host/tools/dev/depends.py',              (DEPENDS, STRUCTURE)),
     ('host/tools/dev/pre_commit.py',           (DEPENDS, STRUCTURE)),
@@ -250,7 +251,8 @@ TOUCHES = (
     ('.github/',                               (WORKFLOW, CI, STRUCTURE)),
     ('host/tools/dev/machine_detector.py',     (CI, WORKFLOW, STRUCTURE)),
     # The relay: its jobs' admission and cores (test_ci), a job sent its emulator's (test_placed).
-    ('host/tools/dev/focus.py',                (CI, PLACED, STRUCTURE)),
+    ('host/tools/dev/focus.py',                (CI, PLACED, PLATFORM, STRUCTURE)),
+    ('host/tools/dev/arithmetic.py',           (PLATFORM, CI, STRUCTURE)),
     ('host/tools/dev/ledger.py',               (CI, STRUCTURE)),
     # The machine's cores, commit and processes: the relay's and the ledger's asks, the batch's widths.
     ('host/tools/dev/census.py',               (CI, WORKFLOW, PLACED, STRUCTURE)),

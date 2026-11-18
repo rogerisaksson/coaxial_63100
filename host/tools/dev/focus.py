@@ -25,7 +25,7 @@ import threading
 import time
 from contextlib import suppress
 
-from tools.dev import background, census
+from tools.dev import arithmetic, background, census
 from tools.dev.suites import ROOT, asked
 
 if os.name == 'nt':
@@ -98,13 +98,13 @@ def last_words(proc):
 
 
 def environment():
-    """A job's environment: the relay's own, `ROOT` on `PYTHONPATH`, OpenBLAS on one thread where not
-    told, its output unbuffered and each of its processes saying its threads' stacks on a fatal signal
+    """A job's environment: the relay's own, `ROOT` on `PYTHONPATH`, OpenBLAS on one thread and an x86-64's
+    arithmetic held to the desk's (`tools.dev.arithmetic`) where not told, its output unbuffered and each of its processes saying its threads' stacks on a fatal signal
     - a job cut at its time says where it was: test_sight's 300 s on GitHub's runner said nothing, its
     prints held in a pipe's buffer."""
     env = dict(os.environ, PYTHONIOENCODING='utf-8', PYTHONPATH=str(ROOT), PYTHONUNBUFFERED='1', PYTHONFAULTHANDLER='1')
     env.setdefault('OPENBLAS_NUM_THREADS', '1')
-    return env
+    return {**arithmetic.held(), **env}
 
 
 class _Locked:

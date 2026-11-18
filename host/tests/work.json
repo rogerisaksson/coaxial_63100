@@ -105,6 +105,7 @@
  "test_vault.py": 27.2,
  "test_vectorized.py": 252.5,
  "test_libm.py": 40.0,
+ "test_platform.py": 8.0,
  "test_views_apps.py": 55.7,
  "test_views_atlas.py": 51.5,
  "test_views_bared.py": 23.5,
