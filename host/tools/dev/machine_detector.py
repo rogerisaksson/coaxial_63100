@@ -86,6 +86,27 @@ def chosen(paces):
     return max(paces, key=lambda width: width * paces[width])
 
 
+def processor():
+    """This host's processor as its system names it: /proc/cpuinfo's model name on Linux, the registry's on
+    Windows, its machine else (an arm runner names none) - a runner's class read off its log, where its
+    OpenBLAS blocks a long product apart from another's."""
+    if sys.platform.startswith('linux'):
+        try:
+            with open('/proc/cpuinfo', encoding='utf-8') as f:
+                named = [line.split(':', 1)[1].strip() for line in f if line.lower().startswith('model name')]
+        except OSError:
+            named = []
+        return named[0] if named else platform.machine()
+    if sys.platform == 'win32':
+        import winreg
+        try:
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r'HARDWARE\DESCRIPTION\System\CentralProcessor\0') as key:
+                return str(winreg.QueryValueEx(key, 'ProcessorNameString')[0]).strip()
+        except OSError:
+            pass
+    return platform.processor() or platform.machine()
+
+
 def host(width=None):
     """This host as a run finds it: whose it is - a CI runner or a desk (`background.runner`) -, its physical
     cores, its threads, its processor and its system, and its pace at the relay's width: `width` where told,
@@ -94,7 +115,7 @@ def host(width=None):
     cores = physical_cores()
     paces = {wide: paced(wide) for wide in ((width,) if width else background.widths())}
     width = chosen(paces)
-    return {'runner': background.runner(), 'cores': cores, 'threads': threads(),
+    return {'runner': background.runner(), 'cores': cores, 'threads': threads(), 'processor': processor(),
             'machine': platform.machine(), 'system': platform.system(), 'width': width, 'pace': paces[width],
             'paces': paces}
 
@@ -102,9 +123,9 @@ def host(width=None):
 def said(here):
     """A host, in a line: the width its run takes, and any other it measured."""
     others = ''.join(', %.2f at %d' % (pace, wide) for wide, pace in here['paces'].items() if wide != here['width'])
-    return 'host: a %s, %d cores, %d threads, %s %s; %.2f kernels a second a baton, %d at once%s' % (
+    return 'host: a %s, %d cores, %d threads, %s %s (%s); %.2f kernels a second a baton, %d at once%s' % (
         ('desk', 'runner')[here['runner']], here['cores'], here['threads'], here['machine'], here['system'],
-        here['pace'], here['width'], others)
+        here.get('processor', '?'), here['pace'], here['width'], others)
 
 
 def table(path=PATH):
