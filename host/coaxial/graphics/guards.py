@@ -41,11 +41,12 @@ ROW_M, SECTORS, SKIRT = 0.015, 24, 3
 PITCH_M, FILL, PROUD_M, AROUND, RINGS, POWER = 0.026, 0.8, 0.003, 32, 6, 6.0
 #: A guard is a slab: its face SKIN_M over the surface, THICK_M of foam under it, on two struts
 #: STRUT_R round STRUTS of its half width either side of its middle (the build's). The rim is
-#: BAND_M wide and no more than BAND of its lesser side, HEADER_M at the head of one that bears
-#: a name (`lettering`), a rivet RIVET_R round in each of its corners, CORNER of the way out to
-#: them. Slots through a pad took its cells: of a thigh's a handful were left, two dark eyes
-#: in it.
-BAND_M, BAND, HEADER_M, RIVET_R, CORNER = 0.012, 0.2, 0.03, 0.0045, 0.78
+#: BAND_M wide - as wide as the slab is thick: a slim build's guards wear a slim rim - and no
+#: more than BAND of its lesser side, HEADER_M at the head of one that bears a name
+#: (`lettering`), two and a half rims, a rivet RIVET_R round in each of its corners, CORNER of
+#: the way out to them. Slots through a pad took its cells: of a thigh's a handful were left,
+#: two dark eyes in it.
+BAND_M, BAND, HEADER_M, RIVET_R, CORNER = THICK_M, 0.2, 2.5 * THICK_M, 0.0045, 0.78
 #: A limb's guards by the end of its segment's name: (its name, from and to down the limb,
 #: shares of its length, its middle about the limb, deg from its outer side toward ahead, its
 #: half width, deg, its kind: 'pad' a honeycomb pad under a header, 'cap' one with no header,

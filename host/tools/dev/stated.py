@@ -42,7 +42,7 @@ CEILING = {
     # each a printed cartridge of leaves: their material, their count, a leaf's width and thickness, their bow and
     # their length; its arm's tubes the stock's that hold what its joints carried - the upper arm's one radius,
     # the forearm's four
-    'machine/humanoids/gynoid_mesomorph_medium_coax.toml': 129,
+    'machine/humanoids/gynoid_mesomorph_medium_coax.toml': 130,
     'machine/humanoids/gynoid_mesomorph_medium_packs.toml': 2,
     'machine/humanoids/gynoid_mesomorph_medium_performance.toml': 9,
     'machine/humanoids/gynoid_mesomorph_medium_r80.toml': 3,
