@@ -23,7 +23,7 @@ robot's build the least that fits the campaign and lays it over the robot's law'
 import math
 
 from machine import libm
-from machine.body import peripherals, servos
+from machine.body import linkage, peripherals, servos
 from machine.senses import edge
 from machine.identify import campaign, regressor
 from machine.body.drives import armature, kind, series
@@ -43,14 +43,9 @@ LIMBS = ((('hip', 'knee', 'ankle', 'foot'), ('thigh', 'shank', 'foot', 'toes')),
 
 
 def laid(body):
-    """The robot's links and the columns, on its law's model, laid once: {bodies (its own,
-    parents first), parent (each one's place among them, the pelvis -1), span (each one's hinges' range in
-    hinge), hinge (every hinge dof, MuJoCo's order), jnt (each one's joint), above (body, hinge: the hinge
-    lies between the body and its pelvis), col (a MuJoCo body's ten columns' start, -1 not the robot's
-    own), drive (the drives' columns' start), driven (the drives' places among the hinges, JOINTS' order),
-    dof, joint (their dofs, their places in JOINTS), drives (their names), names (every column's), qadr, vadr
-    (JOINTS' in qpos and qvel), lo, hi (JOINTS' stops, rad), limb (drive, JOINTS) and skin (drive, SKIN): its
-    limb's}."""
+    """The robot's links and columns on its law's model, laid once: {bodies (parents first),
+    parent (pelvis -1), span, hinge, jnt, above, col, drive, driven, dof, joint, drives, names,
+    qadr, vadr, lo, hi, limb, skin, stick, hems, hem_limb, caps}."""
     import numpy as np
     m = body.m
     bodies = np.array([b for b in range(m.nbody) if edge._rooted(m, b, body.pelvis)])
@@ -76,7 +71,8 @@ def laid(body):
     col = np.full(m.nbody, -1)
     col[bodies] = 10 * np.arange(len(bodies))
     limited, rng = np.array(m.jnt_limited[ids], bool), np.array(m.jnt_range[ids], float)
-    stick = np.array([SPRUNG_STICK if series(j) else STICK for j in drives])
+    stick = np.array([STICK + (SPRUNG_STICK - STICK) * min(1.0, linkage.lever(j)) if series(j) else STICK
+                      for j in drives])
     limb, skin = np.zeros((len(joint), len(JOINTS)), bool), np.zeros((len(joint), len(edge.SKIN)), bool)
     for i, name in enumerate(drives):
         side = name.split('_')[0] + '_' if name.startswith(('left_', 'right_')) else None
@@ -107,7 +103,9 @@ def shifted(mass, h):
     import numpy as np
     if mass <= 0.0:
         return np.zeros(6)
-    return ((float(h @ h) * np.eye(3) - np.outer(h, h)) / mass)[np.triu_indices(3)]
+    hx, hy, hz = float(h[0]), float(h[1]), float(h[2])
+    hh = (hx * hx + hy * hy) + hz * hz
+    return np.array([hh - hx * hx, -hx * hy, -hx * hz, hh - hy * hy, -hy * hz, hh - hz * hz]) / mass
 
 
 def following(mass, h):
@@ -130,9 +128,10 @@ def truth(lay, m):
     for k, b in enumerate(lay['bodies']):
         mass = float(m.body_mass[b])
         h = mass * np.array(m.body_ipos[b], float)
-        r = _rotations(m.body_iquat[b])
-        links[k, 0], links[k, 1:4] = mass, h
-        links[k, 4:] = (r @ np.diag(np.array(m.body_inertia[b], float)) @ r.T)[np.triu_indices(3)] + shifted(mass, h)
+        r, d = _rotations(m.body_iquat[b]), [float(v) for v in m.body_inertia[b]]
+        about = np.array([(r[i, 0] * d[0] * r[j, 0] + r[i, 1] * d[1] * r[j, 1]) + r[i, 2] * d[2] * r[j, 2]
+                          for i, j in zip(*np.triu_indices(3))])
+        links[k, 0], links[k, 1:4], links[k, 4:] = mass, h, about + shifted(mass, h)
     dof = lay['dof']
     arm = np.array(m.dof_armature[dof], float)
     for i, name in enumerate(lay['drives']):

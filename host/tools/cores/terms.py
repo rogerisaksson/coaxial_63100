@@ -19,90 +19,13 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from machine.body import drives, figure
+from machine.body import figure
+from machine.body.terms import rows as _rows
 from tools import REPO
 from tools.cores import written
 
 PATH = os.path.join(REPO, 'host', 'machine', 'body', 'term_rows.py')
 NOTICE = "The robot's movements' terms as static arrays: written by host/tools/cores/terms.py, not by hand."
-
-#: A joint is turned TURN_DEG to see what it moves; it makes a movement where MAKES of the
-#: motion goes the movement's way.
-TURN_DEG, MAKES = 2.0, 0.9
-
-AHEAD, BACK, UP, OUT = (0.0, 0.0, 1.0), (0.0, 0.0, -1.0), (0.0, 1.0, 0.0), (1.0, 0.0, 0.0)
-DOWN_IT, UP_IT, ALONG_IT = (0.0, -1.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)
-
-#: (part, segment - a limb's by its name less the limb's -, the movement, its opposite - none,
-#: it is told toward a side -, what of the segment: its point or its axis, in its frame, the
-#: way that goes: ahead, back, up, or out - from the midline; toward limb 0's side where the
-#: movement is told toward one). A segment None: the robot has no such part.
-ANATOMY = (
-    ('hip', 'thigh', 'flexion', 'extension', 'point', DOWN_IT, AHEAD),
-    ('hip', 'thigh', 'abduction', 'adduction', 'point', DOWN_IT, OUT),
-    ('hip', 'thigh', 'lateral-rotation', 'medial-rotation', 'axis', ALONG_IT, OUT),
-    ('knee', 'shank', 'flexion', 'extension', 'point', DOWN_IT, BACK),
-    ('ankle', 'foot', 'dorsiflexion', 'plantarflexion', 'point', ALONG_IT, UP),
-    ('foot', 'foot', 'eversion', 'inversion', 'axis', DOWN_IT, OUT),
-    ('toes', 'toes', 'extension', 'flexion', 'point', ALONG_IT, UP),
-    ('trunk', 'torso', 'flexion', 'extension', 'point', UP_IT, AHEAD),
-    ('trunk', 'torso', 'lateral-flexion', None, 'point', UP_IT, OUT),
-    ('trunk', 'torso', 'rotation', None, 'axis', ALONG_IT, OUT),
-    ('neck', 'neck', 'flexion', 'extension', 'point', UP_IT, AHEAD),
-    ('neck', 'neck', 'lateral-flexion', None, 'point', UP_IT, OUT),
-    ('head', 'head', 'rotation', None, 'axis', ALONG_IT, OUT),
-    ('shoulder', 'upper_arm', 'flexion', 'extension', 'point', DOWN_IT, AHEAD),
-    ('shoulder', 'upper_arm', 'abduction', 'adduction', 'point', DOWN_IT, OUT),
-    ('shoulder', 'upper_arm', 'lateral-rotation', 'medial-rotation', 'axis', ALONG_IT, OUT),
-    ('shoulder', None, 'elevation', 'depression', None, None, None),
-    ('shoulder', None, 'protraction', 'retraction', None, None, None),
-    ('elbow', 'forearm', 'flexion', 'extension', 'point', DOWN_IT, AHEAD),
-    ('forearm', 'forearm', 'supination', 'pronation', 'axis', ALONG_IT, OUT),
-    ('wrist', 'hand', 'flexion', 'extension', 'point', DOWN_IT, AHEAD),
-    ('wrist', 'hand', 'radial-deviation', 'ulnar-deviation', 'point', DOWN_IT, OUT),
-    ('fingers', 'fingers', 'flexion', 'extension', 'point', DOWN_IT, AHEAD),
-    ('thumb', None, 'opposition', 'reposition', None, None, None),
-)
-
-
-def limbs():
-    """({segment less its limb's name: segment}, ..) of the robot's limbs - the segments named alike but
-    for what comes before the first '_' -, the limb on +x first: limb 0, as `reach.LIMBS`."""
-    names = [s[0] for s in figure.SEGMENTS]
-    stems = {}
-    for name in names:
-        head, _, stem = name.partition('_')
-        if stem and sum(n.partition('_')[2] == stem for n in names) == 2:
-            stems.setdefault(head, {})[stem] = name
-    placed = figure.frames({}, (0.0, 0.0, 0.0), figure.IDENT)
-    out = sorted(stems.values(), key=lambda limb: -placed[next(iter(limb.values()))][0][0])
-    if len(out) != 2 or not placed[next(iter(out[0].values()))][0][0] > 0.0:
-        raise ValueError('its limbs are not two, one either side: %r' % (sorted(stems),))
-    return tuple(out)
-
-
-def moved(segment, kind, vector, joint, sign_deg):
-    """What a point or an axis of `segment` does, world, the `joint` turned `sign_deg`: its
-    motion over the turn's angle, a unit where it swings square to its joint."""
-    there = []
-    for deg in (0.0, sign_deg):
-        at, turn = figure.frames({joint: deg}, (0.0, 0.0, 0.0), figure.IDENT)[segment]
-        tip = figure.apply(turn, vector)
-        there.append(figure.add(at, tip) if kind == 'point' else tip)
-    return tuple((b - a) / math.radians(abs(sign_deg)) for a, b in zip(*there))
-
-
-def made(segment, kind, vector, way):
-    """(joint, sign) of the joint of `segment` that takes its point or axis `way`, world: the
-    one MAKES of whose motion goes that way, or None."""
-    found = []
-    for joint, _axis, _sign in next(s for s in figure.SEGMENTS if s[0] == segment)[2]:
-        along = sum(a * b for a, b in zip(moved(segment, kind, vector, joint, TURN_DEG), way))
-        if abs(along) >= MAKES:
-            found.append((joint, math.copysign(1.0, along)))
-    if len(found) > 1:
-        raise ValueError('%s: two joints make one movement, %r' % (segment, found))
-    return found[0] if found else None
 
 
 def stops():
@@ -114,59 +37,9 @@ def stops():
             for j in figure.JOINTS if m.jnt_limited[m.joint(j).id]}
 
 
-def makers(pair, stem, kind, vector, way):
-    """[(joint, sign), ..] of the joints that take a segment's point or axis `way` - one a limb,
-    out from the midline its own way; the trunk's one, out toward limb 0's side - or None: the robot
-    has no such segment, or no joint of it goes that way."""
-    if stem is None or kind is None or vector is None or way is None:
-        return None
-    if stem in pair[0]:
-        found = [made(limb[stem], kind, vector, (way[0] * mirror, way[1], way[2]))
-                 for limb, mirror in zip(pair, (1.0, -1.0))]
-    else:
-        found = [made(stem, kind, vector, way)]
-    joints = [f for f in found if f is not None]
-    return joints if len(joints) == len(found) else None
-
-
-def _term(found, limits):
-    """(joint kind, sign, low, high) of a movement the joints `found` make alike, or None: they
-    have no drive."""
-    signs, spans = {s for _j, s in found}, {limits.get(j) for j, _s in found}
-    if len(signs) != 1 or len(spans) != 1:
-        raise ValueError('a movement the robot\'s limbs make unlike: %r, %r' % (found, spans))
-    if any(drives.passive(j) for j, _s in found):
-        return None
-    sign, span = signs.pop(), spans.pop()
-    if span is None:
-        return drives.kind(found[0][0]), sign, None, None
-    low, high = sorted(sign * v for v in span)
-    return drives.kind(found[0][0]), sign, low, high
-
-
 def rows():
     """What machine/body/term_rows.py holds, {name: value}."""
-    limits, pair = stops(), limbs()
-    terms, toward, absent, joints = {}, [], [], ({}, {})
-    for part, stem, name, opposite, kind, vector, way in ANATOMY:
-        found = makers(pair, stem, kind, vector, way)
-        term = _term(found, limits) if found else None
-        if found is None or term is None:
-            absent += [(part, n) for n in (name, opposite) if n]
-            continue
-        joint, sign, low, high = term
-        if len(found) == 2:
-            for limb, (its, _sign) in zip(joints, found):
-                limb[joint] = its
-        terms[(part, name)] = term
-        if opposite:
-            terms[(part, opposite)] = (joint, -sign, None if high is None else -high,
-                                       None if low is None else -low)
-        else:
-            toward.append((part, name))
-            if low is not None and high is not None and low != -high:
-                raise ValueError('%s %s: a movement toward a side stopped unlike either way' % (part, name))
-    return {'TERMS': terms, 'TOWARD': tuple(toward), 'ABSENT': tuple(absent), 'LIMBS': joints}
+    return _rows(stops())
 
 
 def render(laid):
@@ -190,8 +63,8 @@ def render(laid):
               'LIMBS = (']
     for limb in laid['LIMBS']:
         items = ['%r: %r' % item for item in limb.items()]
-        rows = [', '.join(items[k:k + 4]) for k in range(0, len(items), 4)]
-        lines += ['    {' + (',\n     '.join(rows)) + '},']
+        rows_txt = [', '.join(items[k:k + 4]) for k in range(0, len(items), 4)]
+        lines += ['    {' + (',\n     '.join(rows_txt)) + '},']
     return '\n'.join(lines + [')']) + '\n'
 
 

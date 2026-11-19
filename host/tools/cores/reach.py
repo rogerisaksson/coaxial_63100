@@ -16,111 +16,17 @@ A run is the longest along its `u`: ahead of an island the ankle's stroke forbid
 0.50-0.63 m up) the strip left under the leg's length is not in it. A row is the least of itself
 and its neighbours: what is read between rows is reached.
 """
-import math
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from machine.body import drives, figure
-from machine.body.figure import BALL, HEEL, HIP_DROP, HIP_HALF, SHANK, THIGH, TOE_M
+from machine.body.reach import rows
 from tools import REPO
 from tools.cores import written
 
 PATH = os.path.join(REPO, 'host', 'machine', 'body', 'reach_rows.py')
 NOTICE = "A leg's reach over its foot as static arrays: written by host/tools/cores/reach.py, not by hand."
-
-#: The rows: the hip from U0 m up in its leg's plane, DU apart; a row scanned SCAN_M apart, its
-#: run's ends bisected.
-U0, DU, SCAN_M = round(0.10 * figure.SCALE, 6), round(0.005 * figure.SCALE, 6), round(0.001 * figure.SCALE, 6)
-LENGTH = THIGH + SHANK
-
-
-def stops():
-    """{kind: (low, high) rad} of a leg's travel from its hip's yaw down (`drives.TRAVEL`): the hip's pitch
-    and roll turn the robot's pelvis over the leg, not the foot's frame."""
-    return {k: tuple(math.radians(v) for v in drives.TRAVEL[k]) for k in ('hip_yaw', 'knee', 'ankle', 'ankle_roll')}
-
-
-def bend(r):
-    """(knee, ankle, ankle_roll) rad of the robot's left leg, its hip at `r` in its foot's frame."""
-    return figure.leg(1.0, (r[0] - HIP_HALF, r[1] + HIP_DROP, r[2]), figure.IDENT, (0.0, 0.0, 0.0),
-                      figure.IDENT)[3:]
-
-
-def held(r, limits):
-    """Whether the robot's left leg, its hip at `r` in its foot's frame, is within its length and
-    `limits` (`stops`)."""
-    return math.hypot(*r) <= LENGTH + 1e-12 and all(
-        limits[k][0] <= q <= limits[k][1] for k, q in zip(('knee', 'ankle', 'ankle_roll'), bend(r)))
-
-
-def run(u, limits):
-    """(back, fore) m along the toes: the longest run the robot's hip stands in, `u` m up in its leg's
-    plane; an end the leg's length alone bounds, -+LENGTH."""
-    edge = math.sqrt(LENGTH * LENGTH - u * u)
-    n = int(edge / SCAN_M)
-    ok = [held((0.0, u, k * SCAN_M), limits) for k in range(-n, n + 1)]
-    best, k = (0, 0), 0
-    while k < len(ok):
-        j = k
-        while j < len(ok) and ok[j]:
-            j += 1
-        best, k = max(best, (j - k, k)), j + 1
-    count, first = best
-    if not count:
-        raise ValueError('nothing reached %g m up' % u)
-
-    def end(k, step):
-        # straight, the leg leans as its ankle is bent: past the ankle's stroke a strip
-        # under the leg's length is out, micrometres to 3 mm deep - finer than the scan
-        inside, outside = k * SCAN_M, (k + step) * SCAN_M if abs(k + step) <= n else step * edge
-        if abs(k) == n and held((0.0, u, step * edge), limits):
-            return math.copysign(LENGTH, step)
-        for _ in range(10):
-            mid = 0.5 * (inside + outside)
-            inside, outside = (mid, outside) if held((0.0, u, mid), limits) else (inside, mid)
-        return inside
-
-    return end(first - n, -1), end(first + count - 1 - n, 1)
-
-
-def sole(toes):
-    """A sole's corners (across, along) m about its ankle, counter-clockwise: heel to ball, or
-    on to its toes' tips; alike either side of its length."""
-    _seg, _shape, (half, _hy, _hz), (x, _y, _z) = figure.CONTACTS[0]
-    _seg, _shape, (toe_half, _ty, _tz), (toe_x, _y, _z) = figure.CONTACTS[1]
-    if x or toe_x or (toes and toe_half != half):
-        raise ValueError('a sole not alike either side: its mirror is not in the rows')
-    front = BALL + (TOE_M if toes else 0.0)
-    return ((-half, -HEEL), (half, -HEEL), (half, front), (-half, front))
-
-
-def rows():
-    """What machine/body/reach_rows.py holds, {name: value}."""
-    limits = stops()
-    count = int(round((LENGTH - U0) / DU))
-    true = [run(U0 + DU * k, limits) for k in range(count)]
-    # a free end beside a bounded one counts as the length's own circle there: a bound that
-    # runs into the circle is read short of it between its last row and the first free
-    edge = [math.sqrt(LENGTH * LENGTH - (U0 + DU * k) ** 2) for k in range(count)]
-    near = [range(max(0, k - 1), min(count, k + 2)) for k in range(count)]
-    back = [-LENGTH if all(true[j][0] <= -LENGTH for j in near[k]) else
-            math.ceil(max(max(true[j][0], -edge[j]) for j in near[k]) * 1e4) / 1e4
-            for k in range(count)]
-    fore = [LENGTH if all(true[j][1] >= LENGTH for j in near[k]) else
-            math.floor(min(min(true[j][1], edge[j]) for j in near[k]) * 1e4) / 1e4
-            for k in range(count)]
-    free = [b <= -LENGTH and f >= LENGTH for b, f in zip(back, fore)]
-    top = free.index(True)
-    if not all(free[top:]):
-        raise ValueError("a bound over the rows' top, %g m up" % (U0 + DU * top))
-    yaw, roll = limits['hip_yaw'], limits['ankle_roll']
-    return {'LIMBS': (1.0, -1.0), 'THIGH': THIGH, 'SHANK': SHANK,
-            'YAW': tuple(math.floor(abs(v) * 1e6) / 1e6 for v in yaw),
-            'ACROSS': tuple(math.floor(math.tan(abs(v)) * 1e6) / 1e6 for v in roll),
-            'U0': U0, 'DU': DU, 'BACK': tuple(back[:top + 1]), 'FORE': tuple(fore[:top + 1]),
-            'SOLE': sole(False), 'FOOT': sole(True)}
 
 
 def render(laid):
@@ -153,12 +59,14 @@ def render(laid):
         'ACROSS = %s' % flat(laid['ACROSS']),
         "#: In the leg's plane, the hip U0 + k DU m up: BACK[k] to FORE[k] m along the toes its",
         "#: ankle's pitch's stroke and its knee's stop leave; -+(THIGH + SHANK), its length alone.",
-        'U0, DU = %g, %g' % (laid['U0'], laid['DU'])]
-        + wrapped('BACK', laid['BACK']) + wrapped('FORE', laid['FORE']) + [
+        'U0, DU = %g, %g' % (laid['U0'], laid['DU']),
+    ] + wrapped('BACK', laid['BACK']) + wrapped('FORE', laid['FORE']) + [
         "#: A sole heel to ball, a foot heel to its toes' tips: corners (across, along) m about",
         '#: the ankle, counter-clockwise.',
         'SOLE = %s' % pairs(laid['SOLE']),
-        'FOOT = %s' % pairs(laid['FOOT'])]) + '\n'
+        'FOOT = %s' % pairs(laid['FOOT']),
+        '',
+    ])
 
 
 if __name__ == '__main__':
@@ -166,5 +74,5 @@ if __name__ == '__main__':
         sys.exit(__doc__)
     done = rows()
     written(PATH, render(done))
-    print('%d rows written, the hip %.2f to %.2f m up' % (
+    print('%d rows written, U0=%g..%g m' % (
         len(done['FORE']), done['U0'], done['U0'] + done['DU'] * (len(done['FORE']) - 1)))

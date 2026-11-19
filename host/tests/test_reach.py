@@ -13,11 +13,19 @@ SIDES = ('left', 'right')
 
 
 def test_the_rows_are_the_robots_figure(report):
-    """machine/body/reach_rows.py is what tools/cores/reach.py lays from the robot's figure now."""
+    """machine/body/reach holds what tools/cores/reach.py lays from the robot's figure now, and
+    machine/body/reach_rows.py holds the stock build's."""
+    from machine.body import mechatronics, reach
     from tools.cores import reach as laid
+    now = laid.rows()
     with open(laid.PATH, encoding='utf-8') as f:
         on_disk = f.read()
-    report.check('the rows on disk are the robot\'s figure laid anew', laid.render(laid.rows()) == on_disk,
+    disk_ok = laid.render(now) == on_disk if mechatronics.ROBOT == mechatronics.STOCK else bool(on_disk)
+    live_ok = ((reach.LIMBS, reach.YAW, reach.ACROSS, reach.U0, reach.DU, reach.BACK, reach.FORE,
+                reach.SOLE, reach.FOOT)
+               == (now['LIMBS'], now['YAW'], now['ACROSS'], now['U0'], now['DU'], now['BACK'],
+                   now['FORE'], now['SOLE'], now['FOOT']))
+    report.check('the rows on disk are the robot\'s figure laid anew', disk_ok and live_ok,
                  'python tools/cores/reach.py --write')
 
 
@@ -27,8 +35,7 @@ def test_what_the_rows_hold_the_robots_stops_allow(report):
     stops and the rods' strokes). Of what the robot's stops allow the rows leave out a row's caution
     and, at the leg's length, the strip past the ankle's island."""
     from machine.body import reach
-    from tools.cores import reach as laid
-    limits, rng = laid.stops(), random.Random(7)
+    limits, rng = reach.stops(), random.Random(7)
     held, lost, past = [0, 0], [0, 0], 0.0
     for n in range(60000):
         r = (rng.uniform(-0.3, 0.3), rng.uniform(0.0, 0.78), rng.uniform(-0.8, 0.8))
@@ -36,12 +43,12 @@ def test_what_the_rows_hold_the_robots_stops_allow(report):
         if straight:
             k = (reach.THIGH + reach.SHANK) * (1.0 - 1e-9) / math.hypot(*r)
             r = (r[0] * k, r[1] * k, r[2] * k)
-        exact, inside = laid.held(r, limits), min(reach.margins(r))
+        exact, inside = reach.held(r, limits), min(reach.margins(r))
         held[straight] += exact
         lost[straight] += exact and inside < 0.0
         if inside >= 0.0 and not exact:
             past = max([past] + [max(limits[k][0] - q, q - limits[k][1])
-                                 for k, q in zip(('knee', 'ankle', 'ankle_roll'), laid.bend(r))])
+                                 for k, q in zip(('knee', 'ankle', 'ankle_roll'), reach.bend(r))])
     report.check('no hip the rows hold is past a stop', past < 1e-6, '%.2g rad past at most' % past)
     report.check('of what the robot\'s stops allow the rows leave out under a twentieth',
                  held[0] > 4000 and lost[0] < 0.05 * held[0],
@@ -75,9 +82,8 @@ def test_a_place_landed_stands_in_mujoco(report):
     every stopped joint within its stop; its margins not negative, its knee the leg's."""
     from machine.body import figure, reach
     from machine.body.figure import ANKLE_H
-    from tools.cores import reach as laid
     mujoco, model, data = _figure()
-    limits, rng = laid.stops(), random.Random(11)
+    limits, rng = reach.stops(), random.Random(11)
     off = turned = past = shy = bent = 0.0
     landed = moved = high = 0
     for _ in range(3000):

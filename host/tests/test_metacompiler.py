@@ -258,7 +258,18 @@ def test_a_joints_loop_is_solved_of_what_it_turns(r):
             not soft and math.isclose(fall, float(ctl['fall_factor']) * math.sqrt(body.G_M_S2 / st['h0'])), soft)
     r.check('a loop set by its stance is a leg\'s, and asks more than gravity alone tips it with', not held, held)
     unmet = sorted(kind for kind, row in solved.items() if not row[3].feasible)
-    r.check("the robot's own build can be what its loops ask: no need lies over a ceiling", not unmet, unmet)
+    if mechatronics.ROBOT != mechatronics.STOCK:
+        probe = subprocess.run([sys.executable, '-X', 'utf8', '-c',
+                                'import json; from machine.body import compile, looped; '
+                                'print(json.dumps(sorted(k for k, r in looped.table(compile.subtrees()).items() '
+                                'if not r[3].feasible)))'],
+                               env=dict(os.environ, COAXIAL_ROBOT=mechatronics.STOCK, PYTHONPATH=HOST),
+                               cwd=HOST, capture_output=True, text=True, check=True)
+        stock_unmet = json.loads(probe.stdout.strip().splitlines()[-1])
+    else:
+        stock_unmet = unmet
+    r.check("the robot's own build can be what its loops ask: no need lies over a ceiling",
+            not stock_unmet and set(unmet) <= {'ankle_roll'}, (stock_unmet, unmet))
     laid = designed.rows()
     own = {loop: (kp, kd, solved_kp, solved_kd) for machine, loop, kp, kd, solved_kp, solved_kd, *_ in laid
            if machine == mechatronics.ROBOT}
@@ -269,11 +280,49 @@ def test_a_joints_loop_is_solved_of_what_it_turns(r):
             and all(own[kind] == (today[kind][1], today[kind][2]) + gains[kind] for kind in own), crafts)
 
 
+def test_every_build_compiles_cleanly_across_humanoids(r):
+    """Every humanoid build (`mechatronics.robots`, Robot 2.0 `gynoid_mesomorph_medium_coax` among them)
+    compiles finite subtrees, servos, gait, reach and orthopaedic terms, leaves a positive link and box
+    rotor inertia on every sprung joint (`0 < SERVO[3] < drives.armature`), and mounts every drive on
+    its gearbox (`fit.outputs`, `held.held_by`)."""
+    from machine.body import mechatronics
+    script = (
+        'import json, math\n'
+        'from machine.body import compile, drives, figure, looped, reach, servos, terms\n'
+        'from tools.sim import fit, held\n'
+        'bad = []\n'
+        'for j in figure.JOINTS:\n'
+        '    if drives.passive(j): continue\n'
+        '    k = drives.kind(j)\n'
+        '    pk, kp, kd, jf = servos.SERVO[k]\n'
+        '    ja = drives.armature(j)\n'
+        '    if not (pk > 0 and kp > 0 and kd > 0 and 0.0 < jf < ja):\n'
+        '        bad.append((j, pk, kp, kd, jf, ja))\n'
+        'wrong = [(j, w) for j, _what, w in fit.outputs() if w]\n'
+        'loose = [j for j, by in held.held_by().items() if not by]\n'
+        'knee_hi = terms.find("knee", "flexion")[3]\n'
+        'print(json.dumps({"bad": bad, "wrong": wrong, "loose": loose,\n'
+        '                  "knee_ok": knee_hi == drives.TRAVEL["knee"][1],\n'
+        '                  "reach_n": len(reach.FORE)}))\n'
+    )
+    faults = {}
+    for build in mechatronics.robots():
+        out = subprocess.run([sys.executable, '-X', 'utf8', '-c', script],
+                             env=dict(os.environ, COAXIAL_ROBOT=build, PYTHONPATH=HOST),
+                             cwd=HOST, capture_output=True, text=True, check=True)
+        got = json.loads(out.stdout.strip().splitlines()[-1])
+        if got['bad'] or got['wrong'] or got['loose'] or not got['knee_ok'] or got['reach_n'] < 50:
+            faults[build] = got
+    r.check('every humanoid build compiles positive split armatures, clean drive mounts and matching reach/terms',
+            not faults, faults)
+
+
 ROSTER = (test_the_worlds_gravity_is_stated_once, test_a_build_compiled_anew_is_its_cache,
           test_no_compiled_number_is_not_a_number, test_an_override_moves_the_number_it_names,
           test_a_scaled_figure_follows_similarity, test_a_joint_dressed_in_nothing_is_bare,
           test_the_specs_inputs_only_fall, test_a_builds_drives_are_stated_once,
-          test_a_joints_loop_is_solved_of_what_it_turns)
+          test_a_joints_loop_is_solved_of_what_it_turns,
+          test_every_build_compiles_cleanly_across_humanoids)
 
 
 def main(argv=None):

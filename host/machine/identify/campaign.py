@@ -83,7 +83,7 @@ def tone(t, tones, phase, amp):
     return ease * (amp * tones[0] / tones * libm.sin(2.0 * math.pi * np.outer(t, tones) + phase)).sum(axis=1)
 
 
-def _box(delta, rel, passed):
+def _box(delta, rel, passed, wound_nm=WOUND_NM):
     """(k, play, c, mesh, zero) of one box on the steps it is wound up, by least squares: past its
     play about `zero` (its encoder's slip, rad) it passes k (delta - zero - play sign(delta -
     zero)) + c rel + mesh tanh(rel / MESH_RAD_S) to its link. The mesh's friction is not read:
@@ -91,10 +91,10 @@ def _box(delta, rel, passed):
     sliding tells nothing of it (identification.md)."""
     import numpy as np
     from machine.body.gearbox import MESH_RAD_S
-    wound = np.abs(passed) > WOUND_NM
+    wound = np.abs(passed) > wound_nm
     if wound.sum() < 4 * WOUND_ROWS or (np.abs(rel[wound]) > 1e-6).sum() < WOUND_ROWS:
         return 0.0, 0.0, 0.0, 0.0, float(delta[-1]) if len(delta) else 0.0
-    pos, neg = passed > WOUND_NM, passed < -WOUND_NM
+    pos, neg = passed > wound_nm, passed < -wound_nm
     if pos.sum() < WOUND_ROWS or neg.sum() < WOUND_ROWS:
         A = np.column_stack([delta[wound], -np.sign(delta[wound]), rel[wound], np.tanh(rel[wound] / MESH_RAD_S)])
         fit = np.linalg.lstsq(A, passed[wound], rcond=None)[0]
@@ -106,6 +106,27 @@ def _box(delta, rel, passed):
     k = float(fit[0])
     return (k, float(fit[1]) / k if k > 0.0 else 0.0, float(fit[2]), float(fit[3]),
             float(fit[4]) / k if k > 0.0 else 0.0)
+
+
+def _deadband(delta, rel, passed, wound_nm):
+    """(k, play, c, mesh, zero) when a narrow wound cluster leaves `_box`'s play non-positive:
+    `play` and `zero` from consecutive steps inside the zero-torque deadband, `k` past them."""
+    import numpy as np
+    from machine.body.gearbox import MESH_RAD_S
+    z = (np.abs(passed) < 0.1 * wound_nm) & (np.abs(rel) > 0.2)
+    z3 = np.zeros_like(z)
+    z3[1:-1] = z[:-2] & z[1:-1] & z[2:]
+    if z3.sum() < ROTOR_ROWS:
+        return None
+    lo, hi = float(np.percentile(delta[z3], 2)), float(np.percentile(delta[z3], 98))
+    play, zero = 0.5 * (hi - lo), 0.5 * (hi + lo)
+    past = np.sign(delta - zero) * np.maximum(np.abs(delta - zero) - play, 0.0)
+    keep = (np.abs(passed) > wound_nm) & (past * passed > 0.0)
+    if keep.sum() < 2 * WOUND_ROWS:
+        return None
+    f = np.linalg.lstsq(np.column_stack([past[keep], rel[keep], np.tanh(rel[keep] / MESH_RAD_S)]),
+                        passed[keep], rcond=None)[0]
+    return float(f[0]), play, float(f[1]), float(f[2]), zero
 
 
 def boxes(body, ys, taus, dt, armature, every=1):
@@ -132,16 +153,30 @@ def boxes(body, ys, taus, dt, armature, every=1):
     second = (qm[at + 1] - 2.0 * qm[at] + qm[at - 1])[:, driven] / (dt * dt)
     mean = 0.5 * (taus[at] + taus[at - 1])[:, driven]
     motor = taus[at][:, driven]
+    mot3 = (0.25 * taus[at - 1] + 0.5 * taus[at] + 0.25 * taus[at + 1])[:, driven]
     out = np.zeros((len(driven), len(BOX)))
     for i in range(len(driven)):
+        joint_name = JOINTS[driven[i]]
         J = float(armature[i])
-        _, play, _, _, zero = _box(delta[:, i], rel[:, i], motor[:, i] - J * wacc[:, i])
+        w_nm = min(WOUND_NM, round(drives.mesh(joint_name), 2))
+        r_nm = min(ROTOR_NM, 3.0 * drives.armature(joint_name))
+        _, play, _, _, zero = _box(delta[:, i], rel[:, i], motor[:, i] - J * wacc[:, i], w_nm)
+        if play <= 0.0:
+            got_z = _deadband(delta[:, i], rel[:, i], mot3[:, i] - J * wacc[:, i], w_nm)
+            if got_z is not None:
+                _, play, _, _, zero = got_z
         if play > 0.0:
             inside = np.abs(wound_up[:, driven[i]] - zero) < INSIDE * play
             rows = inside[at - 1] & inside[at] & inside[at + 1] & (np.abs(mean[:, i]) > ROTOR_NM)
+            if rows.sum() < ROTOR_ROWS:
+                rows = inside[at - 1] & inside[at] & inside[at + 1] & (np.abs(mean[:, i]) > r_nm)
             if rows.sum() >= ROTOR_ROWS and (mean[rows, i] @ second[rows, i]) > 0.0:
                 J = float(mean[rows, i] @ mean[rows, i] / (mean[rows, i] @ second[rows, i]))
-        k, play, c, mesh, zero = _box(delta[:, i], rel[:, i], motor[:, i] - J * wacc[:, i])
+        k, play, c, mesh, zero = _box(delta[:, i], rel[:, i], motor[:, i] - J * wacc[:, i], w_nm)
+        if play <= 0.0:
+            got_z = _deadband(delta[:, i], rel[:, i], mot3[:, i] - J * wacc[:, i], w_nm)
+            if got_z is not None:
+                k, play, c, mesh, zero = got_z
         out[i] = k, play, c, mesh, J, zero
     return out
 

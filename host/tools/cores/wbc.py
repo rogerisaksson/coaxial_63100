@@ -260,7 +260,9 @@ def typed(lib):
 @functools.lru_cache(maxsize=None)
 def library():
     """The core built once a process for its sources' bytes, its model the robot's build's (`model.built`)."""
-    return typed(ctypes.CDLL(cached(built(SOURCES), INCLUDES, 'wbc', FLAGS)[0]))
+    from machine.body import mechatronics
+    name = 'wbc' if mechatronics.ROBOT == mechatronics.STOCK else 'wbc_' + mechatronics.ROBOT
+    return typed(ctypes.CDLL(cached(built(SOURCES), INCLUDES, name, FLAGS)[0]))
 
 
 def _arr(a):

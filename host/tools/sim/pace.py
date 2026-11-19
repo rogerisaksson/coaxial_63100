@@ -60,9 +60,10 @@ class Run:
     `worker.Robot` steps it, each second's wall time kept with what it was doing."""
 
     def __init__(self, here=False, blind=False):
-        from machine.process import placed, sprung, worker
-        from machine.world import physics
+        from machine.process import placed
         placed.placed(True)
+        from machine.process import sprung, worker
+        from machine.world import physics
         # the robot's eyes its own, as its page's worker lays it (`worker.run`, since 0808daf1): its registry on its
         # stereo's map
         physics.ROOM, physics.CAMERA, physics.SIGHT = 1.0, float(not blind), float(not blind)

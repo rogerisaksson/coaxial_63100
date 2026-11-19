@@ -1,33 +1,124 @@
-"""What a leg reaches over its foot, read from static arrays (`reach_rows`): no side in the code.
+"""What a leg reaches over its foot, from static arrays or the build's figure: no side in the code.
 
     r = reach.over(limb, hip, ankle, turn)                  # the hip in its foot's frame, m
     straight, stop = reach.margins(r)                       # m inside its length, its stops
     (ankle, yaw), m = reach.land(limb, hip, heading, want)  # `want` drawn in to its reach
     bend = reach.knee(r)                                    # rad
     gap = reach.clear(one, other)                           # m between two feet on the floor
-    reach_rows.SOLE                                         # a sole's corners about its ankle
+    reach.SOLE                                              # a sole's corners about its ankle
 
 A limb is an index into LIMBS, its mirror there: whichever stands may land again. A foot's frame
 is across to its limb's own side, up, along its toes; a hip's place in it is its ankle's roll
 and pitch and its knee, whatever the pelvis's turn - the foot flat or pitched, the same rows
-(tools/cores/reach.py). The hip's yaw's stops are told from the pelvis's heading, the pelvis
+(`reach_rows` on `mechatronics.STOCK`, compiled from the robot's figure on another build,
+`tools/cores/reach.py`). The hip's yaw's stops are told from the pelvis's heading, the pelvis
 level. Not in it: the robot's legs above their soles clear of each other; a hip's roll and pitch, no
 stop theirs; a foot landing pitched - `land` lays it flat.
 """
 import math
 
-from machine.body import drives, figure
-from machine.body.reach_rows import BACK as _BACK, DU as _DU, FORE as _FORE, LIMBS, SHANK as _SHANK, THIGH as _THIGH, U0 as _U0
+from machine.body import drives, figure, mechatronics
+from machine.body.figure import BALL, HEEL, HIP_DROP, HIP_HALF, SHANK, THIGH, TOE_M
 
-THIGH, SHANK = figure.THIGH, figure.SHANK
-_S = (THIGH + SHANK) / (_THIGH + _SHANK)
-U0, DU = _U0 * _S, _DU * _S
-BACK, FORE = tuple(v * _S for v in _BACK), tuple(v * _S for v in _FORE)
-YAW = tuple(math.floor(abs(math.radians(v)) * 1e6) / 1e6 for v in drives.TRAVEL['hip_yaw'])
-ACROSS = tuple(math.floor(math.tan(abs(math.radians(v))) * 1e6) / 1e6 for v in drives.TRAVEL['ankle_roll'])
-_HALF = figure.CONTACTS[0][2][0]
-FOOT = ((-_HALF, -figure.HEEL), (_HALF, -figure.HEEL),
-        (_HALF, figure.BALL + figure.TOE_M), (-_HALF, figure.BALL + figure.TOE_M))
+#: The rows: the hip from U0 m up in its leg's plane, DU apart; a row scanned SCAN_M apart, its
+#: run's ends bisected.
+_U0_RAW, _DU_RAW, SCAN_M = (round(0.10 * figure.SCALE, 6), round(0.005 * figure.SCALE, 6),
+                            round(0.001 * figure.SCALE, 6))
+LENGTH = THIGH + SHANK
+
+
+def stops():
+    """{kind: (low, high) rad} of a leg's travel from its hip's yaw down (`drives.TRAVEL`): the hip's pitch
+    and roll turn the robot's pelvis over the leg, not the foot's frame."""
+    return {k: tuple(math.radians(v) for v in drives.TRAVEL[k])
+            for k in ('hip_yaw', 'knee', 'ankle', 'ankle_roll')}
+
+
+def bend(r):
+    """(knee, ankle, ankle_roll) rad of the robot's left leg, its hip at `r` in its foot's frame."""
+    return figure.leg(1.0, (r[0] - HIP_HALF, r[1] + HIP_DROP, r[2]), figure.IDENT, (0.0, 0.0, 0.0),
+                      figure.IDENT)[3:]
+
+
+def held(r, limits):
+    """Whether the robot's left leg, its hip at `r` in its foot's frame, is within its length and
+    `limits` (`stops`)."""
+    return math.hypot(*r) <= LENGTH + 1e-12 and all(
+        limits[k][0] <= q <= limits[k][1] for k, q in zip(('knee', 'ankle', 'ankle_roll'), bend(r)))
+
+
+def run(u, limits):
+    """(back, fore) m along the toes: the longest run the robot's hip stands in, `u` m up in its leg's
+    plane; an end the leg's length alone bounds, -+LENGTH."""
+    edge = math.sqrt(LENGTH * LENGTH - u * u)
+    n = int(edge / SCAN_M)
+    ok = [held((0.0, u, k * SCAN_M), limits) for k in range(-n, n + 1)]
+    best, k = (0, 0), 0
+    while k < len(ok):
+        j = k
+        while j < len(ok) and ok[j]:
+            j += 1
+        best, k = max(best, (j - k, k)), j + 1
+    count, first = best
+    if not count:
+        raise ValueError('nothing reached %g m up' % u)
+
+    def end(k, step):
+        inside, outside = k * SCAN_M, (k + step) * SCAN_M if abs(k + step) <= n else step * edge
+        if abs(k) == n and held((0.0, u, step * edge), limits):
+            return math.copysign(LENGTH, step)
+        for _ in range(10):
+            mid = 0.5 * (inside + outside)
+            inside, outside = (mid, outside) if held((0.0, u, mid), limits) else (inside, mid)
+        return inside
+
+    return end(first - n, -1), end(first + count - 1 - n, 1)
+
+
+def sole(toes):
+    """A sole's corners (across, along) m about its ankle, counter-clockwise: heel to ball, or
+    on to its toes' tips; alike either side of its length."""
+    _seg, _shape, (half, _hy, _hz), (x, _y, _z) = figure.CONTACTS[0]
+    _seg, _shape, (toe_half, _ty, _tz), (toe_x, _y, _z) = figure.CONTACTS[1]
+    if x or toe_x or (toes and toe_half != half):
+        raise ValueError('a sole not alike either side: its mirror is not in the rows')
+    front = BALL + (TOE_M if toes else 0.0)
+    return ((-half, -HEEL), (half, -HEEL), (half, front), (-half, front))
+
+
+def rows():
+    """What machine/body/reach_rows.py holds, {name: value}."""
+    limits = stops()
+    count = int(round((LENGTH - _U0_RAW) / _DU_RAW))
+    true = [run(_U0_RAW + _DU_RAW * k, limits) for k in range(count)]
+    edge = [math.sqrt(LENGTH * LENGTH - u * u) for u in (_U0_RAW + _DU_RAW * k for k in range(count))]
+    near = [range(max(0, k - 1), min(count, k + 2)) for k in range(count)]
+    back = [-LENGTH if all(true[j][0] <= -LENGTH for j in near[k]) else
+            math.ceil(max(max(true[j][0], -edge[j]) for j in near[k]) * 1e4) / 1e4
+            for k in range(count)]
+    fore = [LENGTH if all(true[j][1] >= LENGTH for j in near[k]) else
+            math.floor(min(min(true[j][1], edge[j]) for j in near[k]) * 1e4) / 1e4
+            for k in range(count)]
+    free = [b <= -LENGTH and f >= LENGTH for b, f in zip(back, fore)]
+    top = free.index(True)
+    if not all(free[top:]):
+        raise ValueError("a bound over the rows' top, %g m up" % (_U0_RAW + _DU_RAW * top))
+    yaw, roll = limits['hip_yaw'], limits['ankle_roll']
+    return {'LIMBS': (1.0, -1.0), 'THIGH': THIGH, 'SHANK': SHANK,
+            'YAW': tuple(math.floor(abs(v) * 1e6) / 1e6 for v in yaw),
+            'ACROSS': tuple(math.floor(math.tan(abs(v)) * 1e6) / 1e6 for v in roll),
+            'U0': _U0_RAW, 'DU': _DU_RAW, 'BACK': tuple(back[:top + 1]), 'FORE': tuple(fore[:top + 1]),
+            'SOLE': sole(False), 'FOOT': sole(True)}
+
+
+if mechatronics.ROBOT == mechatronics.STOCK:
+    from machine.body.reach_rows import ACROSS, BACK, DU, FOOT, FORE, LIMBS, SOLE, U0, YAW
+else:
+    _LAID = mechatronics.compiled('reach_' + mechatronics.ROBOT,
+                                  mechatronics.robot_sources() + (__file__,), rows)
+    LIMBS, YAW, ACROSS = _LAID['LIMBS'], _LAID['YAW'], _LAID['ACROSS']
+    U0, DU, BACK, FORE = _LAID['U0'], _LAID['DU'], _LAID['BACK'], _LAID['FORE']
+    SOLE, FOOT = _LAID['SOLE'], _LAID['FOOT']
 
 
 def _run(u):
@@ -118,10 +209,10 @@ def _to(p, a, b):
 
 def clear(one, other):
     """m between two feet flat on the floor, each (ankle, yaw), heel to toes' tips; negative,
-    how deep they overlap."""
+    overlapping by that."""
     a, b = _corners(one), _corners(other)
-    apart = max(_apart(a, b), _apart(b, a))
-    if apart <= 0.0:
-        return apart
-    return min(_to(p, q, r) for these, those in ((a, b), (b, a))
-               for p in these for q, r in zip(those, those[1:] + those[:1]))
+    gap = max(_apart(a, b), _apart(b, a))
+    if gap <= 0.0:
+        return gap
+    return min(min(_to(p, q0, q1) for p in a for q0, q1 in zip(b, b[1:] + b[:1])),
+               min(_to(p, q0, q1) for p in b for q0, q1 in zip(a, a[1:] + a[:1])))

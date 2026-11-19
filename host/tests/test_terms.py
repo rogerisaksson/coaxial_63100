@@ -14,11 +14,17 @@ ASKED_DEG = 10.0
 
 
 def test_the_rows_are_the_robots_figure(report):
-    """machine/body/term_rows.py is what tools/cores/terms.py lays from the robot's figure now."""
+    """machine/body/terms holds what tools/cores/terms.py lays from the robot's figure now, and
+    machine/body/term_rows.py holds the stock build's."""
+    from machine.body import mechatronics, terms
     from tools.cores import terms as laid
+    now = laid.rows()
     with open(laid.PATH, encoding='utf-8') as f:
         on_disk = f.read()
-    report.check('the rows on disk are the robot\'s figure laid anew', laid.render(laid.rows()) == on_disk,
+    disk_ok = laid.render(now) == on_disk if mechatronics.ROBOT == mechatronics.STOCK else bool(on_disk)
+    live_ok = ((terms.TERMS, terms.TOWARD, terms.ABSENT, terms.LIMBS)
+               == (now['TERMS'], now['TOWARD'], now['ABSENT'], now['LIMBS']))
+    report.check('the rows on disk are the robot\'s figure laid anew', disk_ok and live_ok,
                  'python tools/cores/terms.py --write')
 
 
@@ -36,27 +42,26 @@ def _posed(mujoco, model, data, segment, kind, vector, angles):
 
 def test_a_term_moves_the_robot_as_its_name_says(report):
     """Every term asked ASKED_DEG of each limb - or of the robot's trunk - in the compiled figure: its
-    segment's point or axis goes the way anatomy says (`tools.cores.terms.ANATOMY`), nine
+    segment's point or axis goes the way anatomy says (`machine.body.terms.ANATOMY`), nine
     tenths of its motion at the least; its opposite the other way; a term toward a side, toward
     the limb's whose mirror it took."""
-    from machine.body import mjcf, reach_rows, term_rows, terms
-    from tools.cores import terms as laid
+    from machine.body import mjcf, reach, terms
     mujoco = importlib.import_module('mujoco')
     model = mujoco.MjModel.from_xml_string(mjcf.mjcf())
     data = mujoco.MjData(model)
-    pair, least, asked = laid.limbs(), math.inf, 0
-    for part, stem, name, opposite, kind, vector, way in laid.ANATOMY:
+    pair, least, asked = terms.limbs(), math.inf, 0
+    for part, stem, name, opposite, kind, vector, way in terms.ANATOMY:
         if terms.find(part, name) is None or stem is None or way is None:
             continue
         of_limb = stem in pair[0]
-        for limb, mirror in enumerate(reach_rows.LIMBS):
+        for limb, mirror in enumerate(reach.LIMBS):
             segment = pair[limb][stem] if of_limb else stem
             toward = (way[0] * mirror, way[1], way[2])
             for term, sense in ((name, 1.0), (opposite, -1.0)):
                 if term is None:
                     continue
                 joint, sign, _low, _high = terms.TERMS[(part, term)]
-                sided = (part, term) in term_rows.TOWARD
+                sided = (part, term) in terms.TOWARD
                 deg = sign * ASKED_DEG * (mirror if sided else 1.0)
                 at = [_posed(mujoco, model, data, segment, kind, vector, angles)
                       for angles in ({}, {terms.joint(limb, joint): deg})]
@@ -89,15 +94,15 @@ def test_what_the_robot_has_not_is_absent(report):
     """A movement anatomy names and no driven joint of the robot's own makes is not found: its shoulder's
     abduction, its forearm's pronation, its wrist's flexion - held -, its toes' - sprung; no
     term is on a joint without a drive."""
-    from machine.body import drives, term_rows, terms
-    found = [t for t in term_rows.ABSENT if terms.find(*t) is not None]
-    named = all(t in term_rows.ABSENT for t in (('shoulder', 'abduction'), ('forearm', 'pronation'),
-                                                 ('wrist', 'flexion'), ('toes', 'extension')))
+    from machine.body import drives, terms
+    found = [t for t in terms.ABSENT if terms.find(*t) is not None]
+    named = all(t in terms.ABSENT for t in (('shoulder', 'abduction'), ('forearm', 'pronation'),
+                                            ('wrist', 'flexion'), ('toes', 'extension')))
     undriven = [(part, name) for (part, name), (joint, *_rest) in terms.TERMS.items()
                 if any(drives.passive(terms.joint(limb, joint)) for limb in range(2))]
     report.check('what the robot has not is absent', named and not found and not undriven,
                  '%d absent, %d of them found, %d terms on a joint with no drive'
-                 % (len(term_rows.ABSENT), len(found), len(undriven)))
+                 % (len(terms.ABSENT), len(found), len(undriven)))
 
 
 def test_the_legs_ik_bends_the_terms_way(report):

@@ -133,7 +133,9 @@ def windowing(w, ys, taus, dt):
     n, n_d, p = Y.shape
     rows_ = Y.reshape(-1, p)
     pred = rows_ @ w['nominal']
-    sliding = rows_[:, lay['drive']:] @ w['nominal'][lay['drive']:]
+    fric = w['nominal'][lay['drive']:].copy()
+    fric[0::3] = 0.0
+    sliding = rows_[:, lay['drive']:] @ fric
     movers, drive = w['D'].shape[1], np.tile(np.arange(n_d), n)
     A = np.zeros((n * n_d, movers + n_d))
     A[:, :movers] = rows_ @ w['D']

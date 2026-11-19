@@ -39,13 +39,17 @@ def rotor(kind):
     if own > 0.0:
         return own
     box = drives._box(joint)
-    return (1.0 + float(box['input_j_share'])) * drives.size(kind).rotor * float(box['ratio']) ** 2
+    return (drives.motors(joint) * (1.0 + float(box['input_j_share']))
+            * drives.size(kind).rotor * drives.ratio(joint) ** 2)
 
 
 def felt(kind):
     """The armature a kind's loop feels, kg m^2: what the rotor's feedforward leaves of its rotor's."""
-    box = drives._box(_joint(kind))
-    return (ROTOR_FF + float(box['input_j_share'])) * drives.size(kind).rotor * float(box['ratio']) ** 2
+    joint = _joint(kind)
+    box = drives._box(joint)
+    sh = float(box['input_j_share'])
+    base = (ROTOR_FF + sh) * drives.size(kind).rotor * float(box['ratio']) ** 2
+    return min(base, (ROTOR_FF + sh) / (1.0 + sh) * drives.armature(joint)) if drives.series(joint) > 0.0 else base
 
 
 def table(st):

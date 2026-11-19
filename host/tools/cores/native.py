@@ -115,7 +115,10 @@ def _libraries():
                     os.remove(stale)
                 except OSError:
                     pass                 # a live process holds it
-            board = cached(built(SOURCES), INCLUDES, 'native_board', EXTRA + tuple(FAST))[0]
+            from machine.body import mechatronics
+            b_name = ('native_board' if mechatronics.ROBOT == mechatronics.STOCK
+                      else 'native_board_' + mechatronics.ROBOT)
+            board = cached(built(SOURCES), INCLUDES, b_name, EXTRA + tuple(FAST))[0]
             world = cached(worlds.SOURCES, worlds.INCLUDES, 'native_world', FAST)[0]
             _BUILT['board'], _BUILT['world'] = board, world
         return _BUILT['board'], _BUILT['world']

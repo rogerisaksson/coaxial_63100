@@ -58,7 +58,8 @@ def library():
             cc = find_cc()
             if cc is None:
                 raise RuntimeError('no C compiler for the fake board')
-            path, _warnings = build(cc, built(SOURCES), INCLUDES, 'fakeboard')
+            name = 'fakeboard' if mechatronics.ROBOT == mechatronics.STOCK else 'fakeboard_' + mechatronics.ROBOT
+            path, _warnings = build(cc, built(SOURCES), INCLUDES, name)
             os.environ[BUILT] = path
         lib = ctypes.CDLL(path)
         lib.fake_exchange.restype = ctypes.c_uint16

@@ -55,7 +55,7 @@ def _mujoco(b, q, v):
 
 def test_the_arrays_are_the_figures(report, c, b, rows):
     """The header and the source hold what the figure compiles to today."""
-    for path, text in zip((model.HEADER, model.SOURCE), model.render(rows, b)):
+    for path, text in zip((model.HEADER, model.compiled()), model.render(rows, b)):
         with open(path, encoding='utf-8', newline='') as f:
             same = f.read() == text
         report.check('%s is the figure\'s' % os.path.relpath(path, model.REPO).replace(os.sep, '/'),
@@ -193,16 +193,14 @@ def _standing(b):
 
 
 def test_the_ortho_row_is_the_wires(report, c, b, rows):
-    """`ortho_row_t` (wbc/inc/wbc_ortho.h) is `machine.texts.ortho.ROW` and `machine.law.latent.WIRE` on
-    the wire: 252 bytes, and every compiled row of the text unpacks identically in C."""
+    """`ortho_row_t` (wbc/inc/wbc_ortho.h) matches `ortho.ROW` and `latent.WIRE` on the wire (252 B)."""
     import numpy as np
     from machine.law import latent
     from machine.texts import ortho
     sz = c.ortho_row_size()
     report.check('sizeof(ortho_row_t) is ortho.ROW.size (%d bytes)' % ortho.ROW.size,
                  sz == ortho.ROW.size == ctypes.sizeof(core.OrthoRow) == latent.WIRE.itemsize,
-                 'C %d, ROW %d, ctypes %d, WIRE %d' % (sz, ortho.ROW.size,
-                                                       ctypes.sizeof(core.OrthoRow), latent.WIRE.itemsize))
+                 'C %d, ROW %d, ctypes %d, WIRE %d' % (sz, ortho.ROW.size, ctypes.sizeof(core.OrthoRow), latent.WIRE.itemsize))
     with open(ortho._FILE, encoding='utf-8') as f:
         tables, _ = ortho.compiled(f.read())
     checked, mismatch = 0, ''
@@ -427,9 +425,11 @@ def main(argv=None):
         print('  SKIP  no host C compiler; setup.ps1 installs one')
         print('\n0 passed, 0 failed')
         return 0
+    from machine.body import mechatronics
     from machine.stack import wbc
     report = Report()
-    lib_path, warnings = build(cc, core.SOURCES, core.INCLUDES, 'wbccore', core.FLAGS)
+    name = 'wbccore' if mechatronics.ROBOT == mechatronics.STOCK else 'wbccore_' + mechatronics.ROBOT
+    lib_path, warnings = build(cc, model.built(core.SOURCES), core.INCLUDES, name, core.FLAGS)
     report.check('wbc/ builds warning-free with the firmware flags', not warnings,
                  '; '.join(warnings[:3]))
     c, b = core.Core(core.typed(ctypes.CDLL(lib_path))), wbc.Body()

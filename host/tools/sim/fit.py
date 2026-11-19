@@ -107,9 +107,10 @@ def outputs():
                 wrong.append("its gearbox's end away from the segment it turns")
         if letter != want:
             wrong.append('along %s, its %s about %s' % (letter, what, want))
-        if place is not None and letter == 'x' and (place - at[0]) * end < half:
-            wrong.append("its %s at x %+.3f, its gearbox's end at %+.3f" % (
-                what, place, at[0] + end * half))
+        gear = next((c - long / 2.0 for part, _r, c, long in drives.along(joint) if part == 'gear'), half)
+        if place is not None and letter == 'x' and (place - at[0]) * end < gear:
+            wrong.append("its %s at x %+.3f, behind its gearbox at %+.3f" % (
+                what, place, at[0] + end * gear))
         out.append((joint, what, wrong))
     return out
 

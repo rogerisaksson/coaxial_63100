@@ -162,9 +162,10 @@ def test_the_robots_skeleton_collides(report):
     met = {tuple(sorted((model.body(model.geom_bodyid[d.contact[i].geom1]).name,
                          model.body(model.geom_bodyid[d.contact[i].geom2]).name)))
            for i in range(d.ncon)}
+    drums = (('left_ankle_drum', 'left_ankle_roll_drum') if len(skeleton.HUNG['thigh'][0]) > 1
+             else ('left_ankle_roll_drum',))
     report.check("folded past its stop, the ankle's drives meet the femur, the skins not each other",
-                 ('left_ankle_drum', 'left_thigh_bone') in met
-                 and ('left_ankle_roll_drum', 'left_thigh_bone') in met
+                 all((d_name, 'left_thigh_bone') in met for d_name in drums)
                  and ('left_shank', 'left_thigh') not in met, '%s' % sorted(met)[:4])
 
 

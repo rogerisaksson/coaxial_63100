@@ -100,7 +100,8 @@ def _servos(st):
     zeta_opt, j_drv = sqrt(0.5), looped.rotor
 
     def sv(k, pk, kp_kd):
-        return (round(pk, 1), kp_kd[0], kp_kd[1], round(looped.felt(k), 2))
+        jf = looped.felt(k)
+        return (round(pk, 1), kp_kd[0], kp_kd[1], round(jf, 2) or round(jf, 4))
 
     # Every kind's stiffness and damping are its loop's, solved (`looped`): no formula a joint.
     gains = looped.gains(st)
@@ -136,7 +137,8 @@ def _servos(st):
         'hip': sv('hip', leg_wep, gains['hip']),
         'knee': sv('knee', leg_wep, gains['knee']),
         'ankle': sv('ankle', drives.peak('left_ankle') * zeta_opt, gains['ankle']),
-        'ankle_roll': sv('ankle_roll', 0.5 * drives.peak('left_ankle'), gains['ankle_roll']),
+        'ankle_roll': sv('ankle_roll', min(drives.peak('left_ankle_roll'), 0.5 * drives.peak('left_ankle')),
+                         gains['ankle_roll']),
         'foot': sv('foot', drives.TOE_K * atan2(figure.BALL, figure.ANKLE_H), (4.0 * drives.TOE_K, 0.1 * drives.TOE_K)),
     }
 

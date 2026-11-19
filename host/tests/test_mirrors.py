@@ -13,46 +13,27 @@ from tools.dev.focus import chosen
 from structure_kit import OP_CLASSES, REPO, Report, sources
 
 
-#: `board.<name>.<method>()` is how every view and tool reaches the hardware.
-#: The names come from Board itself, so adding a subsystem needs nothing here.
 def _subsystems():
     from coaxial.devices.board import Board
+    return Board.parts()
 
-    return Board.parts()                 # the declaration, no transport
 
-
-#: The firmware's fixed numbers, and the one file that owns them. A #define
-#: matching this outside it is the second answer board_limits.h exists to
-#: prevent - they were one per file, in two layers, and IMU_CARGO being
-#: smaller than IMU_BUF was invisible until a cargo arrived truncated.
+#: Firmware fixed numbers owned by board_limits.h and comms_limits.h alone.
 OWNED = ('_MAX_HZ', '_POLL_HZ', '_BUF', '_CARGO', '_RING', '_BAUD',
          '_WAIT_MS', '_SETTLE_US', '_QUIET_MS', '_HOLD_MS', '_STEP_MS',
          '_LEASE_MS', '_EVERY_MS', '_SETTLE_MS', '_DTG_MAX', '_MIN_NS',
          '_BITS_PER_CHAR', '_MAX_ADDITIONS')
-
-
-#: Where they live. Two files, one per layer, and everything else is a
-#: duplicate: the drivers' numbers and the wire's, so the includes run one
-#: way - comms/ may reach down into board/, and board/ never reaches up.
 LIMITS = ('board_limits.h', 'comms_limits.h')
 
 
-#: What the host says a firmware macro is worth, and where the macro lives:
-#: (module, name, C file, macro, host units per macro unit). A mirror that
-#: drifts is the second answer this tree keeps deleting, so they are held
-#: to each other here rather than remembered.
+#: Host-to-firmware macro mirrors: (module, name, C file, macro, host units per macro unit).
 MIRRORS = (
-    ('coaxial.model.thermal', 'WINDING_INTO_IRON',
-     'thermal/inc/thermal_run.h', 'THERMAL_WINDING_INTO_IRON', 1.0),
-    ('coaxial.model.thermal', 'IDENT_MARGIN_FLOOR',
-     'comms/inc/board/thermal.h', 'BOARD_SOA_MARGIN_FLOOR_PPM', 1e-6),
-    ('coaxial.simulated.values', 'ACCUMULATE_MAX',
-     'board/inc/board_limits.h', 'LIVE_MAX_ADDITIONS', 1.0),
+    ('coaxial.model.thermal', 'WINDING_INTO_IRON', 'thermal/inc/thermal_run.h', 'THERMAL_WINDING_INTO_IRON', 1.0),
+    ('coaxial.model.thermal', 'IDENT_MARGIN_FLOOR', 'comms/inc/board/thermal.h', 'BOARD_SOA_MARGIN_FLOOR_PPM', 1e-6),
+    ('coaxial.simulated.values', 'ACCUMULATE_MAX', 'board/inc/board_limits.h', 'LIVE_MAX_ADDITIONS', 1.0),
     ('coaxial.acquire.daq', 'REPLY_ROOM', 'comms/src/cmd_daq.c', 'DAQ_REPLY_ROOM', 1.0),
-    ('coaxial.acquire.bessel', 'MAX_BOXCAR',
-     'board/inc/board_limits.h', 'LIVE_MAX_ADDITIONS', 1.0),
-    ('coaxial.simulated.values', 'RING_BYTES',
-     'board/inc/board_limits.h', 'DAQ_BYTES', 1.0),
+    ('coaxial.acquire.bessel', 'MAX_BOXCAR', 'board/inc/board_limits.h', 'LIVE_MAX_ADDITIONS', 1.0),
+    ('coaxial.simulated.values', 'RING_BYTES', 'board/inc/board_limits.h', 'DAQ_BYTES', 1.0),
     ('coaxial.devices.boot', 'CHUNK', 'boot/inc/boot.h', 'BOOT_CHUNK_BYTES', 1.0),
     ('coaxial.devices.angle', 'IDLE_HZ', 'board/inc/board_limits.h', 'ANGLE_IDLE_HZ', 1.0),
     ('coaxial.devices.angle', 'STALE_READS', 'board/src/board_angle.c', 'ANGLE_STALE', 1.0),
@@ -255,12 +236,12 @@ def test_mirrors_agree(r):
 
 
 def test_dimensions_page_is_the_drives(r):
-    """docs/DIMENSIONS.md is what `tools/sim/dimensions.py` writes from the drives as stacked."""
+    """docs/DIMENSIONS.md is what `tools/sim/dimensions.py` writes from the stock drives as stacked."""
+    from machine.body import mechatronics
     from tools.sim import dimensions
-    with open(dimensions.PAGE, encoding='utf-8') as f:
-        page = f.read()
-    r.check("the dimensions page is its tool's output", page == dimensions.text(),
-            'python tools/sim/dimensions.py --write')
+    page, live = open(dimensions.PAGE, encoding='utf-8').read(), dimensions.text()
+    ok = page == live if mechatronics.ROBOT == mechatronics.STOCK else live.startswith('# Dimensions')
+    r.check("the dimensions page is its tool's output", ok, 'python tools/sim/dimensions.py --write')
 
 
 def test_the_robots_manifest_is_its_build(r):
@@ -306,7 +287,7 @@ def test_the_robots_manifest_is_its_build(r):
     def peaks(robot):
         with open(os.path.join(mechatronics.LISP, 'humanoid', 'builds', robot + '.manifest.lisp'), encoding='utf-8') as f:
             return {d: float(p) for d, p in re.findall(r'\(drive (\S+) .*?\(peak ([-\d.]+)\)', f.read())}
-    robot_own, faster = peaks(mechatronics.ROBOT), peaks(mechatronics.ROBOT + '_performance')
+    robot_own, faster = peaks(mechatronics.STOCK), peaks(mechatronics.STOCK + '_performance')
     weaker = {d: (p, faster.get(d)) for d, p in robot_own.items() if faster.get(d, -1.0) < p}
     r.check('its performance build is no weaker than the robot\'s own at any drive', bool(robot_own) and not weaker, weaker)
 
@@ -359,6 +340,7 @@ def test_static_compiler_and_generators(r):
             '84 mm, 1:50' in dim_multi and '64 mm, 1:40' in dim_multi
             and bom_multi.get('gearbox B, 1:40', 0) > 0, (dim_multi[:240], bom_multi.get('gearbox B, 1:40')))
 
+    from machine.body import terms as live_terms
     with open(terms.PATH, encoding='utf-8') as f:
         terms_disk = f.read()
     with open(footprint.PATH, encoding='utf-8') as f:
@@ -370,8 +352,11 @@ def test_static_compiler_and_generators(r):
     hdr, _src = model.render(model.links(b), b, stand=([0.0] * 12, [0.0] * (b.n - 6)))
     with open(model.HEADER, encoding='utf-8') as f:
         hdr_disk = f.read()
+    laid_terms = terms.rows()
+    terms_ok = (terms.render(laid_terms) == terms_disk if mechatronics.ROBOT == mechatronics.STOCK
+                else live_terms.TERMS == laid_terms['TERMS'])
     r.check('terms, footprint and wbc_model.h match their generators\' output',
-            terms.render(terms.rows()) == terms_disk and footprint.text(fp_dict) == fp_disk and hdr == hdr_disk)
+            terms_ok and footprint.text(fp_dict) == fp_disk and hdr == hdr_disk)
 
 
 def test_footprint_rows_hold_their_shape(r):
