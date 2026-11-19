@@ -35,12 +35,12 @@ X, Y, Z, IN = (1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0), (-1.0, 0.0, 0.0
 #: A rod's three prints lie in the rod's own frame: back from its line, up it, out across it.
 PIECES = (
     ('yaw band', 'pelvis', ('yaw band',), Y, 1), ('yaw guard', 'pelvis', ('yaw guard',), None, 1),
-    ('yaw lid', 'pelvis', ('yaw lid',), None, 1), ('crown', 'yaw', ('crown',), Y, 1),
-    ('cheeks', 'yaw', ('cheeks',), Y, 1), ('block', 'yaw', ('block',), Z, 1),
+    ('yaw lid', 'pelvis', ('yaw lid',), None, 1), ('yoke', 'yaw', ('yoke',), Y, 1),
+    ('block', 'yaw', ('block',), (0.0, 0.0, -1.0), 1),
     ('roll guard', 'yaw', ('roll guard',), None, 1), ('roll lid', 'yaw', ('roll lid',), None, 1),
     ('cradle', 'roll', ('cradle band', 'saddle'), X, 1), ('pitch guard', 'roll', ('pitch guard',), None, 1),
-    ('pitch lid', 'roll', ('pitch lid',), None, 1), ('thigh neck', 'thigh', ('thigh band', 'neck'), X, 1),
-    ('thigh head', 'thigh', ('thigh tube',), None, 1), ('thigh foot', 'still', ('thigh tube',), None, 1),
+    ('pitch lid', 'roll', ('pitch lid',), None, 1), ('thigh arm', 'thigh', ('neck',), IN, 1),
+    ('thigh knuckle', 'thigh', ('knuckle',), None, 1), ('thigh foot', 'still', ('thigh tube',), None, 1),
     ('thigh shim', 'still', ('thigh seat',), None, 1), ('stator clamp', 'still', ('stator band', 'saddle'), X, 1),
     ('knee guard', 'still', ('board cover',), None, 1), ('knee lid', 'still', ('board lid',), None, 1),
     ('multi-clamp', 'turning', ('output band', 'web', 'pitch band', 'cage', 'shank seat'), IN, 1),
@@ -56,7 +56,7 @@ PIECES = (
 #: The pieces told by other inks than PRINTED: the seats' own, and the clamps' without their seats.
 INKS = {'thigh shim': (em.PLATE,), 'shank shim': (em.PLATE,), 'fork shim': (em.PLATE,)}
 #: The tubes' feet and heads, each grown up its tube: (the sketch, the part its tube is drawn in).
-ON_TUBE = {'thigh head': ('thigh', 'thigh tube'), 'thigh foot': ('thigh', 'thigh tube'),
+ON_TUBE = {'thigh knuckle': ('thigh', 'thigh tube'), 'thigh foot': ('thigh', 'thigh tube'),
            'shank head': ('shank', 'shank tube'), 'shank foot': ('shank', 'shank tube')}
 
 

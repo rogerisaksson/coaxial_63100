@@ -113,6 +113,48 @@ def tube(bend_nmm, twist_nmm=0.0, pull_n=0.0, least=0.0):
     return found
 
 
+def section(outline):
+    """(Area mm2, its middle, (second moments about the middle along the first axis, along the second, their
+    product) mm4, the widest circle it holds, mm) of a solid section: its outline [(u, v)] mm, in order round."""
+    import numpy as np
+    p = np.asarray(outline, float)
+    q = np.roll(p, -1, axis=0)
+    a = p[:, 0] * q[:, 1] - q[:, 0] * p[:, 1]
+    turn = 1.0 if a.sum() > 0 else -1.0
+    area = 0.5 * turn * a.sum()
+    mid = turn * ((p + q) * a[:, None]).sum(axis=0) / (6.0 * area)
+    uu = turn * ((p[:, 0] ** 2 + p[:, 0] * q[:, 0] + q[:, 0] ** 2) * a).sum() / 12.0 - area * mid[0] ** 2
+    vv = turn * ((p[:, 1] ** 2 + p[:, 1] * q[:, 1] + q[:, 1] ** 2) * a).sum() / 12.0 - area * mid[1] ** 2
+    uv = turn * ((p[:, 0] * q[:, 1] + 2.0 * p[:, 0] * p[:, 1] + 2.0 * q[:, 0] * q[:, 1] + q[:, 0] * p[:, 1]) * a
+                 ).sum() / 24.0 - area * mid[0] * mid[1]
+    lo, hi = p.min(axis=0), p.max(axis=0)
+    grid = np.stack(np.meshgrid(np.arange(lo[0], hi[0], 0.5), np.arange(lo[1], hi[1], 0.5)), axis=-1).reshape(-1, 2)
+    edge = q - p
+    t = np.clip(((grid[:, None, :] - p[None]) * edge[None]).sum(axis=2) / (edge ** 2).sum(axis=1), 0.0, 1.0)
+    away = np.linalg.norm(grid[:, None, :] - (p[None] + t[..., None] * edge[None]), axis=2).min(axis=1)
+    rise = np.where(edge[:, 1] == 0.0, 1.0, edge[:, 1])
+    cut = p[None, :, 0] + edge[None, :, 0] * (grid[:, None, 1] - p[None, :, 1]) / rise[None]
+    over = ((p[None, :, 1] > grid[:, None, 1]) != (q[None, :, 1] > grid[:, None, 1])) & (grid[:, None, 0] < cut)
+    return float(area), (float(mid[0]), float(mid[1])), (float(uu), float(vv), float(uv)), 2.0 * float(
+        away[over.sum(axis=1) % 2 == 1].max())
+
+
+def borne(outline, bend, twist=0.0, pull=0.0):
+    """The highest principal stress, MPa, in a solid section - its outline [(u, v)] mm - bent by `bend` (the moment
+    whose stress grows along u, the one along v) N mm, each either way, twisted by `twist` N mm and pulled by `pull`
+    N at once: the bending at its corners; the twist's shear where its widest circle D touches its side, as for
+    any solid section without a re-entrant corner - T C / K, K = A^4 / (40 Ip), C = D (1 + 0.15 q) / (1 + q),
+    q = pi^2 D^4 / (16 A^2) (a rectangle's own within 3 %) -; the two taken at one point."""
+    area, mid, (uu, vv, uv), wide = section(outline)
+    det = uu * vv - uv * uv
+    normal = max(abs(((su * bend[0] * vv - sv * bend[1] * uv) * (u - mid[0])
+                      + (sv * bend[1] * uu - su * bend[0] * uv) * (v - mid[1])) / det)
+                 for u, v in outline for su in (1.0, -1.0) for sv in (1.0, -1.0)) + abs(pull) / area
+    q = math.pi ** 2 * wide ** 4 / (16.0 * area ** 2)
+    shear = twist * wide * (1.0 + 0.15 * q) / (1.0 + q) * 40.0 * (uu + vv) / area ** 4
+    return normal / 2.0 + math.hypot(normal / 2.0, shear)
+
+
 def yoke(span_mm, width_mm, joint='knee'):
     """The least thickness of a plate `width_mm` wide across a `span_mm` between two arms, the joint's axial load at
     its middle, mm."""

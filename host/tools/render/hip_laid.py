@@ -12,13 +12,15 @@ is screwed onto: the sector at its top, a hollow pin (KINGPIN) welded in its mid
 bearings (NEEDLE) in the yaw's block under the roll drive - the cradle hung from behind alone, since a bearing ahead
 of the hip stands in the thigh's way however its strut is led (the thigh folds to 142 degrees and turns out while
 folded) - and the block clamps the roll drive's motor. The block's two cheeks reach forward past the pinion to a
-crown screwed under the yaw drive's hub. The thigh hangs from the pitch drive's output ring: a slit band round it,
-a plate over its hub's face screwed to the hub, an arm down the hip's outer side and a jog in under the cradle to
-the thigh's tube's spigot - a neck, as a thigh bone's, round what the roll turns.
+crown screwed under the yaw drive's hub, the block screwed on their back ends. The thigh hangs from the pitch
+drive's hub: a head on its face under the hub's own screws - they carry the swing too, in steel sleeves through the
+head: no band grips the output ring -, an arm down the hip's outer side and a knuckle screwed on its foot - the jog
+in under the cradle to the thigh's tube's spigot: a neck, as a thigh bone's, round what the roll turns.
 
 `loads` are the hip's as the scenarios stood through loaded it (MEASURED), at the structural margin, no moment under
-its drive's own peak. `checks` holds each member to them by hand: the arm, the jog, the cheeks, the hub's and the
-plate's screws, the needle bearings, the pin, the teeth.
+its drive's own peak. `checks` holds each member to them by hand: the arm, its foot, the knuckle, the cheeks, the
+hub's and the plate's screws, the two joints' screws and sleeves, the needle bearings, the pin, the teeth - the
+hub's moments taken down the neck as they stand at the hub, as the arm's check takes them.
 """
 import math
 import os
@@ -66,12 +68,39 @@ SADDLE_M, SADDLE_Y, STEM_M = 0.003, 0.044, 0.012
 #: The crown under the yaw's hub: thickness, the hub's flange's radius, m; the cheeks on it either side of the yaw's
 #: ring: from x, to x, up to y; how far ahead of the yaw's axis the crown reaches, round its hub's screws' heads.
 CROWN_M, HUB_R, CHEEK, CROWN_Z = 0.014, 0.028, (0.036, 0.066, 0.104), 0.0245
-#: The thigh's neck: the plate over the pitch's hub's face (thickness, radius); the arm's inner face off the
-#: gearbox's end (inboard of it: past the band), its thickness, where it widens from its hub's round (the reach
-#: from the hip's axis) and its z behind and ahead of that axis; the jog's reach (from, to), its z and how
-#: much of its back top corner is cut off; m.
-HUB_PLATE, ARM_X, ARM_M, ARM_FROM, ARM_Z = (0.014, 0.036), -0.004, 0.030, 0.058, (-0.058, 0.006)
+#: The thigh's neck: the arm's inner face off the gearbox's end (inboard of it, beside the output ring's skirt), its
+#: thickness - its head on the hub's face as thick but for that -, its head's radius - the yaw's crown passes
+#: 2.9 mm over it at the arm's outer face, 1.9 over one a millimetre more -, where it widens from its head (the
+#: reach from the hip's axis), its back there - the roll's plate, swung back, passes 50 mm behind the axis 40..48 mm
+#: down - and its z behind and ahead of that axis below; the jog's reach (from, to), its z and how much of its
+#: back top corner is cut off; m.
+ARM_X, ARM_M, HEAD_R, ARM_FROM, ARM_NECK, ARM_Z = -0.004, 0.030, 0.036, 0.058, -0.047, (-0.058, 0.006)
 JOG, JOG_Z, JOG_CUT = (0.106, 0.156), (-0.034, 0.0), 0.014
+#: Where the knuckle may be more than the jog, by what sweeps past the thigh through every pose asked (each other
+#: link's points in the thigh's frame, 2.5 deg of pitch a step, cells of 2 mm): ahead of it the pelvis's yaw band
+#: comes no nearer than 16 mm at 128..136 mm down the thigh, 18 at 140, 22 at 148, 28 at 156 - a chin of 45 degrees
+#: under the tube's front half, straight down its last NOSE_M so its tip stays whole under the collar, clears it by
+#: 3.7 mm, the arm's foot's own stopped CHIN_M ahead by 6 -; behind it the yaw's block passes 40 mm back at 124 mm
+#: down, 44 at 128..132, nothing below 136: the back swells from (reach, by) at 45 degrees on to the arm's foot's
+#: cut. The jog alone bore 53 MPa of 50, its twist counted.
+CHIN_M, NOSE_M, JOG_SWELL = 0.020, 0.002, (0.128, 0.010)
+#: The pad on the arm's foot's inner face the knuckle is screwed on - the foot alone, 58 mm wide beside the jog,
+#: bore 54 MPa of 50 - and how far under the jog's top the bus goes into the knuckle's inner end, between its
+#: screws' two rows; m.
+PAD_M, ENTRY_M = 0.012, 0.025
+#: The yoke's fins: up to y and from the cheeks' back ends ahead to z - 5.6 mm off the pelvis's yaw band at their
+#: inner front corners -; how long the block's ears lie on them, along the roll's axis; m.
+FIN, EAR_M = (0.125, -0.045), 0.020
+#: Two prints' joint: its screws (`knee_loads.SCREWS`); a steel sleeve round each - its radius and the length
+#: either side of the joint's face its bearing is counted over -; the steel strap under their heads, its width - an
+#: ear's back beside the band is no wider -; a cross dowel for a nut - its radius, its length in the print; m. The
+#: sleeves round the hub's screws through the thigh's head: radius, m.
+JOINT, SLEEVE, STRAP_M, BARREL, HUB_SLEEVE = 'M6', (0.006, 0.012), 0.013, (0.006, 0.025), 0.004
+#: The block's screws either side of the roll drive: (x off the yaw's axis, y) m. The knuckle's: (reach down the
+#: thigh, w ahead of its axis) m, the upper row and the lower - the bus's bore between them, the lower front one in
+#: the chin.
+BLOCK_AT = ((0.0585, 0.076), (0.0585, 0.117))
+KNUCKLE_AT = ((0.118, -0.009), (0.118, -0.021), (0.149, -0.027), (0.149, 0.005))
 #: The arm's back cut away at its foot, where the ankle's pre-curved leaf lies with the knee folded to its travel's
 #: end: how far ahead of the arm's back the cut stands at the foot and how far up the arm it runs out, m. Measured
 #: with the arm uncut, the knee at 155 deg (`leg_clamped.folded`): the leaf's front 12.3 mm ahead of the arm's back
@@ -113,17 +142,29 @@ def stacks():
 
 
 def walls():
-    """{'cradle', 'thigh', 'roll': a slit band's wall, m}: round the pitch drive's motor and its output ring, each
-    gripping the pitch's moment; round the roll drive's motor, gripping its own torque."""
+    """{'cradle', 'roll': a slit band's wall, m}: round the pitch drive's motor, gripping the pitch's moment; round
+    the roll drive's motor, gripping its own torque."""
     from machine.body import drives
     pitch, _yaw, roll = (_cans('left_' + j) for j in ('hip', 'hip_yaw', 'hip_roll'))
-    swing = loads()['moment'][0]
-    (m0, m1, can), (g0, g1, ring) = pitch['motor'], pitch['gear']
-    split = g0 + em.OUTPUT_SHARE * (g1 - g0)
+    m0, m1, can = pitch['motor']
     own = ks.torque('hip_roll') * drives.ratio('hip') / drives.ratio('hip_roll')   # its gearbox's, before the gears
-    return {'cradle': 1e-3 * ks.band(swing, 1e3 * can, 1e3 * (m1 - m0 - 0.004)),
-            'thigh': 1e-3 * ks.band(swing, 1e3 * ring, 1e3 * (g1 - split - 0.0025)),
+    return {'cradle': 1e-3 * ks.band(loads()['moment'][0], 1e3 * can, 1e3 * (m1 - m0 - 0.004)),
             'roll': 1e-3 * ks.band(own, 1e3 * roll['motor'][2], 1e3 * (roll['motor'][1] - roll['motor'][0] - 0.004))}
+
+
+def chin(whole, cap):
+    """[(reach, w)] up a chin from the neck's foot's bottom: 45 degrees off the jog's front, `whole` above the
+    bottom, out to `cap` ahead - and straight down from there where `cap` is short of the whole."""
+    low, fore = JOG[1], JOG_Z[1]
+    return ([(low, cap)] if cap < fore + whole else []) + [(low - whole + cap - fore, cap), (low - whole, fore)]
+
+
+def jog(whole, cap):
+    """The knuckle's outline, (reach down the thigh, w ahead of its axis) m: the jog, its back top corner cut off,
+    its chin (`chin`), its back's swell on to the arm's foot's cut."""
+    (top, low), (aft, fore), cut, (at, deep) = JOG, JOG_Z, JOG_CUT, JOG_SWELL
+    return ([(top, aft + cut), (top, fore)] + chin(whole, cap)[::-1]
+            + [(low, ARM_Z[0] + ARM_CUT[0]), (at + deep, aft - deep), (at, aft), (top + cut, aft)])
 
 
 def plate():
@@ -149,8 +190,10 @@ def needles():
 
 
 def checks():
-    """{member: (its stress or load, what it may bear)} at the hip's loads, MPa or N: the arm and the jog bent and
-    twisted at once, the cheeks bent, the hub's screws' tension against their preload, the plate's, each needle
+    """{member: (its stress or load, what it may bear)} at the hip's loads, MPa or N: the arm, its foot on its pad
+    and the knuckle bent, twisted and pulled at once (`sized.borne`), the cheeks bent, the hub's screws' tension
+    against their preload and the swing on their sleeves in the head, the plate's screws, each joint's screws' pull
+    against their preload - or what their cross dowels bear in the print - and their sleeves' bearing, each needle
     bearing's load against its static rating, the pin bent, the pinion's tooth's root."""
     from machine.body import structural
     ld, allow = loads(), structural.PAHT_CF[2]
@@ -162,23 +205,25 @@ def checks():
     shear = my * (3.0 * wide + 1.8 * thick) / (wide * wide * thick * thick)
     out['arm'] = (bent / 2.0 + math.hypot(bent / 2.0, shear), allow)
     reach = 1e3 * (pitch['gear'][1] + ARM_X + 0.5 * ARM_M) + 9.0                # the arm's middle to the tube's line
-    deep, across = 1e3 * (JOG[1] - JOG[0]), 1e3 * (JOG_Z[1] - JOG_Z[0])
-    out['jog'] = (6.0 * (mz + fy * reach) / (across * deep ** 2) + 6.0 * my / (deep * across ** 2), allow)
-    # The arm's foot where its back is cut away deepest (ARM_CUT), beside the jog: the two one section across the
-    # tube's line - each (across x, deep z, its middle off that line) -, bent about both and twisted at once.
-    past, near = kl.tube()[0] + 1e3 * em.COLLAR_M, reach - 0.5 * thick          # the jog: past the tube's line, to the arm
-    slab = ((thick, 1e3 * (JOG_Z[1] - ARM_Z[0] - ARM_CUT[0]), reach), (near + past, across, 0.5 * (near - past)))
-    area = sum(b * h for b, h, _x in slab)
-    x_mid, z_mid = (sum(b * h * q for b, h, q in rows) / area for rows in (slab, [(b, h, 0.5 * h) for b, h, _x in slab]))
-    about_z = sum(h * b ** 3 / 12.0 + b * h * (x - x_mid) ** 2 for b, h, x in slab)
-    about_x = sum(b * h ** 3 / 12.0 + b * h * (0.5 * h - z_mid) ** 2 for b, h, _x in slab)
-    far_x = max(abs(x + side * 0.5 * b - x_mid) for b, _h, x in slab for side in (-1.0, 1.0))
-    far_z = max(z_mid, max(h for _b, h, _x in slab) - z_mid)
-    bent = (mz + fy * x_mid) * far_x / about_z + mx * far_z / about_x + fy / area
-    twist = [(max(b, h), min(b, h)) for b, h, _x in slab]
-    stiff = [a * s ** 3 * (1.0 / 3.0 - 0.21 * s / a * (1.0 - s ** 4 / (12.0 * a ** 4))) for a, s in twist]
-    shear = max(my * j / sum(stiff) * (3.0 * a + 1.8 * s) / (a * a * s * s) for (a, s), j in zip(twist, stiff))
-    out['arm foot'] = (bent / 2.0 + math.hypot(bent / 2.0, shear), allow)
+    # The knuckle between the tube and the arm, its section whole - the jog, its chin, its swell -: bent about both,
+    # twisted by the swing and pulled at once. The arm's foot at the knuckle's upper screws, its pad on: one section.
+    collar = 1e-3 * kl.tube()[0] + em.COLLAR_M
+    whole = [(1e3 * r, 1e3 * w) for r, w in jog(collar + NOSE_M, collar)]
+    out['knuckle'] = (ks.borne(whole, (mz + fy * reach, my), mx, fx), allow)
+    row, face, pad = 1e3 * KNUCKLE_AT[0][0], reach - 0.5 * thick - 9.0, 1e3 * PAD_M
+    back = 1e3 * (JOG_Z[0] + JOG_CUT) - (row - 1e3 * JOG[0])                    # the knuckle's cut corner there
+    foot = [(face + thick, 1e3 * ARM_Z[0]), (face + thick, 1e3 * JOG_Z[1]), (face - pad, 1e3 * JOG_Z[1]),
+            (face - pad, back), (face, back), (face, 1e3 * ARM_Z[0])]
+    out['arm foot'] = (ks.borne(foot, (mz, mx), my, fy), allow)
+    # The knuckle on the arm's pad: its screws pull by the jog's bending, their sleeves bear its twist and its shear.
+    spots = [(1e3 * r, 1e3 * w) for r, w in KNUCKLE_AT]
+    mid = [sum(q[k] for q in spots) / len(spots) for k in (0, 1)]
+    down, ahead = (sum((q[k] - mid[k]) ** 2 for q in spots) for k in (0, 1))
+    about, grip = mz + fy * (face - pad + 9.0), 2e6 * SLEEVE[0] * SLEEVE[1]
+    out['knuckle screws'] = (max(about * abs(r - mid[0]) / down + my * abs(w - mid[1]) / ahead for r, w in spots)
+                             + fx / len(spots), kl.SCREWS[JOINT][0])
+    out['knuckle sleeves'] = ((mx * max(math.hypot(r - mid[0], w - mid[1]) for r, w in spots) / (down + ahead)
+                               + math.hypot(fy, fz) / len(spots)) / grip, allow)
     up = 1e3 * min(a for a, _b, _r in yaw.values())                             # the hub's face over the hip's middle
     tilt = math.hypot(mx + fz * up, mz + fx * up)                               # what tilts the yaw's hub, N mm
     slab, wide = 1e3 * CROWN_M, 2e3 * CHEEK[1]                                 # the crown and its two cheeks: a section
@@ -190,6 +235,14 @@ def checks():
     out['cheeks'] = (tilt * max(mid, slab + rib - mid) / inertia, allow)
     count, circle = kl.HUB
     out['hub screws'] = (2.0 * tilt / (count * circle) + fy / count, kl.SCREWS['M5'][0])
+    out['hub sleeves'] = (mx / (count * circle) / (2e6 * HUB_SLEEVE * (ARM_M + ARM_X - 0.0005)), allow)
+    # The block on the yoke's cheeks and fins: the hip's loads at the joint's middle - behind the hip's middle and
+    # over it -, its screws' pull held by their cross dowels' bearing in the yoke, the twist by their sleeves.
+    (wide, y0), (_wide, y1) = ((1e3 * x, 1e3 * y) for x, y in BLOCK_AT)
+    aft, high, tall = -1e3 * stacks()['roll']['gear'][1], 0.5 * (y0 + y1), 0.5 * (y1 - y0)
+    out['block screws'] = ((mx + fy * aft + fz * high) / (4.0 * tall) + (my + fx * aft) / (4.0 * wide) + fz / 4.0,
+                           min(kl.SCREWS[JOINT][0], allow * 2e6 * BARREL[0] * BARREL[1]))
+    out['block sleeves'] = (((mz + fx * high) / (4.0 * math.hypot(wide, tall)) + math.hypot(fx, fy) / 4.0) / grip, allow)
     lever = 2e3 * (SADDLE_Y - 0.006)                                            # the plate's screws, top and bottom
     out['plate screws'] = ((mx + fy * 1e3 * abs(plate()[0])) / lever / 2.0, kl.SCREWS['M6'][0])
     (f0, f1), (b0, b1) = needles()

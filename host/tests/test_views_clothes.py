@@ -289,18 +289,23 @@ def test_the_foot_swings_clear(report):
 def test_a_legs_prints_fit_the_plates(report):
     """A leg's printed pieces on the coaxial build (`tools.render.prints`, a process of its own): each, turned onto
     its bed face, lies within a plate the printer's size and under its height, and the plates they are packed on
-    hold every piece a leg takes."""
+    hold every piece a leg takes; and the hip's own - the yaw's band, yoke and block, the cradle, the thigh's arm
+    and knuckle - filled to solids (`tools.render.solids`), hang nothing over their beds: no face of them without
+    print under it within 45 degrees, but the cells' own noise."""
     import json
     import subprocess
     host = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    run = subprocess.run([sys.executable, '-X', 'utf8', '-c', 'import json; from tools.render import prints; '
-                          'print(json.dumps([prints.fitted(), sum(p[4] for p in prints.PIECES)]))'], cwd=host,
+    run = subprocess.run([sys.executable, '-X', 'utf8', '-c', 'import json; from tools.render import prints, solids; '
+                          'print(json.dumps([prints.fitted(), sum(p[4] for p in prints.PIECES), solids.hung(), '
+                          'solids.NOISE_CM2]))'], cwd=host,
                          capture_output=True, text=True, env=dict(os.environ, PYTHONPATH=host, COAXIAL_ROBOT=BUILD))
-    told, asked = json.loads(run.stdout.strip().splitlines()[-1]) if run.returncode == 0 else (
-        {'failed': run.stderr[-400:]}, 0)
+    told, asked, hung, noise = json.loads(run.stdout.strip().splitlines()[-1]) if run.returncode == 0 else (
+        {'failed': run.stderr[-400:]}, 0, {}, 0.0)
     report.check("every printed piece of a leg lies within a plate and under its height", told.get('over') == [],
                  told.get('failed') or told.get('over'))
     report.check('the plates hold every piece a leg takes', 0 < asked == told.get('pieces'), (told, asked))
+    report.check("the hip's printed pieces hang nothing over their beds", bool(hung) and max(hung.values()) <= noise,
+                 hung)
 
 
 ROSTER = (test_nothing_stands_out_of_its_clothes, test_nothing_stands_through_what_covers_the_robot,

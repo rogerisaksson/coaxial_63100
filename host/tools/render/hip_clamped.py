@@ -3,11 +3,12 @@
     COAXIAL_ROBOT=gynoid_mesomorph_medium_coax python -X utf8 tools/render/hip_clamped.py OUT.png
 
 The hip as `hip_laid` lays it, a link a dictionary of parts: the pelvis's (the yaw drive in its slit band), the
-yaw's (the crown under the yaw drive's hub, two cheeks back past the pinion, the block clamping the roll drive's
-motor over the pin's two needle bearings), the roll's (the cradle: a slit band round the pitch drive's motor, a
-saddle behind it, the steel plate with its toothed sector and its pin) and the thigh's (a slit band round the pitch
-drive's output ring, the plate over its hub, the arm down the hip's outer side, the jog in under the cradle, the
-tube on its spigot), drawn upright and leant as the thigh's tube leans (`knee_clamped.tilt`). Each board rides its
+yaw's (the yoke - the crown under the yaw drive's hub, its two cheeks back past the pinion - and the block screwed
+on it, clamping the roll drive's motor over the pin's two needle bearings: `hip_frame`), the roll's (the cradle: a
+slit band round the pitch drive's motor, a saddle behind it, the steel plate with its toothed sector and its pin)
+and the thigh's (the arm - its head on the pitch drive's hub, a skirt round the output ring -, the knuckle screwed
+on its foot - the jog in under the cradle -, the tube on its spigot: `hip_frame`), drawn upright and leant as the
+thigh's tube leans (`knee_clamped.tilt`). Each board rides its
 motor's back under its guard, its lid off beside its bus's terminals, its three phase leads on their lugs (`boards`,
 `covered`). The bus crosses the yaw in a hose over the yaw drive's lid, from its guard's holder to a riser on the
 block, and the pitch in a hose from the pitch drive's guard to a riser on the thigh's jog - each fitting aimed at
@@ -33,6 +34,7 @@ from tools.render import boards  # noqa: E402
 from tools.render import clamped as cl  # noqa: E402
 from tools.render import covered as cv  # noqa: E402
 from tools.render import elbow_mount as em  # noqa: E402
+from tools.render import hip_frame as hf  # noqa: E402
 from tools.render import hip_laid as hl  # noqa: E402
 from tools.render import hung  # noqa: E402
 from tools.render import knee_clamped as kc  # noqa: E402
@@ -42,8 +44,6 @@ from tools.render import mounting as m  # noqa: E402
 from tools.render import sized as ks  # noqa: E402
 from tools.render import tees  # noqa: E402
 
-#: Steel's ink.
-STEEL = (200, 204, 212)
 #: The yaw's travel the hose is hung through, deg; its riser's fitting off the yaw's axis and the thigh's off the
 #: pitch's, m; the thigh's riser's z behind the hip's axis, m.
 YAWED, RISER_M, THIGH_M, RISER_Z = (-30.0, 30.0), 0.075, 0.086, -0.006
@@ -53,21 +53,9 @@ LEANT = math.radians(15.0)
 #: The trunk's hose in from the pelvis as far as it is drawn, m; the parts a look at the harness alone shows, by
 #: their names' ends.
 TRUNK_M, HARNESS = 0.06, ('leads', 'pipe', 'riser', 'trunk', 'guard', 'clips')
-#: The pin's housing's cap behind the pin's end, where the bus turns into its bore, as a share of the housing's
-#: wall; its nipple's reach and radius, m.
-CAP, NIP_M = 1.5, (0.007, 0.004)
-
-
-def _along(which):
-    """The turn laying a stack drawn along x (its gearbox at +x) along the yaw's axis, its gearbox down, or along the
-    roll's, its gearbox ahead."""
-    import numpy as np
-    return np.array({'yaw': [[0.0, 1.0, 0.0], [-1.0, 0.0, 0.0], [0.0, 0.0, 1.0]],
-                     'roll': [[0.0, 0.0, -1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]]}[which])
-
-
-def _put(tris, turn, shift=(0.0, 0.0, 0.0)):
-    return [(tri @ turn.T + shift, colour) for tri, colour in tris]
+#: The nipple on the pin's housing's cap (`hip_frame.CAP`), where the bus turns into the pin's bore: its reach and
+#: radius, m.
+NIP_M = (0.007, 0.004)
 
 
 def _local(stack, flip):
@@ -126,15 +114,6 @@ def _leant(pipe, fitting, at, toward, tilt):
     return [((tri - at) @ turn.T + at, colour) for tri, colour in pipe], (fitting - at) @ turn.T + at, turn @ way
 
 
-def _prism(outline, a, b, colour, axis):
-    return em._rounded(outline, a, b, colour, axis=axis, r=cl.EDGE_M, steps=1)
-
-
-def _box(u, v):
-    import numpy as np
-    return np.array([(u[0], v[0]), (u[1], v[0]), (u[1], v[1]), (u[0], v[1])])
-
-
 def _spiral(off, reach, z1, boss):
     """(k, 3): the trunk's hose laid still from its arm's fitting at `off`, leaving along +x: a helix `reach` round
     the roll's axis down the hip's outer side to `z1`, to where its tangent runs through the pin's axis, and straight
@@ -156,7 +135,6 @@ def _built():
     """(links {'pelvis', 'yaw', 'roll', 'thigh': {part: [(tri, colour)]}} in the hip's frame, every joint at 0,
     hoses {'yaw', 'pitch': (span as `hung` takes it, the turn laying its frame in the hip's)})."""
     import numpy as np
-    from machine.body.figure import THIGH
     stacks, walls, lean = hl.stacks(), hl.walls(), kc.tilt(kl.stated())
     out = {'pelvis': {}, 'yaw': {}, 'roll': {}, 'thigh': {}}
     # the yaw drive: on the pelvis, its ring the yaw's; its hose over its lid to the riser on the block
@@ -167,101 +145,56 @@ def _built():
     yaw['pipe'], mouth_y, way_y = _leant(yaw['pipe'], yaw['fitting'], yaw['at'], (0.0, -1.0), LEANT)
     inlet = _leant([], yaw['inlet'], yaw['at'], (0.0, -1.0), LEANT)[1]
     yaw['trunk'] = tees.hose([inlet + (0.0, -TRUNK_M, 0.0), inlet])                 # in from the pelvis's hub
-    out['pelvis'].update({'yaw ' + k: _put(yaw[k], _along('yaw'))
+    out['pelvis'].update({'yaw ' + k: hf._put(yaw[k], hf._along('yaw'))
                           for k in ('still', 'band', 'guard', 'lid', 'leads', 'pipe', 'trunk')})
-    out['yaw']['yaw ring'] = _put(yaw['ring'], _along('yaw'))
+    out['yaw']['yaw ring'] = hf._put(yaw['ring'], hf._along('yaw'))
     low = min(a for a, _b, _r in stacks['yaw'].values())                      # the hub's face
-    out['yaw']['crown'] = _prism(np.array([(-hl.CHEEK[1], -0.045), (hl.CHEEK[1], -0.045), (hl.CHEEK[1], 0.0),
-                                           (hl.HUB_R, hl.CROWN_Z), (-hl.HUB_R, hl.CROWN_Z), (-hl.CHEEK[1], 0.0)]),
-                                 low - hl.CROWN_M, low, em.FRAME, 1)
-    count, circle = (8, 0.020)
-    ring = [(circle * math.cos((k + 0.5) * 2.0 * math.pi / count), circle * math.sin((k + 0.5) * 2.0 * math.pi / count))
-            for k in range(count)]
-    out['yaw']['hub screws'] = [t for at in ring for t in m._prism(                         # their heads sunk in it,
-        m._circle(em.HEAD[0], 16, at), low - hl.CROWN_M - 0.0003, low - hl.CROWN_M + em.HEAD[1], em.BOLT) + m._prism(
-        m._socket('torx', 0.5 * em.HEAD[0]) + at, low - hl.CROWN_M - 0.0005, low - hl.CROWN_M - 0.0003, em.VOID)]   # Torx
     # the roll drive in the yaw's block, over the pin's bearings; its bus in from the riser, out down to the pin
     stack, at = stacks['roll'], (hl.ROLL_AT[0], hl.ROLL_AT[1], 0.0)
     roll = _drive(stack, walls['roll'], 0.0, leave=math.pi)
-    out['yaw'].update({'roll ' + k: _put(roll[k], _along('roll'), at) for k in ('still', 'ring', 'guard', 'lid', 'leads')})
-    (m0, m1, can), (_g0, g1, r_g) = stack['motor'], stack['gear']
-    outside = can + walls['roll']
-    block = _put(cl.turned([(m0 + 0.002, can, outside), (m1, can, outside), (m1, r_g + 0.001, outside),
-                            (g1, r_g + 0.001, outside)], 0.5 * math.pi), _along('roll'), at)
-    (_f0, f1), (b0, _b1) = hl.needles()
-    boss = hl.NEEDLE[0] + hl.HOUSED_M
-    cap = CAP * hl.HOUSED_M
-    block += _prism(m._circle(boss, 48), b0, f1 + hl.AIR_M, em.FRAME, 2)
-    block += _prism(m._circle(boss, 48), b0 - cap, b0, tees.PIPE_INK, 2)                   # its cap: the bus's way in
-    block += _prism(cl.filleted(cl.bridged((0.0, 0.0), boss - 0.001, hl.ROLL_AT, outside - 0.001, 1.6 * boss), 0.003),
-                    m0 + 0.002, g1, em.FRAME, 2)
+    out['yaw'].update({'roll ' + k: hf._put(roll[k], hf._along('roll'), at)
+                       for k in ('still', 'ring', 'guard', 'lid', 'leads')})
+    out['yaw'].update(hf.yoke(low, stack['gear'][1]), **hf.block(stack, walls['roll'], low))
+    block, outside = out['yaw']['block'], stack['motor'][2] + walls['roll']
+    (_f0, _f1), (b0, _b1) = hl.needles()
+    boss, cap = hl.NEEDLE[0] + hl.HOUSED_M, hf.CAP * hl.HOUSED_M
     small, big, tip = hl.teeth()
     front, back = hl.plate()
     foot = (-(hl.ROLL_AT[1] + outside), 0.0, -(RISER_M + tees.PIPE[0] + tees.PIPE_LEG))    # in the yaw drive's frame
     riser, fit_r, way_r = _leant(*tees.pipe(foot, (0.0, 1.0), foot[0] - tees.PIPE[0] - float(yaw['fitting'][0])), foot,
                                  (0.0, 1.0), LEANT)
-    top = _along('yaw') @ np.array(foot)                 # the riser's foot on the block: the trunk's cross there,
+    top = hf._along('yaw') @ np.array(foot)              # the riser's foot on the block: the trunk's cross there,
     trunk = km._rod(top, np.array([top[0], top[1], stack['board'][1]]), tees.PIPE[1], tees.PIPE_INK)   # a branch to
     aside, off = tees.pipe(foot, (1.0, 0.0), 0.0)        # the roll's guard, an arm aside - the hip's outer side - for
     reach = cv.span(0.0, 0.0, stack['board'][2], outside)[2] + tees.HOSE_R + kc.AIR_M     # the trunk on (`_spiral`)
-    line = _spiral(_along('yaw') @ off, reach, b0 - 0.5 * cap, boss)
+    line = _spiral(hf._along('yaw') @ off, reach, b0 - 0.5 * cap, boss)
     into = (line[-1] - line[-2]) / np.linalg.norm(line[-1] - line[-2])
-    trunk += _put(aside, _along('yaw')) + km._rod(line[-1] + NIP_M[0] * into, line[-1], NIP_M[1], tees.PIPE_INK)
+    trunk += hf._put(aside, hf._along('yaw')) + km._rod(line[-1] + NIP_M[0] * into, line[-1], NIP_M[1], tees.PIPE_INK)
     trunk += tees.hose(line)                             # held on the block and the roll's guard's ring, not its lid
-    held = tees.clipped(line, block + _put(roll['guard'], _along('roll'), at))
-    cheeks = []
-    for way in (1.0, -1.0):
-        cheeks += _prism(_box(sorted((way * hl.CHEEK[0], way * hl.CHEEK[1])), (low - hl.CROWN_M, hl.CHEEK[2])), g1,
-                         -0.005, em.FRAME, 2)
-    out['yaw'].update({'block': block, 'cheeks': cheeks, 'riser': _put(riser, _along('yaw')), 'trunk': trunk,
-                       'trunk clips': held,
-                       'pinion': _prism(m._circle(small + tip, 30, hl.ROLL_AT), back, front, STEEL, 2)})
+    held = tees.clipped(line, block + hf._put(roll['guard'], hf._along('roll'), at))
+    out['yaw'].update({'riser': hf._put(riser, hf._along('yaw')), 'trunk': trunk, 'trunk clips': held,
+                       'pinion': hf._prism(m._circle(small + tip, 30, hl.ROLL_AT), back, front, hf.STEEL, 2)})
     # the cradle: the pitch drive in its band, the saddle, the plate and its pin; its hose to the thigh's riser
     stack = stacks['pitch']
     mouth = (0.0, -THIGH_M * math.cos(lean) + RISER_Z * math.sin(lean), THIGH_M * math.sin(lean) + RISER_Z * math.cos(lean))
     pitch = _drive(stack, walls['cradle'], -0.5 * math.pi, far=math.atan2(mouth[2], mouth[1]),
                    travel=(hl.TURNED[0] - 1.0, hl.TURNED[1] + 1.0), through=True)   # the trunk out of the pin's bore
-    (p0, p1, can), (q0, q1, r_q) = stack['motor'], stack['gear']                    # through the saddle, hid
+    p0, p1, can = stack['motor']                                                    # through the saddle, hid
     rim = can + walls['cradle'] - 0.001
     ys = np.linspace(hl.SADDLE_Y, -hl.SADDLE_Y, 25)
     saddle = np.array([(-hl.SADDLE_Y, front), (hl.SADDLE_Y, front)] + [(y, -math.sqrt(rim * rim - y * y)) for y in ys])
     turns = np.radians(np.linspace(38.0, 142.0, 27))
     sector = np.array([((big + tip) * math.cos(t), (big + tip) * math.sin(t)) for t in turns]
                       + [((big - 0.010) * math.cos(t), (big - 0.010) * math.sin(t)) for t in turns[::-1]])
-    plate = (_prism(_box((-hl.STEM_M, hl.STEM_M), (-hl.SADDLE_Y, hl.SADDLE_Y)), back, front, STEEL, 2)
-             + _prism(sector, back, front, STEEL, 2))
+    plate = (hf._prism(hf._box((-hl.STEM_M, hl.STEM_M), (-hl.SADDLE_Y, hl.SADDLE_Y)), back, front, hf.STEEL, 2)
+             + hf._prism(sector, back, front, hf.STEEL, 2))
     out['roll'].update({'pitch ' + k: pitch[k] for k in ('still', 'guard', 'lid', 'leads', 'pipe')})
     out['roll'].update({'cradle band': km._turn(pitch['band'], 90.0), 'plate': plate,
-                        'saddle': _prism(saddle, p0 + 0.002, p1 - 0.002, em.FRAME, 0),
-                        'kingpin': _prism(m._circle(hl.KINGPIN[0], 32), b0, back, STEEL, 2)})
-    # the thigh: its band on the pitch drive's ring, the neck, the tube, the hose's riser - upright, then leant
-    split = q0 + em.OUTPUT_SHARE * (q1 - q0)
-    hub, x0 = r_q + walls['thigh'], q1 + hl.ARM_X
-    neck = m._cylinder_x(hl.HUB_PLATE[1], q1 + 0.0005, q1 + 0.0005 + hl.HUB_PLATE[0], em.FRAME, k=48)
-    neck += _prism(cl.filleted(cl.cupped((0.0, 0.0), hub - 0.001, -hl.ARM_FROM, (1e-3 - hub, hl.ARM_Z[1])), 0.004),
-                   x0, x0 + hl.ARM_M, em.FRAME, 0)
-    neck += _prism(_box((-hl.JOG[0], -hl.ARM_FROM + 0.004), hl.ARM_Z), x0, x0 + hl.ARM_M, em.FRAME, 0)
-    ahead, up = hl.ARM_CUT                               # its back cut away at its foot: the ankle's leaf's, folded
-    neck += _prism(np.array([(-hl.JOG[1], hl.ARM_Z[0] + ahead), (-hl.JOG[1] + up, hl.ARM_Z[0]), (-hl.JOG[0] + 0.004, hl.ARM_Z[0]),
-                             (-hl.JOG[0] + 0.004, hl.JOG_Z[1]), (-hl.JOG[1], hl.JOG_Z[1])]), x0, x0 + hl.ARM_M, em.FRAME, 0)
-    tube_r, bone = kc._stack()[3], kc.laid()['bone']
-    collar = tube_r + em.COLLAR_M + 0.0002
-    cut = hl.JOG_CUT                                     # its back top corner off: past the block, swung back
-    neck += _prism(np.array([(-hl.JOG[1], hl.JOG_Z[0]), (-hl.JOG[1], hl.JOG_Z[1]), (-hl.JOG[0], hl.JOG_Z[1]),
-                             (-hl.JOG[0], hl.JOG_Z[0] + cut), (-hl.JOG[0] - cut, hl.JOG_Z[0])]), bone - collar, x0,
-                   em.FRAME, 0)
-    face = q1 + 0.0005 + hl.HUB_PLATE[0]
-    heads = [t for at in ring for t in m._cylinder_x(em.HEAD[0], face, face + em.HEAD[1], em.BOLT, k=16, at=at) + m._prism(
-        m._socket('torx', 0.5 * em.HEAD[0]) + at, face + em.HEAD[1], face + em.HEAD[1] + 0.0002, em.VOID, 0)]     # Torx
-    knee = -THIGH * math.cos(lean) + kc.seats(kl.stated())[0] + em.SEAT_M + em.FLANGE_M   # the knee's flange's deck
-    tube = m._prism(m._circle(tube_r, 40, (bone, 0.0)), knee, -hl.JOG[1], em.CARBON)
-    tube += km._ring_y(tube_r + 0.0002, collar, -hl.JOG[1] - em.COLLAR_SHARE * 2.0 * tube_r, -hl.JOG[1], bone, em.FRAME)
-    x_f, y_l = float(pitch['fitting'][0]), -(hl.JOG[0] + 0.006)
-    up = [(bone - collar, y_l, RISER_Z), (x_f, y_l, RISER_Z), (x_f, -THIGH_M - 0.007, RISER_Z), (x_f, -THIGH_M, RISER_Z)]
-    pipe = [t for a, b in zip(up[:-2], up[1:-1]) for t in km._rod(np.array(a), np.array(b), tees.PIPE[1], tees.PIPE_INK)]
-    pipe += km._rod(np.array(up[-2]), np.array(up[-1]), tees.PIPE[1] + 0.0016, tees.PIPE_INK)
-    upright = {'pitch ring': pitch['ring'], 'thigh band': cl.turned([(split + 0.0025, r_q, hub), (q1, r_q, hub)], 0.0),
-               'neck': neck, 'neck screws': heads, 'thigh tube': tube, 'riser': pipe}
+                        'saddle': hf._prism(saddle, p0 + 0.002, p1 - 0.002, em.FRAME, 0),
+                        'kingpin': hf._prism(m._circle(hl.KINGPIN[0], 32), b0, back, hf.STEEL, 2)})
+    # the thigh: its arm on the pitch drive's hub, its knuckle, the tube, the hose's riser - upright, then leant
+    x_f = float(pitch['fitting'][0])
+    upright = dict(hf.thigh(stack, (x_f, THIGH_M, RISER_Z)), **{'pitch ring': pitch['ring']})
     out['thigh'] = {k: cl.tilted(v, -lean, (0.0, 0.0)) for k, v in upright.items()}
 
     def drum(side, span):
@@ -271,7 +204,7 @@ def _built():
     hoses = {'yaw': ({'name': 'hip yaw', 'kind': 'bus', 'travel': YAWED,
                       'from': ('still', tuple(mouth_y), tuple(way_y)),
                       'to': ('turning', tuple(fit_r), tuple(way_r)), 'solids': [drum('still', yaw['drum'])]},
-                     _along('yaw')),
+                     hf._along('yaw')),
              'pitch': ({'name': 'hip', 'kind': 'bus', 'travel': (hl.TURNED[0] - 1.0, hl.TURNED[1] + 1.0),
                         'from': ('still', tuple(pitch['fitting']), tuple(aim)),
                         'to': ('turning', (x_f,) + mouth[1:], (0.0, math.cos(lean), -math.sin(lean))),
@@ -309,8 +242,8 @@ def turn(yaw=0.0, roll=0.0, pitch=0.0):
 def slung(yaw=0.0, roll=0.0, pitch=0.0):
     """[(tri, colour)]: the hip's two hoses hung (`hung`), the hip at its angles, deg, in the hip's frame."""
     (over, laid), (under, _same) = hoses()['yaw'], hoses()['pitch']
-    return (_put(tees.hose(hung.path(over, -yaw)), laid)                     # the yaw's about the drive's -x
-            + _put(tees.hose(hung.path(under, pitch)), turn(yaw, roll, pitch)[1]))
+    return (hf._put(tees.hose(hung.path(over, -yaw)), laid)                     # the yaw's about the drive's -x
+            + hf._put(tees.hose(hung.path(under, pitch)), turn(yaw, roll, pitch)[1]))
 
 
 def posed(yaw=0.0, roll=0.0, pitch=0.0, hosed=True, only=None):
@@ -319,7 +252,7 @@ def posed(yaw=0.0, roll=0.0, pitch=0.0, hosed=True, only=None):
     import numpy as np
     turns = dict(zip(('yaw', 'roll', 'thigh'), turn(yaw, roll, pitch)))
     tris = [t for name, parts in links().items() for key, part in parts.items() if not only or key.endswith(only)
-            for t in _put(part, turns.get(name, np.eye(3)))]
+            for t in hf._put(part, turns.get(name, np.eye(3)))]
     return tris + (slung(yaw, roll, pitch) if hosed else [])
 
 

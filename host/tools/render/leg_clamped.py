@@ -3,7 +3,7 @@
     python -X utf8 tools/render/leg_clamped.py OUT.png
 
 The knee's clamps as knee_clamped lays them. Up the thigh: the hip as hip_clamped sketches it, at rest - the thigh's
-slit band on the pitch drive's output ring, its neck down the hip's outer side, the jog in under the cradle and one
+head on the pitch drive's hub, its arm down the hip's outer side, its knuckle in under the cradle and one
 straight tube on from it, radial at the hip and `ahead` of the knee's axis at the knee (`knee_clamped.tilt`, the
 line the build states); above it the cradle with the pitch drive, the block with the roll drive and the yaw drive,
 their boards under their guards and the bus between them (`hip`). With the knee at its travel's end the thigh's
@@ -139,8 +139,8 @@ def _lifted(parts, word=''):
 
 def thigh(ahead):
     """{name: tris} of the thigh above the knee's clamp, the knee's frame, as the hip's sketch lays it
-    (`hip_clamped`): a slit band on the hip's pitch drive's output ring, its neck down the hip's outer side and its
-    jog in under the cradle, the tube on from that - radial at the hip, leant to pass `ahead` of the knee's axis
+    (`hip_clamped`): its head on the hip's pitch drive's hub, its arm down the hip's outer side and its knuckle
+    in under the cradle, the tube on from that - radial at the hip, leant to pass `ahead` of the knee's axis
     (`kc.tilt`) - and the hose's riser. The hip is sketched for the line the build states (`stated`): no other."""
     from machine.errors import MachineError
     if abs(ahead - stated()) > 1e-9:
