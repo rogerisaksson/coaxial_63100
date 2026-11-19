@@ -234,14 +234,16 @@ def test_the_robots_sums_and_qr_alike(report):
 
 
 def test_an_x86_is_held_to_the_desks_arithmetic(report):
-    """Under the relay an x86-64 runs no numpy path past X86_V3 (`tools.dev.arithmetic`); its OpenBLAS kernels its own
-    pick, told - its products and LAPACK held by them above."""
+    """Under the relay an x86-64 runs no numpy path past X86_V3 and OpenBLAS's Nehalem kernels (`tools.dev.arithmetic`)
+    whatever its processor: GitHub's runners as the desk and the Linux image - its products and LAPACK held by them
+    above."""
     from tools.dev import arithmetic
     if platform.machine().lower() not in arithmetic.X86:
         report.check('not an x86-64 (%s): its own arithmetic, held to its class' % _class(), True)
         return
     wider = sorted(set(_targets().values()) & set(arithmetic.WIDER))
     report.check("an x86-64's numpy runs no path past X86_V3", not wider, 'wider paths %s, OpenBLAS %s' % (wider, _kernels()))
+    report.check("an x86-64's OpenBLAS runs %s's kernels" % arithmetic.CORE, _kernels() == arithmetic.CORE, _kernels())
 
 
 def test_the_platforms_math_is_called_no_more(report):

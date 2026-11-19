@@ -11,8 +11,9 @@ IEEE = '1f828e7967236254'
 #: runners run Haswell's (every EPYC 7763, an EPYC 9V74 whose machine hides its AVX-512: the desk's and the Linux
 #: image's bits in every layer here) or SkylakeX's (an EPYC 9V74, a Xeon 8573C, a Xeon 6975P-C: gemm's, solve's and
 #: cholesky's other bits, the robot's QP's with them - the runs CI alone turns red); its Arm runners neoversev2's.
-#: Held to Haswell's by OPENBLAS_CORETYPE, a product of a large matrix (machine.identify.wear's) died on SIGSEGV.
-QPS = {'Haswell': {'qp': '6e8f44995e48e95a'}, 'SkylakeX': {'qp': '86c8c66fe63f7e41'},
+#: Every x86-64 is held to Nehalem's under the relay (`tools.dev.arithmetic`): one digest on each of those runners, the
+#: desk and the image; held to Haswell's, AMD's Zen 4 and 5 died on SIGSEGV in a large product (OpenBLAS's Zen blocking).
+QPS = {'Haswell': {'qp': '6e8f44995e48e95a'}, 'SkylakeX': {'qp': '86c8c66fe63f7e41'}, 'Nehalem': {'qp': 'd87a847c472afed5'},
        'armv9sme': {'qp': 'ec34a4dc2e335bd4'}, 'neoversev2': {'qp': '17bbb04d6d90025c'}}
 #: The platform's libm, a function at a time, by system and processor.
 LIBM = {
@@ -78,6 +79,10 @@ BLAS = {
                               'cholesky': '647ac57da82c538d', 'square': '7b69d3c0cb59fa00'},
     'Windows-AMD64-Haswell': {'gemm': '715bea6357929cd0', 'gemv': 'ace4320175be5d93', 'solve': 'f85019fa04c5829c',
                               'cholesky': '8f831a674ca91271', 'square': '7b69d3c0cb59fa00'},
+    'Linux-x86_64-Nehalem': {'gemm': 'fcdc49803a09f9a4', 'gemv': 'a890f43e8e6afd58', 'solve': 'b727f9ea2fbf5ffa',
+                             'cholesky': '5cddb138fe3c465a', 'square': '168212ff6efdf473'},
+    'Windows-AMD64-Nehalem': {'gemm': 'fcdc49803a09f9a4', 'gemv': 'a890f43e8e6afd58', 'solve': 'b727f9ea2fbf5ffa',
+                              'cholesky': '5cddb138fe3c465a', 'square': '168212ff6efdf473'},
 }
 LAPACKS = {
     'Linux-aarch64-armv9sme': {'qr': 'de6eac875f1eb729', 'lstsq': '76cd8a11a9070579', 'svd': '779c2931677126aa',
@@ -95,6 +100,12 @@ LAPACKS = {
     'Windows-AMD64-Haswell': {'qr': '1f90308bd2418e00', 'lstsq': '2958b643384928fd', 'svd': '570a694069432b8b',
                               'eigh': '82ab835c7519b03f', 'solve': '027bf1c3aa66bc84', 'cholesky': '11e6a989db9d8ce6',
                               'inv': '9951226ce0f5cade'},
+    'Linux-x86_64-Nehalem': {'qr': '2b81c1ca520f278e', 'lstsq': '4b1c6a915431846e', 'svd': 'ff30659ed0a855ea',
+                             'eigh': 'b71c87fca59b6101', 'solve': '823e8d2d1d4be9f6', 'cholesky': '2e343508512700ef',
+                             'inv': '0f1f303922354a7d'},
+    'Windows-AMD64-Nehalem': {'qr': '243cc83b4236e803', 'lstsq': '9acfe282a294d2a7', 'svd': 'f712ac18c0f0c5a5',
+                              'eigh': '4803f70535a48810', 'solve': '823e8d2d1d4be9f6', 'cholesky': '2e343508512700ef',
+                              'inv': '0f1f303922354a7d'},
 }
 #: MuJoCo's compiler's turns of SCENE's geoms by system and processor.
 TURNS = {

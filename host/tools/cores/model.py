@@ -51,9 +51,11 @@ def rotation(quat):
 
 
 def inertia(m, body):
-    """A body's inertia about its centre in its own frame's axes: xx, xy, xz, yy, yz, zz."""
-    r = rotation(m.body_iquat[body])
-    return (r @ np.diag(np.array(m.body_inertia[body], float)) @ r.T)[np.triu_indices(3)]
+    """A body's inertia about its centre in its own frame's axes: xx, xy, xz, yy, yz, zz - R diag(I) R' summed over
+    the principal axes in their order, the same bits under any BLAS's kernels (numpy's 3x3 products took them)."""
+    r, d = rotation(m.body_iquat[body]), [float(v) for v in m.body_inertia[body]]
+    return np.array([(r[i, 0] * d[0] * r[j, 0] + r[i, 1] * d[1] * r[j, 1]) + r[i, 2] * d[2] * r[j, 2]
+                     for i, j in zip(*np.triu_indices(3))])
 
 
 def links(b=None):

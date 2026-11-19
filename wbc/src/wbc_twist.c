@@ -60,11 +60,18 @@ static void floored(const wbc_imp_t *k, const wbc_twist_t *t, double dt)
   kf = (total / (total + 1e-9)) * npmin(1.0, t->floor_hz * dt);
   under = wbc_dot(&k->blas, bear, 1, y + k->y_lowest, 1, 2) / npmax(total, 1e-9);
   fr[k->f_floor] += kf * (under - fr[k->f_floor]);
-  /* the soles' x and z picked out of y are F-ordered to numpy: its (2, 2) @ (2,) form, dgemv_t's
-     tail contracted (npmv2) */
+  /* the soles' x and z picked out of y, F-ordered as numpy lays them (its (2, 2) @ (2,) form), through numpy's own
+     dispatch (wbc_matmul): its kernels' rounding is theirs on any of them - a dgemv_t tail written as Haswell's fused
+     it parted the twin where a kernel without FMA ran */
+  {
+    const double     m[4] = {y[k->y_sole], y[k->y_sole + 3], y[k->y_sole + 2], y[k->y_sole + 5]};
+    const wbc_view_t bv = {bear, 2, 1}, mv = {m, 1, 2};
+
+    wbc_matmul(&k->blas, bv, mv, at, 2, 1, 1, 2, 2);
+  }
   for (int j = 0; j < 2; j++)
   {
-    at[j] = (0.0 + fma(bear[0], y[k->y_sole + 2 * j], bear[1] * y[k->y_sole + 3 + 2 * j])) / npmax(total, 1e-9);
+    at[j] = at[j] / npmax(total, 1e-9);
     fr[k->f_floor_at + j] += kf * (at[j] - fr[k->f_floor_at + j]);
   }
   for (int s = 0; s < 2; s++)
