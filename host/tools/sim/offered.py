@@ -39,10 +39,10 @@ COMMIT_GB, WALL_X = 1.8, 45.0
 RISE_S, RISE_N, RISE_SURE = 30.0, 250.0, 0.85
 
 
-def walked_up(label, hd0, walk_s, verb, goal_phase, sc, said=None):
+def walked_up(label, hd0, walk_s, verb, goal_phase, sc, said=None, each=None):
     """(the robot's session, the page's state, whether F's first offer was the verb's and shown, the prompt
     shown, the prompt asked, the most a prop bore of it) of its walked toward `label` and F said; `said(doing,
-    t)` told each change of what it does."""
+    t)` told each change of what it does, `each(s)` called after each pass."""
     from types import SimpleNamespace as SN
     from machine.law import modal
     from machine.world import physics
@@ -51,6 +51,7 @@ def walked_up(label, hd0, walk_s, verb, goal_phase, sc, said=None):
     from views_kit import typed
     physics.ROOM, physics.SIGHT = 1.0, float(label == 'chair')
     s = worker.session()
+    s['each'].extend([each] if each is not None else [])
     worker.apply(s, {'heading': hd0, 'twist': WALK})
     for _ in range(int(round(walk_s / worker.DT))):
         worker.stepped(s)
@@ -72,6 +73,8 @@ def walked_up(label, hd0, walk_s, verb, goal_phase, sc, said=None):
             last = sprung.doing(g)
             said(last, float(g['t']))
         if s['fallen_at'] is not None:
+            if said is not None:
+                said(ended(s), float(g['t']))
             break
         if label == 'door' and g.get('_errand') is None and float(g['world'].data.qpos[2]) > 4.1:
             break
@@ -79,6 +82,13 @@ def walked_up(label, hd0, walk_s, verb, goal_phase, sc, said=None):
                 and g.get('played') is None):
             break
     return s, st, shown, shown_prompt, expected_prompt, max_prop
+
+
+def ended(s):
+    """How the robot's epoch ended, said in its phases: 'shutdown' by a bus, 'fell' where the world's referee
+    finds it down, else 'fault' - its law raised (`worker.stepped`), a new epoch laid RECOVER_S on alike."""
+    from machine.world import referee
+    return 'shutdown' if s['shutdown'] is not None else 'fell' if referee.fallen(s['g'], s['g']['world']) else 'fault'
 
 
 def reached(label, goal_phase, s, shown, max_prop):
@@ -121,9 +131,13 @@ def rose(s, st, said=None):
     typed(humanoid_keys.PAD, 'f', st)
     if st.get('choosing') is not None:
         typed(humanoid_keys.PAD, 'f', st)
-    t0, stood, last = s['g']['t'], None, None
+    t0, stood, last, fell = s['g']['t'], None, None, None
     for _ in range(int(round((RISE_S + 0.5) / worker.DT))):
         worker.stepped(s)
+        if fell is None and s['fallen_at'] is not None:
+            fell = ended(s)
+            if said is not None:
+                said(fell, float(s['g']['t']))
         doing = sprung.doing(s['g'])
         if doing != last:
             last = doing
@@ -138,20 +152,87 @@ def rose(s, st, said=None):
         prompt, None if stood is None else round(stood, 2), loads, sure, float(g['world'].data.qpos[1]))
 
 
-def judged(label, hd0, walk_s, rise=False):
+def judged(label, hd0, walk_s, rise=False, each=None):
     """{label, heading, walk, met, t, detail, phases [[doing, t]]} of one run on this process's tree; `rise` the
     bed's rise after its lie too (`rose`)."""
     from terminal.views import scanner
     case = next(c for c in OFFERED if c[0] == label)
     phases = []
     s, st, shown, prompt, _asked, prop = walked_up(label, hd0, walk_s, case[3], case[4], scanner.VisionScanner(),
-                                                   lambda d, t: phases.append([d, round(t, 2)]))
+                                                   lambda d, t: phases.append([d, round(t, 2)]), each)
     met, detail = bool(reached(label, case[4], s, shown, prop)), described(label, s, prompt, prop)
     if rise and label == 'bed' and met:
         met, more = rose(s, st, lambda d, t: phases.append([d, round(t, 2)]))
         detail += '; ' + more
     return {'label': label, 'heading': hd0, 'walk': walk_s, 'met': met,
             't': round(float(s['g']['t']), 2), 'detail': detail, 'phases': phases}
+
+
+#: The least span between two rows of `rows`, s: a law pass's.
+ROW_S = 0.003
+
+
+def rows(t0, t1):
+    """`each(s)` printing the robot's mechanics on a law pass every ROW_S from `t0` to `t1` s of its first epoch:
+    its doing, its pelvis's height, its trunk's pitch ahead (deg), its centre of mass and its toes ahead of its
+    feet's middle (m), the shares of its weight its soles, its seat and thighs and its hands bear; its law's
+    capture point ahead and its standing soles' heel and toe edges (`waits.risen_rows`' own), its prop and palms;
+    which of its waits hold its table's rows on its next law pass (`waits`: risen, held, sunk, borne - their python
+    on a copy), its capture point's need of a step (`modal.NEED`) and its swings (`modal.SWINGS`); its text's next label and the seconds till it,
+    its surety."""
+    import math
+    from coaxial.model.blocks import numpy as np
+    from machine.law import modal, poise, waits
+    from machine.process import sprung, worker
+    from machine.senses import edge
+    skin = {n: i for i, n in enumerate(edge.SKIN)}
+    held = {'epoch': None, 'at': -math.inf}
+    print('ROW t doing pelvis_y pitch com toes soles seat hands xi heel toe prop palms waits need swings next in sure')
+
+    def each(s):
+        g = s['g']
+        held['epoch'] = s['epoch'] if held['epoch'] is None else held['epoch']
+        if (s['epoch'] != held['epoch'] or not t0 <= g['t'] <= t1 or g['t'] < held['at'] + ROW_S - 1e-9
+                or g.get('t_law', math.nan) + worker.DT != g['t']):
+            return
+        held['at'] = g['t']
+        m, d = g['world'].model, g['world'].data
+        body = lambda name: m.body(name).id
+        R, up = d.xmat[body('pelvis')].reshape(3, 3), np.array([0.0, 1.0, 0.0])
+        ahead = R[:, 2] * np.array([1.0, 0.0, 1.0])
+        ahead /= np.linalg.norm(ahead)
+        trunk = d.xmat[body('torso')].reshape(3, 3)[:, 1]
+        feet = 0.5 * (d.xpos[body('left_foot')] + d.xpos[body('right_foot')])
+        toes = 0.5 * (d.xpos[body('left_toes')] + d.xpos[body('right_toes')])
+        com = d.subtree_com[m.body_rootid[body('pelvis')]]
+        share = np.linalg.norm(g['sense'][edge.TOUCH].reshape(-1, 3), axis=1) / float(g['fr'][modal.WEIGHT])
+        part = lambda *names: float(sum(share[skin[n]] for n in names))
+        sides = lambda *ends: tuple(side + end for side in ('left', 'right') for end in ends)
+        y, fr, a, tab = g['y'], g['fr'], g['a'], g['tab']
+        rot = fr[modal.ROT].reshape(3, 3)
+        c, v = rot @ y[modal.COM], rot @ y[modal.VCOM]
+        xi = c[:2] + v[:2] / math.sqrt(modal.G / max(float(c[2] - fr[modal.FLOOR]), 0.3))
+        lo, hi = poise.boxes((y[modal.SOLE].reshape(2, 3) @ rot.T)[:, :2], a[modal.EDGE], y[modal.TILT])
+        stood = a[modal.STANCE]
+        w = stood / max(float(stood[0] + stood[1]), poise.TINY)
+        dt = worker.DT * g['every']
+        t = g['t_law'] + dt
+        held_by = ''.join(k for k, shift in (
+            ('R', waits.risen_rows(tab.copy(), y, fr, a, g['st'], t, dt, g.get('_prop_until', -1.0))[0]),
+            ('H', waits.held_rows(tab.copy(), a, g['out'], t, dt, g.get('_held_s', 0.0))[0]),
+            ('S', waits.sunk_rows(tab.copy(), y, fr, t, dt)[0]),
+            ('B', waits.borne_rows(tab.copy(), y, fr, t, dt)[0])) if shift > 0.0) or '-'
+        later = [(at, n) for at, n in g['labels'] if at > g['t']]
+        nxt = min(later) if later else (math.inf, '-')
+        print('ROW %.3f %s %.3f %+.1f %+.3f %+.3f %.2f %.2f %.2f %+.3f %+.3f %+.3f %.2f %.2f %s %.2f %.2f/%.2f %s %.3f %.2f' % (
+            g['t'], sprung.doing(g), float(d.qpos[1]), math.degrees(math.atan2(float(trunk @ ahead), float(trunk @ up))),
+            float((com - feet) @ ahead), float((toes - feet) @ ahead), part(*sides('_foot', '_toes')),
+            part('pelvis', *sides('_thigh')), part(*sides('_hand', '_fingers')), float(xi[0]),
+            float(w[0] * lo[0, 0] + w[1] * lo[1, 0]), float(w[0] * hi[0, 0] + w[1] * hi[1, 0]), float(y[modal.PROP]),
+            float(y[modal.PALMS].sum()), held_by, float(a[modal.NEED]), *(float(sw) for sw in a[modal.SWINGS]), nxt[1],
+            nxt[0] - g['t'],
+            float(g.get('surety', 1.0))))
+    return each
 
 
 def main(argv=None):
@@ -161,12 +242,15 @@ def main(argv=None):
     p.add_argument('--jobs', type=int, default=6, help='runs side by side (`tools.dev.focus.relay`)')
     p.add_argument('--rise', action='store_true', help='the bed\'s rise after its lie too, as test_errands judges it')
     p.add_argument('--one', nargs=5, help=argparse.SUPPRESS)
+    p.add_argument('--rows', nargs=2, type=float, metavar=('FROM', 'TO'),
+                   help="with --one: its first epoch's mechanics from..to s, a row every ROW_S (`rows`)")
     args = p.parse_args(argv)
     if args.one:
         root, label, hd0, walk_s, rise = args.one
         sys.path[:0] = [os.path.join(root, 'host'), os.path.join(root, 'host', 'tests')]
         os.environ['PYTHONPATH'] = os.path.join(root, 'host')
-        print('OFFERED ' + json.dumps(judged(label, float(hd0), float(walk_s), rise == '1')))
+        each = rows(*args.rows) if args.rows else None
+        print('OFFERED ' + json.dumps(judged(label, float(hd0), float(walk_s), rise == '1', each)))
         return 0
     from machine.process import worker
     from tools.dev import focus
