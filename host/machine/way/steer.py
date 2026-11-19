@@ -7,8 +7,10 @@ from machine import libm
 
 def tell(g, gym, heard_fn, cmd):
     """`cmd` as the errand's word to the robot, once: the same twist again would restart its gait."""
+    se2 = _mods()[3]
     tw = cmd.get('twist')
-    if g.get('asked') != tw or (tw is not None and g.get('governed') != tw and _mods()[3].doing(g) != 'brake'):
+    governing = bool(g.get('_twist_active')) and g.get('active_entry') in se2.SE2_GAITS
+    if g.get('asked') != tw or (tw is not None and not governing and g.get('governed') != tw and se2.doing(g) != 'brake'):
         heard_fn(g, gym, dict(cmd, _errand_cmd=True))
 
 

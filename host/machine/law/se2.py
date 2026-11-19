@@ -357,9 +357,9 @@ def heard_twist(g, gym, tw, has_say, heard_say_fn):
     ae = g.get('active_entry') or (cur_d if cur_d in SE2_GAITS else None)
     striding = (abs(float(g['out'][latent.SWAY][modal.DRIVE])) > stride.STIRS
                 or abs(float(g['out'][latent.SWAY][modal.LATERAL])) > 0.08 or float(g['st'][latent.NOW][latent.GAIN]) > 0.02)
-    lat_spin = ('strafe_left', 'strafe_right', 'spin_left', 'spin_right')
-    if (active and not has_say and g.get('_errand') is None and striding and cur_d not in ('brake', 'stand', 'init_walk')
-            and g.get('_jump_until', 0.0) <= g['t'] and ae in SE2_GAITS and target in SE2_GAITS):
+    lat_spin, se2_ok = ('strafe_left', 'strafe_right', 'spin_left', 'spin_right'), SE2_GAITS[:4] if g.get('_errand') else SE2_GAITS
+    if (active and not has_say and striding and cur_d not in ('brake', 'stand', 'init_walk')
+            and g.get('_jump_until', 0.0) <= g['t'] and ae in se2_ok and target in se2_ok):
         g['governed'] = g['governed'] if was_tw else NOMINAL_TWIST.get(str(ae), g['asked'])
         g['active_entry'], g['_twist_active'], g['_twist_stop_until'] = ae, True, g['t'] + 2.5
         if ae == 'jog':

@@ -367,7 +367,6 @@ def said(g, item, at=None, thing=None):
     own (`registry.TAKEN` of HIT a look), else refused by name. The joint programs laid on `g['programs']`
     (`machine.process.joints`), the seat's top m on `g['seat']` (`melt.step`, inf outside stunts)."""
     from machine.way import furniture
-    from machine.eyes import registry
     from machine.process import sprung
     g['seat'] = math.inf
     if item[0] not in PLAYED:
@@ -375,25 +374,15 @@ def said(g, item, at=None, thing=None):
     from machine.law import se2, stride
     # on the floor (`se2.GROUNDED`) the floor is the seat, top 0: a rise there is refused by leg reach
     floor = float(sprung.doing(g) in se2.GROUNDED)
-    verb, reach = PLAYED[item[0]][1] or item[0], stride.STRIDE_M + standoff(item[0], g['suite'])
-    if thing is None and PLAYED[item[0]][1] is not None and not floor:
-        sat = g.get('sat_thing')
-        if sat is not None and furniture.nearest(g, verb, at, thing=sat)[0] <= reach:
-            thing = sat
-    seen = (0.0, 0.0, 0.0, 0.0, 0.0) if floor else furniture.seen(g, item[0], at, thing)
-    for _ in range(int(math.ceil(registry.TAKEN / registry.HIT))):
-        if seen is not None:
-            break
-        sprung.looked(g)
-        seen = furniture.seen(g, item[0], at, thing)
+    verb = PLAYED[item[0]][1] or item[0]
+    seen, edge, reach, sat_slot = (((0.0, 0.0, 0.0, 0.0, 0.0), 0.0, stride.STRIDE_M, None) if floor
+                                   else furniture.at_hand(g, item[0], verb, at, thing))
     if seen is None:
         raise MachineError('%s: nothing among the robot\'s things affords it' % item[0])
-    near = furniture.nearest(g, verb, at, thing=thing)
-    edge = (1.0 - floor) * near[0]
     if edge > reach:
         raise MachineError('%s plays where the robot stands: its furniture is %.1f m off, past the robot %.2f '
                            '(a stride and the standoff) - an errand walks there' % (item[0], edge, reach))
-    g['sat_thing'] = near[4] if PLAYED[item[0]][1] is None and not floor else None
+    g['sat_thing'] = sat_slot if PLAYED[item[0]][1] is None and not floor else None
     names, ps, bound = _named(item[0], seen, _suite() if g['suite'] is None else g['suite'])
     g['programs'], g['seat'] = _bound(names, bound), float(seen[0])
     return _entry(item[0], _text(item[0], names, ps), g['texts'])

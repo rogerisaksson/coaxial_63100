@@ -113,12 +113,12 @@ def _laid(g, sc, found, at):
     the door in one motion without the stage the robot slammed the panel to its 1.92 rad stop in 0.5 s and its
     rebound felled the robot outside; settled at the stage first it grinds it open over 3 s and walks
     out."""
-    from machine.texts import maneuver
-    from machine.way import peek
-    standoff = maneuver.standoff(sc, g['suite']) if sc in maneuver.PLAYED else 0.0
+    from machine.way import dock, peek
     box = found[6]
+    top = peek.level(sc, box)
+    standoff = dock.standoff(sc, top, g['suite'])
     er = dict(_looking(g, sc, at), phase='plan', through=sc in _FACES, thing=found[4], standoff=standoff,
-              slot=int(box[4]) if len(box) > 4 else -1, top=peek.level(sc, box))
+              slot=int(box[4]) if len(box) > 4 else -1, top=top)
     _asked(g, er, 'dock', dock=(sc, box, standoff))
     return er
 
@@ -227,11 +227,15 @@ def _refreshed(g, er):
     if not g.get('things') or er['through']:
         return
     from machine.body import figure
+    from machine.eyes import voxels
     from machine.law import se2, stride
     from machine.moves import seated
     from machine.way import affordance, dock, furniture, peek
     box = furniture.nearest(g, er['kind'], (er['x_dock'], er['z_dock']), thing=er.get('thing'))[6]
     if box is None or affordance.distance(box, (er['x_dock'], er['z_dock'])) > stride.STRIDE_M:
+        return
+    top = peek.level(er['kind'], box)
+    if 'top' in er and abs(top - er['top']) > 2.0 * voxels.CELL_M:
         return
     hn0 = libm.arctan2(er['nx'], er['nz'])
     faces = _faces(g, er['kind'], box)
@@ -247,7 +251,8 @@ def _refreshed(g, er):
     off = max(-lat, min(lat, was))
     er.update(x_dock=mx + off * tx, z_dock=mz + off * tz, nx=nx, nz=nz, tx=tx, tz=tz,
               hdd=se2.wrap_angle(hn + _FACES.get(er['kind'], 0.0)), lat_tol=max(0.0, lat - abs(off)),
-              top=peek.level(er['kind'], box), thing=box[4] if len(box) > 4 else er.get('thing'))
+              top=top, standoff=dock.standoff(er['kind'], top, g.get('suite')),
+              thing=box[4] if len(box) > 4 else er.get('thing'))
 
 
 def _arrived(g, gym, er, c, heard_fn, _say_fn):
@@ -394,7 +399,7 @@ def _to_line(g, gym, er, c, heard_fn, _say_fn):
 def _to_edge(g, gym, er, c, heard_fn, _say_fn):
     """Backing onto the edge, the robot's heading bent toward the dock's line as it bears from the robot's
     stage: bent as the dock bears from its, it came to it 0.5 rad askew and sat on its edge."""
-    modal = _modal()
+    from machine.law import modal, stride
     er['stepped'] = bool(er.get('stepped') or float(g['a'][modal.STANCE].min()) < 0.5)
     g['has_heading'] = 1.0
-    g['target_heading'] = er['hdd'] + libm.arctan2(c['s_perp'], er['d_stage'])
+    g['target_heading'] = er['hdd'] + libm.arctan2(c['s_perp'], max(er['d_stage'], stride.STRIDE_M))

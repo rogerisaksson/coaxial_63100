@@ -47,6 +47,11 @@ def answered(ask):
     cost = route.costs(ask['things'], ask['floor'], ask['seen'], ask['slot'], face)
     if ask['kind'] == 'watch' and not route.barred(np.isinf(cost), ask['way']):
         return {}
+    if ask['kind'] == 'dock' and laid.get('d_stage') is not None:
+        corners = route.way(ask['at'], to, cost)
+        laid = dock.staged(laid, ([ask['at']] + corners)[-2], ask['yaw'], ask['things'], ask['floor'],
+                           np.isinf(cost), *ask['dock'])
+        to = laid['stage']
     stops, curve, held = route.planned(ask['at'], ask['yaw'], ask['still'], to, cost, ask['warm'], ask['passed'])
     return dict({'stops': stops, 'curve': curve, 'held': held}, **{'laid': laid} if laid else {})
 

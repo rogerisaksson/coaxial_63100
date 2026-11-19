@@ -319,7 +319,7 @@ def test_the_planner_and_errand_rows_do_not_toggle(report):
                  er['phase'] == 'side' and float(speeds.min()) >= route.CORNER_SPEED > route.SLOWEST,
                  (er['phase'], float(speeds.min())))
     from machine.texts import maneuver
-    from machine.way import furniture, words
+    from machine.way import dock, furniture, words
     from machine.world import room
     ident = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
     boxes = [('stool', (0.0, 0.35, -0.30), (0.25, 0.05, 0.20), ident, 97),
@@ -342,6 +342,13 @@ def test_the_planner_and_errand_rows_do_not_toggle(report):
     report.check('arrival refreshes stale sight dock to live slot and rise keeps sat_thing across room',
                  abs(stale['x_dock'] - (room.CHAIR_LOW_AT[0] + 0.22)) < 1e-6 and risen[0] == 'rise_chair',
                  (stale['x_dock'], risen[0]))
+    tall = [('platform', np.array([stale['x_dock'], 0.365, stale['z_dock']]), np.array([0.4, 0.365, 0.4]), eye, 17, 1.0)]
+    guarded = dict(stale, top=0.36)
+    g['things'] = tall
+    words._refreshed(g, guarded)
+    report.check('over-popliteal seat widens heel standoff and refresh ignores taller platforms',
+                 dock.standoff('sit_chair', 0.47) > dock.standoff('sit_chair', 0.39) == maneuver.standoff('sit_chair')
+                 and guarded['top'] == 0.36, (round(dock.standoff('sit_chair', 0.47), 3), guarded['top']))
 
 
 ROSTER = (test_the_wayfinder_gauges_the_robots_way, test_the_robots_map_keeps_what_its_looks_told, test_the_robots_wayfinder_apart,

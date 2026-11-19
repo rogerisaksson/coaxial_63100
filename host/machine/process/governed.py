@@ -24,7 +24,7 @@ def _slew(val, goal, step):
 def govern_twist(g, gym, dt):
     """Step the robot's governed twist toward `asked` within its clothoid and braking envelope across
     forward and spin gaits (`se2.SE2_GAITS`), switching gait polytopes without zero-crossing chatter."""
-    if not g.get('_twist_active') or g.get('_errand') is not None or g.get('_jump_until', 0.0) > g['t']:
+    if not g.get('_twist_active') or g.get('_jump_until', 0.0) > g['t']:
         return
     rhythm, se2, touch, cocoon = _gov_mods()
     if gaits.in_stunt_transient(g):

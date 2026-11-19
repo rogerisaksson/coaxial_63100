@@ -30,7 +30,7 @@ import math
 
 from machine import libm
 from machine.body import figure, footprint
-from machine.law import poise, se2, stride
+from machine.law import modal, poise, se2, stride
 from machine.moves import seated
 from machine.eyes import voxels
 from machine.way import wayfinder
@@ -46,6 +46,30 @@ def docks():
     and lay over its corner, 16 deg off its axis."""
     return {'sit_chair': (figure.HIP_HALF, None), 'lie_bed': (figure.ASIDE, None), 'leg_bed': (figure.ASIDE, None),
             'exit_door': (figure.ASIDE, 4.0 * stride.STRIDE_M)}
+
+
+def standoff(sc, top=None, got=None):
+    """m, the robot's heels off the edge of the furniture stunt `sc` docks it at (`maneuver.standoff`), widened
+    where a rigid seat `top` m up stands over `seated.POPLITEAL` so the robot's thighs clear that edge
+    (`seated.clear`) in its balanced descent (`seated.landed`)."""
+    from machine.law import impedance
+    from machine.moves import leap
+    from machine.texts import maneuver
+    base = maneuver.standoff(sc, got) if sc in maneuver.PLAYED else 0.0
+    if top is None or sc != 'sit_chair' or top <= seated.POPLITEAL:
+        return base
+    suite = maneuver._suite() if got is None else got
+    modes, body = maneuver._manifest()
+    hips = seated.sat(top) - impedance.PROP_ON * body['weight'] / modes['mode_axial_compression'][1]
+    trunk = next((p.get('axial-counterweight', {}).get('dc-offset-rad', 0.0)
+                  for op, p, _then in maneuver._played(sc, suite, top)[0]['_events']
+                  if op == 'trigger-one-shot-envelope'), 0.0)
+    knee, ankle = seated.landed(hips, figure.THIGH, top, trunk)
+    lo, hi = 0.0, figure.THIGH
+    for _ in range(seated.HALVINGS):
+        mid = 0.5 * (lo + hi)
+        lo, hi = (mid, hi) if seated.clear(knee, ankle, mid, top) < 0.0 else (lo, mid)
+    return max(base, hi + leap.MIDDLE - poise.HALF_M)
 
 
 def shown(er):
@@ -209,3 +233,37 @@ def docked(at, things, floor, sc, box, standoff):
             break
     reached = tuple((hn, r['edge']) for hn, r in reach.items())
     return None if best is None or best['key'][0] else dict(best, reach=reached)
+
+
+def staged(laid, prev, yaw, things, floor, cells, sc, box, standoff):
+    """The robot's dock `laid` with `d_stage` and `stage` moved in along its face's normal to the nearest
+    free cell of `cells` where the robot's walk back and its turn onto the dock from its way's arrival
+    from `prev` (within `modal.LIST_RAD` either side) clear its things."""
+    import numpy as np
+    from machine.way import affordance, route
+    if not laid or laid.get('d_stage') is None or docks()[sc][1] is not None:
+        return laid
+    things = [t for t in things if t is box or not (
+        affordance.top(t) <= affordance.bottom(box) + voxels.CELL_M + 1e-9 and affordance.covered(box, t) > 0.0)]
+    edge, hn, n = np.asarray(laid['edge'], float), float(laid['hn']), np.asarray(laid['face'], float)
+    s_dock = poise.HALF_M + standoff
+    outs = s_dock + np.arange(0.0, float(laid['d_stage']) - s_dock + 1e-9, 0.25 * voxels.CELL_M)
+    b = np.arange(s_dock, outs[-1] + 1e-9, 0.5 * voxels.CELL_M)
+    ok_b = footprint.gaps(np.column_stack([edge + b[:, None] * n, np.full(len(b), hn)]),
+                          footprint.reach('back'), things, floor).min(axis=1, initial=math.inf) >= wayfinder.MARGIN
+    for s in outs:
+        stage = edge + float(s) * n
+        if not route._free(cells, route._cell(*stage)) or not bool(ok_b[b <= s + 1e-9].all()):
+            continue
+        dx, dz = float(stage[0]) - float(prev[0]), float(stage[1]) - float(prev[1])
+        h_arr = libm.arctan2(dx, dz) if math.hypot(dx, dz) > voxels.CELL_M else float(yaw)
+        a_arr = se2.wrap_angle(h_arr - (hn + math.pi))
+        if all(any(footprint.gaps(np.array([[stage[0], stage[1], hn + math.pi + a],
+                                            [edge[0] + (s - se2.STOP_SPREAD_M * max(0.0, libm.cos(a))) * n[0],
+                                             edge[1] + (s - se2.STOP_SPREAD_M * max(0.0, libm.cos(a))) * n[1],
+                                             hn + math.pi + a]]),
+                                  footprint.swept(d, w), things, floor).min(initial=math.inf)
+                   >= wayfinder.MARGIN + footprint.spread(d, w) for w, d in _ways(hn + math.pi + a, hn))
+               for a in (a_arr - modal.LIST_RAD, a_arr, a_arr + modal.LIST_RAD)):
+            return dict(laid, d_stage=float(s), stage=(float(stage[0]), float(stage[1])))
+    return laid

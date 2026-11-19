@@ -200,7 +200,7 @@ def nearest(g, verb, at=None, where=(0.0, 0.0), things=None, thing=None):
     hit = _found(g, verb, at, thing=thing, things=things)
     if hit is None:
         return math.inf, where[0], where[1], None, None, None, None
-    edge, p = hit[1], hit[2]
+    edge, p = float(hit[1] or 0.0), hit[2]
     return (edge, float(p[1][0]), float(p[1][2]), float(p[1][1]) + float(p[2][1]), (p[4] if len(p) > 4 else None),
             _faced(g, verb, things, p), p)
 
@@ -231,21 +231,21 @@ def lain(g, verb='lie_bed'):
     return float(along), float(half[j]), speed
 
 
-def seen(g, stunt, at=None, thing=None):
+def seen(g, stunt, at=None, thing=None, things=None):
     """(its top, the face the robot backs into behind its soles' middle along its way, its
     middle to the robot's left of theirs, m; that face's turn off square to its way, rad; its depth
     across that face and its width along it, m) of the furniture stunt `stunt` is on nearest `at` (the robot
-    without one), the thing of slot `thing` where given - a rise's that of the stunt it rises from -; None
-    where the robot sees none. The face is the side whose outward normal lies most along the robot's way: read
-    as the box's reach along its way, a bed turned 0.6 rad to it was its far corner, -0.45 m
-    where its long side lay 0.15 m behind the robot. The robot's soles about its root as its
-    estimate has them, its root where `_found` reads it: a look is taken from it, the
-    robot's odometry's drift none of it - an errand drifted the robot's estimate 3 cm, the seat seen 2.2 cm
-    deep of where it stood, a thigh met its edge and the robot fell."""
+    without one) among `things` (its own without), the thing of slot `thing` where given - a rise's that of the
+    stunt it rises from -; None where the robot sees none. The face is the side whose outward normal lies most
+    along the robot's way: read as the box's reach along its way, a bed turned 0.6 rad to it was its far corner,
+    -0.45 m where its long side lay 0.15 m behind the robot. The robot's soles about its root as its estimate has
+    them, its root where `_found` reads it: a look is taken from it, the robot's odometry's drift none of it - an
+    errand drifted the robot's estimate 3 cm, the seat seen 2.2 cm deep of where it stood, a thigh met its edge
+    and the robot fell."""
     from machine.senses import edge
     from machine.texts import maneuver
     from machine.law import modal
-    hit = _found(g, maneuver.PLAYED.get(stunt, (None, None))[1] or stunt, at, thing, edge=False)
+    hit = _found(g, maneuver.PLAYED.get(stunt, (None, None))[1] or stunt, at, thing, things=things, edge=False)
     if hit is None:
         return None
     _kind, (px, py, pz), half, turn = hit[2][:4]
@@ -258,3 +258,33 @@ def seen(g, stunt, at=None, thing=None):
     face = (-math.copysign(1.0, dots[k]) * (off[0] * turn[0][j] + off[1] * turn[2][j]) - half[j]) / cos
     return (py + half[1], face, off[0] * way[1] - off[1] * way[0],
             math.remainder(libm.arctan2(turn[0][2], turn[2][2]) - yaw, 0.5 * math.pi), 2.0 * half[j], 2.0 * half[2 - j])
+
+
+def at_hand(g, stunt, verb, at=None, thing=None):
+    """`(seen, edge, reach, slot)` of the furniture stunt `stunt` plays on nearest `at` (slot `thing` where
+    given), the robot looking up to `registry.TAKEN` where unseen or past `reach`, else reading positive-salience
+    live slots behind the robot under `g['eyes']`."""
+    from machine.eyes import registry
+    from machine.law import stride
+    from machine.process import sprung
+    from machine.texts import maneuver
+    from machine.way import dock
+    reach_of = lambda s: stride.STRIDE_M + dock.standoff(stunt, None if s is None else float(s[0]), g['suite'])
+    if thing is None and maneuver.PLAYED[stunt][1] is not None:
+        sat = g.get('sat_thing')
+        if sat is not None:
+            near_sat = nearest(g, verb, at, thing=sat)
+            if float(near_sat[0] or 0.0) <= stride.STRIDE_M + dock.standoff(stunt, near_sat[3], g['suite']):
+                thing = sat
+    s, near = seen(g, stunt, at, thing), nearest(g, verb, at, thing=thing)
+    for _ in range(int(math.ceil(registry.TAKEN / registry.HIT))):
+        if s is not None and float(near[0] or 0.0) <= reach_of(s):
+            break
+        sprung.looked(g)
+        s, near = seen(g, stunt, at, thing), nearest(g, verb, at, thing=thing)
+    if g.get('eyes') and (s is None or float(near[0] or 0.0) > reach_of(s)):
+        live = g['vision'].boxes(g, 0.0)
+        s_l, near_l = seen(g, stunt, at, thing, things=live), nearest(g, verb, at, things=live, thing=thing)
+        if s_l is not None and float(near_l[0] or 0.0) <= reach_of(s_l):
+            s, near = s_l, near_l
+    return s, float(near[0] or 0.0), reach_of(s), near[4]
