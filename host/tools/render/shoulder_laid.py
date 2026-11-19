@@ -35,13 +35,18 @@ from tools.render import tees  # noqa: E402
 STOOD, SWUNG, EASE_DEG = (-231.0, 143.0), 77.0, 2.0
 #: The arm's push along the shoulder's axis, N: the most through those scenarios (stand_to_sit, 27 ms above half).
 THRUST = 449.0
-#: Where the torso's block ends on the crossbar off the trunk's middle - held here until the block is drawn -, and
-#: the air between its side and the drum's mouth, m.
-BLOCK_M, MOUTH_M = 0.030, 0.002
+#: Where the torso's block ends on the crossbar off the trunk's middle, and the air between its side and the drum's
+#: mouth, m: the drums lean in at their tops, as the shoulders' axes lean, and between them stand the neck's drive,
+#: the plate on its hub (`neck_laid.held`: 'drum air') and, beside its motor's back, the hose that takes the head's
+#: motor's leads across the neck's joint (`neck_hosed.checked`: 'air').
+BLOCK_M, MOUTH_M = 0.045, 0.002
 #: Drawn: the studs a foot (as many as the hub's screws) and their washers' radius; the horn's and the rib's widths
 #: where they meet and how far along the axis they lap; the drum's wall; the air a turning part keeps off a still
 #: one; the rims' play in the bore, m.
 STUDS, WASHER_M, HORN_M, RIB_M, HOLD_M, DRUM_M, AIR_M, PLAY_M = 8, 0.006, 0.010, 0.012, 0.014, 0.003, 0.0015, 0.0002
+#: How far the rib stands off the drum, m: low - what it sweeps passes close under the neck's axis, and the neck's
+#: yoke swings there (`neck_mount.aired`).
+RIB_UP = 0.006
 #: The coil: its turns with the arm at its travel's middle, and the air between two of them wound their tightest, m.
 TURNS, GAP_M = 2.5, 0.0013
 #: The foot's centring bore, mm, and the carbon plate's steps, mm.
@@ -141,7 +146,7 @@ def laid():
     over = guard[2] + cv.FIT_M
     out.update(bar=bar, disc=1e-3 * sz['disc'], studs=1e-3 * sz['studs'], cant=cant, mouth=mouth,
                coil=(start, mouth), face=face, guard=guard, band=grip + (can + wall,), bore=bore,
-               skirt=ring + AIR_M, wind=(tight, ends, most, least), meet=bore + DRUM_M + 0.5 * RIB_M, tube=arm,
+               skirt=ring + AIR_M, wind=(tight, ends, most, least), meet=bore + DRUM_M + 0.5 * RIB_UP, tube=arm,
                lean=lean, over=over, seat=(arm + em.OVAL_PAST[0], arm + em.OVAL_PAST[1], over + em.SADDLE_M + em.SEAT_M))
     return out
 
@@ -189,7 +194,7 @@ def travel():
     tight, dead = 1e-3 * sizes()['bar'][0] + tees.HOSE_R + 0.001, 0.0
     for _ in range(8):                                   # the drum as wide as the coil's fewest turns ask
         half = 0.5 * (360.0 - dead) / 360.0
-        meet = tight * (TURNS + half) / (TURNS - half) + tees.HOSE_R + AIR_M + DRUM_M + 0.5 * RIB_M
+        meet = tight * (TURNS + half) / (TURNS - half) + tees.HOSE_R + AIR_M + DRUM_M + 0.5 * RIB_UP
         dead = math.degrees((HORN_M + RIB_M) / meet)
     return STOOD[0] - EASE_DEG, STOOD[0] - EASE_DEG + 360.0 - dead
 
@@ -262,7 +267,7 @@ def held():
     holds: the hub's screws and the foot's studs parting, the hub slipping at once, the plate and the foot bending
     between them, the foot at the crossbar's mouth, the spigot bearing in the tube, the crossbar and the arm's tube,
     the washers and the studs' holes in the foot, the housing's rims where the arm is struck sideways, the band's
-    screws, the horn and the rib at a stop, and the coil: its least bend against the hose's own and its air round
+    screws, the horn and the rib at a stop - the rib sheared off its drum, its face borne on -, and the coil: its least bend against the hose's own and its air round
     the crossbar - the drum is as wide as the coil ever grows."""
     from machine.body import mechatronics, structural
     ld, tilt, push = carried()
@@ -291,7 +296,7 @@ def held():
             'crossbar': carbon / bar[2], 'arm tube': carbon / arm[2], 'washers': allow * washer / pull,
             'stud holes': allow * 4.0 * sz['foot'] * STUDS * sz['studs'] / ld['swing'],
             'rims': allow * 2.0 * sz['disc'] * rims * lever / tilt, 'band screws': sized.PINCH * pinch / hoop,
-            'stop': kl.ACROSS * allow * 1e6 * RIB_M * HOLD_M / stop,
+            'stop': allow * 1e6 * HOLD_M * min(kl.ACROSS * RIB_M, RIB_UP - AIR_M) / stop,
             'coil bend': bend / hose, 'coil air': 1.0 + near / tees.HOSE_R}
 
 

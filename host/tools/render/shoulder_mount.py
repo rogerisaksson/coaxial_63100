@@ -34,6 +34,9 @@ from tools.render import tees  # noqa: E402
 #: The gap that lets the band pinch beside the skirt, the block's side's thickness, how far that side stands round
 #: past the coil's fitting, a nut's radius and height, m.
 RELIEF_M, SIDE_M, PAST_M, NUT = 0.0012, 0.010, 0.004, (0.007 / 2.0, 0.0032)
+#: The block's side as far round the crossbar as the block's own band (`neck_laid`), m, and the half angle of its
+#: arm out to the coil's fitting, rad: the neck's drive stands close over it.
+HUB_M, ARM = 0.012, 0.45
 #: The pairs of parts the suite counts crossings of: what turns against what stays, the arm hanging - the rest
 #: are a screw in its hole, a band on its drum, a lead on its lug.
 STILL, TURNING = ('crossbar', 'crossbar foot', 'studs', 'hub plate', 'block'), ('housing', 'guard', 'lid', 'upper arm')
@@ -89,11 +92,14 @@ def still():
         at = (lay['studs'] * math.cos(a), lay['studs'] * math.sin(a))
         studs += em._drum(sl.WASHER_M, f1, f1 + 0.001, em.BOLT, at) + em._drum(NUT[0], f1, f1 + 0.001 + NUT[1], em.BOLT, at)
     low, high = _horn()
-    far = lay['meet'] + 0.5 * sl.RIB_M
-    round_ = float(np.hypot(*sl.coil(0.0, 9)[0][1:])) + tees.FITTING[1] + PAST_M
-    block = (em._drum(round_, side, side + SIDE_M, em.FRAME)
-             + _arc(round_ - 0.002, far, side, side + SIDE_M, low, high, em.FRAME)
-             + _arc(far - sl.RIB_M + sl.AIR_M, far, side - sl.MOUTH_M - sl.HOLD_M, side, low, high, em.FRAME))
+    far = lay['meet'] + 0.5 * sl.RIB_UP
+    start = sl.coil(0.0, 9)[0]
+    round_, at = float(np.hypot(*start[1:])) + tees.FITTING[1] + PAST_M, math.atan2(start[2], start[1])
+    hub = bar + HUB_M                                    # the block's own band round the crossbar, no wider
+    block = (em._drum(hub, side, side + SIDE_M, em.FRAME)
+             + _arc(hub - 0.002, round_, side, side + SIDE_M, at - ARM, at + ARM, em.FRAME)
+             + _arc(hub - 0.002, far, side, side + SIDE_M, low, high, em.FRAME)
+             + _arc(far - sl.RIB_UP + sl.AIR_M, far, side - sl.MOUTH_M - sl.HOLD_M, side, low, high, em.FRAME))
     return {'crossbar': _leant(em._drum(bar, 0.0, lay['mouth'] + sl.MOUTH_M + SIDE_M + sl.BLOCK_M, em.CARBON)),
             'crossbar foot': em._drum(disc, f0, f1, em.FRAME) + _leant(cl.turned(collar, None)),
             'studs': studs, 'hub plate': em._drum(disc, p0, p1, em.CARBON),
@@ -112,7 +118,7 @@ def _housing(lay, can, ring):
                         (cant, rims, out), (cone, bore, bore + sl.DRUM_M)], None)
     shell += cl.honeycomb(bore, bore + sl.DRUM_M, cone, mouth)
     low = bore + sl.DRUM_M
-    rib = [(-(low + sl.RIB_M), -0.5 * sl.RIB_M), (-(low + sl.RIB_M), 0.5 * sl.RIB_M), (-(bore + 0.0005), 0.5 * sl.RIB_M),
+    rib = [(-(low + sl.RIB_UP), -0.5 * sl.RIB_M), (-(low + sl.RIB_UP), 0.5 * sl.RIB_M), (-(bore + 0.0005), 0.5 * sl.RIB_M),
            (-(bore + 0.0005), -0.5 * sl.RIB_M)]
     shell += em._rounded(rib, cone - 0.002, mouth, em.FRAME, axis=0, r=0.0015)
     half_x, half_z, down = lay['seat']

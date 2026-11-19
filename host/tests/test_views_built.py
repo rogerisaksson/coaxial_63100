@@ -49,7 +49,39 @@ def test_the_shoulder_holds_turns_and_keeps_its_coil(report):
     report.check("the arm's guards cross nothing of the shoulder's mount", capped.get('crossing') == 0, capped)
 
 
-ROSTER = (test_the_shoulder_holds_turns_and_keeps_its_coil,)
+def test_the_neck_holds_clears_and_keeps_its_hose(report):
+    """The coaxial build's neck and head as sketched (`tools.render.neck_mount`, sized by `neck_laid`; their
+    motors' leads `neck_hosed`): every member holds the neck's and the head's loads at the margin by its hand
+    checks - the two hubs' screws, the yoke's carbon plate, its crown's floor, the shoe under the head's thrust,
+    the three bands' screws and the spine's foot among them; what nods keeps a millimetre off what stays through
+    the neck's travel and crosses none of it upright; the hose that takes the head's motor's leads across the
+    neck's joint bends no tighter than its own least radius, hung through that travel and where it is laid still;
+    hung, it keeps a millimetre off the mount's parts, laid, no stretch of it lies free longer than a hose may, and
+    it, the neck's leads' sleeve and their pipes cross no part; and what nods or turns keeps a printed wall inside
+    the likeness's head's outer skin - the skin turned through the head's travel past what does not turn with it -,
+    with no likeness beside the tree there is no skin to keep inside."""
+    told: Any = _told('from tools.render import knee_loads as k, neck_hosed as h, neck_mount as n; '
+                      'print(json.dumps({"mount": n.checked(), "hose": h.checked(), "wall": k.WALL}))')
+    mount, hose = told.get('mount') or {}, told.get('hose') or {}
+    report.check("every member holds the neck's and the head's loads at the margin", (mount.get('held') or 0.0) >= 1.0,
+                 told.get('failed') or mount.get('held'))
+    report.check('what nods keeps a millimetre off what stays through the travel, and crosses none of it upright',
+                 (mount.get('air') or 0.0) >= 1.0 and mount.get('crossing') == 0, (mount.get('air'), mount.get('crossing')))
+    bend, own = hose.get('bend') or (0.0, 1.0)
+    report.check("the hose across the neck's joint bends no tighter than its own least radius, hung and laid",
+                 bend >= own and (hose.get('laid') or 0.0) >= own, (hose.get('bend'), hose.get('laid')))
+    free, most = hose.get('free') or (1.0, 0.0)
+    report.check('hung, the hose keeps a millimetre clear; laid, no stretch lies free too long; nothing crosses',
+                 (hose.get('air') or 0.0) >= 1.0 and free <= most and hose.get('crossing') == 0,
+                 (hose.get('air'), hose.get('free'), hose.get('crossing')))
+    if mount.get('skin') is None or hose.get('skin') is None:     # the skin is the likeness's, beside the tree
+        report.skip("what nods or turns keeps a printed wall inside the head's outer skin", 'no likeness beside the tree')
+        return
+    report.check("what nods or turns keeps a printed wall inside the head's outer skin",
+                 min(list(mount['skin']) + [hose['skin']]) >= told.get('wall', 1e9), (mount['skin'], hose['skin']))
+
+
+ROSTER = (test_the_shoulder_holds_turns_and_keeps_its_coil, test_the_neck_holds_clears_and_keeps_its_hose)
 
 
 def main(argv=None):

@@ -50,8 +50,14 @@ ELBOW = {'swing': 37.0, 'lateral': 192.0, 'torsion': 17.0, 'axial': 233.0}
 #: own axis its drive's 77 N m, the lateral 250 N m and the torsion 88 N m (hop_up, 0.16 s above half of each), the
 #: axial 812 N (the bed's impact, 4 ms).
 SHOULDER = {'swing': 77.0, 'lateral': 250.0, 'torsion': 88.0, 'axial': 812.0}
+#: The most the neck, the head and the spine carried through them, each about and along its own axes: the neck's
+#: nod 66 N m, across it 28, its twist 8 and 3321 N down it (a bed's impact, 11 ms); the head's turn 7 N m, its nod
+#: 110 (a bed's settle, 8 ms), across 15, 3433 N down its axis; the spine's 141, 85 and 61 N m, 1320 N.
+NECK = {'swing': 66.0, 'lateral': 28.0, 'torsion': 8.0, 'axial': 3321.0}
+HEAD = {'swing': 7.0, 'lateral': 110.0, 'torsion': 15.0, 'axial': 3433.0}
+SPINE = {'swing': 141.0, 'lateral': 85.0, 'torsion': 61.0, 'axial': 1320.0}
 MEASURED = {'knee': {'swing': 164.0, 'lateral': 189.0, 'torsion': 43.0, 'axial': 891.0},
-            'elbow': ELBOW, 'shoulder': SHOULDER}
+            'elbow': ELBOW, 'shoulder': SHOULDER, 'neck': NECK, 'head': HEAD, 'spine': SPINE}
 
 
 def tube(joint='knee'):

@@ -53,6 +53,26 @@ def band(torque_nmm, r_mm, grip_mm):
     return max(kl.WALL, hoop, 2.0 * (pinch(torque_nmm, r_mm) + SKIN))
 
 
+def hooped(torque_nmm, r_mm, grip_mm, wall_mm):
+    """How many times over a slit band's wall `wall_mm` carries the hoop gripping `torque_nmm` on a drum `r_mm` round
+    over `grip_mm` of it, at the printed polymer's strength."""
+    from machine.body import structural
+    return wall_mm * grip_mm * structural.PAHT_CF[2] / _hoop(torque_nmm, r_mm)
+
+
+def leant(torque_nmm, tilt_nmm, r_mm, grip_mm):
+    """The torque whose hoop a slit band's screws pull to grip `torque_nmm` on a drum `r_mm` round and stay shut
+    under a moment `tilt_nmm` across the drum's axis, N mm: the tilt asks the hoop 6 M / (pi L) - less, and the
+    band's pressure on the drum's far edge falls to nothing and the band opens -, added as the torque of that hoop."""
+    return torque_nmm + 6.0 * tilt_nmm / (math.pi * grip_mm) * 2.0 * math.pi * kl.FRICTION * r_mm
+
+
+def held(torque_nmm, r_mm):
+    """How many times over a band's PINCH screws - the size `pinch` picks - pull the hoop gripping `torque_nmm`."""
+    hoop = _hoop(torque_nmm, r_mm)
+    return PINCH * next((p for p, _h in PINCHES if PINCH * p >= hoop), PINCHES[-1][0]) / hoop
+
+
 def rim(torque_nmm, r_mm, count):
     """(The least wall of a printed rim, mm, the thread of its screws, mm): `count` screws `r_mm` round carrying
     `torque_nmm` across it, the smallest of THREADS whose bearing in its hole - two threads deep - holds at the printed
