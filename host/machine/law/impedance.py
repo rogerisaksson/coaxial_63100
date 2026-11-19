@@ -74,7 +74,7 @@ def ask(out, y, fr, a):
     # rows hold the polygon: let go, a push stepped a sole at its end (0/497 N)
     still = 1.0 - poise.clip(np.linalg.norm(sway) / TINY, 0.0, 1.0)
     out_of = poise.BIG * (1.0 - stood)[:, None]
-    lifted = out_of * np.maximum(1.0 - still, np.maximum(a[SWINGS], up > poise.LIFT_EPS))[:, None]
+    lifted = out_of * np.maximum(1.0 - still, np.maximum(a[SWINGS], np.maximum(up > poise.LIFT_EPS, y[LOWEST] - floors > 0.5 * CLEAR_M)))[:, None]
     lo, hi = poise.boxes(flat, 0.0 * a[EDGE], tilt)
     beyond = xi - poise.clip(xi, *poise.spanned((lo + out_of).min(axis=0), (hi - out_of).max(axis=0), prop))
     past = np.linalg.norm(xi - poise.clip(xi, *poise.spanned((lo + lifted).min(axis=0), (hi - lifted).max(axis=0), prop)))

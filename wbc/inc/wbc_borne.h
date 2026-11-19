@@ -54,6 +54,7 @@ typedef struct
   int                    corner[WBC_BORNE_CONTACTS];  /* a contact's corner of the seat's cone, -1 none */
   double                 seat_on, seat_near;        /* emancipation.seated's g['seat_on'], g['seat_near'] */
   double                 nrm[WBC_BORNE_CONTACTS][3]; /* a contact's normal of what bears it, world (borne._normal) */
+  double                 wall_y;                    /* borne.WALL_Y: a vertical wall's normal bears nothing */
 } wbc_borne_t;
 
 /** A read (machine.senses.borne.read) of the robot's edge's array `y` at its law's velocity `v`, its hands

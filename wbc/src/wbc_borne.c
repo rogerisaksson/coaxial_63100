@@ -174,7 +174,6 @@ int wbc_borne_read(wbc_borne_t *b, const double *y, const double *v, double hand
     const double prop = let ? 0.0 : 1.0, carpal = (double)b->hand[k];
     const int    side = b->right[k] + let * (k == b->sole[1]);
 
-    b->up += f[1] * (double)!b->hand[k] * prop;
     b->palms[side] += f[1] * carpal;
     if (!(hands > 0.0) && b->hand[k])
     {
@@ -205,6 +204,11 @@ int wbc_borne_read(wbc_borne_t *b, const double *y, const double *v, double hand
         nrm[j] = -nrm[j];
       }
     }
+    if (nrm[1] <= b->wall_y)
+    {
+      continue;
+    }
+    b->up += f[1] * (double)!b->hand[k] * prop;
     const int axis = largest(nrm);
     const int patch = 2 * axis + (nrm[axis] < 0.0) + b->carpal * (1 + side) * b->hand[k] + b->let * (1 + side) * let;
 

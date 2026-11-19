@@ -91,7 +91,9 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
 
     for (int b = 0; b < 2; b++)
     {
-      lifting[b] = out_of[b] * npmax(1.0 - still, npmax(a[k->a_swings + b], (double)(up[b] > k->lift_eps)));
+      const double high_b = (double)((up[b] > k->lift_eps) || (y[k->y_lowest + b] - floors[b] > 0.5 * k->clear_m));
+
+      lifting[b] = out_of[b] * npmax(1.0 - still, npmax(a[k->a_swings + b], high_b));
     }
     for (int j = 0; j < 2; j++)
     {

@@ -21,13 +21,13 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import numpy as np
 
 from machine.senses import edge
-from machine.body import figure
+from machine.body import figure, gait
 from machine.law import supervisor
 from machine.senses import touch
 from machine.law.modal import PALMS, PROP, PROP_HI, PROP_LO, PROPPED, PROPPED_BELOW, PROPPED_BOX, PROPPED_SINCE
 
-#: A segment bears that is pushed up past this, N: the robot's skin's touch.
-BEARS_N = edge.TOUCHED_N
+#: A segment bears that is pushed up past this, N: the robot's skin's touch; never a wall's (`stride`'s edge).
+BEARS_N, WALL_Y = edge.TOUCHED_N, gait.table('stride')['edge_rad']
 #: The robot's arms' segments, upper arm to fingers, indices into its skin - its left's first: a hand braced,
 #: or a forearm down on the bed as it lies back onto its elbows.
 HANDS = np.array(touch.ARMS[0] + touch.ARMS[1])
@@ -168,7 +168,6 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
         # a let-go foot is a contact, not what bears the robot off its soles: in its props' box its centre was asked
         # out over its feet at the floor's grip, 5.9 m/s^2 each way, and a hand flew 0.7 m up
         prop = float(k not in soled)
-        up += f[1] * float(k not in HANDS) * prop
         let = int(k in soled)
         side = int(k in HANDS[len(touch.ARMS[0]):]) + let * foot.get(k, 0)
         carpal = float(k in HANDS)
@@ -184,6 +183,9 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
         nrm = R @ nrms[k] if (nrms[k] != 0.0).any() else _normal(k, at[k], R)
         nrm = nrm / math.sqrt((float(nrm[0]) * float(nrm[0]) + float(nrm[1]) * float(nrm[1])) + float(nrm[2]) * float(nrm[2]))
         nrm = -nrm if (float(nrm[0]) * float(f[0]) + float(nrm[1]) * float(f[1])) + float(nrm[2]) * float(f[2]) < 0.0 else nrm
+        if float(nrm[1]) <= WALL_Y:
+            continue
+        up += f[1] * float(k not in HANDS) * prop
         axis = int(np.argmax(np.abs(nrm)))
         patch = 2 * axis + int(nrm[axis] < 0.0) + CARPAL * (1 + side) * int(carpal) + LET * (1 + side) * let
         for share, local in _points(k, pushes[k], at[k]):

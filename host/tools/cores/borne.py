@@ -42,7 +42,7 @@ class Borne(ctypes.Structure):
                 + [(name, _i) for name in ('seat_skin', 'seat_body', 'pelvis_body', 'seat_spare')]
                 + [(name, _d * 2) for name in ('seat_dx', 'seat_dz')] + [(name, _d) for name in ('touch_m', 'reach_m', 'shed0')]
                 + [('corner', _i * CONTACTS)] + [(name, _d) for name in ('seat_on', 'seat_near')]
-                + [('nrm', (_d * 3) * CONTACTS)])
+                + [('nrm', (_d * 3) * CONTACTS), ('wall_y', _d)])
 
 
 @functools.lru_cache(maxsize=None)
@@ -73,7 +73,7 @@ def laid(b):
         raise ValueError('the robot\'s skin, a capsule list or its model past wbc_borne.h')
     t = Borne(skin=len(edge.SKIN), above=len(borne.ABOVE), n=b.n, nv=b.m.nv, touch_at=edge.TOUCH.start,
               at_at=edge.AT.start, give_at=edge.GIVE.start, nrm_at=edge.NORMAL.start, pelvis=borne.PELVIS, carpal=borne.CARPAL, let=borne.LET,
-              bears_n=borne.BEARS_N, seat_x=figure.SEAT_X)
+              bears_n=borne.BEARS_N, seat_x=figure.SEAT_X, wall_y=borne.WALL_Y)
     t.sole[:] = [touch.SOLES[k][0] for k in (0, 1)]
     ids, right = borne.laid(b).tolist(), set(borne.HANDS[len(touch.ARMS[0]):].tolist())
     for k, caps in enumerate(borne.CAPSULES):
