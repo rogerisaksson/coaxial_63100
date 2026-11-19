@@ -6,6 +6,7 @@ this process's life and bound to cores of its own (`Cored`).
 import contextlib
 import ctypes
 import glob
+import itertools
 import os
 import re
 import shutil
@@ -100,18 +101,72 @@ class Cored:
             self.booking = None
 
 
+#: Ephemeral-free TCP range below Linux (32768..60999) and Windows (49152..65535) client pools.
+PORTS = (20000, 32000)
+_PORT_SEQ = itertools.count()
+
+
+def _claim_port(port):
+    """Claim `port` in the machine's ledger while this process lives; reclaim dead owners."""
+    from tools.dev import census, focus
+    os.makedirs(focus.LEDGER, exist_ok=True)
+    claim = os.path.join(focus.LEDGER, '.port-%d' % port)
+    for _ in range(2):
+        try:
+            fd = os.open(claim, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            try:
+                os.write(fd, ('%d\n' % os.getpid()).encode('ascii'))
+            finally:
+                os.close(fd)
+            return True
+        except FileExistsError:
+            try:
+                with open(claim, encoding='ascii') as f:
+                    pid = int(f.read().strip())
+            except (OSError, ValueError):
+                return False
+            if census.alive(pid):
+                return False
+            with contextlib.suppress(OSError):
+                os.remove(claim)
+    return False
+
+
+def free_port():
+    """A free TCP port in PORTS, claimed in the ledger so outgoing client sockets and concurrent
+    Renode starts cannot take that port while Renode compiles plugins before binding."""
+    lo, hi = PORTS
+    span = hi - lo
+    start = (os.getpid() * 97 + next(_PORT_SEQ)) % span
+    for step in range(span):
+        port = lo + (start + step) % span
+        with socket.socket() as probe:
+            try:
+                probe.bind(('127.0.0.1', port))
+            except OSError:
+                continue
+        if _claim_port(port):
+            return port
+    raise RuntimeError('no free emulator TCP port in %d..%d' % (lo, hi - 1))
+
+
 #: The latest run's log in a Renode's work, the only one kept (`swept`).
 LAST_LOG = 'renode_last.log'
 
 
-def swept(work, port, log=None):
+def swept(work, port, log=None, ports=()):
     """What the run on `port` left in `work` gone - its script, config and its lock, history and temp - and its
     own log `log` kept as the latest run's alone (LAST_LOG): every run's kept, Renode's work came to 15 GB over
     725 runs, five of their logs past 1 GB."""
+    from tools.dev import focus
     for name in ('run_%d.resc', 'renode_%d.config', 'renode_%d.config.lock', 'history_%d'):
         with contextlib.suppress(OSError):
             os.remove(os.path.join(work, name % port))
     shutil.rmtree(os.path.join(work, 'temp_%d' % port), ignore_errors=True)
+    for p in {port, *ports}:
+        if p:
+            with contextlib.suppress(OSError):
+                os.remove(os.path.join(focus.LEDGER, '.port-%d' % p))
     if log:
         with contextlib.suppress(OSError):
             os.replace(log, os.path.join(work, LAST_LOG))

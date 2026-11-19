@@ -287,16 +287,20 @@ class Transport:
                 return byte
 
     def _read_exactly(self, want, budget):
-        """`want` bytes, or whatever arrived before the budget ran out."""
+        """`want` bytes, or whatever arrived before the budget ran out on wall and board clocks."""
         buffer = self._first_byte(budget)
         if not buffer:
             return buffer
-        deadline = time.monotonic() + budget
-        while len(buffer) < want and time.monotonic() < deadline:
+        clock, start = self.host_clock, time.monotonic()
+        until = clock.perf() + budget / max(1.0, self._time_scale)
+        while len(buffer) < want:
             chunk = self.serial.read(want - len(buffer))
-            if not chunk:
+            if chunk:
+                buffer += chunk
+                continue
+            gone = time.monotonic() - start
+            if (gone >= budget and clock.perf() >= until) or gone >= self.STALL_X * budget:
                 break
-            buffer += chunk
         return buffer
 
     def _read_until_quiet(self, budget, reply_shape=None):
@@ -323,16 +327,23 @@ class Transport:
 
     def _arrives(self):
         """Whether a byte comes within the port's quiet time - its own `quiet_time` (a burst on
-        a socket), else QUIET_TIME at the board's pace - spun on `in_waiting`: a read's timeout
-        and a sleep are the OS's tick, 15.6 ms on Windows, and an unsized reply paid it every
-        time, 28 ms of an emulated board's 31 ms round trip."""
+        a socket), else QUIET_TIME at the board's pace on wall and board clocks - spun on
+        `in_waiting`: a read's timeout and a sleep are the OS's tick, 15.6 ms on Windows, and an
+        unsized reply paid it every time, 28 ms of an emulated board's 31 ms round trip."""
         own = getattr(self.serial, 'quiet_time', None)
-        quiet = (own if own is not None else self.QUIET_TIME) * self._time_scale
-        deadline = time.perf_counter() + quiet
-        while time.perf_counter() < deadline:
+        board_quiet = own if own is not None else self.QUIET_TIME
+        quiet = board_quiet * self._time_scale
+        clock, start = self.host_clock, time.perf_counter()
+        until = clock.perf() + board_quiet
+        while True:
             if self.serial.in_waiting:
                 return True
-        return False
+            gone = time.perf_counter() - start
+            if gone < quiet:
+                continue
+            if clock.perf() >= until or gone >= self.STALL_X * quiet:
+                return False
+            time.sleep(0.002)
 
     # -- one transaction ---------------------------------------------------
 

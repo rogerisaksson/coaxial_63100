@@ -36,8 +36,8 @@ from coaxial.devices.boot import BOOT_BAUD, HAND_AT, HAND_MAGIC
 from coaxial.simulated.sto import PILOT_HZ
 from tools.emu import protocol_frames as frames
 from tools.emu import world as worlds
-from tools.emu.probes import (ANSI, Cored, answers, boot_answers, find_renode, heard_quiet,
-                              heard_until, own_temp, swept, tied)
+from tools.emu.probes import (ANSI, Cored, answers, boot_answers, find_renode, free_port,
+                              heard_quiet, heard_until, own_temp, swept, tied)
 
 # frames://, the URL every emulator here hands out.
 if 'tools.emu' not in serial.protocol_handler_packages:
@@ -54,9 +54,8 @@ BOOT_ELF = os.path.join(os.path.dirname(ELF), 'coaxial_63100_boot.elf')
 BOOT_VTOR = 0x08000000
 IMAGE_VTOR = 0x30000000
 
-#: Renode's start, the ADC class compiled, the image booted: 5.6 s on the laptop;
-#: the wait allows ten times that, and as long again a node.
-READY_S = 60.0
+#: Renode's start, the 14 C# peripheral models compiled, the image booted: 120 s under full-suite load.
+READY_S = 120.0
 
 #: The monitor's prompt, `(machine)` after a line's end - Renode ends lines \n\r or \r\r\n.
 PROMPT = re.compile(r'[\r\n]\([^)\r\n]*\)\s*$')
@@ -99,13 +98,6 @@ _AWAKE_LOCK = threading.Lock()
 #: Renode above the host's other apps on Windows, which stretched its pace between two
 #: measures; not high: eight limbs' processes would starve the desktop.
 PRIORITY = getattr(subprocess, 'ABOVE_NORMAL_PRIORITY_CLASS', 0)
-
-
-def free_port():
-    """A TCP port nothing listens on, as the system hands one out."""
-    with socket.socket() as probe:
-        probe.bind(('127.0.0.1', 0))
-        return probe.getsockname()[1]
 
 
 class Emulator:
@@ -315,11 +307,13 @@ class Emulator:
         for port in self.consoles:
             while not (boot_answers(port) if self.boot else answers(port)):
                 if process.poll() is not None:
-                    raise RuntimeError('Renode exited with %d%s' % (process.returncode, self.said()))
-                if time.time() > deadline:
+                    said = self.said()
                     self.stop()
-                    raise RuntimeError('the emulated board on %d did not answer%s'
-                                       % (port, self.said()))
+                    raise RuntimeError('Renode exited with %d%s' % (process.returncode, said))
+                if time.time() > deadline:
+                    said = self.said()
+                    self.stop()
+                    raise RuntimeError('the emulated board on %d did not answer%s' % (port, said))
                 time.sleep(0.5)
 
     def said(self):
@@ -370,7 +364,8 @@ class Emulator:
         if self._sink is not None:
             self._sink.close()
             self._sink = None
-        swept(WORK, self.port, self.log if getattr(self, '_own', False) else None)
+        swept(WORK, self.port, self.log if getattr(self, '_own', False) else None,
+              (self.monitor, *self.consoles))
 
     def __enter__(self):
         return self.start()
