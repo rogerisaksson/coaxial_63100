@@ -94,18 +94,45 @@ def test_the_page_plays_it_back_never_ahead(report):
                  't %.3f, angle %.4f' % (one['t'], one['rotors'][0]['angle']))
 
 
+def _slept(dice, frames, period):
+    """[(woke, slot)] of a bare sleeper on this host as it is now: `frames` frames of the view's work (20 to 45 ms
+    at random), each slept to its slot on a `period` beat - a `period` after the last slot, or after the work where
+    that ran past it, as `screen.Beat` lays them: what the host's own scheduler leaves on any beat."""
+    import time
+    out, slot = [], time.perf_counter() + period
+    for _ in range(frames):
+        time.sleep(dice.uniform(0.02, 0.045))
+        worked = time.perf_counter()
+        if slot > worked:
+            time.sleep(slot - worked)
+        out.append((time.perf_counter(), slot))
+        slot = max(slot, worked) + period
+    return out
+
+
+def _beat(left):
+    """(the most a frame left from its instant, its gaps' median, their change gap to gap at p90), s, of
+    [(left, instant)] - the first five dropped, its beat not yet laid."""
+    import statistics
+    left = left[5:]
+    gaps = [b[0] - a[0] for a, b in zip(left, left[1:])]
+    change = sorted(abs(b - a) for a, b in zip(gaps, gaps[1:]))
+    return max(abs(t - at) for t, at in left), statistics.median(gaps), change[int(0.9 * (len(change) - 1))]
+
+
 def test_the_frames_leave_on_their_beat(report):
     """`screen.run_view`'s beat: a frame's draw 20 to 45 ms at random, yet each frame's bytes
     leave at the instant it drew (`screen.drawn_at`) and the frames leave on an even beat - a
-    page playing a flight back shows it as it is seen."""
+    page playing a flight back shows it as it is seen -, as near as this host wakes a bare sleeper
+    on that beat just before and after (`_slept`): a host's load its own, not the view's."""
     import io
     import random
-    import statistics
     import time
     import rich.console
     from rich.text import Text
     from terminal.ui import screen
     writes, drawn, dice = [], [], random.Random(3)
+    before = _slept(random.Random(5), 40, 0.05)
 
     class Sink(io.StringIO):
         def write(self, s):
@@ -121,16 +148,15 @@ def test_the_frames_leave_on_their_beat(report):
         return Text('%.6f' % drawn[-1])
     screen.run_view(rich.console.Console(file=Sink(), force_terminal=True, width=80, height=10,
                                          color_system='truecolor'), False, 0.05, 40, draw)
+    after = _slept(random.Random(7), 40, 0.05)
     sent = [t for t, n in writes if n > 200][:len(drawn)]
-    off = [t - d for t, d in zip(sent, drawn)][5:]
-    gaps = [b - a for a, b in zip(sent[5:], sent[6:])]
-    change = sorted(abs(b - a) for a, b in zip(gaps, gaps[1:]))
+    worst, apart, even = _beat(list(zip(sent, drawn)))
+    bare = [_beat(slept) for slept in (before, after)]
+    host_worst, host_even = max(b[0] for b in bare), max(b[2] for b in bare)
     report.check('each frame leaves at the instant it drew, on an even beat',
-                 len(sent) == len(drawn) and max(abs(o) for o in off) <= 0.008
-                 and change[int(0.9 * (len(change) - 1))] <= 0.005,
-                 'left %.1f ms from its instant at most, %.1f ms apart, gap to gap %.1f ms at p90' % (
-                     1e3 * max(abs(o) for o in off), 1e3 * statistics.median(gaps),
-                     1e3 * change[int(0.9 * (len(change) - 1))]))
+                 len(sent) == len(drawn) and worst <= 0.008 + host_worst and even <= 0.005 + host_even,
+                 'left %.1f ms from its instant at most, %.1f ms apart, gap to gap %.1f ms at p90; a bare sleeper '
+                 'here %.1f and %.1f' % (1e3 * worst, 1e3 * apart, 1e3 * even, 1e3 * host_worst, 1e3 * host_even))
 
 
 def _spilling(commands, states, shown):
