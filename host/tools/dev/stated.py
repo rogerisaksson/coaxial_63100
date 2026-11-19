@@ -35,15 +35,26 @@ SPECS = ('machine/library/*.toml', 'machine/humanoids/*.toml', 'machine/aircraft
 CEILING = {
     'machine/aircraft/crafts.toml': 102,
     'machine/humanoids/gynoid_mesomorph_medium.toml': 1064,
+    # 124: the coaxial calf - new construction (its drives' places, parts, clamped levers, heel bar and its strut,
+    # struts, the foot's keel, the thigh's leant run, the knee's stop, its guards: the arm's on its back, the
+    # shin's alone on the calf; every inverter of the leg on its motor's back); its rods' arms level at rest - each
+    # ball's arm stated beside its crank's, the heel's bar a straight shaft by its two ends; its two rods alike,
+    # each a printed cartridge of leaves: their material, their count, a leaf's width and thickness, their bow and
+    # their length
+    'machine/humanoids/gynoid_mesomorph_medium_coax.toml': 124,
     'machine/humanoids/gynoid_mesomorph_medium_packs.toml': 2,
     'machine/humanoids/gynoid_mesomorph_medium_performance.toml': 9,
     'machine/humanoids/gynoid_mesomorph_medium_r80.toml': 3,
     'machine/humanoids/gynoid_mesomorph_medium_s105.toml': 2,
     'machine/humanoids/gynoid_mesomorph_medium_s95.toml': 2,
     'machine/library/control.toml': 7,
-    'machine/library/gearboxes.toml': 18,
+    # 20: B45, the 45-lobe ring the coaxial calf's small drives turn through - a part bought, not derived
+    'machine/library/gearboxes.toml': 20,
     'machine/library/inverters.toml': 40,
-    'machine/library/materials.toml': 52,
+    # 64: the bus's robot hose ([hoses]: its radius, its weight, its two stiffnesses, its least bend, its damping)
+    # and a board's leads ([leads]: a phase's, a bus's, a signal's - each its copper and its outside) - parts
+    # bought, no other value tells
+    'machine/library/materials.toml': 64,
     'machine/library/motors.toml': 64,
     # 88: the friction's Stribeck speed (stribeck_m_s), a property of a sole on a floor no other value tells
     'machine/library/world.toml': 88,

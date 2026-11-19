@@ -150,7 +150,7 @@ def test_a_body_beside_the_figure_is_the_guards_surface(report):
                  and bool((hand == livery.TUBE).all()), sorted(n for n in drawn if n.startswith(('form_', 'like_'))))
     guard, ink = body.parts[names.index('guard_left_thigh')][5][0], body.parts[names.index('guard_left_thigh')][5][3]
     thigh = parts['form_left_thigh'][0]
-    face = guard[ink == livery.PAD]
+    face = guard[ink == livery.VOID]                     # its honeycomb's bars, the face outermost
     level = np.abs(thigh[:, 1] - float(face[:, 1].mean())) < 0.03
     girth, stands = float(np.hypot(thigh[level, 0], thigh[level, 2]).max()), float(np.hypot(face[:, 0], face[:, 2]).max())
     report.check("its guards lie on the body's surface: a thigh's pad stands where the body's thigh is, no further "

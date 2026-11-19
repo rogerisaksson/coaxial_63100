@@ -30,3 +30,9 @@ diameter_m = 0.084
 [S]
 extends = "B"
 diameter_m = 0.050
+
+# B with 45 lobes: the ankle's two small drives sharing its pitch, each to its peaks as measured at main
+# (tools/sim/legload.py --joint ankle: a drive's 74 N m on a hop up, 68 on a running jump, 14.7 rad/s).
+[B45]
+extends = "B"
+ratio = 45.0

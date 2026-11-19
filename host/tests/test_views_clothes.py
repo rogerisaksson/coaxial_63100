@@ -3,6 +3,7 @@ import math
 import os
 import sys
 import tempfile
+from typing import Any
 
 from test_views_likeness import _figure, _garments
 from tools.dev.focus import chosen
@@ -159,7 +160,152 @@ def test_nothing_stands_through_what_covers_the_robot(report):
                  {name: drawn[name] for name in ('pelvis', 'left_upper_arm', 'right_shank', 'torso', 'left_forearm')})
 
 
-ROSTER = (test_nothing_stands_out_of_its_clothes, test_nothing_stands_through_what_covers_the_robot)
+#: The worn limbs sketched, each a process of its own on the coaxial build (its guards the arm's on its back, the
+#: shin's alone), and what it prints - {pose: {pair: triangle pairs crossing}} as JSON: the leg at rest, its cables
+#: through the knee's travel and the page's robot's guards swept through its elbow's and knee's, the arm at rest and
+#: bent.
+BUILD = 'gynoid_mesomorph_medium_coax'
+WORN = {'leg': 'from tools.render import leg_worn as w, leg_clamped as lc; b, c, _m = w.dressed(lc.stated()); '
+               'print(json.dumps({"rest": w.counted(b, c), "cables bent": w.bent_cables(lc.stated()), '
+               '"the page bent": w.bent_guards()}))',
+        'arm': 'from tools.render import arm_worn as a, leg_worn as w; print(json.dumps({k: w.counted('
+               '*a.dressed(f)[:2]) for k, f in (("rest", 0.0), ("bent 90", 90.0))}))'}
+
+
+def test_nothing_cuts_through_the_worn_limbs(report):
+    """Worn, nothing of the robot's cloth, its guards and its mechanism cuts through another (`tools.render.clips`, a
+    triangle pair at a time): the sketched leg (`leg_worn`, at rest) and arm (`arm_worn`, at rest and its elbow
+    bent), the likeness's cloth laid over their guards and mechanism, each guard laid clear of its limb and stood on
+    it, no segment's guards in another's; the leg's cables - the knee's hose and pipes, the ankle's - against all
+    else of it, its guards too, through the knee's travel (`leg_worn.bent_cables`); and the page's robot bare, its
+    elbow's and knee's guards bent through their travel (`leg_worn.bent_guards`). With no likeness beside the tree
+    there is no cloth to lay."""
+    import json
+    import subprocess
+    from coaxial.graphics import likeness
+    if not likeness.FOUND:
+        report.skip('the worn limbs cut through nothing', 'no likeness beside the tree')
+        return
+    host = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    running = {}
+    for limb, code in WORN.items():
+        env = dict(os.environ, PYTHONPATH=host, COAXIAL_ROBOT=BUILD)
+        running[limb] = subprocess.Popen([sys.executable, '-X', 'utf8', '-c', 'import json; ' + code], cwd=host,
+                                         env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    for limb, run in running.items():
+        out, err = run.communicate()
+        told = json.loads(out.strip().splitlines()[-1]) if run.returncode == 0 else {'failed': err[-400:]}
+        report.check('the worn %s: its cloth, its guards and its mechanism cross nowhere' % limb,
+                     'failed' not in told and all(n == 0 for pose in told.values() for n in pose.values()), told)
+
+
+def test_the_builds_hoses_hang_as_laid(report):
+    """The coaxial build's hoses across its knees and elbows (`tools.render.hosed`, a process of its own on that
+    build): the file `machine.world.hoses` reads is its tool's output; each hose, let fall by MuJoCo through its
+    joint's travel, bends no tighter than the hose's own least radius; and as the page carries them - the figure's
+    knees and elbows swept through their travel in a second - each end stays in its fitting's mouth, within the
+    hose's own radius of it. And read off what the leg's and the arm's sketches draw (`tools.render.tees`): no hose
+    bends tighter than its own least radius, and none laid still lies free between two holds - its fittings, its
+    clips - longer than keeps its first bending mode, its ends held, over the rate the bus tells the drives at."""
+    import json
+    import subprocess
+    host = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    run = subprocess.run([sys.executable, '-X', 'utf8', '-c', 'import json; from tools.render import hosed; '
+                          'print(json.dumps(hosed.checked()))'], cwd=host, capture_output=True, text=True,
+                         env=dict(os.environ, PYTHONPATH=host, COAXIAL_ROBOT=BUILD))
+    told: Any = json.loads(run.stdout.strip().splitlines()[-1]) if run.returncode == 0 else {
+        'failed': run.stderr[-400:]}
+    report.check("the build's hoses' file is its tool's output", told.get('laid') is True,
+                 told.get('failed') or 'COAXIAL_ROBOT=%s python tools/render/hosed.py --write' % BUILD)
+    bends = told.get('bends') or {}
+    report.check('each hose bends no tighter than its own least radius through its travel',
+                 len(bends) == 2 and all(least >= own for least, own in bends.values()), bends)
+    off, radius = told.get('held') or (-1.0, 0.0)
+    report.check("carried by the figure, each hose's ends stay in their fittings' mouths", 0.0 <= off <= radius,
+                 told.get('held'))
+    drawn, free = told.get('drawn') or {}, told.get('free') or 0.0
+    report.check("no hose the leg's and the arm's sketches draw bends tighter than its own least radius",
+                 len(drawn) == 2 and all(least >= own for (least, _f), (_l, own) in zip(drawn.values(), bends.values())),
+                 drawn)
+    report.check('none of them laid still lies free between two holds longer than its first mode allows',
+                 len(drawn) == 2 and all(0.0 < loose <= free for _least, loose in drawn.values()), (drawn, free))
+
+
+def test_the_hip_holds_bends_and_clears(report):
+    """The coaxial build's hip as sketched (`tools.render.hip_checked`, a process of its own on that build): every
+    member holds the hip's loads at the margin by its hand checks; each of its two hoses, let fall by MuJoCo
+    through its joint's travel, bends no tighter than the hose's own least radius; and at the corners of the poses
+    the scenarios ask - folded the deepest, swung back the farthest, turned out and in the most - no two links
+    come within the least air; its hoses as drawn hold the leg's two rules (`tools.render.tees`); and in the leg,
+    the knee folded to its travel's end, the thigh's neck stays clear of the shank's side - the ankle's leaf."""
+    import json
+    import subprocess
+    host = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    run = subprocess.run([sys.executable, '-X', 'utf8', '-c', 'import json; from tools.render import hip_checked; '
+                          'print(json.dumps(hip_checked.checked()))'], cwd=host, capture_output=True, text=True,
+                         env=dict(os.environ, PYTHONPATH=host, COAXIAL_ROBOT=BUILD))
+    told: Any = json.loads(run.stdout.strip().splitlines()[-1]) if run.returncode == 0 else {
+        'failed': run.stderr[-400:]}
+    held, bends, air = (told.get(k) or {} for k in ('held', 'bends', 'clear'))
+    report.check("every member holds the hip's loads at the margin", bool(held) and min(held.values()) >= 1.0,
+                 told.get('failed') or held)
+    report.check('each hose bends no tighter than its own least radius through its travel',
+                 len(bends) == 2 and all(least >= own for least, own in bends.values()), bends)
+    report.check('no two links come within a millimetre at the corners of the poses asked',
+                 len(air) == 5 and min(air.values()) >= 0.001, air)
+    least, loose, free = told.get('drawn') or (0.0, 0.0, 0.0)
+    report.check('no hose the hip is drawn with bends tighter than its own least radius, and none laid still lies '
+                 'free between two holds longer than its first mode allows',
+                 bool(bends) and least >= min(own for _b, own in bends.values()) and 0.0 < loose <= free,
+                 told.get('drawn'))
+    report.check("the knee folded to its travel's end, the thigh's neck and tube keep a millimetre off the shank's "
+                 'side', (told.get('fold') or 0.0) >= 0.001, told.get('fold'))
+
+
+def test_the_foot_swings_clear(report):
+    """The coaxial build's foot through its ankle's whole travel (`tools.render.foot_swung`, a process of its own on
+    that build): its pitch from end to end, each at its roll's ends and middle, its levers turned and its rods
+    carried as the heel's shaft holds them, their leaves bowed as far as their stops let them - nothing the ankle
+    turns comes within a millimetre of what holds still on the shank (its fork, its tube, the calf's drives, their
+    clamps and covers), and no rod of the foot's own, the other rod or a lever's lug; and every part of a rod
+    bears the most a rod is asked (`leaves.held`: both drives' torque at the margin, the pitch's and the roll's
+    at once)."""
+    import json
+    import subprocess
+    host = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    run = subprocess.run([sys.executable, '-X', 'utf8', '-c', 'import json; from tools.render import foot_swung; '
+                          'print(json.dumps(foot_swung.swung()))'], cwd=host, capture_output=True, text=True,
+                         env=dict(os.environ, PYTHONPATH=host, COAXIAL_ROBOT=BUILD))
+    told: Any = json.loads(run.stdout.strip().splitlines()[-1]) if run.returncode == 0 else {
+        'failed': run.stderr[-400:]}
+    for key, what in (('shank', "nothing the ankle turns comes within a millimetre of the shank's side"),
+                      ('own', "no leaf comes within a millimetre of the foot's own, the other leaf or a lug")):
+        report.check("through the ankle's travel, " + what, (told.get(key) or [0.0])[0] >= 0.001,
+                     told.get('failed') or told.get(key))
+    held = told.get('held') or {}
+    report.check('every part of a rod bears the most a rod is asked', bool(held) and min(held.values()) >= 1.0, held)
+
+
+def test_a_legs_prints_fit_the_plates(report):
+    """A leg's printed pieces on the coaxial build (`tools.render.prints`, a process of its own): each, turned onto
+    its bed face, lies within a plate the printer's size and under its height, and the plates they are packed on
+    hold every piece a leg takes."""
+    import json
+    import subprocess
+    host = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    run = subprocess.run([sys.executable, '-X', 'utf8', '-c', 'import json; from tools.render import prints; '
+                          'print(json.dumps([prints.fitted(), sum(p[4] for p in prints.PIECES)]))'], cwd=host,
+                         capture_output=True, text=True, env=dict(os.environ, PYTHONPATH=host, COAXIAL_ROBOT=BUILD))
+    told, asked = json.loads(run.stdout.strip().splitlines()[-1]) if run.returncode == 0 else (
+        {'failed': run.stderr[-400:]}, 0)
+    report.check("every printed piece of a leg lies within a plate and under its height", told.get('over') == [],
+                 told.get('failed') or told.get('over'))
+    report.check('the plates hold every piece a leg takes', 0 < asked == told.get('pieces'), (told, asked))
+
+
+ROSTER = (test_nothing_stands_out_of_its_clothes, test_nothing_stands_through_what_covers_the_robot,
+          test_nothing_cuts_through_the_worn_limbs, test_the_builds_hoses_hang_as_laid,
+          test_the_hip_holds_bends_and_clears, test_the_foot_swings_clear, test_a_legs_prints_fit_the_plates)
 
 
 def main(argv=None):

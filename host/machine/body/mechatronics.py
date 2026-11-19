@@ -268,9 +268,13 @@ def robots():
 
 
 def _merged(base, over):
-    """`base` with `over` laid on it: a table merged key by key, anything else `over`'s."""
+    """`base` with `over` laid on it: a table merged key by key, a key `over` sets to false gone, anything else
+    `over`'s."""
     out = dict(base)
     for k, v in over.items():
+        if v is False:
+            out.pop(k, None)
+            continue
         out[k] = _merged(base[k], v) if isinstance(v, dict) and isinstance(base.get(k), dict) else v
     return out
 

@@ -29,11 +29,12 @@ def read(size, cam):
     return cam['scale'] / cam['distance'] * size >= min(cam['width'], cam['height'])
 
 
-def _dots(a, b, m, cam, centre, depth, value=None):
+def _dots(a, b, m, cam, centre, depth, value=None, bare=False):
     """The dots (`depth`'s shape, bool) of the segments from `a` to `b` (n, 3 each, world) seen
     through the view `m` about `centre` by the fine camera `cam`: a dot a step of a segment's
-    longer side, where no more than PROUD_M of what `depth` tells stands before it; with `value`
-    (n,) each dot its segment's, the most of those on it (float); None with none."""
+    longer side, where no more than PROUD_M of what `depth` tells stands before it - with `bare`
+    where nothing stands too; with `value` (n,) each dot its segment's, the most of those on it
+    (float); None with none."""
     from coaxial.model.blocks import numpy as np
     (ax, ay, aw), (bx, by, bw) = (project(ends, m, cam, centre) for ends in (a, b))
     high, wide = depth.shape
@@ -49,7 +50,7 @@ def _dots(a, b, m, cam, centre, depth, value=None):
     within = (x >= 0) & (x < wide) & (y >= 0) & (y < high)
     x, y, w, on = x[within], y[within], w[within], on[within]
     near = depth[y, x]
-    shown = (near > 0.0) & (w * (1.0 + PROUD_M * near) >= near)
+    shown = ((near > 0.0) | bare) & (w * (1.0 + PROUD_M * near) >= near)
     if not shown.any():
         return None
     if value is None:

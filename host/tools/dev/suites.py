@@ -434,7 +434,8 @@ PORT = ('test_mcp.py', 'test_parity.py')
 #: on as shards side by side.
 SHARDED = (SENSORLESS, CONTROLLER, GYNOID, ORTHO, SYSID, SYSID_LIVE, WEAR, SITUATION, 'test_simulated.py', 'test_views_segments.py',
            DAQ_API, QUAD_PAGE, REPLAYS, SCENES, ERRANDS, WASD, STRUCTURE,
-           PORTED, 'test_mirrors.py', LEAP, TICK, STICTION, VECTORIZED, LIBM, FLOOR, CAMERA, SIGHT, GAZE)
+           PORTED, 'test_mirrors.py', LEAP, TICK, STICTION, VECTORIZED, LIBM, FLOOR, CAMERA, SIGHT, GAZE,
+           'test_views_clothes.py')
 
 #: A suite's seconds where the tree holds no record of its own (tests/.counts.json, not committed) are its work
 #: in tests/work.json over the pace of the host a run is on (tools/dev/machine_detector.py): numbers written

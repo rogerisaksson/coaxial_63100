@@ -6,7 +6,7 @@ offset. Without `root`, the lowest foot stands on y = 0.
 import math
 from typing import Any
 
-from coaxial.graphics import (arrows as _arrows, drape, drums, engine, form, likeness, marks, mechanism, panels,
+from coaxial.graphics import (arrows as _arrows, drape, drums, engine, form, hoses, likeness, marks, mechanism, panels,
                               plated, seat, sneaker, under)
 from coaxial.graphics.callouts import callouts, line, packed
 from coaxial.graphics.lit import (CORE, MESH, PAINTED, PLATE, SKIN, braille, grid, paint,
@@ -438,7 +438,7 @@ def cells(points, width, height, yaw=30.0, pitch=8.0, zoom=1.0, travel=(0.0, 0.0
 def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, travel=(0.0, 0.0),
            lit=None, root=None, labels=None, heat=None, props=None, legend=None, dressed=True, dents=None,
            mark=None, around=False, see=None, pan=(0.0, 0.0), inset=None, arrows=None, horizon=None, rounds=None,
-           like=None):
+           like=None, hosed=None):
     """Render the gynoid at `angles` (`{joint: deg}`) into `width` x `height` braille lines;
     `horizon` [(segments, ink)] on it (`coaxial.graphics.horizon`); `props` drawn round where `rounds` says."""
     who = body(dressed, see, like if not see else None, not dressed and not see)
@@ -476,6 +476,7 @@ def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, tr
     return braille(depth, rgb, grid(m, fine, centre, travel), width, height, colour, overlay,
                    leaders, prop_lines(props or (), m, fine, centre, travel, dents, rounds)
                    + _arrows.layers(arrows, m, fine, centre, travel) + wired
+                   + hoses.layers(who, frames, hosed, travel, m, fine, centre, depth)
                    + marks.layers(who, laid or (lambda: who.pose(angles, root=root, _frames=frames)), m, fine, centre, depth)
                    + [(dots, ink) for segs, ink in (horizon or ())
                       for dots in (_arrows._rasterize(segs, m, fine, centre, travel),) if dots is not None])

@@ -1,0 +1,16 @@
+# The build's hoses across its joints: written by host/tools/render/hosed.py, not by hand.
+# Each: its kind (materials.toml [hoses]), its length m, the fitting it leaves and the one it goes into -
+# [segment, its mouth, the way the hose leaves it], m in the segment's frame. The left side's; the
+# right's its mirror.
+
+[elbow]
+kind = "bus"
+length = 0.0882
+from = ["left_upper_arm", [0.049510, -0.269005, -0.027913], [0.000000, -0.366501, 0.930418]]
+to = ["left_forearm", [0.038407, -0.057440, 0.000000], [0.207912, 0.978148, 0.000000]]
+
+[knee]
+kind = "bus"
+length = 0.1218
+from = ["left_thigh", [-0.049960, -0.370588, 0.023200], [0.000000, -0.641710, -0.766948]]
+to = ["left_shank", [-0.049960, -0.081242, 0.037745], [0.000000, 0.906901, -0.421343]]

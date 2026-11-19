@@ -219,25 +219,50 @@ def wind_mrad():
     return {kind: round(1e3 * w, 3) for kind, w in wind(members()).items()}
 
 
+def _reach(joint, pin, q, roll):
+    """How far a rod's length changes a radian its ball's joint turns - `q` its pitch, `roll` its roll, the step."""
+    return abs(math.dist(pin, linkage.ball(joint, q, roll)) - math.dist(pin, linkage.ball(joint, -q, -roll))) / 2e-6
+
+
 def leaf_series(leaf):
-    """{joint kind: N m/rad} rotational series stiffness of a pre-curved carbon leaf (`[leaf]`), Castigliano."""
+    """{joint kind: N m/rad} rotational series stiffness of each pre-curved leaf (`[leaf]`: its `joint` one
+    rod's kind or a list of them, each size one for all or one a leaf), Castigliano - about the joint's pitch, a
+    pair's roll rod's about its roll (`linkage.PAIRS`). A leaf alone is a bow pinned at its eyes; `leaves` of them
+    side by side between two blocks are each held at both roots, a bump between them. Where both rods of a pair
+    are leaves they turn the pitch together and the roll against each other: each joint's stiffness both rods'."""
     if not leaf:
         return {}
-    joint = leaf['joint']
-    e = float(leaf.get('e_gpa', HM_CARBON[0])) * 1e9
-    w, t = float(leaf['width_m']), float(leaf['thick_m'])
-    up, ahead, r, t0 = linkage.RODS[joint][0][:4]
-    pin = (linkage.ROD_AT[joint][1], up - r * math.cos(t0), ahead + r * math.sin(t0))
-    bend, b0 = linkage.BENDS[joint], linkage.ball(joint, 0.0, 0.0)
-    seg_a, seg_b, chord = math.dist(pin, bend), math.dist(bend, b0), math.dist(pin, b0)
-    along = (seg_a * seg_a + chord * chord - seg_b * seg_b) / (2.0 * chord)
-    arch = float(leaf.get('arch_m', math.sqrt(max(0.0, seg_a * seg_a - along * along))))
-    length = float(leaf.get('length_m', seg_a + seg_b))
-    arm = abs(math.dist(pin, linkage.ball(joint, 1e-6, 0.0))
-              - math.dist(pin, linkage.ball(joint, -1e-6, 0.0))) / 2e-6
-    area, i_sec = w * t, w * t ** 3 / 12.0
-    comp_axial = 8.0 * length * arch ** 2 / (15.0 * e * i_sec) + length / (e * area)
-    return {joint: round(arm ** 2 / comp_axial, 1)}
+    joints = leaf['joint'] if isinstance(leaf['joint'], list) else [leaf['joint']]
+    e = float(leaf.get('e_gpa', _SOLIDS[leaf['material']][0] if 'material' in leaf else HM_CARBON[0])) * 1e9
+    stack = int(leaf.get('leaves', 1))
+
+    def each(key, i, default=0.0):
+        v = leaf.get(key, default)
+        return float(v[i] if isinstance(v, list) else v)
+    out, rods = {}, {}
+    for i, joint in enumerate(joints):
+        w, t = each('width_m', i), each('thick_m', i)
+        up, ahead, r, t0 = linkage.RODS[joint][0][:4]
+        pin = (linkage.ROD_AT[joint][1], up - r * math.cos(t0), ahead + r * math.sin(t0))
+        bend, b0 = linkage.BENDS[joint], linkage.ball(joint, 0.0, 0.0)
+        seg_a, seg_b, chord = math.dist(pin, bend), math.dist(bend, b0), math.dist(pin, b0)
+        along = (seg_a * seg_a + chord * chord - seg_b * seg_b) / (2.0 * chord)
+        arch = each('arch_m', i, math.sqrt(max(0.0, seg_a * seg_a - along * along)))
+        length = each('length_m', i, seg_a + seg_b)
+        q, roll = (0.0, 1e-6) if joint in linkage.PAIRS.values() else (1e-6, 0.0)
+        arm = abs(math.dist(pin, linkage.ball(joint, q, roll)) - math.dist(pin, linkage.ball(joint, -q, -roll))) / 2e-6
+        area, i_sec = w * t, w * t ** 3 / 12.0
+        if stack > 1:
+            comp_axial = (length * arch * arch / (8.0 * e * i_sec) + length / (e * area)) / stack
+        else:
+            comp_axial = 8.0 * length * arch ** 2 / (15.0 * e * i_sec) + length / (e * area)
+        out[joint], rods[joint] = round(arm ** 2 / comp_axial, 1), (1.0 / comp_axial, pin)
+    for pitch, rolled in linkage.PAIRS.items():
+        if pitch in rods and rolled in rods:
+            for joint, turn in ((pitch, (1e-6, 0.0)), (rolled, (0.0, 1e-6))):
+                far = {rod: _reach(rod, pin, *turn) for rod, (_k, pin) in rods.items() if rod in (pitch, rolled)}
+                out[joint] = round(sum(rods[rod][0] * reach * reach for rod, reach in far.items()), 1)
+    return out
 
 
 def leaf_track(series_map, armature_fn, rate_s=None, observe_x=None):

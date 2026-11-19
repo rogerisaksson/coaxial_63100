@@ -43,6 +43,13 @@ matplotlib>=3.7
 pillow>=10.0        # a frame as a PNG (machine.rig.ansi): Pillow's raster, the console font's glyphs by
 fonttools>=4.40     # fontTools - both arrived with matplotlib and are imported where called, so written
 
+# Only for the sketches of the skeleton's mounts (tools/render): scipy's trees of
+# points, its fills and its sparse solve, and scikit-fem's linear elasticity on
+# the voxelled printed parts (knee_loads.py, knee_topo.py), each imported where
+# called.
+scipy>=1.13
+scikit-fem>=11.0
+
 # Only for tools/dev/cover.py: the line coverage of the hand-written code, the
 # Python followed into every suite's process (`patch = subprocess`, 7.10).
 coverage>=7.10

@@ -15,6 +15,9 @@ nodes on those amps, HASTE times the clock. A drive's parts' limits: its board's
 the amps it holds for ever (`heat.held`), its gearbox's momentary torque (`Size.shock`), its motor's
 speed with no load at the pack's volts (`drives.speed`), a node's span to its ceiling. A share
 past PAST of any is over. A shove the robot falls of is not a scene: a fall's demand is the fall's.
+Each bus's chain too (`chains`: a limb's drives in the order its bus runs them, `routines.TYPES`):
+the amps each of its segments carries - every drive past it at once, their work, their copper
+and their boards' own at the packs' least volts (`dclink`'s power) -, its rms and its most.
 """
 import argparse
 import json
@@ -49,12 +52,22 @@ def laid(world):
     return names, np.array(first), np.array(second), np.array(sign)
 
 
+def chains(world):
+    """{bus: [joint index]}: each bus's driven joints in the order it runs them, its source's end first."""
+    from machine.body.figure import JOINTS
+    from machine.rig.routines import TYPES
+    at = {j: i for i, j in enumerate(JOINTS)}
+    return {limb.name: [at[j] for j in limb.actuators if j in at and world.driven[at[j]]]
+            for limb in TYPES['gynoid'].body}
+
+
 def meter(world):
     """`world`'s drives laid to be metered a pass at a time (`ticked`): their parts' limits and
     what they have been asked so far."""
     import numpy as np
-    from machine.body import drives, heat, mechatronics
+    from machine.body import dclink, drives, heat, mechatronics
     from machine.body.figure import JOINTS
+    link, runs = dclink.laid(), chains(world)
     gearboxes = mechatronics.library()['gearboxes']
     names, first, second, sign = laid(world)
     joints = [JOINTS[i] for i in first]
@@ -67,17 +80,27 @@ def meter(world):
             'holds': np.array([heat.held(j)[0] / drives.kt(j) for j in joints]),
             'box': np.array([s.kt_motor * float(gearboxes[drives.STACKS[drives.kind(j)][1]]['ratio'])
                              * s.efficiency / s.shock for j, s in zip(joints, sizes)]),
-            **{k: np.zeros(len(names)) for k in ('peak', 'square', 'fast', 'spent', 'often')}}
+            **{k: np.zeros(len(names)) for k in ('peak', 'square', 'fast', 'spent', 'often')},
+            'loss': link['loss'], 'own': link['house_w'] / max(int(world.driven.sum()), 1) * world.driven,
+            'runs': runs, 'most': {bus: np.zeros(len(run)) for bus, run in runs.items()},
+            'squares': {bus: np.zeros(len(run)) for bus, run in runs.items()}}
 
 
 def ticked(m, world):
     """`m` (`meter`) on by `world`'s pass."""
     import numpy as np
+    from machine.body import drives
     share, turns = world.motor / world.kt * world.driven, world.data.qvel[world.vadr] / m['free']
     amps = share[m['first']] + m['sign'] * share[m['second']]
     m['peak'], m['square'] = np.maximum(m['peak'], np.abs(amps)), m['square'] + amps * amps
     m['often'] += np.abs(amps) > PAST * m['board']
     m['fast'] = np.maximum(m['fast'], np.abs(turns[m['first']] + m['sign'] * turns[m['second']]))
+    tau, speed = world.motor * world.driven, world.data.qvel[world.vadr]
+    drawn = (tau * speed + m['loss'] * tau * tau + m['own']) / drives.PACK_V      # each drive's, off the bus, A
+    for bus, run in m['runs'].items():                   # a segment carries its drive's and all past it
+        carried = np.cumsum(drawn[run][::-1])[::-1]
+        m['most'][bus] = np.maximum(m['most'][bus], np.abs(carried))
+        m['squares'][bus] += carried * carried
     for k, a in enumerate(amps):
         m['warm'].load(k, a * m['warm'].kt[k])
     m['n'] += 1
@@ -89,13 +112,16 @@ def ticked(m, world):
 def row(m, **head):
     """`head` and `m`'s shares: {names, amps (peak), peak, rms, box, speed, heat - a share of its
     part's limit a drive -, often (the share of the passes its amps are past PAST of its
-    board's), celsius}."""
+    board's), celsius, chains {bus: {joints, rms, most - A a segment, its source's end first}}}."""
     import numpy as np
+    from machine.body.figure import JOINTS
     n = max(m['n'], 1)
+    told = {bus: {'joints': [JOINTS[i] for i in run], 'rms': np.round(np.sqrt(m['squares'][bus] / n), 2).tolist(),
+                  'most': np.round(m['most'][bus], 1).tolist()} for bus, run in m['runs'].items()}
     return dict(head, names=m['names'], amps=np.round(m['peak'], 1).tolist(), peak=(m['peak'] / m['board']).tolist(),
                 rms=(np.sqrt(m['square'] / n) / m['holds']).tolist(), box=(m['peak'] * m['box']).tolist(),
                 speed=m['fast'].tolist(), heat=m['spent'].tolist(), often=(m['often'] / n).tolist(),
-                celsius=[round(max(t), 1) for t in m['warm'].t])
+                celsius=[round(max(t), 1) for t in m['warm'].t], chains=told)
 
 
 def ran(scene, way=0):
@@ -161,6 +187,11 @@ def said(scene, rows):
             kind, mine['amps'], mine['peak'], 100.0 * mine['often'], mine['rms'], mine['box'],
             mine['speed'], mine['heat'], mine['celsius']))
         over += [(kind, share, mine[share]) for share in SHARES if mine[share] > PAST]
+    for bus in (stood[0]['chains'] if stood else ()):       # each segment's worst over the runs: rms / most, A
+        runs = [row['chains'][bus] for row in stood]
+        print('  %-10s %s' % (bus, '  '.join('%s %.1f/%.0f' % (
+            joint, max(run['rms'][k] for run in runs), max(run['most'][k] for run in runs))
+            for k, joint in enumerate(runs[0]['joints']))))
     return over
 
 

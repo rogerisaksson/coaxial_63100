@@ -16,8 +16,9 @@ from coaxial.graphics.lit import paint
 #: frame, as the pictured robots' plates on their struts - in a mid grey its frame and its
 #: guards' shaded sides were one mass, and in its own near white a third of the robot was
 #: light; a board's black laminate: in its green, and a quick-release in its violet, an
-#: eighth of the robot was in hues no pictured robot wears.
-TUBE, FRAME = paint((62, 66, 76), twill=True, hard=True), paint((112, 116, 126), hard=True)
+#: eighth of the robot was in hues no pictured robot wears; the carbon near neutral - seen
+#: through the guards' open honeycomb, its blue cast was a ninth of the robot in blue.
+TUBE, FRAME = paint((64, 66, 68), twill=True, hard=True), paint((112, 116, 126), hard=True)
 PAD, FOAM = paint((236, 240, 246), hard=True), paint((128, 134, 146), hard=True)
 STEEL, BOARD = paint((72, 76, 86), hard=True), paint((44, 46, 54), hard=True)
 #: A bolt's and a rivet's head, bright: a dot on a drive's face, in a rim's corner.

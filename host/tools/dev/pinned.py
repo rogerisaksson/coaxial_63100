@@ -2,6 +2,7 @@
 """One version of each distribution wherever host/ is installed: requirements.txt resolved as one lock.
 
     python -X utf8 tools/dev/pinned.py            # host/constraints.txt laid anew, every target resolved
+    python -X utf8 tools/dev/pinned.py --keep     # laid anew under itself: what it pins stays, what is new is added
     python -X utf8 tools/dev/pinned.py --check    # whether it pins every requirement at a version it allows
 
 requirements.txt writes what host/ needs and why, each at a floor. Left at that, every place it was installed held
@@ -12,6 +13,9 @@ matrix in CI's runner image (tools/dev/linux.py) - each by its own pip, nothing 
 distribution every target holds is locked at the one version they agree on, the lock refused where two differ; one a
 platform holds alone (pywin32, pexpect) as that platform resolved it - a constraint installs nothing where nothing
 asks for it. Setup (setup/python.ps1), CI's inputs action and the runner's image install through it (pip -c).
+Laid anew, the lock moves every distribution to the day's newest - numpy with it, on every host at once. `--keep`
+resolves each target under the lock as it stands (pip -c; the runner's image under its own copy of it): a
+requirement added brings its own distributions and moves none of the others.
 """
 import argparse
 import os
@@ -50,23 +54,27 @@ def read(text):
             for name, _, version in (line.strip().partition('==') for line in text.splitlines()) if version}
 
 
-def here(build):
-    """This host's resolution, by its own Python."""
-    done = subprocess.run([sys.executable, '-X', 'utf8', '-c', RESOLVE, str(REQUIREMENTS), *build],
+def here(build, kept=False):
+    """This host's resolution, by its own Python - under the lock as it stands where `kept`."""
+    held = ('-c', str(LOCK)) if kept else ()
+    done = subprocess.run([sys.executable, '-X', 'utf8', '-c', RESOLVE, str(REQUIREMENTS), *held, *build],
                           capture_output=True, encoding='utf-8', check=False)
     if done.returncode:
         raise SystemExit('pinned: this host resolved nothing: %s' % done.stderr[-600:])
     return read(done.stdout)
 
 
-def linux(build):
+def linux(build, kept=False):
     """{'linux 3.12': its resolution, ...}: each Python of host.yml's matrix in CI's runner image (tools/dev/linux.py),
-    the image built as the gate's is, of the tree's requirements and pyproject."""
+    the image built as the gate's is, of the tree's requirements and pyproject - under the image's own copy of the
+    lock where `kept`."""
     from tools.dev import linux as runner
     info, client, found = runner.workflow(), runner.engine(), {}
+    held = ('-c', '/tmp/inputs/constraints.txt') if kept else ()
     for minor in info['pythons']:
         probe = client.containers.run(runner.built(info, minor), ['python', '-X', 'utf8', '-c', RESOLVE,
-                                                                  '/tmp/inputs/requirements.txt', *build], detach=True)
+                                                                  '/tmp/inputs/requirements.txt', *held, *build],
+                                      detach=True)
         try:
             code = probe.wait()['StatusCode']
             said = probe.logs(stdout=True, stderr=bool(code)).decode('utf-8', 'replace')
@@ -112,13 +120,14 @@ def main(argv=None):
     """The lock laid anew from every target's resolution; --check: 1 where it misses or outgrows a requirement."""
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--check', action='store_true', help='whether the lock pins every requirement at a version it allows')
+    parser.add_argument('--keep', action='store_true', help='laid under itself: its pins stay, only what is new resolved')
     args = parser.parse_args(argv)
     if args.check:
         left = check()
         print('pinned: ' + ('%d not pinned as asked: %s' % (len(left), ', '.join(left)) if left else 'every requirement pinned'))
         return 1 if left else 0
     build = built()
-    targets = {'%s %d.%d' % (sys.platform, *sys.version_info[:2]): here(build), **linux(build)}
+    targets = {'%s %d.%d' % (sys.platform, *sys.version_info[:2]): here(build, args.keep), **linux(build, args.keep)}
     pins = merged(targets)
     with open(LOCK, 'w', encoding='utf-8', newline='\n') as f:
         f.write(laid(pins, targets))

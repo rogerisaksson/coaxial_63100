@@ -1,0 +1,74 @@
+# The gynoid mesomorph medium on a coaxial calf: its build (`extends`) with the ankle's two drives back to back on
+# one axis under the knee, each a small motor through a 45:1 gearbox with its inverter on its back between them, both
+# held in one printed band; their rods a parallelogram each onto a heel bar behind the ankle, each a printed
+# cartridge of leaves down the back of the calf; the knee's inverter on its motor's back, as the hip's and the
+# elbow's.
+extends = "gynoid_mesomorph_medium"
+
+# Two MN6007 sharing the ankle's pitch, each to its peaks as measured at the robot's own build.
+[drives.motors]
+MN6007 = ["ankle", "ankle_roll"]
+
+[drives.gearboxes]
+B45 = ["ankle", "ankle_roll"]
+
+# Both rods alike: a pair turns the pitch together and the roll against each other, so only two alike spring the
+# pitch (`structural.leaf_series`: both rods' stiffness a joint). Each a printed cartridge (`material`): `leaves`
+# thin leaves side by side between two blocks, bowed arch_m either way about the rod's line over length_m, their
+# thickness the one that gives the pair the robot's own leaf's series stiffness about the pitch (1040 N m/rad).
+[leaf]
+joint = ["ankle", "ankle_roll"]
+material = "paht_cf"
+leaves = 4
+width_m = 0.016
+thick_m = 0.002615
+arch_m = 0.012
+length_m = 0.126
+
+# Every inverter of the leg on its motor's back, coaxial (false: no remote bay).
+[boards]
+knee = false
+ankle = false
+
+# The knee's hard stop where the thigh's tube, leant from the hip's axis, meets the calf's cage (its guards clear
+# to 158): past the deepest fold a program asks (150 deg, bed_pull's).
+[stops]
+knee = [-5.0, 155.0]
+
+# The guards (`[guards]`, from and to down a limb, shares; middle and half width about it, deg from its outer side
+# toward ahead): the elbow's and the forearm's on the arm's back, as a rider wears them - the sides that turn away
+# from each other as the elbow bends, so they never meet; on the calf the shin's alone - a printed cover on each
+# drive's gable, nothing of foam over it (`tools/render/leg_clamped.py`), the shin's guard no wider round the calf than
+# keeps its edges inside those covers - the calf no wider than its drives and their covers;
+# the thigh's pad alone, its two ring slats off, its back edge on the thigh's outer side.
+[guards]
+thigh = [[0.14, 0.62, 55.0, 57.0]]
+upper_arm = [[-0.06, 0.32, 0.0, 85.0], [0.42, 0.90, -90.0, 70.0]]
+forearm = [[0.08, 0.66, -90.0, 75.0], [0.7, 0.84, 20.0, 60.0]]
+shank = [[-0.07, 0.11, 90.0, 55.0], [0.16, 0.72, 90.0, 42.0], [0.755, 0.835, 90.0, 52.0]]
+
+[mounts]
+ankle = { x_m = 0.0325, dy_m = 0.0 }
+ankle_roll = { x_m = -0.0325 }
+
+# Each crank a tight clamp on its drive's output ring (`sized.band`, its screws hid), its lever out past the band
+# and the leaf's eye (54 mm), as long as its ball's arm and parallel to it: the rod a parallelogram, the ratio near
+# 1 the stroke over, no crank outboard of the gearbox - the calf no wider than its drives. Both arms level with the
+# foot flat (270 deg): its toes 45 deg down the rod then runs 38 mm behind the drives' axis, past its own lever's
+# band - at 255 deg it ran 27 mm behind it, through the band and the drives' clamps (`tools/render/foot_swung.py`).
+[linkage.rods]
+ankle = { up = 0.2624, ahead = 0.000, crank_m = 0.054, crank_deg = 270.0, ball_m = 0.054, ball_deg = 270.0, crank_x = 0.057, ball_x = 0.013, bend = [0.0350, 0.1312, -0.0540] }
+ankle_roll = { up = 0.2624, crank_m = 0.054, crank_deg = 270.0, ball_m = 0.054, ball_deg = 270.0, crank_x = -0.057, ball_x = -0.013, bend = [-0.0350, 0.1312, -0.0540] }
+
+# The thigh's one straight tube from under the hip's axis (radial there) to the knee's clamp, leant to pass 41 mm
+# ahead of the knee's axis - the least that lets the knee fold to its stop past the calf's cage - on the line its
+# seat is flush with the knee's board's cover on. The foot printed in profile on its carbon plate and soft soles: its
+# keel's line arched between the heel and the ball, the keel bonded to the plate in place of two 12 mm legs, the heel
+# bar's tube and its arm.
+[skeleton.hung]
+thigh = { tubes = [[[-0.009, -0.0825, 0.00873], [-0.009, 0.0842, 0.03234, "end"]]], radii = [0.020] }
+foot = { tubes = [[[0.0, -0.058, -0.045], [0.0, -0.050, 0.03], [0.0, -0.060, 0.105], [0.0, -0.055, 0.117]], [[0.013, 0.0, -0.0540], [-0.013, 0.0, -0.0540]], [[-0.03, -0.055, 0.117], [0.03, -0.055, 0.117]], [[0.0, 0.0, -0.0540], [0.0, 0.0, -0.026]]] }
+
+[skeleton.held]
+ankle = { struts = [[[0.051, -0.1176, -0.019], [0.051, -0.1176, -0.037]]] }
+ankle_roll = { struts = [[[-0.0239, -0.1176, -0.034], [-0.0239, -0.1176, -0.047], 0.007]] }

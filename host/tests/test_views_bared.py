@@ -89,9 +89,10 @@ def test_the_mechanism_in_its_livery_bolted(report):
 
 
 def test_guards_of_honeycomb_stood_off_the_tubes(report):
-    """On the mechanism its guards (`guards.laid`): a slab of honeycomb foam in a rim on each limb's segment and on the
-    trunk, stood off the tubes on struts with air between; none closes its limb, a leg's inside and its back wear
-    none, and its hips, its seat and the small of its back are open; a knee's cup clears its knee's drum."""
+    """On the mechanism its guards (`guards.laid`): an open honeycomb in a rim on each limb's segment and on the trunk -
+    its bars black and nothing behind them, the seat's net -, stood off the tubes on struts with air between; none
+    closes its limb, a leg's inside and its back wear none, and its hips, its seat and the small of its back are open;
+    a knee's cup clears its knee's drum."""
     import numpy as np
     from coaxial.graphics import guards, gynoid, livery, panels
     from machine.body import skeleton
@@ -101,19 +102,22 @@ def test_guards_of_honeycomb_stood_off_the_tubes(report):
     report.check("a guard on each limb's four segments, a side each, and on the trunk; none on its hips, its neck, a "
                  'hand or a foot',
                  worn == sorted(['torso'] + [s + n for s in ('left_', 'right_') for n in guards.LIMB]), worn)
-    paints = (livery.FRAME, livery.PAD, livery.FOAM, livery.VOID, livery.BOLT, livery.STEEL)
-    air, free, cells, grooves, reach = {}, {}, {}, [], {}
+    paints = (livery.FRAME, livery.VOID, livery.BOLT, livery.STEEL)
+    air, free, cells, meets, opens, reach = {}, {}, {}, [], [], {}
     for seg in worn:
         corners, triangles, _uv, ink = body.parts[names.index('guard_' + seg)][5]
         side, _, limb = seg.partition('_')
         x, steel = -1.0 if side == 'right' else 1.0, ink == livery.STEEL
         island = _islands(triangles, len(corners))
         roots, counts = np.unique(island, return_counts=True)
-        pad = np.array([corners[island == r] for r, n in zip(roots, counts) if n == 6 and ink[r] == livery.PAD])
-        mid = pad.mean(axis=1)
-        near = (np.linalg.norm(mid[:, None] - mid[None], axis=2) + 9.0 * np.eye(len(mid))).min(axis=1)
-        grooves.append(near - math.sqrt(3.0) * np.linalg.norm(pad - mid[:, None], axis=2).mean(axis=1))
-        cells[seg] = len(pad) if set(np.unique(ink).tolist()) == set(paints) else 0
+        rings = np.array([corners[island == r] for r, n in zip(roots, counts) if n == 12 and ink[r] == livery.VOID])
+        mid = rings[:, :6].mean(axis=1)                  # a cell's bars on its face or its back: out, then its opening
+        out, inner = (np.linalg.norm(rings[:, k:k + 6] - mid[:, None], axis=2).mean(axis=1) for k in (0, 6))
+        apart = np.linalg.norm(rings[:, None, :6, None] - rings[None, :, None, :6], axis=-1)
+        apart[np.arange(len(rings)), np.arange(len(rings))] = 9.0
+        meets.append(apart.min(axis=(1, 2, 3)))          # a corner shared with a neighbour's ring: 0
+        opens.append(inner / out)
+        cells[seg] = len(rings) if set(np.unique(ink).tolist()) >= set(paints) else 0
         if limb in guards.LIMB:
             tubes = skeleton.runs(limb, x)
             air[seg], reach[seg] = float(_off(corners[~steel], tubes).min()), float(_off(corners[steel], tubes).min())
@@ -121,11 +125,13 @@ def test_guards_of_honeycomb_stood_off_the_tubes(report):
             free[seg] = set(range(24)) - set((about // 15.0).astype(int).tolist())
             low, high = corners[~steel, 1].min() / panels.LIMBS[limb][0], corners[~steel, 1].max() / panels.LIMBS[limb][0]
             cells[seg] *= bool(-0.92 < low and high < 0.09)
-    groove = np.concatenate(grooves)
-    report.check("a guard is a rim, a pad's cells on its face and under it over a backing, rivets and struts; its "
-                 'cells a honeycomb - six corners each, a groove between two -, short of its limb\'s ends',
-                 all(n >= 4 for n in cells.values()) and float(np.median(groove)) > 0.002 and float(groove.max()) < 0.016,
-                 '%s cells; a groove %.1f mm, %.1f at the most' % (sorted(cells.values()), 1e3 * np.median(groove), 1e3 * groove.max()))
+    meet, opening = np.concatenate(meets), np.concatenate(opens)
+    report.check("a guard is a rim, an open honeycomb in it - black bars, nothing behind them -, rivets and struts; its "
+                 "cells a honeycomb - a ring of bars each, open within, meeting its neighbours' -, short of its limb's ends",
+                 all(n >= 4 for n in cells.values()) and float(np.median(meet)) < 1e-4
+                 and 0.6 < float(opening.min()) and float(opening.max()) < 0.95,
+                 "%s cells; a ring's corner %.2f mm off its nearest neighbour's at the median; open %.2f..%.2f of a "
+                 'cell' % (sorted(cells.values()), 1e3 * np.median(meet), opening.min(), opening.max()))
     report.check("air between a guard and its limb's tubes, 3 mm at the least, and its struts reach a tube",
                  min(air.values()) > 0.003 and max(reach.values()) < 0.001,
                  'air %.0f..%.0f mm' % (1e3 * min(air.values()), 1e3 * max(air.values())))

@@ -28,3 +28,31 @@ stock = [
     [18.0, 0.001], [20.0, 0.001], [22.0, 0.001], [25.0, 0.001],
     [30.0, 0.002], [35.0, 0.002], [40.0, 0.002], [50.0, 0.002],
 ]
+
+# The robot's hose across a joint (`machine.world.hoses`, the sketches' `knee_hose` and `elbow_mount`): [outer radius
+# m, kg/m, bending stiffness EI N m2, twisting GJ N m2, least radius flexing m, its first bending mode's damping
+# ratio with its ends held]. The bus's: a robot hose - a fine-profile PA12 corrugated conduit NW7.5, 10.0 mm round
+# outside and 6.2 inside, its least bend flexing 15 mm on its reseller's sheet and 20 in its maker's catalogue (the 20
+# taken; a plain PA6 conduit of this size asks 35) - round the bus's power pair (2 x 1.5 mm2) and its RS-485 pair:
+# the conduit ~19 g/m (the PA6's, no figure for the PA12), the cores' copper 31 and their jackets ~11. No maker
+# states its EI: an estimate - the corrugated wall about 1/60 of a plain tube's 0.17, the conductors' strands as much
+# again - that a cantilever's sag on a sample measures (EI = w L^4 / 8 sag); GJ the isotropic tube's EI / (1 + 0.4).
+# The hose's damping an estimate too - half the polymer's loss factor (~0.2), and as much again for its cores' strands
+# rubbing in it - that a plucked sample's decay measures.
+[hoses]
+bus = [0.005, 0.061, 3.0e-3, 2.1e-3, 0.020, 0.2]
+
+# The leads a drive's board takes: [conductor mm2, outside m], each the least core that holds twice what it carries
+# (a core free in air: 1.0 mm2 19 A, 1.5 mm2 24 A, 2.5 mm2 32 A, 4 mm2 42 A). A phase's, the motor's to its terminal:
+# a silicone core (hot by the motor; a maker's sheet's 4.2 mm) on a 90-degree tube lug - a drive holds 19.3 A for
+# ever at the most (the hip's and the knee's), its rms over a walk 16.2 A (the hip), its bursts 78 A. The bus's,
+# board to board in its hose: a thin-wall automotive core (ISO 6722) for its power pair - a leg's chain carries
+# 4.2 A rms and 34 A at its most at its hip's end, 1.5 A and 9 A past its knee, every drive past the segment at once
+# at the packs' least 48 V (`tools/sim/demand.py`'s chains, a walk and a hop) -, a thinner one for each of its
+# RS-485 pair and its shield's lead between the boards; loose in a tinned copper braided sleeve (6 mm nominal, 4.5
+# to 9.5 mm round what it holds), tied each hand's width, no cable made up: the bundle 5.1 mm round in the hose's
+# 6.2.
+[leads]
+phase = [4.0, 0.0042]
+bus = [1.0, 0.0021]
+signal = [0.35, 0.0014]

@@ -16,7 +16,7 @@ its hips, its seat and the small of its back none - open all the way.
 """
 import math
 
-from coaxial.graphics.livery import BOLT, FOAM, FRAME, PAD, STEEL, VOID
+from coaxial.graphics.livery import BOLT, FOAM, FRAME, STEEL, VOID
 from coaxial.graphics.panels import LIMBS
 from coaxial.graphics.shapes import joined, strut
 from machine.body.guards import AIR_M, LAYOUT, SKIN_M, STRUT_R, STRUTS, THICK_M, tubes
@@ -141,19 +141,31 @@ def _guard(at, x, top, foot, mid, half, kind):
                 + i * AROUND for i in range(RINGS - 1)]
         return corners, np.vstack(rows + [np.stack([np.full(AROUND, RINGS * AROUND), k + (RINGS - 1) * AROUND,
                                                     (k + 1) % AROUND + (RINGS - 1) * AROUND], 1)])
+    def latticed(cy, ca, tall, wide):
+        """The open honeycomb's bars about cells (`cy`, `ca`) on the guard's face: each a hexagonal ring from its opening
+        (`tall`, `wide`) out to where its neighbours' meet, black, nothing behind - the seat's net. A net, no depth: a
+        dark wall or a back ring seen aside took the rim light's blue (`lit._light`), a ninth and then a twenty-fifth
+        of the robot in blue."""
+        turn = np.arange(6) * (math.pi / 3.0)
+        rings = [place((cy[:, None] + s * tall * np.cos(turn)).ravel(), (ca[:, None] + s * wide / radius * np.sin(turn)).ravel(),
+                       SKIN_M).reshape(len(cy), 6, 3) for s in (1.0 / FILL, 1.0)]
+        corners = np.stack(rings, 1).reshape(-1, 3)          # a cell's ring out, then in: 6 each
+        k, j, c = np.arange(6), (np.arange(6) + 1) % 6, 12 * np.arange(len(cy))[:, None, None]
+        tris = [np.stack([k, j, 6 + j], 1), np.stack([k, 6 + j, 6 + k], 1)]
+        return corners, (c + np.vstack(tris)[None]).reshape(-1, 3)
     band = min(BAND_M, BAND * 2.0 * min(yh, ah * radius))
     head = HEADER_M if kind == 'pad' else band
     im, ih, iw = ym + (band - head) / 2.0, yh - (band + head) / 2.0, ah - band / radius
     wall = np.vstack([place(ym + yh * v, am + ah * u), place(ym + yh * v, am + ah * u, low)])
     out = [(wall, np.vstack([np.stack([k, k + AROUND, (k + 1) % AROUND], 1), np.stack([(k + 1) % AROUND, k + AROUND, (k + 1) % AROUND + AROUND], 1)]), FRAME)]
-    if kind in ('slat', 'plate'):
-        out += [(*filled(ym, yh, ah, off), ink) for off, ink in ((SKIN_M, PAD if kind == 'slat' else FRAME), (low, FOAM))]
+    if kind == 'plate':
+        out += [(*filled(ym, yh, ah, off), ink) for off, ink in ((SKIN_M, FRAME), (low, FOAM))]
         ry, ra = np.full(2, ym), am + (ah - yh / radius) * np.array([-1.0, 1.0])
     else:
         out += [(*ringed(ym, yh, ah, off, (im, ih, iw)), FRAME) for off in (SKIN_M, low)]
-        out.append((*filled(im, ih, iw, (SKIN_M + low) / 2.0), VOID))
-        # The pad: a honeycomb fitted to the rim's window - `across` whole cells in its middle
-        # row, a row off it half a cell aside, `down` rows -, those within its round corners.
+        # The honeycomb: open, its bars black and nothing behind them (the seat's net, the user's pick), fitted to the
+        # rim's window - `across` whole cells in its middle row, a row off it half a cell aside, `down` rows -, those
+        # within its round corners. A slat is one too, a row or two of cells in a narrow rim.
         across = max(1, int(2.0 * iw * radius / PITCH_M + 0.5))
         tall, rise = 2.0 * FILL / math.sqrt(3.0) + 1.0 - FILL, math.sqrt(3.0) / 2.0     # a cell with a groove, a row: of a pitch
         rise = rise if across > 1 else tall
@@ -165,7 +177,7 @@ def _guard(at, x, top, foot, mid, half, kind):
         turn, ry, ra = np.arange(6) * (math.pi / 3.0), pv * FILL / math.sqrt(3.0), pa * FILL / math.sqrt(3.0)
         hy, ha = cy[:, None] + ry * np.cos(turn), ca[:, None] + ra / radius * np.sin(turn)
         keep = (np.abs((hy - im) / ih) ** POWER + np.abs((ha - am) / iw) ** POWER < 1.0).all(axis=1)
-        out += [(*hexes(cy[keep], ca[keep], ry, ra, off), ink) for off, ink in ((SKIN_M, PAD), (low, FOAM))]
+        out.append((*latticed(cy[keep], ca[keep], ry, ra), VOID))
         ry = ym + CORNER * (yh - band / 2.0) * np.array([1.0, 1.0, -1.0, -1.0])
         ra = am + CORNER * (ah - band / 2.0 / radius) * np.array([-1.0, 1.0, -1.0, 1.0])
     out.append((*hexes(ry, ra, RIVET_R, RIVET_R, SKIN_M + PROUD_M), BOLT))
@@ -180,9 +192,10 @@ def _guard(at, x, top, foot, mid, half, kind):
             place(np.full(2, ym), am + STRUTS * ah * np.array([-1.0, 1.0]), low))
 
 
-def _strutted(feet, tubes):
+def _strutted(feet, tubes, stand=None):
     """[mesh]: a strut from each of `feet` (n, 3) to the nearest point of the `tubes` [(a, b,
-    radius)], its frame."""
+    radius)], its frame - or, by `stand` (foot, that point -> point), where it first meets what
+    stands in its way."""
     from coaxial.model.blocks import numpy as np
     out = []
     for foot in feet:
@@ -192,6 +205,7 @@ def _strutted(feet, tubes):
             on = a + (b - a) * float(np.clip((foot - a) @ (b - a) / ((b - a) @ (b - a)), 0.0, 1.0))
             near.append((float(np.linalg.norm(foot - on)), on))
         on = min(near, key=lambda pair: pair[0])[1]
+        on = stand(foot, on) if stand else on
         way = (foot - on) / np.linalg.norm(foot - on)
         if way[2] < -0.999:                    # `shapes.strut` lays none straight back
             on = on + (0.002, 0.0, 0.0)
@@ -199,11 +213,13 @@ def _strutted(feet, tubes):
     return out
 
 
-def laid(surfaces):
+def laid(surfaces, runs=None, stands=None):
     """[(name, parent, offset, mesh)]: the robot's guards, a part ('guard_' and its segment) a
     segment that wears any (LIMB, TRUNK), rigid on it: each guard's slab on the segment's
     surface - `surfaces` {segment: (its shell's corners, the mechanism's by it), its frame} -
-    and its two struts to the segment's nearest tube (`machine.body.guards.tubes`)."""
+    and its two struts to the segment's nearest tube (`machine.body.guards.tubes`, or `runs`
+    {segment: [(a, b, radius)]} where a sketch lays its own, `stands` {segment: stand} where
+    a strut stops at what it meets first, `_strutted`)."""
     made = {}
     for seg, (corners, hard) in surfaces.items():
         side, _, limb = seg.partition('_')
@@ -216,5 +232,6 @@ def laid(surfaces):
             at = _reach(corners, 1.0, hard)
             made[seg] = [_guard(at, 1.0, high, low, mid, half, kind) for _name, low, high, mid, half, kind in TRUNK]
     return [('guard_' + seg, seg, (0.0, 0.0, 0.0), joined(
-        [mesh for mesh, _feet in guards] + [s for _mesh, feet in guards for s in _strutted(feet, tubes(seg))]))
+        [mesh for mesh, _feet in guards] + [s for _mesh, feet in guards for s in _strutted(
+            feet, (runs or {}).get(seg) or tubes(seg), (stands or {}).get(seg))]))
         for seg, guards in made.items()]
