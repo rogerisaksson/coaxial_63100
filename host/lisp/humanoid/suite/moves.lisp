@@ -156,7 +156,10 @@
      :phases [(:name :place :ends :reached :next :press :with [square]
                :goals (:shoulder [-35.5 60.0] :elbow [63.9 120.0] :hip [-90.0 11.0] :knee [90.0 15.0]))
               (:name :press :ends :reached :next :vault :goals (:shoulder [-23.3 30.0] :elbow [41.2 30.0]))
-              (:name :vault :ends :feet :next :done :goals (:shoulder [-45.0 20.0] :elbow [-5.0 30.0]))
+              (:name :vault :ends :feet :next :lean
+               :goals (:shoulder [-45.0 20.0] :elbow [-5.0 30.0] :ankle [-5.0 30.0]))
+              (:name :lean :ends :reached :next :done
+               :goals (:hip [-118.0 90.0] :ankle [-12.0 40.0] :shoulder [0.0 90.0] :elbow [20.0 90.0]))
               (:name :done :ends :reached :next :done)])))
 
 ;; The robot's scoot on the floor as its twist tells it (machine.moves.scoot, wbc_scoot.c): a crab on the

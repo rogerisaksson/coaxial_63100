@@ -125,13 +125,14 @@ def _laid(g, sc, found, at):
 
 def _docked(sc, laid):
     """The errand's fields of its dock `laid` (`dock.docked`), the robot's heading docked (`_FACES`)."""
-    from machine.law import se2
+    from machine.law import se2, stride
     hn, (x_dock, z_dock), stage = laid['hn'], laid['edge'], laid['stage']
     nx, nz = libm.sin(hn), libm.cos(hn)
     return {'docks': tuple((float(h), float(x), float(z)) for h, (x, z) in laid.get('reach', ())),
             'x_dock': x_dock, 'z_dock': z_dock, 'nx': nx, 'nz': nz, 'tx': nz, 'tz': -nx, 'face': laid['face'],
-            'xd': stage[0], 'zd': stage[1], 'hdd': se2.wrap_angle(hn + _FACES.get(sc, 0.0)), 'lat_tol': laid['lat_tol'],
-            'd_stage': laid['d_stage'], 'd_most': laid['d_stage']}
+            'xd': stage[0], 'zd': stage[1], 'hdd': se2.wrap_angle(hn + _FACES.get(sc, 0.0)),
+            'off': laid.get('off', 0.0), 'lat_tol': laid['lat_tol'],
+            'd_stage': laid['d_stage'], 'd_most': (laid['d_stage'] or 0.0) + stride.STRIDE_M}
 
 
 def _looking(g, sc, at):
@@ -242,7 +243,8 @@ def _refreshed(g, er):
     edge, span = affordance.support(box, hn), affordance.support(box, hn + 0.5 * math.pi)
     lat = max(0.0, span - (min(across, span) if span >= figure.HIP_HALF else across))
     mx, mz = float(box[1][0]) + edge * nx, float(box[1][2]) + edge * nz
-    off = max(-lat, min(lat, (er['x_dock'] - mx) * tx + (er['z_dock'] - mz) * tz))
+    was = er['off'] if 'off' in er else (er['x_dock'] - mx) * tx + (er['z_dock'] - mz) * tz
+    off = max(-lat, min(lat, was))
     er.update(x_dock=mx + off * tx, z_dock=mz + off * tz, nx=nx, nz=nz, tx=tx, tz=tz,
               hdd=se2.wrap_angle(hn + _FACES.get(er['kind'], 0.0)), lat_tol=max(0.0, lat - abs(off)),
               top=peek.level(er['kind'], box), thing=box[4] if len(box) > 4 else er.get('thing'))

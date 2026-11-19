@@ -161,7 +161,7 @@ def docked(at, things, floor, sc, box, standoff):
         steps = int(max(lat, 0.0) / voxels.CELL_M)
         offs = [0.0] * (lat >= 0.0) + [s * k * voxels.CELL_M for k in range(1, steps + 1) for s in (1.0, -1.0)]
         rank = furniture.first(sc, box, things, hn)
-        rows += [(abs(t), hn, mid + t * tan, n, lat - abs(t), rank) for t in offs]
+        rows += [(t, hn, mid + t * tan, n, lat - abs(t), rank) for t in offs]
 
     def gaps(poses, h):
         return footprint.gaps(poses, h, things, floor).min(axis=1, initial=math.inf)
@@ -185,6 +185,9 @@ def docked(at, things, floor, sc, box, standoff):
 
     def laid(row):
         off, hn, edge, n, lat, rank = row
+        if not any(route._free(cells, c) and far[c] < math.inf for c in (route._cell(*(edge + s * n)) for s in outs)):
+            return {'hn': hn, 'face': tuple(n), 'edge': tuple(edge), 'off': off, 'lat_tol': lat, 'd_stage': None,
+                    'stage': tuple(edge), 'key': (True, rank, abs(off), math.inf)}
         turns = [turned(edge, hn, n, a) for a in ARRIVALS] if run_in is None else []
         fits = np.ones(1, bool) if run_in is not None else (
             backed(edge, hn, n) & turns[0] & (turns[1] | turns[2]) & (turns[3] | turns[4]))
@@ -192,17 +195,17 @@ def docked(at, things, floor, sc, box, standoff):
         stage = edge + (s or 0.0) * n
         cell = route._cell(*stage)
         walk = far[cell] if s is not None and route._free(cells, cell) else math.inf
-        return {'hn': hn, 'face': tuple(n), 'edge': tuple(edge), 'lat_tol': lat, 'd_stage': s, 'stage': tuple(stage),
-                'key': (walk == math.inf, rank, off, walk)}
+        return {'hn': hn, 'face': tuple(n), 'edge': tuple(edge), 'off': off, 'lat_tol': lat, 'd_stage': s,
+                'stage': tuple(stage), 'key': (walk == math.inf, rank, abs(off), walk)}
 
-    # by their offsets along the face, the first the robot's walk reaches ending it: none further out beats it
-    best, reach = None, {}
-    for _off, level in itertools.groupby(sorted(rows, key=lambda r: r[0]), key=lambda r: r[0]):
-        found = [laid(r) for r in level]
+    # each face by its offsets from its middle out, the first offset the robot's walk reaches ending that face
+    faces, best, reach = list(dict.fromkeys(r[1] for r in rows)), None, {}
+    for _off, level in itertools.groupby(sorted(rows, key=lambda r: abs(r[0])), key=lambda r: abs(r[0])):
+        found = [laid(r) for r in level if r[1] not in reach]
         for r in [r for r in found if not r['key'][0]]:
             reach[r['hn']] = min(reach.get(r['hn'], r), r, key=lambda q: q['key'])
-        best = min(found + ([best] if best is not None else []), key=lambda r: r['key'])
-        if not best['key'][0]:
+        best = min(found + ([best] if best is not None else []), key=lambda r: r['key']) if found else best
+        if len(reach) == len(faces):
             break
     reached = tuple((hn, r['edge']) for hn, r in reach.items())
     return None if best is None or best['key'][0] else dict(best, reach=reached)

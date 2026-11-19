@@ -94,14 +94,15 @@ def _on_rows():
                    (lambda c, er: c['idle'] and c['off'] and c['away'], 'done', _stunt),
                    (lambda c, er: c['idle'] and c['off'] and c['facing'] and er['retreats'] < 1, 'clear', _retreat),
                    (lambda c, er: c['idle'] and c['off'], 'turn', _nothing),
-                   (lambda c, er: c['idle'] and abs(c['s_perp']) > er['lat_tol'], 'side', _nothing),
+                   (lambda c, er: c['idle'] and c['still'] and abs(c['s_perp']) > er['lat_tol'], 'side', _nothing),
                    (lambda c, er: c['idle'] and c['still'] and c['even'] and er['through'], 'out', _out),
-                   (lambda c, er: c['idle'] and not er['through'] and c['s_par'] > poise.HALF_M + er['standoff'] + se2.BACK_STOP_M, 'back', _told(back)),
+                   (lambda c, er: c['idle'] and c['still'] and not er['through']
+                    and c['s_par'] > poise.HALF_M + er['standoff'] + se2.BACK_STOP_M, 'back', _told(back)),
                    (lambda c, er: c['idle'] and c['still'] and c['even'] and not er['through'], 'done', _stunt)), _halted),
         'clear': (((lambda c, er: c['turns'] != 0.0 or c['s_par'] > er['d_stage'] + stride.STRIDE_M, 'settle', _stood),), _nothing),
         'side': (((lambda c, er: er.get('stepped') and c['s_perp_side'] * er.get('side_from', c['s_perp']) <= 0.0, 'settle', _told(STOP)),), _to_line),
         'back': (((lambda c, er: er.get('stepped') and c['v_par'] < 0.0
-                   and c['s_par'] <= poise.HALF_M + er['standoff'] + se2.BACK_STOP_M, 'done', _told(STOP)),), _to_edge),
+                   and c['s_par_back'] <= poise.HALF_M + er['standoff'], 'done', _told(STOP)),), _to_edge),
         'done': (((lambda c, er: c['idle'] and c['still'] and c['even'] and (
             abs(c['err_yaw']) > modal.LIST_RAD or abs(c['s_perp']) > er['lat_tol']
             or not er['through'] and c['s_par'] > poise.HALF_M + er['standoff'] + se2.BACK_STOP_M), 'settle', _nothing),
@@ -225,8 +226,10 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
     e = er
     dx_d, dz_d = gx - e['x_dock'], gz - e['z_dock']
     s_par, s_perp = dx_d * e['nx'] + dz_d * e['nz'], dx_d * e['tx'] + dz_d * e['tz']
+    v_par = vx_w * e['nx'] + vz_w * e['nz']
     t_stop = se2.STOP_M / se2.WALK_SPEED
-    s_par_stop = s_par + (vx_w * e['nx'] + vz_w * e['nz']) * t_stop
+    s_par_stop = s_par + v_par * t_stop
+    s_par_back = s_par + max(-se2.BACK_STOP_M, min(0.0, v_par) * se2.BACK_STOP_M / se2.BACK_SPEED)
     s_perp_stop = s_perp + (vx_w * e['tx'] + vz_w * e['tz']) * t_stop
     s_perp_side = s_perp + (vx_w * e['tx'] + vz_w * e['tz']) * se2.SIDE_STOP_M / se2.STRAFE_SPEED
     a_par = max(s_par - se2.STOP_M, e['d_stage'])
@@ -253,12 +256,13 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
                      max(0.0, vx_w * libm.sin(along) + vz_w * libm.cos(along))) if len(e['curve']) else (gap, closing))
     run_out = len(e['curve']) > 0 and (float(e['curve'][-1, 2] - e['curve'][e['k'], 2])
                                        <= stride.STRIDE_M + voxels.CELL_M * float(len(e['way']) > 1))
+    d_out = max(e['d_stage'], e.get('d_most', 0.0))
     ctx = _Context(g, {
-        'gx': gx, 'gz': gz, 'pyaw': pyaw, 's_par': s_par, 'v_par': vx_w * e['nx'] + vz_w * e['nz'], 's_perp': s_perp,
+        'gx': gx, 'gz': gz, 'pyaw': pyaw, 's_par': s_par, 'v_par': v_par, 's_par_back': s_par_back, 's_perp': s_perp,
         's_perp_stop': s_perp_stop, 's_perp_side': s_perp_side,
         'way_left': -e.get('side_from', s_perp) * (e['tx'] * libm.cos(pyaw) - e['tz'] * libm.sin(pyaw)),
-        'door_out': (s_par < -min(stride.STRIDE_M, e['d_stage'] - 1.5 * stride.STRIDE_M)
-                     and e['d_stage'] + s_par <= max(closing * t_stop, 1.5 * stride.STRIDE_M)),
+        'door_out': (s_par < -min(stride.STRIDE_M, d_out - 1.5 * stride.STRIDE_M)
+                     and d_out + s_par <= max(closing * t_stop, 1.5 * stride.STRIDE_M)),
         'stops_in': not e['way'] and (s_par_stop <= e['d_stage'] and abs(s_perp_stop) <= e['lat_tol']
                                       or math.hypot(s_par_stop - e['d_stage'], s_perp_stop) <= stride.STRIDE_M),
         # the robot's run-out its speed's over t_stop - 0.87 m at 0.81 m/s, 1.17 at 0.92 - and a

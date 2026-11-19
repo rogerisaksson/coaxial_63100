@@ -17,6 +17,7 @@ import numpy as np
 
 from machine.law import impedance, latent, modal, poise, stride
 from machine.moves import leap
+from machine.senses import borne
 
 
 def held_rows(tab, a, out, t, dt, held_s):
@@ -47,9 +48,9 @@ def risen_rows(tab, y, fr, a, st, t, dt, prop_until):
     # chair's seat on the robot's hands alone, its capture point off its soles, it was thrust
     # off one sole at 500 N
     bears = float(y[modal.PROP] + y[modal.PALMS].sum())
-    has_prop = float(bears > 0.0)
+    has_prop = float(bears >= borne.PROP_RELEASE)
     until = has_prop * (t + 0.06) + (1.0 - has_prop) * prop_until
-    propped = float((bears > 0.0) | (t <= until))
+    propped = float((bears >= borne.PROP_RELEASE) | (t <= until))
     rot = fr[modal.ROT].reshape(3, 3)
     c, v = rot @ y[modal.COM], rot @ y[modal.VCOM]
     xi = c[:2] + v[:2] / math.sqrt(modal.G / max(float(c[2] - fr[modal.FLOOR]), 0.3))

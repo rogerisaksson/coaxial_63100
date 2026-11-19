@@ -73,9 +73,9 @@ void wbc_wait_risen(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n,
   /* what bears the robot off its soles, its hands' share with it (wbc_imp.c's
    * latch) */
   const double  bears = y[k->y_prop] + (y[k->y_palms] + y[k->y_palms + 1]);
-  const double  has_prop = (double)(bears > 0.0);
+  const double  has_prop = (double)(bears >= k->prop_release);
   const double  until = has_prop * (t + 0.06) + (1.0 - has_prop) * prop_until;
-  const double  propped = (double)((bears > 0.0) || (t <= until));
+  const double  propped = (double)((bears >= k->prop_release) || (t <= until));
   const double  to_ax = st[w->st_to_z + k->axial], to_sag = st[w->st_to_z + k->sagittal], to_zmp = st[w->st_to_z + w->zmp];
   double        c[3], v[3], om, xi[2], sr[2][3], flat[2][2], edge[2], tilt[2], lo[2][2], hi[2][2], lmin[2], hmax[2];
   double        first, outside, shift;

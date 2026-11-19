@@ -104,7 +104,7 @@
 (defmaneuver specialize-recline-long-side [state]
   (-> state
       (stage-sequential-manifold                       ; the scoot: the robot's feet push its hips back over its fists
-        :duration-ms 450.0
+        :duration-ms 750.0
         :contact-chain [:palmar-carpal-bilateral -> :ischial-sacral]
         :torso-pitch-ramp [0.0 -> 0.0]
         :axial-yaw-ramp [0.0 -> 0.0]
@@ -279,5 +279,6 @@
         :source-manifold :ischial-bilateral
         :target-manifold :plantar-bilateral
         :ascent-duration-ms 950.0
-        :ascent-curve :hermite-s-curve)
+        :ascent-curve :hermite-s-curve
+        :pre-pitch-thorax-rad 0.64)
       (master-anti-spasm-insert)))

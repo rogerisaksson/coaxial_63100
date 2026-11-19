@@ -29,7 +29,7 @@ double wbc_imp_surety(const wbc_imp_t *k, const wbc_surety_t *s, double prev, do
   double        loads[2], w[2], lo_1[2], hi_1[2], lmin[2], hmax[2], b_lo[2], b_hi[2], mid[2], span[2], cap[2];
   double        r_lo[2], r_hi[2], out_xi[2], s_dir[2], u_xy[2], e_vec[2], e3[3], d_xy[2], s_vec[2];
   double        om, ap_y, w_gyro, wt, k_ax, w_jump, f_soles, theta, theta_e, v_norm, w_ext, probe, w_sum;
-  double        w_both, w_air, w_prop, w_sup, r_gait, w_tilt, h, f_att, raw, diff, step;
+  double        w_both, w_air, w_prop, w_stride, w_sup, r_gait, w_tilt, h, f_att, raw, diff, step;
 
   wbc_mv(&k->blas, rot, 3, 3, y + k->y_com, c);
   wbc_mv(&k->blas, rot, 3, 3, y + k->y_vcom, v);
@@ -73,7 +73,8 @@ double wbc_imp_surety(const wbc_imp_t *k, const wbc_surety_t *s, double prev, do
   w_both = npmin(w[0], w[1]);
   w_air = npmax(npmax(npmax(0.0, 1.0 - s->out[s->zmp_out]), 1.0 - s->out[s->held_out]), w_jump);
   w_prop = npmax(npmax(w_ext, borne), w_air);
-  w_sup = npmin(1.0, ((0.42 + 0.30 * (w[0] + w[1])) + 0.22 * npmax(w[0], w[1])) + 0.55 * w_prop);
+  w_stride = npmin(1.0, st[s->gain_now]) * npmin(1.0, npmax(0.0, s->out[s->held_out] - 1.0));
+  w_sup = npmin(1.0, (0.42 + npmax(0.30 * (w[0] + w[1]) + 0.22 * npmax(w[0], w[1]), 0.38 * w_stride)) + 0.55 * w_prop);
   r_gait = 0.28 * npmin(1.0, st[s->gain_now]);
   w_tilt = wbc_hypot(gyro[0], gyro[2]);
   {
