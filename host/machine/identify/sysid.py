@@ -97,7 +97,8 @@ def laid(body):
             'drives': drives, 'names': ['%s.%s' % (m.body(b).name, p) for b in bodies for p in INERTIAL]
             + ['%s.%s' % (name, p) for name in drives for p in FRICTION], 'qadr': qadr, 'vadr': vadr,
             'lo': np.where(limited, rng[:, 0], -np.inf), 'hi': np.where(limited, rng[:, 1], np.inf),
-            'limb': limb, 'skin': skin, 'stick': stick, 'hems': hems, 'hem_limb': hem_limb}
+            'limb': limb, 'skin': skin, 'stick': stick, 'hems': hems, 'hem_limb': hem_limb,
+            'caps': campaign.capsules(m, bodies, above, driven, vadr)}
 
 
 def shifted(mass, h):
@@ -251,17 +252,15 @@ def misfit(Y, tau, theta):
 
 def free(lay, ys, every=1, stop_deg=STOP_DEG):
     """(N, driven) which drives' rows of `ys` (`rows`' arrays, every `every`th) the model holds
-    on, walking: none of the drive's limb's joints within `stop_deg` of a stop, nothing touching
-    the limb's skin (LIMBS) from the sample before to the one after, a sample beyond the arrays
-    unknown - against the world's own model a swinging hip's row read 0 within its swing and
-    2-6 N m the sample its sole landed."""
+    on, walking: none of the drive's limb's joints within `stop_deg` of a stop, no skin touch
+    (LIMBS) or self-overlap from the sample before to the one after, ends unknown."""
     import numpy as np
     ys_arr = np.asarray(ys)
     at = np.arange(0, len(ys_arr) - 1, every)
     q, margin = ys_arr[at, edge.Q], math.radians(stop_deg)
     near = (q < lay['lo'] + margin) | (q > lay['hi'] - margin)
     touch = np.linalg.norm(ys_arr[:, edge.TOUCH].reshape(len(ys_arr), -1, 3), axis=2) > 0.0
-    hit = (touch.astype(int) @ lay['skin'].T) > 0
+    hit = ((touch.astype(int) @ lay['skin'].T) > 0) | campaign.self_hit(lay, ys_arr)
     cs = np.vstack([np.zeros((1, hit.shape[1]), int), np.cumsum(hit, axis=0)])
     clear = (cs[np.minimum(at + every + 1, len(hit))] - cs[np.maximum(at - every, 0)]) == 0
     stopped = (near.astype(int) @ lay['limb'].T) > 0

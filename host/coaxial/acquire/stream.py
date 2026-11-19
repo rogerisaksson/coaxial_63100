@@ -15,6 +15,7 @@ class TaskStream:
     """The task started, read and stopped; every record timed on the board's clock."""
 
     # What the class this mixes into brings.
+    _first_orphan: Any = None
     _lost: Any
     board: Any
     configure: Any
@@ -96,6 +97,7 @@ class TaskStream:
         self.board.daq.start()
         self._last_raw = None
         self._last_stamp = None
+        self._first_orphan = None
         # A reply carries as many records as fit in the board's own reply room,
         # and that is what the reader waits for rather than reading the instant
         # one record lands.
@@ -283,7 +285,13 @@ class TaskStream:
         fields = (self.layout or {}).get('fields') or []
         before, self._last_stamp = self._last_stamp, (stamps[-1] if stamps
                                                       else None)
-        return build(records, fields, stamps, before)
+        out = build(records, fields, stamps, before)
+        if self._first_orphan is not None and stamps:
+            self._first_orphan.dt = stamps[0] - self._first_orphan.start_time
+            self._first_orphan = None
+        elif before is None and len(out) == 1 and out[0].start_time is not None:
+            self._first_orphan = out[0]
+        return out
 
     def _unwrapped(self, records, sync):
         """The records' stamps as monotonic cycle counts, across blocks."""

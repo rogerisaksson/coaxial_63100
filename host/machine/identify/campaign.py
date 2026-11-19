@@ -299,3 +299,80 @@ def hemming(lay, body, ys, dt, every, state_holder=None):
     for d_step in range(-5, 6):
         pad |= hit[np.clip(at + d_step, 0, n - 1)]
     return (qadr, vadr, q_out[at], v_out[at], a_out[at]), ~pad
+
+
+def capsules(m, bodies, above, driven, vadr):
+    """The robot's colliding capsules (`momentum._capsules`) on `bodies` and the pairs whose chains
+    differ across `driven`, laid once for `self_hit`."""
+    import numpy as np
+    from machine.senses import momentum
+    caps, pairs = momentum._capsules(m)
+    place = {m.body(int(b)).name: k for k, b in enumerate(bodies)}
+    b_pos, b_rot = np.array(m.body_pos[bodies], float), rotations(m.body_quat[bodies])
+    jnts = tuple(tuple((int(np.flatnonzero(vadr == m.jnt_dofadr[j])[0]),
+                        tuple(float(v) for v in m.jnt_axis[j]), tuple(float(v) for v in m.jnt_pos[j]))
+                       for j in range(int(m.body_jntadr[b]), int(m.body_jntadr[b] + m.body_jntnum[b]))
+                       if np.any(vadr == m.jnt_dofadr[j])) for b in bodies)
+    ck = np.array([place[seg] for seg, *_ in caps], int)
+    cr = np.array([r for _s, r, *_ in caps], float)
+    ca = np.array([a for _s, _r, a, _b in caps], float)
+    cb = np.array([b for _s, _r, _a, b in caps], float)
+    pr = np.array(pairs, int)
+    pdrv = above[ck[pr[:, 0]]][:, driven] ^ above[ck[pr[:, 1]]][:, driven]
+    keep = pdrv.any(axis=1)
+    pr, pdrv = pr[keep], pdrv[keep]
+    half = 0.5 * np.sqrt(np.sum(libm.sq(cb - ca), axis=1)) + cr
+    return (b_pos, b_rot, jnts, ck, cr, ca, cb, pr, pdrv,
+            libm.sq(half[pr[:, 0]] + half[pr[:, 1]]), libm.sq(cr[pr[:, 0]] + cr[pr[:, 1]]))
+
+
+def self_hit(lay, ys_arr, chunk=400):
+    """(N, driven) bool: which drives lie between two capsules of the robot that overlap at each
+    step of `ys_arr`, where internal self-contact torques enter without touching `edge.TOUCH`."""
+    import numpy as np
+    caps = lay.get('caps')
+    if caps is None or not len(ys_arr):
+        return np.zeros((len(ys_arr), len(lay['driven'])), bool)
+    b_pos, b_rot, jnts, ck, _cr, ca, cb, pr, pdrv, reach_sq, rad_sq = caps
+    n, nb, pdrv_i = len(ys_arr), len(lay['bodies']), pdrv.astype(int)
+    ia, ib, out = pr[:, 0], pr[:, 1], np.zeros((n, pdrv.shape[1]), bool)
+    for start in range(0, n, chunk):
+        ys = ys_arr[start:min(start + chunk, n)]
+        m = len(ys)
+        xpos, xmat = np.zeros((m, nb, 3)), np.zeros((m, nb, 3, 3))
+        xmat[:, 0] = rotations(ys[:, edge.QUAT])
+        for k in range(1, nb):
+            p_idx = int(lay['parent'][k])
+            Rp, pp = xmat[:, p_idx], xpos[:, p_idx]
+            R, p = Rp @ b_rot[k], pp + np.einsum('nij,j->ni', Rp, b_pos[k])
+            for ji, ax, jp in jnts[k]:
+                q = ys[:, edge.Q][:, ji]
+                c, s = libm.cos(0.5 * q), libm.sin(0.5 * q)
+                dR = rotations(np.column_stack([c, s * ax[0], s * ax[1], s * ax[2]]))
+                if any(jp):
+                    jp_a = np.array(jp)
+                    p = p + np.einsum('nij,j->ni', R, jp_a) - np.einsum('nij,j->ni', R @ dR, jp_a)
+                R = R @ dR
+            xpos[:, k], xmat[:, k] = p, R
+        pa = xpos[:, ck] + np.einsum('ncij,cj->nci', xmat[:, ck], ca)
+        pb = xpos[:, ck] + np.einsum('ncij,cj->nci', xmat[:, ck], cb)
+        mid = 0.5 * (pa + pb)
+        step_i, pair_i = np.nonzero(np.sum(libm.sq(mid[:, ia] - mid[:, ib]), axis=2) < reach_sq)
+        if not len(step_i):
+            continue
+        p1, q1, p2, q2 = pa[step_i, ia[pair_i]], pb[step_i, ia[pair_i]], pa[step_i, ib[pair_i]], pb[step_i, ib[pair_i]]
+        d1, d2, r = q1 - p1, q2 - p2, p1 - p2
+        a, e = np.sum(d1 * d1, axis=1), np.sum(d2 * d2, axis=1)
+        f, c, b = np.sum(d2 * r, axis=1), np.sum(d1 * r, axis=1), np.sum(d1 * d2, axis=1)
+        den = a * e - b * b
+        s = np.where(den > 1e-12, np.clip((b * f - c * e) / np.maximum(den, 1e-12), 0.0, 1.0), 0.0)
+        t = np.where(e > 1e-12, (b * s + f) / np.maximum(e, 1e-12), 0.0)
+        lo, hi = t < 0.0, t > 1.0
+        t = np.clip(t, 0.0, 1.0)
+        s = np.where(lo, np.where(a > 1e-12, np.clip(-c / np.maximum(a, 1e-12), 0.0, 1.0), 0.0), s)
+        s = np.where(hi, np.where(a > 1e-12, np.clip((b - c) / np.maximum(a, 1e-12), 0.0, 1.0), 0.0), s)
+        over = np.sum(libm.sq((p1 + s[:, None] * d1) - (p2 + t[:, None] * d2)), axis=1) < rad_sq[pair_i]
+        hit = np.zeros((m, len(pr)), bool)
+        hit[step_i[over], pair_i[over]] = True
+        out[start:start + m] = (hit.astype(int) @ pdrv_i) > 0
+    return out
