@@ -38,7 +38,7 @@ BAY = ((0.0, 0.0, 1.0), (0.0, 1.0, 0.0), (-1.0, 0.0, 0.0))
 #: Where the slits of the block's two bands sit, rad from up toward ahead: behind, under the shoe's sweep; the
 #: bay's clamp's half height and wall, m; what stays, what nods and what turns of the parts the checks take.
 SLITS, CLAMP_M = (-0.5 * math.pi, -1.9), (0.012, 0.006)
-FIXED = ('block', 'spine', 'bay', 'bay guard', 'bay lid', 'left shoulder', 'right shoulder')
+FIXED = ('block', 'spine', 'bay', 'bay clamp', 'bay guard', 'bay lid', 'left shoulder', 'right shoulder')
 NODS, TURNS = ('neck plate', 'crown', 'head drive'), ('head ring', 'carrier')
 #: The skin's cells about the head's axis: a row's height, m, and the bearings round.
 CELL_M, BEARINGS = 0.0025, 96
@@ -94,15 +94,18 @@ def bayed():
 
 
 def _bay():
-    """{'bay', 'bay guard', 'bay lid', 'bay leads'}: the twin - the neck's board behind the head's, a guard round
-    both and a lid behind them - on a printed puck, the puck on a band round the spine's tube."""
+    """{'bay', 'bay clamp', 'bay guard', 'bay lid', 'bay leads'}: the twin - the neck's board behind the head's, a
+    guard round both and a lid behind them - on a printed puck, the puck's nose on a band round the spine's tube,
+    under the flange of that tube's foot."""
     from tools.render import boards, covered as cv, hip_clamped as hc
     lay, st = nl.laid(), nl.stacks()
     _seat, spine_z, tube = lay['seat']
     at, rear, front = bayed()
     r_b, can, ring = st['board'][0], lay['head']['can'], lay['head']['gear']
     wall = 1e-3 * kl.WALL + 0.0045
-    drive = hc._drive({'board': rear + (r_b,), 'motor': (front[1], -0.004, can), 'gear': (-0.004, 0.0, ring)}, wall,
+    reach = em.OVAL_PAST[1] - CLAMP_M[1] - 0.001 + nl.AIR_M              # the puck's face clear of the spine's foot's
+    nose = min(ring, lay['seat'][0] - nl.SEAT_M - em.FLANGE_M - nl.AIR_M - at[1])     # flange, its nose under it
+    drive = hc._drive({'board': rear + (r_b,), 'motor': (front[1], -reach, can), 'gear': (-reach, 0.0, nose)}, wall,
                       math.pi, leave=math.pi)
     puck = [(tri, em.FRAME if colour in (em.SERVO, em.GEAR, em.OUTPUT) else colour)
             for tri, colour in drive['still'] + drive['ring'] + drive['band']]
@@ -112,7 +115,7 @@ def _bay():
     clamp = cl.turned([(-CLAMP_M[0], tube + 1e-3 * kl.BOND, tube + CLAMP_M[1]),
                        (CLAMP_M[0], tube + 1e-3 * kl.BOND, tube + CLAMP_M[1])], 0.5 * math.pi)
     band = _put(clamp, (0.0, at[1], spine_z), ((0.0, 1.0, 0.0), (0.0, 0.0, 1.0), (1.0, 0.0, 0.0)))
-    return {'bay': _put(puck + twin, at, BAY) + band, 'bay guard': _put(drive['guard'], at, BAY),
+    return {'bay': _put(puck + twin, at, BAY), 'bay clamp': band, 'bay guard': _put(drive['guard'], at, BAY),
             'bay lid': _put(drive['lid'], at, BAY),
             'bay leads': _put(drive['leads'] + boards.leads(front[0], front[1], (0.0, 0.0), front[1], turn, can + wall),
                               at, BAY)}
@@ -237,7 +240,8 @@ def aired(nods=8):
 
 def checked():
     """{'held': the least of `neck_laid.held`'s margins, 'air': what nods off what stays through the neck's travel,
-    mm, 'crossing': triangle pairs of what nods or turns through what stays, upright, 'skin': how far inside the
+    mm, 'crossing': triangle pairs of what nods or turns through what stays, upright, and of the bay through the
+    block, the spine and the shoulders beside it - its clamp on the spine's tube apart -, 'skin': how far inside the
     likeness's head's outer skin (what nods and does not turn keeps - the skin turned past it through the head's
     travel -, what turns with the head keeps), mm - None with no likeness beside the tree}: what the suite holds."""
     from coaxial.graphics import likeness
@@ -245,8 +249,10 @@ def checked():
     fixed = [t for name in FIXED for t in still()[name]]
     nods = [t for name in NODS for t in nodding()[name]]
     turns = [t for name in TURNS for t in turning()[name]]
+    bay = [t for name in ('bay', 'bay guard', 'bay lid', 'bay leads') for t in still()[name]]
+    beside = [t for name in ('block', 'spine', 'neck drive', 'left shoulder', 'right shoulder') for t in still()[name]]
     return {'held': round(min(nl.held().values()), 3), 'air': round(1e3 * aired(), 2),
-            'crossing': clips.crossed(nods + turns, fixed),
+            'crossing': clips.crossed(nods + turns, fixed) + clips.crossed(bay, beside),
             'skin': tuple(round(1e3 * d, 2) for d in skin(nods, turns)) if likeness.FOUND else None}
 
 

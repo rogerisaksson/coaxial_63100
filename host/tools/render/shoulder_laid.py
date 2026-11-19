@@ -33,8 +33,9 @@ from tools.render import tees  # noqa: E402
 #: arm's farthest back, so it is the fall's reach ahead that is cut: ahead of SWUNG, the farthest a scenario that is
 #: no fall swung an arm ahead (hop_up 77).
 STOOD, SWUNG, EASE_DEG = (-231.0, 143.0), 77.0, 2.0
-#: The arm's push along the shoulder's axis, N: the most through those scenarios (stand_to_sit, 27 ms above half).
-THRUST = 449.0
+#: The arm's push along the shoulder's axis, N: the most of its mean over 20 ms through the scenarios the build
+#: stood (slip; tools/sim/legload.py --table).
+THRUST = 337.0
 #: Where the torso's block ends on the crossbar off the trunk's middle, and the air between its side and the drum's
 #: mouth, m: the drums lean in at their tops, as the shoulders' axes lean, and between them stand the neck's drive,
 #: the plate on its hub (`neck_laid.held`: 'drum air') and, beside its motor's back, the hose that takes the head's

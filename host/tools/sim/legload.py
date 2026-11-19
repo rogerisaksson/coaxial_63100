@@ -3,6 +3,7 @@
 
     python -X utf8 tools/sim/legload.py [names ...] [--joint knee|elbow|ankle] [--json]
     python -X utf8 tools/sim/legload.py [names ...] --all [--json]
+    python -X utf8 tools/sim/legload.py [names ...] --table [--jobs N] [--json]     # --json: its rows too
 
 Each scenario (`scenarios.SCENARIOS`) runs as falls.py runs it. Each pass, MuJoCo's interaction force of each outer
 segment (OUTER: the shank, the forearm) with the one before it (`cfrc_int`, after `mj_rnePostConstraint`) is moved
@@ -11,7 +12,12 @@ N), about the joint's axis (the swing, N m), about the third axis (across the sw
 length (the torsion, N m). The most of each, either side, is told, the axial also as the robot's weights - what the
 joint's mount is sized against (tools/render/knee_loads.py). `--all` tells every mounted joint's at once (`borne`):
 the force and the moment at its anchor along and about its outer segment's own x, y and z, up to where the robot
-fell if it did - a fall's loads are the fall's.
+fell if it did - a fall's loads are the fall's. `--table` runs every scenario (or those named), a process each, and
+tells what a mount is sized for (`table`): the most each joint bore over MEAN_S on end, its mean, through the
+scenarios the robot stood - a blow shorter than that counts by its impulse, not by the peak the solver's contact
+shapes: what bears on the robot gives (a sole, a mattress, its clothes) and spreads it. Apart from that, what a
+mount is not sized for: those peaks, a fall's loads, and a wedged limb's - a load kept KEPT_S on end that the
+robot's whole weight at the limb's far end could not make: two contacts squeezing the limb, no load from outside.
 """
 import argparse
 import json
@@ -27,6 +33,10 @@ HARDEST = ('hop_down', 'hop_up', 'chair', 'bed', 'stairs_down', 'cross_slope', '
 
 #: The cells a hip's pose is told in, deg.
 CELL_DEG = 5
+#: The span a mount's load is meant over (22 Hz: a blow shorter counts by its impulse), how long a load is kept on
+#: end to be a still one the robot's weight has to explain, and how long a scenario's start is left out of both -
+#: its figure settling -, s.
+MEAN_S, KEPT_S, SETTLE_S = 0.02, 1.0, 0.5
 #: The segment past each joint, whose force from the segment before it is read (a side's where it has sides).
 OUTER = {'knee': 'shank', 'elbow': 'forearm', 'hip_yaw': 'hip_yaw', 'hip_roll': 'hip_roll', 'hip': 'thigh',
          'spine_roll': 'spine_roll', 'spine': 'torso', 'neck': 'neck', 'head': 'head', 'shoulder': 'upper_arm'}
@@ -74,7 +84,7 @@ def borne(name):
     import numpy as np
     from tools.sim import scenarios
     rows, times, series, angles = [], [], {joint: [] for joint in OUTER}, {joint: [] for joint in OUTER}
-    posed, footed = [], []
+    posed, footed, reach, weight = [], [], {}, []
 
     def laid(s):
         world = s.get('g', {}).get('world') if isinstance(s, dict) else None
@@ -86,6 +96,9 @@ def borne(name):
             for joint, segment in OUTER.items():
                 sides = [side for side in ('left_', 'right_') if side + segment in names] or ['']
                 rows.append((joint, [(m.body(side + segment).id, m.joint(side + joint).id) for side in sides]))
+                reach[joint] = max(_reach(m, d, b, j) for b, j in rows[-1][1])
+            root = m.body_rootid[rows[0][1][0][0]]
+            weight.append(float(m.body_subtreemass[root]) * float(np.linalg.norm(m.opt.gravity)))
         mujoco.mj_rnePostConstraint(m, d)  # pyright: ignore[reportAttributeAccessIssue]
         centre = d.subtree_com
         times.append(float(d.time))
@@ -110,7 +123,8 @@ def borne(name):
     fell = told.get('fell_at')
     t = np.array(times)
     upto = int(np.searchsorted(t, fell)) if fell is not None else len(t)
-    out = {'name': name, 'stood': bool(told.get('stood')), 'fell_at': fell}
+    out = {'name': name, 'stood': bool(told.get('stood')), 'fell_at': fell, 'weight': round(weight[0], 1) if weight else 0.0}
+    late = t[:upto] >= SETTLE_S
     for key, told_ in (('hips', posed), ('feet', footed)):
         cells = np.unique(np.floor(np.array(told_)[:upto].reshape(-1, 3) / CELL_DEG).astype(int), axis=0)
         out[key] = (cells * CELL_DEG).tolist()
@@ -123,8 +137,82 @@ def borne(name):
                       'turned': np.round(np.degrees([np.min(np.array(angles[joint])[:upto, 0], initial=0.0),
                                                      np.max(np.array(angles[joint])[:upto, 1], initial=0.0)]),
                                          1).tolist(),
-                      'lasted': [round(_lasted(list(zip(t[:upto], v[:, k])), float(top[k])), 4) for k in range(6)]}
+                      'lasted': [round(_lasted(list(zip(t[:upto], v[:, k])), float(top[k])), 4) for k in range(6)],
+                      'mean': np.round(_over(t[:upto][late], v[late], MEAN_S, np.mean), 1).tolist(),
+                      'kept': np.round(_over(t[:upto][late], v[late], KEPT_S, np.min), 1).tolist(),
+                      'reach': round(reach.get(joint, 0.0), 3)}
     return out
+
+
+def _reach(m, d, body, joint):
+    """How far the limb past `joint` reaches from its anchor, m: the farthest of its bodies' shapes, each by its
+    bounding radius - as the scenario lays the robot."""
+    import numpy as np
+    far = 0.0
+    for g in range(m.ngeom):
+        b = int(m.geom_bodyid[g])
+        while b not in (0, body):
+            b = int(m.body_parentid[b])
+        if b == body:
+            far = max(far, float(np.linalg.norm(d.geom_xpos[g] - d.xanchor[joint])) + float(m.geom_rbound[g]))
+    return far
+
+
+def _over(t, v, span, told):
+    """(6,): the most `told` (a mean, a least) made of each of `v`'s columns (n, 6) over `span` s on end, its
+    rows at `t` s."""
+    import numpy as np
+    if len(t) < 2:
+        return np.zeros(6)
+    wide = int(np.ceil(span / float(np.median(np.diff(t))))) + 1
+    if len(t) < wide:
+        return np.zeros(6)
+    return told(np.lib.stride_tricks.sliding_window_view(v, wide, axis=0), axis=-1).max(axis=0)
+
+
+def table(rows):
+    """{joint: {'mean': [six] what its mount is sized for - the most borne over MEAN_S on end in a scenario the
+    robot stood, the joint not wedged in it -, with 'in': the scenario of each, 'spike': [six] the most at all
+    there, with [name, s it lasted above half], 'fell': [six] the most in a scenario it fell in, 'wedged': [[which
+    of the six, name, what it kept, what its weight explains]] - a joint wedged in a scenario bears nothing there
+    that counts, whichever of its six told}} of `borne`'s rows: force x, y, z N then moment x, y, z N m, in the
+    joint's outer segment's frame."""
+    out = {}
+    for joint in OUTER:
+        held, spike, fell, wedged = [0.0] * 6, [[0.0, '', 0.0] for _ in range(6)], [0.0] * 6, []
+        where = [''] * 6
+        for row in rows:
+            got, name = row[joint], row['name']
+            most = got['force'] + got['moment']
+            bounds = [row['weight'] * (got['reach'] if k >= 3 else 1.0) for k in range(6)]
+            squeezed = [[k, name, got['kept'][k], round(bounds[k], 1)] for k in range(6) if got['kept'][k] > bounds[k]]
+            if squeezed:                                 # no weight of the robot's holds that: the limb squeezed
+                wedged += squeezed
+                continue
+            for k in range(6):
+                if not row['stood']:
+                    fell[k] = max(fell[k], most[k])
+                    continue
+                if got['mean'][k] > held[k]:
+                    held[k], where[k] = got['mean'][k], name
+                if most[k] > spike[k][0] and got['at'][k] >= SETTLE_S:
+                    spike[k] = [most[k], name, got['lasted'][k]]
+        out[joint] = {'mean': held, 'in': where, 'spike': spike, 'fell': fell, 'wedged': wedged}
+    return out
+
+
+def _tabled(names, jobs):
+    """`borne`'s rows of the scenarios `names`, each run in a process of its own, `jobs` at once."""
+    import subprocess
+    from concurrent.futures import ThreadPoolExecutor
+
+    def one(name):
+        run = subprocess.run([sys.executable, '-X', 'utf8', os.path.abspath(__file__), name, '--all', '--json'],
+                             capture_output=True, text=True)
+        lines = [line for line in run.stdout.splitlines() if line.startswith('{')]
+        return json.loads(lines[-1]) if lines else None
+    with ThreadPoolExecutor(max_workers=jobs) as pool:
+        return [row for row in pool.map(one, names) if row]
 
 
 def ankle(name):
@@ -192,7 +280,31 @@ def main(argv=None):
     parser.add_argument('--json', action='store_true')
     parser.add_argument('--joint', default='knee', choices=('knee', 'elbow', 'ankle'))
     parser.add_argument('--all', action='store_true')
+    parser.add_argument('--table', action='store_true')
+    parser.add_argument('--jobs', type=int, default=8)
     args = parser.parse_args(argv)
+    if args.table:
+        from tools.sim import scenarios
+        rows = _tabled(args.names or list(scenarios.SCENARIOS), args.jobs)
+        told = table(rows)
+        if args.json:
+            print(json.dumps({'rows': rows, 'table': told}))
+            return 0
+        print('%d scenarios, the robot stood %d; a mount is sized for what it bore over %.0f ms on end in those'
+              % (len(rows), sum(r['stood'] for r in rows), 1e3 * MEAN_S))
+        for joint, got in told.items():
+            print('%-10s force %s N | moment %s N m' % (joint, ' '.join('%5.0f' % v for v in got['mean'][:3]),
+                                                        ' '.join('%4.0f' % v for v in got['mean'][3:])))
+            print('   in      %s' % '  '.join('%s %s' % ('FxFyFzMxMyMz'[2 * k:2 * k + 2], name)
+                                              for k, name in enumerate(got['in'])))
+            print('   peaks   %s' % '  '.join('%s %.0f (%s, %.0f ms)' % ('FxFyFzMxMyMz'[2 * k:2 * k + 2], v, name, 1e3 * s)
+                                              for k, (v, name, s) in enumerate(got['spike']) if v > 1.25 * got['mean'][k]))
+            print('   fell    force %s N | moment %s N m' % (' '.join('%5.0f' % v for v in got['fell'][:3]),
+                                                             ' '.join('%4.0f' % v for v in got['fell'][3:])))
+            for k, name, kept, bound in got['wedged']:
+                print('   wedged  %s %.0f for %.0f s in %s: its weight explains %.0f'
+                      % ('FxFyFzMxMyMz'[2 * k:2 * k + 2], kept, KEPT_S, name, bound))
+        return 0
     weight = compile.G_M_S2 * float(compile.gait()['mass_kg'])
     for name in args.names or HARDEST:
         if args.all:

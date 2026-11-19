@@ -30,11 +30,11 @@ from tools.render import knee_loads as kl  # noqa: E402
 from tools.render import shoulder_laid as sl  # noqa: E402
 from tools.render import sized  # noqa: E402
 
-#: How far over the neck's axis the head's motor's band begins, m (0.490 m up the torso): from its root on the
-#: crown's floor, 2 mm under that, the likeness's head's skin, turned through the head's travel, keeps 51 mm off the
-#: head's axis all round - the band 46 mm round, its air and the skull's shell inside that; lower, the neck keeps
+#: How far over the neck's axis the head's motor's band begins, m (0.472 m up the torso): from its root on the
+#: crown's floor, 2 mm under that, the likeness's head's skin, turned through the head's travel, keeps 48 mm off the
+#: head's axis all round - the band 43 mm round, its air and the skull's shell inside that; lower, the neck keeps
 #: 47 (`neck_mount.checked`: 'skin').
-HEAD_M = 0.105
+HEAD_M = 0.087
 #: The yoke's plate's width across the neck, how far its crown's floor stands round past the head's motor, and how
 #: long the crown's shoe lies on the neck's band across the neck, m.
 WEB_M, PAST_M, SHOE_M = 0.060, 0.0015, 0.030

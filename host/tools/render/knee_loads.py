@@ -39,25 +39,31 @@ HUB, BASE = (8, 20.0), (8, 22.0)
 #: corners), the elbow's the hand's sensors alone (its wrist and gripper are passive) with a four-pole 1.25 mm plug
 #: pulled through.
 MOUNTED = {'knee': ('thigh', 'shank', 14.0), 'elbow': ('upper_arm', 'forearm', 7.0)}
-#: The most either knee carried through tools/sim/legload.py's HARDEST scenarios: the swing 164 N m (hop_up, past
-#: the gearbox's 128 through the stop), the lateral 189 N m (cross_slope), the torsion 43 N m (slip), the axial 891 N
-#: (stairs_down, 3.10 weights). The lateral was first taken as the hip roll's shock by the shank's share of the leg,
-#: 105 N m: the measurement falsified it (a foot planted off under the body adds its weight's lever).
-#: The most either elbow carried (legload.py --joint elbow): the swing 37 N m (hop_up), the lateral 192 N m (chair,
-#: under a millisecond above half of it), the torsion 17 N m (hop_up), the axial 233 N (hop_up).
-ELBOW = {'swing': 37.0, 'lateral': 192.0, 'torsion': 17.0, 'axial': 233.0}
-#: The most either shoulder carried through the scenarios the robot stood (legload.py --all, 48 of 69): about its
-#: own axis its drive's 77 N m, the lateral 250 N m and the torsion 88 N m (hop_up, 0.16 s above half of each), the
-#: axial 812 N (the bed's impact, 4 ms).
-SHOULDER = {'swing': 77.0, 'lateral': 250.0, 'torsion': 88.0, 'axial': 812.0}
-#: The most the neck, the head and the spine carried through them, each about and along its own axes: the neck's
-#: nod 66 N m, across it 28, its twist 8 and 3321 N down it (a bed's impact, 11 ms); the head's turn 7 N m, its nod
-#: 110 (a bed's settle, 8 ms), across 15, 3433 N down its axis; the spine's 141, 85 and 61 N m, 1320 N.
-NECK = {'swing': 66.0, 'lateral': 28.0, 'torsion': 8.0, 'axial': 3321.0}
-HEAD = {'swing': 7.0, 'lateral': 110.0, 'torsion': 15.0, 'axial': 3433.0}
-SPINE = {'swing': 141.0, 'lateral': 85.0, 'torsion': 61.0, 'axial': 1320.0}
-MEASURED = {'knee': {'swing': 164.0, 'lateral': 189.0, 'torsion': 43.0, 'axial': 891.0},
-            'elbow': ELBOW, 'shoulder': SHOULDER, 'neck': NECK, 'head': HEAD, 'spine': SPINE}
+#: What each mounted joint of the build bore through the scenarios it stood (tools/sim/legload.py --table, 49 of
+#: 69): the most of its mean over 20 ms on end - a blow shorter counts by its impulse, not by the peak the solver's
+#: contact shapes -, no joint counted in a scenario that wedged it. What a mount is not sized for is told apart
+#: there: those peaks, a fall's loads, a wedged limb's.
+#: The knee: about its axis 186 N m (play_walk_leap, past the gearbox's 128 through the stop), across it 55 and
+#: about its length 20 (running_jump), along it 756 N (play_walk_leap, 2.67 weights). Apart: its peaks - 197 N m,
+#: 89 across (8 ms), 1015 N (10 ms); cross_slope, whose 189 N m across was taken before, is a fall.
+KNEE = {'swing': 186.0, 'lateral': 55.0, 'torsion': 20.0, 'axial': 756.0}
+#: The elbow: about its axis 52 N m and across it 126 (turning_in_bed: the robot on its arm), about its length 25
+#: (crawl_backwards), along it 493 N (mattress). Apart: bed_leg wedges it - 353 N m across kept a second, its arm
+#: under it, where the robot's weight at its hand makes 108; chair's 192 across, taken before, lasted under a
+#: millisecond; the stock robot's bed_leg lays 222 N m across its elbow.
+ELBOW = {'swing': 52.0, 'lateral': 126.0, 'torsion': 25.0, 'axial': 493.0}
+#: The shoulder: about its own axis 67 N m (mattress - its drive's own is more), across it 191 (slip: the robot
+#: caught on its hand), about the arm's length 115 (turning_in_bed), along the arm 467 N (mattress). Apart:
+#: bed_leg wedges it; hop_up's 250 across, taken before, was a peak.
+SHOULDER = {'swing': 67.0, 'lateral': 191.0, 'torsion': 115.0, 'axial': 467.0}
+#: The neck: its nod 14 N m, across it 17, its twist 4 and 1113 N down it; the head: its turn 3 N m, its nod 20,
+#: across 13 and 1150 N down its axis - the bed's all (mattress, turning_in_bed: the robot laid on its head's
+#: side), their peaks 2631 and 2718 N for 7 ms. The spine: 106 N m (standing_jump), across it 135 (slip), about
+#: its length 41 and 1001 N down it (chair_low).
+NECK = {'swing': 14.0, 'lateral': 17.0, 'torsion': 4.0, 'axial': 1113.0}
+HEAD = {'swing': 3.0, 'lateral': 20.0, 'torsion': 13.0, 'axial': 1150.0}
+SPINE = {'swing': 106.0, 'lateral': 135.0, 'torsion': 41.0, 'axial': 1001.0}
+MEASURED = {'knee': KNEE, 'elbow': ELBOW, 'shoulder': SHOULDER, 'neck': NECK, 'head': HEAD, 'spine': SPINE}
 
 
 def tube(joint='knee'):

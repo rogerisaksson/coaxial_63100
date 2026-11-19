@@ -81,7 +81,40 @@ def test_the_neck_holds_clears_and_keeps_its_hose(report):
                  min(list(mount['skin']) + [hose['skin']]) >= told.get('wall', 1e9), (mount['skin'], hose['skin']))
 
 
-ROSTER = (test_the_shoulder_holds_turns_and_keeps_its_coil, test_the_neck_holds_clears_and_keeps_its_hose)
+def test_a_mount_is_sized_for_what_it_bore_not_for_a_peak(report):
+    """The rule the sketches' loads are read by (`tools.sim.legload.table`, `knee_loads.MEASURED`), on rows made
+    up: a load counts by its mean over MEAN_S on end - a steady one in full, a blow of a millisecond by its
+    impulse, never by its peak -; a joint that kept for KEPT_S more than the robot's weight at its limb's far end
+    explains is wedged, and nothing it bore in that scenario counts, whichever of its six told; what a fall
+    loaded it with is told apart, and so is the highest peak of the scenarios it stood."""
+    import numpy as np
+    from tools.sim import legload as ll
+    t = np.arange(0.0, 3.0, 0.001)
+    v = np.zeros((len(t), 6))
+    v[:, 0], v[1500, 1] = 100.0, 2000.0                  # a steady 100 N; a blow of 2000 N for a millisecond: 2 N s
+    mean, kept = ll._over(t, v, ll.MEAN_S, np.mean), ll._over(t, v, ll.KEPT_S, np.min)
+    report.check('a steady load counts in full, a blow of a millisecond by its impulse, and is not kept',
+                 abs(mean[0] - 100.0) < 1e-9 and abs(mean[1] - 2.0 / (ll.MEAN_S + 0.001)) < 1.0 and kept[1] == 0.0
+                 and abs(kept[0] - 100.0) < 1e-9, (mean[:2].round(1).tolist(), kept[:2].tolist()))
+
+    def row(name, stood, mean, kept, most):
+        joint = {'force': most[:3], 'moment': most[3:], 'mean': mean, 'kept': kept, 'reach': 0.4, 'at': [1.0] * 6,
+                 'lasted': [0.01] * 6}
+        return dict({'name': name, 'stood': stood, 'weight': 280.0}, **{j: joint for j in ll.OUTER})
+    walked = [50.0, 300.0, 40.0, 60.0, 5.0, 20.0]
+    rows = [row('walk', True, walked, [10.0, 250.0, 5.0, 5.0, 1.0, 2.0], [80.0, 600.0, 70.0, 90.0, 9.0, 40.0]),
+            row('wedge', True, [900.0, 100.0, 50.0, 30.0, 5.0, 300.0], [10.0, 20.0, 5.0, 5.0, 1.0, 200.0], [1000.0] * 6),
+            row('fall', False, [500.0] * 6, [0.0] * 6, [3000.0] * 6)]
+    got: Any = ll.table(rows)['elbow']
+    report.check('a wedged joint counts for nothing in its scenario, whichever of its six told',
+                 got['mean'] == walked and got['in'] == ['walk'] * 6 and [w[:2] for w in got['wedged']] == [[5, 'wedge']],
+                 (got['mean'], got['wedged']))
+    report.check("a fall's loads and the highest peak stood through are told apart from what a mount is sized for",
+                 got['fell'] == [3000.0] * 6 and got['spike'][1][:2] == [600.0, 'walk'], (got['fell'], got['spike'][1]))
+
+
+ROSTER = (test_the_shoulder_holds_turns_and_keeps_its_coil, test_the_neck_holds_clears_and_keeps_its_hose,
+          test_a_mount_is_sized_for_what_it_bore_not_for_a_peak)
 
 
 def main(argv=None):
