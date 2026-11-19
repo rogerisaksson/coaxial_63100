@@ -235,20 +235,22 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
     a_par = max(s_par - se2.STOP_M, e['d_stage'])
     stop = e['way'][0] if e['way'] else (e['x_dock'] + a_par * e['nx'], e['z_dock'] + a_par * e['nz'])
     gap, closing = se2.closing(vx_w, vz_w, stop[0] - gx, stop[1] - gz)
-    # the robot's straight leg braked into an intermediate corner as its curve is into its end
-    # (`route.rounded`, the wayfinder's centripetal governor): at BRAKE to the robot's CORNER_SPEED a stride
-    # and a cell off it, where `corner` stands the robot; at its stage (`len(e['way']) <= 1`) `corner`
-    # and `stops_in` already time its STOP_M run-out from WALK_SPEED; pushing a door (`door_push`),
-    # eased to a steady walk before the panel so it neither slams it nor stalls on its spring
+    # the robot's leg braked into its stop as its curve is into its end (`route.rounded`, the wayfinder's
+    # centripetal governor), read a step on at its speed; on no curve (`route.braked`: its stage within a thing's
+    # grown cells bars one) at BRAKE to the speed it stops from in a stride (`route.STOPPING`) a stride off it - a
+    # cell more before a corner, as `corner` reads it -, where its stop's run-out stands the robot: told its walk's
+    # speed to its stage's run-out, its brake surged it to 1.28 m/s and scattered its stop, and it stepped up to
+    # the chair's stage twice; pushing a door (`door_push`), eased to a steady walk before the panel so it neither
+    # slams it nor stalls on its spring
     door_push = e['phase'] == 'door' and len(e['way']) <= 1
-    off = max(0.0, gap - stride.STRIDE_M - voxels.CELL_M)
+    speed = math.hypot(vx_w, vz_w)
     door_pace = math.sqrt(libm.sq(0.65 * se2.WALK_SPEED) + 2.0 * route.BRAKE * max(0.0, s_par - stride.STRIDE_M))
-    walk_pace = min(se2.WALK_SPEED, door_pace if door_push
-                    else (math.sqrt(route.CORNER_SPEED * route.CORNER_SPEED + 2.0 * route.BRAKE * off) if len(e['way']) > 1 else se2.WALK_SPEED))
+    walk_pace = (min(se2.WALK_SPEED, door_pace) if door_push
+                 else route.braked(gap, speed, voxels.CELL_M * float(len(e['way']) > 1)))
     way_hd = e['hdd'] if door_push else libm.arctan2(stop[0] - gx, stop[1] - gz)
     aim = (gx + libm.sin(way_hd), gz + libm.cos(way_hd)) if door_push and s_par <= 0.0 else stop
     e['k'], (ax, az), along, _there, pace, _bend = (
-        route.ahead(e['curve'], e['k'], (gx, gz)) if len(e['curve'])
+        route.ahead(e['curve'], e['k'], (gx, gz), speed) if len(e['curve'])
         else (e['k'], aim, way_hd, pyaw, walk_pace, 0.0))
     # on the robot's curve its stop is what is left of it, the robot's speed along it: by the line to it,
     # round the bed 1 m off and more walked, the robot was told to stand mid-curve at 0.84 m/s and fell

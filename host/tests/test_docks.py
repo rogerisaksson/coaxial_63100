@@ -85,8 +85,28 @@ def test_the_bed_offers_its_long_side_and_its_foot_on_the_robots_eyes(report, _c
     _check(report, True, 'on the robot\'s eyes')
 
 
+def test_a_straight_leg_brakes_into_its_stop(report):
+    """A straight leg's curve (`route.planned`) and a leg with none (`route.braked`) brake into the stop at BRAKE
+    to STOPPING a stride short: told its walk's speed to the run-out the robot surged to 1.28 m/s."""
+    import numpy as np
+    from machine.law import se2, stride
+    from machine.way import route
+    stops, curve, _ = route.planned((-1.5, 0.0), 0.0, True, (1.0, 0.0), np.ones(route._grid()[1]))
+    s, v = curve[:, 2], curve[:, 3]
+    braking = float(((v[:-1] ** 2 - v[1:] ** 2) / (2.0 * np.maximum(np.diff(s), 1e-12))).max())
+    told = [route.braked(float(gap), 0.0) for gap in np.linspace(0.0, 2.0, 81)]
+    report.check("a straight leg's curve and a curveless leg: walk, BRAKE at most, STOPPING a stride short",
+                 stops == [(1.0, 0.0)] and len(curve) > 2 and abs(v[0] - se2.WALK_SPEED) < 1e-12
+                 and braking <= route.BRAKE + 1e-9 and float(v.min()) >= route.STOPPING - 1e-12
+                 and bool(np.all(np.abs(v[s >= s[-1] - stride.STRIDE_M + 1e-9] - route.STOPPING) < 1e-12))
+                 and all(abs(t - route.STOPPING) < 1e-12 for t in told[:13])
+                 and all(b >= a - 1e-12 for a, b in zip(told, told[1:])) and told[-1] == se2.WALK_SPEED,
+                 '%.3f m/s^2 at most, %.3f m/s at least; %.3f, %.3f, %.3f told 0, 1, 2 m out' % (
+                     braking, float(v.min()), told[0], told[40], told[-1]))
+
+
 ROSTER = (test_the_bed_offers_its_long_side_and_its_foot_on_the_worlds_boxes,
-          test_the_bed_offers_its_long_side_and_its_foot_on_the_robots_eyes)
+          test_the_bed_offers_its_long_side_and_its_foot_on_the_robots_eyes, test_a_straight_leg_brakes_into_its_stop)
 
 
 def main(argv=None):

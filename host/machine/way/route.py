@@ -39,6 +39,13 @@ TURN = se2.YAW_RATE * se2.STEER['stance_turn']
 BRAKE, RUN_OUT_S = (se2.WALK_SPEED * se2.WALK_SPEED) / (2.0 * se2.STOP_M), se2.STOP_M / se2.WALK_SPEED
 SLOWEST = rhythm.R['spin_still_m_s']
 CORNER_SPEED = SLOWEST + rhythm.R['edge_m_s']
+#: A step of the robot's walk, s: what its walk takes to come to a speed told. Told its curve's speed where it
+#: stood, its walk ran a step behind: 1.13 m/s where the curve had braked to 0.91, and its stop fired at that speed.
+STEP_S = 0.5 / se2.WALK_HZ
+#: The speed the robot stops from at a stop, m/s: its run-out from it a stride by RUN_OUT_S (its walk's own 0.88 s;
+#: 0.73-0.76 s measured flat, 0.29 m from 0.40 m/s, its legs within its walk's speeds). Stopped from its walk's
+#: speed it ran on 0.87 m, its pelvis surging to 1.35 m/s in its brake; braked to its SLOWEST walk it crept 1.4 s.
+STOPPING = stride.STRIDE_M / RUN_OUT_S
 
 
 def _cell(x, z):
@@ -176,7 +183,7 @@ def rounded(cells, pts):
     round each corner on the widest arc the robot's map's free `cells` and its legs give (`_widest`, `_room`),
     the robot's walk's (WALK_SPEED / TURN round) at most, walked at TURN times its radius. The curve (N, 5):
     x, z, its length, the robot's speed and its bend (1/m) a half cell apart, braked into each arc and out of
-    it at BRAKE, into its end - where the robot stands - to its SLOWEST walk; `last` the index in
+    it at BRAKE, into its end - where the robot stands - to the speed it stops from there (STOPPING); `last` the index in
     `pts` of the first corner no arc of its SLOWEST walk rounds - a stop, the curve's end, the robot's
     run-out kept before it."""
     np = sight._np()
@@ -217,7 +224,7 @@ def rounded(cells, pts):
     ds = np.hypot(*np.diff(q[:, :2], axis=0).T)
     s, stop = np.r_[0.0, np.cumsum(ds)], stride.STRIDE_M + voxels.CELL_M * float(last < n)
     v = q[:, 2].copy()
-    v[s >= s[-1] - stop] = np.minimum(v[s >= s[-1] - stop], CORNER_SPEED)
+    v[s >= s[-1] - stop] = np.minimum(v[s >= s[-1] - stop], STOPPING)
     for k in range(1, len(v)):
         v[k] = min(v[k], math.sqrt(libm.sq(v[k - 1]) + 2.0 * BRAKE * ds[k - 1]))
     for k in range(len(v) - 2, -1, -1):
@@ -228,8 +235,10 @@ def rounded(cells, pts):
 def planned(at, yaw, still, to, cost, warm=(), passed=0.0):
     """(stops, curve, held): where the robot stands still on its way from `at` (x, z) to `to` through
     `cost` (`costs`) - `way`'s corners from the first no arc rounds (`rounded`), `to` last, its leading
-    corners within `passed` of the robot dropped -, the curve it walks to the first ((0, 5) where the
-    robot walks straight at it: one leg, no corner rounded, or a blocked sample past a free one, `barred`'s -
+    corners within `passed` of the robot dropped -, the curve it walks to the first, braked into it (a
+    straight one where the robot walks straight at it: one leg, or no corner rounded - told its walk's speed
+    to the stop's run-out, its brake surged it to 1.28 m/s and scattered its stop, and it stepped
+    up to the chair's stage twice; (0, 5) where a blocked sample lies past a free one, `barred`'s -
     the robot's own run inside a grown thing's its own, as it rises off a chair it stood
     a corner at a time); none held. `yaw`, `still` and `warm` the robot's planner's ask's: it turns standing
     where it is off its way, as at a stop (`steer`)."""
@@ -241,17 +250,18 @@ def planned(at, yaw, still, to, cost, warm=(), passed=0.0):
     corners = way(here, to, cost)
     corners = [p for k, p in enumerate(corners) if any(math.dist(here, q) > passed for q in corners[:k + 1])]
     pts = [here] + corners
-    curve, last = rounded(cells, pts) if len(pts) > 2 else (np.zeros((0, 5)), len(pts) - 1)
-    if last <= 1 or barred(cells, [tuple(q) for q in curve[:, :2]]):
+    curve, last = rounded(cells, pts) if len(pts) > 1 else (np.zeros((0, 5)), 0)
+    if barred(cells, [tuple(q) for q in curve[:, :2]]):
         curve, last = np.zeros((0, 5)), min(last, 1)
     return pts[last:] if len(pts) > 1 else [], curve, ()
 
 
-def ahead(curve, k, at):
+def ahead(curve, k, at, speed=0.0):
     """(k, (x, z), along, there, pace, bend): the robot's place on `curve` ((N, 5) `rounded`'s) - its sample
     nearest `at` from the k-th on, AIM_M along it at most -, the robot's aim on from there as far as the
     robot's speed there runs it (`_aim`), its end at most, the curve's heading at the robot's place and at the
-    robot's aim, rad, its speed at its place, m/s, and its bend at the robot's aim, 1/m. The curve's
+    robot's aim, rad, its speed a step on at the robot's `speed` (STEP_S, its place's at none), m/s, and its
+    bend at the robot's aim, 1/m. The curve's
     columns read as lists once a curve (`_columns`): bisect's insertions searchsorted's on its arclength,
     sorted; numpy's hypot and argmin for the robot's place."""
     np = sight._np()
@@ -260,9 +270,18 @@ def ahead(curve, k, at):
     k = k + int(np.argmin(np.hypot(curve[near, 0] - at[0], curve[near, 1] - at[1])))
     n = len(s)
     j = min(bisect.bisect_left(s, s[k] + _aim(pace[k])), n - 1)
+    led = min(bisect.bisect_left(s, s[k] + speed * STEP_S), n - 1)
     (k1, k0), (j1, j0) = ((min(i + 1, n - 1), min(i, n - 2)) for i in (k, j))
     along, there = libm.arctan2(x[k1] - x[k0], z[k1] - z[k0]), libm.arctan2(x[j1] - x[j0], z[j1] - z[j0])
-    return k, (x[j], z[j]), along, there, pace[k], max(bend[k], bend[j] * float(pace[k] < se2.WALK_SPEED))
+    return k, (x[j], z[j]), along, there, pace[led], max(bend[k], bend[j] * float(pace[k] < se2.WALK_SPEED))
+
+
+def braked(gap, v, more=0.0):
+    """m/s the robot is told `gap` m short of a stop, going `v` m/s, on no curve: its walk braked into the stop at
+    BRAKE to the speed it stops from (STOPPING) a stride and `more` short of it as a curve's is into its end
+    (`rounded`), read a step on (STEP_S)."""
+    return min(se2.WALK_SPEED, math.sqrt(STOPPING * STOPPING
+                                         + 2.0 * BRAKE * max(0.0, gap - v * STEP_S - stride.STRIDE_M - more)))
 
 
 def _columns(curve):
