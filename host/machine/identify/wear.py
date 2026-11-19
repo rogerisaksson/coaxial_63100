@@ -173,7 +173,10 @@ def step(w, got):
     if len(left):
         sigma = np.maximum(NOISE, w['residual'])[drive]
         A, left = A / sigma[:, None], left / sigma
-        w['P'] = np.linalg.inv(np.linalg.inv(w['P']) + A.T @ A)
+        # A' A by numpy's own loop, not OpenBLAS's: over a window's thousands of rows its product is blocked by
+        # the processor's table - 256 rows a pass, 512 on a runner whose table its cache sizes reset - and its
+        # sums parted there in their last bits, the walk after them: test_wear named an ankle's kt on those alone
+        w['P'] = np.linalg.inv(np.linalg.inv(w['P']) + np.einsum('ri,rj->ij', A, A))
         w['z'] = w['z'] + w['P'] @ (A.T @ (left - A @ w['z']))
         r = (left - A @ w['z']) * sigma
         w['read'] = np.bincount(drive, minlength=n_d)
