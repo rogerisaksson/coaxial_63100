@@ -136,6 +136,17 @@ def hop_blocked(g):
     return vh > se2.HALT_M_S and _stop(vh) + 0.35 * vh >= room
 
 
+def _other_blocked(g, way, v_along):
+    """Whether horizontal momentum off `way` (`> HALT_M_S`, e.g. a key switched mid-stride) runs into a thing."""
+    vel = g['est']['vel']
+    ux, uz = float(vel[0]) - v_along * way[0], float(vel[2]) - v_along * way[1]
+    uh = math.hypot(ux, uz)
+    if uh <= se2.HALT_M_S:
+        return False
+    need = _stop(uh) + (2.0 * se2.STOP_SPREAD_M if g.get('_cocoon_cut') else 0.0)
+    return not _spared(g, need) and need >= _room(g, (ux / uh, uz / uh))
+
+
 def blocked(g):
     """Whether the robot's stop along its asked way (`g['asked']`), turning arc, or spin carry/momentum no
     longer fits short of its things: never on an errand, already braking or standing, or with none seen."""
@@ -146,6 +157,8 @@ def blocked(g):
                 and (_vel_blocked(g) or _spin_blocked(g, float(tw[2]))))
     vel = g['est']['vel']
     v_along = max(0.0, float(vel[0]) * way[0] + float(vel[2]) * way[1])
+    if se2.doing(g) not in ('brake', 'stand', 'rest') and _other_blocked(g, way, v_along):
+        return True
     side = se2.SIDE_STOP_M if abs(float(tw[1])) > 1e-4 and se2.doing(g) not in ('brake', 'stand', 'rest') else 0.0
     need = max(_stop(v_along), side)
     return not _spared(g, need) and need >= _arc_room(g, tw, v_along)
@@ -162,8 +175,11 @@ def refused(g, tw):
                 and (_vel_blocked(g) or _spin_blocked(g, float(tw[2]), bool(g.get('_cocoon_cut')))) else tw)
     vel = g['est']['vel']
     v_along = max(0.0, float(vel[0]) * way[0] + float(vel[2]) * way[1])
+    if _other_blocked(g, way, v_along):
+        return (0.0, 0.0, 0.0)
     v_chk = max(v, v_along)
-    need = _stop(v_chk) + (2.0 * se2.STOP_SPREAD_M if g.get('_cocoon_cut') else 0.0)
+    side = se2.SIDE_STOP_M if abs(float(tw[1])) > 1e-4 else 0.0
+    need = max(_stop(v_chk), side) + (2.0 * se2.STOP_SPREAD_M if g.get('_cocoon_cut') else 0.0)
     if _spared(g, need) or need < _arc_room(g, tw, v_chk):
         return tw
     return (0.0, 0.0, 0.0 if _vel_blocked(g) else tw[2])

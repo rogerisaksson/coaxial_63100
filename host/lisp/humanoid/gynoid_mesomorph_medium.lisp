@@ -85,7 +85,7 @@
     (cpg_config
       (frequency 0.96Hz)
       (amplitude mode_lateral_shift 0.27) (amplitude mode_sagittal_drive 0.04)
-      (amplitude mode_limb_lift 1.02))))
+      (amplitude mode_limb_lift 0.85))))
 
 ;; spin right: the same stepping, the robot's twist's yaw the other way
 (derive spin_right spin_left
@@ -100,7 +100,7 @@
     (cpg_config
       (frequency 0.96Hz)
       (amplitude mode_lateral_shift 0.27) (amplitude mode_sagittal_drive 0.56)
-      (amplitude mode_limb_lift 1.02) (amplitude mode_foot_rock 0.58)
+      (amplitude mode_limb_lift 0.86) (amplitude mode_foot_rock 0.45)
       (amplitude mode_pelvis_list 0.34) (amplitude mode_pelvis_turn 0.44)
       (amplitude mode_arm_swing 0.84) (amplitude mode_stance_width 0.10))))
 

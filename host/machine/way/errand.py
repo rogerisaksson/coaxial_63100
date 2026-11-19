@@ -229,7 +229,7 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
     v_par = vx_w * e['nx'] + vz_w * e['nz']
     t_stop = se2.STOP_M / se2.WALK_SPEED
     s_par_stop = s_par + v_par * t_stop
-    s_par_back = s_par + max(-se2.BACK_STOP_M, min(0.0, v_par) * se2.BACK_STOP_M / se2.BACK_SPEED)
+    s_par_back = s_par + max(-2.0 * se2.BACK_STOP_M, 0.5 * min(0.0, v_par) * se2.braked(v_par))
     s_perp_stop = s_perp + (vx_w * e['tx'] + vz_w * e['tz']) * t_stop
     s_perp_side = s_perp + (vx_w * e['tx'] + vz_w * e['tz']) * se2.SIDE_STOP_M / se2.STRAFE_SPEED
     a_par = max(s_par - se2.STOP_M, e['d_stage'])

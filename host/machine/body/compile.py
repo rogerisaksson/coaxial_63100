@@ -204,7 +204,7 @@ def _rhythm_gait(st, v0, w_l, s_t):
         'turning': 0.008, 'turning_edge': 0.004, 'turn_sway': 0.14,
         'spin_fast_m_s': sqrt(0.075) * v0, 'spin_fast_edge_m_s': 0.018 * v0,
         'spin_drive': 0.035, 'spin_drive_s_m': 1.0 / v0, 'spin_drive_from_m_s': 0.055 * v0,
-        'spin_lift': 0.95, 'slip_grip': 0.25, 'slip_grip_edge': 0.02, 'slip_m_s': 0.015 * v0,
+        'spin_lift': 0.85, 'slip_grip': 0.25, 'slip_grip_edge': 0.02, 'slip_m_s': 0.015 * v0,
         'slip_hz': round(w0 * s_t / pi, 2) / s_t,
         'brisk_hz': round(f_brisk * s_t, 2) / s_t, 'quick_hz': round(f_quick * s_t, 2) / s_t,
         'run_drive': 0.85, 'run_boost': 1.08, 'run_arms': 1.00,

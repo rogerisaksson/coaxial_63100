@@ -10,7 +10,7 @@ from machine.process import apart, gaits, governed, sprung, worn
 from machine.world import physics, referee
 from machine.senses import edge
 from machine.way import peek, planner
-from machine.law import se2
+from machine.law import modal, se2
 from machine.eyes import vision
 from machine.identify import wear
 from machine.errors import BusFault, MachineError
@@ -282,7 +282,8 @@ def stepped(s):
                 if g.get('_cocoon_cut') and g.get('_errand') is None and not gaits.in_stunt_transient(g):
                     spd = math.hypot(float(g['est']['vel'][0]), float(g['est']['vel'][2]))
                     tw_c = _cocoon().refused(g, kt)
-                    still = sprung.doing(g) in ('stand', 'rest') and spd < se2.HALT_M_S
+                    still = (sprung.doing(g) in ('stand', 'rest') and spd < se2.HALT_M_S
+                             and float(g['a'][modal.STANCE].min()) > 0.5)
                     if max(abs(kt[0]), abs(kt[1]), abs(kt[2])) <= 1e-6 or (
                             still and (tw_c == kt or tw_c != g.get('asked'))):
                         g['_cocoon_cut'] = tw_c != kt and max(abs(kt[0]), abs(kt[1]), abs(kt[2])) > 1e-6
