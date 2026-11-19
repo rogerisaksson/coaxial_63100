@@ -35,13 +35,14 @@ SPECS = ('machine/library/*.toml', 'machine/humanoids/*.toml', 'machine/aircraft
 CEILING = {
     'machine/aircraft/crafts.toml': 102,
     'machine/humanoids/gynoid_mesomorph_medium.toml': 1064,
-    # 124: the coaxial calf - new construction (its drives' places, parts, clamped levers, heel bar and its strut,
+    # 129: the coaxial calf - new construction (its drives' places, parts, clamped levers, heel bar and its strut,
     # struts, the foot's keel, the thigh's leant run, the knee's stop, its guards: the arm's on its back, the
     # shin's alone on the calf; every inverter of the leg on its motor's back); its rods' arms level at rest - each
     # ball's arm stated beside its crank's, the heel's bar a straight shaft by its two ends; its two rods alike,
     # each a printed cartridge of leaves: their material, their count, a leaf's width and thickness, their bow and
-    # their length
-    'machine/humanoids/gynoid_mesomorph_medium_coax.toml': 124,
+    # their length; its arm's tubes the stock's that hold what its joints carried - the upper arm's one radius,
+    # the forearm's four
+    'machine/humanoids/gynoid_mesomorph_medium_coax.toml': 129,
     'machine/humanoids/gynoid_mesomorph_medium_packs.toml': 2,
     'machine/humanoids/gynoid_mesomorph_medium_performance.toml': 9,
     'machine/humanoids/gynoid_mesomorph_medium_r80.toml': 3,

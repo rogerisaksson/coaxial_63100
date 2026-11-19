@@ -2,12 +2,13 @@
 
     COAXIAL_ROBOT=gynoid_mesomorph_medium_coax python -X utf8 tools/render/arm_worn.py OUT.png
 
-The elbow's mount as elbow_mount draws it, the upper arm's tube on up under the shoulder's drives and the forearm's
-down to the wrist, in the upper arm's frame at the elbow's pivot as the page lays the robot (`gynoid.body`): the
-mount's x the page's, its stack's middle and way (`elbow_mount._stack`) undone, and its bend the page's (`placing`).
-The robot's guards lie where its page lays them - a shoulder's cap and one down each arm (`leg_worn.worn`), each strut
-stood on what it meets first; over them the likeness's tee's sleeve, laid as leg_worn lays the jeans
-(`leg_worn.draped`). What still cuts through what is counted as leg_worn counts it.
+The elbow's mount as elbow_mount draws it, the upper arm's tube on up to its foot under the shoulder's mount
+(`shoulder_mount`, the arm hanging) and the forearm's down to the wrist, in the upper arm's frame at the elbow's
+pivot as the page lays the robot (`gynoid.body`): the elbow's mount's x the page's, its stack's middle and way
+(`elbow_mount._stack`) undone, and its bend the page's (`placing`); the shoulder's sketch turned about the arm's
+line onto the page's. The robot's guards lie where its page lays them - a shoulder's cap and one down each arm
+(`leg_worn.worn`), each strut stood on what it meets first; over them the likeness's tee's sleeve, laid as leg_worn
+lays the jeans (`leg_worn.draped`). What still cuts through what is counted as leg_worn counts it.
 """
 import argparse
 import os
@@ -21,8 +22,8 @@ from tools.render import knee_mount as km  # noqa: E402
 from tools.render import leg_worn as lw  # noqa: E402
 from tools.render import mounting as m  # noqa: E402
 
-#: The likeness's part the tee's sleeve is; the page's drums at the shoulder the upper arm's tube runs up under.
-SLEEVE, SHOULDER = 'like_left_upper_arm', ('drive_left_shoulder', 'gear_left_shoulder', 'inv_left_shoulder')
+#: The likeness's part the tee's sleeve is.
+SLEEVE = 'like_left_upper_arm'
 
 
 def laid(dressed, names, angles=None):
@@ -58,12 +59,13 @@ def placing():
 
 
 def arm(flex=0.0):
-    """{name: tris} of the arm, the elbow's frame: the mount and its hose, the upper arm's tube up under the page's
-    shoulder drums (they not drawn: the page's, under its tee's body, which no sketch here wears), the forearm's down
-    to the wrist; the forearm bent `flex` deg the way the page bends it."""
+    """{name: tris} of the arm, the elbow's frame: the elbow's mount and its hose, the upper arm's tube up to its
+    foot under the shoulder's mount, that mount ('shoulder ...', the arm hanging), the forearm's tube down to the
+    wrist; the forearm bent `flex` deg the way the page bends it."""
     import numpy as np
+    from tools.render import shoulder_laid as sl, shoulder_mount as sm
     turn, shift, bend = placing()
-    page, _shoulder, wrist = laid(False, SHOULDER)
+    _page, shoulder, wrist = laid(False, ())
 
     def placed(tris):                                    # into the page's frame, faces kept outward
         return [(((tri + shift) @ turn)[::int(np.linalg.det(turn))], c) for tri, c in tris]
@@ -71,23 +73,39 @@ def arm(flex=0.0):
     still_parts, _gear, arm_in, arm_out = em._stack()
     over = max(r for *_x, r in still_parts) + 0.002
     face_t, face_s = over + em.SADDLE_M + em.SEAT_M, -(over + em.ROTOR_AIR + em.ROTOR_M + em.SEAT_M)
-    drums = [t for v in page.values() for t in v]
-    top, at = min(float(tri[:, 1].min()) for tri, _c in drums) - 0.005, (float(shift[0] * turn[0, 0]), 0.0)
-    return {'elbow': placed(parts), 'hose': placed(cables),
-            'upper arm tube': m._prism(m._circle(arm_in, 40, at), face_t + em.FLANGE_M, top, em.CARBON),
-            'forearm tube': km._turn(m._prism(m._circle(arm_out, 40, at), float(wrist[1]) + 0.01,
-                                              face_s - em.FLANGE_M, em.CARBON), bend * flex)}
+    top, at = float(shoulder[1]) - sl.laid()['seat'][2] - em.FLANGE_M, (float(shift[0] * turn[0, 0]), 0.0)
+    out = {'elbow': placed(parts), 'hose': placed(cables),
+           'upper arm tube': m._prism(m._circle(arm_in, 40, at), face_t + em.FLANGE_M, top, em.CARBON),
+           'forearm tube': km._turn(m._prism(m._circle(arm_out, 40, at), float(wrist[1]) + 0.01,
+                                             face_s - em.FLANGE_M, em.CARBON), bend * flex)}
+    out.update({'shoulder ' + name: [(tri * (-1.0, 1.0, -1.0) + shoulder, c) for tri, c in tris]
+                for name, tris in sm.posed(0.0).items()})     # half a turn about the arm's line: its x toward the torso
+    return out
+
+
+def _guarded():
+    """{segment: tris}: the arm's guards, laid clear of the whole arm - the shoulder's mount with it."""
+    import numpy as np
+    return lw.worn(arm(), {'left_upper_arm': laid(False, ())[1], 'left_forearm': np.zeros(3)},
+                   {'left_upper_arm': 'upper arm tube', 'left_forearm': 'forearm tube'})
+
+
+def capped():
+    """How many triangle pairs of the upper arm's guards and the shoulder's mount cross, the arm hanging."""
+    from tools.render import clips
+    return clips.crossed(_guarded()['left_upper_arm'], [t for k, v in arm().items() if k.startswith('shoulder ')
+                                                        for t in v])
 
 
 def dressed(flex=0.0):
     """({name: tris} the arm and its guards ('guards ...'), the sleeve laid over them, the farthest it moved, m), the
-    forearm bent `flex` deg the way the page bends it."""
-    import numpy as np
-    sleeve, shoulder, _wrist = laid(True, (SLEEVE,))
-    put = lw.worn(arm(), {'left_upper_arm': shoulder, 'left_forearm': np.zeros(3)},
-                  {'left_upper_arm': 'upper arm tube', 'left_forearm': 'forearm tube'})
-    bare = dict(arm(flex), **{'guards upper arm': put['left_upper_arm'],
-                              'guards forearm': km._turn(put['left_forearm'], placing()[2] * flex)})
+    forearm bent `flex` deg the way the page bends it. The shoulder's mount is left out: the guards stand clear of it
+    (`capped`), and it lies under the tee's body, which no sketch here wears."""
+    sleeve, _shoulder, _wrist = laid(True, (SLEEVE,))
+    put = _guarded()
+    bare = dict({k: v for k, v in arm(flex).items() if not k.startswith('shoulder ')},
+                **{'guards upper arm': put['left_upper_arm'],
+                   'guards forearm': km._turn(put['left_forearm'], placing()[2] * flex)})
     laid_over, moved = lw.draped(sleeve[SLEEVE], *([t for k, v in bare.items() if k.startswith('guards ') == worn
                                                     for t in v] for worn in (False, True)))
     return bare, laid_over, moved
@@ -101,14 +119,16 @@ def main(argv=None):
     bent, bent_sleeve, bent_push = dressed(90.0)
     told, bent_told = lw.counted(bare, sleeve), lw.counted(bent, bent_sleeve)
     every, bent_all = [t for v in bare.values() for t in v], [t for v in bent.values() for t in v]
+    mount = [t for k, v in arm().items() if k.startswith('shoulder ') for t in v]
     views = (('from ahead', 35.0, 12.0), ('from the side', 90.0, 6.0), ('from behind', -145.0, 12.0))
-    rows = [[('guards on, ' + name, every, yaw, pitch) for name, yaw, pitch in views]
-            + [('the elbow bent 90 deg', bent_all, 70.0, 12.0)],
+    rows = [[('guards on, ' + name, every + mount, yaw, pitch) for name, yaw, pitch in views]
+            + [('the elbow bent 90 deg', bent_all + mount, 70.0, 12.0)],
             [('in its tee, ' + name, every + sleeve, yaw, pitch) for name, yaw, pitch in views]
             + [('the elbow bent 90 deg', bent_all + bent_sleeve, 70.0, 12.0)]]
     lw.sheet(args.out, "arm worn: the robot's guards on the elbow's mount and tubes, the likeness's tee laid over them -"
              " out %.0f mm at the most; cutting through: %s, bent %s" % (1e3 * push, told, bent_told), rows)
-    print(args.out, 'sleeve out %.1f / %.1f mm; crossing %s, bent %s' % (1e3 * push, 1e3 * bent_push, told, bent_told))
+    print(args.out, 'sleeve out %.1f / %.1f mm; crossing %s, bent %s; guards x shoulder %d'
+          % (1e3 * push, 1e3 * bent_push, told, bent_told, capped()))
     return 0
 
 

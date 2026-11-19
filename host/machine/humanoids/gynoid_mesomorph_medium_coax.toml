@@ -64,9 +64,13 @@ ankle_roll = { up = 0.2624, crank_m = 0.054, crank_deg = 270.0, ball_m = 0.054, 
 # ahead of the knee's axis - the least that lets the knee fold to its stop past the calf's cage - on the line its
 # seat is flush with the knee's board's cover on. The foot printed in profile on its carbon plate and soft soles: its
 # keel's line arched between the heel and the ball, the keel bonded to the plate in place of two 12 mm legs, the heel
-# bar's tube and its arm.
+# bar's tube and its arm. The arm's tubes the slimmest of the stock that hold what its joints carried
+# (`tools/render/sized.py` tube, `knee_loads.MEASURED`): the upper arm's 35 mm for the shoulder's 250 N m across its
+# swing, the forearm's 30 mm at the elbow for its 192 - their 25 mm ones stood at three times the carbon's allowable.
 [skeleton.hung]
 thigh = { tubes = [[[-0.009, -0.0825, 0.00873], [-0.009, 0.0842, 0.03234, "end"]]], radii = [0.020] }
+upper_arm = { radii = 0.0175 }
+forearm = { radii = [0.010, 0.015, 0.010, 0.010] }
 foot = { tubes = [[[0.0, -0.058, -0.045], [0.0, -0.050, 0.03], [0.0, -0.060, 0.105], [0.0, -0.055, 0.117]], [[0.013, 0.0, -0.0540], [-0.013, 0.0, -0.0540]], [[-0.03, -0.055, 0.117], [0.03, -0.055, 0.117]], [[0.0, 0.0, -0.0540], [0.0, 0.0, -0.026]]] }
 
 [skeleton.held]

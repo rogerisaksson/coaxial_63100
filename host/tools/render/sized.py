@@ -77,6 +77,22 @@ def neck(width_mm, joint='knee'):
     return float(next(d for d in range(int(kl.WALL), 400) if stress(d) <= allow))
 
 
+def tube(bend_nmm, twist_nmm=0.0, pull_n=0.0, least=0.0):
+    """(Outer radius, wall, its worst stress MPa) of the slimmest stock carbon tube - none under `least` mm round -
+    whose wall holds a bending, a twist and a pull at once, mm: the stock table's (`materials.toml` [tubes]), its
+    principal stress at the carbon's allowable; the stoutest where none holds."""
+    from machine.body import mechatronics, structural
+    found = (0.0, 0.0, 0.0)
+    for d, wall in sorted((float(d), 1e3 * float(w)) for d, w in mechatronics.materials()['tubes']['stock']):
+        r, bore = d / 2.0, d / 2.0 - wall
+        second, area = math.pi / 4.0 * (r ** 4 - bore ** 4), math.pi * (r * r - bore * bore)
+        normal, shear = bend_nmm * r / second + pull_n / area, twist_nmm * r / (2.0 * second)
+        found = (r, wall, normal / 2.0 + math.hypot(normal / 2.0, shear))
+        if r >= least and found[2] <= structural.CARBON[2]:
+            break
+    return found
+
+
 def yoke(span_mm, width_mm, joint='knee'):
     """The least thickness of a plate `width_mm` wide across a `span_mm` between two arms, the joint's axial load at
     its middle, mm."""

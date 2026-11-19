@@ -46,8 +46,12 @@ MOUNTED = {'knee': ('thigh', 'shank', 14.0), 'elbow': ('upper_arm', 'forearm', 7
 #: The most either elbow carried (legload.py --joint elbow): the swing 37 N m (hop_up), the lateral 192 N m (chair,
 #: under a millisecond above half of it), the torsion 17 N m (hop_up), the axial 233 N (hop_up).
 ELBOW = {'swing': 37.0, 'lateral': 192.0, 'torsion': 17.0, 'axial': 233.0}
+#: The most either shoulder carried through the scenarios the robot stood (legload.py --all, 48 of 69): about its
+#: own axis its drive's 77 N m, the lateral 250 N m and the torsion 88 N m (hop_up, 0.16 s above half of each), the
+#: axial 812 N (the bed's impact, 4 ms).
+SHOULDER = {'swing': 77.0, 'lateral': 250.0, 'torsion': 88.0, 'axial': 812.0}
 MEASURED = {'knee': {'swing': 164.0, 'lateral': 189.0, 'torsion': 43.0, 'axial': 891.0},
-            'elbow': ELBOW}
+            'elbow': ELBOW, 'shoulder': SHOULDER}
 
 
 def tube(joint='knee'):
