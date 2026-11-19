@@ -37,7 +37,9 @@ BODY_DOUBLES = (2 * 12 * _LINKS + (N - 6) + 2 * 3 * _LINKS + N + 3 * 6 * _LINKS 
 GMO_LD = (GMO_F + 7) // 8 * 8
 _FIELDS = [('a', (_d * GMO_LD) * N), ('h', (_d * GMO_LD) * GMO_F), ('k', (_d * GMO_LD) * GMO_F), ('ag', (_d * GMO_LD) * N),
            ('w', _d * GMO_LD), ('alpha', _d), ('slip', _d), ('eps', _d), ('weight', _d), ('upright', _d), ('reach', _d),
-           ('still', _d), ('slide', _d * 3), ('horizon', _d), ('loss', _d * N), ('driven_at', _i * DRIVEN),
+           ('still', _d), ('slide', _d * 3), ('horizon', _d), ('loss', _d * N), ('rotor', _d * N),
+           ('box_k', _d * DRIVEN), ('box_c', _d * DRIVEN), ('box_gap', _d * DRIVEN), ('box_mesh', _d * DRIVEN),
+           ('box_shock', _d * DRIVEN), ('wound', _d * DRIVEN), ('mesh_rate', _d), ('wound_on', _d), ('driven_at', _i * DRIVEN),
            ('driven_joint', _i * DRIVEN), ('link', _i * GMO_P), ('local', (_d * 3) * GMO_P),
            ('edge', ((_d * 3) * GMO_E) * GMO_P), ('edges', _i * GMO_P), ('col', _i * GMO_P), ('whole', _i), ('pushes', _i),
            ('gated', _i * GMO_P), ('world', _i * GMO_P), ('soled', _i * GMO_P), ('stop_lo', _d * (N - 6)),
@@ -87,5 +89,5 @@ def typed(lib):
     apart = [name for name, at in zip(OFFSETS, said) if getattr(Gmo, name).offset != at]
     if apart:
         raise ValueError('wbc_gmo_t lays %s elsewhere than its mirror' % ', '.join(apart))
-    lib.wbh_gmo_felt.argtypes, lib.wbh_gmo_felt.restype = [ctypes.POINTER(Gmo), _vp, _vp, _vp, _d], None
+    lib.wbh_gmo_felt.argtypes, lib.wbh_gmo_felt.restype = [ctypes.POINTER(Gmo), _vp, _vp, _vp, _vp, _vp, _d], None
     lib.wbh_gmo_step.argtypes, lib.wbh_gmo_step.restype = [ctypes.POINTER(Gmo), _vp, _vp, _vp, _d], None

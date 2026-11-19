@@ -32,15 +32,16 @@ def _written(g):
     o = g['observer']['c']
     return ([g[name] for name in ('eso', 'ref_q', 'ref_v', 'hold')] + [kept[name] for name in ('sb', 'feed', 'limit')]
             + [g['cmd']['limit']] + list(arrays.values()) + [g['sense'], g['inekf']['imu'], g['inekf']['span']]
-            + [np.ctypeslib.as_array(o.acc), np.ctypeslib.as_array(o.tau)])
+            + [np.ctypeslib.as_array(o.acc), np.ctypeslib.as_array(o.tau), np.ctypeslib.as_array(o.wound)])
 
 
 def _held(g):
     """What the robot's pass writes, as it is: its arrays, the robot's master bus's state, the robot's
-    observer's span, its numbers."""
+    observer's span and whether its boxes' wind-up was read, its numbers."""
     _k, bus, _arrays = g['bus']
+    o = g['observer']['c']
     return [a.copy() for a in _written(g)] + [ctypes.string_at(ctypes.addressof(bus), ctypes.sizeof(bus)),
-                                              g['observer']['c'].span, tuple(g.get(k) for k in NUMBERS)]
+                                              (o.span, o.wound_on), tuple(g.get(k) for k in NUMBERS)]
 
 
 def _put(g, was):
@@ -49,7 +50,7 @@ def _put(g, was):
     for a, held in zip(_written(g), was):
         a[...] = held
     ctypes.memmove(ctypes.addressof(bus), was[-3], ctypes.sizeof(bus))
-    g['observer']['c'].span = was[-2]
+    g['observer']['c'].span, g['observer']['c'].wound_on = was[-2]
     for k, v in zip(NUMBERS, was[-1]):
         g.pop(k, None) if v is None else g.__setitem__(k, v)
 

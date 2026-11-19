@@ -13,7 +13,7 @@ void wbc_beat_felt(wbc_beat_t *b, double dt)
     y[b->tau_at + i] = b->motor[i];
   }
   y[b->link_at] = b->link[0];
-  wbc_gmo_felt(b->gmo, &y[b->quat_at], &y[b->accel_at], &y[b->tau_at], dt);
+  wbc_gmo_felt(b->gmo, &y[b->quat_at], &y[b->accel_at], &y[b->tau_at], &y[b->qm_at], &y[b->q_at], dt);
   for (int i = 0; i < b->nimu; i++)
   {
     b->imu[i] += dt * y[b->imu_at + i];

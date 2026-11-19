@@ -20,6 +20,25 @@ from machine.stack.wbc import G
 from tools.cores.model import rotation
 
 
+def _boxed(o, body, driven):
+    """`o`'s drives whose boxes turn their links through a spring in series (`gearbox.Boxes`: the ankle's leaf): the
+    box's numbers in the drive's place (what it passes on, the robot's link turned by that alone) and its rotor off the
+    observer's mass matrix - the servo's armature the link's own (`servos.SERVO`), the rest the box's. Read as rigid,
+    the leaf's rotor (0.29 kg m^2 of 0.34) put 30-60 N m on the robot's ankles at a walk's every lift and landing,
+    no sole could push it and the observer read 214 N on the robot's seat walking (306 on Linux's bits)."""
+    from machine.body import drives, gearbox
+    from machine.body.servos import SERVO
+    boxes = gearbox.Boxes(np)
+    o.mesh_rate = gearbox.MESH_RAD_S
+    for i, k in enumerate(driven):
+        if boxes.series[k] > 0.0:
+            j = JOINTS[k]
+            o.box_k[i], o.box_c[i], o.box_gap[i] = boxes.k[k], boxes.c[k], boxes.gap[k]
+            o.box_mesh[i], o.box_shock[i] = boxes.mesh[k], boxes.shock[k]
+            dof = int(body.m.jnt_dofadr[body.m.joint(j).id])
+            o.rotor[dof] = float(body.m.dof_armature[dof]) - SERVO[drives.kind(j)][3]
+
+
 def _link(seg):
     """A segment's link in the robot's chain (wbc_model.h): its last joint's, the pelvis the root."""
     from machine.body.figure import SEGMENTS
@@ -76,6 +95,7 @@ def laid(body):
     driven = [k for k, j in enumerate(JOINTS) if body.driven[k]]
     o.driven_joint[:] = driven
     o.driven_at[:] = [5 + names.index(JOINTS[k]) for k in driven]
+    _boxed(o, body, driven)
     points, edges, manifolds, rows = ob.POINTS, ob.EDGES, ob.MANIFOLDS, ob.ROWS
     cols = [sum(len(e) for e in edges[:p]) for p in range(len(points))]
     o.pushes = cols[-1] + len(edges[-1])

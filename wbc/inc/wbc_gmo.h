@@ -48,6 +48,15 @@ typedef struct
   double      slide[3];                    /**< the robot's text's slide, world m/s: moving with it a point stands still */
   double      horizon;                     /**< the robot's envelope, m: a pair staged nearer is searched a pass */
   double      loss[WBC_N];                 /**< each velocity's friction loss, N m */
+  double      rotor[WBC_N];                /**< each velocity's rotor its box turns apart from its link, kg m^2: off M */
+  double      box_k[WBC_DRIVEN];           /**< each drive's box with a spring in series, its link turned by its */
+  double      box_c[WBC_DRIVEN];           /**< wind-up alone: past the play N m/rad, its damping N m s/rad, the */
+  double      box_gap[WBC_DRIVEN];         /**< play's half rad, its mesh's friction N m, its cap N m - 0 a box */
+  double      box_mesh[WBC_DRIVEN];        /**< without one, its drive's torque its link's -; its wind-up as */
+  double      box_shock[WBC_DRIVEN];       /**< last read, rad; the mesh's friction tanh(rate / mesh_rate), rad/s */
+  double      wound[WBC_DRIVEN];
+  double      mesh_rate;
+  double      wound_on;                    /**< 0 before a first drive pass, then 1 */
   int         driven_at[WBC_DRIVEN];       /**< each drive's velocity, and its torque in the robot's edge's */
   int         driven_joint[WBC_DRIVEN];
   int         link[WBC_GMO_POINTS];        /**< each point's link, its place in it, its pushes' */
@@ -100,10 +109,12 @@ typedef struct
   wbc_body_t  body;
 } wbc_gmo_t;
 
-/** A drive pass of `dt` s into the sums, of the robot's edge's array: the drives' torques (`tau`,
-    every joint's), the pelvis's specific force (its own frame) turned by its quaternion (w, x, y,
-    z) to the world, gravity added. */
-void wbc_gmo_felt(wbc_gmo_t *o, const double quat[4], const double accel[3], const double *tau, double dt);
+/** A drive pass of `dt` s into the sums, of the robot's edge's array: the torque each link is turned by - its
+    drive's (`tau`, every joint's), or where its box has a spring in series what the box passes on, wound by the
+    motor's angle through it (`qm`) past the joint's (`q`) -, the pelvis's specific force (its own frame) turned by
+    its quaternion (w, x, y, z) to the world, gravity added. */
+void wbc_gmo_felt(wbc_gmo_t *o, const double quat[4], const double accel[3], const double *tau, const double *qm,
+                  const double *q, double dt);
 
 /** A law pass at the robot's estimate - the pelvis's frame, the hinges, u -, `dt` s on: r, f,
     force; the sums emptied. */

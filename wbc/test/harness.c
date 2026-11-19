@@ -739,9 +739,10 @@ API void wbh_gmo_offsets(long long *out)
   }
 }
 
-API void wbh_gmo_felt(wbc_gmo_t *o, const double *r, const double *accel, const double *tau, double dt)
+API void wbh_gmo_felt(wbc_gmo_t *o, const double *r, const double *accel, const double *tau, const double *qm,
+                      const double *q, double dt)
 {
-  wbc_gmo_felt(o, r, accel, tau, dt);
+  wbc_gmo_felt(o, r, accel, tau, qm, q, dt);
 }
 
 API void wbh_gmo_step(wbc_gmo_t *o, const double *base, const double *q, const double *u, double dt)

@@ -13,6 +13,7 @@ import argparse
 import json
 import os
 import sys
+import typing
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -48,13 +49,78 @@ def one(name):
     return line
 
 
+def _truth(world, names, at):
+    """MuJoCo's own push on the robot's dofs this pass, in its observer's (`observer.step`: the pelvis's turn and its
+    push in its own frame, then each joint by name): every contact's and joint stop's constraint force through its
+    Jacobian, the robot's skin and stops - what the observer's residual reads, its model aside."""
+    import numpy as np
+    mj, m, d = world._mj, world.model, world.data
+    kinds = (mj.mjtConstraint.mjCNSTR_CONTACT_FRICTIONLESS, mj.mjtConstraint.mjCNSTR_CONTACT_PYRAMIDAL,
+             mj.mjtConstraint.mjCNSTR_CONTACT_ELLIPTIC, mj.mjtConstraint.mjCNSTR_LIMIT_JOINT)
+    force = np.where(np.isin(d.efc_type[:d.nefc], kinds), d.efc_force[:d.nefc], 0.0)
+    qfrc = np.zeros(m.nv)
+    mj.mj_mulJacTVec(m, d, qfrc, force)
+    root = next(j for j in range(m.njnt) if m.jnt_type[j] == mj.mjtJoint.mjJNT_FREE and m.body(m.jnt_bodyid[j]).name == 'pelvis')
+    dof, out = int(m.jnt_dofadr[root]), np.zeros(5 + len(names))
+    rot = d.xmat[m.jnt_bodyid[root]].reshape(3, 3)
+    out[:3], out[3:6] = qfrc[dof + 3:dof + 6], rot.T @ qfrc[dof:dof + 3]
+    for i, name in enumerate(names[1:], start=6):
+        j = at.get(name)
+        out[i] = qfrc[int(m.jnt_dofadr[j])] if j is not None else np.nan
+    return out
+
+
+def rows(name, since, until, top=4, ghost=60.0):
+    """Each law pass of `name` from `since` to `until` s where its observer reads `ghost` N or more on a manifold its
+    skin feels nothing of: the observer's residual a pass (its low-pass undone) against MuJoCo's own push (`_truth`),
+    the `top` rows most apart - (dof, observer's, MuJoCo's), N m or N."""
+    import math
+    import numpy as np
+    from machine.senses import observer
+    from tools.cores import wbc as cores
+    from tools.sim import scenarios
+    names = cores.Core().names
+    dof = lambda i: ('turn', 'turn', 'turn', 'push', 'push', 'push')[i] + 'xyz'[i % 3] if i < 6 else names[i - 5]
+    out, last = [], dict.fromkeys(('law', 't', 'r'), typing.cast(typing.Any, None))
+
+    def laid(s):
+        g = s['g']
+        if s['fallen_at'] is not None or g.get('t_law') == last['law']:
+            return
+        last['law'], obs, t = g.get('t_law'), g['observer'], float(g['t'])
+        r, before, then = np.array(obs['r'], float), last['r'], last['t']
+        last['t'], last['r'] = t, r
+        if before is None or then is None or not since <= t <= until:
+            return
+        e = before + (r - before) / (1.0 - math.exp(-float(obs['c'].alpha) * (t - then)))
+        felt = observer.skin(g['world'], g['sense'])
+        worst = max([float(obs['normal'][k]) for k in range(len(felt)) if felt[k] < FELT_N] + [0.0])
+        if worst < ghost:
+            return
+        m = g['world'].model
+        at = {m.joint(j).name: j for j in range(m.njnt)}
+        truth = _truth(g['world'], names, at)
+        apart = np.nan_to_num(e - truth)
+        out.append({'t': round(t, 3), 'ghost': round(worst, 1),
+                    'rows': [(dof(int(i)), round(float(e[i]), 1), round(float(truth[i]), 1)) for i in np.argsort(-np.abs(apart))[:top]]})
+
+    scenarios.ran(name, laid=laid)
+    return out
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--one', help='one scene, its line as JSON')
+    parser.add_argument('--rows', nargs=3, metavar=('SCENE', 'FROM', 'TO'),
+                        help="its ghosts' passes: the observer's residual against MuJoCo's push, its rows most apart")
     parser.add_argument('scenes', nargs='*', default=list(SCENES))
     args = parser.parse_args(argv)
     if args.one:
         print(json.dumps(one(args.one)))
+        return 0
+    if args.rows:
+        for line in rows(args.rows[0], float(args.rows[1]), float(args.rows[2])):
+            print(json.dumps(line))
         return 0
     from machine.senses import observer
     from tools.dev import focus

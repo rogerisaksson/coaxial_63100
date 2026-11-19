@@ -39,7 +39,18 @@ static double clip01(double x)
   return (x < 0.0) ? 0.0 : ((x > 1.0) ? 1.0 : x);
 }
 
-void wbc_gmo_felt(wbc_gmo_t *o, const double quat[4], const double accel[3], const double *tau, double dt)
+/** What a box with a spring in series passes on, wound `d` rad at `rel` rad/s (machine.body.gearbox's step): the
+    wind-up past the play, its damping and the mesh's friction, within its cap; none across the play. */
+static double passed(const wbc_gmo_t *o, int i, double d, double rel)
+{
+  const double past = copysign(fmax(fabs(d) - o->box_gap[i], 0.0), d);
+  const double wind = o->box_k[i] * past + o->box_c[i] * rel + o->box_mesh[i] * wbc_tanh(rel / o->mesh_rate);
+
+  return fmin(fmax(lm_sel(past != 0.0, wind, 0.0), -o->box_shock[i]), o->box_shock[i]);
+}
+
+void wbc_gmo_felt(wbc_gmo_t *o, const double quat[4], const double accel[3], const double *tau, const double *qm,
+                  const double *q, double dt)
 {
   const double w = quat[0], x = quat[1], y = quat[2], z = quat[3];
   const double r[9] = {1.0 - 2.0 * (y * y + z * z), 2.0 * (x * y - w * z), 2.0 * (x * z + w * y),
@@ -56,6 +67,17 @@ void wbc_gmo_felt(wbc_gmo_t *o, const double quat[4], const double accel[3], con
   {
     o->tau[i] += dt * tau[o->driven_joint[i]];
   }
+  /* a link turned through a spring in series: what its box passes on in its drive's place - the rotor's own
+   * momentum stays in the box (the drive 37 N m, the spring nothing across its play at a walk's lift) */
+  for (int i = 0; i < WBC_DRIVEN; i++)
+  {
+    const int    j = o->driven_joint[i];
+    const double d = qm[j] - q[j], rel = o->wound_on * (d - o->wound[i]) / dt;
+
+    o->tau[i] += dt * lm_sel(o->box_k[i] > 0.0, passed(o, i, d, rel) - tau[j], 0.0);
+    o->wound[i] = d;
+  }
+  o->wound_on = 1.0;
   o->span += dt;
 }
 
@@ -688,7 +710,7 @@ void wbc_gmo_step(wbc_gmo_t *o, const wbc_frame_t *base, const double q[NH], con
   }
   for (int i = 0; i < WBC_N; i++)
   {
-    double e = o->body.h[i] - tau[i];
+    double e = (o->body.h[i] - tau[i]) - o->rotor[i] * ud[i];
 
     for (int j = 0; j < WBC_N; j++)
     {

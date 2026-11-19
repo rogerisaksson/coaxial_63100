@@ -284,16 +284,17 @@ def bearing(obs):
     return obs['points'][obs['skin'] & (obs['latched'] > 0.5)[obs['row']] & pushed]
 
 
-#: The robot's IMU's quaternion, its specific force and the robot's drives' torques: bytes into its
-#: edge's array.
-_QUAT, _ACCEL, _TAU = (8 * part.start for part in (edge.QUAT, edge.ACCEL, edge.TAU))
+#: The robot's IMU's quaternion, its specific force, the robot's drives' torques, its motors' angles through their
+#: boxes and its joints': bytes into its edge's array.
+_QUAT, _ACCEL, _TAU, _QM, _Q = (8 * part.start for part in (edge.QUAT, edge.ACCEL, edge.TAU, edge.QM, edge.Q))
 
 
 def felt(obs, y, dt):
-    """A drive pass `dt` of the robot's edge's array `y` into the law pass's sums: its drives' torques, its
+    """A drive pass `dt` of the robot's edge's array `y` into the law pass's sums: the torque each link is turned
+    by - its drive's, or what a box with a spring in series passes on, its motor's angle past its joint's -, its
     pelvis's acceleration (its IMU's specific force turned to the world, gravity added)."""
     at = address(y)
-    obs['felt'](obs['at'], at + _QUAT, at + _ACCEL, at + _TAU, dt)
+    obs['felt'](obs['at'], at + _QUAT, at + _ACCEL, at + _TAU, at + _QM, at + _Q, dt)
 
 
 def step(obs, s, qpos, dt):
