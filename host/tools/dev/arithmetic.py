@@ -13,6 +13,7 @@ its float64 sin, cos, exp, log and tanh to its AVX-512 paths where its build has
 tests/test_platform.py holds both; an Arm is its own, nothing held. The relay lays it on every job
 (`tools.dev.focus.environment`), the gate's runners and the Linux containers with it.
 """
+import os
 import platform
 
 #: numpy's dispatch targets past X86_V3: its AVX-512 sets, disabled where its build dispatches them (a target the
@@ -20,6 +21,13 @@ import platform
 WIDER = ('X86_V4', 'AVX512_ICL', 'AVX512_SPR')
 #: The x86-64 machine's names as Python's platform has them; the OpenBLAS kernels every one of them runs.
 X86, CORE = ('x86_64', 'amd64'), 'Nehalem'
+
+
+def hold():
+    """This process's OpenBLAS held to every x86-64's kernels where nothing has asked others (OPENBLAS_CORETYPE): set
+    before numpy loads it - OpenBLAS reads it once, as it loads; `tools` does it as it is imported."""
+    if platform.machine().lower() in X86:
+        os.environ.setdefault('OPENBLAS_CORETYPE', CORE)
 
 
 def held(machine=None, dispatch=None):

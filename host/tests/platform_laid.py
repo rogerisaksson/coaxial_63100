@@ -107,11 +107,12 @@ LAPACKS = {
                               'eigh': '4803f70535a48810', 'solve': '823e8d2d1d4be9f6', 'cholesky': '2e343508512700ef',
                               'inv': '0f1f303922354a7d'},
 }
-#: MuJoCo's compiler's turns of SCENE's geoms by system and processor.
+#: MuJoCo's compiler's turns of SCENE's geoms by system and processor, its libm the robot's (`machine.libm_bound`):
+#: one digest on every system - on UCRT's own Windows turned them otherwise (ac8f2de3b6ae3690).
 TURNS = {
     'Linux-aarch64': {'turns': 'fb5ad14be5cb1784'},
     'Linux-x86_64': {'turns': 'fb5ad14be5cb1784'},
-    'Windows-AMD64': {'turns': 'ac8f2de3b6ae3690'},
+    'Windows-AMD64': {'turns': 'fb5ad14be5cb1784'},
 }
 #: The robot's own QR (wbc_qr) over seeded shapes and its pairwise sums (npsum): no BLAS and no libm in them - one
 #: digest on every machine (laid on Windows, held on Linux x86-64 and arm64's SVE2 build).

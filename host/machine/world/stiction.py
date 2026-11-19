@@ -38,10 +38,9 @@ limp elbow sinks 0.30 deg/s under 0.34 N m through a gearbox whose friction is 1
 as stiffly, the robot's law, which counts on no stiction, lost seven of its checks.
 """
 
-import importlib
 import math
 
-from machine import libm
+from machine import libm, libm_bound
 from machine.body import mechatronics
 
 #: The contacts kept a geom of the model: a contact past them keeps MuJoCo's rows.
@@ -134,7 +133,7 @@ def _stuck(d, state):
     n, last, dt = min(d.ncon, s.cap), s.n, s.step_s
     if not n:
         return
-    elliptic = int(importlib.import_module('mujoco').mjtConstraint.mjCNSTR_CONTACT_ELLIPTIC)
+    elliptic = int(libm_bound.mujoco().mjtConstraint.mjCNSTR_CONTACT_ELLIPTIC)
     con, kbip, vel, aref, res = d.contact, d.efc_KBIP, d.efc_vel, d.efc_aref, d.efc_R
     geoms, pos, frames = con.geom[:n].tolist(), con.pos[:n].tolist(), con.frame[:n].tolist()
     dims, adr = con.dim[:n].tolist(), con.efc_address[:n].tolist()
@@ -185,7 +184,7 @@ def _slipped(d, state):
     yielded, borne_of = state[7], state[10]
     n = min(d.ncon, s.cap)
     if n:
-        elliptic = int(importlib.import_module('mujoco').mjtConstraint.mjCNSTR_CONTACT_ELLIPTIC)
+        elliptic = int(libm_bound.mujoco().mjtConstraint.mjCNSTR_CONTACT_ELLIPTIC)
         con, kbip, res, force = d.contact, d.efc_KBIP, d.efc_R, d.efc_force
         frames, dims, adr = con.frame[:n].tolist(), con.dim[:n].tolist(), con.efc_address[:n].tolist()
         mu, geoms = con.friction[:n].tolist(), con.geom[:n].tolist()

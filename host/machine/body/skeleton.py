@@ -14,6 +14,7 @@ which MuJoCo's parent and child never do; what touches standing is excluded (`ma
 import math
 from typing import Any
 
+from machine import libm_bound
 from machine.body import drives, linkage, mechatronics
 from machine.body.figure import FOREARM, SEGMENTS, SHANK, THIGH, UPPER_ARM
 
@@ -284,7 +285,7 @@ def overlapping(model, angles):
     skeleton's - by design, a drum and what hangs on it, a rod's ball and its heel."""
     import importlib
     from machine.body.figure import JOINTS
-    mujoco = importlib.import_module('mujoco')
+    mujoco = libm_bound.mujoco()
     d = mujoco.MjData(model)
     mujoco.mj_resetData(model, d)
     for joint in JOINTS:

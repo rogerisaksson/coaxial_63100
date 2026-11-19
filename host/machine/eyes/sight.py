@@ -17,7 +17,7 @@ import atexit
 import math
 import weakref
 
-from machine import libm
+from machine import libm, libm_bound
 from machine.eyes.stereo import BASELINE_M, FOVY_DEG, H, W, _np, indices
 from machine.eyes.voxels import CELL_M, X_M, Z_M
 from machine.eyes import epipolar, gimbal, grids, ground, instances, squint, voxels
@@ -129,7 +129,7 @@ class Eyes:
     """The renderer on a world's model, both cameras; closed at its process's exit (`close`)."""
 
     def __init__(self, world):
-        import mujoco
+        mujoco = libm_bound.mujoco()
         # the robot's eyes' frames drawn without the card's multisampling, the model's own kept for what else draws
         # it: multisampled, a frame's pixels told by the frames drawn before it and the wall's time between them
         # (`camera.main`), the robot's camera apart and its map here took 101 to 107 things of the same looks

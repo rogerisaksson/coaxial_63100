@@ -18,10 +18,10 @@ on the camera only when it is slower than that.
     view = cam.view()                    # (thumbnail, hulls) of the last look told (`sight.Keep.view`)
     cam.close()
 """
-import importlib
 import queue
 import threading
 
+from machine import libm_bound
 from machine.process import aside, placed
 from machine.eyes import sight
 from machine.errors import MachineError
@@ -45,7 +45,7 @@ class _Posed:
     the robot's eyes on it."""
 
     def __init__(self, binary):
-        mujoco = importlib.import_module('mujoco')
+        mujoco = libm_bound.mujoco()
         self.model = mujoco.MjModel.from_binary_path('robot.mjb', {'robot.mjb': binary})
         self.data = mujoco.MjData(self.model)
         self.eyes = sight.Eyes(self)
@@ -203,7 +203,7 @@ def _binary(model):
     """`model` as MuJoCo's binary (mj_saveModel): the robot's model whole, its textures too, as the robot's world
     holds it now."""
     import numpy as np
-    mujoco = importlib.import_module('mujoco')
+    mujoco = libm_bound.mujoco()
     buf = np.empty(mujoco.mj_sizeModel(model), np.uint8)
     mujoco.mj_saveModel(model, None, buf)
     return buf.tobytes()

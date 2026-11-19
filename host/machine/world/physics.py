@@ -17,7 +17,7 @@ import math
 import os
 from typing import Any
 
-from machine import libm
+from machine import libm, libm_bound
 from machine.body import compile as _compile, dclink, drives, gearbox, heat, linkage, mechatronics, peripherals
 from machine.world import boxed, floor, harness, loose, passing, room, shown, steps, stiction
 from machine.body.drives import kind
@@ -68,7 +68,7 @@ class World:
 
     def __init__(self):
         os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
-        mujoco = importlib.import_module('mujoco')
+        mujoco = libm_bound.mujoco()
         np = importlib.import_module('numpy')
         self._mj, self._np = mujoco, np
         self.model = mujoco.MjModel.from_xml_string(mjcf())

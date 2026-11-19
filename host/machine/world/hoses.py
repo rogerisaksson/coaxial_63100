@@ -21,9 +21,10 @@ is drawn taut -, so where a step is asked (`step`) its links are the fewest that
 length leaving each fitting along it (`_curve`). A world that falls over all the same raises, MuJoCo's reset off.
 What a hose pulls on the robot is left out: its ~10 g against the robot's ~29 kg.
 """
-import importlib
 import math
 import os
+
+from machine import libm_bound
 
 #: Where each build's hoses are laid (`tools/render/hosed.py --write`), a file a build.
 LAID = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'hoses')
@@ -102,7 +103,7 @@ def _curve(a, u, b, v, length, n):
 
 
 def _quat(turn):
-    mujoco = importlib.import_module('mujoco')
+    mujoco = libm_bound.mujoco()
     import numpy as np
     q = np.zeros(4)
     mujoco.mju_mat2Quat(q, np.asarray(turn, float).ravel())
@@ -114,7 +115,7 @@ class World:
     hose's least bending radius unless told - or, with `step` s, each hose's fewest links that hold that step."""
 
     def __init__(self, spans, poses, link=None, step=None):
-        mujoco = importlib.import_module('mujoco')
+        mujoco = libm_bound.mujoco()
         import numpy as np
         from machine.body import mechatronics
         made, g = mechatronics.materials()['hoses'], float(mechatronics.environment()['g_m_s2'])
@@ -200,7 +201,7 @@ class World:
 
     def restore(self, kept):
         """Back to a state `kept` had."""
-        mujoco = importlib.import_module('mujoco')
+        mujoco = libm_bound.mujoco()
         d = self.data
         d.time, d.qpos[:], d.qvel[:], self._held = kept
         self.model.body_pos[self._rides], self.model.body_quat[self._rides] = self._held
@@ -209,7 +210,7 @@ class World:
     def _stepped(self):
         """One step; a MachineError where the world fell over (MuJoCo's warnings of a bad state counted)."""
         from machine.errors import MachineError
-        mujoco = importlib.import_module('mujoco')
+        mujoco = libm_bound.mujoco()
         mujoco.mj_step(self.model, self.data)
         if int(self.data.warning.number.sum()):
             raise MachineError("the hoses' world fell over at %.4f s, its step %.3g s" % (self.data.time, self.dt))
@@ -217,7 +218,7 @@ class World:
     def settle(self):
         """Steps with the fittings held, each hose's first mode damped critically, until no joint turns faster than
         STILL_RAD_S - FALL_S at most."""
-        mujoco = importlib.import_module('mujoco')
+        mujoco = libm_bound.mujoco()
         import numpy as np
         self.model.dof_damping[:] = self._lie
         for _ in range(int(FALL_S / self.dt)):
@@ -228,7 +229,7 @@ class World:
 
     def follow(self, poses, seconds):
         """Steps `seconds` - CARRIED_S at most - each fitting's segment carried from where it was to `poses`."""
-        mujoco = importlib.import_module('mujoco')
+        mujoco = libm_bound.mujoco()
         import numpy as np
         (p0, q0), (p1, q1) = self._held, self._placed(poses)
         q1 = np.where((q0 * q1).sum(axis=1, keepdims=True) < 0.0, -q1, q1)

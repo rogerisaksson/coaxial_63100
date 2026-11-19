@@ -169,8 +169,10 @@ def test_lapacks_factorings(report):
 def test_mujocos_compiler_turns(report):
     """SCENE compiled (no step): its geoms' turns by system and processor, and which part from the turn by square roots
     alone - the half angle's cosine and sine sqrt((1 +- c) / 2) of its cosine c, a right angle's sqrt(0.5) both."""
-    import importlib
-    m = importlib.import_module('mujoco').MjModel.from_xml_string(SCENE)
+    from machine import libm_bound
+    m = libm_bound.mujoco().MjModel.from_xml_string(SCENE)
+    report.check("MuJoCo's library calls the robot's libm for %s" % ', '.join(libm_bound.NAMES),
+                 sorted(libm_bound.BOUND) == sorted(libm_bound.NAMES), sorted(libm_bound.BOUND))
     q = np.asarray(m.geom_quat, dtype=np.float64)
     half = math.sqrt(0.5)
     rooted = {0: (half, 0.0, -half, 0.0), 1: (half, half, 0.0, -0.0), 4: (half, -half, 0.0, 0.0), 5: (half, half, 0.0, 0.0)}

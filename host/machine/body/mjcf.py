@@ -6,6 +6,7 @@ over its own.
 """
 import math
 
+from machine import libm_bound
 from machine.body import build, drives, figure, guards, mechatronics, peripherals, skeleton
 from machine.world import floor, room
 from machine.body.drives import kind
@@ -153,7 +154,7 @@ def mjcf(free=True):
     kin += [(part, other) for part, rides, _g in skeleton.bodies() for other in near[rides] if other]
     if xml not in _APART:
         import importlib
-        model = importlib.import_module('mujoco').MjModel.from_xml_string(_apart(xml, kin))
+        model = libm_bound.mujoco().MjModel.from_xml_string(_apart(xml, kin))
         _APART[xml] = sorted(set(skeleton.overlapping(model, figure.stand()))
                              | set(skeleton.overlapping(model, figure.SQUAT))
                              | set(skeleton.overlapping(model, figure.squat((60.0, 30.0, 0.0, 80.0)))))

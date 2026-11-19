@@ -17,14 +17,13 @@ and the trunk's turns, a swinging sole and each sole's centre of pressure inside
 (soft); the robot's form weighed - its height, the angular momentum, the posture, the torques, the
 forces - and each drive within its clamp (soft). Each level's tie-break is the levels below.
 """
-import importlib
 import os
 
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import libm
+from machine import libm, libm_bound
 from machine.body import drives, gait, linkage
 from machine.body.compile import G_M_S2 as G
 from machine.stack import qp
@@ -118,7 +117,7 @@ class Body:
 
     def __init__(self, xml=None, identified=True):
         from machine.body import mjcf, servos
-        mj = self.mj = importlib.import_module('mujoco')
+        mj = self.mj = libm_bound.mujoco()
         m = self.m = mj.MjModel.from_xml_string(xml or mjcf.mjcf(free=False))
         m.opt.disableflags |= int(mj.mjtDisableBit.mjDSBL_CONSTRAINT)
         self.d = mj.MjData(m)

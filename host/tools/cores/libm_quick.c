@@ -227,8 +227,67 @@ TWO(power)
 #define SAYS_TWO(NAME) \
   {#NAME, (PyCFunction)(void (*)(void))lq_##NAME, METH_FASTCALL, #NAME "(a, b): wbc_libm's, floats or arrays laid alike."}
 
+/* libm's own C names for a library that calls them through its imports (MuJoCo's: machine.libm_bound) - the robot's in
+ * their place, one set of bits on every system */
+static double mj_sin(double x)
+{
+  return wbc_sin(x);
+}
+
+static double mj_cos(double x)
+{
+  return wbc_cos(x);
+}
+
+static double mj_tan(double x)
+{
+  return wbc_tan(x);
+}
+
+static double mj_asin(double x)
+{
+  return wbc_arcsin(x);
+}
+
+static double mj_acos(double x)
+{
+  return wbc_arccos(x);
+}
+
+static double mj_atan2(double y, double x)
+{
+  return wbc_arctan2(y, x);
+}
+
+static double mj_exp(double x)
+{
+  return wbc_exp(x);
+}
+
+static double mj_log(double x)
+{
+  return wbc_log(x);
+}
+
+static double mj_pow(double x, double y)
+{
+  return wbc_power(x, y);
+}
+
+static PyObject *addresses(PyObject *self, PyObject *noargs)
+{
+  (void)self;
+  (void)noargs;
+  return Py_BuildValue("{s:K,s:K,s:K,s:K,s:K,s:K,s:K,s:K,s:K}", "sin", (unsigned long long)(uintptr_t)&mj_sin, "cos",
+                       (unsigned long long)(uintptr_t)&mj_cos, "tan", (unsigned long long)(uintptr_t)&mj_tan, "asin",
+                       (unsigned long long)(uintptr_t)&mj_asin, "acos", (unsigned long long)(uintptr_t)&mj_acos,
+                       "atan2", (unsigned long long)(uintptr_t)&mj_atan2, "exp", (unsigned long long)(uintptr_t)&mj_exp,
+                       "log", (unsigned long long)(uintptr_t)&mj_log, "pow", (unsigned long long)(uintptr_t)&mj_pow);
+}
+
 static PyMethodDef methods[] = {
   {"laid", laid, METH_O, "laid(other): other(name, *args), Python's way with what C does not take."},
+  {"addresses", addresses, METH_NOARGS, "addresses(): {libm name: the robot's own function's address}, a C library's."},
   SAYS_ONE(sin),
   SAYS_ONE(cos),
   SAYS_ONE(tan),

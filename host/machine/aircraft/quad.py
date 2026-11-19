@@ -12,6 +12,7 @@ import importlib
 import math
 import os
 
+from machine import libm_bound
 from machine.aircraft import aerolisp, compile as aircraft_compile, text
 from machine.aircraft.weather import wind_at
 from tools.cores import bodied
@@ -212,7 +213,7 @@ class Sky:
 
     def __init__(self, things=(), xml=None, rest=None, touch=()):
         os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
-        self._mj = importlib.import_module('mujoco')
+        self._mj = libm_bound.mujoco()
         self._np = importlib.import_module('numpy')
         self.model = self._mj.MjModel.from_xml_string(mjcf(things) if xml is None else xml)
         self.data = self._mj.MjData(self.model)

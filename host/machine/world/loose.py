@@ -15,8 +15,9 @@ with the floor's own bits a chair met none of the floor and fell through. Stumbl
 the bed or the lamp moves; sat on carelessly, a chair.
 """
 
-import importlib
 import math
+
+from machine import libm_bound
 
 #: What a foot is and its grip on a wooden floor, (at rest, sliding): wood on wood; a lamp's felted foot.
 GRIPS = {'wood': (0.45, 0.35), 'felt': (0.30, 0.20)}
@@ -65,7 +66,7 @@ def free(m):
     the world's type, those asleep as `stick` holds them (`_held`)) of model `m`: a foot a geom of it standing on the
     floor where the robot's world stands it - a glide's sphere its radius over it -, of a grip GRIPS knows."""
     import numpy as np
-    mujoco = importlib.import_module('mujoco')
+    mujoco = libm_bound.mujoco()
     dofs, at, feet, of, grips, bodies = [], [], [], [], [], []
     rest, sphere = {round(s, 6): (s, k) for s, k in GRIPS.values()}, mujoco.mjtGeom.mjGEOM_SPHERE
     for b, j in things(m):
@@ -107,7 +108,7 @@ def home(m, d, things):
     scene or a look round moves it -, its feet stuck, asleep: the robot's world laid anew zeroes every coordinate,
     and the chairs stood in it where it starts; from the model's first coordinates a bed moved in it
     went back to where it was built."""
-    mujoco = importlib.import_module('mujoco')
+    mujoco = libm_bound.mujoco()
     _dofs, at, _feet, _of, _grips, bodies, _per, state, _world, _held = things
     for q, b in zip(at, bodies):
         d.qpos[q:q + 3], d.qpos[q + 3:q + 7] = m.body_pos[b], m.body_quat[b]
@@ -189,7 +190,7 @@ def _asleep(m, d, things, k):
     (`mj_applyFT` into `qfrc_applied`, which the robot's world never clears: `xfrc_applied` it clears at a reset and a
     shove), still."""
     import numpy as np
-    mujoco = importlib.import_module('mujoco')
+    mujoco = libm_bound.mujoco()
     dof, q, b, geoms = things[0][k], things[1][k], things[5][k], things[6][k][3]
     m.geom_contype[geoms], m.geom_conaffinity[geoms] = things[8], 0
     borne = np.zeros(m.nv)
