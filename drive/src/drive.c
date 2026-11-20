@@ -1,17 +1,12 @@
 /** drive.c - One PWM period of the control law, and the modes it runs in. */
 #include "drive.h"
+#include "board_units.h"
 
 #include <math.h>
 #include <string.h>
 
 /** Periods from the step that asks for a duty to the sample that shows it. */
 #define PIPELINE 2U
-
-#define PI_F         3.1415927f
-#define TWO_PI_F     6.2831853f
-#define INV_TWO_PI_F 0.15915494f
-#define HALF_SQRT3   0.8660254f
-#define INV_SQRT3    0.57735027f
 
 /** The back-EMF's speed filter, s: thirty of the current loop's 64 us, so a torque step's
     L di/dt, which the magnitude does not subtract, passes as a thirtieth of itself. */
@@ -255,7 +250,7 @@ static float rotor_speed(const drive_t *d)
 float drive_room(const drive_t *d)
 {
   const float scale = fmaxf(d->th.v_mod_scale, 1.0f);
-  const float w = fabsf(d->omega_hat), vmax = d->p.v_frac * scale * d->vdc * INV_SQRT3;
+  const float w = fabsf(d->omega_hat), vmax = d->p.v_frac * scale * d->vdc * INV_SQRT3_F;
   const float a = w * w * d->p.lq * d->p.lq + d->p.r * d->p.r;
   const float b = d->p.r * w * d->p.lambda;
   const float under = b * b - a * (w * w * d->p.lambda * d->p.lambda - vmax * vmax);
@@ -719,7 +714,7 @@ bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
   /* the fundamental: WEP overmodulation expands the circular limit from Vdc/sqrt3
      toward 2*Vdc/sqrt3, while drive_hex_clamp projects onto the hexagon boundary. */
   const float v_mod = fmaxf(d->th.v_mod_scale, 1.0f);
-  const float vmax = clampf(d->p.v_frac * v_mod * in->vdc * INV_SQRT3 - amp,
+  const float vmax = clampf(d->p.v_frac * v_mod * in->vdc * INV_SQRT3_F - amp,
                             0.0f, 1e9f);
   float vd = 0.0f;
   float vq = 0.0f;
@@ -756,8 +751,8 @@ bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
 
     drive_inv_park_cs(id, iq, c, s, &ia_f, &ib_f);
     i_f[0] = ia_f;
-    i_f[1] = -0.5f * ia_f + HALF_SQRT3 * ib_f;
-    i_f[2] = -0.5f * ia_f - HALF_SQRT3 * ib_f;
+    i_f[1] = -0.5f * ia_f + HALF_SQRT3_F * ib_f;
+    i_f[2] = -0.5f * ia_f - HALF_SQRT3_F * ib_f;
     for (uint8_t k = 0U; k < DRIVE_PHASES; k++)
     {
       comp[k] = drive_dt_volts(&d->p, i_f[k]);

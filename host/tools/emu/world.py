@@ -41,7 +41,7 @@ SOURCES = [os.path.join(REPO, 'world', 'src', name)
                  'drive_thermal.c')] + [
     os.path.join(REPO, 'thermal', 'src', name)
     for name in ('thermal.c', 'thermal_ident.c', 'thermal_app.c')]
-INCLUDES = [os.path.join(REPO, part) for part in ('world/inc', 'drive/inc', 'thermal/inc')]
+INCLUDES = [os.path.join(REPO, part) for part in ('world/inc', 'drive/inc', 'thermal/inc', 'comms/inc')]
 
 #: world.h's enums by the names the files use.
 BODIES = {'ground': 0, 'lift': 1, 'vehicle': 2}

@@ -1390,7 +1390,8 @@ def main():
         print('  SKIP  no host C compiler; setup.ps1 installs one')
         print('\n0 passed, 0 failed')
         return 0
-    lib_path, warnings = build(cc, SOURCES, [os.path.join(THERMAL, 'inc')],
+    lib_path, warnings = build(cc, SOURCES, [os.path.join(THERMAL, 'inc'),
+                                             os.path.join(os.path.dirname(THERMAL), 'comms', 'inc')],
                                name='thermalcore')
     lib = ctypes.CDLL(lib_path)
     report = Report()

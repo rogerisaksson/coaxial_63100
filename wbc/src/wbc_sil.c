@@ -8,6 +8,7 @@
 #include "modbus_rtu.h"
 #include "modbus_slave.h"
 #include "wbc_libm.h"
+#include "board_units.h"
 
 #include <math.h>
 #include <stddef.h>
@@ -349,7 +350,7 @@ double wbc_played_step(wbc_played_t *p, double t, double dt, const double *sense
   /* numpy's degrees and radians: x times 180 / pi, x times pi / 180, pi the double numpy's NPY_PI is */
   for (int i = 0; i < p->nq; i++)
   {
-    p->q_deg[i] = p->y[p->q_at + i] * (180.0 / 3.141592653589793);
+    p->q_deg[i] = p->y[p->q_at + i] * RAD_TO_DEG_D;
   }
   if (p->exit != NULL)
   {
@@ -368,7 +369,7 @@ double wbc_played_step(wbc_played_t *p, double t, double dt, const double *sense
   {
     for (int i = 0; i < p->n; i++)
     {
-      p->target[i] = p->cmd[p->idx[i]] * (3.141592653589793 / 180.0);
+      p->target[i] = p->cmd[p->idx[i]] * DEG_TO_RAD_D;
       p->limit[i] = p->clamp[p->idx[i]];
     }
   }

@@ -1,20 +1,13 @@
 /** drive_math.c - Frame transforms, modulator, dead-time table. */
 #include "drive.h"
+#include "board_units.h"
 
 #include <math.h>
 
-#define TWO_PI      6.2831853f
-#define INV_TWO_PI  0.15915494f
-#define PI          3.1415927f
-#define HALF_PI     1.5707963f
-#define ONE_THIRD   0.33333334f
-#define INV_SQRT3   0.57735027f
-#define HALF_SQRT3  0.8660254f
-
 void drive_clarke(const float *iabc, float *alpha, float *beta)
 {
-  *alpha = (2.0f * iabc[0] - iabc[1] - iabc[2]) * ONE_THIRD;
-  *beta  = (iabc[1] - iabc[2]) * INV_SQRT3;
+  *alpha = (2.0f * iabc[0] - iabc[1] - iabc[2]) * ONE_THIRD_F;
+  *beta  = (iabc[1] - iabc[2]) * INV_SQRT3_F;
 }
 
 void drive_park_cs(float alpha, float beta, float c, float s, float *d,
@@ -36,9 +29,9 @@ void drive_sincos(float theta, float *s, float *c)
   /* A ninth-order odd polynomial on [-pi/2, pi/2] after folding with
      vrintm/vminnm/vmaxnm/vabs (no branches, no divide), 3e-6 at the worst
      point - a control law needs milliradians. */
-  const float x = theta - TWO_PI * floorf((theta + PI) * INV_TWO_PI);
-  const float xs = fminf(fmaxf(x, -HALF_PI), HALF_PI) * 2.0f - x;
-  const float xc = HALF_PI - fabsf(x);
+  const float x = theta - TWO_PI_F * floorf((theta + PI_F) * INV_TWO_PI_F);
+  const float xs = fminf(fmaxf(x, -HALF_PI_F), HALF_PI_F) * 2.0f - x;
+  const float xc = HALF_PI_F - fabsf(x);
   const float s2 = xs * xs;
   const float c2 = xc * xc;
 
@@ -84,11 +77,11 @@ float drive_atan2(float y, float x)
 
   if (ay > ax)
   {
-    r = HALF_PI - r;
+    r = HALF_PI_F - r;
   }
   if (x < 0.0f)
   {
-    r = PI - r;
+    r = PI_F - r;
   }
   return (y < 0.0f) ? -r : r;
 }
@@ -101,8 +94,8 @@ float drive_hex_clamp(float *valpha, float *vbeta, float vdc, float v_frac)
   const float va = *valpha;
   const float vb = *vbeta;
   const float v0 = va;
-  const float v1 = -0.5f * va + HALF_SQRT3 * vb;
-  const float v2 = -0.5f * va - HALF_SQRT3 * vb;
+  const float v1 = -0.5f * va + HALF_SQRT3_F * vb;
+  const float v2 = -0.5f * va - HALF_SQRT3_F * vb;
   const float lo = fminf(fminf(v0, v1), v2);
   const float hi = fmaxf(fmaxf(v0, v1), v2);
   const float span = fmaxf(hi - lo, 1e-9f);
@@ -131,8 +124,8 @@ float drive_svm(float valpha, float vbeta, float vdc, float *duty)
   }
 
   v[0] = valpha;
-  v[1] = -0.5f * valpha + HALF_SQRT3 * vbeta;
-  v[2] = -0.5f * valpha - HALF_SQRT3 * vbeta;
+  v[1] = -0.5f * valpha + HALF_SQRT3_F * vbeta;
+  v[2] = -0.5f * valpha - HALF_SQRT3_F * vbeta;
 
   float lo = fminf(fminf(v[0], v[1]), v[2]);
   float hi = fmaxf(fmaxf(v[0], v[1]), v[2]);
@@ -162,7 +155,7 @@ float drive_svm(float valpha, float vbeta, float vdc, float *duty)
 float drive_wrap(float theta)
 {
   /* vrintm.f32 on Cortex-M7: no branches for the fold. */
-  const float k1 = floorf(theta * INV_TWO_PI);
+  const float k1 = floorf(theta * INV_TWO_PI_F);
 
   theta = (theta - k1 * 6.2831850f) - k1 * 4.7683716e-7f;
   const float k2 = floorf(theta * 0.15915495f);

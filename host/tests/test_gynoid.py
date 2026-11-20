@@ -185,10 +185,10 @@ def test_each_drive_is_held(report):
 
 def test_a_gearbox_has_play(report):
     """BOXED: rotor crosses backlash free, winds up `tau / wind`, crosses play on reversal."""
-    from machine.body import figure
+    from machine.body import drives, figure
     from machine.world import physics
     from machine.body.figure import JOINTS
-    i = JOINTS.index('waist')
+    i = next(JOINTS.index(j) for j in ('waist', 'neck', 'left_elbow') if not drives.passive(j))
     physics.BOXED = 1.0
     try:
         _gearbox_has_play(report, physics, figure, i)

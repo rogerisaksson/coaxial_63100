@@ -11,9 +11,11 @@ datasheets (`motors.toml`, `inverters.toml`), heatsink materials (`materials.tom
 atmosphere/sensors (`world.toml`), caching the compiled parameterization in `.cache/compiled/`.
 """
 import math
+import os
 
 from machine.aircraft import polars
 from machine.body import mechatronics
+from motor.constants import AIR_GAMMA, AIR_GAS_CONSTANT, KELVIN_AT_ZERO_C
 
 _ENV = mechatronics.environment(None)
 _mat = mechatronics.materials()
@@ -83,7 +85,7 @@ def _control_and_traj_blocks(crafts, inv, ar, hover, amb):
     kp_ar = 5.0 * round(kp_b * (1.0 + 0.5 * cdi * gyr_ae) / 5.0)
     kp_ay = float(round(kp_yh * (1.0 + 0.8 * cdi), -1))
 
-    a_sound = math.sqrt(1.4 * 287.05 * (amb + 273.15))
+    a_sound = math.sqrt(AIR_GAMMA * AIR_GAS_CONSTANT * (amb + KELVIN_AT_ZERO_C))
     h_d, ht_d = float(he['diameter_m']), float(he['tail_diameter_m'])
     h_mw = round(0.65 * a_sound / (0.5 * h_d), 1)
     h_tw = float(round(h_mw * (ht_d / h_d) ** (1.0 / 30.0)))
@@ -250,7 +252,9 @@ def _build_aircraft(crafts=None):
 
 def _compiled():
     srcs = mechatronics.craft_sources() + (__file__, polars.__file__, mechatronics.__file__)
-    return mechatronics.compiled('aircraft', srcs, _build_aircraft)
+    key = 'aircraft' if mechatronics.CRAFTS.endswith(os.path.join('aircraft', 'crafts.toml')) else (
+        'aircraft_' + os.path.splitext(os.path.basename(mechatronics.CRAFTS))[0])
+    return mechatronics.compiled(key, srcs, _build_aircraft)
 
 
 def defaults() -> tuple[float, float]:

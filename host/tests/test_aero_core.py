@@ -65,8 +65,8 @@ def test_a_pass_has_no_branch(report):
     flagged, jumps, size = [], 0, 0
     for path in (p for p in sources if p.endswith('.c')):
         obj = os.path.join(OUT, 'aero_%d_%s.o' % (os.getpid(), os.path.basename(path)[:-2]))
-        subprocess.run([cc, '-c'] + FLAGS + ['-O2', '-fno-math-errno', '-I', aero.INCLUDES[0],
-                                              path, '-o', obj], check=True)
+        subprocess.run([cc, '-c'] + FLAGS + ['-O2', '-fno-math-errno']
+                       + [x for d in aero.INCLUDES for x in ('-I', d)] + [path, '-o', obj], check=True)
         text = subprocess.run([objdump, '-d', obj], capture_output=True, text=True,
                               check=True).stdout
         os.remove(obj)

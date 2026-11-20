@@ -4,11 +4,9 @@
 #include "wbc_imp.h"
 #include "wbc_np.h"
 #include "wbc_libm_arc.h"
+#include "board_units.h"
 
 #include <math.h>
-
-#define PI  3.14159265358979323846
-#define TAU 6.28318530717958647692
 
 /** Python's math.hypot of two; its float %, the divisor's sign; machine.law.se2.wrap_angle. */
 static double hypot2(double a, double b)
@@ -151,7 +149,7 @@ static void modulate(const wbc_imp_t *k, const wbc_twist_t *t, double vx, double
   hz_m = w_on * npmax(npmax(t->slip_hz * w_slip, t->brisk_hz * npmax(npmax(w_spin, w_wz_hi), w_vx_hi)), t->quick_hz * w_hz);
   st[t->st_to_hz] = npmax(st[t->st_to_hz], hz_m);
   st[t->st_now_hz] = npmax(st[t->st_now_hz], hz_m);
-  out[k->o_turns] += w_hz * (TAU * st[t->st_now_hz] - out[k->o_turns]);
+  out[k->o_turns] += w_hz * (TAU_D * st[t->st_now_hz] - out[k->o_turns]);
   w_boost_fwd = w_hz * w_fast_fwd;
   out[k->o_sway + k->drive] += w_boost_fwd * (npmin(t->run_drive, out[k->o_sway + k->drive] * t->run_boost) - out[k->o_sway + k->drive]);
   out[k->o_sway + k->arms] += w_boost_fwd * (npmin(t->run_arms, out[k->o_sway + k->arms] * t->run_boost) - out[k->o_sway + k->arms]);
@@ -237,7 +235,7 @@ void wbc_twist_step(const wbc_imp_t *k, const wbc_twist_t *t, double dt, const d
   {
     old_psi[m] = out[k->o_psi + m];
   }
-  st[t->st_theta] = pymod(st[t->st_theta] + w_flip * PI, TAU);
+  st[t->st_theta] = pymod(st[t->st_theta] + w_flip * PI_D, TAU_D);
   turns = out[k->o_turns];
   for (int m = 0; m < n; m++)
   {

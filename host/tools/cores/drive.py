@@ -5,6 +5,7 @@ import os
 import random
 import tomllib
 
+from motor.constants import TWO_PI
 from tools import REPO
 
 DRIVE = os.path.join(REPO, 'drive')
@@ -19,7 +20,6 @@ SOURCES = [os.path.join(DRIVE, 'test', 'harness.c'),
 #: read as the file it is - a core's harness lies under the board's package and comes to none of it).
 with open(os.path.join(REPO, 'host', 'machine', 'library', 'inverters.toml'), 'rb') as _f:
     TS = 1.0 / float(tomllib.load(_f)['coaxial_63100']['pwm_hz'])
-TWO_PI = 2.0 * math.pi
 
 #: The orders harness.c crosses its arrays in.
 PARAMS = ('r', 'ld', 'lq', 'lambda', 'pole_pairs', 'kp', 'ki', 'l1', 'l2',

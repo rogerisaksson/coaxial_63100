@@ -67,7 +67,6 @@ float Board_DriveClamp(void)
   return s.i_max_cal;
 }
 
-#define TWO_PI_F 6.2831853f
 #define CODES_PER_TURN 65536.0f   /* the wire's angle: a turn in 65536 */
 #define LOG_EPS_SCALE  10000.0f   /* the log's eps: tenths of a milliradian */
 

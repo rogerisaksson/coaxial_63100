@@ -14,7 +14,7 @@ from tools.cores.aero import BUILT
 from tools.cores.build import cached
 
 SOURCES = [os.path.join(REPO, 'mppi', 'src', 'mppi_plane.c')]
-INCLUDES = [os.path.join(REPO, 'mppi', 'inc')]
+INCLUDES = [os.path.join(REPO, 'mppi', 'inc'), os.path.join(REPO, 'comms', 'inc')]
 #: mppi_plane_costs's loop on the card. The source's text goes to NVRTC whole: cupy keys its
 #: cache on the text, so an `#include` of the file would run a stale build after an edit.
 GRID = r'''
@@ -43,7 +43,7 @@ def library():
 def kernel(cupy):
     """mppi_plane.c built for `cupy`'s card: its rollout a __device__ function under `GRID`."""
     text = ['#define MPPI_FN __device__\n']
-    for path in (os.path.join(INCLUDES[0], 'mppi.h'), SOURCES[0]):
+    for path in (os.path.join(INCLUDES[1], 'board_units.h'), os.path.join(INCLUDES[0], 'mppi.h'), SOURCES[0]):
         with open(path, encoding='utf-8') as f:
             text.append(f.read())
     return cupy.RawKernel(''.join(text) + GRID, 'mppi_plane_grid')

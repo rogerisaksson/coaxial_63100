@@ -1,10 +1,10 @@
 /** aero_turn.c - the frame's attitude: where its rotors' axis is asked to point, and the
     torque that takes it there as far as the rotors render the payload's impedance. No branch. */
 #include "aero_bits.h"
+#include "board_units.h"
 
 #include <math.h>
 
-#define PI       3.14159265358979f
 /** The rotors' reach a pass is the two tilts' together: each plans on this share of it. */
 #define SHARED   0.5f
 /** Two directions are opposite from here: 1 + their dot, the least a least turn divides by. */
@@ -82,8 +82,8 @@ void aero_refer(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aero_ou
   const float *w = s->now[AERO_WEIGHT];
   const float  wp = w[AERO_PITCH], wr = w[AERO_ROLL], wc = w[AERO_THRUST];
   const float  both = wp * wr, dt = most(in->dt, TINY);
-  const float  tx = -least(PI, most(-PI, s->ask[AERO_PITCH]));
-  const float  tz = -least(PI, most(-PI, s->ask[AERO_ROLL]));
+  const float  tx = -least(PI_F, most(-PI_F, s->ask[AERO_PITCH]));
+  const float  tz = -least(PI_F, most(-PI_F, s->ask[AERO_ROLL]));
   const float  q = tx * tx + tz * tz;
   const float  half = 0.5f * w[AERO_YAW_RATE] * s->ask[AERO_YAW_RATE] * dt;
   const float  seen[AERO_AXES] = {in->r[3], in->r[4], in->r[5]};

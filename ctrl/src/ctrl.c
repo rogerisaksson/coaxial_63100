@@ -1,11 +1,9 @@
 /** ctrl.c - machine.rig.parts and a feedback, step for step (ctrl.h). */
 #include "ctrl.h"
+#include "board_units.h"
 
 #include <math.h>
 #include <string.h>
-
-#define CTRL_TAU     6.28318530718f
-#define CTRL_RAD_DEG 0.01745329252f
 
 const char *const ctrl_kind_names[CTRL_KINDS] = {
   "", "Gain", "Slew", "Wrap", "LowPass", "SpeedKalman", "PI", "AngleHold", "Direct", "SpeedPI",
@@ -152,7 +150,7 @@ static float angle_hold(ctrl_part_t *part, float dt, float setpoint, float measu
   (void)most;
   part->x = clamp(part->x + p[2] * (setpoint - measured) * dt, p[3]);
   part->at += clamp(setpoint + part->x - part->at, p[4]);
-  return p[1] + part->at * CTRL_RAD_DEG * p[0];
+  return p[1] + part->at * DEG_TO_RAD_F * p[0];
 }
 
 static float direct(ctrl_part_t *part, float dt, float setpoint, float measured, float accel,
@@ -184,7 +182,7 @@ static float speed_pi(ctrl_part_t *part, float dt, float setpoint, float measure
     accel *= p[6];
   }
   part->was = setpoint;
-  w0 = CTRL_TAU * p[0];
+  w0 = TWO_PI_F * p[0];
   err = setpoint - measured;
   damp = p[4] + 2.0f * p[5] * fabsf(setpoint);
   /* The sum and the current that turns the rotor as asked, within what the sink carries:

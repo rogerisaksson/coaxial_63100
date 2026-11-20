@@ -1,11 +1,9 @@
 /** world.c - The loads a machine's motors turn and the body they carry, stepped with them. */
 #include "world.h"
+#include "board_units.h"
 
 #include <math.h>
 #include <string.h>
-
-#define PI_F      3.14159265f
-#define TWO_PI_F  6.2831853f
 
 /* The body's integration step, s: a lift's height and a vehicle's distance change slowly
    against a PWM period, so they are stepped at most this long at a time. */

@@ -332,7 +332,7 @@ static float speed_now(void)
   }
   const float mech = fabsf(d->omega_hat) / (float)pairs;   /* rad/s */
 
-  return mech * 60.0f / (2.0f * 3.14159265f);
+  return mech * 60.0f / TWO_PI_F;
 }
 
 /** What heats the board this step: the duties, the synced triple's currents, the link

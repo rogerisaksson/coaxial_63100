@@ -16,7 +16,7 @@ FILTER = os.path.join(REPO, 'filter')
 SOURCES = [os.path.join(DAQ, 'test', 'harness.c'),
            os.path.join(DAQ, 'src', 'daq.c'),
            os.path.join(FILTER, 'src', 'filter.c')]
-INCLUDES = [os.path.join(DAQ, 'inc'), os.path.join(FILTER, 'inc')]
+INCLUDES = [os.path.join(DAQ, 'inc'), os.path.join(FILTER, 'inc'), os.path.join(REPO, 'comms', 'inc')]
 
 SINE, RAMP = 0, 1
 CYCLES_PER_SECOND = 1_000_000       # a host clock the tests can do sums in

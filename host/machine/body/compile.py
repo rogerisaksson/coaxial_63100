@@ -9,7 +9,6 @@ import os
 from typing import Any
 
 from machine.body import build, carried, drives, figure, looped, mechatronics
-from machine.solver import loops
 
 _ENV, _BUILD, _LIB = mechatronics.environment(), mechatronics.robot(), mechatronics.library()
 G_M_S2, _BUS_HZ, _LAW_DIV = float(_ENV['g_m_s2']), drives.BUS_HZ, float(drives.LAW_DIV)
@@ -105,8 +104,9 @@ def _servos(st):
 
     # Every kind's stiffness and damping are its loop's, solved (`looped`): no formula a joint.
     gains = looped.gains(st)
-    p_gr = drives.PASSIVE.get('gripper', (None, 0.0, 0.0))
-    gains['gripper'] = (p_gr[0], p_gr[1]) if p_gr[0] is not None else gains['gripper']
+    for k, p_k in drives.PASSIVE.items():
+        if k in gains and p_k[0] is not None:
+            gains[k] = (p_k[0], p_k[1])
     kp_nk = gains['neck'][0]
 
     def wep_sat(joint):
@@ -216,7 +216,8 @@ def _rhythm_gait(st, v0, w_l, s_t):
 
 def _steer_gait(leg_m, v0, w_l, w0, w_task, w_law):
     lag = 0.10
-    tr_w, tr_h = drives.TRAVEL['waist'][1], drives.TRAVEL['head'][1]
+    tr_w = 0.0 if drives.passive('waist') or 'waist' not in drives.TRAVEL else drives.TRAVEL['waist'][1]
+    tr_h = drives.TRAVEL['head'][1]
     w_sh = round(tr_w / (tr_w + tr_h), 2)
     return {
         'slew_rad_s': 0.45 * w_l, 'side_told_m_s': 0.002 * v0, 'turn_told_rad_s': 0.0014 * w_l,
@@ -352,15 +353,13 @@ def _gait(st):
 
 
 def _core() -> dict[str, Any]:
-    srcs = (mechatronics.robot_sources()
-            + (__file__, drives.__file__, figure.__file__, build.__file__, carried.__file__, looped.__file__,
-               loops.__file__, _TAKES_NPZ))
+    srcs = mechatronics.body_sources() + (__file__, _TAKES_NPZ)
 
     def build_core():
         st = _subtrees()
         return {'subtrees': st, 'servos': _servos(st), 'gait': _gait(st)}
 
-    return mechatronics.compiled('humanoid_' + mechatronics.ROBOT, srcs, build_core)
+    return mechatronics.compiled('humanoid_' + mechatronics.cache_id(), srcs, build_core)
 
 
 def subtrees() -> dict[str, Any]:

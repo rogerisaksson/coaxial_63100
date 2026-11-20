@@ -4,10 +4,9 @@
 #include "wbc_imp.h"
 #include "wbc_stride.h"
 #include "wbc_np.h"
+#include "board_units.h"
 
 #include <math.h>
-
-#define PI 3.14159265358979323846
 
 /** machine.law.stride.footholds: each landing moved onto the nearest flat tread of a floor told the robot its whole
     sole fits within the robot's reach, the tread it left from kept (hold, -1 none); the highest floor between each
@@ -110,7 +109,7 @@ void wbc_imp_landings(const wbc_imp_t *k, const double *y, const double *fr, dou
   const int     told = (int)fr[k->f_map_n];
   const double  start = fr[k->f_map_at] * way[0] + fr[k->f_map_at + 1] * way[1];
   const double  s_com = (y[k->y_com] * way[0] + y[k->y_com + 2] * way[1]) - start;
-  const double  step_s = PI / npmax(turns, k->tiny);
+  const double  step_s = PI_D / npmax(turns, k->tiny);
   double        s_now[2], s_meet[2], s_fore[2], left_s[2], hold[2], s_new[2], run[2], cell[2], t2[2], l2[2], w[2], under[2], gap;
 
   for (int b = 0; b < 2; b++)
@@ -135,7 +134,7 @@ void wbc_imp_landings(const wbc_imp_t *k, const double *y, const double *fr, dou
   }
   wbc_imp_footholds(k, along, rise, told, s_meet, s_fore, s_now, s_com, reach, hold, gap, (*cruise) * step_s, s_new, t2, l2, run,
                     cell);
-  *cruise = npmin(*cruise, (npmin(run[0], run[1]) * turns) / PI);
+  *cruise = npmin(*cruise, (npmin(run[0], run[1]) * turns) / PI_D);
   wbc_imp_meets(k, xi, c, flat, *cruise, om, turns, wide, across, reach, *apart, fr + k->f_planted, meet);
   for (int b = 0; b < 2; b++)
   {

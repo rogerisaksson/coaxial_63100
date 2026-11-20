@@ -60,7 +60,8 @@ def test_a_rollout_has_no_branch(report):
     machine = 'arm' if platform.machine().lower() in ('arm64', 'aarch64') else 'x86'
     objdump = shutil.which('objdump') or os.path.join(os.path.dirname(cc or ''), 'objdump')
     obj = os.path.join(OUT, 'mppi_%d.o' % os.getpid())
-    subprocess.run([cc, '-c'] + FLAGS + ['-O2', '-fno-math-errno', '-I', mppi.INCLUDES[0], mppi.SOURCES[0], '-o', obj],
+    subprocess.run([cc, '-c'] + FLAGS + ['-O2', '-fno-math-errno']
+                   + [x for d in mppi.INCLUDES for x in ('-I', d)] + [mppi.SOURCES[0], '-o', obj],
                    check=True)
     text = subprocess.run([objdump, '-d', obj], capture_output=True, text=True, check=True).stdout
     os.remove(obj)

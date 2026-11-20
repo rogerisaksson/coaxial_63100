@@ -12,6 +12,7 @@ import sys
 
 from coaxial.draw.thermalmap import LAYOUT, render
 from coaxial.model import thermal
+from motor.constants import PI
 from coaxial.model.thermal import (AMBIENT, CFG, DRIVER_RISE_SWITCHING, NODES, NTC_OFFSET,
                                    NTC_SEES_DRIVERS, board_from_ntc, expected_ntc,
                                    settled_fraction, tau_minutes)
@@ -31,7 +32,7 @@ CAMERA = {
 #: Measured, but through a supply whose shunt is not trusted.
 SUPPLY_IDLE_A = 0.050
 LINK_V = 24.0
-DISC_AREA_M2 = 2 * 3.14159 * 0.05 ** 2
+DISC_AREA_M2 = 2.0 * PI * 0.05 ** 2
 
 
 def rule(title):

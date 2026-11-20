@@ -5,11 +5,10 @@
 #include "wbc_stride.h"
 #include "wbc_np.h"
 #include "wbc_libm_arc.h"
+#include "board_units.h"
 
 #include <math.h>
 #include <string.h>
-
-#define PI 3.14159265358979323846
 
 typedef wbc_imp_said_t said_t;
 
@@ -122,7 +121,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   wbc_imp_beat(k, sway[k->drive], psi[k->drive], sway[k->lateral], psi[k->lateral], turns, a + k->a_swings,
                a[k->a_need], a + k->a_lead, a + k->a_split, begun, stood, phi_w, gone, &stepping, &way, &swung, sweep, phi, on, off, u, flying);
   {
-    const double gap = a[k->a_split] - a[k->a_split + 1], pi2 = 2.0 * PI, ad = fabs(asked[k->drive]), st = k->stirs;
+    const double gap = a[k->a_split] - a[k->a_split + 1], pi2 = TAU_D, ad = fabs(asked[k->drive]), st = k->stirs;
     const double half = 0.5 * (gap - pi2 * rint(gap / pi2)), relax = npmin(1.0, (turns * fr[k->f_dt]) / pi2);
     const double idle = (double)(npmax(was[0], was[1]) < 0.5);
     const double fresh = ((still * (1.0 - npclip(sqrt(wbc_dot(&k->blas, out + k->o_rate, 1, out + k->o_rate, 1, n)) / k->tiny, 0.0, 1.0)))
@@ -351,7 +350,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   com[2] = grounded * npclip(lifted, -k->g, k->throw_m_s2) + (1.0 - grounded) * k->falls[2];
   wbc_imp_lates(k, phi, turns, stepping, phi_w, late);
   /* what a sole met the robot's swings clear, for a turn of its rhythm */
-  a[k->a_raise] -= ((fr[k->f_dt] * turns) / (2.0 * PI)) * a[k->a_raise];
+  a[k->a_raise] -= ((fr[k->f_dt] * turns) / TAU_D) * a[k->a_raise];
   for (int b = 0; b < 2; b++)
   {
     lift2[b] = npmax(k->clear_m * (1.0 + fabs(sway[k->lift])) + a[k->a_raise], top[b] + 2.0 * k->clear_m) * (1.0 - propped)
@@ -469,7 +468,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   for (int b = 0; b < 2; b++)
   {
     /* from where it left the floor or, thrown, began aloft before its window (stride.begins) */
-    const double starts = ((stood[b] + ((1.0 - stood[b]) * (1.0 - was[b])) * (double)((gone > 0.0) && (phi[b] <= phi_w - PI))) * (1.0 - stance[b])) * off[b];
+    const double starts = ((stood[b] + ((1.0 - stood[b]) * (1.0 - was[b])) * (double)((gone > 0.0) && (phi[b] <= phi_w - PI_D))) * (1.0 - stance[b])) * off[b];
 
     a[k->a_begun + b] = on[b] * (begun[b] + starts * (npmin(0.5 * (phi[b] / phi_w + 1.0), 0.0) - begun[b]));
   }

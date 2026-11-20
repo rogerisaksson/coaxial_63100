@@ -1,5 +1,6 @@
 /** world_parts.c - The board's analog front end and A1335 angle sensor in C. */
 #include "world_parts.h"
+#include "board_units.h"
 
 #include <math.h>
 #include <string.h>
@@ -22,7 +23,7 @@ static double rng_gauss(uint64_t *rng)
   const double u1 = rng_uniform(rng);
   const double u2 = rng_uniform(rng);
 
-  return sqrt(-2.0 * log(u1)) * cos(6.283185307179586 * u2);
+  return sqrt(-2.0 * log(u1)) * cos(TAU_D * u2);
 }
 
 static double afe_mid(const world_afe_t *a)
@@ -54,8 +55,8 @@ static double afe_nominal(const world_afe_t *a, world_pin_t pin)
                                   / (a->bus_top + a->bus_bottom);
     case WORLD_PIN_NTC:
     {
-      const double ohms = a->ntc_r25 * exp(a->ntc_beta * (1.0 / (a->ntc_c + 273.15)
-                                                          - 1.0 / (25.0 + 273.15)));
+      const double ohms = a->ntc_r25 * exp(a->ntc_beta * (1.0 / (a->ntc_c + KELVIN_AT_ZERO_C_D)
+                                                          - 1.0 / (25.0 + KELVIN_AT_ZERO_C_D)));
       return a->ref * a->ntc_fixed / (ohms + a->ntc_fixed);
     }
     case WORLD_PIN_RAIL5:  return a->rail5 * a->r5_bottom / (a->r5_top + a->r5_bottom);
@@ -189,7 +190,7 @@ static uint16_t a1335_register(const world_a1335_t *a, uint32_t reg, double degr
     }
     case A1335_TSEN:
     {
-      const double eighths = floor((celsius + 273.15) * 8.0 + 0.5);
+      const double eighths = floor((celsius + KELVIN_AT_ZERO_C_D) * 8.0 + 0.5);
 
       return (uint16_t)(A1335_TSEN_ID
                         | (unsigned)((eighths < 0.0) ? 0.0

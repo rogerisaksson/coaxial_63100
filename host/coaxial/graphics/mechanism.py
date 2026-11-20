@@ -175,8 +175,8 @@ def parts(bare=False):
         seg, pinion, r, wheel, big = _spurs(joint)
         out += [('pinion_' + joint, seg, (), pinion, 0.0, drum(r, SPUR_T, 'z', steel)),
                 ('spur_' + joint, seg, (), wheel, 0.0, drum(big, SPUR_T, 'z', steel))]
-    for joint in [side + kind for kind in linkage.BEVELS for side in ('left_', 'right_')
-                  if not drives.passive(side + kind)]:
+    for joint in [j for kind in linkage.BEVELS for j in linkage.joints(kind)
+                  if not drives.passive(j)]:
         seg, drive, letter, driven, r = _bevel(joint)
         out += [('bevel_' + joint, seg, (), drive, 0.0, drum(r, linkage.BEVEL_T, letter, steel)),
                 ('bevelo_' + joint, seg, (), driven, 0.0, drum(r, linkage.BEVEL_T, 'x', steel))]
@@ -185,10 +185,14 @@ def parts(bare=False):
                  drum(radius, length, 'y', poly)) for seg, (y, radius, length, _kg)
                 in build.RELEASES.items()]
         for kind in linkage.RODS:
-            joint, rides = side + kind, side + linkage.ROD_AT[kind][0]
+            joint = side + kind if side + kind in figure.JOINTS else (kind if side == 'left_' and kind in figure.JOINTS else None)
+            if joint is None:
+                continue
+            r_side = joint[:-len(kind)]
+            rides = r_side + linkage.ROD_AT[kind][0]
             turned = next(s[0] for s in figure.SEGMENTS if rides in [j for j, *_ in s[2]])
             ball = ellipsoid((0.0, 0.0, 0.0), (BALL_R,) * 3, steel, rows=6)
-            out += [('end_' + joint, turned, (), _ball(kind, side), 0.0, ball),
+            out += [('end_' + joint, turned, (), _ball(kind, r_side), 0.0, ball),
                     ('crank_' + joint, '*', (), (0.0, 0.0, 0.0), 0.0,
                      limb(1.0, 0.012, 0.012, 0.012, steel)),
                     ('pin_' + joint, '*', (), (0.0, 0.0, 0.0), 0.0, ball),
@@ -250,7 +254,7 @@ def _bevel(joint):
 def _ball(kind, side):
     """A rod's ball joint on the segment its joint turns, its frame (`linkage.RODS`)."""
     x, y, z = linkage.ball(kind)
-    return (x if side == 'left_' else -x, y, z)
+    return (-x if side == 'right_' else x, y, z)
 
 
 def _hub(kind, side):
@@ -265,15 +269,15 @@ def belts(np, placed):
     """[(a, b)]: each belt as drawn, world - its two pulleys' rims and its two runs, out to the robot's
     side, the drive's pulley on its axis, the joint's on the joint's."""
     out = []
-    for side in ('left_', 'right_'):
-        for kind, (r1, r2, off) in linkage.BELTS.items():
-            joint, where = side + kind, drives.mount(side + kind)
+    for kind, (r1, r2, off) in linkage.BELTS.items():
+        for joint in linkage.joints(kind):
+            where = drives.mount(joint)
             if drives.passive(joint) or where is None:
                 continue
             where = drives.outlet(joint) or where
-            seat, (x, y, z) = where
+            seat, (_x, y, z) = where
             turn, spot = placed[seat]
-            out_x = off if side == 'left_' else -off
+            out_x = -off if joint.startswith('right_') else off
             seg = next(s for s in figure.SEGMENTS if joint in [j for j, *_ in s[2]])
             c1, c2 = np.array([y, z]), np.array(seg[3][1:])
             d = c2 - c1
@@ -292,16 +296,10 @@ def belts(np, placed):
     return out
 
 
-
-
-
-
 def _nothing(mesh):
     """A mesh with no corners: a segment kept for its frame, not drawn."""
     c, t, u, m = mesh
     return c[:0], t[:0], u[:0], m[:0]
-
-
 
 
 def _along(np, a, b):
@@ -321,14 +319,14 @@ def posed(parts_, placed, angles, frames):
     rod to its ball joint - `placed` {segment: (turn, spot)}, world."""
     from coaxial.model.blocks import numpy as np
     at = {name: i for i, (name, *_rest) in enumerate(parts_)}
-    for side in ('left_', 'right_'):
-        for kind in linkage.RODS:
-            joint = side + kind
+    for kind in linkage.RODS:
+        for joint in linkage.joints(kind):
+            side = joint[:-len(kind)]
             seat, centre = _hub(kind, side)
             turn, spot = placed[seat]
             r, t0 = linkage.RODS[kind][0][2:4]
             t = t0 + linkage.crank(joint, *linkage.turns(joint, angles))
-            s = 1.0 if side == 'left_' else -1.0
+            s = -1.0 if side == 'right_' else 1.0
             hub = spot + turn @ (np.asarray(centre, float)
                                  + np.array([s * linkage.ROD_AT[kind][1], 0.0, 0.0]))
             pin = hub + turn @ np.array([0.0, -r * math.cos(t), r * math.sin(t)])

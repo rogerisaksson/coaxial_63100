@@ -68,8 +68,8 @@ def members(peak=None):
     out = []
     ends = {'thigh': ('hip', 'knee'), 'shank': ('knee', 'ankle'), 'upper_arm': ('shoulder', 'elbow'),
             'forearm': ('elbow', 'wrist'), 'foot': ('ankle', 'foot')}
-    rods_n = sum(peak[k] / drives.motors('left_' + k) / min(g[2], g[4])
-                 for k, (g, _s) in linkage.RODS.items())
+    rods_n = sum(peak[k] / drives.motors(linkage.joints(k)[0]) / min(g[2], g[4])
+                 for k, (g, _s) in linkage.RODS.items() if linkage.ROD_AT[k][0] in ('ankle', 'foot'))
     for seg, (a, b) in ends.items():
         for k, (p, q, r) in enumerate(skeleton.runs(seg)):
             length = math.dist(p, q)
@@ -127,7 +127,7 @@ def members(peak=None):
         out.append(('%s rod' % kind, 'pull', length, pull, tube(linkage.ROD_R), ROD, 0.0))
     for kind, (geo, _stroke) in linkage.RODS.items():
         length, _x, crank, _t, horn, _b = geo
-        pull = peak[kind] / drives.motors('left_' + kind) / min(crank, horn)
+        pull = peak[kind] / drives.motors(linkage.joints(kind)[0]) / min(crank, horn)
         out.append(('%s rod' % kind, 'pull', length, pull,
                     (math.pi * linkage.ROD_R ** 4 / 4.0, 0.0, math.pi * linkage.ROD_R ** 2), ROD, 0.0))
     return out
@@ -211,7 +211,9 @@ def wind(rows):
     """{joint kind: rad per N m} summed in series along `PATH` over member rows or `(member, judged)`."""
     raw = [r[0] if isinstance(r[0], tuple) else r for r in rows]
     by = {m[0]: compliance(*m) for m in raw}
-    return {kind: sum(by.get(n, 0.0) for n in names) for kind, names in PATH.items()}
+    return {kind: sum(by.get(n, 0.0) for n in names + (
+        ('%s rod' % kind,) if kind in linkage.RODS and '%s rod' % kind not in names else ()))
+            for kind, names in PATH.items()}
 
 
 def wind_mrad():
@@ -276,7 +278,7 @@ def leaf_track(series_map, armature_fn, rate_s=None, observe_x=None):
     omega_sea = 0.90 / (obs_x * r_s)
     gains = []
     for kind, k_rot in series_map.items():
-        j_rot = max(armature_fn('left_' + kind), 1e-6)
+        j_rot = max(armature_fn(linkage.joints(kind)[0]), 1e-6)
         omega_leaf = math.sqrt(k_rot / j_rot)
         gains.append(0.0 if omega_leaf >= 0.70 * omega_sea else max(0.0, (omega_sea / omega_leaf) ** 2 - 1.0))
     return max(gains)

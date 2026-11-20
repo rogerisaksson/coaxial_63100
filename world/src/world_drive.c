@@ -1,12 +1,11 @@
 /** world_drive.c - A stand-in board's drive: the board's law and loop on the motor it models. */
 #include "world_drive.h"
+#include "board_units.h"
 
 #include <math.h>
 #include <string.h>
 
-#define TWO_PI_F 6.2831853f
 #define TURN_DEG 360.0
-#define TURN_RAD 6.283185307179586
 #define COUNTS   4096.0     /* a turn as the A1335 counts it */
 
 static world_drive_t s[WORLD_DRIVES];
@@ -47,7 +46,7 @@ ctrl_loop_t *world_drive_loop(int i)
 /** The shaft as the A1335 reads it: a turn in twelve bits, deg. */
 static float shaft_deg(const world_drive_t *b)
 {
-  const double turns = b->shaft / TURN_RAD;
+  const double turns = b->shaft / TAU_D;
 
   return (float)(floor((turns - floor(turns)) * COUNTS) * (TURN_DEG / COUNTS));
 }

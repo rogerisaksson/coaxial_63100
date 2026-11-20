@@ -1,12 +1,12 @@
 /** world_bno085.c - The Hillcrest BNO085 on SPI2: SHTP framing, reports and tumble in C. */
 #include "world_parts.h"
+#include "board_units.h"
 
 #include <math.h>
 #include <string.h>
 
 #define BNO_HEADER            4U
 #define BNO_TICK_HZ           1000U
-#define BNO_GRAVITY           9.80665
 
 #define CHANNEL_EXECUTABLE    1U
 #define CHANNEL_CONTROL       2U
@@ -43,8 +43,8 @@ void world_bno085_reset(world_bno085_t *b)
 void world_bno085_open(world_bno085_t *b)
 {
   memset(b, 0, sizeof *b);
-  b->roll_rate = 2.0 * 3.14159265358979323846 / 25.6;
-  b->pitch_rate = 4.0 * 3.14159265358979323846 / 25.6;
+  b->roll_rate = TAU_D / 25.6;
+  b->pitch_rate = (2.0 * TAU_D) / 25.6;
   b->attitude[0] = 1.0;
   world_bno085_reset(b);
 }
@@ -355,7 +355,7 @@ double world_bno085_read(const world_bno085_t *b, int index)
   }
   if (index < 3)
   {
-    return bno_to_body(b, 0.0, 0.0, BNO_GRAVITY, index);
+    return bno_to_body(b, 0.0, 0.0, STANDARD_GRAVITY_D, index);
   }
   if (index < 6)
   {

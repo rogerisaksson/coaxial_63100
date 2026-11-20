@@ -5,11 +5,10 @@
 #include "wbc_stride.h"
 #include "wbc_np.h"
 #include "wbc_libm_arc.h"
+#include "board_units.h"
 
 #include <math.h>
 #include <stddef.h>
-
-#define PI 3.14159265358979323846
 
 /** Each sole's share of the soles that stand. */
 void wbc_imp_shares(const wbc_imp_t *k, const double stance[2], double bears[2])
@@ -165,10 +164,10 @@ void wbc_imp_reading(const wbc_imp_t *k, const double *y, const double *fr, cons
 
 double wbc_imp_swing_w(const wbc_imp_t *k, double drive, double turns, double going)
 {
-  const double asked = (((2.0 / PI) * k->stride_m) * fabs(drive)) * turns;
+  const double asked = (((2.0 / PI_D) * k->stride_m) * fabs(drive)) * turns;
   const double pace = npclip(asked, fabs(going) - k->ahead_m_s, fabs(going) + k->ahead_m_s);
 
-  return PI * (k->swing + (k->swing_fast - k->swing) * npclip((pace - k->pace_m_s) / (k->pace_fast_m_s - k->pace_m_s), 0.0, 1.0));
+  return PI_D * (k->swing + (k->swing_fast - k->swing) * npclip((pace - k->pace_m_s) / (k->pace_fast_m_s - k->pace_m_s), 0.0, 1.0));
 }
 
 void wbc_imp_beat(const wbc_imp_t *k, double drive, double psi, double sway, double lateral, double turns,
@@ -199,7 +198,7 @@ void wbc_imp_beat(const wbc_imp_t *k, double drive, double psi, double sway, dou
     const double came = (((stood[1 - b] * was[1 - b]) * (double)(u[1 - b] > 1.0 - k->fall_u)) * (double)(u[1 - b] < 1.0))
                         * (double)(u[b] <= 0.0);
     /* its rhythm's alone on a standing other sole or aloft itself; a swing begun waits for the floor */
-    const double window = (double)((phi[b] > phi_w - PI) && (phi[b] < phi_w)
+    const double window = (double)((phi[b] > phi_w - PI_D) && (phi[b] < phi_w)
                                    && !((stood[b] > 0.5) && (was[b] <= 0.5) && (need <= k->tiny) && (sweep[b] > k->early)));
 
     waits[b] = (was[b] * (1.0 - stood[b])) * stood[1 - b];
@@ -236,7 +235,7 @@ void wbc_imp_hurried(const wbc_imp_t *k, const double aside[2], double om, const
 
 double wbc_imp_cruises(const wbc_imp_t *k, double way, double drive, double turns, double going, double phi_w)
 {
-  const double cruise = ((((way * 2.0) / PI) * k->stride_m) * fabs(drive)) * wbc_sin(phi_w) * turns;
+  const double cruise = ((((way * 2.0) / PI_D) * k->stride_m) * fabs(drive)) * wbc_sin(phi_w) * turns;
 
   return npclip(cruise, going - k->ahead_m_s, going + k->ahead_m_s);
 }
@@ -245,7 +244,7 @@ void wbc_imp_meets(const wbc_imp_t *k, const double xi[2], const double c[3], co
                    double cruise, double om, double turns, double wide, double across, double reach,
                    double apart, const double planted[2], double meet[2][2])
 {
-  const double step_s = PI / npmax(turns, k->tiny), grown = wbc_exp(om * step_s);
+  const double step_s = PI_D / npmax(turns, k->tiny), grown = wbc_exp(om * step_s);
   const double led = k->leads * npmax((xi[0] - c[0]) - cruise / om, -0.04), s_ac = npsign(across);
   const double led_lat = s_ac * npclip(s_ac * (xi[1] - c[1]) - (1.35 * fabs(across)) / om, -0.052, 0.042);
   const double w_side = npclip((fabs(across) - 0.07) / 0.03, 0.0, 1.0);

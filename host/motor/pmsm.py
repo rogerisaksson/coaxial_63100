@@ -1,18 +1,15 @@
 """A PMSM in its own dq frame, an inverter's average voltage in front of it, and its constants."""
 import math
 
-TWO_PI = 2.0 * math.pi
-#: One revolution a minute, in radians a second.
-RAD_S_PER_RPM = TWO_PI / 60.0
+from motor.constants import HALF_SQRT3, RAD_S_PER_RPM, SQRT3, TWO_PI
+
 #: The dq frame's torque factor - three halves, the power-invariant form.
 TORQUE_FACTOR = 1.5
-#: sin 60, as the firmware's drive_math.c rounds it.
-HALF_SQRT3 = 0.8660254
 
 
 def flux_from_kv(kv_rpm_per_volt, pole_pairs):
     """Peak per-phase flux linkage, Wb, from a hobby motor's KV."""
-    return 60.0 / (math.sqrt(3.0) * TWO_PI * pole_pairs * kv_rpm_per_volt)
+    return 1.0 / (SQRT3 * RAD_S_PER_RPM * pole_pairs * kv_rpm_per_volt)
 
 
 #: The winding against still air, and its heat capacity: placeholders,
@@ -57,8 +54,8 @@ class Parameters:
     @property
     def kv(self):
         """The KV this flux linkage implies, by `flux_from_kv` inverted."""
-        got = math.sqrt(3.0) * TWO_PI * self.poles * self.lam
-        return 60.0 / got if got else float('inf')
+        got = SQRT3 * RAD_S_PER_RPM * self.poles * self.lam
+        return 1.0 / got if got else float('inf')
 
     @property
     def saliency(self):

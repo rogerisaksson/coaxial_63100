@@ -16,6 +16,7 @@ level. Not in it: the robot's legs above their soles clear of each other; a hip'
 stop theirs; a foot landing pitched - `land` lays it flat.
 """
 import math
+import os
 
 from machine.body import drives, figure, mechatronics
 from machine.body.figure import BALL, HEEL, HIP_DROP, HIP_HALF, SHANK, THIGH, TOE_M
@@ -114,8 +115,10 @@ def rows():
 if mechatronics.ROBOT == mechatronics.STOCK:
     from machine.body.reach_rows import ACROSS, BACK, DU, FOOT, FORE, LIMBS, SOLE, U0, YAW
 else:
-    _LAID = mechatronics.compiled('reach_' + mechatronics.ROBOT,
-                                  mechatronics.robot_sources() + (__file__,), rows)
+    _SRCS = mechatronics.robot_sources() + (
+        __file__, mechatronics.__file__, figure.__file__, drives.__file__,
+        os.path.join(os.path.dirname(__file__), 'linkage.py'))
+    _LAID = mechatronics.compiled('reach_' + mechatronics.ROBOT, _SRCS, rows)
     LIMBS, YAW, ACROSS = _LAID['LIMBS'], _LAID['YAW'], _LAID['ACROSS']
     U0, DU, BACK, FORE = _LAID['U0'], _LAID['DU'], _LAID['BACK'], _LAID['FORE']
     SOLE, FOOT = _LAID['SOLE'], _LAID['FOOT']

@@ -27,6 +27,7 @@ import numpy as np
 
 from machine.texts import dsp, kernel
 from machine.errors import MachineError
+from motor.constants import BUTTERWORTH_Q as Q
 
 _TEXT = kernel.read()
 #: The text's fields: (key, offset in bytes, SI scale, least, most).
@@ -48,8 +49,6 @@ BIQUAD = ('b0', 'b1', 'b2', 'a1', 'a2', 's1', 's2')
 CAPSULE = ('p0x', 'p0y', 'p0z', 'p1x', 'p1y', 'p1z', 'r0', 'r1')
 #: A node's filter by the param naming its corner: the text's modes (`precompute-tustin-biquad`).
 FILTERS = (('lpf-cutoff-hz', ':lowpass'), ('biquad-notch-hz', ':notch'))
-#: The text's Q where a node names none: Butterworth's.
-Q = 0.70710678
 #: The schedule's rate, Hz: the room's compile-to-soa.
 RATE = _TEXT['compile-complete-humanoid-soa']['sample-rate-hz']
 

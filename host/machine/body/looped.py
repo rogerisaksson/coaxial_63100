@@ -63,6 +63,9 @@ def table(st):
     gravity = float(mechatronics.environment()['g_m_s2'])
     limbs = {**carried.table(gravity), 'wrist': ((st['hand'][2], 0.0, 0.0),),
              'gripper': ((st['fingers'][2], 0.0, 0.0),)}
+    for k in mechatronics.robot()['stacks']:
+        if k != 'foot' and k not in limbs:
+            limbs[k] = ((carried.swing(k), 0.0, 0.0),)
     out = {}
     for kind, postures in limbs.items():
         joint = _joint(kind)

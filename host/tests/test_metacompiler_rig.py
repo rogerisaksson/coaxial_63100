@@ -17,7 +17,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from tools.dev.focus import chosen
-from structure_kit import HOST, Report, sources
+from structure_kit import HOST, REPO, Report, sources
 
 #: The power stage's names its model reads from the library, each the library's key or its solver.
 STAGE = {'FSW': 'pwm_hz', 'RDS_ON': 'rds_ohm', 'RTH_JC': 'rth_jc', 'T_J_MAX': 'tj_max_c', 'SHUNT': 'shunt_ohm'}
@@ -189,8 +189,92 @@ def test_a_motor_and_its_profile_are_one(r):
     r.check('every profile\'s share of the link is the solver\'s', not shares, shares)
 
 
+def test_constants_and_external_toml_specs(r):
+    """Mathematical and physical constants live in `motor/constants.py` and `board_units.h` alone,
+    and external `.toml` specs compile end-to-end (including an inverted chest-mounted cardan trunk)."""
+    import io
+    import re
+    import tempfile
+    c_dirs = ('board', 'comms', 'boot', 'modbus', 'daq', 'drive', 'thermal', 'filter', 'shtp',
+              'ctrl', 'aero', 'wbc', 'world', 'mppi', 'se3')
+    owned_c = {'PI', 'PI_F', 'PI_D', 'TWO_PI', 'TWO_PI_F', 'TAU', 'TAU_D', 'HALF_PI', 'HALF_PI_F',
+               'HALF_PI_D', 'INV_TWO_PI', 'INV_TWO_PI_F', 'HALF_SQRT3', 'HALF_SQRT3_F', 'INV_SQRT3',
+               'INV_SQRT3_F', 'KELVIN_AT_ZERO_C', 'KELVIN_AT_ZERO_C_D', 'COPPER_TEMPCO_PER_K'}
+    stray_c = []
+    for d in c_dirs:
+        for path in glob.glob(os.path.join(REPO, d, '**', '*.[ch]'), recursive=True):
+            rel = os.path.relpath(path, REPO).replace(os.sep, '/')
+            if rel == 'comms/inc/board_units.h':
+                continue
+            for line in io.open(path, encoding='utf-8', errors='replace'):
+                m = re.match(r'^\s*#\s*define\s+(\w+)\b', line)
+                if m and m.group(1) in owned_c:
+                    stray_c.append('%s:%s' % (rel, m.group(1)))
+    r.check('mathematical and physical C macros are defined in board_units.h alone', not stray_c, stray_c[:6])
+    banned_py = {273.15, 287.05, 0.00393, 8.314462618}
+    stray_py = []
+    for path, _text, tree in sources(beside=False):
+        rel = path.replace(os.sep, '/')
+        if rel == 'motor/constants.py':
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Constant) and isinstance(node.value, float) and not isinstance(node.value, bool):
+                v = node.value
+                if v in banned_py or abs(v - 3.141592653589793) < 1e-4 or abs(v - 2.718281828459045) < 1e-4:
+                    stray_py.append('%s:%d=%r' % (rel, node.lineno, v))
+    r.check('mathematical and physical Python constants are stated in motor/constants.py alone',
+            not stray_py, stray_py[:6])
+    spec_toml = '\n'.join((
+        'extends = "gynoid_mesomorph_medium_coax"',
+        '[drives.motors]', 'MN6007 = ["ankle", "ankle_roll", "spine", "spine_roll"]',
+        '[drives.gearboxes]', 'B45 = ["ankle", "ankle_roll", "spine", "spine_roll"]',
+        '[figure.segments.torso]', 'joints = [["spine", "x", 1], ["spine_roll", "z", 1], ["waist", "y", 1]]',
+        '[linkage.planar]', 'spine_roll = false',
+        '[linkage.pairs]', 'spine = "spine_roll"',
+        '[linkage.rolled]', 'spine = 35.0',
+        '[linkage.rods]',
+        'spine = { joint = "spine", up = 0.087, ahead = 0.003, crank_m = 0.080, crank_deg = 217.5,'
+        ' ball_m = 0.0863, ball_deg = 260.0, crank_x = 0.093, ball_x = 0.095, bend = [0.094, 0.04, -0.04],'
+        ' stroke = [-30.0, 85.0] }',
+        'spine_roll = { joint = "spine", up = 0.087, ahead = 0.003, crank_m = 0.080, crank_deg = 217.5,'
+        ' ball_m = 0.0863, ball_deg = 260.0, crank_x = -0.093, ball_x = -0.095, bend = [-0.094, 0.04, -0.04],'
+        ' stroke = [-30.0, 85.0] }',
+        '[mounts]',
+        'spine = { on = "torso", x_m = 0.04, dy_m = 0.0, face = "x" }',
+        'spine_roll = { on = "torso", x_m = -0.04, dy_m = 0.0, face = "-x" }',
+        '[boards]', 'spine = false',
+        '[stops]', 'spine = false', 'waist = false',
+        '[passive.waist]', 'way = 2.0',
+    ))
+    with tempfile.TemporaryDirectory() as tmp:
+        spec_path = os.path.join(tmp, 'robot2_chest_trunk.toml')
+        with open(spec_path, 'w', encoding='utf-8') as f:
+            f.write(spec_toml)
+        probe = (
+            'import json, os; from machine.body import compile as body, drives, figure, linkage, mechatronics, peripherals;'
+            ' from tools.sim import fit;'
+            ' st, sv, gt, w = body.subtrees(), body.servos(), body.gait(), peripherals.world();'
+            ' t_j = [j for s in figure.SEGMENTS if s[0] == "torso" for j, *_ in s[2]];'
+            ' c_b = round(linkage.crank("spine", 20.0, 10.0), 6);'
+            ' print(json.dumps([t_j, drives.JOINTS["spine"][:2], [(j, x) for j, _, x in fit.outputs() if x],'
+            ' 25.0 < st["mass"] < 60.0, sv["spine"][0] > 0.0, gt["steer"]["waist_share"], w["step_s"] > 0.0,'
+            ' c_b != 0.0, os.path.isfile(os.path.join(mechatronics.CACHE, "humanoid_" + mechatronics.cache_id() + ".json"))]))'
+        )
+        out = subprocess.run([sys.executable, '-X', 'utf8', '-c', probe],
+                             env=dict(os.environ, COAXIAL_ROBOT=spec_path, PYTHONPATH=HOST),
+                             cwd=HOST, capture_output=True, text=True, check=True)
+        got = json.loads(out.stdout.strip().splitlines()[-1])
+        for fn in os.listdir(os.path.join(REPO, '.cache', 'compiled')):
+            if 'robot2_chest_trunk_' in fn:
+                os.remove(os.path.join(REPO, '.cache', 'compiled', fn))
+    r.check('external .toml spec with chest-mounted cardan trunk compiles subtrees, servos, gait and peripherals',
+            got == [['spine', 'spine_roll', 'waist'], ['torso', [0.04, 0.087, 0.003]], [],
+                    True, True, 0.0, True, True, True], got)
+
+
 ROSTER = (test_the_power_stage_is_the_librarys, test_the_stages_rate_and_envelope_are_stated_once,
-          test_the_rig_reads_the_specs_as_files, test_a_motor_and_its_profile_are_one)
+          test_the_rig_reads_the_specs_as_files, test_a_motor_and_its_profile_are_one,
+          test_constants_and_external_toml_specs)
 
 
 def main(argv=None):

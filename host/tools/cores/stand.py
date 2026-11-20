@@ -24,7 +24,7 @@ SOURCES = ([os.path.join(REPO, 'world', 'src', name)
            + drive.SOURCES)
 INCLUDES = [os.path.join(REPO, part)
             for part in ('world/inc', 'thermal/inc', 'drive/inc', 'ctrl/inc',
-                         'daq/inc', 'filter/inc')]
+                         'daq/inc', 'filter/inc', 'comms/inc')]
 
 #: Built `FAST` for the stand-in host library; the harness marks its own for export, so a PE
 #: linker needs --export-all-symbols.

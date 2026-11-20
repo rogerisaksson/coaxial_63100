@@ -6,6 +6,7 @@
 #include "wbc_pass.h"
 #include "wbc_np.h"
 #include "wbc_libm_arc.h"
+#include "board_units.h"
 
 #include <math.h>
 #include <stddef.h>
@@ -513,7 +514,7 @@ void wbc_pass_heat(wbc_heat_t *h, double dt, const double *air, const double *rd
     const double sw_on = (h->gates[i] && !h->shorted[i]) ? 1.0 : 0.0;
     const double p_sw = 3.0 * fet + h->switching_w * sw_on;
     const double p_lam = (1.5 * board) * h->shunt_ohm + h->house_w[i];
-    const double p_win = (h->r[i] * sq) * (1.0 + 0.00393 * npmax(0.0, t[3] - amb));
+    const double p_win = (h->r[i] * sq) * (1.0 + COPPER_TEMPCO_PER_K * npmax(0.0, t[3] - amb));
     const double g_la = (0.35 * air_k) / h->lam_k_w[i];
     const double g_sa = ((0.65 * air_k) * (1.0 + 0.25 * (rot_for - 1.0))) / h->lam_k_w[i];
     const double g_wa = (air_k * rot_for) / h->win_k_w[i];

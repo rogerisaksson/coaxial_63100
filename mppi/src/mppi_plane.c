@@ -1,6 +1,7 @@
 /** mppi_plane.c - a plane's rollouts and their costs (mppi.h): no branch the data decides */
 #ifndef __CUDACC_RTC__
 #include <math.h>
+#include "board_units.h"
 #include "mppi.h"
 #endif
 
@@ -31,7 +32,7 @@ MPPI_FN double mppi_plane_rollout(const double *x0, const double *u, const doubl
         const double along = ax * nx + ay * ny + az * nz, vh = hypot(ax, az);
         const double air = sqrt(ax * ax + ay * ay + az * az);
         /* the propeller, its pitch fixed, through its inflow (aerobat._aero_inflow) */
-        const double jj = fmax(0.0, 1.0 - along / (k[MP_J0] * fmax(1.0, k[MP_PITCH] * fabs(w_p) / 6.283185307179586)));
+        const double jj = fmax(0.0, 1.0 - along / (k[MP_J0] * fmax(1.0, k[MP_PITCH] * fabs(w_p) / TAU_D)));
         const double share = jj * (1.0 + 0.04 * k[MP_CL_ALPHA_A]
                                    * fmin(k[MP_INFLOW_FLOOR], vh / fmax(w_p * k[MP_PROP_R], k[MP_WAKE_FLOOR])));
         const double lift = k[MP_K_THRUST] * wp2 * share;

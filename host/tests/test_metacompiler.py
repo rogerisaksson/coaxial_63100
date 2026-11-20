@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
 """The static meta-compiler held to itself: one source a number, the same answer twice, similarity.
 
-The world's gravity is stated in `world.toml` alone; a build compiled anew is the build its cache
-holds; an override moves the one number it names; a figure scaled keeps its angles and shares and
-moves its lengths no further than its scale; a joint dressed in nothing is bare; no compiled
-number is not a number; the values the specs state only fall; a build's drives are stated once.
-The rig held to the library: test_metacompiler_rig. The crafts' spec: test_metacompiler_crafts. The
-meta-compiler's cache keys and the generated files' texts: test_mirrors; the specs' own words:
-test_gynoid."""
+Gravity in `world.toml` alone; a build compiled anew equals its cache; an override moves its one key;
+a scaled figure keeps angles/shares and bounds lengths by scale; an undressed joint is bare; every
+compiled number finite; stated values only fall; drives stated once. Companion suites:
+test_metacompiler_rig, test_metacompiler_crafts, test_mirrors, test_gynoid."""
 import ast
 import json
 import math
@@ -49,10 +46,8 @@ def _numbers(value, path=''):
 
 
 def test_the_worlds_gravity_is_stated_once(r):
-    """No module of the host's packages or scripts holds the world's gravity as a number of its
-    own: `world.toml` states it; the body's compiler, the simulated accelerometer and the
-    emulator's worlds read it there, the air's density with it; the C cores of the robot's law
-    take the constant `tools/cores/model.py` lays in wbc_model.h."""
+    """Gravity is stated in `world.toml` alone; body compiler, simulated IMU, emulator worlds and
+    `wbc_model.h` read it there."""
     from coaxial.simulated import sensors
     from machine.body import compile as body, mechatronics
     from tools.emu import world
@@ -109,8 +104,7 @@ def test_no_compiled_number_is_not_a_number(r):
 
 
 def test_an_override_moves_the_number_it_names(r):
-    """`compile.gait` and `compile.servos` merge a build's stated table over the derived: the one
-    key moves, its table's other keys and the other tables stay, a peak not stated is the drive's."""
+    """`compile.gait` and `compile.servos` merge overrides cleanly, keeping unstated peaks."""
     from machine.body import compile as body, drives
     base = body.gait()
     told = body.gait({'twist': {'walk_m_s': 2.0 * base['twist']['walk_m_s']}})
@@ -133,8 +127,7 @@ def _gait_of(build):
 
 
 def test_a_scaled_figure_follows_similarity(r):
-    """Every build that states only a scale of its own: its leg is the stock's by that scale, a
-    length of its gait lies between the stock's and the stock's scaled, an angle or a share stays."""
+    """Scaled builds scale leg length, bound gait lengths within `[1, s]`, and keep angles/shares."""
     from machine.body import mechatronics
     scaled = sorted(name for name in mechatronics.robots()
                     if float(mechatronics.robot(name)['figure']['scale']) != 1.0)
@@ -159,9 +152,7 @@ def test_a_scaled_figure_follows_similarity(r):
 
 
 def test_a_joint_dressed_in_nothing_is_bare(r):
-    """A build's `[cloth]` names the joints it dresses: the resolver lays bare (`mechatronics.BARE`,
-    the identity over bare air) under the rest, after those named and in the stacks' order, and
-    the stock build states no joint bare."""
+    """`[cloth]` resolves omitted joints to `mechatronics.BARE` in stacks order; stock states none bare."""
     from machine.body import drives, mechatronics
     with open(os.path.join(mechatronics.ROBOTS, mechatronics.STOCK + '.toml'), 'rb') as f:
         stated = tomllib.load(f)['cloth']
@@ -178,8 +169,7 @@ def test_a_joint_dressed_in_nothing_is_bare(r):
 
 
 def test_the_specs_inputs_only_fall(r):
-    """Each spec file states as many values as its ceiling (`tools/dev/stated.py`): a value more is an input the
-    static solver was to derive, a value fewer lowers the ceiling with it - the solver's inputs only fall."""
+    """Each spec file states at most its `stated.CEILING` count, and lowers the ceiling when fewer."""
     from tools.dev import stated
     counts = {path: total for path, (total, _tables) in stated.counted().items()}
     r.check('every spec file has its ceiling, and no ceiling a file that is gone',
@@ -191,8 +181,7 @@ def test_the_specs_inputs_only_fall(r):
 
 
 def test_a_builds_drives_are_stated_once(r):
-    """A build's `[drives]` lays every kind's stack: one gearbox and one inverter, a motor a group of kinds; a
-    variant's own lie on its base's, the kinds it names alone moved; a pack a mount."""
+    """`[drives]` lays stacks from motor groups and base gearbox/inverter; packs follow mount count."""
     from machine.body import dclink, mechatronics
     one = mechatronics._stacks({}, {'gearbox': 'B', 'inverter': 'I', 'motors': {'M': ['a', 'b'], 'N': ['c']}})
     two = mechatronics._stacks(one, {'motors': {'P': ['b']}, 'gearboxes': {'A': ['b', 'c']}})
@@ -218,12 +207,8 @@ def test_a_builds_drives_are_stated_once(r):
 
 
 def test_a_joints_loop_is_solved_of_what_it_turns(r):
-    """The servo table the compiler lays is the solved one, one rule for every driven joint
-    (`machine.body.looped`): of what its drive turns (`carried.table`: its limb swinging, the body it
-    carries where a sole hangs on it, gravity's stiffness there) and the control design's targets
-    (`control.toml`), by `machine.solver.loops` - the stiffer of the swing's and the stance's needs
-    under its ceilings; no joint keeps a formula of its own. The comparison lays a row a loop, the
-    robot's and every craft's (`tools/cores/designed.py`)."""
+    """`compile.servos` is solved by `looped` from `carried.table` and `control.toml` via
+    `machine.solver.loops`, matching `tools/cores/designed.py`."""
     from machine.body import carried, compile as body, drives, looped, mechatronics
     from tools.cores import designed
     seen, st, ctl = carried.table(body.G_M_S2), body.subtrees(), mechatronics.control()
@@ -281,10 +266,8 @@ def test_a_joints_loop_is_solved_of_what_it_turns(r):
 
 
 def test_every_build_compiles_cleanly_across_humanoids(r):
-    """Every humanoid build (`mechatronics.robots`, Robot 2.0 `gynoid_mesomorph_medium_coax` among them)
-    compiles finite subtrees, servos, gait, reach and orthopaedic terms, leaves a positive link and box
-    rotor inertia on every sprung joint (`0 < SERVO[3] < drives.armature`), and mounts every drive on
-    its gearbox (`fit.outputs`, `held.held_by`)."""
+    """Every humanoid build (`mechatronics.robots`) compiles finite tables, positive split armatures
+    on sprung joints, and clean drive mounts (`fit.outputs`, `held.held_by`)."""
     from machine.body import mechatronics
     script = (
         'import json, math\n'
@@ -317,12 +300,64 @@ def test_every_build_compiles_cleanly_across_humanoids(r):
             not faults, faults)
 
 
+def test_trunk_pair_mounts_boards_and_transitive_sources(r):
+    """Mutually exclusive `[mounts]`/`[boards]` modes replace cleanly, broken `stack_on` raises,
+    `body_sources` tracks solver modules, and a cardan trunk pair (`waist` held) compiles cleanly."""
+    from machine.body import mechatronics
+    mm = mechatronics._merged({'mounts': {'spine_roll': {'on': 'pelvis', 'z_m': 0.005}}},
+                              {'mounts': {'spine_roll': {'x_m': -0.04, 'face': '-x'}}})
+    mb = mechatronics._merged({'boards': {'ankle': {'stack_on': 'knee', 'gap_m': 0.001}}},
+                              {'boards': {'ankle': {'on': 'shank', 'at': [0.0, -0.1, 0.0], 'face': 'x'}}})
+    srcs = {os.path.basename(p) for p in mechatronics.body_sources()}
+    r.check('inheritance drops superseded mount/board keys and hashes transitive solver modules',
+            mm['mounts']['spine_roll'] == {'on': 'pelvis', 'x_m': -0.04, 'face': '-x'}
+            and mb['boards']['ankle'] == {'on': 'shank', 'at': [0.0, -0.1, 0.0], 'face': 'x'}
+            and {'structural.py', 'linkage.py', 'skeleton.py', 'guards.py', 'loops.py', 'inertia.py'} <= srcs,
+            (mm, mb))
+    rod = lambda s: {'joint': 'spine', 'up': -0.086, 'ahead': 0.004, 'crank_m': 0.078, 'crank_deg': 134.0,
+                     'ball_m': 0.085, 'ball_deg': 266.0, 'crank_x': s * 0.091, 'ball_x': s * 0.083,
+                     'bend': [s * 0.087, -0.04, -0.04], 'stroke': [-30.0, 85.0]}
+    over_json = json.dumps({
+        'linkage': {'planar': {'spine_roll': False}, 'pairs': {'spine': 'spine_roll'}, 'rolled': {'spine': 35.0},
+                    'rods': {'spine': rod(1), 'spine_roll': rod(-1)}},
+        'mounts': {'spine': {'on': 'pelvis', 'x_m': 0.04, 'dy_m': 0.0, 'face': 'x'},
+                   'spine_roll': {'x_m': -0.04, 'dy_m': 0.0, 'face': '-x'}},
+        'boards': {'spine': False}, 'stops': {'spine': False, 'waist': False}, 'passive': {'waist': {'way': 2.0}},
+        'leaf': {'joint': ['ankle', 'ankle_roll', 'spine', 'spine_roll'],
+                 'width_m': [0.016, 0.016, 0.02, 0.02], 'thick_m': [0.002615, 0.002615, 0.003, 0.003]},
+    })
+    code = '\n'.join((
+        'import copy, json, sys; from machine.body import mechatronics; from machine.errors import MachineError',
+        'b0 = copy.deepcopy(mechatronics.robot("gynoid_mesomorph_medium_coax"))',
+        'ov = json.loads(sys.argv[1]); ov["stacks"] = {**b0["stacks"], "spine": ["MN6007", "B45", "coaxial_63100"],'
+        ' "spine_roll": ["MN6007", "B45", "coaxial_63100"]}',
+        'bt = mechatronics._merged(b0, ov); mechatronics.robot = lambda name=None: bt',
+        'from machine.body import compile as body, drives, peripherals, skeleton',
+        'from coaxial.graphics import mechanism; from tools.sim import bom, fit',
+        'st = body._subtrees(); sv, gt = body._servos(st), body._gait(st); bad = False',
+        'drives._BUILD["boards"] = {"head": {"stack_on": "neck", "gap_m": 0.002}}',
+        'try: drives._boards()',
+        'except MachineError: bad = True',
+        'drives._BUILD["boards"] = bt["boards"]; bs = [n for n, *_ in skeleton.bodies()]',
+        'print(json.dumps([drives.JOINTS["spine"][1][1], drives.series("spine") > 0, gt["steer"]["waist_share"],',
+        ' sv["waist"][1] > 0, "spine_rod" in bs and "spine_roll_rod" in bs and "left_spine_rod" not in bs,',
+        ' [(j, w) for j, _, w in fit.outputs() if w], dict(bom.parts()).get("rod 12 mm, bent", 0),',
+        ' len(mechanism.parts()) > 20, peripherals._identify()["campaign"]["free_rad"] > 0, bad]))',
+    ))
+    out = subprocess.run([sys.executable, '-X', 'utf8', '-c', code, over_json],
+                         env=dict(os.environ, PYTHONPATH=HOST), cwd=HOST, capture_output=True, text=True, check=True)
+    got = json.loads(out.stdout.strip().splitlines()[-1])
+    r.check('cardan trunk pair, passive waist and board stack_on guard compile cleanly across the stack',
+            got == [0.034, True, 0.0, True, True, [], 6, True, True, True], got)
+
+
 ROSTER = (test_the_worlds_gravity_is_stated_once, test_a_build_compiled_anew_is_its_cache,
           test_no_compiled_number_is_not_a_number, test_an_override_moves_the_number_it_names,
           test_a_scaled_figure_follows_similarity, test_a_joint_dressed_in_nothing_is_bare,
           test_the_specs_inputs_only_fall, test_a_builds_drives_are_stated_once,
           test_a_joints_loop_is_solved_of_what_it_turns,
-          test_every_build_compiles_cleanly_across_humanoids)
+          test_every_build_compiles_cleanly_across_humanoids,
+          test_trunk_pair_mounts_boards_and_transitive_sources)
 
 
 def main(argv=None):

@@ -11,7 +11,8 @@ SOURCES = ([os.path.join(REPO, 'wbc', 'test', 'harness%s.c' % n) for n in ('', '
                'body stack solve wrench cone shrunk model pass beat world bus imp latched poses stride poise swing floor surety touch twist wait anatomy bedexit scoot sensed brace blas qp qp_interior law step maps rounds patch sil rcu gmo soa chain chain_qp chain_rows chain_tasks borne registry classes wholes libm').split()]
            + [os.path.join(REPO, 'modbus', 'src', 'modbus_%s.c' % n) for n in ('crc rtu slave').split()]
            + [os.path.join(REPO, 'se3', 'src', 'se3_law.c')])
-INCLUDES = [os.path.join(REPO, *folder) for folder in (('wbc', 'inc'), ('modbus', 'inc'), ('se3', 'inc'), ('se3', 'src'))]
+INCLUDES = [os.path.join(REPO, *folder) for folder in (('wbc', 'inc'), ('modbus', 'inc'), ('se3', 'inc'), ('se3', 'src'),
+                                                       ('comms', 'inc'))]
 #: The firmware compiles the chain at -O2 (CMakeLists.txt); sin and cos called apart, as numpy calls
 #: them: gcc's sincos for the pair is glibc's own path at 0.855 < |x| < 2.43, its sin's last bit not sin's. On this
 #: host's own instruction sets (`build.native`): nothing contracted, a loop's elements four at once are the same bits.

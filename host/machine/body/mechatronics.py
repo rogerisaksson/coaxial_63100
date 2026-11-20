@@ -21,6 +21,7 @@ import tomllib
 from typing import Any
 
 from machine.errors import MachineError
+from motor import constants
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPO = os.path.dirname(os.path.dirname(HERE))
@@ -54,6 +55,7 @@ HUMANOID, AIRCRAFT = os.path.join(LISP, 'humanoid'), os.path.join(LISP, 'aircraf
 #: builds: COAXIAL_ROBOT names one of `robots()`, else its own.
 STOCK = 'gynoid_mesomorph_medium'
 ROBOT = os.environ.get('COAXIAL_ROBOT', STOCK)
+CRAFTS = os.environ.get('COAXIAL_CRAFTS', os.path.join(HERE, 'aircraft', 'crafts.toml'))
 #: Each part's file in the library, and what a stack names of it in turn.
 PARTS = ('motors', 'gearboxes', 'inverters')
 #: Clothing's insulation over bare air (`[cloth]`, ISO 9920) on a joint a build dresses in nothing: the identity.
@@ -101,19 +103,56 @@ def library_sources():
     return tuple(sorted(os.path.join(LIBRARY, f) for f in os.listdir(LIBRARY) if f.endswith('.toml')))
 
 
+def _robot_path(name: str = ROBOT, near: str | None = None) -> str:
+    if name.endswith('.toml') or '/' in name or os.sep in name:
+        p = os.path.abspath(os.path.join(near, name) if near and not os.path.isabs(name) else name)
+        if os.path.isfile(p):
+            return p
+    if near:
+        sib = os.path.join(near, name + '.toml')
+        if os.path.isfile(sib):
+            return os.path.abspath(sib)
+    p = os.path.join(ROBOTS, name + '.toml')
+    if os.path.isfile(p):
+        return p
+    raise MachineError('no robot %s: %s' % (name, ', '.join(robots())))
+
+
+def cache_id(name: str = ROBOT) -> str:
+    """Filesystem-safe cache stem for humanoid build `name` or `.toml` path."""
+    p = _robot_path(name)
+    stem = os.path.splitext(os.path.basename(p))[0]
+    if os.path.normcase(os.path.dirname(p)) == os.path.normcase(os.path.abspath(ROBOTS)):
+        return stem
+    return '%s_%s' % (stem, hashlib.sha256(p.encode('utf-8')).hexdigest()[:12])
+
+
 def robot_sources(name=ROBOT):
     """All `.toml` construction files governing humanoid `name` (its chain of `extends` + library)."""
-    chain, cur = [], name
+    chain, cur, near = [], name, None
     while cur:
-        p = os.path.join(ROBOTS, cur + '.toml')
+        p = _robot_path(cur, near)
         chain.append(p)
-        cur = _toml(p).get('extends')
+        cur, near = _toml(p).get('extends'), os.path.dirname(p)
     return library_sources() + tuple(sorted(chain))
 
 
-def craft_sources():
+def craft_sources(spec: str | None = None):
     """All `.toml` construction files governing aircraft and drones (`crafts.toml` + library)."""
-    return library_sources() + (os.path.join(HERE, 'aircraft', 'crafts.toml'),)
+    p = os.path.abspath(spec) if spec else os.path.abspath(CRAFTS)
+    return library_sources() + (p, constants.__file__)
+
+
+_BODY_MODS = ('mechatronics', 'figure', 'linkage', 'skeleton', 'structural', 'guards',
+              'drives', 'build', 'carried', 'looped')
+
+
+def body_sources(name=ROBOT):
+    """All `.toml` and Python solver files governing humanoid `name`'s static body compilation."""
+    body_dir, solv_dir = os.path.join(HERE, 'body'), os.path.join(HERE, 'solver')
+    py = tuple(os.path.join(body_dir, m + '.py') for m in _BODY_MODS) + (
+        os.path.join(solv_dir, 'inertia.py'), os.path.join(solv_dir, 'loops.py'), constants.__file__)
+    return robot_sources(name) + py
 
 
 def compiled(key: str, paths, builder) -> dict[str, Any]:
@@ -253,10 +292,10 @@ def environment(name: str | None = ROBOT):
     return _merged(base, over) if isinstance(over, dict) else dict(base)
 
 
-def crafts():
-    """Declarative physical construction of every aircraft and variant (`aircraft/crafts.toml`): a craft its
-    own laid on `[shared]`, a variant (`extends`) its own on its craft."""
-    raw = _toml(os.path.join(HERE, 'aircraft', 'crafts.toml'))
+def crafts(spec: str | None = None):
+    """Declarative physical construction of every aircraft and variant (`aircraft/crafts.toml` or `spec`):
+    a craft its own laid on `[shared]`, a variant (`extends`) its own on its craft."""
+    raw = _toml(os.path.abspath(spec) if spec else CRAFTS)
     shared = raw['shared']
     return _resolve({name: cfg if name == 'shared' or 'extends' in cfg else _merged(shared, cfg)
                      for name, cfg in raw.items()})
@@ -267,15 +306,34 @@ def robots():
     return sorted(f[:-5] for f in os.listdir(ROBOTS) if f.endswith('.toml'))
 
 
-def _merged(base, over):
+_EXCLUSIVE = {
+    'mounts': ({'at'}, {'z_m'}, {'x_m', 'dy_m'}, {'along_m'}),
+    'boards': ({'stack_on', 'gap_m'}, {'on', 'at', 'face'}),
+}
+
+
+def _clean_modes(base, over, groups):
+    chosen = [g for g in groups if over.keys() & g]
+    if not chosen:
+        return base
+    drop = set().union(*(g for g in groups if g not in chosen))
+    return {k: v for k, v in base.items() if k not in drop}
+
+
+def _merged(base, over, section=None):
     """`base` with `over` laid on it: a table merged key by key, a key `over` sets to false gone, anything else
-    `over`'s."""
+    `over`'s; mutually exclusive placement keys in `[mounts]` and `[boards]` replace cleanly."""
     out = dict(base)
+    groups = _EXCLUSIVE.get(section or '')
     for k, v in over.items():
         if v is False:
             out.pop(k, None)
             continue
-        out[k] = _merged(base[k], v) if isinstance(v, dict) and isinstance(base.get(k), dict) else v
+        if isinstance(v, dict) and isinstance(base.get(k), dict):
+            b_sub = _clean_modes(base[k], v, groups) if groups else base[k]
+            out[k] = _merged(b_sub, v, k if section is None else None)
+        else:
+            out[k] = v
     return out
 
 
@@ -298,20 +356,17 @@ def _stacks(base, drives):
     return out
 
 
-def robot(name=ROBOT) -> dict:
-    """A robot's build (machine/humanoids/`name`.toml): its tables and its `stacks`, {kind: [motor, gearbox,
-    inverter]} laid of its `[drives]` (`_stacks`), each part found in the library. A build that `extends`
-    another is that one with its own tables laid on it - only what is its own -, its `swap` the motors it
-    takes for that one's in every stack it names no motor for. A joint the build's `[cloth]` dresses in
-    nothing is bare (BARE), laid after those the table names, in the stacks' order."""
-    path = os.path.join(ROBOTS, name + '.toml')
-    if not os.path.isfile(path):
-        raise MachineError('no robot %s: %s' % (name, ', '.join(sorted(
-            f[:-5] for f in os.listdir(ROBOTS) if f.endswith('.toml')))))
+def robot(name=ROBOT, near: str | None = None) -> dict:
+    """A robot's build (`machine/humanoids/<name>.toml` or a `.toml` path): its tables and its `stacks`,
+    {kind: [motor, gearbox, inverter]} laid of its `[drives]` (`_stacks`), each part found in the library.
+    A build that `extends` another is that one with its own tables laid on it - only what is its own -, its
+    `swap` the motors it takes for that one's in every stack it names no motor for. A joint the build's
+    `[cloth]` dresses in nothing is bare (BARE), laid after those the table names, in the stacks' order."""
+    path = _robot_path(name, near)
     build, lib = _toml(path), library()
     own, stacks = build.get('drives', {}), {}
     if 'extends' in build:
-        base, swap = robot(build['extends']), build.get('swap', {})
+        base, swap = robot(build['extends'], os.path.dirname(path)), build.get('swap', {})
         stacks = {kind: [swap.get(stack[0], stack[0])] + list(stack[1:]) for kind, stack in base['stacks'].items()}
         build = _merged(base, {k: v for k, v in build.items() if k not in ('extends', 'swap')})
     build = dict({k: v for k, v in build.items() if k != 'drives'}, stacks=_stacks(stacks, own))

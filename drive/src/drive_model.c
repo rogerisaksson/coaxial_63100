@@ -1,5 +1,6 @@
 /** drive_model.c - PMSM + inverter model for the drive to run against. */
 #include "drive.h"
+#include "board_units.h"
 
 #include <math.h>
 #include <string.h>
@@ -12,10 +13,6 @@
 #define LCG_C        1013904223U
 #define LCG_TOP_BITS 8
 #define LCG_TOP_ONE  16777216.0f   /* 2^24: the top 24 bits as a fraction */
-
-#define TWO_PI_F    6.2831853f
-#define HALF_SQRT3  0.8660254f
-#define INV_SQRT3   0.57735027f
 
 void drive_model_defaults(drive_model_params_t *p)
 {
@@ -103,8 +100,8 @@ void drive_model_sample(drive_model_t *m, drive_sample_t *out)
   const float ib = m->id * m->s + m->iq * m->c;
 
   m->i_abc[0] = ia;
-  m->i_abc[1] = -0.5f * ia + HALF_SQRT3 * ib;
-  m->i_abc[2] = -0.5f * ia - HALF_SQRT3 * ib;
+  m->i_abc[1] = -0.5f * ia + HALF_SQRT3_F * ib;
+  m->i_abc[2] = -0.5f * ia - HALF_SQRT3_F * ib;
   if (m->p.noise > 0.0f)
   {
     for (uint8_t k = 0U; k < DRIVE_PHASES; k++)
@@ -148,8 +145,8 @@ void drive_model_advance(drive_model_t *m, const float *duty, float ts)
     const float ib_f = id_f * s + iq_f * c;
     const float i_f[DRIVE_PHASES] = {
       ia_f,
-      -0.5f * ia_f + HALF_SQRT3 * ib_f,
-      -0.5f * ia_f - HALF_SQRT3 * ib_f,
+      -0.5f * ia_f + HALF_SQRT3_F * ib_f,
+      -0.5f * ia_f - HALF_SQRT3_F * ib_f,
     };
 
     for (uint8_t k = 0U; k < DRIVE_PHASES; k++)
@@ -159,7 +156,7 @@ void drive_model_advance(drive_model_t *m, const float *duty, float ts)
   }
 
   const float va = (2.0f * v[0] - v[1] - v[2]) / 3.0f;
-  const float vb = (v[1] - v[2]) * INV_SQRT3;
+  const float vb = (v[1] - v[2]) * INV_SQRT3_F;
   const float vd = va * c + vb * s;
   const float vq = vb * c - va * s;
   const uint8_t sub = (m->p.sub == 0U) ? 1U : m->p.sub;

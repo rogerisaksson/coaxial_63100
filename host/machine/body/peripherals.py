@@ -13,9 +13,11 @@ Reads declarative hardware specifications (`world.toml`, `inverters.toml`, `mate
 automatically on first run or whenever any input `.toml` or compiler file changes.
 """
 import math
+import os
 from typing import Any
 
 from machine.body import build, compile as _compile, drives, figure, mechatronics
+from motor.constants import AIR_GAS_CONSTANT, KELVIN_AT_ZERO_C
 
 #: The least share of a link's nominal mass an identification leaves that link (`identified.KEPT`): the
 #: identification's own, a quarter.
@@ -110,7 +112,7 @@ def _build_peripherals():
     pwm_hz = max(float(lib['inverters'][s[2]]['pwm_hz']) for s in stacks)
     min_eff = min(float(lib['gearboxes'][s[1]]['efficiency']) for s in stacks)
     min_ceil = min(float(lib['inverters'][s[2]]['ceiling_c'][0]) for s in stacks)
-    p_air_mpa = float(env['air_kg_m3']) * 287.05 * (amb + 273.15) * 1e-6
+    p_air_mpa = float(env['air_kg_m3']) * AIR_GAS_CONSTANT * (amb + KELVIN_AT_ZERO_C) * 1e-6
     sole, pad, lace = rbt['elastomers']['sole'], rbt['elastomers']['pad'], rbt['garments']['lace']
     e_sole, h_sole = float(sole['modulus_mpa']), float(sole['thick_m'])
     a_sole = 2.0 * figure.CONTACTS[0][2][0] * (figure.BALL + figure.HEEL)
@@ -148,9 +150,8 @@ def _build_peripherals():
 
 
 def _compiled():
-    srcs = (mechatronics.robot_sources() + mechatronics.craft_sources()
-            + (__file__, mechatronics.__file__, _compile.__file__, drives.__file__, figure.__file__, build.__file__))
-    return mechatronics.compiled('peripherals_' + mechatronics.ROBOT, srcs, _build_peripherals)
+    srcs = mechatronics.body_sources() + mechatronics.craft_sources() + (__file__, _compile.__file__)
+    return mechatronics.compiled('peripherals_' + mechatronics.cache_id(), srcs, _build_peripherals)
 
 
 def bus():
@@ -218,8 +219,8 @@ def _service() -> dict[str, Any]:
 
 def service(overrides=None) -> dict[str, Any]:
     """Service wear alarm bands and maintenance interval from gearbox, encoder and thermal limits."""
-    srcs = (mechatronics.robot_sources()
-            + (__file__, _compile.__file__, drives.__file__, figure.__file__, build.__file__))
+    srcs = mechatronics.body_sources() + (__file__, _compile.__file__,
+                                          os.path.join(os.path.dirname(__file__), 'heat.py'))
     out = dict(mechatronics.compiled('service_' + mechatronics.ROBOT, srcs, _service))
     if overrides:
         out.update(overrides)
@@ -260,7 +261,7 @@ def _identify() -> dict[str, Any]:
     df = round(1.0 / (every * smooth_hz), 4)
     tones = (tuple(round(p * df, 4) for p in (23, 61, 137)),
              tuple(round(p * df, 4) for p in (31, 79, 113)))
-    free_rad = max(0.2, round(math.radians(abs(float(rbt['stops']['spine'][0]))), 1))
+    free_rad = max(0.2, round(math.radians(abs(float(drives.TRAVEL['spine'][0]))), 1))
     margin = round(0.5 * (1.0 - eff), 3)
     swing = round(0.5 * (1.0 - float(svc['torque']) - 3.0 * margin), 2)
     l_hem = max(0.04, abs(figure.FIST_AT[1]) + 0.01)
@@ -295,6 +296,6 @@ def _identify() -> dict[str, Any]:
 
 def identify() -> dict[str, Any]:
     """Compiled on-line wear, ridge correction, stand campaign and Newton-Euler sysid parameters."""
-    srcs = (mechatronics.robot_sources()
-            + (__file__, _compile.__file__, drives.__file__, figure.__file__, build.__file__))
+    srcs = mechatronics.body_sources() + (__file__, _compile.__file__,
+                                          os.path.join(os.path.dirname(__file__), 'heat.py'))
     return dict(mechatronics.compiled('identify_' + mechatronics.ROBOT, srcs, _identify))

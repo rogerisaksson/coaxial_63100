@@ -40,24 +40,27 @@ def parts(lib=None):
     kinds = {drives.kind(j) for j in driven}
     for kind in linkage.RODS:
         if kind in kinds:
-            out['rod %g mm, bent' % (2e3 * linkage.ROD_R)] += 2
-            out['rod end'] += 4
-            out['crank, printed'] += 2
+            n = len(linkage.joints(kind))
+            out['rod %g mm, bent' % (2e3 * linkage.ROD_R)] += n
+            out['rod end'] += 2 * n
+            out['crank, printed'] += n
     for kind in linkage.PLANAR:
         if kind in kinds:
-            out['rod %g mm' % (2e3 * linkage.ROD_R)] += 1
-            out['rod end'] += 2
-            out['crank and horn, printed plates'] += 2
+            n = len(linkage.joints(kind))
+            out['rod %g mm' % (2e3 * linkage.ROD_R)] += n
+            out['rod end'] += 2 * n
+            out['crank and horn, printed plates'] += 2 * n
     for kind, (r1, r2, _off) in linkage.BELTS.items():
         if kind in kinds:
-            out['belt, pulleys %g/%g mm' % (2e3 * r1, 2e3 * r2)] += 2
-            out['pulley'] += 4
+            n = len(linkage.joints(kind))
+            out['belt, pulleys %g/%g mm' % (2e3 * r1, 2e3 * r2)] += n
+            out['pulley'] += 2 * n
     for kind, r in linkage.BEVELS.items():
         if kind in kinds:
-            out['bevel pair %g mm' % (2e3 * r)] += 2
+            out['bevel pair %g mm' % (2e3 * r)] += len(linkage.joints(kind))
     for kind, ratio in linkage.GEARS.items():
         if kind in kinds:
-            out['spur pair 1:%.2f' % ratio] += 2
+            out['spur pair 1:%.2f' % ratio] += len(linkage.joints(kind))
     r, half, _z = skeleton.BEARING
     out['bearing %gx%g mm, the hips\' roll' % (2e3 * r, 2e3 * half)] += 4
     out['pin %g mm, the hips\' trunnions' % (2e3 * (r - 0.002))] += 4

@@ -86,10 +86,12 @@ def _sides():
 #: first. The spine bends forward positive, its roll to the robot's right, the roll first - its drive on
 #: the pelvis on a spur pair (`machine.body.drives`), the robot leans aside in its pelvis's frame,
 #: then bends; a hip's yaw and roll turn the leg out positive, an ankle's roll the sole out.
+_TORSO_JOINTS = tuple((str(j), str(a), int(s)) for j, a, s in _SEG['torso'].get(
+    'joints', (('spine_roll', 'z', 1), ('spine', 'x', 1), ('waist', 'y', 1))))
 SEGMENTS = tuple([
     ('pelvis', None, (), (0.0, 0.0, 0.0), 0.0, _SEG['pelvis']['share'], _m(*_SEG['pelvis']['com']),
      _m(*_SEG['pelvis']['gyration'])),
-    ('torso', 'pelvis', (('spine_roll', 'z', 1), ('spine', 'x', 1), ('waist', 'y', 1)),
+    ('torso', 'pelvis', _TORSO_JOINTS,
      _m(*_SEG['torso']['at']), 0.0, _SEG['torso']['share'], _m(*_SEG['torso']['com']), _m(*_SEG['torso']['gyration'])),
     ('neck', 'torso', (('neck', 'x', 1),), _m(*_SEG['neck']['at']), 0.0, _SEG['neck']['share'],
      _m(*_SEG['neck']['com']), _m(*_SEG['neck']['gyration'])),

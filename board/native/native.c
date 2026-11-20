@@ -17,6 +17,7 @@
 #include "board_hw.h"
 #include "board_irq.h"
 #include "board_power.h"
+#include "board_units.h"
 #include "link.h"
 #include "modbus_map.h"
 #include "native.h"
@@ -53,8 +54,6 @@ void fake_console_poll(void);
 #define NATIVE_LOOP_US     20U
 /* The A1335's invented turn with no world: one every two virtual seconds, as Renode's. */
 #define NATIVE_TURN_S      2.0
-#define NATIVE_RAD_TO_DEG  57.29577951308232
-#define NATIVE_PI          3.141592653589793
 #define NATIVE_ADCS        3U
 #define NATIVE_RANKS       4U
 #define NATIVE_FULL_CODE   65535.0
@@ -298,7 +297,7 @@ static void native_heat(void)
   n.squared_s = 0.0;
   load.link_volts = (float)afe.dc;
   load.link_amps = -1.0f;
-  load.speed_rpm = (float)(fabs(w.speed) * 60.0 / (2.0 * NATIVE_PI));
+  load.speed_rpm = (float)(fabs(w.speed) * 60.0 / TAU_D);
   load.airspeed_m_s = n.airspeed;
   world_heat_step(&n.heat, &load, dt, &n.seen);
   afe.ntc_c = n.seen.ntc_c;
@@ -325,7 +324,7 @@ static void native_plant_to(uint64_t at)
     w.shaft(w.node, shaft);
     double turned = (double)shaft[0] - w.electrical;
 
-    turned -= 2.0 * NATIVE_PI * floor(turned / (2.0 * NATIVE_PI) + 0.5);
+    turned -= TAU_D * floor(turned / TAU_D + 0.5);
     w.electrical = (double)shaft[0];
     w.mechanical += turned / w.pole_pairs;
     w.speed = (double)shaft[1];
@@ -543,7 +542,7 @@ double native_shaft_degrees(void)
   }
   if (w.step != NULL)
   {
-    return w.mechanical * NATIVE_RAD_TO_DEG;
+    return w.mechanical * RAD_TO_DEG_D;
   }
   return 360.0 * ((double)n.cycles / (double)SystemCoreClock) / NATIVE_TURN_S;
 }

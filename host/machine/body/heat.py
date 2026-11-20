@@ -21,6 +21,7 @@ gate drive sagging runs the FETs in their SOA). Heat runs HASTE times the clock.
 """
 
 from machine.body import drives, mechatronics, peripherals
+from motor.constants import TAU
 
 _env = mechatronics.environment()
 _mat = mechatronics.materials()
@@ -110,7 +111,7 @@ class Heat:
         self._kt = np.asarray(self.kt, float)
         self._scale = np.asarray(self.scale, float)
         self._active = self._scale > 0.0
-        self._ratio_k = np.asarray(self.ratio, float) * (60.0 / (2.0 * 3.141592653589793 * 1000.0))
+        self._ratio_k = np.asarray(self.ratio, float) * (60.0 / (TAU * 1000.0))
         self._cloth_air = np.asarray(self.cloth_air, float)
         self._r = np.asarray(self.r, float)
         self._g_ls = 1.0 / np.asarray(self.mount_k_w, float)
@@ -179,7 +180,7 @@ class Heat:
         self.ticks[k] += 1
         w = abs(float(joint_rad_s))
         self.limb_rad_s[k] = w
-        self.krpm[k] = w * self.ratio[k] * (60.0 / (2.0 * 3.141592653589793 * 1000.0))
+        self.krpm[k] = w * self.ratio[k] * (60.0 / (TAU * 1000.0))
 
     def arm(self, k):
         """The gates on again: the host's ask; the envelope trips them again if still hot."""

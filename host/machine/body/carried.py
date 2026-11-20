@@ -96,3 +96,18 @@ def table(gravity):
                 tip = max(0.0, mass * gravity * sum((centre[i] - along * axis[i]) * UP[i] for i in range(3)))
             out[kind] = out.get(kind, ()) + ((swing, stance, tip),)
     return out
+
+
+def swing(kind):
+    """Worst-posture swing subtree inertia (kg m^2) hanging on `kind`, driven or passive."""
+    segs, origin = build.segments(), (0.0, figure.standing(), 0.0)
+    hung = _hung(segs)
+    axes = {joint: axis for _name, _parent, joints, *_rest in figure.SEGMENTS for joint, axis, _sign in joints}
+    joint = kind if kind in figure.JOINTS else 'left_' + kind
+    name, moved = hung[joint]
+    best = 0.0
+    for pose in postures():
+        placed = figure.frames(pose, origin, figure.IDENT)
+        axis = figure.apply(placed[joint if joint in placed else name][1], ALONG[axes[joint]])
+        best = max(best, about(segs, placed, moved, placed[name][0], axis)[2])
+    return best

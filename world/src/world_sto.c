@@ -2,13 +2,13 @@
     a bracketed Newton on the nodes the diodes make; the schematic's parts, LTspice's models of
     them (sto.asc, TLV3492.LIB, TPS3840PL30.LIB, NL7SZ97.LIB, its SSM6N815R). */
 #include "world_sto.h"
+#include "board_units.h"
 
 #include <math.h>
 #include <string.h>
 
 /* kT/q at LTspice's 27 C. */
 #define VT          0.025865
-#define TWO_PI      6.28318531
 
 /* The master (sto.asc): its amplifier's bias and rails, the coupling caps C4 and C5 in series,
    the loop through R8, R9, its split termination R4 || R5, the far end's R10 || R11 and the
@@ -187,7 +187,7 @@ static double flog(double x)
   int64_t k = ((u.i >> 52) & 0x7FF) - 1023;
 
   u.i = (u.i & 0x000FFFFFFFFFFFFF) | 0x3FF0000000000000;
-  if (u.f > 1.41421356)
+  if (u.f > SQRT2_D)
   {
     u.f *= 0.5;
     k++;
@@ -195,7 +195,7 @@ static double flog(double x)
   const double t = (u.f - 1.0) / (u.f + 1.0);
   const double t2 = t * t;
 
-  return (double)k * 0.6931471805599453
+  return (double)k * LN2_D
          + 2.0 * t * (1.0 + t2 * (1.0 / 3.0 + t2 * (1.0 / 5.0 + t2 * (1.0 / 7.0 + t2 / 9.0))));
 }
 
@@ -351,8 +351,8 @@ static void substep(world_sto_t *s, const world_sto_in_t *in)
     if (in->pilot_hz != s->hz)
     {
       s->hz = in->pilot_hz;
-      s->rc = cos(TWO_PI * s->hz * dt);
-      s->rs = sin(TWO_PI * s->hz * dt);
+      s->rc = cos(TAU_D * s->hz * dt);
+      s->rs = sin(TAU_D * s->hz * dt);
     }
     const double c = s->pc * s->rc - s->ps * s->rs;
     const double sn = s->pc * s->rs + s->ps * s->rc;
@@ -368,7 +368,7 @@ static void substep(world_sto_t *s, const world_sto_in_t *in)
   {
     s->noise += NOISE_HZ * dt;
     s->noise -= (s->noise >= 1.0) ? 1.0 : 0.0;
-    noise = in->noise_volts * sin(TWO_PI * s->noise);
+    noise = in->noise_volts * sin(TAU_D * s->noise);
   }
   const double i_loop = (drive - s->loop - noise) / (LOOP_R + dt / LOOP_C);
 

@@ -2,12 +2,12 @@
 import math
 
 from coaxial.model import inverter
+from motor.constants import KELVIN_AT_ZERO_C
 
 #: The converter's 16-bit result: the full scale of codes, and the half of
 #: it that is a differential reading's span.
 ADC_CODES = 65536.0
 ADC_HALF_CODES = 32768.0
-KELVIN_AT_ZERO_C = 273.15
 #: The phase amplifier's feedback and gain resistors, ohm: a THS4551, 1.5k over 330.
 AFE_RF, AFE_RG = 1500.0, 330.0
 

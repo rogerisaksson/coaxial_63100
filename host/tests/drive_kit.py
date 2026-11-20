@@ -18,7 +18,8 @@ def suite(roster, name, argv=None):
         print('  SKIP  no host C compiler; setup.ps1 installs one')
         print('\n0 passed, 0 failed')
         return 0
-    lib_path, warnings = build(cc, SOURCES, [os.path.join(DRIVE, 'inc')], name=name)
+    lib_path, warnings = build(cc, SOURCES, [os.path.join(DRIVE, 'inc'),
+                                             os.path.join(os.path.dirname(DRIVE), 'comms', 'inc')], name=name)
     lib = ctypes.CDLL(lib_path)
     report = Report()
     report.check('drive/ builds warning-free with the firmware flags',

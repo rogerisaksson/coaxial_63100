@@ -142,7 +142,8 @@ CONVECTION_EXPONENT = 0.25
 
 #: The room the campaign was taken in, kelvin. Radiation is a fourth
 #: power, so it needs an absolute temperature and not a difference.
-ROOM_K = 293.15
+from motor.constants import KELVIN_AT_ZERO_C
+ROOM_K = KELVIN_AT_ZERO_C + 20.0
 
 
 def board_to_ambient_at(rise_k, cfg=None):

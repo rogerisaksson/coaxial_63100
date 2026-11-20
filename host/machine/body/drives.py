@@ -102,17 +102,27 @@ AHEAD_PLAY = float(_BUILD.get('ahead_play', 0.0))
 def _boards():
     """Remote split inverter placements from `[boards]`, stacking twin discs by `height_m + gap_m`."""
     raw, out = _BUILD.get('boards', {}), {}
-    for k, b in raw.items():
+
+    def place(k, seen=()):
+        if k in out:
+            return out[k]
+        b = raw[k]
         if 'stack_on' not in b:
             out[k] = (str(b['on']), tuple(float(v) for v in b['at']), str(b['face']))
-    for k, b in raw.items():
-        if 'stack_on' in b:
-            seg, base, face = out[b['stack_on']]
-            ax = 'xyz'.index(face[-1])
-            step = (0.5 * INVERTERS[STACKS[b['stack_on']][2]][4] + float(b['gap_m'])
-                    + 0.5 * INVERTERS[STACKS[k][2]][4])
-            sign = -1.0 if face.startswith('-') else 1.0
-            out[k] = (seg, tuple(round(v + sign * step, 6) if i == ax else v for i, v in enumerate(base)), face)
+            return out[k]
+        on_k = str(b['stack_on'])
+        if on_k not in raw or on_k in seen:
+            from machine.errors import MachineError
+            raise MachineError('%s: board %s stacks on %s, absent or cyclic' % (mechatronics.ROBOT, k, on_k))
+        seg, base, face = place(on_k, seen + (k,))
+        ax, sign = 'xyz'.index(face[-1]), (-1.0 if face.startswith('-') else 1.0)
+        step = (0.5 * INVERTERS[STACKS[on_k][2]][4] + float(b['gap_m'])
+                + 0.5 * INVERTERS[STACKS[k][2]][4])
+        out[k] = (seg, tuple(round(v + sign * step, 6) if i == ax else v for i, v in enumerate(base)), face)
+        return out[k]
+
+    for k in raw:
+        place(k)
     return out
 
 
@@ -223,7 +233,8 @@ def _mounts():
             out[k] = (prev, (0.0, 0.0, 0.0)) if prev else None
             continue
         m = raw[k]
-        on, face = str(m['on']), (str(m['face']),) if 'face' in m else ()
+        on = str(m.get('on') or raw.get(linkage.ROD_AT.get(k, (k,))[0], {}).get('on', parent_name))
+        face = (str(m['face']),) if 'face' in m else ()
         if 'at' in m:
             at = tuple(float(v) for v in m['at'])
         elif 'z_m' in m:
@@ -231,7 +242,9 @@ def _mounts():
             at = (cx, cy, float(m['z_m']))
         elif 'x_m' in m:
             up, ahead = linkage.RODS[k][0][:2]
-            at = (float(m['x_m']), round(up - SHANK + float(m.get('dy_m', 0.0)), 6), ahead)
+            _r_seg, r_par, r_off, *_ = j_info[linkage.ROD_AT[k][0]]
+            piv = r_off if on == r_par else (0.0, 0.0, 0.0)
+            at = (float(m['x_m']), round(up + piv[1] + float(m.get('dy_m', 0.0)), 6), round(piv[2] + ahead, 6))
         else:
             piv = offset if on == parent_name else (0.0, 0.0, 0.0)
             idx = 'xyz'.index(ax)
@@ -317,12 +330,11 @@ def outlet(joint):
 
 def pivot(joint):
     """The joint's centre in the frame its drive rides (`mount`): its segment's place on its
-    parent, or a stage's origin."""
-    from machine.body.figure import SEGMENTS, STAGES
+    parent, or the frame's origin."""
+    from machine.body.figure import SEGMENTS
     where = mount(joint)
-    if where is not None and where[0] in STAGES:
-        return (0.0, 0.0, 0.0)
-    return next(s[3] for s in SEGMENTS if joint in [j for j, *_ in s[2]])
+    seg = next(s for s in SEGMENTS if joint in [j for j, *_ in s[2]])
+    return seg[3] if where is None or where[0] == seg[1] else (0.0, 0.0, 0.0)
 
 
 def mount(joint):

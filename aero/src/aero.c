@@ -1,10 +1,10 @@
 /** aero.c - a pass of the frame's core, its steps in table order (aero.h). No branch: a
     choice is a mask (aero_bits.h), a bound a least or a most, a loop its array's length. */
 #include "aero_bits.h"
+#include "board_units.h"
 
 #include <math.h>
 
-#define PI      3.14159265358979f
 /** A target is held within this: the blend's arithmetic takes no infinity. */
 #define MOST    1e6f
 /** No bound on the four's lift, N. */
@@ -79,7 +79,7 @@ static void inject(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aero
 static void swing(aero_t *s, const aero_payload_t *p, const aero_in_t *in, aero_out_t *out)
 {
   const float dt = most(in->dt, TINY);
-  const float half = PI * clean(p->cpg_hz) * dt;
+  const float half = PI_F * clean(p->cpg_hz) * dt;
   const float c0 = pick(s->kick, s->wave[0], 1.0f), s0 = pick(s->kick, s->wave[1], 0.0f);
   const float c = ((1.0f - half * half) * c0 - 2.0f * half * s0) / (1.0f + half * half);
   const float w = (2.0f * half * c0 + (1.0f - half * half) * s0) / (1.0f + half * half);

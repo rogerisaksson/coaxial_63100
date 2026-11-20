@@ -206,6 +206,14 @@ def test_a_crafts_attitude_is_solved_of_its_own(r):
     moved = [key for key in once if not key[0].startswith('helicopter') and twice[key] != once[key]]
     r.check("twice the helicopter's inertia halves its own tilt's stiffness and moves no other craft's loop",
             not halved and not moved, (halved, moved))
+    light_inv = copy.deepcopy(mechatronics.crafts())
+    light_inv['shared']['inverter'] = 'coaxial_63050'
+    at_50a = {row[:2]: row for row in attitude.rows(light_inv)}
+    slew_100 = once[(aircraft.CRAFTS['quad'], 'pitch')][6]['rotor slew']
+    slew_50 = at_50a[(aircraft.CRAFTS['quad'], 'pitch')][6]['rotor slew']
+    slew_15 = once[('quadcopter_15in', 'pitch')][6]['rotor slew']
+    r.check('a craft\'s rotor slew follows its own inverter\'s amps and its own propeller\'s inertia',
+            slew_50 < 0.35 * slew_100 and slew_15 > slew_100, (slew_50, slew_100, slew_15))
     readers = sorted(path.replace(os.sep, '/') for path, text, _tree in sources(beside=False)
                      if re.search(r'aircraft\.attitude|from machine\.aircraft import[^\n]*\battitude\b', text))
     flown = [path for path in readers if path.startswith(('machine/', 'coaxial/', 'terminal/'))]

@@ -4,10 +4,9 @@
 #include "wbc_imp.h"
 #include "wbc_np.h"
 #include "wbc_libm_arc.h"
+#include "board_units.h"
 
 #include <math.h>
-
-#define PI 3.14159265358979323846
 
 /** The robot's pelvis's tilt from upright as its IMU has it, deg
  * (machine.senses.edge.tilt). */
@@ -15,7 +14,7 @@ static double tilt_deg(const double *q)
 {
   const double s = wbc_sq(q[1]) + wbc_sq(q[3]);
 
-  return wbc_arccos(npmax(-1.0, npmin(1.0, 1.0 - 2.0 * s))) * (180.0 / PI);
+  return wbc_arccos(npmax(-1.0, npmin(1.0, 1.0 - 2.0 * s))) * RAD_TO_DEG_D;
 }
 
 double wbc_imp_surety(const wbc_imp_t *k, const wbc_surety_t *s, double prev, double dt, double ct, double t,
@@ -62,13 +61,13 @@ double wbc_imp_surety(const wbc_imp_t *k, const wbc_surety_t *s, double prev, do
     w[b] = npmaximum(npclip(loads[b] / (0.25 * wt), 0.0, 1.0), w_jump);
   }
   f_soles = npsum(loads, 2) / wt;
-  theta = (isnan(ct) ? tilt_deg(q) : ct) * (PI / 180.0);
-  theta_e = npmax(0.0, theta - npmax(fabs(a[k->a_want]), borne * (0.5 * PI)));
+  theta = (isnan(ct) ? tilt_deg(q) : ct) * DEG_TO_RAD_D;
+  theta_e = npmax(0.0, theta - npmax(fabs(a[k->a_want]), borne * HALF_PI_D));
   v_norm = sqrt(wbc_dot(&k->blas, v, 1, v, 1, 3));
   w_ext = npmin(1.0, npmax(0.0, (ap_y / k->g - f_soles) / 0.45))
           * wbc_exp(((-wbc_sq(w_gyro / 1.2)) - wbc_sq(v_norm / 0.18)) - wbc_quart(theta_e / 0.65));
   probe = ((0.008 * npmax(0.0, (4.0 * f_soles) * (1.0 - f_soles))) * wbc_exp(-wbc_sq(w_gyro / 0.6)))
-          * wbc_sin(((2.0 * PI) * 6.0) * t);
+          * wbc_sin((TAU_D * 6.0) * t);
   w_sum = (w[0] + w[1]) + 1e-9;
   w_both = npmin(w[0], w[1]);
   w_air = npmax(npmax(npmax(0.0, 1.0 - s->out[s->zmp_out]), 1.0 - s->out[s->held_out]), w_jump);

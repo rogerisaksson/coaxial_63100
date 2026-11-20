@@ -11,6 +11,7 @@ which joint of the robot's own is its knee is data, read from `term_rows` on `me
 and compiled from the robot's figure on another build (`tools/cores/terms.py`).
 """
 import math
+import os
 
 from machine.body import drives, figure, mechatronics
 
@@ -152,7 +153,10 @@ def _compiled():
     def build_it():
         laid = rows()
         return {**laid, 'TERMS': tuple(laid['TERMS'].items())}
-    got = mechatronics.compiled('terms_' + mechatronics.ROBOT, mechatronics.robot_sources() + (__file__,), build_it)
+    srcs = mechatronics.robot_sources() + (
+        __file__, mechatronics.__file__, figure.__file__, drives.__file__,
+        os.path.join(os.path.dirname(__file__), 'linkage.py'))
+    got = mechatronics.compiled('terms_' + mechatronics.ROBOT, srcs, build_it)
     return dict(got['TERMS']), got['TOWARD'], got['ABSENT'], got['LIMBS']
 
 

@@ -23,6 +23,7 @@ from coaxial.devices import angle
 from coaxial.draw import dial
 from coaxial.errors import RigError
 from machine.rig import ansi
+from motor.constants import KELVIN_AT_ZERO_C
 from terminal.loader import answer
 from terminal.ui import aspect as _aspect, screen as _screen
 from terminal.ui.demo import stop_motor, sweep_motor
@@ -99,7 +100,7 @@ def preflight(board, part):
         kelvin = angle.kelvin(board.angle.peek(REG_TSEN)['value'])
         board.angle.configure(REG_ANG)
 
-    say('ok', 'die temperature', '%.1f K, %.1f C' % (kelvin, kelvin - 273.15))
+    say('ok', 'die temperature', '%.1f K, %.1f C' % (kelvin, kelvin - KELVIN_AT_ZERO_C))
     say('ok' if field >= 30 else 'warn', 'field', '%d gauss%s'
         % (field, '' if field >= 30 else ' - no magnet at the sensor'))
     say('ok', 'poll loop', 'ANG, read by the board; this reads the board')
@@ -182,7 +183,7 @@ def compose(origin, console, part, state, field, kelvin, rate, note,
                     ('counts', '%4d of 4096   flags %X'
                      % (counts, state['value'] >> 12)),
                     ('field', '%d gauss' % (field or 0)),
-                    ('die', '%.1f C' % ((kelvin or 273.15) - 273.15)),
+                    ('die', '%.1f C' % ((kelvin or KELVIN_AT_ZERO_C) - KELVIN_AT_ZERO_C)),
                     ('cell', '%.2f tall %s' % aspect)]),
                 hud('LOOP', [
                     ('state', str(state.get('loop', '?'))),

@@ -1,5 +1,6 @@
 /** drive_observer.c - Back-EMF observers: dual flux low, plain flux high. */
 #include "drive.h"
+#include "board_units.h"
 
 #include <math.h>
 #include <stddef.h>
@@ -7,8 +8,8 @@
 /** Wrap to [-pi, pi]. */
 static float wrap(float a)
 {
-  a -= 6.2831853f * floorf((a + 3.1415927f) * 0.15915494f);
-  return a - 6.2831853f * floorf((a + 3.1415927f) * 0.15915494f);
+  a -= TWO_PI_F * floorf((a + PI_F) * INV_TWO_PI_F);
+  return a - TWO_PI_F * floorf((a + PI_F) * INV_TWO_PI_F);
 }
 
 void drive_observer_init(drive_obs_t *o, const drive_params_t *p, float ts)

@@ -65,7 +65,7 @@ def rods():
                 (py - up) * wz - (pz - ahead) * wy) / (r * wl)))))
             worst_out = min(worst_out, math.degrees(math.asin(min(1.0, abs(by * wz - bz * wy)
                                                                    / (b * wl)))))
-            levers.append(linkage.lever('left_' + linkage.ROD_AT[kind][0], float(d)))
+            levers.append(linkage.lever(linkage.joints(linkage.ROD_AT[kind][0])[0], float(d)))
         out.append((kind, (lo, hi), worst_in, worst_out, min(levers), max(levers)))
     return out
 
@@ -172,24 +172,31 @@ def parts(angles):
             else:
                 out[name] = ('tube', pp, fr[seg[0]][1], TUBE_R[bare])
                 rides[name] = seg[1]
-    for side in ('left_', 'right_'):
-        for kind, (rod, _stroke) in linkage.RODS.items():
-            joint = side + kind
+    for kind, (rod, _stroke) in linkage.RODS.items():
+        for joint in linkage.joints(kind):
+            side = joint[:-len(kind)]
             seg = next(s for s in figure.SEGMENTS
                        if side + linkage.ROD_AT[kind][0] in [j for j, *_ in s[2]])
             up, ahead, r, t0 = rod[:4]
-            s, (x, by, bz) = (1.0 if side == 'left_' else -1.0), linkage.ball(kind)
-            Rp, pp = fr[seg[1]]
-            hub = pp + Rp @ (np.array(seg[3], float)
-                             + np.array([s * linkage.ROD_AT[kind][1], up, ahead]))
+            s, (x, by, bz) = (-1.0 if side == 'right_' else 1.0), linkage.ball(kind)
+            on = (drives.mount(joint) or (seg[1],))[0]
+            if on == seg[0]:
+                Rp, pp = fr[seg[0]]
+                hub = pp + Rp @ np.array([s * linkage.ROD_AT[kind][1], up, ahead])
+                Rj, pj = fr[seg[1]]
+                ball = pj + Rj @ (np.array(seg[3], float) + np.array([s * x, by, bz]))
+            else:
+                Rp, pp = fr[seg[1]]
+                hub = pp + Rp @ (np.array(seg[3], float)
+                                 + np.array([s * linkage.ROD_AT[kind][1], up, ahead]))
+                Rj, pj = fr[seg[0]]
+                ball = pj + Rj @ np.array([s * x, by, bz])
             t = t0 + linkage.crank(joint, *linkage.turns(joint, angles))
             pin = hub + Rp @ np.array([0.0, -r * math.cos(t), r * math.sin(t)])
-            Rj, pj = fr[seg[0]]
-            ball = pj + Rj @ np.array([s * x, by, bz])
             bend = np.array(linkage.bent(kind, pin, ball, s * Rp[:, 0], s))
             out['rod_' + joint], out['rod_' + joint + '+'] = (
                 ('tube', pin, bend, linkage.ROD_R), ('tube', bend, ball, linkage.ROD_R))
-            rides['rod_' + joint] = rides['rod_' + joint + '+'] = seg[1]
+            rides['rod_' + joint] = rides['rod_' + joint + '+'] = on
     for joint, (seg, at, _kg, radius, faces) in drives.boards().items():
         R, p = fr[seg]
         out['board_' + joint] = ('drum', p + R @ np.array(at, float),

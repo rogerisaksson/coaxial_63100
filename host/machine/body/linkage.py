@@ -98,13 +98,27 @@ def _kind(joint):
     return kind(joint)
 
 
+@functools.lru_cache(None)
+def _child_mounted(kind):
+    from machine.body.figure import SEGMENTS
+    at = ROD_AT[kind][0]
+    m = _ROBOT.get('mounts', {})
+    on = m.get(kind, {}).get('on') or m.get(at, {}).get('on')
+    return bool(on and any(s[0].endswith(str(on)) and any(j.endswith(at) for j, *_ in s[2]) for s in SEGMENTS))
+
+
 def ball(kind, q=0.0, roll=0.0):
     """A rod's ball about its joint, (x, y, z) of its left limb's frame, m: its joint at `q`,
     that joint's roll (`PAIRS`) at `roll`, rad."""
     b, beta = RODS[kind][0][4:6]
     x, y, z = ROD_AT[kind][2], -b * math.cos(beta), b * math.sin(beta)
-    x, y = x * math.cos(roll) - y * math.sin(roll), x * math.sin(roll) + y * math.cos(roll)
-    return x, y * math.cos(q) - z * math.sin(q), y * math.sin(q) + z * math.cos(q)
+    steps = (('x', -q), ('z', -roll)) if _child_mounted(kind) else (('z', roll), ('x', q))
+    for ax, a in steps:
+        if ax == 'z':
+            x, y = x * math.cos(a) - y * math.sin(a), x * math.sin(a) + y * math.cos(a)
+        else:
+            y, z = y * math.cos(a) - z * math.sin(a), y * math.sin(a) + z * math.cos(a)
+    return x, y, z
 
 
 @functools.lru_cache(None)

@@ -31,15 +31,21 @@ DEAD_STEPS = 1.5
 AXES = (('pitch', 'inertia_xx'), ('roll', 'inertia_zz'))
 
 
-def _drive(aero, dynamics):
+def _drive(aero, dynamics, pull_cfg, ref_radius):
     """{loop: (the moment all a vehicle's drive gives about that axis, N m, the rate that moment turns at,
     N m/s - 0 where nothing lags it)}, by the kinds of blocks the vehicle has."""
     body, gov = dynamics['rigid_body'], dynamics['governor']
     if 'rotors' in aero:
         ro = aero['rotors']
+        sr = ro['disc_radius'] / ref_radius
+        prop_j = pull_cfg['prop_j'] * sr * sr * sr * sr * sr
+        rotor = pull.Rotor(pull_cfg['r'], pull_cfg['lq'], pull_cfg['lam'], pull_cfg['pairs'],
+                           pull_cfg['can_j'] + prop_j, pull_cfg['b'], ro['k_drag'])
         hover = math.sqrt(body['mass'] * body['gravity'] / (ro['rotors'] * ro['k_thrust']))
-        spare = ro['k_thrust'] * min(hover ** 2 - gov['idle_speed'] ** 2, pull.held(pull.I_MAX) ** 2 - hover ** 2)
-        turn = 2.0 * ro['k_thrust'] * hover * pull.slew(pull.I_WEP, hover)
+        spare = ro['k_thrust'] * min(hover ** 2 - gov['idle_speed'] ** 2,
+                                     pull.held(pull_cfg['i_max'], rotor) ** 2 - hover ** 2)
+        turn = 2.0 * ro['k_thrust'] * hover * pull.slew(
+            pull_cfg['i_wep'], hover, rotor, pull_cfg['i_max'], pull_cfg['w_slew_rad_s'], gov['idle_speed'])
         arms = [sum(abs(at[k]) for at in quad.layout(int(ro['rotors']))) * ro['arm_length'] for k in (1, 0)]
         return {loop: (spare * arm, turn * arm) for (loop, _key), arm in zip(AXES, arms)}
     if 'main_rotor' in aero:
@@ -50,7 +56,7 @@ def _drive(aero, dynamics):
             'roll': (wings['k_roll'] * gov['main_speed'] ** 2, 0.0)}
 
 
-def _loops(name, manifest, targets):
+def _loops(name, manifest, targets, pull_cfg, ref_radius):
     """A vehicle's rows (`rows`) of its compiled text: its one tilt, on its pitch and on its roll."""
     aero, dynamics, kinematics = manifest['aerodynamics'], manifest['dynamics'], manifest['kinematics']
     body, gov, today = dynamics['rigid_body'], dynamics['governor'], dynamics['impedance']
@@ -61,7 +67,7 @@ def _loops(name, manifest, targets):
              'cascade': loops.stiffness(1.0, float(targets['cascade_factor']) * along)}
     left = loops.margin(zeta) - math.radians(float(targets['delay_phase_deg']))
     ceilings = {'dead time': loops.stiffness(1.0, loops.natural(DEAD_STEPS * gov['step_time'], zeta, left))}
-    drive, excursion = _drive(aero, dynamics), math.radians(float(targets['excursion_deg']))
+    drive, excursion = _drive(aero, dynamics, pull_cfg, ref_radius), math.radians(float(targets['excursion_deg']))
     for loop, key in AXES:
         moment, rate = drive[loop]
         ceilings[loop + ' authority'] = moment / body[key] / excursion
@@ -78,10 +84,15 @@ def rows(crafts=None):
     each holds today; `crafts` a resolved crafts table compiled in the stock one's place
     (`compile.blocks`)."""
     targets, out = mechatronics.control(), []
+    built = craft._compiled() if crafts is None else craft._build_aircraft(crafts)
+    blocks = None if crafts is None else {
+        k: (kind, {sk: dict(sv) if isinstance(sv, dict) else sv for sk, sv in val.items()})
+        for k, (kind, val) in built['blocks'].items()}
+    pull_cfg, ref_radius = built['pull'], built['blocks']['quad_x_16x14'][1]['disc_radius']
     for kind in aircraft.CRAFTS:
         for name in aircraft.variants(kind):
             with open(os.path.join(aircraft.LISP, name + '.lisp'), encoding='utf-8') as f:
                 text = f.read()
-            manifest = aerolisp.compile_manifest(text, blocks=None if crafts is None else craft.blocks(crafts))
-            out += _loops(name, manifest, targets)
+            manifest = aerolisp.compile_manifest(text, blocks=blocks)
+            out += _loops(name, manifest, targets, pull_cfg, ref_radius)
     return out

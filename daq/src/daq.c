@@ -1,5 +1,6 @@
 /** daq.c - The acquisition engine - see daq.h. */
 #include "daq.h"
+#include "board_units.h"
 
 #include <math.h>
 #include <string.h>
@@ -8,7 +9,6 @@
    TONE_RENORM_MASK + 1 samples it is put back, unless it has collapsed. */
 #define TONE_RENORM_MASK 1023U
 #define TONE_TINY        1e-6f
-#define TWO_PI           6.28318530717958647692f
 #define DUTY_FULL        255U      /* a pin high for the whole window */
 #define IMU_SENSORS      0x0FU     /* the four sensor bits the IMU serves */
 
@@ -695,7 +695,7 @@ const char *daq_set_tone(daq_t *d, uint32_t hz, uint32_t rate_hz,
   }
   else
   {
-    const float step = TWO_PI * (float)hz / (float)rate_hz;
+    const float step = TWO_PI_F * (float)hz / (float)rate_hz;
 
     t->cos_step = cosf(step);
     t->sin_step = sinf(step);

@@ -16,7 +16,7 @@ from typing import Any
 
 from machine import libm_bound
 from machine.body import drives, linkage, mechatronics
-from machine.body.figure import FOREARM, SEGMENTS, SHANK, THIGH, UPPER_ARM
+from machine.body.figure import FOREARM, JOINTS, SEGMENTS, SHANK, THIGH, UPPER_ARM
 
 _SKEL = mechatronics.robot()['skeleton']
 _LIMB_M = {'thigh': THIGH, 'shank': SHANK, 'upper_arm': UPPER_ARM, 'forearm': FOREARM}
@@ -185,7 +185,7 @@ def _mirror(shape, s) -> Any:
 
 def _rod(side, kind):
     """A rod's crank's hub, pin, bend and ball at rest in its drive's segment's frame."""
-    s = 1.0 if side == 'left_' else -1.0
+    s = -1.0 if side == 'right_' else 1.0
     seg = next(g for g in SEGMENTS if side + linkage.ROD_AT[kind][0] in [j for j, *_ in g[2]])
     up, ahead, r, t0 = linkage.RODS[kind][0][:4]
     (ox, oy, oz), (x, by, bz) = seg[3], linkage.ball(kind)
@@ -255,13 +255,18 @@ def bodies():
             geoms.setdefault((name + '_held', rides), []).append(g)
         out += [(name, rides, g) for (name, rides), g in geoms.items()]
         for kind in linkage.RODS:
-            seg, hub, pin, bend, ball = _rod(side, kind)
-            out.append((side + kind + '_rod', seg[1], [
+            r_side = side if side + linkage.ROD_AT[kind][0] in JOINTS else ('' if side == 'left_' else None)
+            if r_side is None:
+                continue
+            seg, hub, pin, bend, ball = _rod(r_side, kind)
+            out.append((r_side + kind + '_rod', seg[1], [
                 _geom('capsule', CRANK_R, pin[:1] + hub[1:], pin),
                 _geom('capsule', linkage.ROD_R, pin, bend),
                 _geom('capsule', linkage.ROD_R, bend, ball)]))
         for kind, (drive_r, joint_r, out_m) in linkage.BELTS.items():
-            joint = side + kind
+            joint = side + kind if side + kind in JOINTS else (kind if side == 'left_' and kind in JOINTS else None)
+            if joint is None:
+                continue
             drum = next((d for d in _drums() if d[0] == joint), None)
             seg = next(g for g in SEGMENTS if joint in [j for j, *_ in g[2]])
             if drum is None or drum[1] != seg[1]:

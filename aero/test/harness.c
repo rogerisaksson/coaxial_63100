@@ -1,5 +1,6 @@
 /** harness.c - aero/'s sizes, a row of its memory, and host wing/observer passes (tools/cores/aero.py). */
 #include "aero.h"
+#include "board_units.h"
 
 #include <math.h>
 #include <stddef.h>
@@ -11,10 +12,9 @@
 #define API
 #endif
 
-#define AERO_PASS_PI          3.14159265358979323846
-#define AERO_PASS_STALL_RAD   (15.0 * AERO_PASS_PI / 180.0)
-#define AERO_PASS_STALL_BLEND (8.0 * AERO_PASS_PI / 180.0)
-#define AERO_PASS_ALPHA_MAX   (15.0 * AERO_PASS_PI / 180.0)
+#define AERO_PASS_STALL_RAD   (15.0 * DEG_TO_RAD_D)
+#define AERO_PASS_STALL_BLEND (8.0 * DEG_TO_RAD_D)
+#define AERO_PASS_ALPHA_MAX   (15.0 * DEG_TO_RAD_D)
 #define AERO_PASS_CD_LIFT     0.07
 
 /** sizeof the memory, the payload, the frame, a reading, an answer. */
@@ -305,7 +305,7 @@ static inline double ease_d(double x)
 {
   const double t = clamp_d(x, 0.0, 1.0);
 
-  return 0.5 * (1.0 - cos(AERO_PASS_PI * t));
+  return 0.5 * (1.0 - cos(PI_D * t));
 }
 
 /** 10-step angle-of-attack bisection in `wingborne.plane`. */
@@ -362,9 +362,9 @@ static void aeh_so3_error(const double r_cur[9], const double r_des[9], double o
     const double x1 = sqrt((0.5 * (e[4] + 1.0) > 0.0) ? (0.5 * (e[4] + 1.0)) : 0.0);
     const double x2 = sqrt((0.5 * (e[8] + 1.0) > 0.0) ? (0.5 * (e[8] + 1.0)) : 0.0);
 
-    out[0] = -AERO_PASS_PI * ((x0 != 0.0) ? x0 : 1.0);
-    out[1] = AERO_PASS_PI * x1;
-    out[2] = AERO_PASS_PI * x2;
+    out[0] = -PI_D * ((x0 != 0.0) ? x0 : 1.0);
+    out[1] = PI_D * x1;
+    out[2] = PI_D * x2;
     return;
   }
   sc = (sa > 1e-5) ? (atan2(sa, ca) / sa) : 1.0;
@@ -385,7 +385,7 @@ static void aeh_align_axis(const double from_u[3], const double to_u[3], const d
   {
     double rx[9];
 
-    rot_x3(AERO_PASS_PI, rx);
+    rot_x3(PI_D, rx);
     mat_mul3(rx, mat, out);
     return;
   }
@@ -551,8 +551,8 @@ API int aeh_plane(const double w_plane[8], const double turn[9], const double ac
     const double perp[3] = {acc[0] - along * v_hat[0], acc[1] - along * v_hat[1],
                             acc[2] - along * v_hat[2]};
     const double size = norm3(perp[0], perp[1], perp[2]);
-    const double cr = cos((0.5 * AERO_PASS_PI) * knife);
-    const double sr = sin((0.5 * AERO_PASS_PI) * knife);
+    const double cr = cos(HALF_PI_D * knife);
+    const double sr = sin(HALF_PI_D * knife);
     double       back[3] = {sr * turn[0] - cr * turn[2], sr * turn[3] - cr * turn[5],
                             sr * turn[6] - cr * turn[8]};
     const double bv = sum3(back[0] * v_hat[0], back[1] * v_hat[1], back[2] * v_hat[2]);

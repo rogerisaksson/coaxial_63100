@@ -1,5 +1,6 @@
 /** thermal.c - Thermal observer: integrate the network, correct from thermometers. */
 #include "thermal.h"
+#include "board_units.h"
 
 #include <math.h>
 #include <string.h>
@@ -281,8 +282,8 @@ float thermal_to_ambient_at(const thermal_cfg_t *cfg, thermal_node_t node,
 /** The bracket radiation carries with, `(T^2 + T0^2)(T + T0)`, kelvin. */
 static float rad_bracket(float a_c, float b_c)
 {
-  const float a = a_c + 273.15f;
-  const float b = b_c + 273.15f;
+  const float a = a_c + KELVIN_AT_ZERO_C;
+  const float b = b_c + KELVIN_AT_ZERO_C;
 
   return (a * a + b * b) * (a + b);
 }
