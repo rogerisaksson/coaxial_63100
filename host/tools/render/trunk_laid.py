@@ -15,14 +15,14 @@ All in the joint's frame: its middle the origin, x left, y up, z ahead; the ches
 the roll alone, each drive within its own torque (`drive`) -, how near a rod pulls to its crank's dead centre and
 how far the rod leans out of its two pins' squares; `reached` tells those over the build's whole travel; `pulled`
 the rods' pulls on the pelvis's pins that hold a moment of the chest's.
-A draft's open ends: the rods' ends - a plain fork and eye hold a rod square to its pin, and the roll leans the rod
-(`able`'s 'lean') more than the calf's spherical eye gives; so drawn, leant 35 deg a rod's end comes within 0.3 mm
-of its crank's ring and plate, and the pair's cage and the chest's rear yoke within 1.0 mm of the pelvis's yoke -
-under the 2 mm kept everywhere else (`trunk_clamped.aired`); the pelvis's yoke stands on the web alone, 18 mm deep
-between the hips' yokes' sweeps, and the trunk's moment passes through it; the leaves' give along a rod is the
-calf's, not laid for the trunk; the joint stands RAISED_M over where the build's software bends the trunk, the
-pitch before the roll, the waist's turn gone - the build's spec and what runs on it are untouched; no screws, no
-bus.
+A draft's open ends: leant 35 deg and bowed back 30, near its crank's dead centre a rod's leaves pass the crank's
+boss within 0.3 mm - the search below kept the rod's line their half width off its drive's drum, not their width
+off the drum's end nor their bow; kept so, its least share falls to 0.51 -, and the pair's cage, the clamp and the
+chest's rear yoke come within 1.2 mm of the pelvis's yoke: under the 2 mm kept everywhere else
+(`trunk_clamped.aired`); the pelvis's yoke stands on the web alone, 18 mm deep between the hips' yokes' sweeps, and
+the trunk's moment passes through it; the leaves' give along a rod is the calf's, not laid for the trunk; the joint
+stands RAISED_M over where the build's software bends the trunk, the pitch before the roll, the waist's turn gone -
+the build's spec and what runs on it are untouched; no screws, no bus.
 """
 import math
 import os
@@ -41,9 +41,10 @@ RAISED_M = 0.055
 #: z), m. A search over these eight (differential evolution, 27 poses of the travel, the calf's 77 N m a drive)
 #: for the most of the least share of the build's 108 N m of pitch and 144 of roll, laid with the drives under the
 #: joint and the rods up - this layout is its mirror, the cross turned with it: the same pitch, roll, lever, pull
-#: and lean at every pose, to the last bit. Free, 0.69; each rod kept its half width and 2 mm off its own drive's
-#: gear and crank - leant 35 deg and bowed back 30 it swung in over them -, the hubs 87 mm over the joint - the
-#: cage then keeps off the pelvis's eyes leant -, 0.625, four seeds alike, on the edge of the least lever. A pair
+#: and lean at every pose, to the last bit. Free, 0.69; each rod's line kept its leaves' half width and 2 mm out
+#: from its own drive's drum and crank where it passed beside them - leant 35 deg and bowed back 30 it swung in over
+#: them -, the hubs 87 mm over the joint - the cage then keeps off the pelvis's eyes leant -, 0.625, four seeds
+#: alike, on the edge of the least lever. A pair
 #: whose rods' far end rides the body the roll's axis does not stand with reaches no such travel: the bow takes
 #: the roll's lever.
 HUB, CRANK, BALL = (0.093, 0.087, 0.003), (0.080, 37.5), (0.095, -0.015, -0.085)

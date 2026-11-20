@@ -117,18 +117,21 @@ def test_the_trunk_reaches_its_travel_and_prints_standing(report):
     """The coaxial build's trunk as first drafted (`tools.render.trunk_laid`, `trunk_clamped`): the calf's drive
     pair on the chest over one cardan joint low by the hips, a rod each down to the pelvis's pins. The pair
     reaches every pose of the build's own travel - its roll's ends with its pitch's - with no rod pulling nearer
-    its crank's dead centre than the layout holds; each of its solid printed parts stands on its bed with nothing
-    hung over it, and all its prints fit a plate; and its guards - the page's cups, sternum, belly slats and back
-    (`trunk_worn`) - are laid and cross nothing the chest carries: with no likeness beside the tree there is no
-    figure to lay them on."""
-    told: Any = _told('from tools.render import prints as p, solids as s, trunk_laid as t; got = list(t.reached().values()); '
+    its crank's dead centre than the layout holds; a rod's crosses, forks and swivel (`trunk_rods`) hold the most
+    a rod is asked; each of its solid printed parts stands on its bed with nothing hung over it, and all its prints
+    fit a plate; and its guards - the page's cups, sternum, belly slats and back (`trunk_worn`) - are laid and cross
+    nothing the chest carries: with no likeness beside the tree there is no figure to lay them on."""
+    told: Any = _told('from tools.render import prints as p, solids as s, trunk_laid as t, trunk_rods as r; '
+                      'got = list(t.reached().values()); '
                       'print(json.dumps({"reached": [v is not None for v in got], "least": t.LEVER, '
-                      '"lever": min([v["lever"] for v in got if v] or [0.0]), "hung": s.hung(s.TRUNK), '
+                      '"lever": min([v["lever"] for v in got if v] or [0.0]), "held": r.held(), "hung": s.hung(s.TRUNK), '
                       '"noise": s.NOISE_CM2, "fit": p.fitted(p.trunk())}))')
     reached = told.get('reached') or [False]
     report.check("the pair reaches every pose of the build's travel, no rod nearer its crank's dead centre than held",
                  all(reached) and (told.get('lever') or 0.0) >= told.get('least', 1.0) - 1e-9,
                  told.get('failed') or (sum(reached), len(reached), told.get('lever')))
+    held = told.get('held') or {'none told': 0.0}
+    report.check("a rod's crosses, forks and swivel hold the most a rod is asked", min(held.values()) >= 1.0, held)
     hung = told.get('hung') or {'none told': 1e9}
     report.check("each of the trunk's solid prints stands on its bed with nothing hung over it",
                  max(hung.values()) <= told.get('noise', 0.0), hung)
