@@ -8,7 +8,9 @@ loads it with what the trunk bears at the margin, a case a load. The pelvis's yo
 the rods pull its two pins with what holds the chest's measured bow and lean (`knee_loads.loads`, the swing no
 less than the build's spine's peak) through the linkage at rest, at the travel's corner - leant 35 deg, bowed back
 30 - and bowed 85 deg, each rod at most its drive's own torque at the margin on its crank (`trunk_laid.pulled`),
-the cross pushing back on its eyes; and on those eyes the spine's thrust and twist. `shaped` runs a case once
+the cross pushing back on its eyes and turning them back about its own third axis - what the rods' pulls turn
+the chest about it the cross passes on, so the base bears the chest's moment alone -; and on those eyes the
+spine's thrust and twist. `shaped` runs a case once
 (.cache/topo keeps it), `drawn` gives its solid's voxels' faces in the joint's frame - a solid that carries its
 loads, with nothing told to stay lost: else the print stays as drawn -, `posed` the trunk with every such print in
 its place, `told` what each kept; with OUT_DIR the solids are written as STL, on their beds, mm.
@@ -75,7 +77,8 @@ def cases():
             return (patch, turn @ np.asarray(force, float), turn @ np.asarray(moment, float),
                     turn @ np.asarray(about, float) - corner)
         ball = 1e3 * np.array(tl.BALL)
-        held = y <= y[room].min() + 2.0 * h
+        held = ((y <= y[room].min() + 2.0 * h) & (np.abs(x) <= 1e3 * tc.BASE_X)          # the base's foot on the web
+                & (z >= 1e3 * tc.BASE_Z[0]) & (z <= 1e3 * tc.BASE_Z[1]))
         eyes = (np.hypot(y, z) <= 1e3 * tc.PIN_R + ROUND_MM) & (np.abs(x) >= 1e3 * tc.ARM_X)
         boss = ((np.hypot(y - ball[1], z - ball[2]) <= 1e3 * tc.ROD_PIN + ROUND_MM)
                 & (np.abs(x) >= 1e3 * (tl.BALL[0] - tc.LEAN_M - tc.WALL_M)))
@@ -84,8 +87,10 @@ def cases():
         def holding(pose, moment, sides=sides, eyes=eyes):
             pulls = tl.pulled(pose[0], pose[1], moment)
             assert pulls is not None, 'every pose of the travel is reached (trunk_laid.reached)'
+            way = tl.turn(*pose)[0] @ np.array((0.0, 1.0, 0.0))     # the cross's own y: the twist it passes on
+            twist = sum(np.cross(pin, force) for pin, force in zip(pins, pulls)) @ way * way
             return ([load(side, force, none, pin) for side, force, pin in zip(sides, pulls, pins)]
-                    + [load(eyes, -sum(pulls), none, none)])
+                    + [load(eyes, -sum(pulls), -twist, none)])
         loads = [holding((0.0, 0.0), (bow, 0.0)), holding((0.0, 0.0), (0.0, lean)), holding((r1, p0), (bow, 0.0)),
                  holding((r1, p0), (0.0, lean)), holding((0.0, p1), (bow, 0.0)),
                  [load(eyes, (0.0, -spine['axial'], 0.0), (0.0, spine['torsion'], 0.0), none)]]
