@@ -14,6 +14,7 @@ import struct
 import numpy as np
 
 from machine.aircraft import quad
+from machine.body import mechatronics
 from tools import REPO
 from tools.cores.build import cached, native
 
@@ -38,8 +39,13 @@ PACK = 'I I %df %df %df I f %df I %df' % (MODES, MODES, MODES, MODES, TASKS)
 #: first; the observers' bandwidths on the frame's rates and its speed, rad/s; the rate a
 #: height's constraint is come to at, 1/s; the most the air may lean the rotors' axis off its
 #: ask, a tangent; the rate a push is laid to the wind at, rad/s.
-WEIGH_TILT, WEIGH_LIFT, WEIGH_HEADING = 30.0, 3.0, 1.0
-WO_TURN, WO_PULL, RISE, LEAN, WO_WIND = 40.0, 10.0, 5.0, 0.6, 5.0
+_OBS = quad.DYNAMICS['observers']
+_OBS_FACTOR = float(mechatronics.control()['observer_factor'])
+WEIGH_LIFT, WEIGH_HEADING = 3.0, 1.0
+WEIGH_TILT = _OBS_FACTOR * WEIGH_LIFT
+WO_TURN = round(1.0 / (0.25 * quad.SPIN_S + 2.5 * quad.STEP_S), 1)
+WO_PULL, WO_WIND = float(_OBS['pull_bandwidth']), float(_OBS['wind_bandwidth'])
+RISE, LEAN = WO_WIND, round(math.tan(math.pi / 6.0), 1)
 
 _f, _u, _d = ctypes.c_float, ctypes.c_uint32, ctypes.c_double
 _d3, _d4, _d6, _d9, _d12 = _d * 3, _d * 4, _d * 6, _d * 9, _d * 12

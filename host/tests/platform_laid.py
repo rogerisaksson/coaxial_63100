@@ -121,5 +121,5 @@ QR_ALIKE = 'd68c8b1c522d5f93'
 #: by C tree: what has not moved to the robot's own libm (`machine.libm`, wbc_libm.h) yet - the crafts and the body's
 #: meta-compiler, the firmware's float32 trees, CPython's erf, the solver that imports the language's own alone, and
 #: numpy's own power behind wbc_np.h's nppow. A package or a tree not here has none.
-PLATFORM_CALLS = {'aircraft': 236, 'body': 175, 'daq/src': 2, 'eyes': 1, 'mppi/src': 7, 'solver': 3, 'thermal/src': 3,
+PLATFORM_CALLS = {'aircraft': 229, 'body': 175, 'daq/src': 2, 'eyes': 1, 'mppi/src': 7, 'solver': 4, 'thermal/src': 3,
                   'wbc/inc': 1, 'world/src': 12}

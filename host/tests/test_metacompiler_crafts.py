@@ -131,17 +131,16 @@ def test_a_heavier_craft_keeps_its_radii(r):
 
 
 def test_a_quads_hover_is_solved_once(r):
-    """The quadcopter's hover - its rotors' speed, the time they take to it, the stiffness that time
-    leaves - is solved in one place (`compile._hover`) for its blocks and its parts alike: every
-    governor's idle, the rotors' spin time, the attitude's stiffness and the parts' slew and force
-    gains go by one speed, as built and at twice its mass; the rotor's can and torque the module
-    names are the parts' own."""
+    """The quadcopter's hover - its rotors' speed and spin time - is solved in one place (`compile._hover`)
+    from `polars.aero_blocks`' single thrust polar, feeding every governor's idle, the solved attitude
+    impedance (`aircraft.solved`) and the parts' slew and force gains, as built and at twice its mass."""
     from machine.aircraft import compile as craft
     from machine.body import mechatronics
+    from machine.solver import loops
     with open(os.path.join(HOST, *CRAFT_SOLVERS[1].split('/')), encoding='utf-8') as f:
         text = f.read()
-    r.check("the compiler asks the quad's thrust polar and the rotor's ring once each",
-            text.count('polars.kt(') == 1 and text.count("'rotor_ring_share'") == 1,
+    r.check("the compiler duplicates neither the quad's thrust polar nor the rotor's ring",
+            'polars.kt(' not in text and text.count("'rotor_ring_share'") == 1,
             (text.count('polars.kt('), text.count("'rotor_ring_share'")))
     stock = mechatronics.crafts()
     twice = dict(stock, quadcopter=dict(stock['quadcopter'], mass_kg=2.0 * float(stock['quadcopter']['mass_kg'])))
@@ -152,17 +151,18 @@ def test_a_quads_hover_is_solved_once(r):
         weight = float(quad['mass_kg']) * craft.GRAVITY_M_S2
         hover = math.sqrt(weight / (float(quad['rotors']) * blocks['quad_x_16x14'][1]['k_thrust']))
         spin = blocks['quad_direct_governor'][1]['spin_time']
-        stiff = blocks['quad_attitude_impedance'][1]['stiffness']['attitude_pitch']
+        q_imp = blocks['quad_attitude_impedance'][1]
+        stiff, damp = q_imp['stiffness']['attitude_pitch'], q_imp['damping']['attitude_pitch']
         idles = {block['idle_speed'] for kind, block in blocks.values() if kind == 'governor'}
         speeds.append(hover)
         r.check('%s: its hover thrust is its weight, every governor idles at its hover speed over root six' % name,
                 built['defaults'][0] == weight and idles == {float(round(hover / math.sqrt(6.0)))}, idles)
-        r.check("%s: the spin time, the attitude's stiffness and the parts' gains go by that one speed" % name,
+        r.check("%s: the spin time, the solved attitude and Bessel rate gains and the parts' gains go by that speed" % name,
                 spin == round(math.sqrt(0.5) * math.pi * (pull['can_j'] + pull['prop_j']) * hover
                               / craft.ROTOR_MAX_NM, 2)
-                and stiff == float(round(2.0 * pull['v_frac'] / (spin * spin), -1))
+                and q_imp['stiffness']['pitch_rate'] == round(loops.bessel_rate(damp), 1)
                 and pull['w_slew_rad_s'] == float(round(math.sqrt(2.0) * hover, -2))
-                and built['aerokin']['force_a'] == float(round(0.67 * stiff, -2)), (spin, stiff))
+                and built['aerokin']['force_a'] == float(round((2.0 / 3.0) * stiff, -2)), (spin, stiff, damp))
     r.check('twice the mass hovers the root of two faster',
             math.isclose(speeds[1], math.sqrt(2.0) * speeds[0], rel_tol=1e-12), speeds)
     pull = craft.part('pull')
@@ -173,51 +173,85 @@ def test_a_quads_hover_is_solved_once(r):
 
 
 def test_a_crafts_attitude_is_solved_of_its_own(r):
-    """Every text that flies has its tilt solved of its own blocks (`machine.aircraft.attitude`): one loop on
-    its pitch and its roll, at the least of its ceilings with every need beneath; the quadcopter's, the
-    helicopter's and the ornithopter's are the stiffness their blocks hold; a craft's inertia moves its own
-    loop alone; nothing flies on the solved loops yet."""
+    """Every text that flies has its pitch, roll and yaw solved of its own blocks (`aircraft.solved`,
+    `aircraft.attitude`) and flies on those solved loops (`aircraft.compile`, `aircraft.aeroblocks`):
+    tilt at the least of its ceilings, yaw as a rate loop on multirotors and at its stiffest need on 3D
+    crafts; a vehicle's mass, inertia, inverter or inline overrides move its own dynamic configuration."""
     import copy
-    import re
+    import types
     from machine import aircraft
-    from machine.aircraft import attitude
-    from machine.body import mechatronics
+    from machine.aircraft import aerobat, aerolisp, attitude, se3mpc
+    from machine.body import compile as body_compile, mechatronics, peripherals
+    from tools.cores import designed
     rows = attitude.rows()
     texts = [name for kind in aircraft.CRAFTS for name in aircraft.variants(kind)]
-    r.check('every text that flies has a pitch and a roll row: %d rows of %d texts' % (len(rows), len(texts)),
-            [row[:2] for row in rows] == [(name, loop) for name in texts for loop in ('pitch', 'roll')], rows[:2])
+    r.check('every text that flies has pitch, roll and yaw rows: %d rows of %d texts' % (len(rows), len(texts)),
+            [row[:2] for row in rows] == [(name, loop) for name in texts for loop in ('pitch', 'roll', 'yaw')], rows[:3])
     once = {row[:2]: row for row in rows}
-    odd = [key for key, row in once.items() if row[4].kp != min(row[6].values()) or row[6][row[4].ceiling] != row[4].kp
-           or row[5][row[4].need] != max(row[5].values()) or row[4].feasible != (max(row[5].values()) <= row[4].kp)
-           or set(row[5]) != {'motion', 'cascade'} or not {'dead time', 'pitch authority', 'roll authority'} <= set(row[6])
-           or row[4] != once[(key[0], 'pitch')][4]]
-    r.check('a tilt is one loop on both axes, at the least of its ceilings, each need and ceiling by its name', not odd, odd)
+    live_miss = [key for key, row in once.items()
+                 if (row[2], row[3]) != (round(row[4].kp, 1), round(row[4].kd, 1))]
+    r.check('every flying text and variant flies on its statically solved 3-axis loops, matching designed.py',
+            not live_miss and all((rw[2], rw[3]) == (rw[4], rw[5]) for rw in designed.rows()), live_miss)
+    odd = []
+    for (name, axis), row in once.items():
+        lp, needs, ceilings = row[4], row[5], row[6]
+        is_quad = name.startswith('quadcopter')
+        if axis in ('pitch', 'roll'):
+            bad = (lp.kp != min(ceilings.values()) or ceilings[lp.ceiling] != lp.kp
+                   or lp != once[(name, 'pitch')][4] or not {'dead time', 'pitch authority', 'roll authority'} <= set(ceilings))
+        elif is_quad:
+            bad = (lp.kp != 0.0 or lp.kd != min(ceilings.values()) or ceilings[lp.ceiling] != lp.kd
+                   or not {'dead time', 'yaw authority', 'rotor slew'} <= set(ceilings))
+        else:
+            bad = (lp.kp != max(needs.values()) or needs[lp.need] != lp.kp
+                   or set(ceilings) != {'dead time', 'yaw authority'})
+        if bad or needs[lp.need] != max(needs.values()) or lp.feasible != (max(needs.values()) <= min(ceilings.values())):
+            odd.append((name, axis))
+    r.check('tilt stands at its least ceiling, multirotor yaw rate at its ceiling, 3D yaw at its stiffest need',
+            not odd, odd)
     stuck = [key for key, row in once.items() if not row[4].feasible]
-    r.check('every text can follow its card: its motion and the loop it serves lie under its tilt', not stuck, stuck)
-    held = {name: (once[(name, 'pitch')][4].kp, once[(name, 'pitch')][2], once[(name, 'roll')][2])
-            for name in (aircraft.CRAFTS[kind] for kind in ('quad', 'helicopter', 'ornithopter'))}
-    off = {name: got for name, got in held.items() if abs(got[0] / got[1] - 1.0) > 0.01 or abs(got[0] / got[2] - 1.0) > 0.01}
-    r.check("the quadcopter's, the helicopter's and the ornithopter's tilt are the stiffness their blocks hold, within 1 %",
-            not off and 'rotor slew' in once[(aircraft.CRAFTS['quad'], 'pitch')][6], held)
+    r.check('every text is feasible on all three axes', not stuck and 'rotor slew' in once[('quadcopter', 'pitch')][6],
+            stuck)
     crafts = copy.deepcopy(mechatronics.crafts())
     crafts['helicopter']['gyration_m'] = [math.sqrt(2.0) * g for g in crafts['helicopter']['gyration_m']]
     twice = {row[:2]: row for row in attitude.rows(crafts)}
-    halved = [key for key in once if key[0].startswith('helicopter') and abs(twice[key][4].kp / once[key][4].kp - 0.5) > 1e-3]
+    halved = [key for key in once if key[0].startswith('helicopter') and key[1] != 'yaw'
+              and abs(twice[key][4].kp / once[key][4].kp - 0.5) > 1e-3]
+    yaw_ceil = [key for key in once if key[0].startswith('helicopter') and key[1] == 'yaw'
+                and abs(twice[key][6]['yaw authority'] / once[key][6]['yaw authority'] - 0.5) > 1e-3]
     moved = [key for key in once if not key[0].startswith('helicopter') and twice[key] != once[key]]
-    r.check("twice the helicopter's inertia halves its own tilt's stiffness and moves no other craft's loop",
-            not halved and not moved, (halved, moved))
+    r.check("twice the helicopter's inertia halves its tilt stiffness and yaw ceiling and moves no other craft",
+            not halved and not yaw_ceil and not moved, (halved, yaw_ceil, moved))
     light_inv = copy.deepcopy(mechatronics.crafts())
     light_inv['shared']['inverter'] = 'coaxial_63050'
     at_50a = {row[:2]: row for row in attitude.rows(light_inv)}
     slew_100 = once[(aircraft.CRAFTS['quad'], 'pitch')][6]['rotor slew']
     slew_50 = at_50a[(aircraft.CRAFTS['quad'], 'pitch')][6]['rotor slew']
     slew_15 = once[('quadcopter_15in', 'pitch')][6]['rotor slew']
-    r.check('a craft\'s rotor slew follows its own inverter\'s amps and its own propeller\'s inertia',
-            slew_50 < 0.35 * slew_100 and slew_15 > slew_100, (slew_50, slew_100, slew_15))
-    readers = sorted(path.replace(os.sep, '/') for path, text, _tree in sources(beside=False)
-                     if re.search(r'aircraft\.attitude|from machine\.aircraft import[^\n]*\battitude\b', text))
-    flown = [path for path in readers if path.startswith(('machine/', 'coaxial/', 'terminal/'))]
-    r.check('no law, rig or page reads the solved loops: they stand beside the blocks', not flown, flown)
+    r.check('a craft\'s rotor slew and live gains follow its inverter\'s amps and its propeller\'s inertia',
+            slew_50 < 0.35 * slew_100 and slew_15 > slew_100
+            and at_50a[('quadcopter', 'pitch')][2] == round(at_50a[('quadcopter', 'pitch')][4].kp, 1),
+            (slew_50, slew_100, slew_15))
+    custom = aerolisp.compile_manifest(
+        '(include "aerodynamics.lisp") (include "dynamics.lisp") (include "kinematics.lisp") '
+        '(defvehicle heli_custom (use standard_airframe) (use swashplate_550_3d) (use tail_110_antitorque) '
+        '(use swashplate_tail_load) (rigid_body (use heli_pod_boom_body) (mass 4.0kg)) '
+        '(use finned_aluminium_fan_sink) (use heli_3d_governor) '
+        '(impedance (use heli_3d_impedance) (stiffness attitude_yaw 99.0)) (use eso_3d_observers) '
+        '(use standard_arena_envelope) (use vertical_climb_brake) (use orbit_circle) '
+        '(use heli_tictoc_oscillator) (use hold_tolerances))')
+    c_imp = custom['dynamics']['impedance']['stiffness']
+    r.check('defvehicle re-solves impedance on inline mass resize while keeping explicit mode overrides',
+            abs(c_imp['attitude_pitch'] - 0.5 * once[('helicopter', 'pitch')][2]) < 0.2
+            and c_imp['attitude_yaw'] == 99.0, c_imp)
+    heavy_plane = types.SimpleNamespace(**{**{k: getattr(aerobat, k) for k in dir(aerobat) if not k.startswith('__')},
+                                           'MASS_KG': 2.0 * aerobat.MASS_KG})
+    k0, k2 = se3mpc.constants(aerobat), se3mpc.constants(heavy_plane)
+    ctl = mechatronics.control()
+    r.check('SE(3) MPPI floor penalty scales with craft mass and ESO bandwidths follow control.toml observer_factor',
+            k2['kf'] == 2.0 * k0['kf'] and abs(k2['cf'] - 2.0 * k0['cf']) <= 1.0
+            and peripherals.bus()['eso_wo'] == round(body_compile._BUS_HZ / float(ctl['observer_factor']), 1),
+            (k0['kf'], k2['kf'], k0['cf'], k2['cf']))
 
 
 ROSTER = (test_a_craft_states_its_own_alone, test_a_wings_lift_slope_is_its_aspect_ratios,

@@ -50,7 +50,8 @@ RHO, BODY_CDA = _AF['air_density'], _AF['parasite_cda']
 ATT_KP, ATT_KD = _IMP['stiffness']['attitude_pitch'], _IMP['damping']['attitude_pitch']
 ROLL_KP, ROLL_KD = _IMP['stiffness']['attitude_roll'], _IMP['damping']['attitude_roll']
 YAW_KP, YAW_KD = _IMP['stiffness']['attitude_yaw'], _IMP['damping']['attitude_yaw']
-WO_TURN, WO_PULL = _OBS['turn_bandwidth'], _OBS['pull_bandwidth']
+WO_TURN, WO_PULL, WO_WIND = _OBS['turn_bandwidth'], _OBS['pull_bandwidth'], _OBS['wind_bandwidth']
+WIND_REG, MIN_AIR_M_S = _OBS['wind_regularization'], _OBS['min_air_speed']
 FLOOR_M, HOVER_M, WAKE_FLOOR_M_S = (
     KINEMATICS['envelope']['floor_height'], KINEMATICS['envelope']['hover_height'],
     KINEMATICS['vertical']['wake_floor'])

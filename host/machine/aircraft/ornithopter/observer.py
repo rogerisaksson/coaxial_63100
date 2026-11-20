@@ -1,10 +1,13 @@
 """The ornithopter's observer: its velocity, the push on it and the wind, its spin and the turn on it."""
 import math
 
-from machine.aircraft.helicopter.kit import _observe_wind_spin
-from machine.aircraft.ornithopter.airframe import (GRAVITY, INERTIA, K_PITCH, K_ROLL, K_YAW, MASS_KG, RHO,
-                                          WING_SPAN, WO_PULL, WO_TURN, _flap_inflow, _wing_cda,
-                                          _wing_drag)
+from machine.aircraft.helicopter.kit import _observe_wind_spin, observer_params
+from machine.aircraft.ornithopter import airframe as _orni_af
+from machine.aircraft.ornithopter.airframe import (GRAVITY, INERTIA, K_PITCH, K_ROLL, K_YAW, MASS_KG,
+                                                   RHO, WING_SPAN, WO_PULL, WO_TURN, _flap_inflow, _wing_cda,
+                                                   _wing_drag)
+
+_ORN_OBS = observer_params(_orni_af)
 
 
 def observe(core, state, dt):
@@ -47,4 +50,4 @@ def observe(core, state, dt):
     tau = (K_PITCH * w_sq * pitch_t - (INERTIA[2] - INERTIA[1]) * spin[1] * spin[2],
            K_YAW * w_a * w_a * yaw_t - q_w - (INERTIA[0] - INERTIA[2]) * spin[2] * spin[0],
            K_ROLL * w_sq * roll_d - (INERTIA[1] - INERTIA[0]) * spin[0] * spin[1])
-    _observe_wind_spin(core, u, fast, alpha, gamma, up, spin, tau, INERTIA, dt)
+    _observe_wind_spin(core, u, fast, alpha, gamma, up, spin, tau, INERTIA, dt, obs_p=_ORN_OBS)

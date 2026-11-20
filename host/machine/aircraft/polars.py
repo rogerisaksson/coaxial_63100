@@ -12,6 +12,14 @@ def kq(rho, cp, d):
     return round(float(cp) * rho * (float(d) ** 5) / (math.tau ** 3), 9)
 
 
+def layout(rotors):
+    """Where `rotors` rotors stand round a frame's middle, in arms: `(x right, z ahead)` each, a square's
+    corners for four."""
+    return tuple((round(math.sqrt(2.0) * math.sin((2 * k - 1) * math.pi / rotors), 12),
+                  round(math.sqrt(2.0) * math.cos((2 * k - 1) * math.pi / rotors), 12))
+                 for k in range(rotors))
+
+
 def lift_slope(span, chord):
     """A wing's lift a radian of incidence by its aspect ratio (Helmbold's equation): thin-airfoil theory's
     2 pi a radian in two dimensions, less what its trailing vortices' downwash takes of it."""

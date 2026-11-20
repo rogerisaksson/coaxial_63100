@@ -15,6 +15,7 @@ import math
 import os
 
 from machine.aircraft import compile as aircraft_compile
+from machine.solver import contacts
 from tools.cores import mppi
 
 _MPC = aircraft_compile.part('mpc')
@@ -58,19 +59,25 @@ def forces(craft, x, u, w_p, w_v, wind=(0.0, 0.0, 0.0)):
 
 
 def constants(craft):
-    """`craft`'s model constants by name."""
+    """`craft`'s model constants by name, its floor penalty solved of its own mass and gravity."""
     from machine.aircraft import wingborne
     w = craft.WING
     ix, iy, iz = craft.INERTIA
+    m_c, g_c = float(craft.MASS_KG), float(craft.GRAVITY)
+    kf_raw, _ = contacts.penalty(m_c, g_c, 0.05, 0.5, 0.025, 2)
+    kf = float(round(kf_raw, -1))
+    _, cf_raw = contacts.penalty(m_c, g_c, m_c * g_c / kf, 0.5, 0.0, 2)
+    cf = float(round(cf_raw))
+    touch = round(contacts.touch(m_c, g_c, kf, 2.5), 2)
     return dict(m=craft.MASS_KG, g=craft.GRAVITY, kt=craft.K_THRUST, kp=craft.K_PITCH_Q, kr=craft.K_ROLL_Q,
                 ky=craft.K_YAW, kd=craft.K_DRAG, rho=w.rho, area=w.area, cla=w.cl_alpha, span=w.span,
                 stab=w.stab, fin=w.fin, arm=w.arm, wq=w.q, stall=wingborne.STALL_RAD,
                 blend=wingborne.STALL_BLEND, cdl=wingborne.CD_LIFT, j0=craft.INFLOW_J0, pitch=craft.BLADE_PITCH,
                 r=craft.PROP_R, cla_a=craft.CL_ALPHA, cda=craft.BODY_CDA, area_a=craft.WING_AREA,
                 cd0=craft.CD0, cdi=craft.CD_INDUCED, share=craft.PROPWASH_SHARE, ix=ix, iy=iy, iz=iz,
-                kf=K_FLOOR, cf=C_FLOOR, side=w.side, adisc=craft.A_DISC, pb=craft.PROP_BASE,
+                kf=kf, cf=cf, side=w.side, adisc=craft.A_DISC, pb=craft.PROP_BASE,
                 pl=craft.PROP_LOAD, ps=craft.PROP_SURF, ifloor=craft.INFLOW_FLOOR,
-                wfloor=craft.WAKE_FLOOR_M_S, touch=TOUCH_M, skim=getattr(craft, 'TOUCH_M', SKIM_M))
+                wfloor=craft.WAKE_FLOOR_M_S, touch=touch, skim=getattr(craft, 'TOUCH_M', SKIM_M))
 
 
 def points(craft):

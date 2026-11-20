@@ -167,6 +167,49 @@ def test_a_drive_sees_what_the_mass_matrix_says(r):
             and math.isclose(inertia.fall(281.0, 26.5), math.sqrt(281.0 / 26.5), rel_tol=1e-12), lone)
 
 
+def test_rate_observer_and_contact_solvers(r):
+    """`loops.rate_natural`, `loops.rate`, `loops.bessel_rate`, `loops.observer` and `contacts.penalty`
+    hold to their closed forms: a first-order rate loop keeps its asked margin under pi/2, halves its
+    delays for twice the frequency, Bessel PI rate integral stands at d^2 / 3 (zeta sqrt(3)/2), an
+    observer clamps at its sampling ceiling, and parallel contact dampers damp at the system ratio asked."""
+    from machine.solver import contacts, loops
+    for dead, margin, lags in ((0.003, 0.9, ()), (0.002, 0.6, (0.004,)), (0.0, 0.7, (0.02,))):
+        w = loops.rate_natural(dead, margin, lags)
+        s = 1j * w
+        resp = w / s * cmath.exp(-s * dead)
+        for lag in lags:
+            resp /= 1.0 + s * lag
+        # Find unity-gain crossover for lagged rate loop
+        lo, hi = w * 1e-3, w * 1e3
+        for _ in range(200):
+            mid = math.sqrt(lo * hi)
+            sm = 1j * mid
+            g = w / mid / math.prod(math.hypot(1.0, mid * lag) for lag in lags)
+            lo, hi = (mid, hi) if g > 1.0 else (lo, mid)
+        wc = math.sqrt(lo * hi)
+        got = 0.5 * math.pi - wc * dead - sum(math.atan(wc * lag) for lag in lags)
+        r.check('rate loop dead %g s, lags %s: %.1f rad/s leaves %.2f rad margin' % (dead, lags, w, margin),
+                abs(got - margin) < 1e-9, got)
+    r.check('half the rate loop delays allows twice the frequency; no delays is unbounded',
+            math.isclose(loops.rate_natural(0.001, 0.8, (0.002,)) / loops.rate_natural(0.002, 0.8, (0.004,)),
+                         2.0, rel_tol=1e-12)
+            and loops.rate_natural(0.0, 0.8) == math.inf, loops.rate_natural(0.001, 0.8))
+    rl = loops.rate(1.0, {'motion': 3.5, 'cascade': 1.5}, {'dead time': 145.0, 'yaw authority': 4.3})
+    kr = loops.bessel_rate(24.0)
+    r.check('rate loop stands at its least ceiling with kp 0; Bessel PI rate integral has zeta sqrt(3)/2; observer clamps',
+            rl == loops.Loop(0.0, 4.3, 4.3, 'motion', 'yaw authority', True)
+            and math.isclose(24.0 / (2.0 * math.sqrt(kr)), 0.5 * math.sqrt(3.0), rel_tol=1e-12)
+            and loops.observer(1.0, 10.0, 35.0) == 10.0
+            and loops.observer(17.0, 10.0, 35.0) == 35.0, (rl, kr))
+    kp, kd = contacts.penalty(2.0, 9.81, 0.05, 0.5, 0.025, 2)
+    kp_c, _ = contacts.penalty(2.0, 9.81, 1e-5, 0.5, 0.025, 2)
+    r.check('two-point contact penalty gives sag asked, system damping ratio asked, step ceiling and touch depth',
+            math.isclose(kp, 2.0 * 9.81 / 0.05, rel_tol=1e-12)
+            and math.isclose(2.0 * kd / (2.0 * math.sqrt(2.0 * 2.0 * kp)), 0.5, rel_tol=1e-12)
+            and math.isclose(kp_c, 4.0 * 2.0 / (2.0 * 0.025 * 0.025), rel_tol=1e-12)
+            and math.isclose(contacts.touch(2.0, 9.81, kp, 2.5), 0.02, rel_tol=1e-12), (kp, kd, kp_c))
+
+
 def test_the_solver_imports_no_machine(r):
     """The solver's package is functions of numbers: every module of it imports the language's own and
     numpy alone - no spec, no compiler, nothing of the robot or of a craft - so both compilers may call
@@ -183,12 +226,13 @@ def test_the_solver_imports_no_machine(r):
             | {(node.module or '').split('.')[0] for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)})
     far = {name: got for name, got in reached.items() if not set(got) <= PLAIN}
     r.check("%d modules of the solver, each importing the language's own and numpy alone" % len(reached),
-            len(reached) >= 3 and not far, far)
+            len(reached) >= 4 and not far, far)
 
 
 ROSTER = (test_a_loop_keeps_the_margin_asked, test_a_dead_time_sets_the_frequency,
           test_a_solved_loop_stands_in_time, test_a_loop_is_the_softest_that_meets_its_needs,
-          test_a_drive_sees_what_the_mass_matrix_says, test_the_solver_imports_no_machine)
+          test_a_drive_sees_what_the_mass_matrix_says, test_rate_observer_and_contact_solvers,
+          test_the_solver_imports_no_machine)
 
 
 def main(argv=None):

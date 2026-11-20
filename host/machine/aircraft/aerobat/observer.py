@@ -2,10 +2,13 @@
 import ctypes
 import math
 
+from machine.aircraft.aerobat import airframe as _aero_af
 from machine.aircraft.aerobat.airframe import (DIVE_M_S, GRAVITY, INERTIA, K_PITCH_Q, K_ROLL_Q, K_YAW,
-                                      MASS_KG, PROP_R, RHO, ROTATE_M_S, WING, WO_PULL, WO_TURN,
-                                      _aero_cda, _aero_inflow, _prop_drag, slipstream)
-from machine.aircraft.helicopter.kit import _OBS_P, _aero_lib, _observe_wind_spin
+                                               MASS_KG, PROP_R, RHO, ROTATE_M_S, WING, WO_PULL, WO_TURN,
+                                               _aero_cda, _aero_inflow, _prop_drag, slipstream)
+from machine.aircraft.helicopter.kit import _aero_lib, _observe_wind_spin, observer_params
+
+_AER_OBS = observer_params(_aero_af)
 
 _AERO_STATE = (ctypes.c_double * 15)()
 _AERO_VEL = (ctypes.c_double * 3)()
@@ -83,7 +86,7 @@ def observe(core, state, dt):
         _AERO_PARAMS[15] = fast
         _AERO_PARAMS[16] = dt
         lib.aeh_aerobat_observe(_AERO_STATE, _AERO_VEL, _AERO_SPIN, _AERO_TURN, WING._w_lift,
-                                WING._w_mom, _AERO_INERTIA, _OBS_P, _AERO_PARAMS)
+                                WING._w_mom, _AERO_INERTIA, _AER_OBS, _AERO_PARAMS)
         core.wind[:] = (_AERO_STATE[0], _AERO_STATE[1], _AERO_STATE[2])
         core.push_hat[:] = (_AERO_STATE[3], _AERO_STATE[4], _AERO_STATE[5])
         core.spin_hat[:] = (_AERO_STATE[6], _AERO_STATE[7], _AERO_STATE[8])
@@ -105,4 +108,4 @@ def observe(core, state, dt):
     # The wind as the wing's pull answers it too: on the drag's alone a push left from a hover
     # read 6 m/s in still air, and wing-borne none was read.
     _observe_wind_spin(core, u, fast, alpha, gamma, up, spin, tau, INERTIA, dt, RHO * WING.side * fast / MASS_KG,
-                       (t0[0], t1[0], t2[0]), WING.jacobian(u, turn))
+                       (t0[0], t1[0], t2[0]), WING.jacobian(u, turn), _AER_OBS)

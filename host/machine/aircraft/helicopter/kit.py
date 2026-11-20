@@ -8,10 +8,18 @@ import math
 
 from machine.aircraft import grounds
 from machine.body.figure import cross
-from machine.aircraft.helicopter.airframe import (GRAVITY, MASS_KG, MIN_AIR_M_S, WIND_REG, WO_TURN, WO_WIND)
+from machine.aircraft.helicopter import airframe as _heli_af
+from machine.aircraft.helicopter.airframe import GRAVITY, MASS_KG
 
 _d3, _d4, _d9, _d12 = ctypes.c_double * 3, ctypes.c_double * 4, ctypes.c_double * 9, ctypes.c_double * 12
-_OBS_P = _d4(MIN_AIR_M_S, WO_WIND, WIND_REG, WO_TURN)
+
+
+def observer_params(af):
+    """C observer parameter vector `(min_air_speed, wo_wind, wind_reg, wo_turn)` of `af`."""
+    return _d4(af.MIN_AIR_M_S, af.WO_WIND, af.WIND_REG, af.WO_TURN)
+
+
+_OBS_P = observer_params(_heli_af)
 _STATE_IO, _U_BUF, _UP_BUF, _SPIN_BUF, _TAU_BUF, _INERTIA_BUF, _SPAN_BUF, _WING_BUF = (
     _d12(), _d3(), _d3(), _d3(), _d3(), _d3(), _d3(), _d9())
 _LIB = False
@@ -110,7 +118,8 @@ def _course_rate(heading, row):
 
 
 def _observe_wind_spin(core, u, fast, alpha, gamma, up, spin, tau, inertia, dt, side=0.0, span=(0.0, 0.0, 0.0),
-                       wing=None):
+                       wing=None, obs_p=None):
+    params = _OBS_P if obs_p is None else obs_p
     lib = _aero_lib()
     if lib is not None:
         w0, w1, w2 = core.wind
@@ -133,26 +142,28 @@ def _observe_wind_spin(core, u, fast, alpha, gamma, up, spin, tau, inertia, dt, 
             _WING_BUF[:] = (r0[0], r0[1], r0[2], r1[0], r1[1], r1[2], r2[0], r2[1], r2[2])
             wj = _WING_BUF
         lib.aeh_observe_wind_spin(_STATE_IO, _U_BUF, fast, alpha, gamma, _UP_BUF, _SPIN_BUF,
-                                  _TAU_BUF, _INERTIA_BUF, dt, side, _SPAN_BUF, wj, _OBS_P)
+                                  _TAU_BUF, _INERTIA_BUF, dt, side, _SPAN_BUF, wj, params)
         core.wind[:] = (_STATE_IO[0], _STATE_IO[1], _STATE_IO[2])
         core.push_hat[:] = (_STATE_IO[3], _STATE_IO[4], _STATE_IO[5])
         core.spin_hat[:] = (_STATE_IO[6], _STATE_IO[7], _STATE_IO[8])
         core.turn_hat[:] = (_STATE_IO[9], _STATE_IO[10], _STATE_IO[11])
         return
+    min_air, wo_wind, wind_reg, wo_turn = params[0], params[1], params[2], params[3]
     if wing is None:
         wing = ((0.0,) * 3,) * 3
-    uh = tuple(u[a] / fast if fast > MIN_AIR_M_S else 0.0 for a in range(3))
+    uh = tuple(u[a] / fast if fast > min_air else 0.0 for a in range(3))
     m = [[alpha * ((1.0 if a == b else 0.0) + uh[a] * uh[b]) + gamma * up[a] * up[b] + side * span[a] * span[b]
           + wing[a][b] for b in range(3)] for a in range(3)]
     for a in (0, 2):
-        dw = dt * WO_WIND * sum(m[b][a] * core.push_hat[b] for b in range(3)) / (m[0][a] ** 2 + m[1][a] ** 2 + m[2][a] ** 2 + WIND_REG)
+        dw = dt * wo_wind * sum(m[b][a] * core.push_hat[b] for b in range(3)) / (
+            m[0][a] ** 2 + m[1][a] ** 2 + m[2][a] ** 2 + wind_reg)
         core.wind[a] += dw
         for b in range(3):
             core.push_hat[b] -= m[b][a] * dw
     for a in range(3):
         e = spin[a] - core.spin_hat[a]
-        core.spin_hat[a] += dt * (tau[a] / inertia[a] + core.turn_hat[a] + 2.0 * WO_TURN * e)
-        core.turn_hat[a] = max(-12.0, min(12.0, (1.0 - 2.5 * dt) * core.turn_hat[a] + dt * WO_TURN * WO_TURN * e))
+        core.spin_hat[a] += dt * (tau[a] / inertia[a] + core.turn_hat[a] + 2.0 * wo_turn * e)
+        core.turn_hat[a] = max(-12.0, min(12.0, (1.0 - 2.5 * dt) * core.turn_hat[a] + dt * wo_turn * wo_turn * e))
 
 
 def _stunt_step(core, flips, rolls, nose_val, osc_amp, osc_hz, turn, yaw, rate, acc_des, dt):

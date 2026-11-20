@@ -13,7 +13,7 @@ import math
 import os
 
 from machine import libm_bound
-from machine.aircraft import aerolisp, compile as aircraft_compile, text
+from machine.aircraft import aerolisp, compile as aircraft_compile, polars, text
 from machine.aircraft.weather import wind_at
 from tools.cores import bodied
 
@@ -50,16 +50,7 @@ BODY_CDA, RHO = _AF['parasite_cda'], _AF['air_density']
 #: left.
 ROTORS = int(_ROT.get('rotors', 4))
 ARM_M = _ROT['arm_length']
-
-
-def layout(rotors):
-    """Where `rotors` rotors stand round a frame's middle, in arms: (x right, z ahead) each, a square's
-    corners for four."""
-    return tuple((round(math.sqrt(2.0) * math.sin((2 * k - 1) * math.pi / rotors), 12),
-                  round(math.sqrt(2.0) * math.cos((2 * k - 1) * math.pi / rotors), 12))
-                 for k in range(rotors))
-
-
+layout = polars.layout
 _UNIT_AT = layout(ROTORS)
 ROTOR_AT = tuple((ux * ARM_M, uz * ARM_M) for ux, uz in _UNIT_AT)
 SPIN = tuple(1.0 if k % 2 == 0 else -1.0 for k in range(ROTORS))

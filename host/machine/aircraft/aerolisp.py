@@ -8,7 +8,8 @@ from typing import Any
 
 from machine.aircraft import compile as aircraft_compile
 from machine.aircraft.aeroblocks import (AERO_BLOCKS, ALL_BLOCK_KINDS, DYN_BLOCKS, GATES, KIN_BLOCKS,
-                                         STUNT_FIELDS, compile_section, copy_base, dyn_impedance, kv_block)
+                                         STUNT_FIELDS, compile_section, copy_base, dyn_impedance, kv_block,
+                                         solve_vehicle_impedance)
 from machine.body import mechatronics
 
 _BASE_DIR = mechatronics.AIRCRAFT
@@ -279,6 +280,7 @@ def _compile_vehicle(form, out, c):
     for sec, rows in by_sec.items():
         if rows:
             out[sec] = compile_section(['def' + sec, name] + rows, c, out[sec], blocks, sec)
+    solve_vehicle_impedance(out, by_sec['dynamics'], out.get('_pull_cfg'))
 
 
 def _apply_manifest_form(form, out, c, base_dir, seen):
@@ -322,15 +324,17 @@ def _apply_manifest_form(form, out, c, base_dir, seen):
     raise SyntaxError(f'unknown or malformed manifest form {h!r}')
 
 
-def compile_manifest(text, symbols=None, base_dir=_BASE_DIR, blocks=None):
+def compile_manifest(text, symbols=None, base_dir=_BASE_DIR, blocks=None, pull_cfg=None):
     """A craft's text compiled: its vehicle, its blocks by kind, its streams, stunts and routines;
     `blocks` what a `use` names, the compiled spec's (`aircraft.compile.blocks`) unless given."""
     c = AeroLispCompiler(symbols)
-    out = {'includes': [], 'blocks': aircraft_compile.blocks() if blocks is None else blocks, 'vehicle': None, 'aerodynamics': {},
-           'dynamics': {}, 'kinematics': {}, 'streams': [], 'stunts': {}, 'routines': {}}
+    out = {'includes': [], 'blocks': aircraft_compile.blocks() if blocks is None else blocks, 'vehicle': None,
+           'aerodynamics': {}, 'dynamics': {}, 'kinematics': {}, 'streams': [], 'stunts': {}, 'routines': {},
+           '_pull_cfg': pull_cfg}
     for f in _trees(text):
         if not isinstance(f, list) or not f:
             raise SyntaxError(f'invalid form {f!r}')
         _apply_manifest_form(f, out, c, base_dir, set())
+    out.pop('_pull_cfg', None)
     out.update(includes=tuple(out['includes']), streams=tuple(out['streams']))
     return out

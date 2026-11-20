@@ -1,7 +1,8 @@
 """Physical, dynamic and kinematic block schemas and static scaling for AeroLisp."""
 import math
 
-from machine.aircraft import compile as aircraft_compile, polars
+from machine.aircraft import compile as aircraft_compile, polars, solved
+from machine.body import mechatronics
 
 
 def _sp(s):
@@ -363,3 +364,24 @@ def compile_section(form, c, base, blocks, sec):
     c.symbols.update(LAP_S=h['lap_duration'], ORBIT_SPEED=h['orbit_speed'],
                      FUNNEL_TURN_DEG_S=-turn, UNWIND_TURN_DEG_S=turn)
     return out
+
+
+def solve_vehicle_impedance(out, dyn_rows, pull_cfg=None):
+    """Solve `out['dynamics']['impedance']` of a `defvehicle`'s own blocks, keeping explicit overrides."""
+    aero, dyn, kin = out['aerodynamics'], out['dynamics'], out['kinematics']
+    if not (aero and dyn and kin and 'quad_x_16x14' in out['blocks']):
+        return
+    pinned = set()
+    for b in dyn_rows:
+        if isinstance(b, list) and b and b[0] == 'impedance':
+            for r in b[1:]:
+                if isinstance(r, list) and len(r) == 3 and r[0] in ('stiffness', 'damping'):
+                    for m in (DYN_MODES if r[1] == 'global' else (r[1],)):
+                        pinned.add((r[0], m))
+    ref_r = out['blocks']['quad_x_16x14'][1]['disc_radius']
+    pcfg = aircraft_compile.part('pull') if pull_cfg is None else pull_cfg
+    imp = solved.impedance(aero, dyn, kin, mechatronics.control(), pcfg, ref_r, out.get('stunts'))
+    for prop in ('stiffness', 'damping'):
+        for mode, val in imp[prop].items():
+            if (prop, mode) not in pinned:
+                dyn['impedance'][prop][mode] = val

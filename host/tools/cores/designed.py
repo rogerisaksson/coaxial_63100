@@ -5,11 +5,12 @@
     python tools/cores/designed.py --json    # ... as JSON
 
 The solver lays each loop of what its drive turns and the control design's targets
-(`machine.body.looped`, `machine.aircraft.attitude`): the robot's servo table runs on it
-(`machine.body.compile.servos`), the crafts' attitude gains still by shares (their impedance blocks). A
-row: the machine, the loop, today's stiffness and damping, the solved ones, the need that set the
-stiffness, the least ceiling and whether the need lies under it - the robot's in N m/rad and N m s/rad,
-a craft's an inertia's (1/s^2, 1/s).
+(`machine.body.looped`, `machine.aircraft.attitude`): both the robot's servo table
+(`machine.body.compile.servos`) and every craft's 3-axis impedance (`machine.aircraft.compile`,
+`machine.aircraft.aeroblocks`) run on their solved loops. A row: the machine, the loop, today's
+stiffness and damping, the solved ones, the need that set the stiffness, the least ceiling and
+whether the need lies under it - the robot's in N m/rad and N m s/rad, a craft's per inertia
+(1/s^2, 1/s).
 """
 import argparse
 import json
@@ -32,7 +33,7 @@ def rows():
     out = [(mechatronics.ROBOT, kind, today[kind][1], today[kind][2], gains[kind][0], gains[kind][1],
             loop.need, loop.ceiling, loop.feasible)
            for kind, (_rotor, _limb, _most, loop, _needs, _ceilings) in looped.table(st).items()]
-    out += [(machine, name, kp, kd, loop.kp, loop.kd, loop.need, loop.ceiling, loop.feasible)
+    out += [(machine, name, kp, kd, round(loop.kp, 1), round(loop.kd, 1), loop.need, loop.ceiling, loop.feasible)
             for machine, name, kp, kd, loop, _needs, _ceilings in attitude.rows()]
     return out
 

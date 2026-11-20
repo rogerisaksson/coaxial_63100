@@ -1,9 +1,13 @@
 """A loop's stiffness and damping, solved between what its task needs and what its machine allows.
 
     w = loops.natural(dead_s, zeta, margin_rad, lags_s)       # rad/s the dead time and the lags allow
+    w = loops.rate_natural(dead_s, margin_rad, lags_s)        # ... for a first-order rate loop d / (J s)
     k = loops.stiffness(inertia, w)                           # N m/rad that frequency is on that inertia
     loop = loops.design(inertia, zeta, needs, ceilings)       # Loop(kp, kd, natural, need, ceiling, feasible)
     loop = loops.stiffest(inertia, zeta, needs, ceilings)     # ... at its least ceiling
+    loop = loops.rate(inertia, needs, ceilings)               # first-order rate loop (kp = 0) at its ceiling
+    kr = loops.bessel_rate(damping)                           # Bessel PI rate integral stiffness d^2 / 3
+    wo = loops.observer(w, factor, ceiling_rad_s)             # observer bandwidth serving w, under ceiling
 
 A drive holds an inertia J - a joint's, a craft's about an axis - by a stiffness kp and a damping kd:
 the loop's natural frequency is sqrt(kp / J) and its damping ratio kd / (2 sqrt(kp J)). What sets them
@@ -120,3 +124,54 @@ def _laid(inertia, zeta, kp, need, ceiling, feasible):
     and the most, its natural frequency the one on the most."""
     least, most = (min(inertia), max(inertia)) if isinstance(inertia, tuple) else (inertia, inertia)
     return Loop(kp, 2.0 * zeta * math.sqrt(kp * math.sqrt(least * most)), math.sqrt(kp / most), need, ceiling, feasible)
+
+
+def _rate_margin(rate_rad_s, dead_s, lags_s):
+    """Phase margin, rad, of a first-order rate loop `rate_rad_s / s` behind `dead_s` and `lags_s`."""
+    low, high = 0.0, rate_rad_s
+    for _ in range(HALVINGS):
+        mid = 0.5 * (low + high)
+        gain = rate_rad_s / (mid * math.prod(math.hypot(1.0, mid * lag) for lag in lags_s)) if mid > 0.0 else math.inf
+        low, high = (mid, high) if gain > 1.0 else (low, mid)
+    cross = 0.5 * (low + high)
+    return 0.5 * math.pi - cross * dead_s - sum(math.atan(cross * lag) for lag in lags_s)
+
+
+def rate_natural(dead_s, margin_rad, lags_s=()):
+    """The highest crossover frequency, rad/s, at which a first-order rate loop `d / (J s)` keeps the phase
+    margin `margin_rad` (between none and pi / 2) behind its dead time `dead_s` and first-order lags `lags_s`."""
+    if not 0.0 < margin_rad < 0.5 * math.pi:
+        raise ValueError('a rate loop has a margin under pi/2 rad, above none: %g asked' % margin_rad)
+    slow = dead_s + sum(lags_s)
+    if not slow > 0.0:
+        return math.inf
+    if not lags_s:
+        return (0.5 * math.pi - margin_rad) / dead_s
+    low, high = 0.0, (0.5 * math.pi - margin_rad) / slow
+    while _rate_margin(high, dead_s, lags_s) > margin_rad:
+        low, high = high, 2.0 * high
+    for _ in range(HALVINGS):
+        mid = 0.5 * (low + high)
+        low, high = (mid, high) if _rate_margin(mid, dead_s, lags_s) > margin_rad else (low, mid)
+    return low
+
+
+def rate(inertia, needs, ceilings):
+    """A first-order rate loop on `inertia` (kp = 0, kd in N m s/rad or 1/s for unit inertia) at the least of
+    `ceilings`, feasible where every one of `needs` lies under it."""
+    need, ceiling = _bounds(needs, ceilings)
+    most = max(inertia) if isinstance(inertia, tuple) else inertia
+    kd = ceilings[ceiling]
+    return Loop(0.0, kd, kd / most, need, ceiling, needs[need] <= kd)
+
+
+def bessel_rate(damping):
+    """The integral rate stiffness `d^2 / 3` of a second-order Bessel maximally-flat PI rate loop
+    `(d s + kr) / (J s^2)` with rate damping `d`: damping ratio sqrt(3) / 2, zero step overshoot."""
+    return damping * damping / 3.0
+
+
+def observer(loop_rad_s, factor, ceiling_rad_s=math.inf):
+    """An extended state observer's bandwidth, rad/s, serving a loop of `loop_rad_s` by `factor`, bounded
+    above by `ceiling_rad_s`."""
+    return min(factor * loop_rad_s, ceiling_rad_s)

@@ -17,6 +17,7 @@ import os
 from typing import Any
 
 from machine.body import build, compile as _compile, drives, figure, mechatronics
+from machine.solver import loops
 from motor.constants import AIR_GAS_CONSTANT, KELVIN_AT_ZERO_C
 
 #: The least share of a link's nominal mass an identification leaves that link (`identified.KEPT`): the
@@ -26,16 +27,17 @@ KEPT = 0.25
 
 def _build_peripherals():
     env, rbt, lib = mechatronics.environment(), mechatronics.robot(), mechatronics.library()
-    mat = mechatronics.materials()
+    mat, obs_f = mechatronics.materials(), float(mechatronics.control()['observer_factor'])
     amb = float(env['ambient_c'])
     bus_raw = rbt['bus']
     bus_hz, law_div = drives.BUS_HZ, float(drives.LAW_DIV)
+    eso_wo = loops.observer(bus_hz / (obs_f * obs_f), obs_f, bus_hz / obs_f)
     rate_s = (law_div + 2.0) / bus_hz
     thermal_s = round(10.0 / bus_hz, 4)
     walk_hz = _compile.gait()['twist']['walk_hz']
     bus_cfg = {
         'baud': int(bus_raw['baud']), 'turn_s': float(bus_raw['turn_s']),
-        'lockstep_s': 1.0 / bus_hz, 'law_div': int(law_div), 'eso_wo': round(0.1 * bus_hz, 1),
+        'lockstep_s': 1.0 / bus_hz, 'law_div': int(law_div), 'eso_wo': round(eso_wo, 1),
         'max_sys_k': round(0.08 * bus_hz * bus_hz, -3),
         'thermal_s': thermal_s,
         'spin_s': round(2.0 / bus_hz, 4), 'stall_s': round(6000.0 * thermal_s, 1),

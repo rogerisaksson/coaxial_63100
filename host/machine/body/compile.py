@@ -9,10 +9,13 @@ import os
 from typing import Any
 
 from machine.body import build, carried, drives, figure, looped, mechatronics
+from machine.solver import loops
 
 _ENV, _BUILD, _LIB = mechatronics.environment(), mechatronics.robot(), mechatronics.library()
+_OBS_FACTOR = float(mechatronics.control()['observer_factor'])
 G_M_S2, _BUS_HZ, _LAW_DIV = float(_ENV['g_m_s2']), drives.BUS_HZ, float(drives.LAW_DIV)
-_LAW_HZ, ROTOR_FF, _ESO_WO = _BUS_HZ / _LAW_DIV, looped.ROTOR_FF, 0.10 * _BUS_HZ
+_LAW_HZ, ROTOR_FF = _BUS_HZ / _LAW_DIV, looped.ROTOR_FF
+_ESO_WO = loops.observer(_BUS_HZ / (_OBS_FACTOR * _OBS_FACTOR), _OBS_FACTOR, _BUS_HZ / _OBS_FACTOR)
 ENC_RAD = max(tau / float(_LIB['inverters'][s[2]]['encoder_counts']) for s in _BUILD['stacks'].values())
 _MU_DRY, _KIN_SHARE = float(_ENV['mu_dry']), float(_ENV['kinetic_share'])
 _TAKES_NPZ = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'texts', 'takes.npz')
@@ -302,7 +305,7 @@ def _gait(st):
     s_l, s_t = figure.SCALE, sqrt(figure.SCALE)
     t0, v0 = sqrt(leg_m / G_M_S2), sqrt(G_M_S2 * leg_m)
     w_l, w_eso = 1.0 / t0, _ESO_WO / s_t
-    w_task, w_law = 0.1 * w_eso, 0.1 * _LAW_HZ / s_t
+    w_task, w_law = w_eso / _OBS_FACTOR, (_LAW_HZ / _OBS_FACTOR) / s_t
     m_sw, r_sw, j_sw_x = st['swing_leg']
     f_sw = sqrt(m_sw * G_M_S2 * r_sw / (j_sw_x + drives.armature('left_hip'))) / pi
     walk_hz = round(0.5 * (w0 / pi + f_sw) * s_t, 2) / s_t

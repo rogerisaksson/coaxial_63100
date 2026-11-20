@@ -138,9 +138,11 @@ def robot_sources(name=ROBOT):
 
 
 def craft_sources(spec: str | None = None):
-    """All `.toml` construction files governing aircraft and drones (`crafts.toml` + library)."""
+    """All `.toml` and static solver files governing aircraft and drones (`crafts.toml` + library + solver)."""
     p = os.path.abspath(spec) if spec else os.path.abspath(CRAFTS)
-    return library_sources() + (p, constants.__file__)
+    solv_dir = os.path.join(HERE, 'solver')
+    return library_sources() + (p, constants.__file__, os.path.join(solv_dir, 'loops.py'),
+                                os.path.join(solv_dir, 'contacts.py'), os.path.join(HERE, 'aircraft', 'solved.py'))
 
 
 _BODY_MODS = ('mechatronics', 'figure', 'linkage', 'skeleton', 'structural', 'guards',
@@ -151,7 +153,8 @@ def body_sources(name=ROBOT):
     """All `.toml` and Python solver files governing humanoid `name`'s static body compilation."""
     body_dir, solv_dir = os.path.join(HERE, 'body'), os.path.join(HERE, 'solver')
     py = tuple(os.path.join(body_dir, m + '.py') for m in _BODY_MODS) + (
-        os.path.join(solv_dir, 'inertia.py'), os.path.join(solv_dir, 'loops.py'), constants.__file__)
+        os.path.join(solv_dir, 'inertia.py'), os.path.join(solv_dir, 'loops.py'),
+        os.path.join(solv_dir, 'contacts.py'), constants.__file__)
     return robot_sources(name) + py
 
 
