@@ -11,7 +11,8 @@ lies under it within 45 degrees. The compliances are solved by conjugate gradien
 last round's answer: a direct solve does not end at these sizes. `shaped` runs a case - kept under .cache/topo by
 the case's content - and cuts the densities at the highest level whose solid, what hangs pruned off it, still
 carries the loads: the principal stress within the printed polymer's allowable, the stress up the layers within
-ACROSS of it, read in the voxels that were the optimiser's to shape. Told: the solid's voxels, its mass, its
+ACROSS of it, each load taken either way - what a robot bears turns round -, read in the voxels that were the
+optimiser's to shape. Told: the solid's voxels, its mass, its
 margin, what it lost. `knee_topo.faces` draws them, `knee_topo.stl` writes them.
 """
 import hashlib
@@ -198,7 +199,8 @@ def optimise(c, log=None):
 def _digest(c):
     """A case's content as a name: its arrays, its loads, its voxel, its share and the method's own numbers."""
     import numpy as np
-    h = hashlib.sha256(repr((c['h'], c['share'], PENALTY, MOVE, ROUNDS, VOID, SHARP, EPS, LEVELS, kt.REACH)).encode())
+    h = hashlib.sha256(repr((c['h'], c['share'], PENALTY, MOVE, ROUNDS, VOID, SHARP, EPS, LEVELS, kt.REACH,
+                             'either way')).encode())
     for part in (c['room'], c['kept'], c['held']):
         h.update(np.packbits(part).tobytes() + repr(part.shape).encode())
     for patch, force, moment, about in (part for parts in c['loads'] for part in parts):
@@ -237,7 +239,7 @@ def shaped(c, log=None, fresh=False):
         solid = stood(grid)[cells[:, 1], cells[:, 0], cells[:, 2]]
         young = np.where(solid, e0, e0 * VOID)
         moved = _moved(basis, k0, young, loads, free, [None] * len(loads))
-        worst = kt.stresses(basis, mesh, k0, young, loads, fixed, h, e0, moved)[solid & ~kept]
+        worst = kt.stresses(basis, mesh, k0, young, loads, fixed, h, e0, moved + [-u for u in moved])[solid & ~kept]
         margin = min(allow / worst[:, 0].max(), kt.ACROSS_SHARE * allow / max(worst[:, 3].max(), 1e-9))
         grams = float(solid.sum()) * h ** 3 * 1e-9 * kt.DENSITY * 1e3
         if log:

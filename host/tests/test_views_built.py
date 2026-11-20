@@ -114,11 +114,11 @@ def test_a_mount_is_sized_for_what_it_bore_not_for_a_peak(report):
 
 
 def test_the_trunk_reaches_its_travel_and_prints_standing(report):
-    """The coaxial build's trunk as first drafted (`tools.render.trunk_laid`, `trunk_clamped`): a cardan joint at
-    mid back, the calf's drive pair under it, a rod each up to the chest's pins. The pair reaches every pose of
-    the build's own travel - its roll's ends with its pitch's - with no rod pulling nearer its crank's dead centre
-    than the layout holds; each of its solid printed parts stands on its bed with nothing hung over it, and all
-    its prints fit a plate."""
+    """The coaxial build's trunk as first drafted (`tools.render.trunk_laid`, `trunk_clamped`): the calf's drive
+    pair on the chest over one cardan joint low by the hips, a rod each down to the pelvis's pins. The pair
+    reaches every pose of the build's own travel - its roll's ends with its pitch's - with no rod pulling nearer
+    its crank's dead centre than the layout holds; each of its solid printed parts stands on its bed with nothing
+    hung over it, and all its prints fit a plate."""
     told: Any = _told('from tools.render import prints as p, solids as s, trunk_laid as t; got = list(t.reached().values()); '
                       'print(json.dumps({"reached": [v is not None for v in got], "least": t.LEVER, '
                       '"lever": min([v["lever"] for v in got if v] or [0.0]), "hung": s.hung(s.TRUNK), '

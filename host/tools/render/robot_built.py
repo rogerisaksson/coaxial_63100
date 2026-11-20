@@ -4,9 +4,9 @@
 
 The sketches lie each in a frame of its own: the leg's and the hip's in the knee's (`leg_worn`), the arm's and the
 shoulder's in the elbow's (`arm_worn`), the neck's, the head's and the bay's in the torso's (`neck_mount`,
-`neck_hosed`), the trunk's in its joint's (`trunk_clamped`, a first draft: the pelvis's column, the drive pair, the
-cardan joint at mid back, the chest's fork the spine's tube stands on - the prints `trunk_shaped` has shaped by
-their loads drawn as their solids). The page's body ties those frames, the
+`neck_hosed`), the trunk's in its joint's (`trunk_clamped`, a first draft: the pelvis's yoke, the cardan joint low
+by the hips, the drive pair on the chest and the seat the spine's tube stands on - the prints `trunk_shaped` has
+shaped by their loads drawn as their solids). The page's body ties those frames, the
 robot at rest (`gynoid.body`): here each sketch is laid where its segment stands, the right side the left's
 mirror. What no sketch draws yet - the hands - is the page's own, bare, in one faint ink (GHOST): seen for what
 is missing. `sheets` draws the whole from ahead, from its side and from behind, and close on each of its regions,
@@ -76,8 +76,8 @@ def whole():
     """{name: tris} of the build, the root's frame (the pelvis's: x to the robot's left, y up, z ahead), standing:
     'left leg', 'right leg' - hip, knee, calf and foot with their guards and cables -, 'left arm', 'right arm' -
     shoulder, elbow, their tubes, hoses and guards -, 'neck' - the torso's block, the spine's tube, the bay, the neck's and
-    the head's drives, their leads -, 'trunk' - the pelvis's column, the drive pair, the cardan joint, the chest's
-    fork, upright, the hips' yaw drives the legs' own - and 'undrawn'."""
+    the head's drives, their leads -, 'trunk' - the pelvis's yoke, the cardan joint, the drive pair on the chest,
+    upright, the hips' yaw drives the legs' own - and 'undrawn'."""
     import numpy as np
     from tools.render import arm_worn as aw, leg_clamped as lc, leg_worn as lw, neck_hosed as nh, neck_mount as nm
     from tools.render import trunk_clamped as tc, trunk_laid as tl, trunk_shaped as ts

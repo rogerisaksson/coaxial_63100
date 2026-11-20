@@ -1,19 +1,17 @@
-"""The trunk's heaviest prints shaped by their loads: its column, its tower and its fork, by `topo`.
+"""The trunk's heaviest print shaped by its loads: the pelvis's yoke, by `topo`.
 
     COAXIAL_ROBOT=gynoid_mesomorph_medium_coax python -X utf8 tools/render/trunk_shaped.py [OUT_DIR]
 
 A print of `trunk_clamped` is the optimiser's room as drawn: its drawing filled to voxels on its bed (`_room`),
 nothing added to it - material is only taken away. A print's case (`cases`) holds it where it is screwed on and
-loads it with what the trunk bears at the margin, a case a load: the column held by its foot on the web, the spine's
-measured swing, lateral, torsion and thrust (`knee_loads.loads`) on its cupped head; the tower held where its
-saddle lies on the cage, the joint's push either way as both rods pull or push their most, its twist and a push
-across on the journal; the fork held by its two eyes on the pitch pin, the rods' pull on the chest's two pins -
-at rest together and against each other, bowed to the travel's end, leant and bowed back -, each time with the
-moment the tube's foot then bears on the seat, the pin a hinge that bears none, and the tube's thrust and twist
-on that seat. `shaped` runs a case once (.cache/topo keeps it), `drawn` gives its solid's voxels' faces in the
-joint's frame - a solid that carries its loads, with nothing told to stay lost: else the print stays as drawn -,
-`posed` the trunk with every such print in its place, `told` what each kept; with OUT_DIR the solids are written
-as STL, on their beds, mm.
+loads it with what the trunk bears at the margin, a case a load. The pelvis's yoke is held by its base on the web;
+the rods pull its two pins with what holds the chest's measured bow and lean (`knee_loads.loads`, the swing no
+less than the build's spine's peak) through the linkage at rest, at the travel's corner - leant 35 deg, bowed back
+30 - and bowed 85 deg, each rod at most its drive's own torque at the margin on its crank (`trunk_laid.pulled`),
+the cross pushing back on its eyes; and on those eyes the spine's thrust and twist. `shaped` runs a case once
+(.cache/topo keeps it), `drawn` gives its solid's voxels' faces in the joint's frame - a solid that carries its
+loads, with nothing told to stay lost: else the print stays as drawn -, `posed` the trunk with every such print in
+its place, `told` what each kept; with OUT_DIR the solids are written as STL, on their beds, mm.
 """
 import os
 import sys
@@ -34,7 +32,7 @@ from tools.render import trunk_laid as tl  # noqa: E402
 
 #: The prints shaped: {name: (its voxel, mm, the share of what is the optimiser's that it may keep)}; how many
 #: cells a voxel's side is filled by, and how far round an axis a seat's voxels are kept, mm.
-SHAPED, FINE, ROUND_MM = {'column': (3.0, 0.35), 'tower': (2.5, 0.4), 'fork': (3.0, 0.35)}, 3, 4.0
+SHAPED, FINE, ROUND_MM = {'yoke': (4.0, 0.35)}, 3, 4.0
 
 
 def _room(name):
@@ -63,25 +61,12 @@ def _room(name):
     return room, turn, corner, (middles[..., 0], middles[..., 1], middles[..., 2])
 
 
-def _pulls(roll, pitch):
-    """[(the force, N, the left rod pulls the chest's pin with at the margin, the chest's frame), (the right's)] at
-    a pose, deg: each rod bearing the most it does there (`trunk_laid.able`)."""
-    import numpy as np
-    from machine.body import structural
-    chest = tl.turn(roll, pitch)[1]
-    most = structural.MARGIN * (tl.able(roll, pitch) or {'pull': 0.0})['pull']
-    return [chest.T @ (pin - ball) / np.linalg.norm(pin - ball) * most for _b, pin, ball in tl.cranked(roll, pitch) or ()]
-
-
 def cases():
     """{name: its case for `topo`}: the room, what must stay, what holds it and its loads - in its bed's frame."""
     import numpy as np
-    from machine.body import structural
     spine = kl.loads('spine')
-    hy, hz = (1e3 * v for v in tl.HUB[1:])
-    cage = 1e3 * tc.kc.laid()['cage'][3] + 1.0
-    pull = structural.MARGIN * max(v['pull'] for v in tl.reached().values() if v)
-    (r0, r1), (p0, p1) = tl.travel()
+    (_r0, r1), (p0, p1) = tl.travel()
+    bow, lean = 1e-3 * spine['swing'], 1e-3 * spine['lateral']
     out, none = {}, (0.0, 0.0, 0.0)
     for name, (h, share) in SHAPED.items():
         room, turn, corner, (x, y, z) = _room(name)
@@ -89,34 +74,22 @@ def cases():
         def load(patch, force, moment, about, turn=turn, corner=corner):
             return (patch, turn @ np.asarray(force, float), turn @ np.asarray(moment, float),
                     turn @ np.asarray(about, float) - corner)
-        on_cage = np.hypot(y - hy, z - hz) <= cage + 2.0 * h
-        if name == 'column':
-            held = y <= y[room].min() + 2.0 * h
-            kept, loads = held | on_cage, [
-                [load(on_cage, none, (spine['swing'], 0.0, 0.0), none)], [load(on_cage, none, (0.0, 0.0, spine['lateral']), none)],
-                [load(on_cage, none, (0.0, spine['torsion'], 0.0), none)], [load(on_cage, (0.0, -spine['axial'], 0.0), none, none)]]
-        elif name == 'tower':
-            held, bore = on_cage, np.hypot(x, y) <= 1e3 * tc.JOURNAL_R + ROUND_MM
-            kept, loads = bore, [
-                [load(bore, (0.0, -2.0 * pull - spine['axial'], 0.0), none, none)], [load(bore, (0.0, 2.0 * pull, 0.0), none, none)],
-                [load(bore, none, (0.0, spine['torsion'], 0.0), none)], [load(bore, (spine['axial'], 0.0, 0.0), none, none)]]
-        else:
-            ball = 1e3 * np.array(tl.BALL)
-            held = (np.hypot(y, z) <= 1e3 * tc.PIN_R + ROUND_MM) & (np.abs(x) >= 1e3 * tc.ARM_X)
-            seat = y >= 1e3 * tc.BRIDGE[1] - 2.0 * h
-            boss = (np.hypot(y - ball[1], z - ball[2]) <= 1e3 * tc.ROD_PIN + ROUND_MM) & (np.abs(x) > 1e3 * tc.PIN_X)
-            kept, sides = held | seat | boss, (boss & (x > 0.0), boss & (x < 0.0))
-            pins = (ball, ball * (-1.0, 1.0, 1.0))
+        ball = 1e3 * np.array(tl.BALL)
+        held = y <= y[room].min() + 2.0 * h
+        eyes = (np.hypot(y, z) <= 1e3 * tc.PIN_R + ROUND_MM) & (np.abs(x) >= 1e3 * tc.ARM_X)
+        boss = ((np.hypot(y - ball[1], z - ball[2]) <= 1e3 * tc.ROD_PIN + ROUND_MM)
+                & (np.abs(x) >= 1e3 * (tl.BALL[0] - tc.LEAN_M - tc.WALL_M)))
+        sides, pins = (boss & (x > 0.0), boss & (x < 0.0)), (ball, ball * (-1.0, 1.0, 1.0))
 
-            def rods(pose, ways):                      # the rods' pulls, and on the seat the moment that meets them
-                pulls = [way * force for way, force in zip(ways, _pulls(*pose))]
-                met = -sum(np.cross(pin, force) for pin, force in zip(pins, pulls))
-                return [load(side, force, none, pin) for side, force, pin in zip(sides, pulls, pins)] + [
-                    load(seat, none, met, none)]
-            loads = [rods((0.0, 0.0), (1.0, 1.0)), rods((0.0, 0.0), (1.0, -1.0)), rods((0.0, p1), (1.0, 1.0)),
-                     rods((r1, p0), (1.0, -1.0)),
-                     [load(seat, (0.0, -spine['axial'], 0.0), (0.0, spine['torsion'], 0.0), (0.0, 1e3 * tc.BRIDGE[1], 0.0))]]
-        out[name] = topo.case('trunk ' + name, room, kept, held, loads, h, share)
+        def holding(pose, moment, sides=sides, eyes=eyes):
+            pulls = tl.pulled(pose[0], pose[1], moment)
+            assert pulls is not None, 'every pose of the travel is reached (trunk_laid.reached)'
+            return ([load(side, force, none, pin) for side, force, pin in zip(sides, pulls, pins)]
+                    + [load(eyes, -sum(pulls), none, none)])
+        loads = [holding((0.0, 0.0), (bow, 0.0)), holding((0.0, 0.0), (0.0, lean)), holding((r1, p0), (bow, 0.0)),
+                 holding((r1, p0), (0.0, lean)), holding((0.0, p1), (bow, 0.0)),
+                 [load(eyes, (0.0, -spine['axial'], 0.0), (0.0, spine['torsion'], 0.0), none)]]
+        out[name] = topo.case('trunk ' + name, room, held | eyes | boss, held, loads, h, share)
     return out
 
 
@@ -141,11 +114,11 @@ def drawn(name):
 def posed(roll=0.0, pitch=0.0):
     """`trunk_clamped.posed` with every print shaped so far drawn as its solid."""
     out = tc.posed(roll, pitch)
-    chest = tl.turn(roll, pitch)[1]
+    turns = dict(zip(('cross', 'chest'), tl.turn(roll, pitch)))
     for name in SHAPED:
         tris, link = drawn(name), tc.PRINTS[name][0]
         if tris is not None:
-            out[(link, name)] = hf._put(tris, chest) if link == 'chest' else tris
+            out[(link, name)] = hf._put(tris, turns[link]) if link in turns else tris
     return out
 
 
