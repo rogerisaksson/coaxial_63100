@@ -17,11 +17,10 @@ not from the estimate, one line a sample:
 """
 import argparse
 import ctypes
-import os
 import sys
 
 from tools.cores.build import build, find_cc
-from tools.cores.thermal import SCALES, SOURCES, THERMAL, GroundTruth, Ident, Model, power
+from tools.cores.thermal import INCLUDES, SCALES, SOURCES, GroundTruth, Ident, Model, power
 
 
 def build_traced():
@@ -31,7 +30,7 @@ def build_traced():
         sys.exit('no host C compiler; setup.ps1 installs one')
     # build() passes its sources to the compiler verbatim and has no defines.
     lib_path, _warnings = build(cc, ['-DTHERMAL_IDENT_TRACE'] + SOURCES,
-                                [os.path.join(THERMAL, 'inc')], 'thermaltrace')
+                                INCLUDES, 'thermaltrace')
     return ctypes.CDLL(lib_path)
 
 

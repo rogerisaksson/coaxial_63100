@@ -1,10 +1,9 @@
 """The drive core built for this host with the firmware's flags, and a suite run on it."""
 import ctypes
-import os
 import sys
 
 from tools.cores.build import build, find_cc
-from tools.cores.drive import DRIVE, SOURCES
+from tools.cores.drive import INCLUDES, SOURCES
 from tools.dev.focus import chosen
 
 from test_modbus_core import Report
@@ -18,8 +17,7 @@ def suite(roster, name, argv=None):
         print('  SKIP  no host C compiler; setup.ps1 installs one')
         print('\n0 passed, 0 failed')
         return 0
-    lib_path, warnings = build(cc, SOURCES, [os.path.join(DRIVE, 'inc'),
-                                             os.path.join(os.path.dirname(DRIVE), 'comms', 'inc')], name=name)
+    lib_path, warnings = build(cc, SOURCES, INCLUDES, name=name)
     lib = ctypes.CDLL(lib_path)
     report = Report()
     report.check('drive/ builds warning-free with the firmware flags',

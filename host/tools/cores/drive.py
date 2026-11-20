@@ -15,6 +15,7 @@ SOURCES = [os.path.join(DRIVE, 'test', 'harness.c'),
            os.path.join(DRIVE, 'src', 'drive_model.c'),
            os.path.join(DRIVE, 'src', 'drive_observer.c'),
            os.path.join(DRIVE, 'src', 'drive_thermal.c')]
+INCLUDES = [os.path.join(DRIVE, 'inc'), os.path.join(REPO, 'comms', 'inc')]
 
 #: One control period, s: the switching period of the library's inverter (`machine/library/inverters.toml`,
 #: read as the file it is - a core's harness lies under the board's package and comes to none of it).

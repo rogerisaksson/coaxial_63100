@@ -11,6 +11,7 @@ SOURCES = [os.path.join(THERMAL, 'test', 'harness.c'),
            os.path.join(THERMAL, 'src', 'thermal.c'),
            os.path.join(THERMAL, 'src', 'thermal_ident.c'),
            os.path.join(THERMAL, 'src', 'thermal_app.c')]
+INCLUDES = [os.path.join(THERMAL, 'inc'), os.path.join(REPO, 'comms', 'inc')]
 
 #: The nodes, in the order `thermal.h` declares them. Named here so a
 #: failure says `phase_u` and not `3`; the count is asked of the C.

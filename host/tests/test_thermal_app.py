@@ -11,7 +11,7 @@ from coaxial.errors import RigError
 from coaxial.model import thermal, thermal_app
 from machine.rig.modes import SIMULATED
 from tools.cores.build import build, find_cc
-from tools.cores.thermal import NODES, SOURCES, THERMAL, Model
+from tools.cores.thermal import INCLUDES, NODES, SOURCES, Model
 
 from test_modbus_core import Report
 
@@ -195,7 +195,7 @@ def main():
         print('  SKIP  no host C compiler; setup.ps1 installs one')
         print('\n0 passed, 0 failed')
         return 0
-    lib_path, warnings = build(cc, SOURCES, [os.path.join(THERMAL, 'inc')], name='thermalapp')
+    lib_path, warnings = build(cc, SOURCES, INCLUDES, name='thermalapp')
     lib = ctypes.CDLL(lib_path)
     report = Report()
     report.check('thermal/ builds warning-free with the firmware flags', not warnings,

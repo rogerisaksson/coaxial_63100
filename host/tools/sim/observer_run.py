@@ -24,7 +24,6 @@ about a plausible motor, not about the one on the bench.
 import argparse
 import ctypes
 import math
-import os
 import sys
 
 from coaxial.model import inverter, sensorless
@@ -167,8 +166,7 @@ def main():
     if cc is None:
         print('no host C compiler; setup.ps1 installs one')
         return 1
-    path, warnings = build(cc, H.SOURCES,
-                           [os.path.join(H.DRIVE, 'inc')], name='drivecore')
+    path, warnings = build(cc, H.SOURCES, H.INCLUDES, name='drivecore')
     if warnings:
         print('BUILD WARNINGS: %s' % '; '.join(warnings[:3]))
     lib = ctypes.CDLL(path)

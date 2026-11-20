@@ -6,7 +6,7 @@ import sys
 from typing import Any, Dict, Tuple
 
 from tools.cores.build import build, find_cc
-from tools.cores.thermal import (AMBIENT, BOARD_LIMIT_C, LAMINATE, LEG_LIMIT_C, LIMIT_C,
+from tools.cores.thermal import (AMBIENT, BOARD_LIMIT_C, INCLUDES, LAMINATE, LEG_LIMIT_C, LIMIT_C,
                                  LOOKAHEAD_S, NODES, SCALES, SOURCES, THERMAL,
                                  THROTTLE_AT, WINDING_LIMIT_C, GroundTruth,
                                  Ident, Model, edges, losses, power)
@@ -1390,9 +1390,7 @@ def main():
         print('  SKIP  no host C compiler; setup.ps1 installs one')
         print('\n0 passed, 0 failed')
         return 0
-    lib_path, warnings = build(cc, SOURCES, [os.path.join(THERMAL, 'inc'),
-                                             os.path.join(os.path.dirname(THERMAL), 'comms', 'inc')],
-                               name='thermalcore')
+    lib_path, warnings = build(cc, SOURCES, INCLUDES, name='thermalcore')
     lib = ctypes.CDLL(lib_path)
     report = Report()
     report.check('thermal/ builds warning-free with the firmware flags',

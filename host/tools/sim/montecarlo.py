@@ -83,8 +83,7 @@ def hold(lib):
 
 def library():
     """Build once in the parent; the workers only load."""
-    return build(find_cc(), H.SOURCES, [os.path.join(H.DRIVE, 'inc')],
-                 name='drivecore_mc')[0]
+    return build(find_cc(), H.SOURCES, H.INCLUDES, name='drivecore_mc')[0]
 
 
 def _load(path):
