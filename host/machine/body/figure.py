@@ -17,7 +17,7 @@ from machine.body import mechatronics
 #: and its pads' gel as they are; its masses as built follow its capsules
 #: (`machine.body.build`).
 _F = mechatronics.robot()['figure']
-SCALE = float(_F['scale'])
+SCALE = float(_F.get('scale', 1.0))
 
 #: The robot's legs, metres (`coaxial.graphics.gynoid` is built on them): the hips apart (half) and
 #: below the pelvis's centre, thigh and shank, the ankle over the sole, the ball ahead of it
@@ -51,6 +51,26 @@ def _m(*lengths):
     return tuple(SCALE * m for m in lengths)
 
 
+def _vec3(v):
+    """3D offset `(x, y, z)` at `SCALE`: zero when omitted, sagittal `(0, y, 0)` when scalar."""
+    if v is None:
+        return (0.0, 0.0, 0.0)
+    if isinstance(v, (int, float)):
+        return _m(0.0, float(v), 0.0)
+    return _m(float(v[0]), float(v[1]), float(v[2]))
+
+
+def _gyr3(g):
+    """3D radii of gyration `(gx, gy, gz)` at `SCALE`: isotropic scalar, axisymmetric `[g_perp, gy]`, or 3-tuple."""
+    if isinstance(g, (int, float)):
+        v = float(g)
+        return _m(v, v, v)
+    if len(g) == 2:
+        gp, ga = float(g[0]), float(g[1])
+        return _m(gp, ga, gp)
+    return _m(float(g[0]), float(g[1]), float(g[2]))
+
+
 def _sides():
     out = []
     a, f, h, g, th, sh, ft, to = (_SEG[k] for k in ('upper_arm', 'forearm', 'hand', 'fingers', 'thigh', 'shank',
@@ -60,24 +80,24 @@ def _sides():
         out += [
             (side + '_upper_arm', 'torso', ((side + '_shoulder', 'x', -1),),
              _m(a['at'][0] * x, a['at'][1], a['at'][2]), a['turn'] * x, a['share'],
-             (0.0, a['com_along'] * UPPER_ARM, 0.0), _m(*a['gyration'])),
+             (0.0, a['com_along'] * UPPER_ARM, 0.0), _gyr3(a['gyration'])),
             (side + '_forearm', side + '_upper_arm', ((side + '_elbow', 'x', -1),),
              (0.0, -UPPER_ARM, 0.0), CARRY_DEG * x, f['share'], (0.0, f['com_along'] * FOREARM, 0.0),
-             _m(*f['gyration'])),
+             _gyr3(f['gyration'])),
             (side + '_hand', side + '_forearm', ((side + '_wrist', 'x', -1),),
-             (0.0, -FOREARM, 0.0), 0.0, h['share'], _m(*h['com']), _m(*h['gyration'])),
+             (0.0, -FOREARM, 0.0), 0.0, h['share'], _vec3(h.get('com')), _gyr3(h['gyration'])),
             (side + '_fingers', side + '_hand', ((side + '_gripper', 'x', -1),),
-             _m(*g['at']), 0.0, g['share'], _m(*g['com']), _m(*g['gyration'])),
+             _vec3(g.get('at')), 0.0, g['share'], _vec3(g.get('com')), _gyr3(g['gyration'])),
             (side + '_thigh', 'pelvis', ((side + '_hip_yaw', 'y', s), (side + '_hip_roll', 'z', s),
                                         (side + '_hip', 'x', 1)),
              (HIP_HALF * x, -HIP_DROP, 0.0), 0.0, th['share'], (0.0, th['com_along'] * THIGH, 0.0),
-             _m(*th['gyration'])),
+             _gyr3(th['gyration'])),
             (side + '_shank', side + '_thigh', ((side + '_knee', 'x', 1),),
-             (0.0, -THIGH, 0.0), 0.0, sh['share'], (0.0, sh['com_along'] * SHANK, 0.0), _m(*sh['gyration'])),
+             (0.0, -THIGH, 0.0), 0.0, sh['share'], (0.0, sh['com_along'] * SHANK, 0.0), _gyr3(sh['gyration'])),
             (side + '_foot', side + '_shank', ((side + '_ankle', 'x', 1), (side + '_ankle_roll', 'z', s)),
-             (0.0, -SHANK, 0.0), 0.0, ft['share'], _m(*ft['com']), _m(*ft['gyration'])),
+             (0.0, -SHANK, 0.0), 0.0, ft['share'], _vec3(ft.get('com')), _gyr3(ft['gyration'])),
             (side + '_toes', side + '_foot', ((side + '_foot', 'x', 1),),
-             (0.0, -(ANKLE_H - TOE_RY), BALL), 0.0, to['share'], _m(*to['com']), _m(*to['gyration']))]
+             (0.0, -(ANKLE_H - TOE_RY), BALL), 0.0, to['share'], _vec3(to.get('com')), _gyr3(to['gyration']))]
     return out
 
 
@@ -89,14 +109,14 @@ def _sides():
 _TORSO_JOINTS = tuple((str(j), str(a), int(s)) for j, a, s in _SEG['torso'].get(
     'joints', (('spine_roll', 'z', 1), ('spine', 'x', 1), ('waist', 'y', 1))))
 SEGMENTS = tuple([
-    ('pelvis', None, (), (0.0, 0.0, 0.0), 0.0, _SEG['pelvis']['share'], _m(*_SEG['pelvis']['com']),
-     _m(*_SEG['pelvis']['gyration'])),
+    ('pelvis', None, (), (0.0, 0.0, 0.0), 0.0, _SEG['pelvis']['share'], _vec3(_SEG['pelvis'].get('com')),
+     _gyr3(_SEG['pelvis']['gyration'])),
     ('torso', 'pelvis', _TORSO_JOINTS,
-     _m(*_SEG['torso']['at']), 0.0, _SEG['torso']['share'], _m(*_SEG['torso']['com']), _m(*_SEG['torso']['gyration'])),
-    ('neck', 'torso', (('neck', 'x', 1),), _m(*_SEG['neck']['at']), 0.0, _SEG['neck']['share'],
-     _m(*_SEG['neck']['com']), _m(*_SEG['neck']['gyration'])),
-    ('head', 'neck', (('head', 'y', 1),), _m(*_SEG['head']['at']), 0.0, _SEG['head']['share'],
-     _m(*_SEG['head']['com']), _m(*_SEG['head']['gyration']))] + _sides())
+     _vec3(_SEG['torso'].get('at')), 0.0, _SEG['torso']['share'], _vec3(_SEG['torso'].get('com')), _gyr3(_SEG['torso']['gyration'])),
+    ('neck', 'torso', (('neck', 'x', 1),), _vec3(_SEG['neck'].get('at')), 0.0, _SEG['neck']['share'],
+     _vec3(_SEG['neck'].get('com')), _gyr3(_SEG['neck']['gyration'])),
+    ('head', 'neck', (('head', 'y', 1),), _vec3(_SEG['head'].get('at')), 0.0, _SEG['head']['share'],
+     _vec3(_SEG['head'].get('com')), _gyr3(_SEG['head']['gyration']))] + _sides())
 
 #: The sole's half-width, metres.
 SOLE_HALF = SCALE * _F['sole_half']
@@ -135,12 +155,22 @@ FIST_R, FIST_AT = SCALE * _F['fist'][0], _m(*_F['fist'][1:])
 
 
 def _capsules(row):
-    """BODY's rows of a `[figure] body` row: ['seat'] the robot's buttocks, ['fist'] its fist, [segment,
-    radius, inset] a limb's along its length from either joint, else [segment, radius, from, to]."""
+    """BODY's rows of a `[figure] body` row: ['seat'] the robot's buttocks, ['fist'] its fist,
+    ['pair', segment, radius, [x, y, z]] a bilateral sphere pair, [segment, radius, [half_x, y(, z)]]
+    an across-x capsule or midline sphere, [segment, radius, inset] a limb's along its length from
+    either joint, else [segment, radius, from, to]."""
     if row[0] == 'seat':
         return [('pelvis', SEAT_R, (x, SEAT_Y, SEAT_Z[0]), (x, SEAT_Y, SEAT_Z[1])) for x in (SEAT_X, -SEAT_X)]
     if row[0] == 'fist':
         return [('hand', FIST_R, FIST_AT, FIST_AT)]
+    if row[0] == 'pair':
+        _tag, seg, r, pt = row
+        px, py, pz = float(pt[0]), float(pt[1]), float(pt[2])
+        return [(seg, SCALE * r, _m(sx, py, pz), _m(sx, py, pz)) for sx in (px, -px)]
+    if len(row) == 3 and isinstance(row[2], list):
+        seg, r, pt = row
+        hx, py, pz = float(pt[0]), float(pt[1]), (float(pt[2]) if len(pt) > 2 else 0.0)
+        return [(seg, SCALE * r, _m(-hx if hx else 0.0, py, pz), _m(hx, py, pz))]
     if len(row) == 3:
         return [(row[0], SCALE * row[1], _m(0.0, -row[2], 0.0), (0.0, SCALE * row[2] - _LONG[row[0]], 0.0))]
     return [(row[0], SCALE * row[1], _m(*row[2]), _m(*row[3]))]

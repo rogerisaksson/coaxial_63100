@@ -1,15 +1,26 @@
-"""Static aerodynamic polars, arena kinematics, rigid-body inertia and heatsink blocks."""
+"""Static aerodynamic polars, arena kinematics, composite inertia, and heatsink blocks."""
 import math
 
 from machine.body import mechatronics
+from machine.solver import aero as solver_aero, inertia as solver_inertia
+
+#: Helmbold 3D finite-wing lift-curve slope, re-exported from `machine.solver.aero`.
+lift_slope = solver_aero.lift_slope
+#: Foam-carbon wing and tail areal density (kg/m^2) and flapping carbon-membrane areal density (kg/m^2).
+WING_SKIN_KG_M2, MEMBRANE_KG_M2 = 0.55, 0.25
 
 
 def kt(rho, ct, d):
-    return round(float(ct) * rho * (float(d) ** 4) / (math.tau ** 2), 8)
+    d_f = float(d)
+    d2 = d_f * d_f
+    return round(float(ct) * rho * (d2 * d2) / (math.tau * math.tau), 8)
 
 
 def kq(rho, cp, d):
-    return round(float(cp) * rho * (float(d) ** 5) / (math.tau ** 3), 9)
+    d_f = float(d)
+    d2 = d_f * d_f
+    t = math.tau
+    return round(float(cp) * rho * (d2 * d2 * d_f) / (t * t * t), 9)
 
 
 def layout(rotors):
@@ -20,23 +31,80 @@ def layout(rotors):
                  for k in range(rotors))
 
 
-def lift_slope(span, chord):
-    """A wing's lift a radian of incidence by its aspect ratio (Helmbold's equation): thin-airfoil theory's
-    2 pi a radian in two dimensions, less what its trailing vortices' downwash takes of it."""
-    aspect = float(span) / float(chord)
-    return math.tau * aspect / (2.0 + math.sqrt(aspect * aspect + 4.0))
+def prop_inertia(cfg, mat, d_key='diameter_m'):
+    """Propeller rotational inertia, kg m^2: explicit override or thin carbon shell (`solver.aero`)."""
+    if 'prop_kgm2' in cfg:
+        return float(cfg['prop_kgm2'])
+    digits = 5 if d_key == 'diameter_m' else 4
+    return round(solver_aero.blade_inertia(cfg[d_key], mat['cf_kg_m3'], mat['min_wall_m']), digits)
 
 
 def _gyr(mass, gyr):
     m = float(mass)
-    return tuple(round(m * float(r) ** 2, 6) for r in gyr)
+    return tuple(round(m * float(r) * float(r), 6) for r in gyr)
+
+
+def _craft_inertia(kind, cfg, mat, mot):
+    """Principal `(ixx, iyy, izz)` at `cfg['mass_kg']` from structural tubes, wings, skids, and drives."""
+    if 'gyration_m' in cfg:
+        return tuple(round(x, 3) for x in _gyr(cfg['mass_kg'], cfg['gyration_m']))
+    m = float(cfg['mass_kg'])
+    rho_cf, wall = float(mat['cf_kg_m3']), float(mat['min_wall_m'])
+    sx, sh = float(cfg['skid_span_m']), float(cfg['skid_h_m'])
+    saft, sfore = float(cfg['strut_aft_m']), float(cfg['strut_fore_m'])
+    l_sk, z_sk = sfore - saft, 0.5 * (sfore + saft)
+    if kind == 'helicopter':
+        l_b, rt = float(cfg['tail_boom_m']), 0.5 * float(cfg['tail_diameter_m'])
+        h_can = float(mot['height_m'])
+        m_tail = 2.0 * solver_aero.blade_inertia(2.0 * rt, rho_cf, wall, aspect=5.0) / max(1e-6, rt * rt) + 0.012
+        parts = [
+            solver_inertia.tube(0.006, wall, l_b + saft, rho_cf, 'z', (0.0, 0.0, 0.5 * (saft - l_b))),
+            solver_inertia.disc(m_tail, rt, 'x', (0.0, 0.0, -l_b)),
+            solver_inertia.tube(0.005, wall, l_sk, rho_cf, 'z', (sx, -sh, z_sk)),
+            solver_inertia.tube(0.005, wall, l_sk, rho_cf, 'z', (-sx, -sh, z_sk)),
+            solver_inertia.tube(0.005, wall, 2.0 * sx, rho_cf, 'x', (0.0, -0.5 * sh, sfore)),
+            solver_inertia.tube(0.005, wall, 2.0 * sx, rho_cf, 'x', (0.0, -0.5 * sh, saft)),
+        ]
+        ixx, iyy, izz = solver_inertia.composite(parts, m, (1.6 * sx, 1.5 * h_can, 0.7 * l_sk), trim_axis=2)
+    elif kind == 'ornithopter':
+        ws, wc = float(cfg['wing_span_m']), float(cfg['wing_chord_m'])
+        shx, shy = float(cfg['shoulder_x_m']), float(cfg['shoulder_y_m'])
+        fz, az = float(cfg['fore_z_m']), float(cfg['aft_z_m'])
+        m_wing = solver_inertia.tube(0.004, wall, ws, rho_cf, 'x')[0] + MEMBRANE_KG_M2 * ws * wc
+        parts = [
+            *(solver_inertia.box(m_wing, 0.8 * ws, 0.01, wc, (s * (shx + 0.30 * ws), shy, zw))
+              for s in (-1.0, 1.0) for zw in (fz, az)),
+            solver_inertia.tube(0.006, wall, ws, rho_cf, 'z', (0.0, 0.0, sfore - 0.5 * ws)),
+            solver_inertia.tube(0.005, wall, l_sk, rho_cf, 'z', (sx, -sh, z_sk)),
+            solver_inertia.tube(0.005, wall, l_sk, rho_cf, 'z', (-sx, -sh, z_sk)),
+        ]
+        ixx, iyy, izz = solver_inertia.composite(parts, m, (2.0 * shx, sh, 1.2 * l_sk), trim_axis=2)
+    else:
+        ws, wc = float(cfg['wing_span_m']), float(cfg['wing_chord_m'])
+        pz, ta = float(cfg['prop_z_m']), float(cfg['tail_arm_m'])
+        sa, fa = float(cfg['stab_area_m2']), float(cfg['fin_area_m2'])
+        stab_b, fin_h = math.sqrt(sa * ws / wc), math.sqrt(2.0 * fa)
+        d_can, h_can, pd = float(mot['can_m']), float(mot['height_m']), float(cfg['prop_diameter_m'])
+        m_prop = prop_inertia(cfg, mat, 'prop_diameter_m') / max(1e-6, 0.05 * pd * pd)
+        parts = [
+            solver_inertia.box(float(mot['kg']) + m_prop, d_can, h_can, d_can, (0.0, 0.55 * pz, 0.0)),
+            solver_inertia.tube(0.005, wall, ws, rho_cf, 'x', (0.0, 0.0, 0.02)),
+            solver_inertia.box(WING_SKIN_KG_M2 * ws * wc, 0.80 * ws, wc, 0.03, (0.0, 0.0, 0.02)),
+            solver_inertia.tube(0.017, wall, abs(saft), rho_cf, 'y', (0.0, 0.5 * saft, 0.0)),
+            solver_inertia.box(WING_SKIN_KG_M2 * (sa + fa), stab_b, 0.20, fin_h, (0.0, -ta, -0.25 * fin_h)),
+            solver_inertia.box(0.055, 0.03, 0.06, sh, (sx, sfore, 0.75 * sh)),
+            solver_inertia.box(0.055, 0.03, 0.06, sh, (-sx, sfore, 0.75 * sh)),
+        ]
+        ixx, iyy, izz = solver_inertia.composite(parts, m, (0.14, 0.20, 0.20), trim_axis=1)
+    return round(ixx, 3), round(iyy, 3), round(izz, 3)
 
 
 def arena(crafts, rho, g):
     sh, qc, ae = crafts['shared'], crafts['quadcopter'], crafts['aerobat']
     foot_r, q_skid = float(sh['foot_r_m']), float(qc['skid_h_m'])
     q_arm, q_d, q_m = float(qc['arm_m']), float(qc['diameter_m']), float(qc['mass_kg'])
-    a_disc = float(qc['rotors']) * math.pi * (0.5 * q_d) ** 2
+    r_q = 0.5 * q_d
+    a_disc = float(qc['rotors']) * math.pi * r_q * r_q
     v_h = math.sqrt(q_m * g / (2.0 * rho * a_disc))
     floor_m = round(q_skid - foot_r, 1)
     hover_m = round(q_arm, 2)
@@ -81,13 +149,14 @@ def cd_induced(ae):
 def _heli_drag_shares(he, inf_fl):
     prof = float(he.get('profile_drag_share', inf_fl))
     ind = float(he.get('induced_drag_share', round(2.0 - prof, 2)))
-    cyc = float(he.get('cyclic_drag_share', round((float(he['cyclic_deg']) / float(he['collective_deg'])) ** 2, 1)))
+    ratio = float(he['cyclic_deg']) / float(he['collective_deg'])
+    cyc = float(he.get('cyclic_drag_share', round(ratio * ratio, 1)))
     return prof, ind, cyc
 
 
-def _drive_loads(he, or_, ae, inv, inf_fl):
+def _drive_loads(he, or_, ae, inv, inf_fl, o_cl):
     prof, ind, cyc = _heli_drag_shares(he, inf_fl)
-    pulse, cl_g = float(or_['beat_pulse']), float(or_['cl_glide'])
+    pulse = float(or_['beat_pulse'])
     cd0, cdi, pw = float(ae['cd0']), cd_induced(ae), float(ae['propwash_share'])
     wep_ratio = float(inv['wep_amps']) / float(inv['flight_amps'])
     ae_tp = round(1.0 + 1.5 * pw * (cd0 + cdi), 2)
@@ -99,12 +168,12 @@ def _drive_loads(he, or_, ae, inv, inf_fl):
             'tail_pitch': round(1.0 + 0.5 * cyc, 2), 'tail_ceiling': 1.0,
         }),
         'ornithopter_wing_load': ('drive_load', {
-            'main_base': round(inf_fl + 0.5 * cl_g, 2),
-            'main_collective': round(1.0 + 2.0 * pulse + 0.5 * cl_g, 2),
+            'main_base': round(inf_fl + 0.5 * o_cl, 2),
+            'main_collective': round(1.0 + 2.0 * pulse + 0.5 * o_cl, 2),
             'main_cyclic': round(inf_fl + (2.0 / 3.0) * pulse, 2),
             'main_ceiling': round(1.0 + (5.0 / 6.0) * pulse, 2),
-            'tail_base': round(inf_fl + 0.3 * cl_g, 2),
-            'tail_pitch': round(1.0 + pulse + 0.3 * cl_g, 2),
+            'tail_base': round(inf_fl + 0.3 * o_cl, 2),
+            'tail_pitch': round(1.0 + pulse + 0.3 * o_cl, 2),
             'tail_ceiling': round(1.0 + (2.0 / 3.0) * pulse, 2),
         }),
         'aerobat_prop_load': ('drive_load', {
@@ -117,41 +186,73 @@ def _drive_loads(he, or_, ae, inv, inf_fl):
     }
 
 
-def aero_blocks(crafts, inv, rho):
+def aero_blocks(crafts, mat, inv, rho, g=None):
+    if g is None:
+        g = float(mechatronics.environment(None)['g_m_s2'])
     sh = crafts['shared']
     qc, q15 = crafts['quadcopter'], crafts['quadcopter_15in']
     he, or_, ae = crafts['helicopter'], crafts['ornithopter'], crafts['aerobat']
-    q_d, q_arm = float(qc['diameter_m']), float(qc['arm_m'])
-    q_kt, q_kq = kt(rho, qc['ct'], q_d), kq(rho, qc['cp'], q_d)
-    s15 = float(q15['diameter_m']) / q_d
     j0, inf_fl = float(sh['inflow_j0']), float(sh['inflow_floor'])
+    q_d, q_arm = float(qc['diameter_m']), float(qc['arm_m'])
+    q_ct, q_cp = ((float(qc['ct']), float(qc['cp'])) if 'ct' in qc
+                  else solver_aero.propeller_bemt(q_d, qc['pitch_m']))
+    q_kt, q_kq = kt(rho, q_ct, q_d), kq(rho, q_cp, q_d)
+    s15 = float(q15['diameter_m']) / q_d
+    s15_2 = s15 * s15
+    s15_4 = s15_2 * s15_2
     q_rot = {'rotors': int(qc['rotors']), 'arm_length': q_arm, 'disc_height': float(qc['disc_height_m']),
              'disc_radius': 0.5 * q_d, 'disc_half_height': float(qc['disc_half_m']), 'k_thrust': q_kt,
              'k_drag': q_kq, 'inflow_j0': j0, 'blade_pitch': float(qc['pitch_m'])}
     h_d, ht_d = float(he['diameter_m']), float(he['tail_diameter_m'])
     h_r, ht_r = 0.5 * h_d, 0.5 * ht_d
-    h_kt, h_kq = round(kt(rho, he['ct'], h_d), 7), kq(rho, he['cp'], h_d)
+    coll_lim = math.radians(float(he['collective_deg']))
     cyc_lim = math.radians(float(he['cyclic_deg']))
+    tail_lim = math.radians(float(he['tail_pitch_deg']))
+    h_ct, h_cp = ((float(he['ct']), float(he['cp'])) if 'ct' in he
+                  else solver_aero.rotor_bemt(h_d, coll_lim, float(he['main_gear'])))
+    ht_ct = (float(he['tail_ct']) if 'tail_ct' in he
+             else solver_aero.rotor_bemt(ht_d, tail_lim, float(he['tail_gear']), step_up=True, aspect=5.0)[0])
+    h_kt, h_kq = round(kt(rho, h_ct, h_d), 7), kq(rho, h_cp, h_d)
     h_kcyc = round(h_kt * 0.5 * math.tan(cyc_lim) * j0 * h_r, 6)
-    ht_kt = round(kt(rho, he['tail_ct'], ht_d), 6)
+    ht_kt = round(kt(rho, ht_ct, ht_d), 6)
 
     o_span, o_chord, o_gear = float(or_['wing_span_m']), float(or_['wing_chord_m']), float(or_['gear_ratio'])
     o_stroke = math.radians(float(or_['stroke_deg']))
     o_pitch = math.radians(float(or_['pitch_deg']))
     o_sweep = math.radians(float(or_['sweep_fold_deg']))
     o_arc = o_span * o_stroke
-    o_dyn = rho * (4.0 * o_span * o_chord) * (o_arc ** 2) / (o_gear ** 2)
-    o_kt, o_kq = round(float(or_['ct_stroke']) * o_dyn, 7), round(float(or_['cp_stroke']) * o_dyn * o_arc, 9)
+    o_dyn = rho * (4.0 * o_span * o_chord) * (o_arc * o_arc) / (o_gear * o_gear)
+    o_ct, o_cp, o_cl = ((float(or_['ct_stroke']), float(or_['cp_stroke']), float(or_['cl_glide']))
+                        if 'ct_stroke' in or_
+                        else solver_aero.flapping_polar(o_span, o_chord, o_stroke, o_pitch, o_sweep, o_gear))
+    o_kt, o_kq = round(o_ct * o_dyn, 7), round(o_cp * o_dyn * o_arc, 9)
     sh_x, fore_z, aft_z = float(or_['shoulder_x_m']), float(or_['fore_z_m']), float(or_['aft_z_m'])
     p_arm = 0.5 * (fore_z - aft_z) * math.cos(o_sweep) * math.cos(o_pitch)
     r_arm = sh_x * math.cos(o_sweep)
 
     a_span, a_chord = float(ae['wing_span_m']), float(ae['wing_chord_m'])
     a_area, a_pd = round(a_span * a_chord, 6), float(ae['prop_diameter_m'])
-    a_kt, a_kq = round(kt(rho, ae['ct'], a_pd), 7), kq(rho, ae['cp'], a_pd)
+    a_ct, a_cp = ((float(ae['ct']), float(ae['cp'])) if 'ct' in ae
+                  else solver_aero.propeller_bemt(a_pd, ae['prop_pitch_m']))
+    a_kt, a_kq = round(kt(rho, a_ct, a_pd), 7), kq(rho, a_cp, a_pd)
     a_stab, a_fin, a_arm = float(ae['stab_area_m2']), float(ae['fin_area_m2']), float(ae['tail_arm_m'])
+    el_lim = math.radians(float(ae['elevator_deg']))
+    ai_lim = math.radians(float(ae['aileron_deg']))
+    ru_lim = math.radians(float(ae['rudder_deg']))
+    if 'cm_elev' in ae:
+        a_kp = round(float(ae['cm_elev']) * a_stab * a_arm, 8)
+        a_kr = round(float(ae['cl_ail']) * a_area * 0.25 * a_span, 8)
+        a_ky = round(float(ae['cn_rud']) * a_fin * a_arm, 8)
+    else:
+        w_hover = math.sqrt(float(qc['mass_kg']) * g / (float(qc['rotors']) * q_kt))
+        a_mw = 5.0 * round(w_hover * math.sqrt(3.0) / 5.0)
+        a_tw = float(round(a_mw * math.sqrt(0.5 * (1.0 + float(ae['propwash_share'])) * (1.0 - float(ae['cd0'])))))
+        a_kp, a_kr, a_ky = solver_aero.control_moments(
+            a_span, a_chord, a_stab, a_fin, a_arm, a_pd, ae['prop_z_m'], el_lim, ai_lim, ru_lim,
+            ae['propwash_share'], ae['flap_share'], ae['aileron_share'],
+            math.radians(float(ae['vector_deg'])), float(ae['mass_kg']) * g, a_mw, a_tw)
     h_prof, h_ind, h_cyc = _heli_drag_shares(he, inf_fl)
-    o_pulse, o_cl = float(or_['beat_pulse']), float(or_['cl_glide'])
+    o_pulse = float(or_['beat_pulse'])
     return {
         'standard_airframe': ('airframe', {'air_density': rho, 'parasite_cda': float(sh['parasite_cda'])}),
         'monoplane_airframe': ('airframe', {'air_density': rho, 'parasite_cda': float(ae['parasite_cda'])}),
@@ -159,17 +260,17 @@ def aero_blocks(crafts, inv, rho):
         'quad_x_15x13': ('rotors', {**q_rot, 'disc_radius': 0.5 * float(q15['diameter_m']),
                                     'disc_half_height': q_rot['disc_half_height'] * s15,
                                     'blade_pitch': q_rot['blade_pitch'] * s15,
-                                    'k_thrust': q_kt * (s15 ** 4), 'k_drag': q_kq * (s15 ** 5)}),
+                                    'k_thrust': q_kt * s15_4, 'k_drag': q_kq * s15_4 * s15}),
         'swashplate_550_3d': ('main_rotor', {
             'disc_height': float(he['disc_height_m']), 'radius': h_r,
-            'collective_limit': math.radians(float(he['collective_deg'])),
+            'collective_limit': coll_lim,
             'cyclic_limit': cyc_lim, 'k_thrust': h_kt, 'k_cyclic': h_kcyc, 'k_drag': h_kq,
             'profile_drag_share': h_prof, 'induced_drag_share': h_ind, 'cyclic_drag_share': h_cyc,
             'inflow_j0': j0, 'blade_pitch': float(he['pitch_m']), 'inflow_floor': inf_fl,
         }),
         'tail_110_antitorque': ('tail_rotor', {
             'boom_arm': float(he['tail_boom_m']), 'radius': ht_r,
-            'pitch_limit': math.radians(float(he['tail_pitch_deg'])), 'k_thrust': ht_kt,
+            'pitch_limit': tail_lim, 'k_thrust': ht_kt,
         }),
         'dune_4wing_flapper': ('flapping_wings', {
             'wing_span': o_span, 'wing_chord': o_chord, 'shoulder_x': sh_x,
@@ -188,22 +289,18 @@ def aero_blocks(crafts, inv, rho):
             'prop_radius': 0.5 * a_pd, 'prop_z': float(ae['prop_z_m']),
             'tail_arm': a_arm, 'stab_area': a_stab, 'fin_area': a_fin,
             'k_thrust': a_kt, 'k_drag': a_kq, 'blade_pitch': float(ae['prop_pitch_m']),
-            'inflow_j0': j0, 'prop_inertia': float(ae['prop_kgm2']),
+            'inflow_j0': j0, 'prop_inertia': prop_inertia(ae, mat, 'prop_diameter_m'),
             'cl_alpha': lift_slope(a_span, a_chord), 'cd0': float(ae['cd0']), 'cd_induced': cd_induced(ae),
             'span_efficiency': float(ae['span_efficiency']),
-            'elevator_limit': math.radians(float(ae['elevator_deg'])),
-            'aileron_limit': math.radians(float(ae['aileron_deg'])),
-            'rudder_limit': math.radians(float(ae['rudder_deg'])),
-            'k_pitch': round(float(ae['cm_elev']) * a_stab * a_arm, 8),
-            'k_roll': round(float(ae['cl_ail']) * a_area * 0.25 * a_span, 8),
-            'k_yaw': round(float(ae['cn_rud']) * a_fin * a_arm, 8),
+            'elevator_limit': el_lim, 'aileron_limit': ai_lim, 'rudder_limit': ru_lim,
+            'k_pitch': a_kp, 'k_roll': a_kr, 'k_yaw': a_ky,
             'propwash_share': float(ae['propwash_share']), 'inflow_floor': inf_fl,
         }),
-        **_drive_loads(he, or_, ae, inv, inf_fl),
+        **_drive_loads(he, or_, ae, inv, inf_fl, o_cl),
     }
 
 
-def body_and_cooling_blocks(crafts, mat, inv, env, g):
+def body_and_cooling_blocks(crafts, mat, mot, inv, env, g):
     sink = inv['heatsink']
     qc, he, or_, ae = crafts['quadcopter'], crafts['helicopter'], crafts['ornithopter'], crafts['aerobat']
     q_n, q_m, q_arm = float(qc['rotors']), float(qc['mass_kg']), float(qc['arm_m'])
@@ -213,9 +310,11 @@ def body_and_cooling_blocks(crafts, mat, inv, env, g):
                'skid_height': float(qc['skid_h_m']), 'foot_radius': float(crafts['shared']['foot_r_m'])}
     quad_rb = {**base_rb, 'hub_x': float(qc['hub_m'][0]), 'hub_y': float(qc['hub_m'][1]), 'hub_z': float(qc['hub_m'][2])}
 
-    def pod(cfg, frame='mass_kg'):
+    def pod(kind, cfg, frame='mass_kg'):
         """A craft's body on its frame, or on its heavy one (`heavy_kg`): its radii of gyration kept."""
-        ix, iy, iz = (round(x, 3) if frame == 'mass_kg' else x for x in _gyr(cfg[frame], cfg['gyration_m']))
+        base_i = _craft_inertia(kind, cfg, mat, mot)
+        scale = 1.0 if frame == 'mass_kg' else float(cfg[frame]) / float(cfg['mass_kg'])
+        ix, iy, iz = (x if frame == 'mass_kg' else round(x * scale, 6) for x in base_i)
         return {**base_rb, 'mass': float(cfg[frame]), 'inertia_xx': ix, 'inertia_yy': iy, 'inertia_zz': iz,
                 'skid_height': float(cfg['skid_h_m']), 'skid_span': float(cfg['skid_span_m']),
                 'strut_aft': float(cfg['strut_aft_m']), 'strut_fore': float(cfg['strut_fore_m'])}
@@ -233,12 +332,12 @@ def body_and_cooling_blocks(crafts, mat, inv, env, g):
         'quad_x_body': ('rigid_body', quad_rb),
         'quad_x_body_heavy': ('rigid_body', {**quad_rb, 'mass': float(qc['heavy_kg']),
                                              'inertia_xx': qh_c, 'inertia_yy': 2.0 * qh_c, 'inertia_zz': qh_c}),
-        'heli_pod_boom_body': ('rigid_body', pod(he)),
-        'heli_pod_boom_body_heavy': ('rigid_body', pod(he, 'heavy_kg')),
-        'ornithopter_carapace_body': ('rigid_body', pod(or_)),
-        'ornithopter_carapace_body_heavy': ('rigid_body', pod(or_, 'heavy_kg')),
-        'aerobat_monoplane_body': ('rigid_body', pod(ae)),
-        'aerobat_monoplane_body_heavy': ('rigid_body', pod(ae, 'heavy_kg')),
+        'heli_pod_boom_body': ('rigid_body', pod('helicopter', he)),
+        'heli_pod_boom_body_heavy': ('rigid_body', pod('helicopter', he, 'heavy_kg')),
+        'ornithopter_carapace_body': ('rigid_body', pod('ornithopter', or_)),
+        'ornithopter_carapace_body_heavy': ('rigid_body', pod('ornithopter', or_, 'heavy_kg')),
+        'aerobat_monoplane_body': ('rigid_body', pod('aerobat', ae)),
+        'aerobat_monoplane_body_heavy': ('rigid_body', pod('aerobat', ae, 'heavy_kg')),
         'aluminium_finned_block': ('cooling', alu),
         'temp_controlled_fan': ('cooling', fan),
         'finned_aluminium_fan_sink': ('cooling', {**alu, **fan}),

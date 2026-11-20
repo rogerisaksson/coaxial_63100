@@ -20,10 +20,11 @@ from tools.cores import mppi
 
 _MPC = aircraft_compile.part('mpc')
 K_FLOOR, C_FLOOR, TOUCH_M = _MPC['k_floor'], _MPC['c_floor'], _MPC['touch_m']
-#: The model's constants in mppi.h's order.
+#: The model's constants and cost weights in mppi.h's enum order.
 CONSTS = ('m', 'g', 'kt', 'kp', 'kr', 'ky', 'kd', 'rho', 'area', 'cla', 'span', 'stab', 'fin', 'arm', 'wq',
           'stall', 'blend', 'cdl', 'j0', 'pitch', 'r', 'cla_a', 'cda', 'area_a', 'cd0', 'cdi', 'share',
           'ix', 'iy', 'iz', 'kf', 'cf', 'side', 'adisc', 'pb', 'pl', 'ps', 'ifloor', 'wfloor', 'touch', 'skim')
+WEIGHTS = ('x', 'y', 'z', 'speed', 'belly', 'nose', 'spin', 'reserve', 'touch', 'crash', 'ease', 'thrust', 'skim')
 #: The tail's lowest point a row's `skim` asks, m over the floor (`crafts.toml`).
 SKIM_M = _MPC['skim_m']
 #: A step's reference, mppi.h's MR_*: where each part starts in a row of REF.
@@ -64,9 +65,10 @@ def constants(craft):
     w = craft.WING
     ix, iy, iz = craft.INERTIA
     m_c, g_c = float(craft.MASS_KG), float(craft.GRAVITY)
-    kf_raw, _ = contacts.penalty(m_c, g_c, 0.05, 0.5, 0.025, 2)
+    sag_m, zeta, dt_s, pts = _MPC['sag_m'], _MPC['zeta'], _MPC['dt_s'], int(_MPC['points'])
+    kf_raw, _ = contacts.penalty(m_c, g_c, sag_m, zeta, dt_s, pts)
     kf = float(round(kf_raw, -1))
-    _, cf_raw = contacts.penalty(m_c, g_c, m_c * g_c / kf, 0.5, 0.0, 2)
+    _, cf_raw = contacts.penalty(m_c, g_c, m_c * g_c / kf, zeta, 0.0, pts)
     cf = float(round(cf_raw))
     touch = round(contacts.touch(m_c, g_c, kf, 2.5), 2)
     return dict(m=craft.MASS_KG, g=craft.GRAVITY, kt=craft.K_THRUST, kp=craft.K_PITCH_Q, kr=craft.K_ROLL_Q,
@@ -194,12 +196,12 @@ class Mppi:
     off the floor but at the tail and the wheels, the surfaces within half where the plane can, the
     least thrust that does it."""
 
-    #: The cost's weights in mppi.h's order.
-    W = dict(x=4.0, y=400.0, z=4.0, speed=1.0, belly=8.0, nose=8.0, spin=0.05, reserve=60.0, touch=4e4,
-             crash=4e5, ease=2.0, thrust=1.0, skim=4000.0)
+    #: The cost's weights in mppi.h's order, solved by Bryson's rule (`aircraft.compile.part('mpc')`).
+    W = {n: float(_MPC['weights'][n]) for n in WEIGHTS}
 
-    def __init__(self, craft, k=None, h=32, dt=0.025, sigma=(0.05, 0.15, 0.15, 0.15), share=0.1, ar=0.85,
+    def __init__(self, craft, k=None, h=32, dt=None, sigma=(0.05, 0.15, 0.15, 0.15), share=0.1, ar=0.85,
                  xp=None, seed=0):
+        dt = float(_MPC['dt_s']) if dt is None else dt
         self.xp = xp = backend() if xp is None else xp
         card = xp.__name__ != 'numpy'
         self.k, self.h, self.dt, self.share, self.ar = k or (4096 if card else 512), h, dt, share, ar
@@ -211,7 +213,7 @@ class Mppi:
         self.contacts, self.rest = xp.asarray(contacts), xp.asarray(rest)
         named = constants(craft)
         self.consts = xp.asarray([named[n] for n in CONSTS])
-        self.weights = xp.asarray(list(self.W.values()))
+        self.weights = xp.asarray([self.W[n] for n in WEIGHTS])
         self.model = Batch(craft, xp)
         self.run = mppi.kernel(xp) if card else mppi.library().mppi_plane_costs
         self.cost = 0.0

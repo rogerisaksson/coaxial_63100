@@ -33,16 +33,13 @@ SPECS = ('machine/library/*.toml', 'machine/humanoids/*.toml', 'machine/aircraft
 #: guards (`[guards]`): new construction - what its limbs and its trunk are built of in place of its shells -,
 #: no value the solver could derive.
 CEILING = {
-    'machine/aircraft/crafts.toml': 102,
-    'machine/humanoids/gynoid_mesomorph_medium.toml': 1064,
-    # 129: the coaxial calf - new construction (its drives' places, parts, clamped levers, heel bar and its strut,
+    'machine/aircraft/crafts.toml': 83,
+    'machine/humanoids/gynoid_mesomorph_medium.toml': 988,
+    # 119: the coaxial calf - new construction (its drives' places, parts, clamped levers, heel bar and its strut,
     # struts, the foot's keel, the thigh's leant run, the knee's stop, its guards: the arm's on its back, the
-    # shin's alone on the calf; every inverter of the leg on its motor's back); its rods' arms level at rest - each
-    # ball's arm stated beside its crank's, the heel's bar a straight shaft by its two ends; its two rods alike,
-    # each a printed cartridge of leaves: their material, their count, a leaf's width and thickness, their bow and
-    # their length; its arm's tubes the stock's that hold what its joints carried - the upper arm's one radius,
-    # the forearm's four
-    'machine/humanoids/gynoid_mesomorph_medium_coax.toml': 130,
+    # shin's alone on the calf; every inverter of the leg on its motor's back); its straight parallelogram rod pair
+    # stated once on `ankle`, mirrored across x onto `ankle_roll`
+    'machine/humanoids/gynoid_mesomorph_medium_coax.toml': 119,
     'machine/humanoids/gynoid_mesomorph_medium_packs.toml': 2,
     'machine/humanoids/gynoid_mesomorph_medium_performance.toml': 9,
     'machine/humanoids/gynoid_mesomorph_medium_r80.toml': 3,
@@ -56,9 +53,9 @@ CEILING = {
     # and a board's leads ([leads]: a phase's, a bus's, a signal's - each its copper and its outside) - parts
     # bought, no other value tells
     'machine/library/materials.toml': 64,
-    'machine/library/motors.toml': 64,
-    # 88: the friction's Stribeck speed (stribeck_m_s), a property of a sole on a floor no other value tells
-    'machine/library/world.toml': 88,
+    'machine/library/motors.toml': 63,
+    # 87: the friction's Stribeck speed (stribeck_m_s), a property of a sole on a floor no other value tells
+    'machine/library/world.toml': 87,
 }
 #: The peripherals the solver derives of a humanoid build (`machine.body.peripherals`), each by its name.
 PERIPHERALS = ('bus', 'thermal', 'cooling', 'harness', 'eyes', 'world', 'service', 'identify')

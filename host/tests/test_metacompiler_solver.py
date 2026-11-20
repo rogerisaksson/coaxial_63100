@@ -210,6 +210,53 @@ def test_rate_observer_and_contact_solvers(r):
             and math.isclose(contacts.touch(2.0, 9.81, kp, 2.5), 0.02, rel_tol=1e-12), (kp, kd, kp_c))
 
 
+def test_aerodynamic_and_composite_inertia_solvers(r):
+    """`aero`, `inertia` and `contacts.bryson_mpc` obey their physical scaling laws: Oswald efficiency,
+    Glauert flap effectiveness, `D^4` thin-shell blade inertia, BEMT pitch and gear-ratio scaling,
+    Polhamus flapping polars, Rankine-Froude control moments, 3D parallel-axis composite inertia,
+    and Bryson inverse-square MPC weights."""
+    from machine.solver import aero, contacts, inertia
+    r.check('Oswald span factor is 1 at zero aspect ratio and falls with aspect ratio; Glauert flap rises 0 to 1',
+            aero.oswald(0.0) == 1.0 and 0.0 < aero.oswald(9.0) < aero.oswald(4.5) < 1.0
+            and aero.glauert_flap(0.0) == 0.0 and aero.glauert_flap(1.0) == 1.0
+            and math.isclose(aero.glauert_flap(0.5), 0.5 + 1.0 / math.pi, rel_tol=1e-12)
+            and 0.0 < aero.glauert_flap(0.28) < aero.glauert_flap(0.50) < 1.0,
+            (aero.oswald(4.5), aero.glauert_flap(0.5)))
+    j1, j2 = aero.blade_inertia(0.20, 1550.0, 0.001), aero.blade_inertia(0.40, 1550.0, 0.001)
+    ct_lo, cp_lo = aero.propeller_bemt(0.40, 0.25)
+    ct_hi, cp_hi = aero.propeller_bemt(0.40, 0.35)
+    r.check('thin-shell blade inertia scales as D^4 and propeller BEMT thrust and power grow with pitch',
+            math.isclose(j2 / j1, 16.0, rel_tol=1e-12) and 0.0 < ct_lo < ct_hi and 0.0 < cp_lo < cp_hi,
+            (j1, j2, ct_lo, ct_hi))
+    rc1, rp1 = aero.rotor_bemt(1.25, 0.24, 1.0)
+    rc2, rp2 = aero.rotor_bemt(1.25, 0.24, 2.0)
+    tc2, tp2 = aero.rotor_bemt(0.22, 0.45, 2.0, step_up=True, aspect=5.0)
+    tc1, tp1 = aero.rotor_bemt(0.22, 0.45, 1.0, step_up=True, aspect=5.0)
+    fc1, fp1, fg1 = aero.flapping_polar(0.75, 0.20, 0.96, 0.66, 0.61, 4.0)
+    fc2, fp2, _ = aero.flapping_polar(0.75, 0.20, 0.96, 0.66, 0.61, 8.0)
+    km0 = aero.control_moments(1.25, 0.28, 0.09, 0.04, 0.72, 0.40, 0.36, 0.78, 0.66, 0.87,
+                               0.80, 0.50, 0.28, 0.0, 22.0, 628.0, 628.0)
+    km1 = aero.control_moments(1.25, 0.28, 0.09, 0.04, 0.72, 0.40, 0.36, 0.78, 0.66, 0.87,
+                               0.80, 0.50, 0.28, 0.26, 22.0, 628.0, 628.0)
+    r.check('rotor BEMT scales by gear^2 and gear^3, flapping torque halves at twice gear, thrust vectoring adds pitch/yaw',
+            math.isclose(rc1 / rc2, 4.0, rel_tol=1e-4) and math.isclose(rp1 / rp2, 8.0, rel_tol=1e-4)
+            and math.isclose(tc2 / tc1, 4.0, rel_tol=1e-4) and math.isclose(tp2 / tp1, 8.0, rel_tol=1e-4)
+            and fc1 == fc2 > 0.0 and fg1 > 0.0 and math.isclose(fp1 / fp2, 2.0, rel_tol=1e-4)
+            and km1[0] > km0[0] > 0.0 and km1[1] == km0[1] > 0.0 and km1[2] > km0[2] > 0.0, (km0, km1))
+    d_part = inertia.disc(2.0, 0.5, 'y')
+    t_part = inertia.tube(0.1, 1e-6, 1.0, 1000.0, 'z')
+    comp = inertia.composite([inertia.box(1.0, 0.1, 0.1, 0.1, (0.0, 0.0, -0.5))], total_mass=2.0,
+                             pod_size=(0.1, 0.1, 0.1), trim_axis=2)
+    w1 = contacts.bryson_mpc(0.05, 0.5, 0.1, 0.1)
+    w2 = contacts.bryson_mpc(0.025, 0.25, 0.1, 0.1)
+    r.check('disc perpendicular-axis holds, thin tube J_z matches m r^2, composite trims CoM, Bryson scales inverse-square',
+            math.isclose(d_part[2][1], 2.0 * d_part[2][0], rel_tol=1e-12)
+            and math.isclose(t_part[2][2], t_part[0] * 0.01, rel_tol=1e-4)
+            and math.isclose(comp[0], 2.0 * (0.02 / 12.0 + 0.25), rel_tol=1e-12)
+            and w2['x'] == 4.0 * w1['x'] and w2['y'] == 4.0 * w1['y'] and w2['crash'] == 4.0 * w1['crash'],
+            (comp, w1['x'], w2['x']))
+
+
 def test_the_solver_imports_no_machine(r):
     """The solver's package is functions of numbers: every module of it imports the language's own and
     numpy alone - no spec, no compiler, nothing of the robot or of a craft - so both compilers may call
@@ -226,13 +273,13 @@ def test_the_solver_imports_no_machine(r):
             | {(node.module or '').split('.')[0] for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)})
     far = {name: got for name, got in reached.items() if not set(got) <= PLAIN}
     r.check("%d modules of the solver, each importing the language's own and numpy alone" % len(reached),
-            len(reached) >= 4 and not far, far)
+            len(reached) >= 5 and not far, far)
 
 
 ROSTER = (test_a_loop_keeps_the_margin_asked, test_a_dead_time_sets_the_frequency,
           test_a_solved_loop_stands_in_time, test_a_loop_is_the_softest_that_meets_its_needs,
           test_a_drive_sees_what_the_mass_matrix_says, test_rate_observer_and_contact_solvers,
-          test_the_solver_imports_no_machine)
+          test_aerodynamic_and_composite_inertia_solvers, test_the_solver_imports_no_machine)
 
 
 def main(argv=None):

@@ -35,12 +35,16 @@ ROD_AT = {k: (str(r['joint']), float(r['crank_x']), float(r['ball_x']))
 PAIRS = {k: str(v) for k, v in _LINK['pairs'].items()}
 ROLLED = {k: float(v) for k, v in _LINK['rolled'].items()}
 ROD_R = float(_LINK['rod_r'])
-BENDS = {k: tuple(float(v) for v in r['bend']) for k, r in _LINK['rods'].items()}
 BELTS = {k: tuple(float(v) for v in b) for k, b in _LINK['belts'].items()}
 GEARS = {k: float(v) for k, v in _LINK['gears'].items()}
 PLATE_R = float(_LINK['plate_r'])
+def _seg_xy(seg):
+    at = _SEG_AT[seg].get('at', (0.0, 0.0, 0.0))
+    return (0.0, float(at)) if isinstance(at, (int, float)) else (float(at[0]), float(at[1]))
+
+
 PLANAR = {k: (tuple(float(v) for v in p['crank_at']),
-              tuple(float(v) for v in p.get('horn_at', _SEG_AT[p['segment']]['at'][:2])),
+              tuple(float(v) for v in p['horn_at']) if 'horn_at' in p else _seg_xy(p['segment']),
               float(p['crank_m']), math.radians(float(p['crank_deg'])),
               float(p['horn_m']), math.radians(float(p['horn_deg'])),
               float(p['z_m']), (float(p['stroke'][0]), float(p['stroke'][1])))
@@ -53,12 +57,15 @@ BEVEL_T, BEVEL_EFF = float(_LINK['bevel_t']), float(_LINK['bevel_eff'])
 GRID, SPAN = 0.5, 90.0
 
 
+def _pin(kind):
+    up, ahead, r_c, t0 = RODS[kind][0][:4]
+    return (ROD_AT[kind][1], up - r_c * math.cos(t0), ahead + r_c * math.sin(t0))
+
+
 @functools.lru_cache(None)
 def _bend(kind):
     """A rod's bend in the frame its ends make at rest: along it, across it, the third."""
-    up, ahead, r, t0 = RODS[kind][0][:4]
-    pin = (ROD_AT[kind][1], up - r * math.cos(t0), ahead + r * math.sin(t0))
-    return _local(BENDS[kind], pin, ball(kind), (1.0, 0.0, 0.0), 1.0)
+    return _local(BENDS[kind], _pin(kind), ball(kind), (1.0, 0.0, 0.0), 1.0)
 
 
 def _frame(pin, ball, across, side):
@@ -119,6 +126,15 @@ def ball(kind, q=0.0, roll=0.0):
         else:
             y, z = y * math.cos(a) - z * math.sin(a), y * math.sin(a) + z * math.cos(a)
     return x, y, z
+
+
+def _mid_bend(kind):
+    """Midpoint between a straight rod's crank pin and ball joint at rest."""
+    return tuple(round(0.5 * (a + b), 6) for a, b in zip(_pin(kind), ball(kind)))
+
+
+BENDS = {k: (tuple(float(v) for v in r['bend']) if 'bend' in r else _mid_bend(k))
+         for k, r in _LINK['rods'].items()}
 
 
 @functools.lru_cache(None)

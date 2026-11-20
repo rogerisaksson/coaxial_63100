@@ -97,15 +97,15 @@ peak_nm = 6.0
 kv = 100.0
 
 # Direct-drive and geared aircraft outrunner (`aircraft.pull`, `aeroblocks`): 14 pole pairs,
-# phase resistance (ohm), q-axis inductance (H), PM flux linkage (V s), rotor inertia (kg m^2)
-# and bearing/windage viscous drag (N m s/rad).
+# phase resistance (ohm), q-axis inductance (H), PM flux linkage (V s) and bearing/windage
+# viscous drag (N m s/rad); peak torque and rotor inertia follow from `pole_pairs`, `flux_vs`,
+# `wep_amps`, `can_m` and `kg` (`mechatronics.library`, `aircraft.compile`).
 # Coaxial 63100 14P Outrunner
 [outrunner_63100_14p]
 can_m = 0.0630
 height_m = 0.1000
 kg = 0.310
 ohm = 0.03
-peak_nm = 3.91
 kv = 310.0
 lq_h = 4.1e-5
 flux_vs = 0.00207

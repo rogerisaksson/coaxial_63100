@@ -1,12 +1,13 @@
-"""Compliant penalty contact impedance solved from mass, gravity, sag and step stability.
+"""Compliant penalty contact stiffness, damping, step stability ceiling, and Bryson MPC weights.
 
-    k, c = contacts.penalty(mass, gravity, sag_m, zeta, dt, points)
-    d = contacts.touch(mass, gravity, k, points)
+    kf, cf = contacts.penalty(mass, gravity, sag_m, zeta, dt, points)
+    touch_m = contacts.touch(mass, gravity, kf, points)
+    weights = contacts.bryson_mpc(sag_m, spot_m, exc_rad, skim_m)
 
-A dynamic trajectory or contact solver models a floor or support by penalty springs `k` (N/m) and
-dampers `c` (N s/m) at `points` parallel bearing points: `k` sets the static sag `m g / k`, bounded
-above by symplectic Euler stability `4 m / (points dt^2)` over a rollout step `dt`, and `c` damps
-the supported mass at ratio `zeta` across the bearing points (`points c = 2 zeta sqrt(m points k)`).
+A soft floor contact of `points` bearing points holds a machine of `mass` kg under `gravity` m/s^2
+within a static sag `sag_m`, bounded above by the explicit symplectic step ceiling `4 m / (n dt^2)`,
+and damped at ratio `zeta` across the `points` dampers in parallel. Bryson's inverse-square rule
+turns physical position, attitude, and clearance tolerances into predictive rollout cost weights.
 """
 import math
 
@@ -23,3 +24,20 @@ def penalty(mass, gravity, sag_m, zeta, dt=0.0, points=1):
 def touch(mass, gravity, stiffness, points=1.0):
     """Static contact deflection, m, of `mass` under `gravity` shared over `points` contacts of `stiffness`."""
     return mass * gravity / (points * stiffness)
+
+
+def bryson_mpc(sag_m, spot_m, exc_rad, skim_m):
+    """SE(3) MPPI cost weights `{x, y, z, speed, belly, nose, spin, reserve, touch, crash, ease,
+    thrust, skim}` in `mppi.h`'s order via Bryson's inverse-square tolerance rule."""
+    w_xz = round(1.0 / (float(spot_m) * float(spot_m)), 1)
+    w_y = round(1.0 / (float(sag_m) * float(sag_m)), 1)
+    w_att = float(round(1.0 / (float(exc_rad) * float(exc_rad))))
+    sk = float(skim_m)
+    w_skim = float(round(4.0 / (sk * sk), -3))
+    return {
+        'x': w_xz, 'y': w_y, 'z': w_xz, 'speed': 1.0,
+        'belly': w_att, 'nose': w_att, 'spin': round(float(sag_m), 2),
+        'reserve': round(15.0 * w_xz, 1),
+        'touch': 100.0 * w_y, 'crash': 1000.0 * w_y,
+        'ease': 2.0, 'thrust': 1.0, 'skim': w_skim,
+    }

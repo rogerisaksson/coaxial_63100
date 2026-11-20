@@ -6,17 +6,17 @@
     ak = compile.part('aerokin')    # vacuum trajectory & attitude handoff (`aircraft.aerokin`)
     wb = compile.part('wingborne')  # stall, rotation and harrier transition (`aircraft.wingborne`)
 
-Reads declarative craft geometry and nondimensional polars (`crafts.toml`), motor/inverter
-datasheets (`motors.toml`, `inverters.toml`), heatsink materials (`materials.toml`), control
-targets (`control.toml`) and atmosphere/sensors (`world.toml`), solving each craft's loops and
-dynamic solver configurations via `machine.solver` and caching in `.cache/compiled/`.
+Reads declarative craft geometry (`crafts.toml`), motor/inverter datasheets (`motors.toml`,
+`inverters.toml`), structural/thermal materials (`materials.toml`), control targets (`control.toml`)
+and atmosphere/sensors (`world.toml`), solving polars, inertias, loops and dynamic solver configs via
+`machine.solver` and caching in `.cache/compiled/`.
 """
 import math
 import os
 
 from machine.aircraft import polars, solved
 from machine.body import mechatronics
-from machine.solver import contacts, loops
+from machine.solver import aero as solver_aero, contacts, loops
 from motor.constants import AIR_GAMMA, AIR_GAS_CONSTANT, KELVIN_AT_ZERO_C
 
 _ENV = mechatronics.environment(None)
@@ -27,12 +27,15 @@ _SHARED = _CRAFTS['shared']
 _MOT = _LIB['motors'][_SHARED['motor']]
 _INV = _LIB['inverters'][_SHARED['inverter']]
 GRAVITY_M_S2 = float(_ENV['g_m_s2'])
+#: Floor penalty static sag (m), damping ratio, and rollout integration step (s) for SE(3) MPC.
+MPC_SAG_M, MPC_ZETA, MPC_DT_S, MPC_POINTS = 0.05, 0.5, 0.025, 2
 
 
 def _rotor(mot, inv, mat):
     """The crafts' rotor as its motor and its inverter give it: its can's inertia (kg m^2), a ring of the
     motor's mass at its can's radius, and the torque (N m) its flight current holds."""
-    can_j = round(float(mat['rotor_ring_share']) * float(mot['kg']) * (0.5 * float(mot['can_m'])) ** 2, 7)
+    r = 0.5 * float(mot['can_m'])
+    can_j = round(float(mat['rotor_ring_share']) * float(mot['kg']) * r * r, 7)
     return can_j, 1.5 * float(mot['pole_pairs']) * float(mot['flux_vs']) * float(inv['flight_amps'])
 
 
@@ -41,20 +44,20 @@ def _step_s(inv):
     return round(100.0 / float(inv['pwm_hz']), 6)
 
 
-def _hover(qc, can_j, rot_nm, q_kt, g):
+def _hover(qc, can_j, prop_j, rot_nm, q_kt, g):
     """The quadcopter hovering: its rotors' speed (rad/s) and how long they take to it at the rotor's
     torque (s) - solved here once, for its blocks and its parts alike."""
     w_hover = math.sqrt(float(qc['mass_kg']) * g / (float(qc['rotors']) * q_kt))
-    spin_s = round(math.sqrt(0.5) * math.pi * (can_j + float(qc['prop_kgm2'])) * w_hover / rot_nm, 2)
+    spin_s = round(math.sqrt(0.5) * math.pi * (can_j + prop_j) * w_hover / rot_nm, 2)
     return w_hover, spin_s
 
 
-def _pull_cfg(qc, mot, inv, fp, can_j, w_hover):
+def _pull_cfg(qc, mot, inv, fp, can_j, prop_j, w_hover):
     vf = mechatronics.v_frac(inv)
     v_min = round(float(fp['series']) * float(fp['cell_v'][0][1]) * 0.6)
     v_max = math.ceil(float(inv['volts']) * 1.1 + 0.5)
     w_nl = float(mot['kv']) * (math.tau / 60.0) * v_max * 1.75
-    return {'rotors': int(qc['rotors']), 'can_j': can_j, 'prop_j': float(qc['prop_kgm2']),
+    return {'rotors': int(qc['rotors']), 'can_j': can_j, 'prop_j': prop_j,
             'r': float(mot['ohm']), 'lq': float(mot['lq_h']),
             'lam': float(mot['flux_vs']), 'pairs': float(mot['pole_pairs']), 'b': float(mot['viscous_nms']),
             'i_max': float(inv['flight_amps']), 'i_wep': float(inv['wep_amps']), 'v_frac': vf,
@@ -76,24 +79,26 @@ def _control_and_traj_blocks(crafts, inv, ar, hover, amb, aero_blk, body_blk, pu
     idle = float(round(w_hover / math.sqrt(6.0)))
 
     a_sound = math.sqrt(AIR_GAMMA * AIR_GAS_CONSTANT * (amb + KELVIN_AT_ZERO_C))
-    h_d, ht_d = float(he['diameter_m']), float(he['tail_diameter_m'])
+    h_d = float(he['diameter_m'])
     h_mw = round(0.65 * a_sound / (0.5 * h_d), 1)
-    h_tw = float(round(h_mw * (ht_d / h_d) ** (1.0 / 30.0)))
+    h_tw = float(round(vf * h_mw))
     gov_3g = 5.0 * round(w_hover * math.sqrt(3.0) / 5.0)
     o_mw = a_mw = gov_3g
     o_tw = float(round(o_mw * (1.0 - 0.5 * (float(or_['fore_z_m']) + float(or_['aft_z_m'])) / float(or_['wing_span_m']))))
     a_tw = float(round(a_mw * math.sqrt(0.5 * (1.0 + float(ae['propwash_share'])) * (1.0 - float(ae['cd0'])))))
 
-    settle_kp = round(1.024 / (2.0 * spin_s), 2)
+    settle_kp = round(0.5 / spin_s, 2)
     orb_r, orb_v = float(ar['orbit_r_m']), float(ar['orbit_m_s'])
     spot_kp = round(0.5 * (1.0 + vf) * float(ar['hover_lean_m_s2']) / (2.0 * orb_r), 2)
 
+    h_tr = h_tw / h_mw
+    o_tr = o_tw / o_mw
     heli_gov = {'idle_speed': idle, 'step_time': step_s, 'main_speed': h_mw, 'tail_speed': h_tw,
                 'stunt_boost': 1.12, 'stunt_yaw_threshold': 2.5,
-                'tail_ratio': round((h_tw / h_mw) ** 2, 2)}
+                'tail_ratio': round(h_tr * h_tr, 2)}
     quad_gov = {'idle_speed': idle, 'step_time': step_s, 'spin_time': spin_s}
     orni_gov = {**heli_gov, 'main_speed': o_mw, 'tail_speed': o_tw,
-                'stunt_boost': 1.14, 'tail_ratio': round((o_tw / o_mw) ** 2, 2)}
+                'stunt_boost': 1.14, 'tail_ratio': round(o_tr * o_tr, 2)}
     aero_gov = {**heli_gov, 'main_speed': a_mw, 'tail_speed': a_tw,
                 'stunt_boost': 1.14, 'tail_ratio': round(vf * a_tw / a_mw, 2)}
 
@@ -106,14 +111,15 @@ def _control_and_traj_blocks(crafts, inv, ar, hover, amb, aero_blk, body_blk, pu
     vert_blk = {'climb_speed': float(ar['climb_m_s']), 'descent_speed': float(ar['descent_m_s']),
                 'wake_floor': 2.0 * float(ar['climb_m_s']), 'settle_kp': settle_kp, 'settle_kd': 2.0 * settle_kp}
     horiz_blk = {'orbit_radius': orb_r, 'orbit_speed': orb_v, 'lap_duration': math.tau * orb_r / orb_v,
-                 'spot_kp': spot_kp, 'spot_kd': round(2.105 * math.sqrt(spot_kp), 2)}
+                 'spot_kp': spot_kp, 'spot_kd': round(2.0 * math.sqrt(spot_kp) / vf, 2)}
     hold_blk = {'height_tol': float(ar['height_tol_m']), 'speed_tol': float(ar['speed_tol_m_s']),
                 'spot_tol': float(ar['spot_tol_m']), 'tilt_tol': float(ar['tilt_tol_rad'])}
     tt_hz, tt_base = float(ar['tictoc_hz']), float(ar['tictoc_deg'])
+    o_cl = float(aero_blk['dune_4wing_flapper'][1]['k_lift'])
     osc_base = {'tictoc_frequency': tt_hz, 'tictoc_amplitude': math.radians(tt_base)}
     osc_heli = {'tictoc_frequency': tt_hz,
                 'tictoc_amplitude': math.radians(tt_base + 0.5 * float(he['collective_deg']))}
-    osc_orni = {'tictoc_frequency': round(tt_hz * (1.0 + 0.5 * float(or_['cl_glide'])), 2),
+    osc_orni = {'tictoc_frequency': round(tt_hz * (1.0 + 0.5 * o_cl), 2),
                 'tictoc_amplitude': math.radians(tt_base + 0.125 * float(or_['pitch_deg']))}
     osc_aero = {'tictoc_frequency': tt_hz,
                 'tictoc_amplitude': math.radians(tt_base + 0.6 * float(ae['stall_deg']))}
@@ -182,9 +188,11 @@ def _runtime_configs(env, crafts, inv, ar, pull_cfg, quad_imp, ctl, g):
     nose_k = round(yaw_d_q / float(ctl['cascade_factor']), 1)
     ar_wing = float(ae['wing_span_m']) / float(ae['wing_chord_m'])
     m_ae, orb_v = float(ae['mass_kg']), float(ar['orbit_m_s'])
-    kf_raw, _ = contacts.penalty(m_ae, g, 0.05, 0.5, 0.025, 2)
+    kf_raw, _ = contacts.penalty(m_ae, g, MPC_SAG_M, MPC_ZETA, MPC_DT_S, MPC_POINTS)
     kf = float(round(kf_raw, -1))
-    _, cf_raw = contacts.penalty(m_ae, g, m_ae * g / kf, 0.5, 0.0, 2)
+    _, cf_raw = contacts.penalty(m_ae, g, m_ae * g / kf, MPC_ZETA, 0.0, MPC_POINTS)
+    skim_m = float(ae['tail_contact_m'])
+    mpc_w = contacts.bryson_mpc(MPC_SAG_M, 0.5, math.radians(float(ctl['excursion_deg'])), skim_m)
     n_s, n_p = int(fp['series']), int(fp.get('parallel', 1))
     fp_ah = float(fp.get('ah', round(n_p * float(fp['cell_ah']), 4)))
     fp_ohm = float(fp.get('ohm', round(n_s * float(fp['cell_ohm']) / n_p + float(fp.get('lead_ohm', 0.0)), 6)))
@@ -203,7 +211,7 @@ def _runtime_configs(env, crafts, inv, ar, pull_cfg, quad_imp, ctl, g):
                       'alpha_max': math.radians(float(ae['stall_deg'])),
                       'stall_rad': math.radians(float(ae['stall_deg'])),
                       'stall_blend': math.radians(float(ae['stall_blend_deg'])),
-                      'cd_lift': round(1.0 / (math.pi * 0.91 * ar_wing), 2),
+                      'cd_lift': round(1.0 / (math.pi * solver_aero.oswald(ar_wing) * ar_wing), 2),
                       'pitch_rest': math.radians(float(ae['pitch_rest_deg'])),
                       'harrier_rad': math.radians(ar['harrier_deg']), 'run_ease': 0.15, 'whole': (0.4, 0.6),
                       'grip': float(env['mu_dry']), 'grip_s': round(25.0 * step_s, 3),
@@ -213,7 +221,7 @@ def _runtime_configs(env, crafts, inv, ar, pull_cfg, quad_imp, ctl, g):
         'aerobat': {'dive_m_s': float(ar['climb_m_s']), 'roll_mu': float(ae['roll_mu']),
                     'tail_mu': round(0.5 * float(env['mu_dry']), 2),
                     'tail_s': round(50.0 * step_s, 2), 'wheel_s': round(15.0 * step_s, 2),
-                    'touch_m': float(ae['tail_contact_m']), 'fast_m_s': (orb_v, round(0.8 * ar['v_stall'], 1)),
+                    'touch_m': skim_m, 'fast_m_s': (orb_v, round(0.8 * ar['v_stall'], 1)),
                     'lined_m': (float(ar['top_m']), float(ar['orbit_r_m'])),
                     'lined_rad_s': math.radians(ar['alpha_run_deg']), 'lined_m_s': float(ar['nose_m_s']),
                     'authority': round(math.sqrt(0.5), 1),
@@ -222,7 +230,9 @@ def _runtime_configs(env, crafts, inv, ar, pull_cfg, quad_imp, ctl, g):
                     'gust_floor': round(1.5 * float(w['kinds']['constant'][5]), 2),
                     'path_pole': float(sh['inflow_floor']), 'push_s': round(5.0 / (0.01 / step_s), 1)},
         'mpc': {'k_floor': kf, 'c_floor': float(round(cf_raw)),
-                'skim_m': float(ae['tail_contact_m']), 'touch_m': round(contacts.touch(m_ae, g, kf, 2.5), 2)},
+                'sag_m': MPC_SAG_M, 'zeta': MPC_ZETA, 'dt_s': MPC_DT_S, 'points': MPC_POINTS,
+                'skim_m': skim_m, 'touch_m': round(contacts.touch(m_ae, g, kf, 2.5), 2),
+                'weights': mpc_w},
         'gimbal': {'mount': tuple(float(x) for x in gm['mount']), 'follow': float(ar['climb_m_s']),
                    'nose_m_s': float(ar['nose_m_s']), 'tilt': math.radians(float(gm['tilt_deg'])),
                    'tilts': tuple(math.radians(float(x)) for x in gm['tilts_deg']),
@@ -248,53 +258,57 @@ def _runtime_configs(env, crafts, inv, ar, pull_cfg, quad_imp, ctl, g):
 
 def _build_aircraft(crafts=None):
     """Every craft's blocks and parts compiled of the specs, or of `crafts` in the spec's place: a craft
-    resized, as `mechatronics.crafts` resolves one."""
+    may also change the shared motor or inverter."""
     env, mat, lib = mechatronics.environment(None), mechatronics.materials(), mechatronics.library()
     ctl = mechatronics.control()
     crafts = mechatronics.crafts() if crafts is None else crafts
     sh = crafts['shared']
     mot, inv = lib['motors'][sh['motor']], lib['inverters'][sh['inverter']]
-    g, rho, amb = float(env['g_m_s2']), float(env['air_kg_m3']), float(env['ambient_c'])
-    ar = polars.arena(crafts, rho, g)
     can_j, rot_nm = _rotor(mot, inv, mat)
-    aero_blk = polars.aero_blocks(crafts, inv, rho)
-    body_blk = polars.body_and_cooling_blocks(crafts, mat, inv, env, g)
-    hover = _hover(crafts['quadcopter'], can_j, rot_nm, aero_blk['quad_x_16x14'][1]['k_thrust'], g)
-    pull_cfg = _pull_cfg(crafts['quadcopter'], mot, inv, env['flight_pack'], can_j, hover[0])
+    rho, g, amb = float(env['air_kg_m3']), float(env['g_m_s2']), float(env['ambient_c'])
+    ar = polars.arena(crafts, rho, g)
+    aero_blk = polars.aero_blocks(crafts, mat, inv, rho, g)
+    body_blk = polars.body_and_cooling_blocks(crafts, mat, mot, inv, env, g)
+    prop_j = polars.prop_inertia(crafts['quadcopter'], mat)
+    hover = _hover(crafts['quadcopter'], can_j, prop_j, rot_nm, aero_blk['quad_x_16x14'][1]['k_thrust'], g)
+    pull_cfg = _pull_cfg(crafts['quadcopter'], mot, inv, env['flight_pack'], can_j, prop_j, hover[0])
     ctrl_blk = _control_and_traj_blocks(crafts, inv, ar, hover, amb, aero_blk, body_blk, pull_cfg, ctl)
-    blk = {**aero_blk, **body_blk, **ctrl_blk}
-    return {'blocks': blk,
-            **_runtime_configs(env, crafts, inv, ar, pull_cfg, blk['quad_attitude_impedance'][1], ctl, g)}
+    blocks = {**aero_blk, **body_blk, **ctrl_blk}
+    return {'blocks': blocks, **_runtime_configs(
+        env, crafts, inv, ar, pull_cfg, ctrl_blk['quad_attitude_impedance'][1], ctl, g)}
+
+
+def compile_spec(spec: str | os.PathLike[str] | dict):
+    """Compile an external `crafts.toml` path or resolved craft dict, caching file paths by content hash."""
+    if isinstance(spec, dict):
+        return _build_aircraft(spec)
+    p = os.path.abspath(spec)
+    srcs = mechatronics.craft_sources(p) + (os.path.abspath(__file__), os.path.abspath(polars.__file__))
+    key = 'aircraft_' + mechatronics.cache_id(p)
+    return mechatronics.compiled(key, srcs, lambda: _build_aircraft(mechatronics.crafts(p)))
 
 
 def _compiled():
-    srcs = mechatronics.craft_sources() + (__file__, polars.__file__, solved.__file__, mechatronics.__file__)
-    key = 'aircraft' if mechatronics.CRAFTS.endswith(os.path.join('aircraft', 'crafts.toml')) else (
-        'aircraft_' + os.path.splitext(os.path.basename(mechatronics.CRAFTS))[0])
-    return mechatronics.compiled(key, srcs, _build_aircraft)
+    srcs = mechatronics.craft_sources() + (os.path.abspath(__file__), os.path.abspath(polars.__file__))
+    return mechatronics.compiled('aircraft', srcs, _build_aircraft)
 
 
-def defaults() -> tuple[float, float]:
-    """Base hover thrust (N) and horizontal orbit speed (m/s) for AeroLisp translation."""
-    h, v = _compiled()['defaults']
-    return float(h), float(v)
+def blocks():
+    """Compiled `{block_name: (block_type, dict)}` registry for AeroLisp `defvehicle` / `use`."""
+    return {k: (v[0], dict(v[1])) for k, v in _compiled()['blocks'].items()}
 
 
-def blocks(crafts=None):
-    """Fresh copy of all statically derived AeroLisp vehicle blocks: the spec's, or those of a resolved
-    `crafts` table compiled in its place."""
-    laid = _compiled() if crafts is None else _build_aircraft(crafts)
-    return {k: (kind, {sk: dict(sv) if isinstance(sv, dict) else sv for sk, sv in val.items()})
-            for k, (kind, val) in laid['blocks'].items()}
-
-
-def part(name):
-    """A fresh copy of one compiled part: 'pack', 'pull', 'aerokin', 'wingborne', 'aerobat', 'mpc', 'gimbal' or
-    'instruments' - each the module of its name's (`aircraft.se3mpc` the mpc's, `aircraft.senses` the instruments')."""
+def part(name: str):
+    """Compiled runtime dictionary `name` (`pack`, `pull`, `aerokin`, `wingborne`, `aerobat`,
+    `mpc`, `gimbal`, `instruments`)."""
     return dict(_compiled()[name])
 
 
 def weather():
-    out = dict(_compiled()['weather'])
-    out['air'] = dict(out['air'])
-    return out
+    """Compiled atmospheric boundary-layer wind and gust configuration (`aircraft.weather`)."""
+    return dict(_compiled()['weather'])
+
+
+def defaults():
+    """`(hover_thrust_n, nominal_speed_m_s)` default scaling for `AeroLispCompiler`."""
+    return tuple(_compiled()['defaults'])

@@ -1,9 +1,9 @@
 # Physical, electromechanical and aerodynamic construction of every craft and variant
 # (`mechatronics.crafts()`, compiled by `machine.aircraft.compile`): each craft its own laid on
 # `[shared]`, a variant (`extends`) on its craft.
-# All thrust/drag polars, control moment arms, drive load polars, rigid-body inertias, heatsink
-# curves, governor speeds, attitude impedances, ESO bandwidths and trajectory envelopes are derived
-# statically by `machine.aircraft.compile`.
+# All thrust/drag/flap polars, blade and airframe inertias, control moment arms, drive load polars,
+# heatsink curves, governor speeds, attitude impedances, ESO bandwidths and trajectory envelopes are
+# derived statically by `machine.aircraft.polars`, `machine.aircraft.compile` and `machine.solver`.
 
 # What every craft has unless it states its own: its drive, its frame's mass and its heavy frame's
 # (kg), its body's drag area, the inflow's shares, a foot's radius and the camera's gimbal.
@@ -29,9 +29,6 @@ disc_height_m = 0.06
 diameter_m = 0.4064
 pitch_m = 0.3556
 disc_half_m = 0.008
-prop_kgm2 = 3.3e-4
-ct = 0.13283
-cp = 0.07715
 skid_h_m = 0.12
 hub_m = [0.06, 0.03, 0.06]
 
@@ -45,13 +42,11 @@ diameter_m = 1.250
 pitch_m = 0.3556
 collective_deg = 14.0
 cyclic_deg = 10.0
-ct = 0.0059264
-cp = 0.00028015
+main_gear = 3.2
 tail_boom_m = 0.85
 tail_diameter_m = 0.220
 tail_pitch_deg = 16.0
-tail_ct = 1.05329
-gyration_m = [0.130384, 0.153297, 0.107238]
+tail_gear = 3.2
 skid_h_m = 0.15
 skid_span_m = 0.17
 strut_aft_m = -0.10
@@ -69,10 +64,6 @@ pitch_deg = 24.0
 sweep_fold_deg = 52.0
 gear_ratio = 6.0
 beat_pulse = 0.30
-ct_stroke = 0.50945
-cp_stroke = 0.01297
-cl_glide = 0.16
-gyration_m = [0.109545, 0.126491, 0.094868]
 skid_h_m = 0.135
 skid_span_m = 0.130
 strut_aft_m = -0.09
@@ -86,27 +77,23 @@ wing_chord_m = 0.28
 prop_diameter_m = 0.4318
 prop_pitch_m = 0.2032
 prop_z_m = 0.356
-prop_kgm2 = 0.0004
-ct = 0.081670
-cp = 0.040831
 tail_arm_m = 0.484
 stab_area_m2 = 0.046
 fin_area_m2 = 0.035
 cd0 = 0.035
 span_efficiency = 0.75
+flap_share = 0.50
+aileron_share = 0.28
+vector_deg = 15.0
 elevator_deg = 45.0
 aileron_deg = 38.0
 rudder_deg = 48.0
 propwash_share = 0.85
-cm_elev = 0.0046681
-cl_ail = 0.00055095
-cn_rud = 0.0069717
 stall_deg = 15.0
 stall_blend_deg = 8.0
 pitch_rest_deg = 78.0
 roll_mu = 0.30
 tail_contact_m = 0.03
-gyration_m = [0.187083, 0.151658, 0.215639]
 skid_h_m = 0.264
 skid_span_m = 0.147
 strut_aft_m = -0.819

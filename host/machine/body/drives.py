@@ -176,7 +176,7 @@ PASSIVE = {k: (v.get('stiffness'), float(v.get('damping', 0.0)), float(v.get('re
 TOE_K = float(_BUILD['toes'].get(
     'stiffness', round(float(_MAT['solids']['carbon'][0]) * 1e9 * (2.0 * SOLE_HALF)
                        * (SCALE * float(_BUILD['toes']['thick_m'])) ** 3 / (12.0 * TOE_M), 1)))
-TOE_LOSS, TOE_REST = float(_BUILD['toes']['loss']), float(_BUILD['toes']['rest'])
+TOE_LOSS, TOE_REST = float(_BUILD['toes']['loss']), float(_BUILD['toes'].get('rest', 0.0))
 TOE_RAD_S = float(_BUILD['toes'].get(
     'rad_s', round(math.sqrt(float(_WORLD['g_m_s2']) * (THIGH + SHANK)) / math.hypot(BALL, ANKLE_H))))
 
@@ -248,7 +248,7 @@ def _mounts():
         else:
             piv = offset if on == parent_name else (0.0, 0.0, 0.0)
             idx = 'xyz'.index(ax)
-            at = tuple(round(v + (float(m['along_m']) if i == idx else 0.0), 6)
+            at = tuple(round(v + (float(m.get('along_m', 0.0)) if i == idx else 0.0), 6)
                        for i, v in enumerate(piv))
         out[k] = (on, at) + face
     return out
@@ -272,18 +272,19 @@ def kind(joint):
     return joint.rsplit('_', 1)[-1]
 
 
+#: RS-485 8N1 bits/char, lockstep header and drive-slot bytes, wire share, and pendulum factor.
+UART_8N1_BITS, LOCKSTEP_HEADER_BYTES, LOCKSTEP_SLOT_BYTES, WIRE_SHARE, LAW_PENDULUM_FACTOR = 10.0, 9, 27, 0.35, 100.0
+
+
 def _bus_timing():
-    """Fieldbus lockstep rate (Hz) and whole-body law decimation from RS485 wire budget and leg pendulum."""
     bus = _BUILD['bus']
     baud, turn_s = float(bus['baud']), float(bus['turn_s'])
-    leg = [j for s in SEGMENTS if s[0] in ('left_thigh', 'left_shank', 'left_foot', 'left_toes')
-           for j, *_ in s[2] if kind(j) not in WAYS]
-    n_drv = max(1, len(leg))
-    wire_s = 10.0 * (9 + 27 * n_drv) / baud + n_drv * turn_s
-    hz = float(bus.get('bus_hz', round(0.35 / wire_s, -2)))
-    l_ref = (THIGH + SHANK + ANKLE_H) / SCALE
-    div = int(bus.get('law_div', max(1, round(hz / (100.0 * math.sqrt(float(_WORLD['g_m_s2']) / l_ref))))))
-    return hz, div
+    n_drv = max(1, sum(1 for s in SEGMENTS if s[0] in ('left_thigh', 'left_shank', 'left_foot', 'left_toes')
+                       for j, *_ in s[2] if kind(j) not in WAYS))
+    wire_s = UART_8N1_BITS * (LOCKSTEP_HEADER_BYTES + LOCKSTEP_SLOT_BYTES * n_drv) / baud + n_drv * turn_s
+    hz = float(bus.get('bus_hz', round(WIRE_SHARE / wire_s, -2)))
+    w_p = LAW_PENDULUM_FACTOR * math.sqrt(float(_WORLD['g_m_s2']) * SCALE / (THIGH + SHANK + ANKLE_H))
+    return hz, int(bus.get('law_div', max(1, round(hz / w_p))))
 
 
 BUS_HZ, LAW_DIV = _bus_timing()

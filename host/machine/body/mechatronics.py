@@ -141,8 +141,10 @@ def craft_sources(spec: str | None = None):
     """All `.toml` and static solver files governing aircraft and drones (`crafts.toml` + library + solver)."""
     p = os.path.abspath(spec) if spec else os.path.abspath(CRAFTS)
     solv_dir = os.path.join(HERE, 'solver')
-    return library_sources() + (p, constants.__file__, os.path.join(solv_dir, 'loops.py'),
-                                os.path.join(solv_dir, 'contacts.py'), os.path.join(HERE, 'aircraft', 'solved.py'))
+    return library_sources() + (
+        p, constants.__file__, os.path.join(solv_dir, 'aero.py'), os.path.join(solv_dir, 'inertia.py'),
+        os.path.join(solv_dir, 'loops.py'), os.path.join(solv_dir, 'contacts.py'),
+        os.path.join(HERE, 'aircraft', 'solved.py'))
 
 
 _BODY_MODS = ('mechatronics', 'figure', 'linkage', 'skeleton', 'structural', 'guards',
@@ -235,7 +237,12 @@ def _resolve(raw, part=None):
 
 def library():
     """{part: {name: its data}} of every part in the library."""
-    return {part: _resolve(_toml(os.path.join(LIBRARY, part + '.toml')), part) for part in PARTS}
+    out = {part: _resolve(_toml(os.path.join(LIBRARY, part + '.toml')), part) for part in PARTS}
+    wep = max(float(v['wep_amps']) for v in out['inverters'].values())
+    for m in out['motors'].values():
+        if 'peak_nm' not in m and 'pole_pairs' in m and 'flux_vs' in m:
+            m['peak_nm'] = round(1.5 * float(m['pole_pairs']) * float(m['flux_vs']) * wep, 2)
+    return out
 
 
 def primary_inverter(rbt=None, lib=None) -> str:
@@ -359,6 +366,39 @@ def _stacks(base, drives):
     return out
 
 
+def _resolve_linkage(link: dict) -> dict:
+    """Resolve paired and default rod attributes (`[linkage.rods]` + `[linkage.pairs]`)."""
+    pairs = {str(k): str(v) for k, v in link.get('pairs', {}).items()}
+    rods_in = link.get('rods', {})
+    rods = {}
+    for k, r in rods_in.items():
+        if isinstance(r, dict):
+            rods[k] = {'joint': k, 'ahead': 0.0, **r}
+    for pri, sec in pairs.items():
+        if pri not in rods:
+            continue
+        p = rods[pri]
+        if sec not in rods:
+            s_rod = {**p, 'joint': p['joint'], 'crank_x': -float(p['crank_x']), 'ball_x': -float(p['ball_x'])}
+            if 'bend' in p:
+                b = p['bend']
+                s_rod['bend'] = [-float(b[0]), float(b[1]), float(b[2])]
+            rods[sec] = s_rod
+        else:
+            raw_s = rods_in[sec]
+            s_rod = dict(rods[sec])
+            s_rod['joint'] = str(raw_s.get('joint', p['joint']))
+            for k_inh in ('crank_deg', 'ball_deg', 'stroke'):
+                if k_inh not in raw_s and k_inh in p:
+                    s_rod[k_inh] = p[k_inh]
+            if 'crank_x' not in raw_s:
+                s_rod['crank_x'] = -float(p['crank_x'])
+            if 'ball_x' not in raw_s:
+                s_rod['ball_x'] = -float(p['ball_x'])
+            rods[sec] = s_rod
+    return {**link, 'rods': rods}
+
+
 def robot(name=ROBOT, near: str | None = None) -> dict:
     """A robot's build (`machine/humanoids/<name>.toml` or a `.toml` path): its tables and its `stacks`,
     {kind: [motor, gearbox, inverter]} laid of its `[drives]` (`_stacks`), each part found in the library.
@@ -366,13 +406,28 @@ def robot(name=ROBOT, near: str | None = None) -> dict:
     `swap` the motors it takes for that one's in every stack it names no motor for. A joint the build's
     `[cloth]` dresses in nothing is bare (BARE), laid after those the table names, in the stacks' order."""
     path = _robot_path(name, near)
-    build, lib = _toml(path), library()
-    own, stacks = build.get('drives', {}), {}
-    if 'extends' in build:
-        base, swap = robot(build['extends'], os.path.dirname(path)), build.get('swap', {})
+    raw_b, lib = _toml(path), library()
+    own, stacks = raw_b.get('drives', {}), {}
+    if 'extends' in raw_b:
+        base, swap = robot(raw_b['extends'], os.path.dirname(path)), raw_b.get('swap', {})
         stacks = {kind: [swap.get(stack[0], stack[0])] + list(stack[1:]) for kind, stack in base['stacks'].items()}
-        build = _merged(base, {k: v for k, v in build.items() if k not in ('extends', 'swap')})
-    build = dict({k: v for k, v in build.items() if k != 'drives'}, stacks=_stacks(stacks, own))
+        merged_b = _merged(base, {k: v for k, v in raw_b.items() if k not in ('extends', 'swap')})
+        if 'linkage' in raw_b and isinstance(raw_b['linkage'].get('rods'), dict):
+            for k, v in raw_b['linkage']['rods'].items():
+                if v is False:
+                    merged_b['linkage']['rods'].pop(k, None)
+                elif isinstance(v, dict) and v.get('bend') is False:
+                    merged_b['linkage']['rods'][k].pop('bend', None)
+        build = merged_b
+    else:
+        build = dict(raw_b)
+    build: dict[str, Any] = dict({k: v for k, v in build.items() if k != 'drives'}, stacks=_stacks(stacks, own))
+    if 'figure' in build:
+        fig_d: dict[str, Any] = dict(build['figure'])
+        fig_d.setdefault('scale', 1.0)
+        build['figure'] = fig_d
+    if 'linkage' in build:
+        build['linkage'] = _resolve_linkage(build['linkage'])
     for kind, stack in build['stacks'].items():
         for part, named in zip(PARTS, stack):
             if named not in lib[part]:

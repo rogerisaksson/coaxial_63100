@@ -270,6 +270,16 @@ def test_constants_and_external_toml_specs(r):
     r.check('external .toml spec with chest-mounted cardan trunk compiles subtrees, servos, gait and peripherals',
             got == [['spine', 'spine_roll', 'waist'], ['torso', [0.04, 0.087, 0.003]], [],
                     True, True, 0.0, True, True, True], got)
+    import tomllib
+    from machine.body import mechatronics
+    with open(os.path.join(HOST, 'machine', 'library', 'motors.toml'), 'rb') as f:
+        raw_mot = tomllib.load(f)['outrunner_63100_14p']
+    lib_mot = mechatronics.library()['motors']['outrunner_63100_14p']
+    coax_rods = mechatronics.robot('gynoid_mesomorph_medium_coax')['linkage']['rods']
+    r.check('motor peak torque and paired straight-rod linkage defaults derive from elementary specs',
+            'peak_nm' not in raw_mot and lib_mot['peak_nm'] == 3.91
+            and coax_rods['ankle_roll']['crank_x'] == -coax_rods['ankle']['crank_x']
+            and 'bend' not in coax_rods['ankle'], (lib_mot['peak_nm'], coax_rods['ankle_roll']['crank_x']))
 
 
 ROSTER = (test_the_power_stage_is_the_librarys, test_the_stages_rate_and_envelope_are_stated_once,

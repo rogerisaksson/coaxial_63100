@@ -46,11 +46,10 @@ gripper = { way = 2.0, rest = 80.0 }
 wrist = { way = 2.0 }
 
 # Forefoot TPU-carbon sandwich toe spring (`drives.passive`, `docs/findings/feet.md`):
-# 8-ply carbon forefoot plate thickness (m), viscoelastic loss factor and rest angle (deg).
+# 8-ply carbon forefoot plate thickness (m) and viscoelastic loss factor; rest defaults to 0 deg.
 [toes]
 thick_m = 0.001074
 loss = 0.3
-rest = 0.0
 
 # Clothing thermal insulation over bare-air convection (ISO 9920): 1.20 cotton tee, 1.45 denim; a joint
 # the table names none for is bare (1.0, `mechatronics.BARE`).
@@ -148,13 +147,13 @@ head = { stack_on = "neck", gap_m = 0.002 }
 spine_roll = { on = "pelvis", z_m = 0.005 }
 waist = { on = "torso", along_m = 0.12, face = "-y" }
 shoulder = { on = "torso", along_m = -0.015 }
-elbow = { on = "upper_arm", along_m = 0.0, face = "-x" }
+elbow = { on = "upper_arm", face = "-x" }
 wrist = { on = "forearm", at = [0.0, -0.12, 0.0], face = "-y" }
 gripper = { on = "forearm", at = [0.0, -0.165, 0.0] }
 hip_yaw = { on = "pelvis", along_m = 0.103, face = "-y" }
 hip_roll = { on = "hip_yaw", at = [-0.025, 0.035, -0.078] }
 ankle = { on = "shank", x_m = 0.002, dy_m = -0.010, face = "x" }
-ankle_roll = { on = "shank", x_m = -0.004, dy_m = 0.0, face = "-x" }
+ankle_roll = { on = "shank", x_m = -0.004, face = "-x" }
 foot = { on = "foot", at = [0.0, -0.04, 0.045] }
 
 # Off-axis mechanical transmissions (`machine/body/linkage.py`): parallel ankle rods, four-bars, spurs, belts.
@@ -169,8 +168,8 @@ gears = { hip_roll = 1.67 }
 belts = { foot = [0.010, 0.010, 0.036] }
 
 [linkage.rods]
-ankle = { joint = "ankle", up = 0.300, ahead = 0.015, crank_m = 0.020, crank_deg = 90.0, ball_m = 0.018, ball_deg = 255.0, crank_x = 0.045, ball_x = 0.012, bend = [0.045, 0.180, 0.0139], stroke = [-50.0, 45.0] }
-ankle_roll = { joint = "ankle", up = 0.230, ahead = 0.000, crank_m = 0.024, crank_deg = 90.0, ball_m = 0.022, ball_deg = 255.0, crank_x = -0.047, ball_x = -0.016, bend = [-0.047, 0.205, 0.0193], stroke = [-50.0, 45.0] }
+ankle = { up = 0.300, ahead = 0.015, crank_m = 0.020, crank_deg = 90.0, ball_m = 0.018, ball_deg = 255.0, crank_x = 0.045, ball_x = 0.012, bend = [0.045, 0.180, 0.0139], stroke = [-50.0, 45.0] }
+ankle_roll = { up = 0.230, crank_m = 0.024, ball_m = 0.022, crank_x = -0.047, ball_x = -0.016, bend = [-0.047, 0.205, 0.0193] }
 
 [linkage.planar]
 spine_roll = { segment = "torso", crank_at = [0.0, 0.02], crank_m = 0.018, crank_deg = 20.0, horn_m = 0.024, horn_deg = 200.0, z_m = 0.047, stroke = [-35.0, 35.0] }
@@ -187,31 +186,31 @@ gimbal = { fork_r = 0.015, crown_r = 0.005, steerer_r = 0.0125, arm_r = 0.0125, 
 cross = ["ankle", 0.007, 0.026]
 
 [skeleton.hung]
-thigh = { radii = [0.020, 0.020], tubes = [[[0.034, -0.05, 0.0], [0.0, -0.14, 0.03]], [[0.0, -0.14, 0.03], [-0.019, 0.05, 0.012, "end"]]], collars = [["hip", "gear", 0.0], ["knee", "motor", "end"]] }
+thigh = { radii = 0.020, tubes = [[[0.034, -0.05, 0.0], [0.0, -0.14, 0.03], [-0.019, 0.05, 0.012, "end"]]], collars = [["hip", "gear", 0.0], ["knee", "motor", "end"]] }
 shank = { radii = [0.020, 0.0175, 0.010, 0.010, 0.010], tubes = [[[0.0285, -0.045, -0.032], [0.0, -0.17, -0.05]], [[0.0, -0.17, -0.05], [0.0, 0.06, -0.008, "end"], [0.0, 0.035, 0.014, "end"]], [[0.03, 0.02, 0.014, "end"], [0.0, 0.035, 0.014, "end"], [-0.03, 0.02, 0.014, "end"]], [[0.03, 0.02, 0.014, "end"], [0.03, 0.0, 0.0, "end"]], [[-0.03, 0.02, 0.014, "end"], [-0.03, 0.0, 0.0, "end"]]], collars = [["knee", "gear", 0.0]] }
-upper_arm = { radii = [0.0125, 0.0125], tubes = [[[0.032, -0.004, 0.0], [0.032, -0.05, 0.0], [0.0, -0.077, 0.0]], [[-0.014, -0.145, -0.016], [-0.012, -0.19, -0.012], [-0.012, -0.235, -0.01], [-0.024, 0.042, 0.0, "end"]]], collars = [["elbow", "motor", "end"]] }
+upper_arm = { radii = 0.0125, tubes = [[[0.032, -0.004, 0.0], [0.032, -0.05, 0.0], [0.0, -0.077, 0.0]], [[-0.014, -0.145, -0.016], [-0.012, -0.19, -0.012], [-0.012, -0.235, -0.01], [-0.024, 0.042, 0.0, "end"]]], collars = [["elbow", "motor", "end"]] }
 forearm = { radii = [0.010, 0.0125, 0.010, 0.010], tubes = [[[0.034, -0.037, 0.0], [0.0, -0.055, 0.0]], [[0.0, -0.055, 0.0], [0.0, -0.089, 0.0]], [[0.0, -0.142, -0.015], [0.0, -0.18, -0.012], [0.0, -0.215, -0.008], [-0.016, -0.235, 0.0], [-0.016, -0.25, 0.0]], [[0.0, -0.215, -0.008], [0.013, -0.235, 0.0], [0.013, -0.25, 0.0]]], collars = [["elbow", "gear", 0.0]] }
-foot = { radii = 0.006, tubes = [[[0.0, 0.0, -0.026], [0.0, -0.035, -0.032], [0.0, -0.066, -0.045], [0.0, -0.066, 0.105], [0.0, -0.061, 0.117]], [[0.0, 0.0, 0.026], [0.0, -0.03, 0.018], [0.0, -0.066, 0.015]], [[0.012, 0.0047, -0.0174], [0.0, 0.004, -0.024], [-0.016, 0.0057, -0.0213]], [[-0.03, -0.061, 0.117], [0.03, -0.061, 0.117]]], collars = [] }
+foot = { radii = 0.006, tubes = [[[0.0, 0.0, -0.026], [0.0, -0.035, -0.032], [0.0, -0.066, -0.045], [0.0, -0.066, 0.105], [0.0, -0.061, 0.117]], [[0.0, 0.0, 0.026], [0.0, -0.03, 0.018], [0.0, -0.066, 0.015]], [[0.012, 0.0047, -0.0174], [0.0, 0.004, -0.024], [-0.016, 0.0057, -0.0213]], [[-0.03, -0.061, 0.117], [0.03, -0.061, 0.117]]] }
 
 [skeleton.trunk]
 pelvis = { radii = [0.015, 0.015, 0.020], tubes = [[[0.055, 0.045, 0.0], [0.055, 0.045, 0.066], [0.0, 0.099, 0.066]], [[-0.055, 0.045, 0.0], [-0.055, 0.045, 0.066], [0.0, 0.099, 0.066]], [[0.0, -0.03, 0.0], [0.0, -0.03, -0.06], [0.0, 0.099, -0.066]]], rings = [[[0.0, 0.12, 0.066], "z", 0.009, 0.007], [[0.0, 0.12, -0.066], "z", 0.009, 0.007]] }
-spine_roll = { radii = [0.007, 0.007], tubes = [[[0.0, 0.0, 0.043], [0.0, 0.0, 0.052]], [[0.0, 0.0, -0.043], [0.0, 0.0, -0.052]]], rings = [[[0.0, 0.0, 0.0], "x", 0.043, 0.008]] }
-spine = { radii = [0.020], tubes = [[[0.049, 0.0, 0.0], [0.052, 0.048, 0.0], [0.0, 0.062, 0.0]]], rings = [] }
-torso = { radii = [0.02, 0.015], tubes = [[[0.0, 0.155, 0.0], [0.0, 0.352, 0.004]], [[-0.105, 0.325, -0.005], [0.105, 0.325, -0.005]]], rings = [] }
-neck = { radii = [0.010], tubes = [[[0.047, 0.0, 0.0], [0.047, 0.042, 0.0], [0.0, 0.042, 0.012]]], rings = [] }
+spine_roll = { radii = 0.007, tubes = [[[0.0, 0.0, 0.043], [0.0, 0.0, 0.052]], [[0.0, 0.0, -0.043], [0.0, 0.0, -0.052]]], rings = [[[0.0, 0.0, 0.0], "x", 0.043, 0.008]] }
+spine = { radii = 0.020, tubes = [[[0.049, 0.0, 0.0], [0.052, 0.048, 0.0], [0.0, 0.062, 0.0]]] }
+torso = { radii = [0.02, 0.015], tubes = [[[0.0, 0.155, 0.0], [0.0, 0.352, 0.004]], [[-0.105, 0.325, -0.005], [0.105, 0.325, -0.005]]] }
+neck = { radii = 0.010, tubes = [[[0.047, 0.0, 0.0], [0.047, 0.042, 0.0], [0.0, 0.042, 0.012]]] }
 
 [skeleton.held]
-hip_yaw = { collars = [[-0.014, 0.008]], struts = [] }
+hip_yaw = { collars = [[-0.014, 0.008]] }
 hip_roll = { collars = [[0.018, 0.006], [-0.022, 0.006]], struts = [[[0.02, 0.035, -0.055], [0.009, 0.035, -0.06]], [[0.02, 0.058, -0.055], [-0.001, 0.059, -0.1]]] }
 ankle = { collars = [[0.0185, 0.006]], struts = [[[0.0205, -0.08, -0.019], [0.0205, -0.08, -0.037]]] }
 ankle_roll = { collars = [[-0.0086, 0.006]], struts = [[[0.0046, -0.15, -0.034], [0.0046, -0.15, -0.047], 0.007]] }
-wrist = { collars = [[-0.022, 0.005], [0.022, 0.005]], struts = [] }
-foot = { collars = [[0.0, 0.006]], struts = [] }
-spine_roll = { collars = [[-0.025, 0.006]], struts = [] }
-waist = { collars = [[0.025, 0.006], [-0.025, 0.006]], struts = [] }
-neck = { collars = [[0.0, 0.006]], struts = [] }
-head = { collars = [[0.0, 0.005]], struts = [] }
-shoulder = { collars = [[-0.02, 0.006]], struts = [] }
+wrist = { collars = [[-0.022, 0.005], [0.022, 0.005]] }
+foot = { collars = [[0.0, 0.006]] }
+spine_roll = { collars = [[-0.025, 0.006]] }
+waist = { collars = [[0.025, 0.006], [-0.025, 0.006]] }
+neck = { collars = [[0.0, 0.006]] }
+head = { collars = [[0.0, 0.005]] }
+shoulder = { collars = [[-0.02, 0.006]] }
 
 [skeleton.posts]
 thigh = [[[-0.0019, -0.16, 0.0282], [0.057, -0.16, 0.0282]], [[-0.0057, -0.20, 0.0246], [0.057, -0.20, 0.0246]]]
@@ -247,7 +246,6 @@ thigh = [-0.065, 0.04, 0.015, 0.2]
 
 # Anthropometric geometry, collision capsules and impact gel pads (`machine/body/figure.py`).
 [figure]
-scale = 1.0
 hip_half = 0.095
 hip_drop = 0.055
 thigh = 0.39
@@ -272,16 +270,15 @@ fist = [0.03, 0.0, -0.07, 0.01]
 pad_m = 0.005
 body = [
     ["seat"],
-    ["pelvis", 0.095, [-0.07, -0.012, -0.02], [0.07, -0.012, -0.02]],
-    ["torso", 0.07, [-0.032, 0.0, 0.0], [0.032, 0.0, 0.0]],
-    ["torso", 0.08, [-0.038, 0.15, 0.0], [0.038, 0.15, 0.0]],
-    ["torso", 0.078, [-0.052, 0.26, 0.0], [0.052, 0.26, 0.0]],
-    ["torso", 0.066, [-0.074, 0.33, 0.0], [0.074, 0.33, 0.0]],
-    ["torso", 0.052, [0.056, 0.208, 0.062], [0.056, 0.208, 0.062]],
-    ["torso", 0.052, [-0.056, 0.208, 0.062], [-0.056, 0.208, 0.062]],
+    ["pelvis", 0.095, [0.07, -0.012, -0.02]],
+    ["torso", 0.07, [0.032, 0.0]],
+    ["torso", 0.08, [0.038, 0.15]],
+    ["torso", 0.078, [0.052, 0.26]],
+    ["torso", 0.066, [0.074, 0.33]],
+    ["pair", "torso", 0.052, [0.056, 0.208, 0.062]],
     ["neck", 0.045, [0.0, 0.0, 0.0], [0.0, 0.07, 0.0]],
-    ["head", 0.085, [0.0, 0.095, 0.012], [0.0, 0.095, 0.012]],
-    ["head", 0.045, [0.0, 0.042, 0.03], [0.0, 0.042, 0.03]],
+    ["head", 0.085, [0.0, 0.095, 0.012]],
+    ["head", 0.045, [0.0, 0.042, 0.03]],
     ["upper_arm", 0.034, 0.02],
     ["forearm", 0.025, 0.02],
     ["fist"],
@@ -302,15 +299,15 @@ pads = [
 
 # Anthropometric segment chain attachments and de Leva mass/gyration shares (`machine/body/figure.py`).
 [figure.segments]
-pelvis = {share = 0.1247, com = [0.0, 0.0, 0.0], gyration = [0.09, 0.07, 0.08]}
-torso = {at = [0.0, 0.12, 0.0], share = 0.301, com = [0.0, 0.17, 0.0], gyration = [0.12, 0.09, 0.11]}
-neck = {at = [0.0, 0.385, 0.006], share = 0.006, com = [0.0, 0.05, 0.0], gyration = [0.02, 0.02, 0.02]}
-head = {at = [0.0, 0.065, 0.012], share = 0.0608, com = [0.0, 0.095, 0.012], gyration = [0.075, 0.07, 0.075]}
-upper_arm = {at = [0.148, 0.325, -0.005], turn = 6.0, share = 0.0255, com_along = -0.437, gyration = [0.075, 0.035, 0.075]}
-forearm = {share = 0.0138, com_along = -0.417, gyration = [0.063, 0.025, 0.063]}
-hand = {share = 0.0036, com = [0.0, -0.043, 0.0], gyration = [0.03, 0.015, 0.03]}
-fingers = {at = [0.0, -0.086, 0.004], share = 0.002, com = [0.0, -0.035, 0.0], gyration = [0.02, 0.01, 0.02]}
-thigh = {share = 0.1478, com_along = -0.36, gyration = [0.144, 0.065, 0.144]}
-shank = {share = 0.0481, com_along = -0.44, gyration = [0.103, 0.035, 0.103]}
-foot = {share = 0.011, com = [0.0, -0.045, 0.03], gyration = [0.055, 0.03, 0.055]}
-toes = {share = 0.0019, com = [0.0, 0.0, 0.03], gyration = [0.02, 0.01, 0.02]}
+pelvis = {share = 0.1247, gyration = [0.09, 0.07, 0.08]}
+torso = {at = 0.12, share = 0.301, com = 0.17, gyration = [0.12, 0.09, 0.11]}
+neck = {at = [0.0, 0.385, 0.006], share = 0.006, com = 0.05, gyration = 0.02}
+head = {at = [0.0, 0.065, 0.012], share = 0.0608, com = [0.0, 0.095, 0.012], gyration = [0.075, 0.07]}
+upper_arm = {at = [0.148, 0.325, -0.005], turn = 6.0, share = 0.0255, com_along = -0.437, gyration = [0.075, 0.035]}
+forearm = {share = 0.0138, com_along = -0.417, gyration = [0.063, 0.025]}
+hand = {share = 0.0036, com = -0.043, gyration = [0.03, 0.015]}
+fingers = {at = [0.0, -0.086, 0.004], share = 0.002, com = -0.035, gyration = [0.02, 0.01]}
+thigh = {share = 0.1478, com_along = -0.36, gyration = [0.144, 0.065]}
+shank = {share = 0.0481, com_along = -0.44, gyration = [0.103, 0.035]}
+foot = {share = 0.011, com = [0.0, -0.045, 0.03], gyration = [0.055, 0.03]}
+toes = {share = 0.0019, com = [0.0, 0.0, 0.03], gyration = [0.02, 0.01]}

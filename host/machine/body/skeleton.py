@@ -34,13 +34,15 @@ def _collar_y(seg, y):
 #: in the robot's build (`machine.body.mechatronics`), with `"end"` points anchored to limb joint lengths.
 HUNG = {seg: (tuple(tuple(_pt(seg, p) for p in run) for run in h['tubes']),
               tuple(float(r) for r in h['radii']) if isinstance(h['radii'], list) else float(h['radii']),
-              tuple((str(c[0]), str(c[1]), _collar_y(seg, c[2])) for c in h['collars']))
+              tuple((str(c[0]), str(c[1]), _collar_y(seg, c[2])) for c in h.get('collars', ())))
         for seg, h in _SKEL['hung'].items()}
 CRANK_R = float(_SKEL['crank_r'])
 BOOM = (float(_SKEL['boom']['r']), tuple(tuple(float(v) for v in p) for p in _SKEL['boom']['pts']))
-TRUNK_R = {f: tuple(float(r) for r in t['radii']) for f, t in _SKEL['trunk'].items()}
+TRUNK_R = {f: (tuple(float(r) for r in t['radii']) if isinstance(t['radii'], list)
+               else (float(t['radii']),) * len(t['tubes']))
+           for f, t in _SKEL['trunk'].items()}
 TRUNK = {f: (tuple(tuple(tuple(float(v) for v in p) for p in run) for run in t['tubes']),
-             tuple((tuple(float(v) for v in r[0]), str(r[1]), float(r[2]), float(r[3])) for r in t['rings']))
+             tuple((tuple(float(v) for v in r[0]), str(r[1]), float(r[2]), float(r[3])) for r in t.get('rings', ())))
          for f, t in _SKEL['trunk'].items()}
 _GIM = _SKEL['gimbal']
 FORK_R, CROWN_R = float(_GIM['fork_r']), float(_GIM['crown_r'])
@@ -50,9 +52,9 @@ STEERER_R, ARM_R = float(_GIM['steerer_r']), float(_GIM['arm_r'])
 _CROWN_DROP, _LEG_X = float(_GIM['crown_drop']), float(_GIM['leg_x'])
 COLLAR_M = float(_SKEL['collar_m'])
 STRUT_R, POST_R = float(_SKEL['strut_r']), float(_SKEL['post_r'])
-HELD = {k: (tuple((float(c[0]), float(c[1])) for c in h['collars']),
+HELD = {k: (tuple((float(c[0]), float(c[1])) for c in h.get('collars', ())),
             tuple((tuple(float(v) for v in s[0]), tuple(float(v) for v in s[1]))
-                  + ((float(s[2]),) if len(s) > 2 else ()) for s in h['struts']))
+                  + ((float(s[2]),) if len(s) > 2 else ()) for s in h.get('struts', ())))
         for k, h in _SKEL['held'].items()}
 POSTS = {seg: tuple((tuple(float(v) for v in p[0]), tuple(float(v) for v in p[1])) for p in rows)
          for seg, rows in _SKEL['posts'].items()}

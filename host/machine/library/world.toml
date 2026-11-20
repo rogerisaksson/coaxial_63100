@@ -21,7 +21,6 @@ joint_damping = 0.3
 # High-discharge 15S1P LiPo flight battery pack (`machine.aircraft.flightpack`).
 [flight_pack]
 series = 15
-parallel = 1
 cell_ah = 1.0
 cell_ohm = 0.0024
 lead_ohm = 0.004
