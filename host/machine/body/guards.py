@@ -11,12 +11,15 @@ the trunk's from its left, toward ahead. A guard's face stands SKIN_M over the r
 (`figure.skin_of`), and its foam, THICK_M under that face, AIR_M clear of the mechanism by it at rest - a
 drive's stack or board, a bone (`skeleton.cans`, `drives.boards`, `skeleton.runs`) the segment's axis
 meets within NEAR_M. A guard is laid in flat pieces round the axis, none more than half its foam off the
-arc it spans, each tilted to the surface's taper down it, KG_M2 a square metre of its face; two solid
-steel struts STRUT_R round hold each guard, STRUTS of its half width either side of its middle, from its
-foam to the segment's nearest tube.
+arc it spans, each tilted to the surface's taper down it, KG_M2 a square metre of its face - as much of
+it as its outline's superellipse takes of the box (`shape`: boxy, unless its row tells its power, its taper
+and its tilt); two solid steel struts STRUT_R round hold each guard, STRUTS of its half width either side of
+its middle, from its foam to the segment's nearest tube - or, where the build tells hoops (`HOOPS`), carbon
+bars cut flat round behind the segment's guards, each guard clipped on, a leg in from each end.
 """
 import math
 
+from machine import libm
 from machine.body import drives, mechatronics, skeleton
 from machine.body.figure import FOREARM, IDENT, SEGMENTS, SHANK, THIGH, UPPER_ARM, skin_of
 
@@ -27,17 +30,53 @@ KG_M2, THICK_M, STRUT_R = float(_SPEC['kg_m2']), float(_SPEC['thick_m']), float(
 #: the limb, shares of its length, the torso's up the torso, m.
 LAYOUT = {part: tuple(tuple(float(v) for v in row) for row in rows)
           for part, rows in _SPEC.items() if isinstance(rows, list)}
+#: A guard's outline past its four numbers (a row's fifth to seventh, where told): its superellipse's power - POWER
+#: a boxy plate, 2 an ellipse -, how much wider its top is than its middle and its foot narrower, a share, and how
+#: far its middle line slants up round its axis, deg - a plate along a crease.
+POWER = 6.0
+#: The hoops a part's guards are held on in place of struts (`[guards] hoops`, where a build tells them): {part:
+#: ((its height - up the trunk, m, down a limb, a share of its length as its rows -, from, to, deg round its axis
+#: as its guards'), ...)}; a hoop's width out from the axis and its thickness - a bar cut from a stock carbon sheet,
+#: flat in its own height -, and how far a guard's back stands off it, its clips' reach, m.
+HOOPS = {part: tuple(tuple(float(v) for v in hoop) for hoop in rows) for part, rows in _SPEC.get('hoops', {}).items()}
+HOOP_M, CLIP_M = (0.008, 0.004), 0.002
+#: How far toward its axis a trunk's guards follow its body's surface, a share of its reach (`[guards] slim`).
+SLIM = float(_SPEC.get('slim', 1.0))
 #: A guard's face SKIN_M over what it lies on, its foam AIR_M clear of the mechanism the axis meets within
 #: NEAR_M, a strut STRUTS of the guard's half width from its middle.
 SKIN_M, AIR_M, NEAR_M, STRUTS = 0.002, 0.006, 0.11, 0.45
-#: Steel, kg/m^3 (`materials.toml`): a strut's.
-STEEL_KG_M3 = float(mechatronics.materials()['steel_kg_m3'])
+#: Steel and the carbon laminate, kg/m^3 (`materials.toml`): a strut's, a hoop's.
+STEEL_KG_M3, CF_KG_M3 = (float(mechatronics.materials()[k]) for k in ('steel_kg_m3', 'cf_kg_m3'))
 #: A limb's length, m: what its guards' shares are of.
 LONG = {'upper_arm': UPPER_ARM, 'forearm': FOREARM, 'thigh': THIGH, 'shank': SHANK}
 #: A piece is told at ROWS heights from its head to its foot and COLUMNS ways round.
 ROWS, COLUMNS = 5, 3
 
 _LAID = {}
+
+
+def shape(row):
+    """(power, taper, tilt) of a `[guards]` row: its fifth to seventh numbers, those it does not tell a box's."""
+    told = tuple(row[4:7])
+    return told + (POWER, 0.0, 0.0)[len(told):]
+
+
+def _area(power):
+    """A superellipse's share of its box at `power`: its quarter's, summed over a hundred strips (`machine.libm`)."""
+    return sum(libm.power(1.0 - libm.power((k + 0.5) / 100.0, power), 1.0 / power) for k in range(100)) / 100.0
+
+
+def hoops(part):
+    """[(its height in its segment's frame, m, from, to, deg)]: the hoops `part`'s guards are held on - a limb's
+    heights down it from its shares (`HOOPS`)."""
+    long = LONG.get(part)
+    return [((-h * long) if long else h, a0, a1) for h, a0, a1 in HOOPS.get(part, ())]
+
+
+def held(part, top, foot, mid):
+    """The height of the hoop a guard of `part` from `top` down to `foot`, m, its middle `mid` deg round, is clipped
+    on - its part's that passes behind it -, else None: its struts."""
+    return next((h for h, a0, a1 in hoops(part) if foot < h < top and min(a0, a1) <= mid <= max(a0, a1)), None)
 
 
 def _dot(a, b):
@@ -203,6 +242,33 @@ def _guard(s, top, foot, am, ah, skin, hard):
     return out, feet
 
 
+def _hoop(s, hoop, skin, hard):
+    """[(kg, centre, 3x3 inertia about it)]: a hoop (`HOOPS`) flat at its height round from and to, its middle
+    CLIP_M behind its guards' backs, a chord of carbon between each two of its points, and a leg in from each end in
+    its own plane to the axis - the hoop and its legs one sheet's cut."""
+    y, a0, a1 = hoop[0], math.radians(hoop[1]), math.radians(hoop[2])
+
+    def at(a):
+        sine, cosine = libm.sincos(a)
+        way = (s * cosine, 0.0, sine)
+        r = max(_reach(y, way, skin, hard), 0.0) + SKIN_M - THICK_M - CLIP_M - HOOP_M[0] / 2.0
+        return tuple(r * v + (y if k == 1 else 0.0) for k, v in enumerate(way))
+    path = [at(a0 + (a1 - a0) * k / 16.0) for k in range(17)]
+    legs = [(end, (0.0, y, 0.0)) for end in (path[0], path[-1])]
+    out = []
+    for p, q in list(zip(path, path[1:])) + legs:
+        long = math.dist(p, q)
+        if long < 1e-6:
+            continue
+        along = tuple((b - a) / long for a, b in zip(p, q))
+        lift = tuple((1.0 if k == 1 else 0.0) - along[1] * along[k] for k in range(3))
+        up = tuple(v / max(math.sqrt(_dot(lift, lift)), 1e-12) for v in lift)
+        out_ = (along[1] * up[2] - along[2] * up[1], along[2] * up[0] - along[0] * up[2], along[0] * up[1] - along[1] * up[0])
+        out.append(_box(CF_KG_M3 * long * HOOP_M[0] * HOOP_M[1], tuple((a + b) / 2.0 for a, b in zip(p, q)),
+                        (along, out_, up), (long / 2.0, HOOP_M[0] / 2.0, HOOP_M[1] / 2.0)))
+    return out
+
+
 def tubes(seg):
     """[(a, b, radius)]: the tubes `seg`'s guards' struts stand on, its frame - a limb's bones
     (`skeleton.runs`), the torso's frame's (`skeleton.trunk`) or, with none, its axis."""
@@ -219,16 +285,21 @@ def _lay(seg):
     part, s = (limb if limb in LONG else seg), (-1.0 if side == 'right' else 1.0)
     if part not in LAYOUT:
         return [], []
-    rows = ([(-a * LONG[part], -b * LONG[part], mid, half) for a, b, mid, half in LAYOUT[part]] if part in LONG
-            else [(high, low, mid, half) for low, high, mid, half in LAYOUT[part]])
+    rows = []
+    for r in LAYOUT[part]:
+        top, foot = (-r[0] * LONG[part], -r[1] * LONG[part]) if part in LONG else (r[1], r[0])
+        rows.append((top, foot, r[2], r[3], shape(r)))
     skin = [(a, b, r) for r, a, b in skin_of(seg)]
     hard = _by(seg, min(foot for _t, foot, *_ in rows), max(top for top, *_ in rows))
     slabs, pieces = [], []
-    for top, foot, mid, half in rows:
+    for top, foot, mid, half, form in rows:
         laid, feet = _guard(s, top, foot, math.radians(mid), math.radians(half), skin, hard)
+        share = _area(form[0]) / _area(POWER)                  # its outline's share of the box laid
         slabs += [(centre, around, along, size) for centre, around, along, _n, size, _kg in laid]
-        pieces += [_box(kg, centre, (around, along, normal), size) for centre, around, along, normal, size, kg in laid]
-        pieces += [_strut(f, tubes(seg)) for f in feet]
+        pieces += [_box(kg * share, centre, (around, along, normal), size)
+                   for centre, around, along, normal, size, kg in laid]
+        pieces += [] if held(part, top, foot, mid) is not None else [_strut(f, tubes(seg)) for f in feet]
+    pieces += [p for hoop in hoops(part) for p in _hoop(s, hoop, skin, hard)]
     return slabs, pieces
 
 

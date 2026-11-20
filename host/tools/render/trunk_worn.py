@@ -7,9 +7,10 @@ torso` lays them): a cup a side, a sternum's, two slats down the belly, a back's
 plate under that - the hips, the seat and the small of the back wear none, open all the way. Here they are laid on
 the figure's torso as the legs' and the arms' are (`leg_worn.worn`): clear of what the chest carries - the trunk's
 draft (`trunk_clamped`) and the torso's sketch, the neck's mount and its bay (`neck_mount`) - and of what turns on
-the chest through the trunk's travel, the cranks and the rods; each guard's struts on to the spine's tube, stood
-on what they meet first. `guards` gives them in the trunk's joint's frame, upright; `crossing` how many of their
-triangles cross what the chest carries - none, by the page's rule.
+the chest through the trunk's travel, the cranks and the rods; each guard's struts on to the spine's tube - or,
+where the build clips them on carbon hoops, each hoop's legs in toward it -, stood on what they meet first.
+`guards` gives them in the trunk's joint's frame, upright; `crossing` how many of their triangles cross what the
+chest carries - none, by the page's rule.
 """
 import argparse
 import functools
@@ -80,7 +81,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('out')
     args = parser.parse_args(argv)
-    tris = [t for (link, _name), part in tc.posed().items() if link != 'hips' for t in part]
+    tris = [t for (link, _name), part in tc.posed().items() for t in part]
     tris += [t for part in _carried().values() for t in part] + guards()
     px, looks = 800, ((20.0, 8.0), (90.0, 4.0), (200.0, 8.0))
     sheet = Image.new('RGB', (px * len(looks), px), (18, 18, 18))

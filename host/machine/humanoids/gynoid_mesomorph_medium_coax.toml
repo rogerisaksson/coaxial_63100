@@ -36,8 +36,9 @@ ankle = false
 knee = [-5.0, 155.0]
 
 # The guards (`[guards]`, from and to down a limb, shares; middle and half width about it, deg from its outer side
-# toward ahead): the elbow's and the forearm's on the arm's back, as a rider wears them - the sides that turn away
-# from each other as the elbow bends, so they never meet; on the calf the shin's alone - a printed cover on each
+# toward ahead): the elbow's a round cap on its outside over the drive's gable and its board, as the shoulder's, past
+# the elbow's pivot and no further round than the forearm's back guard's edge, so the two never meet as the elbow
+# bends; the forearm's on the arm's back, as a rider wears it; on the calf the shin's alone - a printed cover on each
 # drive's gable, nothing of foam over it (`tools/render/leg_clamped.py`), the shin's guard no wider round the calf than
 # keeps its edges inside those covers - the calf no wider than its drives and their covers;
 # the thigh's pad alone, its two ring slats off, its back edge on the thigh's outer side. Slim: each a plate 5 mm
@@ -46,9 +47,23 @@ knee = [-5.0, 155.0]
 [guards]
 thick_m = 0.005
 thigh = [[0.14, 0.62, 55.0, 37.0]]
-upper_arm = [[-0.06, 0.32, 0.0, 55.0], [0.42, 0.90, -90.0, 46.0]]
+upper_arm = [[-0.06, 0.32, 0.0, 55.0], [0.78, 1.08, 0.0, 40.0, 2.4, -0.15]]
 forearm = [[0.08, 0.66, -90.0, 49.0], [0.7, 0.84, 20.0, 39.0]]
 shank = [[-0.07, 0.11, 90.0, 36.0], [0.16, 0.72, 90.0, 27.0], [0.755, 0.835, 90.0, 34.0]]
+# The trunk's, slim and drawn after the figure: a small round cup a side and the gore between them, two slats down
+# the belly to the waist, the back's a V from the shoulder blades in to the small of the back and a small plate under
+# it, and on the pelvis a plate down each hip's crease on the bikini's line - [from, to, middle, half width, its
+# superellipse's power, how much wider its top than its middle, its slant, deg]; each clipped on a hoop cut from a
+# carbon sheet round behind it (`[guards.hoops]`: [height - m up the trunk, a share down a limb -, from, to, deg]) in
+# place of the stock's struts, as the elbow's cap is, the trunk's drawn in to `slim` of the figure's reach.
+torso = [[0.16, 0.25, 63.0, 21.0, 2.3], [0.16, 0.25, 117.0, 21.0, 2.3], [0.195, 0.30, 90.0, 7.0, 3.0, 0.35],
+         [0.04, 0.15, 82.0, 7.0, 3.0, 0.25], [0.04, 0.15, 98.0, 7.0, 3.0, 0.25], [0.20, 0.37, -90.0, 34.0, 3.0, 0.45],
+         [0.125, 0.175, -90.0, 9.0, 2.5, -0.35]]
+slim = 0.70
+
+[guards.hoops]
+torso = [[0.205, -78.0, 258.0], [0.09, 70.0, 110.0], [0.28, -130.0, -50.0], [0.15, -100.0, -80.0]]
+upper_arm = [[0.93, -32.0, 32.0]]
 
 [mounts]
 ankle = { x_m = 0.0325, dy_m = 0.0 }

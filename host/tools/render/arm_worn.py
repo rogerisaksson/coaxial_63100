@@ -7,7 +7,9 @@ The elbow's mount as elbow_mount draws it, the upper arm's tube on up to its foo
 pivot as the page lays the robot (`gynoid.body`): the elbow's mount's x the page's, its stack's middle and way
 (`elbow_mount._stack`) undone, and its bend the page's (`placing`); the shoulder's sketch turned about the arm's
 line onto the page's. The robot's guards lie where its page lays them - a shoulder's cap and one down each arm
-(`leg_worn.worn`), each strut stood on what it meets first; over them the likeness's tee's sleeve, laid as leg_worn
+(`leg_worn.worn`), each strut, or a hoop's leg where the build clips a guard on one, stood on what it meets first,
+the upper arm's clear of what turns with the forearm through the elbow's travel (`_swept`): an elbow's cap over its
+drive's gable stays off the forearm bent its most; over them the likeness's tee's sleeve, laid as leg_worn
 lays the jeans (`leg_worn.draped`). What still cuts through what is counted as leg_worn counts it.
 """
 import argparse
@@ -83,11 +85,27 @@ def arm(flex=0.0):
     return out
 
 
+def _swept(step=40.0):
+    """[(tri, colour)]: what turns with the forearm - the elbow's output side and the forearm's tube - through the
+    elbow's travel `step` deg at a time (`drives.TRAVEL`), the elbow's frame."""
+    import numpy as np
+    from machine.body import drives
+    turn, shift, bend = placing()
+    tube, (low, high) = arm()['forearm tube'], drives.TRAVEL['elbow']
+    out = []
+    for flex in np.append(np.arange(low, high, step), high):
+        parts, _cables, still, _turned = em.bodies(flex=float(flex))
+        out += [(((tri + shift) @ turn)[::int(np.linalg.det(turn))], c) for tri, c in parts[len(still):]]
+        out += km._turn(tube, bend * float(flex))
+    return out
+
+
 def _guarded():
-    """{segment: tris}: the arm's guards, laid clear of the whole arm - the shoulder's mount with it."""
+    """{segment: tris}: the arm's guards, laid clear of the whole arm - the shoulder's mount with it -, the upper
+    arm's of what turns with the forearm through the elbow's travel too (`_swept`)."""
     import numpy as np
     return lw.worn(arm(), {'left_upper_arm': laid(False, ())[1], 'left_forearm': np.zeros(3)},
-                   {'left_upper_arm': 'upper arm tube', 'left_forearm': 'forearm tube'})
+                   {'left_upper_arm': 'upper arm tube', 'left_forearm': 'forearm tube'}, {'left_upper_arm': _swept()})
 
 
 def capped():

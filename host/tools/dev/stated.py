@@ -38,8 +38,11 @@ CEILING = {
     # 119: the coaxial calf - new construction (its drives' places, parts, clamped levers, heel bar and its strut,
     # struts, the foot's keel, the thigh's leant run, the knee's stop, its guards: the arm's on its back, the
     # shin's alone on the calf; every inverter of the leg on its motor's back); its straight parallelogram rod pair
-    # stated once on `ankle`, mirrored across x onto `ankle_roll`
-    'machine/humanoids/gynoid_mesomorph_medium_coax.toml': 119,
+    # stated once on `ankle`, mirrored across x onto `ankle_roll`; 177: the trunk's guards drawn after the figure -
+    # each its outline's power, taper and slant -, the four carbon hoops they clip on and how far in toward the frame
+    # they follow the figure, the elbow's round cap and its hoop (`[guards]`): new construction, no value the solver
+    # could derive
+    'machine/humanoids/gynoid_mesomorph_medium_coax.toml': 177,
     'machine/humanoids/gynoid_mesomorph_medium_packs.toml': 2,
     'machine/humanoids/gynoid_mesomorph_medium_performance.toml': 9,
     'machine/humanoids/gynoid_mesomorph_medium_r80.toml': 3,
