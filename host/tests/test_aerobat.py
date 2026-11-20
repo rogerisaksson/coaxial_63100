@@ -117,10 +117,11 @@ def test_aerobat_airfield_laps(report):
     on its side - and lands on its runway along it."""
     from machine.aircraft import aerobat, aerobatics, aerokin, airfield, weather
     dt, tick, foot = 0.02, 0.002, aerobat.SKID_M + aerobat.FOOT_M
+    rc, rs = math.cos(airfield.RUNWAY_RAD), math.sin(airfield.RUNWAY_RAD)
     sky, core, law = aerobat.Sky(airfield.solids()), aerobat.Core(), aerokin.fresh()
     route, air = aerobatics.routine(airfield.CARD), weather.air(7, 'gusty')
     top = aerobat.PULL_MAX
-    stages, misses, crossed = [], [], 0
+    stages, misses, crossed, touches = [], [], 0, []
     sides: list[bool | None] = [None] * len(airfield.GATES)
     for k in range(int(130.0 / dt)):
         st = sky.state()
@@ -135,6 +136,8 @@ def test_aerobat_airfield_laps(report):
             sky.step(ans.speeds + ans.controls, tick, air)
         st = sky.state()
         (x, y, z), belly = (float(v) for v in st['at']), abs(float(st['turn'][1][2]))
+        if stage == 'land' and st['h'] < 0.03:
+            touches.append((abs(x * rc - z * rs), st['v']))
         for g, (gx, gy, gz, heading, wide, high) in enumerate(airfield.GATES):
             s, c = math.sin(math.radians(heading)), math.cos(math.radians(heading))
             side, across = (x - gx) * s + (z - gz) * c > 0.0, (x - gx) * c - (z - gz) * s
@@ -149,7 +152,7 @@ def test_aerobat_airfield_laps(report):
             sides[g] = side
         if sky.hit is not None or (len(stages) > 3 and stage == 'idle'):
             break
-    st, rc, rs = sky.state(), math.cos(airfield.RUNWAY_RAD), math.sin(airfield.RUNWAY_RAD)
+    st = sky.state()
     ahead = float(st['at'][0]) * rs + float(st['at'][2]) * rc
     report.check('aerobat laps its airfield in gusty wind through every gate and lands on its runway',
                  sky.hit is None and route['lap']['laps'] == airfield.LAPS and not misses
@@ -159,6 +162,11 @@ def test_aerobat_airfield_laps(report):
                  and law['heading'][0] * rc + law['heading'][1] * rs > 0.98,
                  'hit %s, laps %s, crossed %d, missed %s, %s, %.1f m along' % (
                      sky.hit, route['lap']['laps'], crossed, misses, stages[-2:], ahead))
+    report.check('wing-low flare holds gusty crosswind touchdown within 0.5 m of the runway centreline',
+                 bool(touches) and max(a for a, _v in touches) < 0.50 and min(v for _a, v in touches) > -0.60,
+                 'across %.3f m, touch %.3f m/s' % (
+                     max((a for a, _v in touches), default=math.nan),
+                     min((v for _a, v in touches), default=math.nan)))
 
 
 def test_every_craft_flies_as_built(report):
@@ -270,11 +278,63 @@ def test_aeroblocks_static_scaling(report):
                  and aa.WAKE_FLOOR_M_S == 2.0 * aa.KINEMATICS['vertical']['climb_speed'])
 
 
+def test_so3_observer_and_inverted_abort(report):
+    """Coupled 2x2 Tikhonov wind observer and `pace`-scaled smooth target match C twins, deconvolve
+    without axis bias, track faster at `pace` 6, and right an inverted `spent` roll or flip."""
+    from machine.aircraft import helicopter, quad
+    from machine.aircraft.helicopter import kit
+    import test_quad
+    kept = kit._aero_lib()
+
+    def run_obs(use_c, sw=False):
+        kit._LIB = kept if use_c else None
+        c, w = helicopter.Core(), ((0.4, 0.1, -0.2), (0.0, 2.5, 0.3), (-0.2, 0.3, 0.9))
+        c.push_hat[:] = (1.8, -0.4, 1.8)
+        up, sp = ((0.17, 0.98, 0.1), (-0.6, 0.0, 0.8)) if sw else ((0.1, 0.98, 0.17), (0.8, 0.0, -0.6))
+        wj = tuple(tuple(w[2 - a][2 - b] for b in range(3)) for a in range(3)) if sw else w
+        for _ in range(25):
+            kit._observe_wind_spin(c, (6.0, 0.0, 6.0), math.hypot(6.0, 6.0), 0.14, 0.35, up,
+                                   (0.3, -0.2, 0.4), (0.05, -0.02, 0.04), (0.04, 0.06, 0.05), 0.002, 0.22, sp, wj)
+        return tuple(c.wind), tuple(c.push_hat), tuple(c.spin_hat), tuple(c.turn_hat)
+
+    def run_sm(use_c, pace):
+        kit._LIB, c, want = (kept if use_c else None), helicopter.Core(), (math.sin(0.6), math.cos(0.6), 0.0)
+        kit._smooth_target(c, (0.0, 1.0, 0.0), 1.0, 0.0, 0.0, pace, 0.002)
+        for _ in range(100):
+            r_d, w_f = kit._smooth_target(c, want, 1.0, 0.2, 0.4, pace, 0.002)
+        return r_d, w_f, math.hypot(*kit._so3_error(r_d, kit._align_axis((0.0, 1.0, 0.0), want, kit._rot_y(0.2))))
+
+    try:
+        oc, op, osw = run_obs(True), run_obs(False), run_obs(True, True)
+        sc, sp, s2, s1 = run_sm(True, 6.0), run_sm(False, 6.0), run_sm(True, 2.0), run_sm(True, 1.0)
+    finally:
+        kit._LIB = kept
+    od = max(abs(a - b) for ga, gb in zip(oc, op) for a, b in zip(ga, gb))
+    sd = max(max(abs(a - b) for ra, rb in zip(sc[0], sp[0]) for a, b in zip(ra, rb)),
+             max(abs(a - b) for a, b in zip(sc[1], sp[1])))
+    report.check('C and Python wind observer and smooth target match, stay symmetric, and speed up at pace 6',
+                 kept is not None and od < 1e-12 and sd < 1e-12
+                 and max(abs(oc[0][0] - osw[0][2]), abs(oc[0][2] - osw[0][0])) < 1e-12
+                 and (s1[0], s1[1]) == (s2[0], s2[1]) and sc[2] < 0.65 * s2[2],
+                 'obs %.2e, sm %.2e, err@6 %.3f vs %.3f' % (od, sd, sc[2], s2[2]))
+    full, inv = test_quad.flown(), []
+    for kind in ('roll', 'flip'):
+        cut = test_quad.flown(spent_at=max((r for r in full if r['name'] == kind), key=lambda r: r['tilt'])['t'])
+        idx = next((i for i, r in enumerate(cut) if r['flat']), len(cut))
+        way = [r for r in cut[idx:] if r['name'] in ('descend', 'land')]
+        inv.append((cut[idx - 1]['name'] == kind and cut[idx - 1]['tilt'] > 170.0,
+                    min(r['h'] for r in way if r['name'] == 'descend') >= quad.FLOOR_M - 0.02,
+                    abs(way[-1]['h']) <= 0.005 and abs(way[-1]['v']) <= 0.05))
+    report.check('spent upside-down in the roll and the flip, the quad rights along its spin and lands still',
+                 all(all(row) for row in inv), str(inv))
+
+
 ROSTER = (
     test_aerobat_routine,
     test_aerobat_airfield_laps,
     test_every_craft_flies_as_built,
     test_aeroblocks_static_scaling,
+    test_so3_observer_and_inverted_abort,
 )
 
 

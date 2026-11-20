@@ -234,7 +234,7 @@ def run(wing, core, v_fwd, h, yaw, rate, up=math.inf):
 FLARE_S, TOUCH_M_S = _WB['flare_s'], _WB['touch_m_s']
 
 
-def flare(wing, v_fwd, h, v, yaw, rate, r11):
+def flare(wing, v_fwd, h, v, yaw, rate, r11, lat_err=0.0):
     """The flare and roll-out at `v_fwd` through the air along the plane's heading:
     `(r_des, w_ff, f_des)` pitching up as `1 / v_fwd^2` to HARRIER_RAD, its sink as its height
     asks (FLARE_S, TOUCH_M_S); on its wheels its tail up as the run has it at its speed, its wing
@@ -247,7 +247,9 @@ def flare(wing, v_fwd, h, v, yaw, rate, r11):
     a_fl = min(HARRIER_RAD, max(0.0, m * max(0.0, g - 6.0 * (sink + v)) / q_fl + math.atan2(v, max(1.0, v_fwd))))
     rolled = PITCH_REST + (0.5 * math.pi - PITCH_REST) * ease((v_fwd / wing.rotate - TAIL_UP) / RUN_EASE)
     air = ease((h - 0.02) / 0.02) * ease((v_fwd - 1.5) / 1.0)
-    r_des = _mat_mul(_rot_y(yaw), _rot_x(rolled + air * (0.5 * math.pi - a_fl - rolled)))
+    bank = max(-0.15, min(0.15, 0.08 * lat_err)) * ease((h - 0.04) / 0.08) * ease((v_fwd - 2.0) / 1.5)
+    r0 = _mat_mul(_rot_y(yaw), _rot_x(rolled + air * (0.5 * math.pi - a_fl - rolled)))
+    r_des = _mat_mul(r0, _rot_y(bank)) if bank != 0.0 else r0
     f_des = m * max(0.0, g - 3.0 * (0.4 + v)) * r11 if v_fwd <= 2.0 and r11 > 0.4 and h > 0.04 else 0.0
     return r_des, (0.0, rate, 0.0), f_des
 
@@ -291,6 +293,13 @@ def plane(wing, turn, acc, u, w, want_up, knife=0.0, roll=0.0):
     back = [back[a] - bv * v_hat[a] for a in range(3)]
     n = math.sqrt((back[0] * back[0] + back[1] * back[1]) + back[2] * back[2]) or 1.0
     back = [x / n for x in back]
+    ka = abs(sr)
+    upp = [float(a == 1) - v_hat[1] * v_hat[a] for a in range(3)]
+    n = math.sqrt((upp[0] * upp[0] + upp[1] * upp[1]) + upp[2] * upp[2]) or 1.0
+    upp = [x / n for x in upp]
+    up_ask = sum(perp[a] * upp[a] for a in range(3))
+    across = [perp[a] - up_ask * upp[a] for a in range(3)]
+    across_n = math.sqrt((across[0] * across[0] + across[1] * across[1]) + across[2] * across[2])
     under = sum(perp[a] * back[a] for a in range(3))
     if under < 0.0:
         d, sign, need = back, -1.0, -under
@@ -298,16 +307,10 @@ def plane(wing, turn, acc, u, w, want_up, knife=0.0, roll=0.0):
         d = [perp[a] + max(0.0, 3.0 - size) * back[a] for a in range(3)]
         n = math.sqrt((d[0] * d[0] + d[1] * d[1]) + d[2] * d[2]) or 1.0
         d, sign, need = [x / n for x in d], 1.0, size
-    ka = abs(sr)
     kh = max(ka, min(1.0, abs(roll) * 4.0))
-    upp = [float(a == 1) - v_hat[1] * v_hat[a] for a in range(3)]
-    n = math.sqrt((upp[0] * upp[0] + upp[1] * upp[1]) + upp[2] * upp[2]) or 1.0
-    upp = [x / n for x in upp]
     d = [(1.0 - kh) * d[a] + kh * upp[a] for a in range(3)]
     n = math.sqrt((d[0] * d[0] + d[1] * d[1]) + d[2] * d[2]) or 1.0
     d = [x / n for x in d]
-    up_ask = sum(perp[a] * upp[a] for a in range(3))
-    across = [perp[a] - up_ask * upp[a] for a in range(3)]
     k_w = wing.q * wing.area * fast * fast / wing.mass
     al_pos = max(0.0, along)
     need_w = (1.0 - kh) * need + kh * max(0.0, up_ask)
@@ -336,7 +339,6 @@ def plane(wing, turn, acc, u, w, want_up, knife=0.0, roll=0.0):
     a_knife = math.atan2(up_ask, k_side)
     k_pitch = (0.28 + 0.22 * ka) * kh if abs(roll) > 1e-6 else ka
     alpha += k_pitch * (a_knife - alpha)
-    across_n = math.sqrt((across[0] * across[0] + across[1] * across[1]) + across[2] * across[2])
     k_lat = 0.35 * k_w + 0.65 * k_side if abs(roll) > 1e-6 else k_w
     a_cross = min(ALPHA_MAX, across_n / max(k_lat, 1e-9)) / (across_n or 1.0)
     # Asked to slow, a propeller pulling one way, the plane pulls up: its speed goes into height until

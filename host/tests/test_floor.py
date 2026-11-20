@@ -113,6 +113,20 @@ def test_the_robots_grip_bounds_its_rhythm(report):
         early += [float(landing.min())] if k < 7 else []
     report.check('a sole sliding since it landed reads that share once it has settled, its settle not before',
                  min(early) == MU and np.allclose(landing, 8.0 / 300.0), '%s, %s' % (min(early), landing))
+    from machine.way import dock
+    grades = []
+    for name, idx, val in (('uphill', 1, 0.17), ('downhill', 1, -0.17), ('held', 4, 0.05), ('stepping', 5, 0.04)):
+        probe, sample, buf = walked.copy(), level.copy(), np.zeros((2, ortho.N))
+        sample[idx] = val
+        into_s = situation.read(table, sample)
+        situation.gripped(probe, np.full(2, MU), stance, table['caps'], into_s, *floored, buf, 0.05)
+        grades.append((situation.told(table, into_s) == name, probe[latent.REF][modal.AXIAL] > walked[latent.REF][modal.AXIAL],
+                       probe[latent.REF][modal.WIDTH] > walked[latent.REF][modal.WIDTH]))
+    dock._standoff_at.cache_clear()
+    s0, s1 = dock.standoff('sit_chair', 0.50), dock.standoff('sit_chair', 0.50)
+    report.check('uphill, downhill, held and stepping situations raise crouch and track; chair standoff caches cleanly',
+                 all(ok and ax and wd for ok, ax, wd in grades) and s0 == s1 and dock._standoff_at.cache_info().hits == 1,
+                 '%s, standoff %.4f m' % (grades, s0))
 
 
 def test_told_to_lie_on_the_floor_the_robot_lies_where_it_stands(report):

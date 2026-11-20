@@ -174,7 +174,12 @@ def fly(route, now, holds=('held', 'fit')) -> tuple[str, dict[str, Any]]:
         plan['waits'][row] <= set(holds) | set(route.get('holds', ())))
     moved = down + on
     row = down * plan['down'][row] + on * ((row + 1) % len(plan['name'])) + (1 - moved) * row
-    route.update(row=row, at=(route['at'], now)[moved], was=(route['was'], route['flown'])[moved],
+    flown = route['flown']
+    abort = down * int(flown.get('roll', 0.0) != 0.0 or flown.get('flip', 0.0) != 0.0
+                       or flown.get('height', 0.0) > TOP_M)
+    target = route['card'][row][1]
+    was = dict((flown, target)[abort * int(isinstance(target, dict))])
+    route.update(row=row, at=(route['at'], now)[moved], was=(route['was'], was)[moved],
                  holds=(route.get('holds', ()), ())[moved])
     route['flown'] = here = plan['give'][row](route, now)
     return plan['name'][row], here

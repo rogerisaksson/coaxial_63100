@@ -235,10 +235,24 @@ def step(law, row, frame, dt, pull, head=(0.0, 0.0), pitch=math.inf, spool=(0.0,
     w_next = [w_cur[k] + d_rot[k] * dt for k in range(3)]
     w_norm = math.sqrt(sum(x * x for x in w_next))
     law['force'] = want = [x / w_norm for x in w_next]
+    rolls, flips = float(row['roll'] != 0.0), float(row['flip'] != 0.0)
+    turning = max(rolls, flips)
+    spin = frame.get('spin', (0.0, 0.0, 0.0))
+    spin_w = [turn[0][k] * float(spin[0]) + turn[1][k] * float(spin[1]) + turn[2][k] * float(spin[2])
+              for k in range(3)]
+    s_ax = sum(a * w for a, w in zip(axis, spin_w))
+    spin_p = [spin_w[k] - s_ax * axis[k] for k in range(3)]
+    sp_norm = math.sqrt(sum(x * x for x in spin_p))
+    h_st = min(1.0, 0.25 * sp_norm * sp_norm / FORCE_A)
+    c_st = (1.0 - h_st * h_st) / (1.0 + h_st * h_st)
+    s_st = 2.0 * h_st / ((1.0 + h_st * h_st) * max(sp_norm, 1e-9))
+    u_sp = cross(spin_p, axis)
+    axis_stop = [c_st * axis[k] + s_st * u_sp[k] for k in range(3)]
     dot = axis[0] * want[0] + axis[1] * want[1] + axis[2] * want[2]
-    last = sum(a * k for a, k in zip(axis, law['about']))
-    about = cross(axis, want)
-    about = [about[k] + KEEP * (law['about'][k] - last * axis[k]) for k in range(3)]
+    mem = [(1.0 - turning) * law['about'][k] + turning * spin_p[k] / max(sp_norm, 1e-9) for k in range(3)]
+    last = sum(a * k for a, k in zip(axis, mem))
+    about = cross(axis_stop, want)
+    about = [about[k] + KEEP * (mem[k] - last * axis[k]) for k in range(3)]
     norm = max(math.sqrt(sum(x * x for x in about)), 1e-9)
     law['about'] = about = [x / norm for x in about]
     side = cross(about, axis)
@@ -258,8 +272,6 @@ def step(law, row, frame, dt, pull, head=(0.0, 0.0), pitch=math.inf, spool=(0.0,
     flat = math.hypot(there[0], there[2])
     arc = math.atan2(flat, there[1]) / max(flat, 1e-9)
     # a turn about the quad's nose or its wing: its rate, that attitude dropped, its weight borne
-    rolls, flips = float(row['roll'] != 0.0), float(row['flip'] != 0.0)
-    turning = max(rolls, flips)
     law['lift'] = turning * quad.GRAVITY + (1.0 - turning) * lift
     # the quad's nose round to the law's heading: the miss's sine as its nose lies along the floor,
     # a unit past a quarter turn

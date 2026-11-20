@@ -249,9 +249,12 @@ def _refreshed(g, er):
     mx, mz = float(box[1][0]) + edge * nx, float(box[1][2]) + edge * nz
     was = er['off'] if 'off' in er else (er['x_dock'] - mx) * tx + (er['z_dock'] - mz) * tz
     off = max(-lat, min(lat, was))
+    suite = g.get('suite')
+    s_key = (er['kind'], top, id(suite))
+    standoff = er['standoff'] if er.get('_standoff_key') == s_key else dock.standoff(er['kind'], top, suite)
     er.update(x_dock=mx + off * tx, z_dock=mz + off * tz, nx=nx, nz=nz, tx=tx, tz=tz,
               hdd=se2.wrap_angle(hn + _FACES.get(er['kind'], 0.0)), lat_tol=max(0.0, lat - abs(off)),
-              top=top, standoff=dock.standoff(er['kind'], top, g.get('suite')),
+              top=top, standoff=standoff, _standoff_key=s_key,
               thing=box[4] if len(box) > 4 else er.get('thing'))
 
 

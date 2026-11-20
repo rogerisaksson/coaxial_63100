@@ -77,13 +77,18 @@ PASSED = {'dock-terminal-stance': 'the robot\'s errand docks its heels its stand
           'ignite-cyclic-clock': 'the robot\'s walk said after its rise', 'lock-horizon-gaze': 'no head voice'}
 
 
-def _manifest():
-    """({mode: (unit, stiffness, damping, mass)}, the robot's body's numbers) of its manifest
-    (`defrobot.read`)."""
+@functools.lru_cache(maxsize=8)
+def _manifest_for(_robot, _path):
     r = defrobot.read()
     if r is None:
         raise MachineError('no (defrobot ..) in the robot\'s manifest')
-    return {m: (v['unit'], v['stiffness'], v['damping'], v['mass']) for m, v in r['modes'].items()}, r['body']
+    return {m: (v['unit'], v['stiffness'], v['damping'], v['mass']) for m, v in r['modes'].items()}, dict(r['body'])
+
+
+def _manifest():
+    """({mode: (unit, stiffness, damping, mass)}, the robot's body's numbers) of its manifest
+    (`defrobot.read`)."""
+    return _manifest_for(defrobot.mechatronics.ROBOT, ortho._FILE)
 
 
 def side(seen):

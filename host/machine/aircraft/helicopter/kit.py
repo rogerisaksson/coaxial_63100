@@ -154,12 +154,19 @@ def _observe_wind_spin(core, u, fast, alpha, gamma, up, spin, tau, inertia, dt, 
     uh = tuple(u[a] / fast if fast > min_air else 0.0 for a in range(3))
     m = [[alpha * ((1.0 if a == b else 0.0) + uh[a] * uh[b]) + gamma * up[a] * up[b] + side * span[a] * span[b]
           + wing[a][b] for b in range(3)] for a in range(3)]
-    for a in (0, 2):
-        dw = dt * wo_wind * sum(m[b][a] * core.push_hat[b] for b in range(3)) / (
-            m[0][a] ** 2 + m[1][a] ** 2 + m[2][a] ** 2 + wind_reg)
-        core.wind[a] += dw
-        for b in range(3):
-            core.push_hat[b] -= m[b][a] * dw
+    y0 = (m[0][0] * core.push_hat[0] + m[1][0] * core.push_hat[1]) + m[2][0] * core.push_hat[2]
+    y2 = (m[0][2] * core.push_hat[0] + m[1][2] * core.push_hat[1]) + m[2][2] * core.push_hat[2]
+    t00 = (m[0][0] * m[0][0] + m[1][0] * m[1][0]) + m[2][0] * m[2][0]
+    t22 = (m[0][2] * m[0][2] + m[1][2] * m[1][2]) + m[2][2] * m[2][2]
+    reg = wind_reg + 0.1 * (t00 + t22)
+    s00, s22 = t00 + reg, t22 + reg
+    s02 = (m[0][0] * m[0][2] + m[1][0] * m[1][2]) + m[2][0] * m[2][2]
+    scale = (dt * wo_wind) / (s00 * s22 - s02 * s02)
+    dw0, dw2 = (s22 * y0 - s02 * y2) * scale, (s00 * y2 - s02 * y0) * scale
+    core.wind[0] += dw0
+    core.wind[2] += dw2
+    for b in range(3):
+        core.push_hat[b] -= m[b][0] * dw0 + m[b][2] * dw2
     for a in range(3):
         e = spin[a] - core.spin_hat[a]
         core.spin_hat[a] += dt * (tau[a] / inertia[a] + core.turn_hat[a] + 2.0 * wo_turn * e)
@@ -256,7 +263,9 @@ def _smooth_target(core, want_up, sign, yaw, rate, pace, dt):
     wy = max(0.0, sign * want_up[1])
     r_t = _mat_mul(r_tr, _rot_y((wy * wy) * _so3_error(r_tr, r0)[1]))
     er = _so3_error(r_ref, r_t)
-    pole, kd, a_p, a_max, w_max = 5.5, 22.0, 30.25, 60.0, 6.0
+    boost = max(0.0, min(1.0, 0.25 * (pace - 2.0)))
+    pole = 5.5 + 2.0 * boost
+    kd, a_p, a_max, w_max = 4.0 * pole, pole * pole, 60.0 + 52.5 * boost, 6.0 + 2.0 * boost
     wt = (0.0, sign * rate, 0.0)
     w_ff = tuple(max(-w_max, min(w_max, core.w_ff[a] + max(
         -a_max, min(a_max, kd * (_allowed_rate(er[a], a_p, pole) + wt[a] - core.w_ff[a]))) * dt))

@@ -1,6 +1,7 @@
 """The aerobat's SO(3) law: hover and prop-hang, its stunts, on its wing nose first; its observer's."""
 import math
 
+from machine import libm
 from machine.aircraft import aerokin, airfield, compile as aircraft_compile, se3mpc
 from machine.aircraft.aerobatics import ease
 from machine.aircraft.aerobat.airframe import (A_DISC, ATT_KD, ATT_KP, FLOOR_M, GRAVITY, IDLE_RAD_S, INERTIA,
@@ -23,6 +24,7 @@ GUST_SLOW_S, GUST_RMS_S, GUST_FLOOR, GUST_S = (
 PATH_POLE = _AB['path_pole']
 TOUCH_M = _AB['touch_m']
 PUSH_S = _AB['push_s']
+_RUNWAY_C, _RUNWAY_S = libm.cos(RUNWAY_RAD), libm.sin(RUNWAY_RAD)
 
 
 def path_pole(v):
@@ -223,8 +225,10 @@ class Core:
         ay_use = (1.0 - float(law.get('doing') == aerokin.FALL)) * ay_des
         if row['height'] < 0.0:
             v_fwd = s * vel[0] + c * vel[2]
+            way = 1.0 if c * _RUNWAY_C + s * _RUNWAY_S >= 0.0 else -1.0
+            lat_err = way * (_RUNWAY_C * (vel[0] + 2.0 * at[0]) - _RUNWAY_S * (vel[2] + 2.0 * at[2]))
             r_des, w_ff, f_des = flare(WING, v_fwd - s * self.wind[0] - c * self.wind[2], state['h'], state['v'],
-                                       yaw, rate, turn[1][1])
+                                       yaw, rate, turn[1][1], lat_err)
             stunt, inv = False, 0.0
             if state['h'] <= 0.025 and abs(v_fwd) <= 0.03 and row['height'] <= -0.012:
                 self.airborne, law['spot'] = False, [at[0], at[2]]

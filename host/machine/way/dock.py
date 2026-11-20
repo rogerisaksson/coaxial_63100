@@ -48,10 +48,7 @@ def docks():
             'exit_door': (figure.ASIDE, 4.0 * stride.STRIDE_M)}
 
 
-def standoff(sc, top=None, got=None):
-    """m, the robot's heels off the edge of the furniture stunt `sc` docks it at (`maneuver.standoff`), widened
-    where a rigid seat `top` m up stands over `seated.POPLITEAL` so the robot's thighs clear that edge
-    (`seated.clear`) in its balanced descent (`seated.landed`)."""
+def _standoff_of(sc, top, got):
     from machine.law import impedance
     from machine.moves import leap
     from machine.texts import maneuver
@@ -70,6 +67,22 @@ def standoff(sc, top=None, got=None):
         mid = 0.5 * (lo + hi)
         lo, hi = (mid, hi) if seated.clear(knee, ankle, mid, top) < 0.0 else (lo, mid)
     return max(base, hi + leap.MIDDLE - poise.HALF_M)
+
+
+@functools.lru_cache(maxsize=64)
+def _standoff_at(_robot, _path, sc, top):
+    return _standoff_of(sc, top, None)
+
+
+def standoff(sc, top=None, got=None):
+    """m, the robot's heels off the edge of the furniture stunt `sc` docks it at (`maneuver.standoff`), widened
+    where a rigid seat `top` m up stands over `seated.POPLITEAL` so the robot's thighs clear that edge
+    (`seated.clear`) in its balanced descent (`seated.landed`)."""
+    if got is None:
+        from machine.body import mechatronics
+        from machine.texts import ortho
+        return _standoff_at(mechatronics.ROBOT, ortho._FILE, sc, top)
+    return _standoff_of(sc, top, got)
 
 
 def shown(er):
