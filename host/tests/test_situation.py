@@ -34,7 +34,8 @@ def test_the_robots_text_names_its_situations(report):
     k, g = names.index('slippery'), situation.READINGS.index('grip')
     report.check("the slippery floor is grip below 0.25, its caps the ice walk's, the envelope's top",
                  table['hi'][k, g] == 0.25 and np.isnan(table['lo'][k]).all() and table['caps'][k][2] == 0.2
-                 and table['grips'].max() == 0.25 and np.isnan(table['caps'][names.index('uphill')]).all())
+                 and table['grips'].max() == 0.25 and table['caps'][names.index('uphill')][2] == 0.32
+                 and np.isnan(table['caps'][names.index('seated')]).all())
     refused = []
     for bad in ('(defsituation s (cpg_config (amplitude mode_foot_rock 0.0)))', '(defsituation s (grip below 0))',
                 '(defsituation s (speed above 1.0))', '(defsituation s (grip under 0.2))'):
