@@ -1,4 +1,4 @@
-"""The chest's yokes: carbon sheets cut to the room the pelvis's plates leave, a stack round each roll journal.
+"""The chest's yokes: carbon sheets stacked round the roll journals, in the room the pelvis leaves.
 
     COAXIAL_ROBOT=gynoid_mesomorph_medium_coax python -X utf8 tools/render/trunk_yokes.py
 

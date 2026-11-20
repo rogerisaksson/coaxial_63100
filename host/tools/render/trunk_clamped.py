@@ -45,12 +45,13 @@ from tools.render import trunk_yokes as ty  # noqa: E402
 #: m; its roll journals through the chest's yokes' stacks, theirs (`trunk_yokes`).
 BLOCK_M, PIN_R, PIN_X = 0.017, 0.008, 0.033
 #: The pelvis's yoke: its plates' inner face off the middle - outside where the chest's rings turn - and their
-#: thickness, an eye's radius round the pitch pin - as high as the bed, the plate's front round from its top: the
-#: pair's cage leant 35 deg and bowed passes over it -, the bed's height - the plates' and the beams' top, the print
-#: grown down from it -, a plate's low edge behind - over the hips' blocks' sweep -, the 45 deg chamfer along its
-#: top's outer edge - the cage's cone to a drive's band dips to it leant 34 deg and bowed back 30 - and the depth of
-#: the 45 deg notch in its top between the eye and the bar, where the chest's rear yoke's waist and the cage come
-#: leant and bowed back; the base's
+#: thickness, an eye's radius round the pitch pin - the plate's front its round where steeper than 45 deg, over it
+#: cut 45 deg on its tangent, as printed down: the pair's cage leant 35 deg and bowed passes -, the bed's height -
+#: the plates' and the beams' top, the print grown down from it -, a plate's low edge behind - over the hips' blocks'
+#: sweep -, the
+#: 45 deg chamfer along its top's outer edge - the cage's cone to a drive's band dips to it leant 34 deg and bowed
+#: back 30 - and the depth of the 45 deg notch in its top between the eye and the bar, where the chest's rear
+#: yoke's waist and the cage come leant and bowed back; the base's
 #: half width - inside the yaw drives -, its z (from, to) - behind the web as far as the hips' yokes leave room
 #: over their sweep, under the plates' roots - and its top at the plates, falling 45 deg from there to
 #: the middle - in print each layer reaches in from the plates - under what the chest's rings sweep bowed 85 deg
@@ -126,24 +127,27 @@ def _stood():
     half, ball = hip[0] - yaw[2] - WEB_IN, np.array(tl.BALL)
     back, boss = ball[2] - PIN_EYE, (ball[0] - tr.LEAN_M - tr.SEAT_M, ball[0] - tr.LEAN_M)
     front, rear = -EYE_R, ball[2] + PIN_EYE                          # the notch's ends: by the eye, by the beam
-    dip, mid = TOP_Y - NOTCH_M, 0.5 * (front + rear)
+    dip, mid, tip = TOP_Y - NOTCH_M, 0.5 * (front + rear), EYE_R * math.sqrt(2.0)   # tip: y + z on the eye's tangent
 
     def outline(top):                                    # a plate's (y, z) round, its top at `top`, the notch in it
-        arc = [(EYE_R * math.sin(a), EYE_R * math.cos(a))            # the eye's round from the top, ahead and down
-               for a in np.linspace(math.asin(min(top / EYE_R, 1.0)), -0.5 * math.pi, 13)]
-        return np.array(arc + [(BASE_Y, BASE_Z[1]), (LOW_Y, back), (top, back), (top, mid - (top - dip)), (dip, mid),
-                               (top, mid + (top - dip))])
+        start = min(math.asin(min(top / EYE_R, 1.0)), 0.25 * math.pi)  # the eye's round where it falls past 45 deg
+        arc = [(EYE_R * math.sin(a), EYE_R * math.cos(a)) for a in np.linspace(start, -0.5 * math.pi, 13)]
+        return np.array(([(top, tip - top)] if top > arc[0][0] + 1e-9 else []) + arc + [
+            (BASE_Y, BASE_Z[1]), (LOW_Y, back), (top, back), (top, mid - (top - dip)), (dip, mid), (top, mid + (top - dip))])
     def skirt(top):                                      # a skirt's (x, y) corners, its top at the plate `top`
         return [(ARM_X + ARM_M, LOW_Y), (BASE_X, LOW_Y), (BASE_X, top - (BASE_X - ARM_X - ARM_M)), (ARM_X + ARM_M, top)]
     cut, edge = TOP_Y - CHAMFER_M, ARM_X + ARM_M - CHAMFER_M
     tri = [(edge, cut), (ARM_X + ARM_M, cut), (edge, TOP_Y)]          # the chamfer's section, ended on the notch's flanks
+    ahead = [p for z in np.linspace(0.0, math.sqrt(EYE_R ** 2 - cut ** 2), 9)   # and ahead as the plate's front falls
+             for top in (min(TOP_Y, tip - z, math.sqrt(EYE_R ** 2 - z * z)),)
+             for p in ((edge, cut, z), (ARM_X + ARM_M, cut, z), (edge + TOP_Y - top, top, z), (edge, top, z))]
     knee = boss[1] - (TOP_Y - ball[1] - PIN_EYE)                     # the bar's top falls 45 deg to each boss
     bar = [(-boss[1], BAR_Y), (boss[1], BAR_Y), (boss[1], ball[1] + PIN_EYE), (knee, TOP_Y), (-knee, TOP_Y),
            (-boss[1], ball[1] + PIN_EYE)]
     side = (hf._slab(outline(TOP_Y), ARM_X, edge, em.FRAME, rounded=False)
             + hf._slab(outline(cut), edge, ARM_X + ARM_M, em.FRAME, rounded=False)
             + _hulled([(x, y, back) for x, y in tri] + [(x, y, mid - (y - dip)) for x, y in tri], em.FRAME)
-            + _hulled([(x, y, mid + (y - dip)) for x, y in tri] + [(x, y, 0.0) for x, y in tri], em.FRAME)
+            + _hulled([(x, y, mid + (y - dip)) for x, y in tri] + ahead, em.FRAME)
             + [t for z0, z1 in ((back, mid - (SKIRT_Y - dip)), (mid + (SKIRT_Y - dip), BASE_Z[1]))
                for t in hf._slab(np.array(skirt(SKIRT_Y)), z0, z1, em.FRAME, 2, False)]
             + [t for z0, z1, t0, t1 in ((mid - (SKIRT_Y - dip), mid, SKIRT_Y, dip), (mid, mid + (SKIRT_Y - dip), dip, SKIRT_Y))
