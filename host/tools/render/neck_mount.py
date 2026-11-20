@@ -52,8 +52,9 @@ def _put(tris, at, turn=None):
 
 
 @functools.lru_cache(maxsize=None)
-def still(socket='torx'):
-    """{name: tris} of what stays with the torso."""
+def still(socket='torx', low=None):
+    """{name: tris} of what stays with the torso; the spine's tube from `low` up, m over the torso's anchor, where
+    told - a trunk that seats it higher (`trunk_clamped.seat`) -, else from its low end as the skeleton has it."""
     lay = nl.laid()
     (yc, zc, bar), (ny, nz) = lay['bar'], lay['neck']
     (m0, m1, can), (h0, h1, ring), (b0, b1, out) = lay['motor'], lay['house'], lay['band']
@@ -69,7 +70,7 @@ def still(socket='torx'):
     foot = seat_y - nl.SEAT_M
     e = tube - 0.0012 - em.BORE_R - 0.003
     dress, limb = em._limb(foot, -1.0, tube, -e, socket, False)
-    low = float(_spine()[1])
+    low = float(_spine()[1]) if low is None else low
     spine = (_put(em._rounded(em._oval(tube), seat_y, foot, em.PLATE, r=0.002) + dress + limb, (0.0, 0.0, spine_z))
              + m._prism(m._circle(tube, 40, (0.0, spine_z)), low, foot - em.FLANGE_M, em.CARBON))
     neck = _put(em._drum(can, m0, m1, em.SERVO) + em._drum(ring, h0, h1, em.GEAR), (0.0, ny, nz))
@@ -208,12 +209,12 @@ def _spun(tris, deg, about, way):
     return [((tri - at) @ spin.T + at, colour) for tri, colour in tris]
 
 
-def posed(nod=0.0, turn=0.0):
+def posed(nod=0.0, turn=0.0, low=None):
     """{name: tris}: the neck nodded `nod` deg and the head turned `turn` deg - the head's parts about its axis,
-    then all that nods about the neck's."""
+    then all that nods about the neck's; the spine's tube from `low` where told (`still`)."""
     lay = nl.laid()
     (ny, nz), yaw = lay['neck'], lay['yaw']
-    out = dict(still())
+    out = dict(still(low=low))
     for name, tris in nodding().items():
         out[name] = _spun(tris, nod, (0.0, ny, nz), 'x')
     for name, tris in turning().items():

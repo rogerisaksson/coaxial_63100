@@ -113,8 +113,46 @@ def test_a_mount_is_sized_for_what_it_bore_not_for_a_peak(report):
                  got['fell'] == [3000.0] * 6 and got['spike'][1][:2] == [600.0, 'walk'], (got['fell'], got['spike'][1]))
 
 
+def test_the_trunk_reaches_its_travel_and_prints_standing(report):
+    """The coaxial build's trunk as first drafted (`tools.render.trunk_laid`, `trunk_clamped`): a cardan joint at
+    mid back, the calf's drive pair under it, a rod each up to the chest's pins. The pair reaches every pose of
+    the build's own travel - its roll's ends with its pitch's - with no rod pulling nearer its crank's dead centre
+    than the layout holds; each of its solid printed parts stands on its bed with nothing hung over it, and all
+    its prints fit a plate."""
+    told: Any = _told('from tools.render import prints as p, solids as s, trunk_laid as t; got = list(t.reached().values()); '
+                      'print(json.dumps({"reached": [v is not None for v in got], "least": t.LEVER, '
+                      '"lever": min([v["lever"] for v in got if v] or [0.0]), "hung": s.hung(s.TRUNK), '
+                      '"noise": s.NOISE_CM2, "fit": p.fitted(p.trunk())}))')
+    reached = told.get('reached') or [False]
+    report.check("the pair reaches every pose of the build's travel, no rod nearer its crank's dead centre than held",
+                 all(reached) and (told.get('lever') or 0.0) >= told.get('least', 1.0) - 1e-9,
+                 told.get('failed') or (sum(reached), len(reached), told.get('lever')))
+    hung = told.get('hung') or {'none told': 1e9}
+    report.check("each of the trunk's solid prints stands on its bed with nothing hung over it",
+                 max(hung.values()) <= told.get('noise', 0.0), hung)
+    fit: Any = told.get('fit') or {'over': ['none told']}
+    report.check("the trunk's prints fit a plate", fit['over'] == [] and fit.get('pieces', 0) > 0, fit)
+
+
+def test_a_print_shaped_by_its_loads_stands_on_its_bed(report):
+    """The optimiser the prints are shaped with (`tools.render.topo`), on its own trial piece - a bracket held by
+    one end's face, pushed down at its other end's top edge: what the optimiser keeps is less than the room it
+    was given, carries the load within the printed polymer's allowable, keeps every voxel told to stay, and hangs
+    no voxel over the bed - each stands on one of the nine under it."""
+    told: Any = _told('from tools.render import topo; g = topo.shaped(topo.trial(), fresh=True); '
+                      'layers = g["solid"].transpose(1, 0, 2); '
+                      'print(json.dumps({"grams": g["grams"], "room": g["room"], "margin": g["margin"], '
+                      '"lost": g["lost"], "hung": int((layers & ~topo.stood(layers)).sum())}))')
+    report.check('what the optimiser keeps is less than its room and carries the load within the allowable',
+                 0.0 < (told.get('grams') or 0.0) < 0.6 * (told.get('room') or 0.0) and (told.get('margin') or 0.0) >= 1.0,
+                 told.get('failed') or (told.get('grams'), told.get('room'), told.get('margin')))
+    report.check('every voxel told to stay is kept, and none hangs over the bed',
+                 told.get('lost') == 0 and told.get('hung') == 0, (told.get('lost'), told.get('hung')))
+
+
 ROSTER = (test_the_shoulder_holds_turns_and_keeps_its_coil, test_the_neck_holds_clears_and_keeps_its_hose,
-          test_a_mount_is_sized_for_what_it_bore_not_for_a_peak)
+          test_a_mount_is_sized_for_what_it_bore_not_for_a_peak, test_the_trunk_reaches_its_travel_and_prints_standing,
+          test_a_print_shaped_by_its_loads_stands_on_its_bed)
 
 
 def main(argv=None):

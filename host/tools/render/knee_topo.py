@@ -148,19 +148,20 @@ def optimise(basis, cells, design, k0, loads, fixed, volume, e0, log=None):
     return np.where(design, (weights @ x) / sums, 1.0)
 
 
-def stresses(basis, mesh, k0, young, loads, fixed, h, e0):
-    """[(principal, across x, across z)] per voxel, MPa, the most over the load cases."""
+def stresses(basis, mesh, k0, young, loads, fixed, h, e0, moved=None):
+    """[(principal, across x, across z, across y)] per voxel, MPa, the most over the load cases - their
+    displacements `moved` where another solver gave them, else solved here."""
     import numpy as np
     lam, mu = e0 * NU / ((1 + NU) * (1 - 2 * NU)), e0 / (2 * (1 + NU))
     dofs = basis.nodal_dofs
     assert dofs is not None
     corner = mesh.p[:, mesh.t] - mesh.p[:, mesh.t].mean(axis=1, keepdims=True)
     worst = None
-    for u in solved(basis, k0, young, loads, fixed):
+    for u in solved(basis, k0, young, loads, fixed) if moved is None else moved:
         grad = np.einsum('ian,jan->nij', u[dofs][:, mesh.t], np.sign(corner)) / (4.0 * h)
         strain = 0.5 * (grad + np.swapaxes(grad, 1, 2))
         s = 2.0 * mu * strain + (lam * np.trace(strain, axis1=1, axis2=2))[:, None, None] * np.eye(3)
-        now = np.c_[np.linalg.eigvalsh(s)[:, -1], s[:, 0, 0], s[:, 2, 2]]
+        now = np.c_[np.linalg.eigvalsh(s)[:, -1], s[:, 0, 0], s[:, 2, 2], s[:, 1, 1]]
         worst = now if worst is None else np.maximum(worst, now)
     assert worst is not None, 'no load case'
     return worst

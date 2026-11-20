@@ -8,7 +8,7 @@ and all the flood never reached kept - a face, or what faces enclose. `told` rea
 cell counted half) and mass in the print's material, the share of its cells that are faces alone - near one where
 the flood got in: a shell drawn open, its volume then the faces' only - and its overhang: the faces' cells with
 nothing under them, straight down or one cell aside (45 degrees), off the bed. `hung` tells the pieces held to
-stand on their beds with nothing hung over them (STANDING): the hip's own.
+stand on their beds with nothing hung over them: the hip's own (STANDING), the trunk's solid ones (TRUNK).
 """
 import argparse
 import functools
@@ -28,6 +28,7 @@ VOXEL_M, MARKS = 0.0006, 3.0
 #: The pieces held to hang nothing over their beds - the hip's frame - and what of an overhang is the cells' own
 #: noise on a face that slopes or steps by less than a cell, cm2.
 STANDING, NOISE_CM2 = ('yaw band', 'yoke', 'block', 'cradle', 'thigh arm', 'thigh knuckle'), 0.5
+TRUNK = ('trunk web', 'trunk column', 'trunk tower', 'trunk fork')
 
 
 @functools.lru_cache(maxsize=None)
@@ -61,9 +62,9 @@ def told(name):
             'over': round(1e4 * float(hung.sum()) * VOXEL_M ** 2, 1)}
 
 
-def hung():
-    """{piece: cm2 of its faces hung over its bed}: the pieces held to hang nothing (STANDING)."""
-    return {name: told(name)['over'] for name in STANDING}
+def hung(names=STANDING):
+    """{piece: cm2 of its faces hung over its bed}: the pieces held to hang nothing - STANDING, or `names`."""
+    return {name: told(name)['over'] for name in names}
 
 
 def main(argv=None):

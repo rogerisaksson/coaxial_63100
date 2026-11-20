@@ -4,11 +4,13 @@
 
 The sketches lie each in a frame of its own: the leg's and the hip's in the knee's (`leg_worn`), the arm's and the
 shoulder's in the elbow's (`arm_worn`), the neck's, the head's and the bay's in the torso's (`neck_mount`,
-`neck_hosed`). The page's body ties those frames, the robot at rest (`gynoid.body`): here each sketch is laid where
-its segment stands, the right side the left's mirror. What no sketch draws yet - the pelvis's frame, the spine's
-two drives and the waist's, the hands - is the page's own, bare, in one faint ink (GHOST): seen for what is
-missing. `sheets` draws the whole from ahead, from its side and from behind, and close on each of its regions, a
-picture a file.
+`neck_hosed`), the trunk's in its joint's (`trunk_clamped`, a first draft: the pelvis's column, the drive pair, the
+cardan joint at mid back, the chest's fork the spine's tube stands on - the prints `trunk_shaped` has shaped by
+their loads drawn as their solids). The page's body ties those frames, the
+robot at rest (`gynoid.body`): here each sketch is laid where its segment stands, the right side the left's
+mirror. What no sketch draws yet - the hands - is the page's own, bare, in one faint ink (GHOST): seen for what
+is missing. `sheets` draws the whole from ahead, from its side and from behind, and close on each of its regions,
+a picture a file.
 """
 import argparse
 import functools
@@ -20,11 +22,9 @@ if __package__ in (None, ''):
 
 from tools.render import mounting as m  # noqa: E402
 
-#: The ink of what no sketch draws yet, and the page's parts that are so: the pelvis's frame, the spine's and the
-#: waist's drives, the hands.
+#: The ink of what no sketch draws yet, and the page's parts that are so: the hands.
 GHOST = (62, 84, 116)
-UNDRAWN = ('pelvis', 'spine_roll', 'spine', 'left_hand', 'left_fingers', 'right_hand', 'right_fingers')
-UNDRIVEN = ('spine_roll', 'spine', 'waist')
+UNDRAWN = ('left_hand', 'left_fingers', 'right_hand', 'right_fingers')
 #: The whole's views: (name, yaw deg, pitch deg); the regions drawn close: {name: (the page's segments whose
 #: joints span it, half its picture's width m, its views)}.
 VIEWS = (('ahead', 20.0, 6.0), ('side', 90.0, 4.0), ('behind', 200.0, 6.0))
@@ -33,7 +33,8 @@ CLOSE = {'hip': (('left_thigh', 'pelvis'), 0.20, (('ahead', 35.0, 10.0), ('behin
          'foot': (('left_foot', 'left_foot'), 0.18, (('side', 90.0, 8.0), ('behind', 215.0, 10.0))),
          'shoulder': (('left_upper_arm', 'left_upper_arm'), 0.18, (('ahead', 35.0, 10.0), ('behind', 215.0, 10.0))),
          'elbow': (('left_forearm', 'left_forearm'), 0.16, (('ahead', 35.0, 10.0), ('behind', 215.0, 10.0))),
-         'neck': (('neck', 'neck'), 0.20, (('ahead', 25.0, 10.0), ('behind', 205.0, 10.0)))}
+         'neck': (('neck', 'neck'), 0.20, (('ahead', 25.0, 10.0), ('behind', 205.0, 10.0))),
+         'trunk': (('torso', 'neck'), 0.26, (('ahead', 35.0, 10.0), ('side', 90.0, 4.0), ('behind', 215.0, 10.0)))}
 
 
 @functools.lru_cache(maxsize=None)
@@ -67,9 +68,7 @@ def _undrawn():
     body, names, _frames, pos = _figure()
     owner = np.repeat(np.arange(len(names)), [len(part[5][1]) for part in body.parts])
     index = body.index.astype(int)
-    wanted = [n for n in names if n in UNDRAWN or n.split('_', 1)[-1] in UNDRIVEN and n.split('_', 1)[0] in (
-        'inv', 'drive', 'bolts', 'gear')]
-    return [(pos[tri], GHOST) for n in wanted for tri in index[owner == names.index(n)]]
+    return [(pos[tri], GHOST) for n in names if n in UNDRAWN for tri in index[owner == names.index(n)]]
 
 
 @functools.lru_cache(maxsize=None)
@@ -77,15 +76,22 @@ def whole():
     """{name: tris} of the build, the root's frame (the pelvis's: x to the robot's left, y up, z ahead), standing:
     'left leg', 'right leg' - hip, knee, calf and foot with their guards and cables -, 'left arm', 'right arm' -
     shoulder, elbow, their tubes, hoses and guards -, 'neck' - the torso's block, the spine's tube, the bay, the neck's and
-    the head's drives, their leads - and 'undrawn'."""
+    the head's drives, their leads -, 'trunk' - the pelvis's column, the drive pair, the cardan joint, the chest's
+    fork, upright, the hips' yaw drives the legs' own - and 'undrawn'."""
+    import numpy as np
     from tools.render import arm_worn as aw, leg_clamped as lc, leg_worn as lw, neck_hosed as nh, neck_mount as nm
+    from tools.render import trunk_clamped as tc, trunk_laid as tl, trunk_shaped as ts
     up, down = lw._bare(lc.stated(), 0.0)
     leg = _put([t for part in dict(up, **down).values() for t in part], 'left_thigh', 'left_shank')
     arm = _put([t for part in list(aw.arm(0.0).values()) + list(aw._guarded().values()) for t in part],
                'left_upper_arm', 'left_forearm')
-    neck = [t for name, part in dict(nm.posed(), **nh.posed()).items() if not name.endswith(' shoulder') for t in part]
+    neck = [t for name, part in dict(nm.posed(low=tc.seat()), **nh.posed()).items() if not name.endswith(' shoulder')
+            for t in part]
+    at = np.asarray(tl.joint()[0], float)
+    trunk = [(tri + at, colour) for (link, name), part in ts.posed().items() if link != 'hips' and name != 'tube'
+             for tri, colour in part]
     return {'left leg': leg, 'right leg': _mirrored(leg), 'left arm': arm, 'right arm': _mirrored(arm),
-            'neck': _put(neck, 'torso', 'torso'), 'undrawn': _undrawn()}
+            'neck': _put(neck, 'torso', 'torso'), 'trunk': _put(trunk, 'pelvis', 'pelvis'), 'undrawn': _undrawn()}
 
 
 def sheets(out, px=2400):

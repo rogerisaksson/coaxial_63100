@@ -9,7 +9,8 @@ and a tube's foot are pieces of their own (INKS). `laid` turns a piece onto its 
 footprints - the least rectangle round each, AIR_M apart, the deepest first - on plates the printer's size (PLATE_M
 square and TALL_M high, its front left corner CORNER_M kept free); `fitted` tells what the suite holds: every piece
 within a plate and under its height. `cut` lists the leg's carbon tubes, cut to length, not printed. The other
-leg's are these mirrored. A piece is what the sketches draw of it - a drawing; `solids` fills it.
+leg's are these mirrored. A piece is what the sketches draw of it - a drawing; `solids` fills it. The trunk's
+printed parts are pieces too (`trunk`: `trunk_clamped.PRINTS`, a first draft's), each 'trunk ' and its part's name.
 """
 import argparse
 import functools
@@ -58,6 +59,19 @@ INKS = {'thigh shim': (em.PLATE,), 'shank shim': (em.PLATE,), 'fork shim': (em.P
 #: The tubes' feet and heads, each grown up its tube: (the sketch, the part its tube is drawn in).
 ON_TUBE = {'thigh knuckle': ('thigh', 'thigh tube'), 'thigh foot': ('thigh', 'thigh tube'),
            'shank head': ('shank', 'shank tube'), 'shank foot': ('shank', 'shank tube')}
+
+
+def trunk():
+    """The trunk's printed pieces, rows as PIECES': `trunk_clamped.PRINTS`, each grown the way stated there."""
+    from tools.render import trunk_clamped as tc
+    return tuple(('trunk ' + name, 'trunk', (name,), way, 1) for name, (_link, way) in tc.PRINTS.items())
+
+
+@functools.lru_cache(maxsize=None)
+def _trunk():
+    """{part: tris}: the trunk's printed parts as its sketch draws them."""
+    from tools.render import trunk_clamped as tc
+    return {name: tc.links()[link][name] for name, (link, _way) in tc.PRINTS.items()}
 
 
 @functools.lru_cache(maxsize=None)
@@ -128,9 +142,9 @@ def laid(name):
     """(tris, (across, deep, tall) m): a piece on its bed - the plane y = 0, the piece grown up it -, its footprint
     the least rectangle round it, its sides along x and z, a corner at their zero."""
     import numpy as np
-    _name, sketch, parts, way, _count = next(p for p in PIECES if p[0] == name)
-    inks = INKS.get(name, PRINTED)
-    tris = [(tri, c) for part in parts for tri, c in _drawn()[sketch][part] if tuple(c) in inks]
+    _name, sketch, parts, way, _count = next(p for p in (trunk() if name.startswith('trunk ') else PIECES) if p[0] == name)
+    inks, drawn = INKS.get(name, PRINTED), _trunk() if sketch == 'trunk' else _drawn()[sketch]
+    tris = [(tri, c) for part in parts for tri, c in drawn[part] if tuple(c) in inks]
     points = np.concatenate([tri for tri, _c in tris])
     up = np.asarray(way, float) if way else _way(points, _tube(name)[1] if name in ON_TUBE else None)
     side = np.cross(up, X if abs(up[0]) < 0.9 else Y)
@@ -148,11 +162,11 @@ def laid(name):
     return [(tri @ turn.T - low, c) for tri, c in tris], (float(size[0]), float(size[2]), float(size[1]))
 
 
-def plates():
-    """[[(name, x, z, across, deep)]], a plate each: every piece of a leg (PIECES, as many as it takes), its longer
-    side along a row, laid the deepest first in the first row of the first plate with room for it - rows from the
-    plate's front, AIR_M apart and off its edges, clear of its front left corner."""
-    todo = sorted(((sorted(laid(name)[1][:2], reverse=True), name) for name, _s, _p, _w, count in PIECES
+def plates(rows=PIECES):
+    """[[(name, x, z, across, deep)]], a plate each: every piece of a leg (PIECES, as many as it takes) - or of
+    `rows` -, its longer side along a row, laid the deepest first in the first row of the first plate with room for
+    it - rows from the plate's front, AIR_M apart and off its edges, clear of its front left corner."""
+    todo = sorted(((sorted(laid(name)[1][:2], reverse=True), name) for name, _s, _p, _w, count in rows
                    for _k in range(count)), key=lambda piece: (-piece[0][1], -piece[0][0]))
     out, rows = [], []                                     # rows: a plate's [[z, deep, the next x]]
     for (a, d), name in todo:
@@ -179,11 +193,11 @@ def plates():
     return out
 
 
-def fitted():
-    """{'pieces': how many a leg prints, 'plates': how many plates they take, 'over': [the pieces that lie past a
-    plate's edges or its height]}."""
-    got = plates()
-    over = [name for name, _s, _p, _w, _c in PIECES if laid(name)[1][2] > TALL_M]
+def fitted(rows=PIECES):
+    """{'pieces': how many a leg - or `rows` - prints, 'plates': how many plates they take, 'over': [the pieces
+    that lie past a plate's edges or its height]}."""
+    got = plates(rows)
+    over = [name for name, _s, _p, _w, _c in rows if laid(name)[1][2] > TALL_M]
     over += [name for plate in got for name, x, z, a, d in plate if x + a > PLATE_M - AIR_M + 1e-9
              or z + d > PLATE_M - AIR_M + 1e-9]
     return {'pieces': sum(len(plate) for plate in got), 'plates': len(got), 'over': sorted(set(over))}
