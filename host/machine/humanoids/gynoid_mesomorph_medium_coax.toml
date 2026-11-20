@@ -65,9 +65,11 @@ slim = 0.70
 torso = [[0.205, -78.0, 258.0], [0.09, 70.0, 110.0], [0.28, -130.0, -50.0], [0.15, -100.0, -80.0]]
 upper_arm = [[0.93, -32.0, 32.0]]
 
+# The elbow turned: its gearbox out, its motor's back with its inverter and its hose's fittings in toward the body.
 [mounts]
 ankle = { x_m = 0.0325, dy_m = 0.0 }
 ankle_roll = { x_m = -0.0325 }
+elbow = { on = "upper_arm", face = "x" }
 
 # Each crank a tight clamp on its drive's output ring (`sized.band`, its screws hid), its lever out past the band
 # and the leaf's eye (54 mm), as long as its ball's arm and parallel to it: the rod a parallelogram, the ratio near

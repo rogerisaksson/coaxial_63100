@@ -8,7 +8,8 @@
 A sketch's hose across a joint (`knee_hose.span`, `elbow_mount.span`: its fittings, in the joint's frame with it
 straight) is laid where the robot's figure carries it (`figure.SEGMENTS`): its still side on the
 segment above the joint, its turning side on the one below, as the sketch stands on the drive (`spans`: its x the
-drive's own or turned about, its middle where the drive's is) - the one below as it stands with the joint straight,
+drive's own or turned about, its middle where the drive's is; its z mirrored where the figure turns the segment below
+the other way than that x) - the one below as it stands with the joint straight,
 whatever turn the figure rests that segment at. The hose is as long as its fittings stand apart at their farthest
 through the joint's own travel as the figure turns it, and `hung.SPARE_M`; laid only where its least bending radius
 through the sketch's travel
@@ -52,8 +53,8 @@ def laid():
     for name, (span, (way, mid)) in sorted(spans().items()):
         above, below, joint = JOINTS[name]
         (_j, axis, sign), offset, rest = segments[below][2][0], np.array(segments[below][3]), segments[below][4]
-        if segments[below][1] != above or axis != 'x' or sign != way:
-            raise MachineError('%s turns %s about %s by %+d, not as its sketch stands' % (joint, below, axis, sign))
+        if segments[below][1] != above or axis != 'x':
+            raise MachineError('%s turns %s about %s, not about x as its sketch' % (joint, below, axis))
         least, own = hung.least(span), float(made[span['kind']][4])
         if least < own:
             raise MachineError("the %s's hose bends at %.1f mm, under its %.1f" % (name, 1e3 * least, 1e3 * own))
@@ -61,8 +62,9 @@ def laid():
         rested = np.array([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]])       # the figure's rest turn, about z
 
         def put(side, at, point=True):
-            """A sketch's point - or, not a `point`, a way - on `side` in its segment's frame."""
-            q = np.array([way * (at[0] + mid * point), at[1], way * at[2]])
+            """A sketch's point - or, not a `point`, a way - on `side` in its segment's frame: its z by the figure's
+            turn's sign, so the sketch bends the way the figure does."""
+            q = np.array([way * (at[0] + mid * point), at[1], sign * at[2]])
             return q + offset * point if side == 'still' else rested.T @ q
 
         def end(fitting):
