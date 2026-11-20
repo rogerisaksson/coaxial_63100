@@ -5,7 +5,9 @@
 `trunk_laid` lays it and tells what the pair turns; here its parts are drawn, the joint's frame, a printed part a
 print (PRINTS: the way each grows off its bed). What stands with the pelvis: a web between the two hips' yaw drives'
 bands in the column their yokes leave free; on it the pelvis's yoke - a base, a plate either side up to its eye on
-the cross's pitch pin and back to a beam, the beam out to the boss round its rod's pin -, those two pins. What
+the cross's pitch pin and back to a bar across the back, the bar out at each end to the boss round its rod's pin:
+the pelvis's cross, which carries a rod's pull over to the other plate, not out of a plate's plane -, those two
+pins. What
 pitches: the cross - a block, its pitch pin across, its roll journals ahead and behind. What pitches and rolls with
 the chest: a yoke ahead of the cross and one behind it, each a ring round its journal and an arm up to a foot under
 the pair's cage; the calf's two drives; the clamp - the cage round their inverters and, off a 45 degree cone, the
@@ -46,13 +48,15 @@ BLOCK_M, PIN_R, PIN_X, JOURNAL_R, JOURNAL_Z = 0.017, 0.008, 0.033, 0.010, 0.039
 #: thickness, an eye's radius round the pitch pin, the bed's height - the plates' and the beams' top, the print
 #: grown down from it -, a plate's low edge behind - over the hips' blocks' sweep -, the 45 deg chamfer along its
 #: top's outer edge - the pair's cage dips to it leant 35 deg - and the depth of the 45 deg notch in its top
-#: between the eye and the beam, where the chest's rear yoke and the cage come leant and bowed back; the base's
-#: half width -
-#: inside the yaw drives -, its z (from, to) and its top at the plates, falling 45 deg from there to the middle -
-#: in print each layer reaches in from the plates - under what the chest's rings sweep bowed 85 deg (43 mm off the
-#: pitch's axis); m.
+#: between the eye and the bar, where the chest's rear yoke and the cage come leant and bowed back; the base's
+#: half width - inside the yaw drives -, its z (from, to) - behind the web as far as the hips' yokes leave room
+#: over their sweep, under the plates' roots - and its top at the plates, falling 45 deg from there to
+#: the middle - in print each layer reaches in from the plates - under what the chest's rings sweep bowed 85 deg
+#: (43 mm off the pitch's axis); the bar's under face, over what the hips' risers sweep behind; a plate's skirt
+#: outside it, as wide as the yaw drives leave, its top - a 45 deg chamfer out from the plate - under where the
+#: cage comes leant: the plate's depth where the notch takes it; m.
 ARM_X, ARM_M, EYE_R, TOP_Y, LOW_Y, CHAMFER_M, NOTCH_M = 0.021, 0.010, 0.013, 0.0135, -0.091, 0.003, 0.027
-BASE_X, BASE_Z, BASE_Y = 0.037, (-0.012, 0.012), -0.044
+BASE_X, BASE_Z, BASE_Y, BAR_Y, SKIRT_Y = 0.037, (-0.040, 0.012), -0.044, -0.048, 0.003
 #: The chest's yokes: a ring's radius round its journal and its z (from, to) off the block's middle, an arm's half
 #: width - leant 35 deg its edge keeps inside the pelvis's plates -; the seat's thickness over the cage's top under
 #: the spine's tube's foot; the cage's floor - flat under the inverters, its wall and its air over them: the round
@@ -107,7 +111,7 @@ def _mirrored(tris):
 
 def _stood():
     """{part: tris} of what stands with the pelvis: the web between the yaw drives' bands, the yoke - its base, its
-    plates with their eyes, its beams with their bosses - and the rods' two pins."""
+    plates with their eyes, its bar across the back with the bosses at its ends - and the rods' two pins."""
     import numpy as np
     (j, hip), yaw = tl.joint(), hl.stacks()['yaw']['motor']
     low, high = (hip[1] + yaw[k] + d - j[1] for k, d in ((0, 0.002), (1, -0.002)))        # the yaw bands' y here
@@ -121,21 +125,23 @@ def _stood():
         return np.array([(top, EYE_R)] + arc + [(BASE_Y, BASE_Z[1]), (LOW_Y, back), (top, back),
                                                 (top, mid - (top - dip)), (dip, mid), (top, mid + (top - dip))])
     cut, edge = TOP_Y - CHAMFER_M, ARM_X + ARM_M - CHAMFER_M
-    knee = boss[1] - (TOP_Y - ball[1] - PIN_EYE)                     # the beam's top falls 45 deg to its boss
-    beam = [(ARM_X + ARM_M, ball[1] - PIN_EYE), (boss[1], ball[1] - PIN_EYE), (boss[1], ball[1] + PIN_EYE),
-            (knee, TOP_Y), (ARM_X + ARM_M, TOP_Y)]
+    knee = boss[1] - (TOP_Y - ball[1] - PIN_EYE)                     # the bar's top falls 45 deg to each boss
+    bar = [(-boss[1], BAR_Y), (boss[1], BAR_Y), (boss[1], ball[1] + PIN_EYE), (knee, TOP_Y), (-knee, TOP_Y),
+           (-boss[1], ball[1] + PIN_EYE)]
     side = (hf._slab(outline(TOP_Y), ARM_X, edge, em.FRAME, rounded=False)
             + hf._slab(outline(cut), edge, ARM_X + ARM_M, em.FRAME, rounded=False)
             + [t for z0, z1 in ((back, mid - (cut - dip)), (mid + (cut - dip), EYE_R))
                for t in hf._slab(np.array([(edge, cut), (ARM_X + ARM_M, cut), (edge, TOP_Y)]), z0, z1, em.FRAME, 2,
                                  False)]
-            + hf._slab(np.array(beam), back, rear, em.FRAME, 2, False))
+            + hf._slab(np.array([(ARM_X + ARM_M, LOW_Y), (BASE_X, LOW_Y), (BASE_X, SKIRT_Y - (BASE_X - ARM_X - ARM_M)),
+                                 (ARM_X + ARM_M, SKIRT_Y)]), back, BASE_Z[1], em.FRAME, 2, False))
     roof = [(-BASE_X, high), (BASE_X, high), (BASE_X, BASE_Y - (BASE_X - ARM_X - ARM_M)), (ARM_X + ARM_M, BASE_Y),
             (ARM_X, BASE_Y), (0.0, BASE_Y - ARM_X), (-ARM_X, BASE_Y), (-ARM_X - ARM_M, BASE_Y),
             (-BASE_X, BASE_Y - (BASE_X - ARM_X - ARM_M))]
     pin = m._cylinder_x(ROD_PIN, boss[0], ball[0] + ROD_EYE + 0.003, hf.STEEL, at=(ball[1], ball[2]))
     return {'web': hf._prism(hf._box((-half, half), (low, high)), WEB_Z[0], WEB_Z[1], em.FRAME, 2),
-            'yoke': side + _mirrored(side) + hf._slab(np.array(roof), BASE_Z[0], BASE_Z[1], em.FRAME, 2, False),
+            'yoke': (side + _mirrored(side) + hf._slab(np.array(roof), BASE_Z[0], BASE_Z[1], em.FRAME, 2, False)
+                     + hf._slab(np.array(bar), back, rear, em.FRAME, 2, False)),
             'pins': pin + _mirrored(pin)}
 
 

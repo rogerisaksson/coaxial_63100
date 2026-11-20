@@ -18,12 +18,11 @@ the rods' pulls on the pelvis's pins that hold a moment of the chest's.
 A draft's open ends: the rods' ends - a plain fork and eye hold a rod square to its pin, and the roll leans the rod
 (`able`'s 'lean') more than the calf's spherical eye gives; so drawn, leant 35 deg a rod's end comes within 0.3 mm
 of its crank's ring and plate, and the pair's cage and the chest's rear yoke within 1.0 mm of the pelvis's yoke -
-under the 2 mm kept everywhere else (`trunk_clamped.aired`); the pelvis's yoke as drawn does not carry the rods'
-pulls - its beams hold them 36 mm outboard of its 10 mm plates, which bend out of their plane where they leave
-the base (122 MPa at rest, 376 at the travel's corner, `trunk_shaped`'s solve, against 50): a box round each boss
-first, then shaped; the leaves' give along a rod is the calf's, not laid for the trunk; the joint stands RAISED_M
-over where the build's software bends the trunk, the pitch before the roll, the waist's turn gone - the build's
-spec and what runs on it are untouched; no screws, no bus.
+under the 2 mm kept everywhere else (`trunk_clamped.aired`); the pelvis's yoke stands on the web alone, 18 mm deep
+between the hips' yokes' sweeps, and the trunk's moment passes through it; the leaves' give along a rod is the
+calf's, not laid for the trunk; the joint stands RAISED_M over where the build's software bends the trunk, the
+pitch before the roll, the waist's turn gone - the build's spec and what runs on it are untouched; no screws, no
+bus.
 """
 import math
 import os

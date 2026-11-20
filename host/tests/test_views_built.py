@@ -118,7 +118,9 @@ def test_the_trunk_reaches_its_travel_and_prints_standing(report):
     pair on the chest over one cardan joint low by the hips, a rod each down to the pelvis's pins. The pair
     reaches every pose of the build's own travel - its roll's ends with its pitch's - with no rod pulling nearer
     its crank's dead centre than the layout holds; each of its solid printed parts stands on its bed with nothing
-    hung over it, and all its prints fit a plate."""
+    hung over it, and all its prints fit a plate; and its guards - the page's cups, sternum, belly slats and back
+    (`trunk_worn`) - are laid and cross nothing the chest carries: with no likeness beside the tree there is no
+    figure to lay them on."""
     told: Any = _told('from tools.render import prints as p, solids as s, trunk_laid as t; got = list(t.reached().values()); '
                       'print(json.dumps({"reached": [v is not None for v in got], "least": t.LEVER, '
                       '"lever": min([v["lever"] for v in got if v] or [0.0]), "hung": s.hung(s.TRUNK), '
@@ -132,6 +134,14 @@ def test_the_trunk_reaches_its_travel_and_prints_standing(report):
                  max(hung.values()) <= told.get('noise', 0.0), hung)
     fit: Any = told.get('fit') or {'over': ['none told']}
     report.check("the trunk's prints fit a plate", fit['over'] == [] and fit.get('pieces', 0) > 0, fit)
+    from coaxial.graphics import likeness
+    if not likeness.FOUND:                               # the guards are laid on the figure's body beside the tree
+        report.skip("the trunk's guards are laid and cross nothing the chest carries", 'no likeness beside the tree')
+        return
+    worn: Any = _told('from tools.render import trunk_worn as w; '
+                      'print(json.dumps({"laid": len(w.guards()), "crossing": w.crossing()}))')
+    report.check("the trunk's guards are laid and cross nothing the chest carries",
+                 (worn.get('laid') or 0) > 0 and worn.get('crossing') == 0, worn)
 
 
 def test_a_print_shaped_by_its_loads_stands_on_its_bed(report):

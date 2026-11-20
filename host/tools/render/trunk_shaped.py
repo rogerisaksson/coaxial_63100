@@ -78,7 +78,7 @@ def cases():
                     turn @ np.asarray(about, float) - corner)
         ball = 1e3 * np.array(tl.BALL)
         held = ((y <= y[room].min() + 2.0 * h) & (np.abs(x) <= 1e3 * tc.BASE_X)          # the base's foot on the web
-                & (z >= 1e3 * tc.BASE_Z[0]) & (z <= 1e3 * tc.BASE_Z[1]))
+                & (z >= 1e3 * max(tc.BASE_Z[0], tc.WEB_Z[0])) & (z <= 1e3 * min(tc.BASE_Z[1], tc.WEB_Z[1])))
         eyes = (np.hypot(y, z) <= 1e3 * tc.PIN_R + ROUND_MM) & (np.abs(x) >= 1e3 * tc.ARM_X)
         boss = ((np.hypot(y - ball[1], z - ball[2]) <= 1e3 * tc.ROD_PIN + ROUND_MM)
                 & (np.abs(x) >= 1e3 * (tl.BALL[0] - tc.LEAN_M - tc.WALL_M)))
