@@ -200,7 +200,7 @@ def _digest(c):
     """A case's content as a name: its arrays, its loads, its voxel, its share and the method's own numbers."""
     import numpy as np
     h = hashlib.sha256(repr((c['h'], c['share'], PENALTY, MOVE, ROUNDS, VOID, SHARP, EPS, LEVELS, kt.REACH,
-                             'either way')).encode())
+                             'either way', 'kept whole')).encode())
     for part in (c['room'], c['kept'], c['held']):
         h.update(np.packbits(part).tobytes() + repr(part.shape).encode())
     for patch, force, moment, about in (part for parts in c['loads'] for part in parts):
@@ -221,7 +221,8 @@ def ready(c):
 def shaped(c, log=None, fresh=False):
     """{'solid': [across, up, deep] the voxels kept, 'h', 'grams', 'room': the room's grams, 'margin', 'level',
     'lost': the kept voxels the cut let hang, 'points', 'cells': its voxels' corners for `knee_topo.faces`}: a
-    case shaped (`optimise`) and cut - from .cache/topo where this very case was shaped before, unless `fresh`."""
+    case shaped (`optimise`) and cut at the first level that carries its loads with nothing told to stay lost, else
+    at the last - from .cache/topo where this very case was shaped before, unless `fresh`."""
     import numpy as np
     from machine.body import structural
     path = _path(c)
@@ -249,7 +250,7 @@ def shaped(c, log=None, fresh=False):
                'room': float(len(cells)) * h ** 3 * 1e-9 * kt.DENSITY * 1e3, 'lost': int((kept & ~solid).sum()),
                'points': mesh.p, 'cells': mesh.t[:, solid]}
         out['solid'][tuple(cells[solid].T)] = True
-        if margin >= 1.0:
+        if margin >= 1.0 and not out['lost']:
             break
     assert out is not None
     os.makedirs(os.path.dirname(path), exist_ok=True)

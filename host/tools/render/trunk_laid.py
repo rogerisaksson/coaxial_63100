@@ -5,8 +5,9 @@
 The trunk as the leg's calf is built: the calf's two drives back to back on one axis across the back
 (`knee_clamped.laid`), their inverters between them, on the chest; under them one classic cardan joint, low by the
 hips - its cross's pitch pin in the pelvis's yoke, its roll journals in the chest's, each yoke holding its pins
-either side -; on each drive's hub, outboard of its gable, a crank; from each crank's pin a rod - a cartridge of
-leaves, as the calf's - down the back past the joint to a pin on the pelvis's cross. Both drives one way bow the
+either side -; on each drive's output ring a lever clamped, as the calf's, its pin out past the gable
+(`trunk_rods.lever`); from each lever's pin a rod - a cartridge of leaves, as the calf's - down the back past the
+joint to a pin on the pelvis's cross. Both drives one way bow the
 chest, one against the other lean it; nothing turns the chest about its own length - no waist's drive in this
 draft. The cross is turned a quarter from the build's order, the pitch before the roll: the drives ride the chest
 and the roll's axis turns with them, so no bow takes the roll's lever from the rods.
@@ -15,14 +16,17 @@ All in the joint's frame: its middle the origin, x left, y up, z ahead; the ches
 the roll alone, each drive within its own torque (`drive`) -, how near a rod pulls to its crank's dead centre and
 how far the rod leans out of its two pins' squares; `reached` tells those over the build's whole travel; `pulled`
 the rods' pulls on the pelvis's pins that hold a moment of the chest's.
-A draft's open ends: leant 35 deg and bowed back 30, near its crank's dead centre a rod's leaves pass the crank's
-boss within 0.3 mm - the search below kept the rod's line their half width off its drive's drum, not their width
-off the drum's end nor their bow; kept so, its least share falls to 0.51 -, and the pair's cage, the clamp and the
-chest's rear yoke come within 1.2 mm of the pelvis's yoke: under the 2 mm kept everywhere else
-(`trunk_clamped.aired`); the pelvis's yoke stands on the web alone, 18 mm deep between the hips' yokes' sweeps, and
-the trunk's moment passes through it; the leaves' give along a rod is the calf's, not laid for the trunk; the joint
-stands RAISED_M over where the build's software bends the trunk, the pitch before the roll, the waist's turn gone -
-the build's spec and what runs on it are untouched; no screws, no bus.
+A draft's open ends: leant 35 deg and bowed back 30, near its crank's dead centre a rod's leaves pass the drive's
+output ring 2.0 mm off and its lever's band 2.2 - the search below kept the rod's line their half width off the
+drive's drum, not their width off its end nor their bow, so the leaves were narrowed and the band set in from the
+gable (`trunk_rods`); kept so, the search's least share falls to 0.51 -; leant 35 deg the chest's rear yoke's arm's
+edge comes within 0.1 mm of the pelvis's yoke, into its notch at the plate's inner edge, and the pair's cage within
+0.5 mm, onto the plate's outer face by its eye - the chest's yokes and the cage not yet shaped by their loads -:
+under the 2 mm kept everywhere else (`trunk_clamped.aired`); the pelvis's yoke stands on the web alone, 18 mm deep
+between the hips' yokes' sweeps, and the trunk's moment passes through it; the leaves' give along a rod is the
+calf's, not laid for the trunk; the cardan's cross's block and a rod's two collars are steel; the joint stands
+RAISED_M over where the build's software bends the trunk, the pitch before the roll, the waist's turn gone - the
+build's spec and what runs on it are untouched; no screws, no bus.
 """
 import math
 import os

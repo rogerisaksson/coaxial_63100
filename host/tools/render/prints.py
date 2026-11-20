@@ -62,9 +62,11 @@ ON_TUBE = {'thigh knuckle': ('thigh', 'thigh tube'), 'thigh foot': ('thigh', 'th
 
 
 def trunk():
-    """The trunk's printed pieces, rows as PIECES': `trunk_clamped.PRINTS`, each grown the way stated there."""
+    """The trunk's printed pieces, rows as PIECES': `trunk_clamped.PRINTS`, each grown the way stated there - one a
+    side where it is drawn on the left."""
     from tools.render import trunk_clamped as tc
-    return tuple(('trunk ' + name, 'trunk', (name,), way, 1) for name, (_link, way) in tc.PRINTS.items())
+    return tuple(('trunk ' + name, 'trunk', (name,), way, 2 if link.startswith('left ') else 1)
+                 for name, (link, way) in tc.PRINTS.items())
 
 
 @functools.lru_cache(maxsize=None)
