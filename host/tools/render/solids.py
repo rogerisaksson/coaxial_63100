@@ -28,7 +28,7 @@ VOXEL_M, MARKS = 0.0006, 3.0
 #: The pieces held to hang nothing over their beds - the hip's frame - and what of an overhang is the cells' own
 #: noise on a face that slopes or steps by less than a cell, cm2.
 STANDING, NOISE_CM2 = ('yaw band', 'yoke', 'block', 'cradle', 'thigh arm', 'thigh knuckle'), 0.5
-TRUNK = ('trunk web', 'trunk yoke', 'trunk front yoke', 'trunk rear yoke', 'trunk seat')
+TRUNK = ('trunk web', 'trunk yoke', 'trunk seat')
 
 
 @functools.lru_cache(maxsize=None)

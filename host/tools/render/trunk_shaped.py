@@ -5,9 +5,9 @@
 A print of `trunk_clamped` is the optimiser's room as drawn: its drawing filled to voxels on its bed (`_room`),
 nothing added to it - material is only taken away. A print's case (`cases`) holds it where it is screwed on and
 loads it with what the trunk bears at the margin, a case a load. The pelvis's yoke is held by its base on the web;
-the rods pull its two pins with what holds the chest's measured bow and lean (`knee_loads.loads`, the swing no
-less than the build's spine's peak) through the linkage at rest, at the travel's corner - leant 35 deg, bowed back
-30 - and bowed 85 deg, each rod at most its drive's own torque at the margin on its crank (`trunk_laid.pulled`),
+the rods pull its two pins with what holds the chest's measured bow and lean through the linkage at the poses
+`trunk_laid.cases` names - upright, at the travel's corner leant either way, bowed its most -, each rod at most
+its drive's own torque at the margin on its crank (`trunk_laid.pulled`),
 the cross pushing back on its eyes and turning them back about its own third axis - what the rods' pulls turn
 the chest about it the cross passes on, so the base bears the chest's moment alone -; and on those eyes the
 spine's thrust and twist. A drive's lever is held where its band grips the output ring and the rod pulls its pin
@@ -35,8 +35,9 @@ from tools.render import trunk_laid as tl  # noqa: E402
 from tools.render import trunk_rods as tr  # noqa: E402
 
 #: The prints shaped: {name: (its voxel, mm, the share of what is the optimiser's that it may keep - the yoke's
-#: at 0.35 carried x0.56 at its best cut)}; how many cells a voxel's side is filled by, and how far round an axis
-#: a seat's voxels are kept, mm.
+#: at 0.6 carried x0.82 at its lowest cut held for both of the travel's corners, its room as drawn on 3 mm voxels
+#: x0.89 at its notch's foot and x0.81 up its layers where it stands on the web: it does not carry yet, and stands
+#: drawn)}; how many cells a voxel's side is filled by, and how far round an axis a seat's voxels are kept, mm.
 SHAPED, FINE, ROUND_MM = {'yoke': (4.0, 0.6), 'lever': (2.0, 0.6)}, 3, 4.0
 
 
@@ -80,9 +81,7 @@ def _loader(turn, corner):
 def _yoke(name, h, share):
     """The pelvis's yoke's case: held by its base's foot on the web, loaded on its pins and its eyes."""
     import numpy as np
-    spine = kl.loads('spine')
-    (_r0, r1), (p0, p1) = tl.travel()
-    bow, lean, none = 1e-3 * spine['swing'], 1e-3 * spine['lateral'], (0.0, 0.0, 0.0)
+    spine, none = kl.loads('spine'), (0.0, 0.0, 0.0)
     room, turn, corner, (x, y, z) = _room(name)
     load, ball = _loader(turn, corner), 1e3 * np.array(tl.BALL)
     held = ((y <= y[room].min() + 2.0 * h) & (np.abs(x) <= 1e3 * tc.BASE_X)          # the base's foot on the web
@@ -99,9 +98,8 @@ def _yoke(name, h, share):
         twist = sum(np.cross(pin, force) for pin, force in zip(pins, pulls)) @ way * way
         return ([load(side, force, none, pin) for side, force, pin in zip(sides, pulls, pins)]
                 + [load(eyes, -sum(pulls), -twist, none)])
-    loads = [holding((0.0, 0.0), (bow, 0.0)), holding((0.0, 0.0), (0.0, lean)), holding((r1, p0), (bow, 0.0)),
-             holding((r1, p0), (0.0, lean)), holding((0.0, p1), (bow, 0.0)),
-             [load(eyes, (0.0, -spine['axial'], 0.0), (0.0, spine['torsion'], 0.0), none)]]
+    loads = ([holding(pose, moment) for pose, moment in tl.cases()]
+             + [[load(eyes, (0.0, -spine['axial'], 0.0), (0.0, spine['torsion'], 0.0), none)]])
     return topo.case('trunk ' + name, room, held | eyes | boss, held, loads, h, share)
 
 

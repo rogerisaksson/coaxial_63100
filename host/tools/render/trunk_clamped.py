@@ -8,8 +8,8 @@ bands in the column their yokes leave free; on it the pelvis's yoke - a base, a 
 the cross's pitch pin and back to a bar across the back, the bar out at each end to the boss round its rod's pin:
 the pelvis's cross, which carries a rod's pull over to the other plate, not out of a plate's plane -, those two
 pins. What pitches: the cross - a block, its pitch pin across, its roll journals ahead and behind. What pitches and
-rolls with the chest: a yoke ahead of the cross and one behind it, each a ring round its journal and an arm up to a
-foot under the pair's cage; the calf's two drives; the clamp - the cage round their inverters and, off a 45 degree
+rolls with the chest: a yoke ahead of the cross and one behind it, each a stack of carbon sheets round its journal
+up to a foot under the pair's cage (`trunk_yokes`); the calf's two drives; the clamp - the cage round their inverters and, off a 45 degree
 cone, the band round the left drive's motor -; the collar - the right drive's band, coned out to the cage's rim -;
 the seat on the cage the spine's tube's foot is screwed on, that foot, a stub of the tube. What each drive turns:
 its output ring and its lever (`trunk_rods.lever`) - a slit band round the ring, an arm out to an eye, a carbon pin
@@ -39,15 +39,18 @@ from tools.render import neck_laid as nl  # noqa: E402
 from tools.render import sized as ks  # noqa: E402
 from tools.render import trunk_laid as tl  # noqa: E402
 from tools.render import trunk_rods as tr  # noqa: E402
+from tools.render import trunk_yokes as ty  # noqa: E402
 
 #: The cross: its block's half side, its pitch pin's radius and reach either side - through the pelvis's plates -,
-#: its roll journals' radius and reach either side - through the chest's yokes' rings -; m.
-BLOCK_M, PIN_R, PIN_X, JOURNAL_R, JOURNAL_Z = 0.017, 0.008, 0.033, 0.010, 0.039
+#: m; its roll journals through the chest's yokes' stacks, theirs (`trunk_yokes`).
+BLOCK_M, PIN_R, PIN_X = 0.017, 0.008, 0.033
 #: The pelvis's yoke: its plates' inner face off the middle - outside where the chest's rings turn - and their
-#: thickness, an eye's radius round the pitch pin, the bed's height - the plates' and the beams' top, the print
+#: thickness, an eye's radius round the pitch pin - as high as the bed, the plate's front round from its top: the
+#: pair's cage leant 35 deg and bowed passes over it -, the bed's height - the plates' and the beams' top, the print
 #: grown down from it -, a plate's low edge behind - over the hips' blocks' sweep -, the 45 deg chamfer along its
-#: top's outer edge - the pair's cage dips to it leant 35 deg - and the depth of the 45 deg notch in its top
-#: between the eye and the bar, where the chest's rear yoke and the cage come leant and bowed back; the base's
+#: top's outer edge - the cage's cone to a drive's band dips to it leant 34 deg and bowed back 30 - and the depth of
+#: the 45 deg notch in its top between the eye and the bar, where the chest's rear yoke's waist and the cage come
+#: leant and bowed back; the base's
 #: half width - inside the yaw drives -, its z (from, to) - behind the web as far as the hips' yokes leave room
 #: over their sweep, under the plates' roots - and its top at the plates, falling 45 deg from there to
 #: the middle - in print each layer reaches in from the plates - under what the chest's rings sweep bowed 85 deg
@@ -55,14 +58,12 @@ BLOCK_M, PIN_R, PIN_X, JOURNAL_R, JOURNAL_Z = 0.017, 0.008, 0.033, 0.010, 0.039
 #: outside it, as wide as the yaw drives leave, its top - a 45 deg chamfer out from the plate - under where the
 #: cage comes leant: the plate's depth where the notch takes it, and down the notch's sides where they cut the
 #: plate lower, so that in print no edge of it hangs off the plate; m.
-ARM_X, ARM_M, EYE_R, TOP_Y, LOW_Y, CHAMFER_M, NOTCH_M = 0.021, 0.010, 0.013, 0.0135, -0.091, 0.003, 0.027
+ARM_X, ARM_M, EYE_R, TOP_Y, LOW_Y, CHAMFER_M, NOTCH_M = 0.021, 0.010, 0.013, 0.013, -0.091, 0.0065, 0.030
 BASE_X, BASE_Z, BASE_Y, BAR_Y, SKIRT_Y = 0.037, (-0.040, 0.012), -0.044, -0.048, 0.003
-#: The chest's yokes: a ring's radius round its journal and its z (from, to) off the block's middle, an arm's half
-#: width - leant 35 deg its edge keeps inside the pelvis's plates -; the seat's thickness over the cage's top under
-#: the spine's tube's foot; the cage's floor - flat under the inverters, its wall and its air over them: the round
-#: cage dips onto the pelvis's eyes leant 35 deg and bowed back, and the hubs 6 mm higher would cost a tenth of
-#: the pair's least share; m.
-RING_R, RING_Z, ARM_W, SADDLE_M, FLOOR_M = 0.019, (0.019, 0.039), 0.010, 0.008, (0.002, 0.002)
+#: The seat's thickness over the cage's top under the spine's tube's foot; the cage's floor - flat under the
+#: inverters, its wall and its air over them: the round cage dips onto the pelvis's eyes leant 35 deg and bowed
+#: back, and the hubs 6 mm higher would cost a tenth of the pair's least share; m.
+SADDLE_M, FLOOR_M = 0.008, (0.002, 0.002)
 #: The bar's end round each rod's pin, its half depth and how far it stands over the pin, m; the pin's seat in it
 #: and its face are the rods' (`trunk_rods`).
 PIN_EYE = 0.014
@@ -73,7 +74,6 @@ WEB_Z, WEB_IN = (0.0, 0.018), 0.0025
 MATED = ('pitch pin', 'roll journals', 'ring', 'pins')
 #: The printed parts, each a print: (its link, the way it grows off its bed in the joint's frame).
 PRINTS = {'web': ('pelvis', (0.0, 0.0, 1.0)), 'yoke': ('pelvis', (0.0, -1.0, 0.0)),
-          'front yoke': ('chest', (0.0, 0.0, -1.0)), 'rear yoke': ('chest', (0.0, 0.0, 1.0)),
           'clamp': ('chest', (-1.0, 0.0, 0.0)), 'collar': ('chest', (1.0, 0.0, 0.0)), 'seat': ('chest', (0.0, -1.0, 0.0)),
           'lever': ('left crank', (1.0, 0.0, 0.0))}
 
@@ -125,24 +125,25 @@ def _stood():
     low, high = (hip[1] + yaw[k] + d - j[1] for k, d in ((0, 0.002), (1, -0.002)))        # the yaw bands' y here
     half, ball = hip[0] - yaw[2] - WEB_IN, np.array(tl.BALL)
     back, boss = ball[2] - PIN_EYE, (ball[0] - tr.LEAN_M - tr.SEAT_M, ball[0] - tr.LEAN_M)
-    arc = [(EYE_R * math.sin(a), EYE_R * math.cos(a)) for a in np.linspace(0.0, -0.5 * math.pi, 9)]
     front, rear = -EYE_R, ball[2] + PIN_EYE                          # the notch's ends: by the eye, by the beam
     dip, mid = TOP_Y - NOTCH_M, 0.5 * (front + rear)
 
     def outline(top):                                    # a plate's (y, z) round, its top at `top`, the notch in it
-        return np.array([(top, EYE_R)] + arc + [(BASE_Y, BASE_Z[1]), (LOW_Y, back), (top, back),
-                                                (top, mid - (top - dip)), (dip, mid), (top, mid + (top - dip))])
+        arc = [(EYE_R * math.sin(a), EYE_R * math.cos(a))            # the eye's round from the top, ahead and down
+               for a in np.linspace(math.asin(min(top / EYE_R, 1.0)), -0.5 * math.pi, 13)]
+        return np.array(arc + [(BASE_Y, BASE_Z[1]), (LOW_Y, back), (top, back), (top, mid - (top - dip)), (dip, mid),
+                               (top, mid + (top - dip))])
     def skirt(top):                                      # a skirt's (x, y) corners, its top at the plate `top`
         return [(ARM_X + ARM_M, LOW_Y), (BASE_X, LOW_Y), (BASE_X, top - (BASE_X - ARM_X - ARM_M)), (ARM_X + ARM_M, top)]
     cut, edge = TOP_Y - CHAMFER_M, ARM_X + ARM_M - CHAMFER_M
+    tri = [(edge, cut), (ARM_X + ARM_M, cut), (edge, TOP_Y)]          # the chamfer's section, ended on the notch's flanks
     knee = boss[1] - (TOP_Y - ball[1] - PIN_EYE)                     # the bar's top falls 45 deg to each boss
     bar = [(-boss[1], BAR_Y), (boss[1], BAR_Y), (boss[1], ball[1] + PIN_EYE), (knee, TOP_Y), (-knee, TOP_Y),
            (-boss[1], ball[1] + PIN_EYE)]
     side = (hf._slab(outline(TOP_Y), ARM_X, edge, em.FRAME, rounded=False)
             + hf._slab(outline(cut), edge, ARM_X + ARM_M, em.FRAME, rounded=False)
-            + [t for z0, z1 in ((back, mid - (cut - dip)), (mid + (cut - dip), EYE_R))
-               for t in hf._slab(np.array([(edge, cut), (ARM_X + ARM_M, cut), (edge, TOP_Y)]), z0, z1, em.FRAME, 2,
-                                 False)]
+            + _hulled([(x, y, back) for x, y in tri] + [(x, y, mid - (y - dip)) for x, y in tri], em.FRAME)
+            + _hulled([(x, y, mid + (y - dip)) for x, y in tri] + [(x, y, 0.0) for x, y in tri], em.FRAME)
             + [t for z0, z1 in ((back, mid - (SKIRT_Y - dip)), (mid + (SKIRT_Y - dip), BASE_Z[1]))
                for t in hf._slab(np.array(skirt(SKIRT_Y)), z0, z1, em.FRAME, 2, False)]
             + [t for z0, z1, t0, t1 in ((mid - (SKIRT_Y - dip), mid, SKIRT_Y, dip), (mid, mid + (SKIRT_Y - dip), dip, SKIRT_Y))
@@ -181,10 +182,7 @@ def _chest():
     cage = cl.honeycomb(bore, outside, c0, c1, gap=(math.pi - half, math.pi + half))
     flat = hf._prism(hf._box((c0, c1), (at[1] - chord, at[1] + chord)), floor, floor + FLOOR_M[0], em.FRAME, 1)
     out = {'pair still': still, 'clamp': _moved(cage, at) + flat + bands['left'], 'collar': bands['right']}
-    for name, way in (('front yoke', 1.0), ('rear yoke', -1.0)):
-        zs = sorted((way * RING_Z[0], way * RING_Z[1]))
-        ring = hf._put(m._cylinder_x(RING_R, zs[0], zs[1], em.FRAME), hf._along('roll'))
-        out[name] = ring + hf._slab(cl.cupped(at, outside + 0.001, 0.0, zs), -ARM_W, ARM_W, em.FRAME, rounded=False)
+    out.update(ty.drawn())
     _seat, spine_z, tube = nl.laid()['seat']
     oval, top = em._oval(tube) + (0.0, spine_z), _seat_y()
     half_x, half_z = tube + em.OVAL_PAST[0], tube + em.OVAL_PAST[1]
@@ -207,12 +205,12 @@ def links():
     for name, tris in hc.links()['pelvis'].items():
         hips['left ' + name] = [(tri + off, c) for tri, c in tris]
         hips['right ' + name] = [((tri + off) * (-1.0, 1.0, 1.0), c) for tri, c in tris]
-    crank = tr.lever()
+    crank, reach = tr.lever(), [max(abs(z) for z in ty._sheets(name)[-1][:2]) for name in ty.STACKS]
     return {'pelvis': _stood(), 'hips': hips, 'chest': _chest(), 'left crank': crank,
             'right crank': {name: _mirrored(tris) for name, tris in crank.items()},
             'cross': {'block': hf._prism(hf._box((-BLOCK_M, BLOCK_M), (-BLOCK_M, BLOCK_M)), -BLOCK_M, BLOCK_M, hf.STEEL, 2),
                       'pitch pin': m._cylinder_x(PIN_R, -PIN_X, PIN_X, em.CARBON),
-                      'roll journals': hf._put(m._cylinder_x(JOURNAL_R, -JOURNAL_Z, JOURNAL_Z, em.CARBON),
+                      'roll journals': hf._put(m._cylinder_x(ty.JOURNAL_R, -reach[1], reach[0], em.CARBON),
                                                hf._along('roll'))}}
 
 

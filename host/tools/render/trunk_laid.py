@@ -19,10 +19,11 @@ the rods' pulls on the pelvis's pins that hold a moment of the chest's.
 A draft's open ends: leant 35 deg and bowed back 30, near its crank's dead centre a rod's leaves pass the drive's
 output ring 2.0 mm off and its lever's band 2.2 - the search below kept the rod's line their half width off the
 drive's drum, not their width off its end nor their bow, so the leaves were narrowed and the band set in from the
-gable (`trunk_rods`); kept so, the search's least share falls to 0.51 -; leant 35 deg the chest's rear yoke's arm's
-edge comes within 0.1 mm of the pelvis's yoke, into its notch at the plate's inner edge, and the pair's cage within
-0.5 mm, onto the plate's outer face by its eye - the chest's yokes and the cage not yet shaped by their loads -:
-under the 2 mm kept everywhere else (`trunk_clamped.aired`); the pelvis's yoke stands on the web alone, 18 mm deep
+gable (`trunk_rods`); kept so, the search's least share falls to 0.51 -; the cross hands the chest's yokes the
+rods' twist - 350 N m leant 35 deg and bowed back 30 -, carbon stacks for it (`trunk_yokes`), 2 mm off the pelvis's
+plates as the cage is; the cage under their feet is the calf's, not laid for their loads; the pelvis's yoke, held
+for both of the travel's corners, does not carry as drawn - x0.89 at its notch's foot, x0.81 up its layers where
+it stands on the web, on 3 mm voxels - and stands drawn; it stands on the web alone, 18 mm deep
 between the hips' yokes' sweeps, and the trunk's moment passes through it; the leaves' give along a rod is the
 calf's, not laid for the trunk; the cardan's cross's block and a rod's two collars are steel; the joint stands
 RAISED_M over where the build's software bends the trunk, the pitch before the roll, the waist's turn gone - the
@@ -167,6 +168,19 @@ def pulled(roll, pitch, moment):
     most = structural.MARGIN * drive()
     pulls = pulls * min(1.0, min(most / abs(a) / max(abs(f), 1e-9) for f, a in zip(pulls, arms)))
     return [f * w for f, w in zip(pulls, ways)]
+
+
+def cases():
+    """[((roll, pitch), deg, (pitch, roll), N m)]: what the trunk's parts are sized for - the chest's measured bow
+    and lean (`knee_loads.loads`, the swing no less than the build's spine's peak), each alone, held upright and at
+    the travel's corner leant either way and bowed back - a pose leant one way loads the parts' other side leant
+    the other -, and the bow bowed its most."""
+    from tools.render import knee_loads as kl
+    spine = kl.loads('spine')
+    (_r0, r1), (p0, p1) = travel()
+    bow, lean = (1e-3 * spine['swing'], 0.0), (0.0, 1e-3 * spine['lateral'])
+    return ([((0.0, 0.0), bow), ((0.0, 0.0), lean)] + [((roll, p0), held) for roll in (r1, -r1) for held in (bow, lean)]
+            + [((0.0, p1), bow)])
 
 
 def reached(steps=(5, 9)):
