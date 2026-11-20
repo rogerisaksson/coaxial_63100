@@ -17,7 +17,7 @@ import os
 from typing import Any
 
 from machine.body import build, compile as _compile, drives, figure, mechatronics
-from machine.solver import loops
+from machine.solver import drivetrain, loops
 from motor.constants import AIR_GAS_CONSTANT, KELVIN_AT_ZERO_C
 
 #: The least share of a link's nominal mass an identification leaves that link (`identified.KEPT`): the
@@ -208,7 +208,7 @@ def _service() -> dict[str, Any]:
     trend_h = round(win_s * round(3600.0 / win_s) / 3600.0, 1)
     return {
         'friction': [loss_band, round(0.5 * mesh_arm, 2)],
-        'viscous': [loss_band, float(env['joint_damping'])],
+        'viscous': [loss_band, float(env.get('joint_damping', drivetrain.joint_viscous(eff)))],
         'torque': round(1.5 * (1.0 - eff), 2),
         'play': round(1.0 - drives.RIGID_PLAY_DEG / max_bl, 2),
         'wind_up': loss_band,
@@ -234,7 +234,8 @@ def _identify() -> dict[str, Any]:
     segs, svc, b_cfg = build.segments(), service(), bus()
     stacks = tuple(rbt['stacks'].values())
     eff = min(float(lib['gearboxes'][s[1]]['efficiency']) for s in stacks)
-    mesh_rad_s = min(float(lib['gearboxes'][s[1]]['mesh_rad_s']) for s in stacks)
+    mesh_rad_s = min(float(lib['gearboxes'][s[1]].get(
+        'mesh_rad_s', drives.wave_box(lib['gearboxes'][s[1]]).mesh_rad_s)) for s in stacks)
     max_bl = max(float(lib['gearboxes'][s[1]]['backlash_deg']) for s in stacks)
     zeta = drives.zeta('neck')
     bus_hz = round(1.0 / float(b_cfg['lockstep_s']), 1)
@@ -301,3 +302,97 @@ def identify() -> dict[str, Any]:
     srcs = mechatronics.body_sources() + (__file__, _compile.__file__,
                                           os.path.join(os.path.dirname(__file__), 'heat.py'))
     return dict(mechatronics.compiled('identify_' + mechatronics.ROBOT, srcs, _identify))
+
+
+def _pendulum_d(m: float, length: float, k: float, loss: float, g: float) -> float:
+    d = loss * math.sqrt((k + m * g * length) * (round(0.5 * length * length, 4) + length * length) * m)
+    return round(d, -int(math.floor(math.log10(d))) + 1)
+
+
+def _build_mujoco() -> dict[str, Any]:
+    from machine.body import linkage, servos
+    env, rbt, lib = mechatronics.environment(), mechatronics.robot(), mechatronics.library()
+    mat, w_cfg, b_cfg = mechatronics.materials(), world(), bus()
+    stacks = tuple(rbt['stacks'].values())
+    min_eff = min(float(lib['gearboxes'][s[1]]['efficiency']) for s in stacks)
+    mesh_rad_s = min(float(lib['gearboxes'][s[1]].get(
+        'mesh_rad_s', drives.wave_box(lib['gearboxes'][s[1]]).mesh_rad_s)) for s in stacks)
+    g = _compile.G_M_S2
+    s_f = figure.SCALE
+    s_f2 = s_f * s_f
+    s_f3, s_f4 = s_f2 * s_f, s_f2 * s_f2
+    garm, elast = rbt['garments'], rbt['elastomers']
+    hem_r, hair_r, lace_r, sole_r = garm['hem'], garm['hair'], garm['lace'], elast['sole']
+    hem_m, hem_kg, hem_k = s_f * float(hem_r['length_m']), s_f3 * float(hem_r['kg']), s_f4 * float(hem_r['k_nm_rad'])
+    hem_d = (float(hem_r['d_nms_rad']) if 'd_nms_rad' in hem_r
+             else _pendulum_d(hem_kg, hem_m, hem_k, float(hem_r['loss']), g))
+    hair_m, hair_kg, hair_k = (s_f * float(hair_r['length_m']), s_f3 * float(hair_r['kg']),
+                               s_f4 * float(hair_r['k_nm_rad']))
+    hair_d = (float(hair_r['d_nms_rad']) if 'd_nms_rad' in hair_r
+              else _pendulum_d(hair_kg, hair_m, hair_k, float(hair_r['loss']), g))
+    j_names = figure.JOINTS
+    sv_of = {j: servos.SERVO[drives.kind(j)] for j in j_names}
+    return {
+        **w_cfg,
+        **_compile.stiction(),
+        'gravity': g,
+        'rotor_ff': _compile.ROTOR_FF,
+        'joint_damping': float(env.get('joint_damping', drivetrain.joint_viscous(min_eff))),
+        'load_s': float(env.get('load_s', round(2.0 * float(w_cfg['sole_s']), 2))),
+        'play_nm': float(b_cfg['play_nm']),
+        'track': float(drives.TRACK),
+        'observe_x': float(b_cfg['observe_x']),
+        'rate_s': float(b_cfg['rate_s']),
+        'mesh_rad_s': mesh_rad_s,
+        'rigid_play_rad': 0.5 * math.radians(drives.RIGID_PLAY_DEG),
+        'held_deg_default': float(drives.BACKLASH_DEG),
+        'pack_phase_v': drives.PACK_V / math.sqrt(3.0),
+        'gains': tuple((float(sv_of[j][1]), float(sv_of[j][2])) for j in j_names),
+        'peak': tuple(0.0 if drives.passive(j) else (min(sv_of[j][0], drives.peak(j))
+                      if servos.CLAMPED else sv_of[j][0]) for j in j_names),
+        'box_peak': tuple(drives.peak(j) if drives.passive(j) is None else 0.0 for j in j_names),
+        'ctrl_peak': tuple(max(sv_of[j][0], drives.peak(j)) for j in j_names),
+        'loss': tuple(drives.motors(j) * drives.r_ohm(j) / (drives.kt(j) * drives.kt(j)) for j in j_names),
+        'kt': tuple(drives.kt(j) for j in j_names),
+        'ohm': tuple(drives.r_ohm(j) for j in j_names),
+        'phase_ohm': tuple(drives.of(j)[1].r for j in j_names),
+        'emf': tuple(drives.emf(j) for j in j_names),
+        'heat': tuple(drives.heat(j) for j in j_names),
+        'driven': tuple(drives.passive(j) is None for j in j_names),
+        'armature': tuple(drives.armature(j) for j in j_names),
+        'servo_armature': tuple(float(sv_of[j][3]) for j in j_names),
+        'passive_j': tuple(round(0.5 * drives.of(j)[1].mass * (0.5 * drives.of(j)[1].diameter) ** 2, 4)
+                           for j in j_names),
+        'held_deg': tuple(float(drives._box(j)['backlash_deg']) for j in j_names),
+        'backdrive_nm': tuple(drives.backdrive(j) for j in j_names),
+        'series': tuple(drives.series(j) for j in j_names),
+        'wind': tuple(drives.wind(j) for j in j_names),
+        'play': tuple(drives.play(j) for j in j_names),
+        'zeta': tuple(drives.zeta(j) for j in j_names),
+        'mesh': tuple(drives.mesh(j) for j in j_names),
+        'shock': tuple(drives.shock(j) for j in j_names),
+        'pairs': tuple((i, j_names.index(j[:-len(drives.kind(j))] + linkage.PAIRS[drives.kind(j)]))
+                       for i, j in enumerate(j_names) if drives.kind(j) in linkage.PAIRS),
+        'strokes': tuple((i, j, float(sv_of[j][3])) for i, j in enumerate(j_names)
+                         if drives.kind(j) in linkage.RODS or drives.kind(j) in linkage.PLANAR),
+        'cloth': {k: float(v) for k, v in garm['friction'].items()},
+        'cloth_give_m': s_f * float(garm['give_m']),
+        'hem': (hem_m, hem_kg, hem_k, hem_d, float(hem_r['fore_deg']), float(hem_r['back_deg']),
+                float(hem_r['side_deg'])),
+        'hair': (hair_m, hair_kg, hair_k, hair_d, float(hair_r['back_deg']), float(hair_r['in_deg']),
+                 float(hair_r['side_deg'])),
+        'sole': (float(sole_r['friction']), figure.sole_torsion_m(), float(mat['min_wall_m'])),
+        'lace': (tuple(s_f * float(v) for v in lace_r['at']), s_f * float(lace_r['length_m']),
+                 float(w_cfg['lace_s']), s_f2 * float(lace_r['break_n'])),
+        'hoses': {k: tuple(float(q) for q in vals) + drivetrain.cable_waves(vals[0], vals[1], vals[2], vals[3])
+                  for k, vals in mat['hoses'].items()},
+        'hose_table': mechatronics.hose_table(),
+    }
+
+
+def mujoco() -> dict[str, Any]:
+    """Compiled MuJoCo dynamic-system plant, actuator, gearbox, contact, stiction and hose configuration."""
+    here = os.path.dirname(__file__)
+    srcs = mechatronics.body_sources() + (__file__, _compile.__file__,
+                                          os.path.join(here, 'servos.py'), os.path.join(here, 'heat.py'))
+    return dict(mechatronics.compiled('mujoco_' + mechatronics.cache_id(), srcs, _build_mujoco))

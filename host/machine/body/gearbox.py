@@ -12,16 +12,13 @@ an observer of the torque its box passes on.
     boxes.moved(q)                                      # the links where the world's step left them
     boxes.delta, boxes.w, boxes.hat                     # each rotor's angle past its link, its speed, its board's estimate
 """
-import math
-
-from machine.body import drives, mechatronics, peripherals
+from machine.body import drives, peripherals
 from machine.body.figure import JOINTS
 
-_BUILD, _LIB = mechatronics.robot(), mechatronics.library()
-_bus, _wrld = peripherals.bus(), peripherals.world()
+_mj = peripherals.mujoco()
 
-#: A board's torque counts as taking up the play from this, N m (`compile.bus()`).
-PLAY_NM = _bus['play_nm']
+#: A board's torque counts as taking up the play from this, N m (`peripherals.mujoco()`).
+PLAY_NM = float(_mj['play_nm'])
 
 #: A series spring's torque loop (`drives.series`, `Boxes.step`): its rotor driven TRACK times the
 #: shortfall of the torque its box passes on, as the board observes it, against the torque its pass
@@ -40,20 +37,20 @@ PLAY_NM = _bus['play_nm']
 #: and heel rise are a stiff joint's. Subtracting the box's own damping and mesh at the rotor's rate
 #: from the observed torque, to loop on the spring's alone, flipped 2 x 3.9 N m x TRACK at every sign
 #: change of that rate against the observer's lag: the peak 84 % of the time, 98 passes.
-TRACK = drives.TRACK
+TRACK = float(_mj['track'])
 #: The board's observer of the torque its box passes on runs this many times faster than the loop's
 #: own mode (sqrt(k (1 + TRACK) / J)), 1/s: its rotor's generalized momentum J w against the integral
 #: of its own drive less that estimate, no rate of w differenced. At 143 N m/rad and TRACK 12 that is
 #: 180 1/s: at 1500 the ask's 3 ms steps went through to the robot's hip (203 passes, it fell) and the
 #: lead that cancels the observer's pole (0.6 of it) 82; slower, 100 fell in the walk's stop and 60 was 54. On
 #: the built leaf 180 fell at 4.7 s (its mode 174 1/s lagged into a swing), 400 walked, 1500 53.
-OBSERVE_X = _bus['observe_x']
+OBSERVE_X = float(_mj['observe_x'])
 #: The command's rate is read through this first-order lag, s: a pass's step spread over the world's steps.
-RATE_S = _bus['rate_s']
+RATE_S = float(_mj['rate_s'])
 #: The mesh's friction rounded over this speed, rad/s; the rotors stepped this many times within
-#: the world's step (`gearboxes.toml`, `peripherals.world`).
-MESH_RAD_S = min(float(_LIB['gearboxes'][s[1]]['mesh_rad_s']) for s in _BUILD['stacks'].values())
-SUBSTEPS = int(_wrld['substeps'])
+#: the world's step (`peripherals.mujoco`).
+MESH_RAD_S = float(_mj['mesh_rad_s'])
+SUBSTEPS = int(_mj['substeps'])
 
 
 class Boxes:
@@ -68,21 +65,21 @@ class Boxes:
     joints are stepped: every driven one `boxed`, else those with a spring."""
 
     def __init__(self, np, boxed=False):
-        self.driven = np.array([drives.passive(j) is None for j in JOINTS])
-        self.series = np.array([drives.series(j) for j in JOINTS])
+        self.driven = np.array(_mj['driven'], bool)
+        self.series = np.array(_mj['series'])
         self.sprung = self.driven & (bool(boxed) | (self.series > 0.0))
-        self.gap = np.array([drives.play(j) for j in JOINTS])
-        wound = np.array([drives.wind(j) for j in JOINTS])
+        self.gap = np.array(_mj['play'])
+        wound = np.array(_mj['wind'])
         self.k = np.where(self.series > 0.0, 1.0 / (1.0 / np.maximum(wound, 1e-9) + 1.0 / np.maximum(self.series, 1e-9)), wound)
-        self.j = np.array([drives.armature(j) for j in JOINTS])
-        self.c = 2.0 * np.array([drives.zeta(j) for j in JOINTS]) * np.sqrt(self.k * self.j)
+        self.j = np.array(_mj['armature'])
+        self.c = 2.0 * np.array(_mj['zeta']) * np.sqrt(self.k * self.j)
         self.track = TRACK * (self.series > 0.0)
         self.observe = np.where(self.sprung, OBSERVE_X * np.sqrt(self.k * (1.0 + self.track) / np.maximum(self.j, 1e-9)), 0.0)
-        self.mesh = np.array([drives.mesh(j) for j in JOINTS])
-        self.shock = np.array([drives.shock(j) for j in JOINTS])
-        self.peak = np.array([drives.peak(j) if drives.passive(j) is None else 0.0 for j in JOINTS])
+        self.mesh = np.array(_mj['mesh'])
+        self.shock = np.array(_mj['shock'])
+        self.peak = np.array(_mj['box_peak'])
         self.delta, self.w, self.zero = np.zeros(len(JOINTS)), np.zeros(len(JOINTS)), np.zeros(len(JOINTS))
-        self.held, self.q_was = math.radians(drives.RIGID_PLAY_DEG) / 2.0, np.zeros(len(JOINTS))
+        self.held, self.q_was = float(_mj['rigid_play_rad']), np.zeros(len(JOINTS))
         self.q_step, self.went = np.zeros(len(JOINTS)), np.zeros(len(JOINTS))
         self.hat, self.p_int, self.drive = np.zeros(len(JOINTS)), np.zeros(len(JOINTS)), np.zeros(len(JOINTS))
         self.asked, self.rate = np.zeros(len(JOINTS)), np.zeros(len(JOINTS))

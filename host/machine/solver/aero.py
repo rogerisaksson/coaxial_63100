@@ -1,17 +1,19 @@
-"""Blade-element momentum, flapping-wing, thin-airfoil flap, and hollow-blade solvers.
+"""Blade-element momentum, flapping-wing, thin-airfoil flap, and slipstream solvers.
 
     cl_a = aero.lift_slope(span, chord)                              # Helmbold 3D lift slope, 1/rad
     e = aero.oswald(aspect)                                          # clean-wing Oswald span factor
+    e_af = aero.airframe_oswald(span, chord, cd0)                    # viscous airframe span factor
+    pw = aero.propwash_share(prop_d, wing_span, wing_chord, stab_s)  # Rankine-Froude wake immersion
     tau = aero.glauert_flap(chord_share)                             # Glauert plain-flap effectiveness
     j = aero.blade_inertia(diameter_m, rho_kg_m3, wall_m)            # hollow shell prop inertia, kg m^2
-    ct, cp = aero.propeller_bemt(diameter_m, pitch_m, inflow_j0)     # fixed-pitch propeller polars
+    ct, cp = aero.propeller_bemt(diameter_m, pitch_m)                # fixed-pitch propeller polars
     ct, cp = aero.rotor_bemt(diameter_m, pitch_rad, gear_ratio)      # collective rotor polars at shaft
     ct, cp, cl = aero.flapping_polar(span_m, chord_m, ...)           # 4-wing flapping and glide polars
     kp, kr, ky = aero.control_moments(...)                           # slipstream and vector moments
 
 Pure functions of geometry, kinematics, and material constants (`math` alone): a craft's specification
 states physical dimensions, deflections, and gear ratios, and the static aerodynamic compiler derives
-all nondimensional thrust, torque, and moment polars through these laws.
+all nondimensional thrust, torque, slipstream, and moment polars through these laws.
 """
 import math
 
@@ -19,6 +21,10 @@ import math
 STATIONS, HUB_SHARE, SECTION_CD0 = 64, 0.15, 0.004
 #: Larrabee minimum-induced-loss blade aspect factor `R / c = LARRABEE_AR * sqrt(P / D)`.
 LARRABEE_AR = 7.5
+#: Cambered thin-electric airfoil zero-lift advance slip over geometric pitch, and vortex-ring inflow floor.
+ZERO_THRUST_SLIP, WAKE_INFLOW_FLOOR = 1.05, 0.35
+#: Advancing-blade NACA 0012 transonic drag-divergence Mach ceiling.
+TRANSONIC_DD_MACH = 0.73
 
 
 def lift_slope(span, chord):
@@ -33,6 +39,45 @@ def oswald(aspect):
     return 1.0 / (1.0 + 0.02 * float(aspect))
 
 
+def airframe_oswald(span, chord, cd0):
+    """Whole-airframe span efficiency including Hoerner fuselage carry-over and viscous lift drag."""
+    ar = float(span) / float(chord)
+    return round(1.0 / (1.0 / oswald(ar) + 0.42 * math.pi * ar * float(cd0)), 2)
+
+
+def _elliptic_immersion(eta):
+    e = max(0.0, min(1.0, float(eta)))
+    return 1.0 if e >= 1.0 else (2.0 / math.pi) * (math.asin(e) + e * math.sqrt(1.0 - e * e))
+
+
+def propwash_share(prop_diameter, wing_span, wing_chord, stab_area):
+    """Geometric-mean elliptic tail lift immersion between the actuator disc (`D_p`) and the
+    Rankine-Froude contracted far wake (`D_p / sqrt(2)`) across horizontal tail span."""
+    pd = float(prop_diameter)
+    stab_b = math.sqrt(float(stab_area) * float(wing_span) / float(wing_chord))
+    e_disc = _elliptic_immersion(pd / stab_b)
+    e_wake = _elliptic_immersion(pd / (math.sqrt(2.0) * stab_b))
+    return round(math.sqrt(e_disc * e_wake), 2)
+
+
+def disc_half_height(diameter_m):
+    """Collision cylinder axial half-thickness, m, of a propeller or rotor hub (`0.02 D`)."""
+    return round(0.02 * float(diameter_m), 3)
+
+
+def flapping_beat_pulse(stroke_rad, pitch_rad):
+    """Second-harmonic thrust ripple amplitude of a symmetric flapping stroke `0.5 * Phi * cos(theta)`."""
+    return round(0.5 * float(stroke_rad) * math.cos(float(pitch_rad)), 2)
+
+
+def stunt_boost(flight_amps, wep_amps, tip_mach=0.0):
+    """Governor WEP speed boost `(I_wep / I_flight)^(1/3)`, bounded by transonic Mach drag divergence."""
+    boost = (float(wep_amps) / float(flight_amps)) ** (1.0 / 3.0)
+    if float(tip_mach) > 0.0:
+        boost = min(boost, TRANSONIC_DD_MACH / float(tip_mach))
+    return round(boost, 2)
+
+
 def glauert_flap(chord_share):
     """Glauert thin-airfoil plain-flap effectiveness `d(alpha_0) / d(delta)` for flap chord ratio `E`."""
     e = max(0.0, min(1.0, float(chord_share)))
@@ -41,10 +86,10 @@ def glauert_flap(chord_share):
     return 1.0 - (math.acos(2.0 * e - 1.0) - 2.0 * math.sqrt(e * (1.0 - e))) / math.pi
 
 
-def blade_inertia(diameter_m, rho_kg_m3, wall_m, blades=2, aspect=6.5):
+def blade_inertia(diameter_m, rho_kg_m3, wall_m, blades=2, chord_m=None, aspect=6.5):
     """Rotational inertia, kg m^2, of a tapered thin-shell propeller of `diameter_m` and `wall_m`."""
     r = 0.5 * float(diameter_m)
-    chord = r / float(aspect)
+    chord = float(chord_m) if chord_m is not None else r / float(aspect)
     m_shell = float(blades) * (2.0 * chord * float(wall_m)) * r * float(rho_kg_m3)
     return 0.2 * m_shell * r * r
 
@@ -82,11 +127,12 @@ def propeller_bemt(diameter_m, pitch_m, blades=2, cd0=SECTION_CD0):
     return round(ct, 6), round(cp, 6)
 
 
-def rotor_bemt(diameter_m, pitch_rad, gear_ratio=1.0, step_up=False, blades=2, aspect=11.0, cd0=SECTION_CD0):
+def rotor_bemt(diameter_m, pitch_rad, gear_ratio=1.0, step_up=False, blades=2, chord_m=None,
+               aspect=11.0, cd0=SECTION_CD0):
     """Collective-pitch symmetric rotor `(C_T, C_P)` referred to the motor shaft across `gear_ratio`."""
     d, th, g = float(diameter_m), float(pitch_rad), float(gear_ratio)
     r = 0.5 * d
-    chord = r / float(aspect)
+    chord = float(chord_m) if chord_m is not None else r / float(aspect)
     sigma = float(blades) * chord / (math.pi * r)
     ct_h, cp_h = _bemt_strip(float(blades), sigma, lift_slope(d, chord), float(cd0), lambda _x: th, False)
     g2 = g * g

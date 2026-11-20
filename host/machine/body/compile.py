@@ -18,6 +18,7 @@ _LAW_HZ, ROTOR_FF = _BUS_HZ / _LAW_DIV, looped.ROTOR_FF
 _ESO_WO = loops.observer(_BUS_HZ / (_OBS_FACTOR * _OBS_FACTOR), _OBS_FACTOR, _BUS_HZ / _OBS_FACTOR)
 ENC_RAD = max(tau / float(_LIB['inverters'][s[2]]['encoder_counts']) for s in _BUILD['stacks'].values())
 _MU_DRY, _KIN_SHARE = float(_ENV['mu_dry']), float(_ENV['kinetic_share'])
+_STRIBECK = float(_ENV['stribeck_m_s'])
 _TAKES_NPZ = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'texts', 'takes.npz')
 _AX, _AY, _AZ = (1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)
 
@@ -391,3 +392,8 @@ def gait(overrides=None) -> dict[str, Any]:
     for k, v in (overrides or {}).items():
         out[k] = {**out[k], **v} if isinstance(v, dict) and isinstance(out.get(k), dict) else v
     return out
+
+
+def stiction() -> dict[str, float]:
+    """Floor static-to-kinetic friction ratio and Stribeck speed fade `1 / v^2` (`world.toml`)."""
+    return {'kinetic_share': _KIN_SHARE, 'stribeck_fade': 1.0 / (_STRIBECK * _STRIBECK)}

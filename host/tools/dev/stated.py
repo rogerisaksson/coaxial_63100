@@ -33,7 +33,7 @@ SPECS = ('machine/library/*.toml', 'machine/humanoids/*.toml', 'machine/aircraft
 #: guards (`[guards]`): new construction - what its limbs and its trunk are built of in place of its shells -,
 #: no value the solver could derive.
 CEILING = {
-    'machine/aircraft/crafts.toml': 83,
+    'machine/aircraft/crafts.toml': 74,
     'machine/humanoids/gynoid_mesomorph_medium.toml': 988,
     # 119: the coaxial calf - new construction (its drives' places, parts, clamped levers, heel bar and its strut,
     # struts, the foot's keel, the thigh's leant run, the knee's stop, its guards: the arm's on its back, the
@@ -46,21 +46,22 @@ CEILING = {
     'machine/humanoids/gynoid_mesomorph_medium_s105.toml': 2,
     'machine/humanoids/gynoid_mesomorph_medium_s95.toml': 2,
     'machine/library/control.toml': 7,
-    # 20: B45, the 45-lobe ring the coaxial calf's small drives turn through - a part bought, not derived
-    'machine/library/gearboxes.toml': 20,
+    # 11: datasheet wave-drive gearboxes (B, A, S, B45: diameter, ratio, efficiency, backlash, L10 life)
+    'machine/library/gearboxes.toml': 11,
     'machine/library/inverters.toml': 40,
     # 64: the bus's robot hose ([hoses]: its radius, its weight, its two stiffnesses, its least bend, its damping)
     # and a board's leads ([leads]: a phase's, a bus's, a signal's - each its copper and its outside) - parts
     # bought, no other value tells
     'machine/library/materials.toml': 64,
-    'machine/library/motors.toml': 63,
-    # 87: the friction's Stribeck speed (stribeck_m_s), a property of a sole on a floor no other value tells
-    'machine/library/world.toml': 87,
+    'machine/library/motors.toml': 62,
+    'machine/library/propellers.toml': 15,
+    # 85: physical atmosphere, indoor floor tribology, 15S LiPo cells, navigation sensors and boundary-layer wind
+    'machine/library/world.toml': 85,
 }
 #: The peripherals the solver derives of a humanoid build (`machine.body.peripherals`), each by its name.
-PERIPHERALS = ('bus', 'thermal', 'cooling', 'harness', 'eyes', 'world', 'service', 'identify')
+PERIPHERALS = ('bus', 'thermal', 'cooling', 'harness', 'eyes', 'world', 'service', 'identify', 'mujoco')
 #: The crafts' compiled parts (`machine.aircraft.compile.part`), each by its name.
-PARTS = ('pack', 'pull', 'aerokin', 'wingborne', 'aerobat', 'mpc', 'gimbal', 'instruments')
+PARTS = ('pack', 'pull', 'aerokin', 'wingborne', 'aerobat', 'mpc', 'mujoco', 'gimbal', 'instruments')
 #: What a process of a build's own is asked: its solved parts' fingerprints as one line of JSON.
 ASKED = 'import json; from tools.dev import stated; print(json.dumps(stated.build()))'
 

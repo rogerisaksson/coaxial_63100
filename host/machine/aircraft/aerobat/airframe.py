@@ -98,11 +98,14 @@ def row_from_payload(payload, base=None):
         payload, base or HOVER, MASS_KG * GRAVITY, KINEMATICS['horizontal']['orbit_speed'])
 
 
-ROLL_MU, TAIL_MU = _AB_CFG['roll_mu'], _AB_CFG['tail_mu']
-TAIL_S, WHEEL_S, TOUCH_M = _AB_CFG['tail_s'], _AB_CFG['wheel_s'], _AB_CFG['touch_m']
+_mj_cfg = aircraft_compile.part('mujoco')
+ROLL_MU, TAIL_MU = _mj_cfg['wheel_mu'], _mj_cfg['tail_mu']
+TAIL_S, WHEEL_S, TOUCH_M = _mj_cfg['tail_solref_s'], _mj_cfg['wheel_solref_s'], _AB_CFG['touch_m']
+PROP_HALF_M = _mj_cfg['prop_half_m']
 #: The tail on asphalt, its fin 1 cm past the elevator, softer than the wheels: at their 0.03 s a
 #: touch read 37-143 N, 7-27 N m against the ailerons' 5.3.
-TAIL_ON = ' priority="1" solref="%g 1" friction="%g 0.005 0.0001"' % (TAIL_S, TAIL_MU)
+TAIL_ON = ' priority="1" solref="%g 1" friction="%g %g %g"' % (
+    TAIL_S, TAIL_MU, _mj_cfg['skid_torsion_m'], _mj_cfg['skid_roll_m'])
 
 
 def mjcf(things=()):
@@ -112,13 +115,14 @@ def mjcf(things=()):
         ('wing', FORM['wing'], ''), ('hstab', FORM['stab'], TAIL_ON), ('vfin', FORM['fin'], TAIL_ON)]
     m = ''.join('<geom name="%s" type="box" pos="%g %g %g" size="%g %g %g" contype="1" conaffinity="1"%s/>'
                 % ((name,) + tuple(box[0]) + tuple(box[1]) + (on,)) for name, box, on in boxes)
-    m += ('<geom name="prop" type="cylinder" pos="0 %g 0" size="%g 0.008" euler="90 0 0" contype="1" '
-          'conaffinity="1"/>' % (PROP_Z, PROP_R))
+    m += ('<geom name="prop" type="cylinder" pos="0 %g 0" size="%g %g" euler="90 0 0" contype="1" '
+          'conaffinity="1"/>' % (PROP_Z, PROP_R, PROP_HALF_M))
     wheels = ((STRUT_Z[0], GEAR_TAIL_Z, 0.45), (STRUT_Z[1], GEAR_MAIN_Z, 1.0))
     for k, (sx, (by, bz, x_sc)) in enumerate((sx, w) for sx in (-SKID_X, SKID_X) for w in wheels):
         m += ('<geom name="skid%d" type="sphere" pos="%g %g %g" size="%g" '
-              'priority="1" solref="%g 1" friction="%g 0.002 0.0001"/>'
-              % (k, x_sc * sx, by, bz, FOOT_M, WHEEL_S, ROLL_MU))
+              'priority="1" solref="%g 1" friction="%g %g %g"/>'
+              % (k, x_sc * sx, by, bz, FOOT_M, WHEEL_S, ROLL_MU,
+                 _mj_cfg['wheel_torsion_m'], _mj_cfg['wheel_roll_m']))
     pos = (-RUNWAY_M * math.sin(RUNWAY_RAD), SKID_M + FOOT_M, -RUNWAY_M * math.cos(RUNWAY_RAD))
     return quad.mjcf(things, m, pos, MASS_KG, INERTIA)
 

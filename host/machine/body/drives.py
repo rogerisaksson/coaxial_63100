@@ -1,7 +1,4 @@
-"""The robot's drives: each a coaxial stack of inverter disc, pancake outrunner and one-stage gearbox.
-
-Two motors as bought, one box at one ratio, one board - the 63100: a stack for the legs and the
-trunk, one for the arms and the head.
+"""The robot's drives: coaxial stacks of inverter disc, pancake outrunner and roller wave drive.
 
     size = drives.of('left_knee')      # (frame, Size)
     drives.kt('left_knee')             # N m of joint torque an amp of q current
@@ -13,20 +10,15 @@ trunk, one for the arms and the head.
     drives.slew('left_knee')           # N m/s its torque slews at most, its board's current loop
     drives.jerk('left_knee')           # rad/s^3 its joint's at most, that over its rotor's inertia
 
-A size: the inverter (its amps; its heat as the 63 V 100 A board's scaled to them, its laminate
-bolted to the stack's housing), the outrunner (Kt, the winding's resistance, KV, its rotor's
-inertia, the winding's heat), the gearbox (RATIO, its efficiency, the drag at its input and the
-torque it takes momentarily at its output), the stack's parts, diameter, length and mass. Every
-joint has one (`STACKS`, `JOINTS`), on its axis or, where one there would look odd, mounted on a
-segment and driving it through a rod. The gearbox is a wave drive with rolling elements - a
-wave generator pushing rollers in a cage against a lobed ring, rolling where a cycloid slides,
-many rollers sharing a blow - backdrivable at the ratios here.
+Each joint has a `Size` (`STACKS`, `JOINTS`), on its axis or mounted on a segment and driving it
+through a rod (`machine.body.linkage`), sized from the parts library (`machine.solver.drivetrain`).
 """
 import math
 from typing import Any
 
 from machine.body import linkage, mechatronics
 from machine.body.figure import ANKLE_H, BALL, SCALE, SEGMENTS, SHANK, SOLE_HALF, THIGH, TOE_M
+from machine.solver import drivetrain
 from motor.pmsm import TORQUE_FACTOR
 
 #: The parts library and the robot's build of it (machine/library, machine/humanoids): the tables below are
@@ -61,7 +53,8 @@ class Size:
 #: gearbox, inverter). One gearbox for every stack: its ratio, its input's share of the rotor's
 #: inertia, its wind-up's damping ratio, its play and its mesh's friction.
 _ROTOR_RING, _KV_REF = float(_MAT['rotor_ring_share']), float(_MAT['kv_ref'])
-_RHO_STEEL = float(_MAT['steel_kg_m3'])
+_RHO_STEEL, _MIN_WALL = float(_MAT['steel_kg_m3']), float(_MAT['min_wall_m'])
+_G_STEEL, _ALLOW_STEEL = float(_MAT['solids']['steel'][1]), float(_MAT['solids']['steel'][2])
 _CP_WIND, _CP_HOUS = float(_MAT['copper_winding_j_k_kg']), float(_MAT['aluminium_housing_j_k_kg'])
 _H_SLOT, _H_DISC = float(_MAT['slot_w_m2_k']), float(_MAT['disc_w_m2_k'])
 _SHELL = _BUILD['shell']
@@ -70,29 +63,29 @@ _TIM_M, _K_TIM, _K_CF_THRU = (float(_SHELL['tim_m']), float(_SHELL['tim_w_m_k'])
                               float(_SHELL['cf_thru_w_m_k']))
 
 
-def _rotor_j(m):
-    """Outrunner rotor inertia, kg m^2, from can radius, mass and 1/6 pole-ring scaling."""
-    j = _ROTOR_RING * min(1.0, (_KV_REF / m['kv']) ** (1.0 / 6.0)) * m['kg'] * (0.5 * m['can_m']) ** 2
-    return round(j, -int(math.floor(math.log10(j))) + 2)
+def wave_box(b_spec):
+    """Solved `drivetrain.WaveBox` mechanics for gearbox datasheet `b_spec`."""
+    return drivetrain.wave_box(b_spec['diameter_m'], b_spec['efficiency'],
+                               _G_STEEL, _ALLOW_STEEL, _RHO_STEEL, _MIN_WALL)
 
 
 FRAMES = {k: (m['can_m'], m['height_m'], m['kg'], m['ohm'], m['peak_nm'],
-              float(m.get('rotor_kgm2', _rotor_j(m))))
+              float(m.get('rotor_kgm2', drivetrain.outrunner_inertia(
+                  m['kg'], m['can_m'], _ROTOR_RING, m['kv'], _KV_REF))))
           for k, m in _LIB['motors'].items()}
 KV = {k: m['kv'] for k, m in _LIB['motors'].items()}
 BOXES = {k: b['diameter_m'] for k, b in _LIB['gearboxes'].items()}
-BOX_K = {k: float(b.get('stiffness_nm_rad',
-                        round(float(b['stiffness_nm_rad_m2']) * b['diameter_m'] ** 2, -2)))
+BOX_K = {k: float(b.get('stiffness_nm_rad', wave_box(b).stiffness_nm_rad))
          for k, b in _LIB['gearboxes'].items()}
 INVERTERS = {k: (v['disc_m'], v['amps'], v['kg'],
                  float(v.get('laminate_k_w', round(1.0 / (_H_DISC * math.pi * (0.5 * v['disc_m']) ** 2), 1))),
                  v['height_m'])
              for k, v in _LIB['inverters'].items()}
-LOOP_HZ = {k: float(v.get('loop_hz', 0.05 * float(v['pwm_hz'])))
+LOOP_HZ = {k: float(v.get('loop_hz', drivetrain.control_rates(v['pwm_hz'])[0]))
            for k, v in _LIB['inverters'].items()}
 STACKS = {kind: tuple(stack) for kind, stack in _BUILD['stacks'].items()}
 _BOX = _LIB['gearboxes'][STACKS['knee'][1]]
-RATIO, BOX_ZETA = _BOX['ratio'], _BOX['zeta']
+RATIO, BOX_ZETA = _BOX['ratio'], float(_BOX.get('zeta', wave_box(_BOX).zeta))
 BACKLASH_DEG = _BOX['backlash_deg']
 COOLING = float(_BUILD.get('cooling', 1.0))
 RIGID_PLAY_DEG = float(_BUILD.get('rigid_play_deg', 0.2 * BACKLASH_DEG))
@@ -160,12 +153,18 @@ def series(joint):
 def mesh(joint):
     """The friction in its gearbox's mesh at the joint, N m: the hysteresis loop's half width;
     none undriven."""
-    return 0.0 if passive(joint) else float(_box(joint)['friction_share']) * peak(joint)
+    if passive(joint):
+        return 0.0
+    b = _box(joint)
+    return float(b.get('friction_share', wave_box(b).friction_share)) * peak(joint)
 
 
 def zeta(joint):
     """Structural damping ratio of `joint`'s gearbox lobed-ring mesh; none undriven."""
-    return 0.0 if passive(joint) else float(_box(joint)['zeta'])
+    if passive(joint):
+        return 0.0
+    b = _box(joint)
+    return float(b.get('zeta', wave_box(b).zeta))
 
 #: Joints without a drive (`passive`): a kind's way - 1 on a spring, 2 held - and a spring's
 #: (stiffness N m/rad, damping N m s/rad, rest deg); the toes' spring, its loss factor at its
@@ -191,17 +190,16 @@ def _stack(kind):
     kt = round(TORQUE_FACTOR * 30.0 / (math.pi * math.sqrt(3.0)), 2) / kv
     disc, amps, b_kg, laminate, tall = INVERTERS[inverter]
     b_spec = _LIB['gearboxes'][box]
+    wb = wave_box(b_spec)
     box_d = BOXES[box]
-    len_share = float(b_spec['length_share'])
-    box_kg = float(b_spec['fill_share']) * _RHO_STEEL * 0.25 * math.pi * len_share * box_d ** 3
+    len_share = float(b_spec.get('length_share', wb.length_share))
     parts = ((() if kind in BOARDS else (('board', disc / 2.0, tall),))
              + (('motor', rotor / 2.0 + _LIP_M, can),
                 ('gear', box_d / 2.0 + _LIP_M, len_share * box_d + 2.0 * _LIP_M)))
     return Size(min(amps, top / kt), kt, 0.5 * ohm, kv, inertia,
                 (_CP_WIND * kg, 1.0 / (_H_SLOT * math.pi * rotor * can)), float(b_spec['efficiency']),
                 laminate, 2.0 * max(r for _p, r, _l in parts), sum(l for _p, _r, l in parts),
-                _FASTENER_SHARE * (kg + box_kg), float(b_spec['drag_nm_m3']) * box_d ** 3,
-                round(float(b_spec['shock_pa']) * box_d ** 3, 1), (b_kg, disc / 2.0),
+                _FASTENER_SHARE * (kg + wb.mass_kg), wb.drag_nm, wb.shock_nm, (b_kg, disc / 2.0),
                 parts, 'motor %s %.0f x %.0f mm KV %.0f, box %.0f mm, %.0f A' % (
                     frame, rotor * 1e3, can * 1e3, kv, box_d * 1e3, amps), amps)
 
@@ -467,8 +465,11 @@ def passive(joint):
 
 def armature(joint):
     """The rotor's and the gearbox's inertia as the joint feels them, kg m^2; none undriven."""
-    return 0.0 if passive(joint) else (motors(joint) * (1.0 + float(_box(joint)['input_j_share']))
-                                       * of(joint)[1].rotor * ratio(joint) ** 2)
+    if passive(joint):
+        return 0.0
+    b = _box(joint)
+    j_share = float(b.get('input_j_share', wave_box(b).input_j_share))
+    return motors(joint) * (1.0 + j_share) * of(joint)[1].rotor * ratio(joint) ** 2
 
 
 def backdrive(joint):

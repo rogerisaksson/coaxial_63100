@@ -44,11 +44,18 @@ def test_a_craft_states_its_own_alone(r):
             stated |= {key, *(value if isinstance(value, dict) else ())}
     unread = sorted(key for key in stated if "'%s'" % key not in read)
     derived = {'gyration_m', 'ct', 'cp', 'prop_kgm2', 'tail_ct', 'ct_stroke', 'cp_stroke', 'cl_glide',
-               'cm_elev', 'cl_ail', 'cn_rud'}
+               'cm_elev', 'cl_ail', 'cn_rud', 'inflow_j0', 'inflow_floor', 'beat_pulse',
+               'span_efficiency', 'propwash_share', 'disc_half_m'}
     c_srcs = {os.path.basename(p) for p in mechatronics.craft_sources()}
     r.check('%d keys the crafts state, each read by a compiler and none a solved polar or gyration' % len(stated),
-            len(stated) > 60 and not unread and derived.isdisjoint(stated)
-            and {'aero.py', 'inertia.py', 'contacts.py', 'loops.py'} <= c_srcs, (unread, stated & derived))
+            len(stated) >= 50 and not unread and derived.isdisjoint(stated)
+            and {'aero.py', 'drivetrain.py', 'inertia.py', 'contacts.py', 'loops.py'} <= c_srcs,
+            (unread, stated & derived))
+    props = mechatronics.library()['propellers']
+    missing_props = [(n, k, c[k]) for n, c in mechatronics.crafts().items()
+                     for k in ('propeller', 'main_rotor', 'tail_rotor') if k in c and c[k] not in props]
+    r.check('every craft propeller and rotor names an entry in library/propellers.toml',
+            len(props) >= 5 and not missing_props, missing_props)
     resolved, shared = mechatronics.crafts(), raw['shared']
     again, apart = [], []
     for name, cfg in raw.items():
@@ -99,8 +106,10 @@ def test_the_floors_friction_is_friction_alone(r):
     blocks = craft.blocks()
     base = _scalars(blocks['unlimited_3d_monoplane'][1])
     aspect = float(wing['wing_span_m']) / float(wing['wing_chord_m'])
-    r.check("the aerobat's drag due to lift is of the airframe's own span efficiency",
-            base['span_efficiency'] == float(wing['span_efficiency'])
+    r.check("the aerobat's drag due to lift and slipstream immersion are solved of its wing, tail and propeller",
+            'span_efficiency' not in wing and 'propwash_share' not in wing
+            and base['span_efficiency'] == polars.span_efficiency(wing)
+            and base['propwash_share'] == polars.propwash(wing, 2.0 * base['prop_radius'])
             and base['cd_induced'] == round(1.0 / (math.pi * base['span_efficiency'] * aspect), 3), base['cd_induced'])
     wide = aeroblocks.kv_block([['use', 'unlimited_3d_monoplane'], ['wing_span', 2.0 * base['wing_span']]],
                                aeroblocks.AERO_BLOCKS['aero_surfaces'], aerolisp.AeroLispCompiler(), None, None,
@@ -233,8 +242,9 @@ def test_a_crafts_attitude_is_solved_of_its_own(r):
     r.check("twice the helicopter's inertia halves its tilt stiffness and yaw ceiling and moves no other craft",
             not halved and not yaw_ceil and not moved, (halved, yaw_ceil, moved))
     geom = copy.deepcopy(mechatronics.crafts())
+    p16 = mechatronics.library()['propellers'][geom['quadcopter']['propeller']]
     geom['helicopter']['tail_boom_m'] = 1.5 * float(geom['helicopter']['tail_boom_m'])
-    geom['quadcopter']['pitch_m'] = 1.2 * float(geom['quadcopter']['pitch_m'])
+    geom['quadcopter']['pitch_m'] = 1.2 * float(p16['pitch_m'])
     g_blocks = craft_compile._build_aircraft(geom)['blocks']
     b0_quad = _scalars(d_blocks['quad_x_16x14'][1])
     bg_heli = _scalars(g_blocks['heli_pod_boom_body'][1])
@@ -243,6 +253,13 @@ def test_a_crafts_attitude_is_solved_of_its_own(r):
             bg_heli['inertia_xx'] > b_heli['inertia_xx'] and bg_heli['inertia_yy'] > b_heli['inertia_yy']
             and bg_quad['k_thrust'] > b0_quad['k_thrust'] and bg_quad['k_drag'] > b0_quad['k_drag'],
             (bg_heli['inertia_xx'], b_heli['inertia_xx'], bg_quad['k_thrust'], b0_quad['k_thrust']))
+    from machine.aircraft import quad as quad_mod
+    mj_craft = craft_compile.part('mujoco')
+    rb_quad = _scalars(d_blocks['quad_x_body'][1])
+    r.check('quad and airframe MuJoCo models consume statically compiled inertia, contact solref and geometry',
+            quad_mod.INERTIA == (rb_quad['inertia_xx'], rb_quad['inertia_yy'], rb_quad['inertia_zz'])
+            and quad_mod.SKID_SOLREF_S == mj_craft['skid_solref_s']
+            and 'ornithopter' in mj_craft, mj_craft['skid_solref_s'])
     light_inv = copy.deepcopy(mechatronics.crafts())
     light_inv['shared']['inverter'] = 'coaxial_63050'
     at_50a = {row[:2]: row for row in attitude.rows(light_inv)}

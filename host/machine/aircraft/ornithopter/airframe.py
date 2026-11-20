@@ -1,7 +1,7 @@
 """The ornithopter's airframe: its numbers (`ornithopter.lisp`), its wings' strokes, its MuJoCo XML."""
 import math
 
-from machine.aircraft import aerolisp, quad, text
+from machine.aircraft import aerolisp, compile as aircraft_compile, quad, text
 from machine.aircraft.aerobatics import HOVER
 from machine.aircraft.quad import inflow
 
@@ -77,16 +77,23 @@ def row_from_payload(payload, base=None):
         payload, base or HOVER, MASS_KG * GRAVITY, KINEMATICS['horizontal']['orbit_speed'])
 
 
+_ORNI_MJ = aircraft_compile.part('mujoco')['ornithopter']
+
+
 def mjcf(things=()):
     """The 4-wing Dune ornithopter and `things` (`grounds.solids`) as MuJoCo XML."""
-    m = ('<geom name="carapace" type="box" pos="0 0.01 0.08" size="0.065 0.048 0.19" contype="1" '
-         'conaffinity="1"/><geom name="fore_wings" type="box" pos="0 %g %g" size="%g 0.008 %g" '
-         'contype="1" conaffinity="1"/><geom name="aft_wings" type="box" pos="0 %g %g" '
-         'size="%g 0.008 %g" contype="1" conaffinity="1"/><geom name="boom" type="capsule" '
-         'fromto="0 0.018 -0.08 0 0.018 -0.64" size="0.013" contype="1" conaffinity="1"/>'
-         '<geom name="vtail" type="box" pos="0 0.04 -0.62" size="0.11 0.045 0.03" contype="1" '
-         'conaffinity="1"/>' % (SHOULDER_Y, FORE_Z, 0.85 * WING_SPAN, 0.5 * WING_CHORD,
-                                SHOULDER_Y + 0.01, AFT_Z, 0.75 * WING_SPAN, 0.45 * WING_CHORD)
+    g = _ORNI_MJ
+    m = ('<geom name="carapace" type="box" pos="%g %g %g" size="%g %g %g" contype="1" '
+         'conaffinity="1"/><geom name="fore_wings" type="box" pos="%g %g %g" size="%g %g %g" '
+         'contype="1" conaffinity="1"/><geom name="aft_wings" type="box" pos="%g %g %g" '
+         'size="%g %g %g" contype="1" conaffinity="1"/><geom name="boom" type="capsule" '
+         'fromto="%g %g %g %g %g %g" size="%g" contype="1" conaffinity="1"/>'
+         '<geom name="vtail" type="box" pos="%g %g %g" size="%g %g %g" contype="1" '
+         'conaffinity="1"/>' % (*g['carapace_pos'], *g['carapace_size'],
+                                *g['fore_pos'], *g['fore_size'],
+                                *g['aft_pos'], *g['aft_size'],
+                                *g['boom_from'], *g['boom_to'], g['boom_r'],
+                                *g['vtail_pos'], *g['vtail_size'])
          + quad.skids(SKID_X, SKID_M, STRUT_Z, FOOT_M))
     return quad.mjcf(things, m, (0.0, SKID_M + FOOT_M, 0.0), MASS_KG, INERTIA)
 

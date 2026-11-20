@@ -78,7 +78,8 @@ def text(lib=None, rows=None):
     for name, (frame, box, inverter), kinds in rows:
         size = drives.size(kinds[0])
         b_spec = gearboxes[box]
-        box_ratio, box_j = float(b_spec['ratio']), float(b_spec['input_j_share'])
+        box_ratio = float(b_spec['ratio'])
+        box_j = float(b_spec.get('input_j_share', drives.wave_box(b_spec).input_j_share))
         rotor, stack = drives.FRAMES[frame][:2]
         count = sum(1 for j in driven if drives.kind(j) in kinds)
         # one on its own axis, alone on its joint: the type's numbers at its gearbox's output

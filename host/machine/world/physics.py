@@ -18,41 +18,38 @@ import os
 from typing import Any
 
 from machine import libm, libm_bound
-from machine.body import compile as _compile, dclink, drives, gearbox, heat, linkage, mechatronics, peripherals
+from machine.body import dclink, drives, gearbox, heat, peripherals
 from machine.world import boxed, floor, harness, loose, passing, room, shown, steps, stiction
-from machine.body.drives import kind
 from machine.rig.buses import QUIET, Block, Buses
 from machine.rig.controller import Batch
 from machine.errors import MachineError
 from machine.body.mjcf import LACE_HOLD_N, LACE_M, LOOSE, mjcf, stops
-from machine.body.servos import CLAMPED, SERVO
 from machine.body.figure import JOINTS
 
-_ENV = mechatronics.environment()
-_SIM = peripherals.world()
+_mj = peripherals.mujoco()
 
-#: The world's step, s (`peripherals.world`).
-STEP_S = float(_SIM['step_s'])
+#: The world's step, s (`peripherals.mujoco`).
+STEP_S = float(_mj['step_s'])
 
-#: Each sole's load as its sensor has it: the solver's through a first-order band of LOAD_S s (`world.toml`).
-LOAD_S = float(_ENV['load_s'])
+#: Each sole's load as its sensor has it: the solver's through a first-order band of LOAD_S s (`peripherals.mujoco`).
+LOAD_S = float(_mj['load_s'])
 
 #: A drive's reading, `World.reading`'s.
 READING = ('degrees', 'rate', 'celsius', 'spent', 'derate', 'status')
 
-#: Plant switches and discrete rotor feedforward share (`world.toml` `[simulation]`, `compile.ROTOR_FF`).
-REFLECTED = float(_SIM['reflected'])
-ROTOR_FF = _compile.ROTOR_FF
-PLACED = float(_SIM['placed'])
-BACKDRIVE = float(_SIM['backdrive'])
-SKELETON = float(_SIM['skeleton'])
-WOUND = float(_SIM['wound'])
-BOXED = float(_SIM['boxed'])
-ROOM = float(_SIM['room'])
-CAMERA = float(_SIM['camera'])
-SIGHT = float(_SIM['sight'])
-ENVELOPE = float(_SIM['envelope'])
-SOA_RDS, WARM_C = float(_SIM['soa_rds']), float(_SIM['warm_c'])
+#: Plant switches and discrete rotor feedforward share (`peripherals.mujoco`).
+REFLECTED = float(_mj['reflected'])
+ROTOR_FF = float(_mj['rotor_ff'])
+PLACED = float(_mj['placed'])
+BACKDRIVE = float(_mj['backdrive'])
+SKELETON = float(_mj['skeleton'])
+WOUND = float(_mj['wound'])
+BOXED = float(_mj['boxed'])
+ROOM = float(_mj['room'])
+CAMERA = float(_mj['camera'])
+SIGHT = float(_mj['sight'])
+ENVELOPE = float(_mj['envelope'])
+SOA_RDS, WARM_C = float(_mj['soa_rds']), float(_mj['warm_c'])
 
 class World:
 
@@ -77,20 +74,16 @@ class World:
         self.qadr = np.array([m.jnt_qposadr[m.joint(j).id] for j in JOINTS])
         self.loose_at = np.array([m.jnt_qposadr[m.joint(j).id] for j in LOOSE])
         self.vadr = np.array([m.jnt_dofadr[m.joint(j).id] for j in JOINTS])
-        self.gains = np.array([SERVO[kind(j)][1:3] for j in JOINTS])
-        self.peak = np.array([0.0 if drives.passive(j) else min(SERVO[kind(j)][0], drives.peak(j))
-                              if CLAMPED else SERVO[kind(j)][0] for j in JOINTS])
+        self.gains = np.array(_mj['gains'])
+        self.peak = np.array(_mj['peak'])
         #: Each drive's copper loss a torque squared, W/(N m)^2: R/kt^2 of its motor through its
-        #: cycloid (`machine.body.drives`), a pair's two. The work it does is metered only where
+        #: cycloid (`peripherals.mujoco`), a pair's two. The work it does is metered only where
         #: positive - a drive does not charge its battery braking.
-        self.loss = np.array([drives.motors(j) * drives.r_ohm(j) / libm.sq(drives.kt(j))
-                              for j in JOINTS])
+        self.loss = np.array(_mj['loss'])
         #: Each joint's N m an amp (`drives.kt`); each parallel pair, (joint, its roll): each's
         #: current the first's share plus or less the second's, within its own board's (wbc_pass.c).
-        self.kt = np.array([drives.kt(j) for j in JOINTS])
-        self.pairs = np.array([(i, JOINTS.index(j[:-len(kind(j))] + linkage.PAIRS[kind(j)]))
-                               for i, j in enumerate(JOINTS) if kind(j) in linkage.PAIRS],
-                              int).reshape(-1, 2)
+        self.kt = np.array(_mj['kt'])
+        self.pairs = np.array(_mj['pairs'], int).reshape(-1, 2)
         #: The drives whose phases are shorted (`short`), and kt^2/R each gives a rad/s of its
         #: joint's speed against it, N m s/rad: the joint's own damping while shorted, MuJoCo's,
         #: integrated implicitly - as a torque each step against the speed, 140 N m s/rad on an
@@ -100,13 +93,11 @@ class World:
         #: The drives cut (`off`): gates off, no torque, nothing switched; a cut board's check
         #: current (`test`), A, and its winding's copper an amp squared (1.5 r), ohm.
         self.cut, self.testing = np.zeros(len(JOINTS), bool), np.zeros(len(JOINTS))
-        self.ohm = np.array([drives.r_ohm(j) for j in JOINTS])
+        self.ohm = np.array(_mj['ohm'])
         #: The joints on a stroke's curve: (index, joint, SERVO's armature, its own damping).
-        self.strokes = [(i, j, SERVO[kind(j)][3], float(m.dof_damping[self.vadr[i]]))
-                        for i, j in enumerate(JOINTS)
-                        if kind(j) in linkage.RODS or kind(j) in linkage.PLANAR]
-        #: The joints a drive turns, not held or sprung (`drives.passive`).
-        self.driven = np.array([not drives.passive(j) for j in JOINTS])
+        self.strokes = [(i, j, s0, float(m.dof_damping[self.vadr[i]])) for i, j, s0 in _mj['strokes']]
+        #: The joints a drive turns, not held or sprung (`peripherals.mujoco`).
+        self.driven = np.array(_mj['driven'], bool)
         self.damping = 1.0 / self.loss * self.driven
         self.free = m.dof_damping[self.vadr].copy()
         self.target = np.zeros(len(JOINTS))
@@ -163,7 +154,7 @@ class World:
         self.motor = np.zeros(len(JOINTS))
         self.link = dclink.laid()
         if self.sprung:
-            m.dof_armature[self.vadr[self.boxes.sprung]] = [SERVO[kind(j)][3] for j, on in zip(JOINTS, self.boxes.sprung) if on]
+            m.dof_armature[self.vadr[self.boxes.sprung]] = np.array(_mj['servo_armature'])[self.boxes.sprung]
             self.armature = m.dof_armature[self.vadr].copy()
         #: Each sole's load as last read (`pose`, LOAD_S), and when; None since the reset.
         self.borne, self.borne_at = [0.0, 0.0], None
@@ -187,13 +178,12 @@ class World:
         self.block.limit[:] = self.limit
         self.block.air[:] = self.block.rds[:] = self._np.ones(len(JOINTS))
         self.block.envelope[0] = ENVELOPE
-        self.block.drive[:] = self._np.array([drives.heat(j) for j in JOINTS]).ravel()
-        self.block.rotor[:] = self._np.array([REFLECTED * ROTOR_FF * drives.armature(j)
-                                              for j in JOINTS])
+        self.block.drive[:] = self._np.array(_mj['heat']).ravel()
+        self.block.rotor[:] = REFLECTED * ROTOR_FF * self._np.array(_mj['armature'])
         self.block.scale[:] = self._np.ones(len(JOINTS))
-        self.block.emf[:] = self._np.array([drives.emf(j) for j in JOINTS])
-        self.block.ohm[:] = self._np.array([drives.of(j)[1].r for j in JOINTS])
-        self.block.volts[0] = drives.PACK_V / math.sqrt(3.0)
+        self.block.emf[:] = self._np.array(_mj['emf'])
+        self.block.ohm[:] = self._np.array(_mj['phase_ohm'])
+        self.block.volts[0] = float(_mj['pack_phase_v'])
         for i, r in self.pairs:
             self.block.pair[i], self.block.pair[r] = r + 1, -(i + 1)
         self.buses = Buses(self.block, limbs)

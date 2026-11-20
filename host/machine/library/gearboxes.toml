@@ -1,27 +1,14 @@
-# Gearboxes: one stage, a wave generator pushing rollers in a cage against a lobed ring - rolling
-# where a cycloid slides, many rollers sharing a blow -, backdrivable at these ratios.
-#
-# diameter_m: shock torque, mass and drag scale as D^3, axial length as 0.28 D, and torsional
-# stiffness as 2.20e6 D^2 (`machine.body.drives`).
-# input_j_share: input-side carrier inertia seen at the motor as a share of the rotor's inertia.
-# zeta: structural damping ratio of the lobed ring mesh.
-# backlash_deg, friction_share: mesh play at the output and mesh Coulomb loss share.
+# Gearboxes as bought: one stage, a wave generator pushing rollers in a cage against a lobed ring -
+# rolling where a cycloid slides, many rollers sharing a blow -, backdrivable at these ratios.
+# Envelope, mass, torsional stiffness, shock torque, no-load drag, carrier inertia and mesh damping
+# follow from diameter, efficiency and steel mechanics (`machine.solver.drivetrain`).
 
 [B]
 diameter_m = 0.064
 ratio = 30.0
 efficiency = 0.90
-l10_cycles = 2.0e6
-input_j_share = 0.05
-zeta = 0.3
 backlash_deg = 0.5
-friction_share = 0.02
-mesh_rad_s = 0.02
-stiffness_nm_rad_m2 = 2.20e6
-drag_nm_m3 = 156.25
-shock_pa = 4.883e5
-fill_share = 0.51
-length_share = 0.28
+l10_cycles = 2.0e6
 
 [A]
 extends = "B"

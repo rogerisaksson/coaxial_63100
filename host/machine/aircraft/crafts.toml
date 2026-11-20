@@ -2,19 +2,17 @@
 # (`mechatronics.crafts()`, compiled by `machine.aircraft.compile`): each craft its own laid on
 # `[shared]`, a variant (`extends`) on its craft.
 # All thrust/drag/flap polars, blade and airframe inertias, control moment arms, drive load polars,
-# heatsink curves, governor speeds, attitude impedances, ESO bandwidths and trajectory envelopes are
-# derived statically by `machine.aircraft.polars`, `machine.aircraft.compile` and `machine.solver`.
+# heatsink curves, governor speeds, attitude impedances, ESO bandwidths and MuJoCo configurations
+# are derived statically by `machine.aircraft.polars`, `machine.aircraft.compile` and `machine.solver`.
 
 # What every craft has unless it states its own: its drive, its frame's mass and its heavy frame's
-# (kg), its body's drag area, the inflow's shares, a foot's radius and the camera's gimbal.
+# (kg), its body's drag area, a foot's radius and the camera's gimbal.
 [shared]
 motor = "outrunner_63100_14p"
 inverter = "coaxial_63100"
 mass_kg = 2.0
 heavy_kg = 2.5
 parasite_cda = 0.15
-inflow_j0 = 1.05
-inflow_floor = 0.35
 foot_r_m = 0.015
 
 [shared.gimbal]
@@ -24,27 +22,24 @@ tilts_deg = [-70.0, 35.0]
 
 [quadcopter]
 rotors = 4
+propeller = "APC_16x14E"
 arm_m = 0.30
 disc_height_m = 0.06
-diameter_m = 0.4064
-pitch_m = 0.3556
-disc_half_m = 0.008
 skid_h_m = 0.12
 hub_m = [0.06, 0.03, 0.06]
 
 [quadcopter_15in]
 extends = "quadcopter"
-diameter_m = 0.3810
+propeller = "APC_15x13E"
 
 [helicopter]
+main_rotor = "rotor_550"
+tail_rotor = "tail_110"
 disc_height_m = 0.22
-diameter_m = 1.250
-pitch_m = 0.3556
 collective_deg = 14.0
 cyclic_deg = 10.0
 main_gear = 3.2
 tail_boom_m = 0.85
-tail_diameter_m = 0.220
 tail_pitch_deg = 16.0
 tail_gear = 3.2
 skid_h_m = 0.15
@@ -63,7 +58,6 @@ stroke_deg = 38.0
 pitch_deg = 24.0
 sweep_fold_deg = 52.0
 gear_ratio = 6.0
-beat_pulse = 0.30
 skid_h_m = 0.135
 skid_span_m = 0.130
 strut_aft_m = -0.09
@@ -71,24 +65,21 @@ strut_fore_m = 0.14
 
 [aerobat]
 heavy_kg = 2.3
+propeller = "APC_17x8E"
 parasite_cda = 0.016
 wing_span_m = 1.40
 wing_chord_m = 0.28
-prop_diameter_m = 0.4318
-prop_pitch_m = 0.2032
 prop_z_m = 0.356
 tail_arm_m = 0.484
 stab_area_m2 = 0.046
 fin_area_m2 = 0.035
 cd0 = 0.035
-span_efficiency = 0.75
 flap_share = 0.50
 aileron_share = 0.28
 vector_deg = 15.0
 elevator_deg = 45.0
 aileron_deg = 38.0
 rudder_deg = 48.0
-propwash_share = 0.85
 stall_deg = 15.0
 stall_blend_deg = 8.0
 pitch_rest_deg = 78.0

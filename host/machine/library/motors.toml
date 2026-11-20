@@ -106,7 +106,6 @@ can_m = 0.0630
 height_m = 0.1000
 kg = 0.310
 ohm = 0.03
-kv = 310.0
 lq_h = 4.1e-5
 flux_vs = 0.00207
 pole_pairs = 14

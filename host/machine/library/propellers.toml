@@ -1,0 +1,27 @@
+# Fixed-pitch electric propellers and collective-pitch symmetric rotors as bought: disc diameter
+# (m), geometric helix pitch (m, fixed-pitch) or blade chord (m, collective-pitch), and blades.
+
+[APC_16x14E]
+diameter_m = 0.4064
+pitch_m = 0.3556
+blades = 2
+
+[APC_15x13E]
+extends = "APC_16x14E"
+diameter_m = 0.3810
+pitch_m = 0.3302
+
+[APC_17x8E]
+extends = "APC_16x14E"
+diameter_m = 0.4318
+pitch_m = 0.2032
+
+[rotor_550]
+diameter_m = 1.250
+chord_m = 0.0568
+blades = 2
+
+[tail_110]
+extends = "rotor_550"
+diameter_m = 0.220
+chord_m = 0.022

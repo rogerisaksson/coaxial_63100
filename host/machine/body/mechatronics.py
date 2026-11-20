@@ -21,6 +21,7 @@ import tomllib
 from typing import Any
 
 from machine.errors import MachineError
+from machine.solver import drivetrain
 from motor import constants
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -56,8 +57,9 @@ HUMANOID, AIRCRAFT = os.path.join(LISP, 'humanoid'), os.path.join(LISP, 'aircraf
 STOCK = 'gynoid_mesomorph_medium'
 ROBOT = os.environ.get('COAXIAL_ROBOT', STOCK)
 CRAFTS = os.environ.get('COAXIAL_CRAFTS', os.path.join(HERE, 'aircraft', 'crafts.toml'))
-#: Each part's file in the library, and what a stack names of it in turn.
+#: Each part's file in a humanoid stack, and all parts files in `machine/library`.
 PARTS = ('motors', 'gearboxes', 'inverters')
+LIBRARY_PARTS = PARTS + ('propellers',)
 #: Clothing's insulation over bare air (`[cloth]`, ISO 9920) on a joint a build dresses in nothing: the identity.
 BARE = 1.0
 #: Canonical whole-body latent mode names (`ortho.MODES`, `compile`, `modal`).
@@ -142,22 +144,30 @@ def craft_sources(spec: str | None = None):
     p = os.path.abspath(spec) if spec else os.path.abspath(CRAFTS)
     solv_dir = os.path.join(HERE, 'solver')
     return library_sources() + (
-        p, constants.__file__, os.path.join(solv_dir, 'aero.py'), os.path.join(solv_dir, 'inertia.py'),
-        os.path.join(solv_dir, 'loops.py'), os.path.join(solv_dir, 'contacts.py'),
-        os.path.join(HERE, 'aircraft', 'solved.py'))
+        p, constants.__file__, os.path.join(solv_dir, 'aero.py'), os.path.join(solv_dir, 'drivetrain.py'),
+        os.path.join(solv_dir, 'inertia.py'), os.path.join(solv_dir, 'loops.py'),
+        os.path.join(solv_dir, 'contacts.py'), os.path.join(HERE, 'aircraft', 'solved.py'))
 
 
 _BODY_MODS = ('mechatronics', 'figure', 'linkage', 'skeleton', 'structural', 'guards',
               'drives', 'build', 'carried', 'looped')
 
 
+def hose_table(name: str = ROBOT) -> dict[str, Any]:
+    """Declarative hose routing spans (`machine/world/hoses/<name>.toml`), `{}` if absent."""
+    path = os.path.join(HERE, 'world', 'hoses', name + '.toml')
+    return dict(_toml(path)) if os.path.isfile(path) else {}
+
+
 def body_sources(name=ROBOT):
     """All `.toml` and Python solver files governing humanoid `name`'s static body compilation."""
     body_dir, solv_dir = os.path.join(HERE, 'body'), os.path.join(HERE, 'solver')
+    hose_p = os.path.join(HERE, 'world', 'hoses', cache_id(name) + '.toml')
+    hose_srcs = (hose_p,) if os.path.isfile(hose_p) else ()
     py = tuple(os.path.join(body_dir, m + '.py') for m in _BODY_MODS) + (
-        os.path.join(solv_dir, 'inertia.py'), os.path.join(solv_dir, 'loops.py'),
-        os.path.join(solv_dir, 'contacts.py'), constants.__file__)
-    return robot_sources(name) + py
+        os.path.join(solv_dir, 'drivetrain.py'), os.path.join(solv_dir, 'inertia.py'),
+        os.path.join(solv_dir, 'loops.py'), os.path.join(solv_dir, 'contacts.py'), constants.__file__)
+    return robot_sources(name) + hose_srcs + py
 
 
 def compiled(key: str, paths, builder) -> dict[str, Any]:
@@ -237,11 +247,13 @@ def _resolve(raw, part=None):
 
 def library():
     """{part: {name: its data}} of every part in the library."""
-    out = {part: _resolve(_toml(os.path.join(LIBRARY, part + '.toml')), part) for part in PARTS}
+    out = {part: _resolve(_toml(os.path.join(LIBRARY, part + '.toml')), part) for part in LIBRARY_PARTS}
     wep = max(float(v['wep_amps']) for v in out['inverters'].values())
     for m in out['motors'].values():
+        if 'kv' not in m and 'pole_pairs' in m and 'flux_vs' in m:
+            m['kv'] = round(drivetrain.kv_from_flux(m['pole_pairs'], m['flux_vs']), 1)
         if 'peak_nm' not in m and 'pole_pairs' in m and 'flux_vs' in m:
-            m['peak_nm'] = round(1.5 * float(m['pole_pairs']) * float(m['flux_vs']) * wep, 2)
+            m['peak_nm'] = round(drivetrain.peak_torque(m['pole_pairs'], m['flux_vs'], wep), 2)
     return out
 
 

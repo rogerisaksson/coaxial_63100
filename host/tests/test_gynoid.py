@@ -268,10 +268,17 @@ def test_the_robots_gait_is_stated_on_it(report):
                         'most_deg nose_m_s head_tip_m_s drive_rad_s profile_drag_share '
                         'induced_drag_share cyclic_drag_share cd_induced')
     lib_ban = ({k for m in lib['motors'].values() for k in m} & _s('rotor_kgm2 stator_j_k')
-               | {k for b in lib['gearboxes'].values() for k in b} & {'stiffness_nm_rad'}
+               | {k for b in lib['gearboxes'].values() for k in b}
+               & _s('stiffness_nm_rad stiffness_nm_rad_m2 drag_nm_m3 shock_pa fill_share length_share '
+                    'input_j_share zeta friction_share mesh_rad_s')
                | {k for v in lib['inverters'].values() for k in v}
                & _s('laminate_k_w laminate_j_k into_k_w loop_hz v_frac envelope dry_loss_24v_w dry_loss_w_per_v')
                | (set(lib['inverters']['coaxial_63100']['heatsink']) & _s('fan_temp_on fan_temp_full fan_idle_duty')))
+    dyn_mods = ('machine/world/physics.py', 'machine/world/stiction.py', 'machine/body/gearbox.py',
+                'machine/body/mjcf.py')
+    dyn_direct = [m for m in dyn_mods
+                  if 'mechatronics' in open(os.path.join(os.path.dirname(os.path.dirname(__file__)), *m.split('/')),
+                                            encoding='utf-8').read()]
     report.check('library, humanoid and craft .toml files hold physical construction only',
                  _s('bus stops boards mounts linkage skeleton garments elastomers') <= set(raw)
                  and not (banned & set(raw)) and not (_s('squat stand stand_knee') & set(raw['figure']))
@@ -282,8 +289,9 @@ def test_the_robots_gait_is_stated_on_it(report):
                  and not (_s('stop_s hold_n') & set(raw['garments']['lace']))
                  and not (_s('stop_s d_nms_rad') & (set(raw['garments']['hem']) | set(raw['garments']['hair'])))
                  and not (_s('stiffness damping') & set(raw['passive']['gripper']))
-                 and not (_s('step_s substeps cone impratio stand_m stand_solref_s touched_n simulation harness') & set(wf))
-                 and 'discs' not in wf['weather'] and not craft_ban and not lib_ban
+                 and not (_s('step_s substeps cone impratio stand_m stand_solref_s touched_n '
+                             'simulation harness load_s joint_damping') & set(wf))
+                 and 'discs' not in wf['weather'] and not craft_ban and not lib_ban and not dyn_direct
                  and 'g_m_s2' in wf and 'solids' in mf and not (_s('stiffness rad_s') & set(raw['toes']))
                  and lib['gearboxes']['A']['ratio'] == lib['gearboxes']['B']['ratio']
                  and mechatronics.laminate_j_k(lib['inverters']['coaxial_63050'], mf) == 7.8

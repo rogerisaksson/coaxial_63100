@@ -79,9 +79,8 @@ STEP_S = _GOV['step_time']
 #: 0.356 m a turn: APC's zero thrust stands a little past the geometric pitch.
 INFLOW_J0, PITCH_M = _ROT['inflow_j0'], _ROT['blade_pitch']
 
-#: The frame's inertia, kg m^2 about its axes: a rotor's share of its mass at each corner.
-_CORNER = MASS_KG / (2.0 * ROTORS) * 2.0 * ARM_M * ARM_M
-INERTIA = (_CORNER, 2.0 * _CORNER, _CORNER)
+#: The frame's inertia, kg m^2 about its axes, solved statically in `rigid_body`.
+INERTIA = (float(_RB['inertia_xx']), float(_RB['inertia_yy']), float(_RB['inertia_zz']))
 
 #: The frame's numbers as they go with its size, each by the size to this power (`sized`):
 #: its lengths, its mass, its propellers' thrust and their drag's torque at a speed, its
@@ -90,7 +89,7 @@ _POWERS = {'MASS_KG': 3.0, 'ARM_M': 1.0, 'K_THRUST': 4.0, 'K_DRAG': 5.0, 'BODY_C
            'DISC_M': 1.0, 'SKID_M': 1.0, 'FOOT_M': 1.0, 'DISC_R': 1.0, 'DISC_HALF_M': 1.0,
            'PITCH_M': 1.0, 'IDLE_RAD_S': -0.5, 'HOVER_M': 1.0, 'FLOOR_M': 1.0,
            'SPIN_S': 1.0}
-_BUILT = dict({name: globals()[name] for name in _POWERS}, HUB_M=HUB_M)
+_BUILT = dict({name: globals()[name] for name in _POWERS}, HUB_M=HUB_M, INERTIA=INERTIA)
 
 
 def sized(size=1.0):
@@ -103,10 +102,11 @@ def sized(size=1.0):
     scope = globals()
     for name, power in _POWERS.items():
         scope[name] = _BUILT[name] * size ** power
-    arm, corner = scope['ARM_M'], scope['MASS_KG'] / (2.0 * ROTORS) * 2.0 * scope['ARM_M'] ** 2
+    s2 = size * size
+    arm, s5 = scope['ARM_M'], s2 * s2 * size
     scope.update(HUB_M=tuple(size * x for x in _BUILT['HUB_M']),
                  ROTOR_AT=tuple((ux * arm, uz * arm) for ux, uz in _UNIT_AT),
-                 INERTIA=(corner, 2.0 * corner, corner))
+                 INERTIA=tuple(s5 * j for j in _BUILT['INERTIA']))
 
 
 def reach():
@@ -131,15 +131,18 @@ def rescaled(scope, units, built):
         scope[name] = built[name] * size ** metres * clock ** seconds
 
 
-SKID_MU = aircraft_compile.part('wingborne')['grip']
+_mj_cfg = aircraft_compile.part('mujoco')
+SKID_MU = _mj_cfg['skid_mu']
+SKID_SOLREF_S = _mj_cfg['skid_solref_s']
+SKID_TORSION_M, SKID_ROLL_M = _mj_cfg['skid_torsion_m'], _mj_cfg['skid_roll_m']
 
 
 def skids(skid_x, skid_m, strut_z, foot_m):
     """Four skid feet at `(-skid_x, skid_x)` by `strut_z`, `skid_m` under the frame, as MuJoCo
     `<geom>` tags."""
     return ''.join('<geom name="skid%d" type="sphere" pos="%g %g %g" size="%g" '
-                   'solref="%g 1" friction="%g 0.005 0.0001"/>'
-                   % (k, sx, -skid_m, sz, foot_m, 5.0 * STEP_S, SKID_MU)
+                   'solref="%g 1" friction="%g %g %g"/>'
+                   % (k, sx, -skid_m, sz, foot_m, SKID_SOLREF_S, SKID_MU, SKID_TORSION_M, SKID_ROLL_M)
                    for k, (sx, sz) in enumerate((sx, sz) for sx in (-skid_x, skid_x) for sz in strut_z))
 
 

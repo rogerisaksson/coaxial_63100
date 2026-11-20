@@ -25,27 +25,24 @@ import math
 import os
 
 from machine import libm_bound
+from machine.solver import drivetrain
 
 #: Where each build's hoses are laid (`tools/render/hosed.py --write`), a file a build.
 LAID = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'hoses')
 #: Settled: no joint turning faster than this, rad/s; the longest it is let fall, s; the longest a frame is stepped
 #: through, s - past it (a pause, a seek) its fittings are carried there in that time.
 STILL_RAD_S, FALL_S, CARRIED_S = 1e-2, 5.0, 0.1
-#: A beam's first bending mode, its ends held: (beta L)^2, its angular frequency that over L^2 times sqrt(EI / kg/m);
-#: what a hose's link in its far fitting weighs, kg - a limb's order, the fitting's and what carries it - and its
-#: radius of gyration, m.
-FIRST, HELD_KG, HELD_M = 22.37, 1.0, 0.01
+#: Clamped fundamental beam factor (`drivetrain.FIRST_CLAMPED_MODE`), and far-fitting link mass (kg) and gyration (m).
+FIRST, HELD_KG, HELD_M = drivetrain.FIRST_CLAMPED_MODE, 1.0, 0.01
 
 
 def table(robot=None):
     """{name: {'kind', 'length', 'from', 'to'}}: the build's hoses as laid, the left side's; {} for a build without."""
-    import tomllib
+    from machine.body import peripherals
+    if robot is None:
+        return dict(peripherals.mujoco()['hose_table'])
     from machine.body import mechatronics
-    path = os.path.join(LAID, (robot or mechatronics.ROBOT) + '.toml')
-    if not os.path.exists(path):
-        return {}
-    with open(path, 'rb') as f:
-        return tomllib.load(f)
+    return mechatronics.hose_table(robot)
 
 
 def spans(robot=None):
@@ -117,33 +114,31 @@ class World:
     def __init__(self, spans, poses, link=None, step=None):
         mujoco = libm_bound.mujoco()
         import numpy as np
-        from machine.body import mechatronics
-        made, g = mechatronics.materials()['hoses'], float(mechatronics.environment()['g_m_s2'])
+        from machine.body import peripherals
+        mj = peripherals.mujoco()
+        made, g = mj['hoses'], float(mj['gravity'])
         self.segments = sorted({end[0] for s in spans for end in (s['from'], s['to'])}
                                | {solid[0] for s in spans for solid in s['solids']})
         inside, welds, apart, steps, self._ends, lie = {seg: [] for seg in self.segments}, [], [], [], [], []
         for k, span in enumerate(spans):
-            r, kgm, ei, gj, bend, ratio = (float(q) for q in made[span['kind']])
+            r, kgm, ei, gj, bend, ratio, wave, twist = (float(q) for q in made[span['kind']])
             (seg_a, at_a, way_a), (seg_b, at_b, way_b) = span['from'], span['to']
             turn_a, put_a = (np.asarray(q, float) for q in poses[seg_a])
             turn_b, put_b = (np.asarray(q, float) for q in poses[seg_b])
             b = turn_a.T @ (turn_b @ np.asarray(at_b, float) + put_b - put_a)    # the far fitting in the near's frame
             into = turn_a.T @ turn_b @ np.asarray(way_b, float)
-            wave = math.pi * math.pi * math.sqrt(ei / kgm) / 2.0            # a link's step: its length squared / this,
-            twist = math.pi * math.sqrt(2.0 * gj / kgm) / (2.0 * r)         # and, twisting, its length / this
             links = (max(2, int(span['length'] / max(math.sqrt(step * wave), step * twist))) if step
                      else max(2, int(math.ceil(span['length'] / (link or bend)))))
             free = _curve(at_a, way_a, b, into, span['length'], links)      # mouth to mouth
             ell = float(np.linalg.norm(np.diff(free, axis=0), axis=1).mean())
             vertex = np.vstack([free[0] - ell * np.asarray(way_a, float), free, free[-1] - ell * into])
             chords = np.linalg.norm(np.diff(vertex, axis=0), axis=1)
-            first = FIRST / (span['length'] * span['length']) * math.sqrt(ei / kgm)   # its first mode, rad/s
+            _first, modal, critical = drivetrain.cable_damping(span['length'], ell, kgm, ei, ratio)
             least = float(chords.min())
             steps.append(min(least * least / wave, least / twist))           # 2 / its shortest
             # wave's frequency: a link's own turn between its neighbours', its weight about its axis r^2 / 2 a kg
             self._ends.append(float(chords[-1]))
             area, inertia = math.pi * r * r, 0.25 * math.pi * r * r * r * r
-            critical = 2.0 * ei / (ell * first)                              # a joint's, critical on that mode
             lie.append(critical)
             density = kgm * ell / (area * ell + 4.0 / 3.0 * math.pi * r * r * r)   # a capsule's ends counted
             inside[seg_a].append(
@@ -152,7 +147,7 @@ class World:
                 'key="flat" value="true"/><config key="vmax" value="0"/></plugin><joint kind="main" '
                 'damping="%r"/><geom type="capsule" size="%r" density="%r" contype="1" conaffinity="2" '
                 '{held}/></composite>' % (k, ' '.join('%r' % float(q) for q in vertex.ravel()), ei / inertia,
-                                         gj / (2.0 * inertia), ratio * critical, r, density))
+                                         gj / (2.0 * inertia), modal, r, density))
             welds.append('<weld body1="h%dB_last" body2="%s" class="held"/>' % (k, seg_b))   # held, not struck
             apart.append('<exclude body1="h%dB_last" body2="%s"/>' % (k, seg_b))
             for seg, centre, axis, radius, half in span['solids']:

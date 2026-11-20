@@ -7,58 +7,31 @@ over its own.
 import math
 
 from machine import libm_bound
-from machine.body import build, drives, figure, guards, mechatronics, peripherals, skeleton
+from machine.body import build, drives, figure, guards, peripherals, skeleton
 from machine.world import floor, room
 from machine.body.drives import kind
 from machine.body.figure import HAIR_AT, HEM_AT, JOINTS, MASS_KG, SEGMENTS, contacts as undersides
 
-_BUILD, _WORLD = mechatronics.robot(), mechatronics.environment()
-_WRLD = peripherals.world()
-_GARM, _ELAST = _BUILD['garments'], _BUILD['elastomers']
-_HEM, _HAIR, _LACE = _GARM['hem'], _GARM['hair'], _GARM['lace']
-_SOLE = _ELAST['sole']
+_mj = peripherals.mujoco()
+_J_IDX = {j: i for i, j in enumerate(JOINTS)}
+HELD_DEG = float(_mj['held_deg_default'])
 
-#: Undriven spring armature, kg m^2, and held-joint stop half-width, deg (`drives.passive`).
-def _passive_j(joint):
-    sz = drives.of(joint)[1]
-    return round(0.5 * sz.mass * (0.5 * sz.diameter) ** 2, 4)
+#: Pelvis weld stand height and stiffness time constant for system identification (`peripherals.mujoco`).
+STAND, STAND_M = 0.0, float(_mj['stand_m'])
+_STAND_SOLREF_S = float(_mj['stand_solref_s'])
 
+#: Friction cone, tangential-to-normal impedance ratio, gravity and joint damping (`peripherals.mujoco`).
+CONE, IMPRATIO = str(_mj['cone']), float(_mj['impratio'])
+_GRAVITY, _JOINT_DAMP = float(_mj['gravity']), float(_mj['joint_damping'])
 
-def _held_deg(joint):
-    return float(drives._box(joint)['backlash_deg'])
-
-
-HELD_DEG = float(drives.BACKLASH_DEG)
-
-#: Pelvis weld stand height and stiffness time constant for system identification (`peripherals.world`).
-STAND, STAND_M = 0.0, float(_WRLD['stand_m'])
-_STAND_SOLREF_S = float(_WRLD['stand_solref_s'])
-
-#: Friction cone, tangential-to-normal impedance ratio, gravity and joint damping (`peripherals.world`, `world.toml`).
-CONE, IMPRATIO = str(_WRLD['cone']), float(_WRLD['impratio'])
-_GRAVITY, _JOINT_DAMP = float(_WORLD['g_m_s2']), float(_WORLD['joint_damping'])
-
-def _pendulum_d(m, length, k, loss):
-    d = loss * math.sqrt((k + m * _GRAVITY * length) * (round(0.5 * length * length, 4) + length * length) * m)
-    return round(d, -int(math.floor(math.log10(d))) + 1)
-
-
-#: Garment sliding friction, padding compliance, loose hem/hair pendulums and lace tendon (`[garments]`).
-_S = figure.SCALE
-CLOTH = {k: float(v) for k, v in _GARM['friction'].items()}
-CLOTH_GIVE_M = _S * float(_GARM['give_m'])
-HEM_M, HEM_KG, HEM_K = _S * float(_HEM['length_m']), _S ** 3 * float(_HEM['kg']), _S ** 4 * float(_HEM['k_nm_rad'])
-HEM_D = float(_HEM['d_nms_rad']) if 'd_nms_rad' in _HEM else _pendulum_d(HEM_KG, HEM_M, HEM_K, float(_HEM['loss']))
-HEM_FORE_DEG, HEM_BACK_DEG = float(_HEM['fore_deg']), float(_HEM['back_deg'])
-HEM_SIDE_DEG, HEM_STOP_S = float(_HEM['side_deg']), _STAND_SOLREF_S
+#: Garment sliding friction, padding compliance, loose hem/hair pendulums and lace tendon (`peripherals.mujoco`).
+CLOTH = dict(_mj['cloth'])
+CLOTH_GIVE_M = float(_mj['cloth_give_m'])
+HEM_M, HEM_KG, HEM_K, HEM_D, HEM_FORE_DEG, HEM_BACK_DEG, HEM_SIDE_DEG = _mj['hem']
+HEM_STOP_S = _STAND_SOLREF_S
 HEMS = tuple('%s_hem_%s' % (side, axis) for side in ('left', 'right') for axis in 'xz')
 
-HAIR_M, HAIR_KG, HAIR_K = (_S * float(_HAIR['length_m']), _S ** 3 * float(_HAIR['kg']),
-                           _S ** 4 * float(_HAIR['k_nm_rad']))
-HAIR_D = (float(_HAIR['d_nms_rad']) if 'd_nms_rad' in _HAIR
-          else _pendulum_d(HAIR_KG, HAIR_M, HAIR_K, float(_HAIR['loss'])))
-HAIR_DEG, HAIR_IN_DEG, HAIR_SIDE_DEG = (float(_HAIR['back_deg']), float(_HAIR['in_deg']),
-                                        float(_HAIR['side_deg']))
+HAIR_M, HAIR_KG, HAIR_K, HAIR_D, HAIR_DEG, HAIR_IN_DEG, HAIR_SIDE_DEG = _mj['hair']
 HAIRS = ('hair_x', 'hair_z')
 
 #: What hangs loose on the robot: the hinges `World.loose` reads.
@@ -70,14 +43,12 @@ LOOSE = HEMS + HAIRS
 ME, MEETS = 2 | 4, 1 | 4
 GUARDS = 2, 1
 
-#: Sole sliding/torsional friction and sneaker/gel-pad contact compliance (`peripherals.world`).
-FRICTION, TORSION_M = float(_SOLE['friction']), figure.sole_torsion_m()
-SOLE_S, SOLE_DAMP = float(_WRLD['sole_s']), float(_WRLD['sole_damp'])
-SOLE_SOFT, SOLE_WIDTH_M = float(_WRLD['sole_soft']), float(_WRLD['sole_width_m'])
-PAD_SOFT, PAD_S, PAD_DAMP = float(_WRLD['pad_soft']), float(_WRLD['pad_s']), float(_WRLD['pad_damp'])
-LACE_AT = tuple(_S * float(v) for v in _LACE['at'])
-LACE_M = _S * float(_LACE['length_m'])
-LACE_S, LACE_HOLD_N = float(_WRLD['lace_s']), _S ** 2 * float(_LACE['break_n'])
+#: Sole sliding/torsional friction and sneaker/gel-pad contact compliance (`peripherals.mujoco`).
+FRICTION, TORSION_M, SOLE_ROLL_M = _mj['sole']
+SOLE_S, SOLE_DAMP = float(_mj['sole_s']), float(_mj['sole_damp'])
+SOLE_SOFT, SOLE_WIDTH_M = float(_mj['sole_soft']), float(_mj['sole_width_m'])
+PAD_SOFT, PAD_S, PAD_DAMP = float(_mj['pad_soft']), float(_mj['pad_s']), float(_mj['pad_damp'])
+LACE_AT, LACE_M, LACE_S, LACE_HOLD_N = _mj['lace']
 
 #: An inertia's principal frame: Jacobi's cyclic sweeps of its 3x3 (a 3x3's off-diagonal under a double's
 #: last bit within five), its quaternion to 26 bits a component - their squares exact, MuJoCo's normalising
@@ -181,18 +152,18 @@ def _apart(xml, pairs):
 def _joint(joint, axis, sign):
     """A joint's element: its drive's armature, its stops, its spring or its gearbox's drag."""
     from machine.world.physics import BACKDRIVE, REFLECTED, STEP_S
-    from machine.body.servos import SERVO
+    idx = _J_IDX[joint]
     stop, spring = drives.TRAVEL.get(kind(joint)), drives.passive(joint)
     if spring:
         stiffness, _damp, rest = spring
-        hd = _held_deg(joint)
+        hd = float(_mj['held_deg'][idx])
         stop = (rest - hd, rest + hd) if stiffness is None else stop
     axes = {'x': (1, 0, 0), 'y': (0, 1, 0), 'z': (0, 0, 1)}
-    s0, drag = SERVO[kind(joint)][3], BACKDRIVE * drives.backdrive(joint)
-    fast = ' solreffriction="%g 1"' % (2.0 * STEP_S) if drives.series(joint) > 0.0 and s0 < 0.01 else ''
+    s0, drag = float(_mj['servo_armature'][idx]), BACKDRIVE * float(_mj['backdrive_nm'][idx])
+    fast = ' solreffriction="%g 1"' % (2.0 * STEP_S) if float(_mj['series'][idx]) > 0.0 and s0 < 0.01 else ''
     return '<joint name="%s" axis="%g %g %g" armature="%g"%s%s/>' % (
         (joint,) + tuple(sign * v for v in axes[axis]) + (
-            _passive_j(joint) if spring else s0 + REFLECTED * (drives.armature(joint) - s0),
+            float(_mj['passive_j'][idx]) if spring else s0 + REFLECTED * (float(_mj['armature'][idx]) - s0),
             ' limited="true" range="%g %g"' % stop if stop else '',
             ' stiffness="%g" springref="%g" damping="%g"' % (spring[0], spring[2], spring[1])
             if spring and spring[0] else
@@ -204,9 +175,9 @@ def _guarded(name):
     the room's things (GUARDS) with the grip of the skin under it, its foam giving over its depth as a pad's gel."""
     worn = name.split('_', 1)[1] if name.startswith(('left_', 'right_')) else name
     return ['<geom name="%s_guard%d" type="box" size="%g %g %g" pos="%g %g %g" xyaxes="%g %g %g %g %g %g" contype="%d" '
-            'conaffinity="%d" condim="4" friction="%g %g 0.001" priority="1" solref="%g %g" solimp="%g 0.95 %g"/>' % (
+            'conaffinity="%d" condim="4" friction="%g %g %g" priority="1" solref="%g %g" solimp="%g 0.95 %g"/>' % (
                 (name, k) + tuple(half) + tuple(centre) + tuple(around) + tuple(along) + GUARDS
-                + (CLOTH.get(worn, FRICTION), TORSION_M, PAD_S, PAD_DAMP, PAD_SOFT, guards.THICK_M))
+                + (CLOTH.get(worn, FRICTION), TORSION_M, SOLE_ROLL_M, PAD_S, PAD_DAMP, PAD_SOFT, guards.THICK_M))
             for k, (centre, around, along, half) in enumerate(guards.slabs(name))]
 
 
@@ -214,7 +185,6 @@ def _mjcf(bones, free=True):
     from machine.eyes import gimbal, sight
     from machine.world.physics import CAMERA, PLACED, ROOM, SIGHT, STEP_S
     eyed = bool(CAMERA or SIGHT)
-    from machine.body.servos import SERVO
     shells = build.segments() if build.SHELLS else {}
     kids, riders = {}, build.riders() if PLACED and not shells else {}
     for seg in SEGMENTS:
@@ -263,8 +233,8 @@ def _mjcf(bones, free=True):
         if name == 'head' and eyed:
             out += gimbal.cameras()
         out += carried(name)
-        grip = ' contype="%d" conaffinity="%d" condim="4" friction="%%g %g 0.001"' % (
-            ME, MEETS, TORSION_M)
+        grip = ' contype="%d" conaffinity="%d" condim="4" friction="%%g %g %g"' % (
+            ME, MEETS, TORSION_M, SOLE_ROLL_M)
         for part, shape, size, at in undersides():
             if name.endswith(part):
                 out.append('<geom type="%s" size="%s" pos="%g %g %g"%s%s/>' % (
@@ -330,9 +300,8 @@ def _mjcf(bones, free=True):
         + floor.rug(give, FRICTION, TORSION_M)
         + (room.furnish(contacts, textured=eyed, free=free) if ROOM else [])
         + ['</worldbody>', '<contact/>', '<actuator>']
-        + ['<motor joint="%s" ctrlrange="%g %g"/>' % (j, -max(SERVO[kind(j)][0], drives.peak(j)),
-                                                      max(SERVO[kind(j)][0], drives.peak(j)))
-           for j in JOINTS]
+        + ['<motor joint="%s" ctrlrange="%g %g"/>' % (j, -pk, pk)
+           for j, pk in zip(JOINTS, _mj['ctrl_peak'])]
         + ['</actuator>', '<tendon>',
            '<spatial name="lace" limited="true" range="0 10" solreflimit="%g 1" width="0.002">'
            '<site site="lace_left"/><site site="lace_right"/></spatial>' % LACE_S,

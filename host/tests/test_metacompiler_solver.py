@@ -215,9 +215,11 @@ def test_aerodynamic_and_composite_inertia_solvers(r):
     Glauert flap effectiveness, `D^4` thin-shell blade inertia, BEMT pitch and gear-ratio scaling,
     Polhamus flapping polars, Rankine-Froude control moments, 3D parallel-axis composite inertia,
     and Bryson inverse-square MPC weights."""
-    from machine.solver import aero, contacts, inertia
+    from machine.solver import aero, contacts, drivetrain, inertia
     r.check('Oswald span factor is 1 at zero aspect ratio and falls with aspect ratio; Glauert flap rises 0 to 1',
             aero.oswald(0.0) == 1.0 and 0.0 < aero.oswald(9.0) < aero.oswald(4.5) < 1.0
+            and aero.airframe_oswald(1.4, 0.28, 0.035) < aero.oswald(5.0)
+            and 0.0 < aero.propwash_share(0.4318, 1.4, 0.28, 0.046) < 1.0
             and aero.glauert_flap(0.0) == 0.0 and aero.glauert_flap(1.0) == 1.0
             and math.isclose(aero.glauert_flap(0.5), 0.5 + 1.0 / math.pi, rel_tol=1e-12)
             and 0.0 < aero.glauert_flap(0.28) < aero.glauert_flap(0.50) < 1.0,
@@ -255,6 +257,18 @@ def test_aerodynamic_and_composite_inertia_solvers(r):
             and math.isclose(comp[0], 2.0 * (0.02 / 12.0 + 0.25), rel_tol=1e-12)
             and w2['x'] == 4.0 * w1['x'] and w2['y'] == 4.0 * w1['y'] and w2['crash'] == 4.0 * w1['crash'],
             (comp, w1['x'], w2['x']))
+    wb1 = drivetrain.wave_box(0.050, 0.90, 80.0, 250.0, 7850.0, 0.001)
+    wb2 = drivetrain.wave_box(0.100, 0.90, 80.0, 250.0, 7850.0, 0.001)
+    wb_lossy = drivetrain.wave_box(0.050, 0.80, 80.0, 250.0, 7850.0, 0.001)
+    kv = drivetrain.kv_from_flux(14, 0.00207)
+    wv, tw = drivetrain.cable_waves(0.005, 0.061, 3.0e-3, 2.1e-3)
+    r.check('wave-drive stiffness scales as D^2, mass/shock/drag as D^3, loss doubles drag/damping, cable waves positive',
+            wb2.stiffness_nm_rad == 4.0 * wb1.stiffness_nm_rad
+            and math.isclose(wb2.mass_kg / wb1.mass_kg, 8.0, rel_tol=1e-12)
+            and math.isclose(wb2.drag_nm / wb1.drag_nm, 8.0, rel_tol=1e-12)
+            and math.isclose(wb_lossy.drag_nm, 2.0 * wb1.drag_nm, rel_tol=1e-12)
+            and kv > 0.0 and wv > 0.0 and tw > 0.0
+            and contacts.rolling_arms(0.015, 0.80) == (0.005, 0.0001), (wb1, wb2))
 
 
 def test_the_solver_imports_no_machine(r):

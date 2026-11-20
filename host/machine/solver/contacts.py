@@ -1,7 +1,9 @@
-"""Compliant penalty contact stiffness, damping, step stability ceiling, and Bryson MPC weights.
+"""Compliant penalty contact stiffness, damping, MuJoCo solref/friction, and Bryson MPC weights.
 
     kf, cf = contacts.penalty(mass, gravity, sag_m, zeta, dt, points)
     touch_m = contacts.touch(mass, gravity, kf, points)
+    t_s = contacts.solref_period(sag_m, gravity, floor_s)
+    mu_t, mu_r = contacts.rolling_arms(foot_r_m, mu, rolling)
     weights = contacts.bryson_mpc(sag_m, spot_m, exc_rad, skim_m)
 
 A soft floor contact of `points` bearing points holds a machine of `mass` kg under `gravity` m/s^2
@@ -24,6 +26,18 @@ def penalty(mass, gravity, sag_m, zeta, dt=0.0, points=1):
 def touch(mass, gravity, stiffness, points=1.0):
     """Static contact deflection, m, of `mass` under `gravity` shared over `points` contacts of `stiffness`."""
     return mass * gravity / (points * stiffness)
+
+
+def solref_period(sag_m, gravity, floor_s=0.0):
+    """MuJoCo `solref` oscillation period `2 pi sqrt(sag_m / g)`, s, bounded below by `floor_s`."""
+    return max(float(floor_s), round(math.tau * math.sqrt(float(sag_m) / float(gravity)), 2))
+
+
+def rolling_arms(foot_r_m, mu, rolling=False):
+    """`(torsional_m, rolling_m)` Hertzian contact friction arms from sphere/wheel radius `foot_r_m`."""
+    r = float(foot_r_m)
+    torsion = round((float(mu) * r / 2.25) if rolling else (r / 3.0), 3)
+    return torsion, round(r / 150.0, 4)
 
 
 def bryson_mpc(sag_m, spot_m, exc_rad, skim_m):
