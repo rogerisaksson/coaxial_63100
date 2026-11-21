@@ -6,12 +6,13 @@
 its end - the foot's face cut the arm's lean off square -, the studs through the foot into the carbon plate, the plate
 screwed on the gearbox's output ring, the torso's block's side - cut square to the axis too - with its horn, and the
 coil's fitting on that side. What turns with the arm: the drive's housing, its motor and its board under its guard
-and lid (`hip_clamped._drive`, the bus through the guard's wall where the saddle hugs it), and one printed housing -
-a slit band round the motor and the gearbox's housing, a skirt on over the output ring whose bore runs on the plate's
-and the foot's rims, a cone out to the drum of honeycomb the coil lies in, the rib under the drum the horn meets,
-and the neck down to the saddle the upper arm's tube's foot is screwed under, square to the axis as the elbow's. The
-hose is drawn as it lies at a turn (`shoulder_laid.coil`), a fitting along its way at each end: on the block's side,
-and on a stem off the drum's wall, the leads on down the rib. Frame: `shoulder_laid`'s.
+and lid (`hip_clamped._drive`, the bus through the guard's wall), and one printed housing - a slit band round the
+motor and the gearbox's housing, a skirt on over the output ring whose bore runs on the plate's and the foot's rims,
+a cone out to the drum of honeycomb the coil lies in, the rib under the drum the horn meets -, and on it the
+abduction (`shoulder_rolled`): the hood over the housing with its drive behind, the board under, and the yoke the arm
+hangs in, raised about the axis ahead. The hose is drawn as it lies at a turn (`shoulder_laid.coil`), a fitting along
+its way at each end: on the block's side, and on a stem off the drum's wall, the leads on down the rib. Frame:
+`shoulder_laid`'s.
 """
 import argparse
 import functools
@@ -28,7 +29,6 @@ from tools.render import knee_loads as kl  # noqa: E402
 from tools.render import knee_mount as km  # noqa: E402
 from tools.render import mounting as m  # noqa: E402
 from tools.render import shoulder_laid as sl  # noqa: E402
-from tools.render import sized  # noqa: E402
 from tools.render import tees  # noqa: E402
 
 #: The gap that lets the band pinch beside the skirt, the block's side's thickness, how far that side stands round
@@ -39,7 +39,7 @@ RELIEF_M, SIDE_M, PAST_M, NUT = 0.0012, 0.010, 0.004, (0.007 / 2.0, 0.0032)
 HUB_M, ARM = 0.012, 0.45
 #: The pairs of parts the suite counts crossings of: what turns against what stays, the arm hanging - the rest
 #: are a screw in its hole, a band on its drum, a lead on its lug.
-STILL, TURNING = ('crossbar', 'crossbar foot', 'studs', 'hub plate', 'block'), ('housing', 'guard', 'lid', 'upper arm')
+STILL, TURNING = ('crossbar', 'crossbar foot', 'studs', 'hub plate', 'block'), ('housing', 'guard', 'lid')
 
 
 def _leant(tris):
@@ -107,7 +107,7 @@ def still():
 
 
 def _housing(lay, can, ring):
-    """The printed housing that turns with the arm: band, skirt, rims' bore, cone, drum, rib, neck and saddle."""
+    """The printed housing that turns with the arm: band, skirt, rims' bore, cone, drum and rib."""
     band0, band1, out = lay['band']
     plate0, cant, rims = lay['plate'][0], lay['cant'], lay['disc'] + sl.PLAY_M
     bore = lay['bore']
@@ -120,43 +120,43 @@ def _housing(lay, can, ring):
     low = bore + sl.DRUM_M
     rib = [(-(low + sl.RIB_UP), -0.5 * sl.RIB_M), (-(low + sl.RIB_UP), 0.5 * sl.RIB_M), (-(bore + 0.0005), 0.5 * sl.RIB_M),
            (-(bore + 0.0005), -0.5 * sl.RIB_M)]
-    shell += em._rounded(rib, cone - 0.002, mouth, em.FRAME, axis=0, r=0.0015)
-    half_x, half_z, down = lay['seat']
-    top, waist = down - em.SEAT_M, 1e-3 * sized.neck(1e3 * (plate0 - band0), 'shoulder')
-    for a, b, hug in ((-half_x, lay['guard'][1], lay['over']), (lay['guard'][1], cant, out - 0.001)):
-        shell += em._rounded(cl.filleted(cl.necked((0.0, 0.0), hug, -top, (-half_z, half_z), waist)), a, b, em.FRAME,
-                             axis=0, r=0.002)
-    return shell
+    return shell + em._rounded(rib, cone - 0.002, mouth, em.FRAME, axis=0, r=0.0015)
 
 
 @functools.lru_cache(maxsize=None)
-def turning(socket='torx'):
+def turning():
     """{name: tris} of what turns with the arm, the arm hanging: the drive under its guard and lid, its leads, the
-    housing, the arm's foot's seat and the upper arm's tube's top under it, the coil's fitting on its stem."""
+    housing, the coil's fitting on its stem."""
     from tools.render import hip_clamped as hc
     lay, st = sl.laid(), sl.stack()
     can, ring = st['motor'][0], st['gear'][0]
     drive = hc._drive({'board': lay['board'] + (st['board'][0],), 'motor': lay['motor'] + (can,),
                        'gear': (lay['house'][0], lay['ring'][1], ring)}, lay['band'][2] - can, math.pi, leave=math.pi)
-    _half_x, _half_z, down = lay['seat']
-    top, tube = down - em.SEAT_M, lay['tube']
-    e = tube - 0.0012 - em.BORE_R - 0.003
-    dress, limb = em._limb(-down, -1.0, tube, -e, socket, False)
     line = sl.coil(0.0, 400)
     return {'drive': drive['still'], 'leads': drive['leads'], 'guard': drive['guard'], 'lid': drive['lid'],
             'housing': _housing(lay, can, ring),
-            'arm seat': em._rounded(em._oval(tube), -top, -down, em.PLATE, r=0.002),
-            'upper arm': dress + limb + km._wire([(-e, -down, 0.0), (-e, -down - em.FLANGE_M - 0.07, 0.0)], 0.002,
-                                                  em.CABLE),
             'coil stem': _banjo(line[-1], line[-1] - line[-2], out=lay['bore'] + 0.001)}
 
 
-def posed(turn=0.0):
-    """{name: tris}: the shoulder with the arm turned `turn` deg - what turns turned, the coil as it then lies."""
+def posed(turn=0.0, roll=0.0):
+    """{name: tris}: the shoulder with the arm turned `turn` deg and raised `roll` - what turns turned, the
+    abduction on it (`shoulder_rolled`: 'abduction', 'yoke', 'span'), the coil as it then lies."""
+    from tools.render import shoulder_rolled as sr
     line = sl.coil(turn, 400)
     out = dict(still(), **{name: km._turn(tris, turn) for name, tris in turning().items()})
+    raised = sr.posed(roll)
+    out.update({'abduction': km._turn(raised['still'], turn), 'yoke': km._turn(raised['yoke'], turn),
+                'span': km._turn(raised['span'], turn)})
     out['coil'] = tees.hose(line) + _banjo(line[0], line[0] - line[1], (sl.MOUTH_M + tees.HOSE_R + 0.001, 0.0, 0.0))
     return out
+
+
+def _abduction():
+    """[(tri, colour)]: the abduction that turns with the arm about the shoulder's axis, the arm hanging - its hood,
+    drive and board, and the yoke above the arm's seat (`shoulder_rolled.parts`)."""
+    from tools.render import shoulder_rolled as sr
+    low = -sr.laid()['down']
+    return sr.parts()['still'] + sr.parts()['ring'] + [t for t in sr.parts()['yoke'] if t[0][:, 1].min() > low]
 
 
 @functools.lru_cache(maxsize=None)
@@ -168,7 +168,7 @@ def aired(step=10.0, ease=3.0):
     h = 0.006
     a = km._points([t for name in STILL if name != 'hub plate' for t in still()[name]
                     if name != 'crossbar foot' or t[0][:, 0].min() > sl.laid()['foot'][1] - 1e-9])
-    pts = km._points([t for name in TURNING for t in turning()[name]])
+    pts = km._points([t for name in TURNING for t in turning()[name]] + _abduction())
     keys = km._key(np.floor(a / h).astype(np.int64))
     order = np.argsort(keys)
     return min(float(km._least(keys[order], a[order], pts @ km._rx(float(deg)).T, h))
@@ -185,7 +185,8 @@ def checked():
     from machine.body import mechatronics
     from tools.render import clips
     lo, hi = sl.travel()
-    crossing = sum(clips.crossed(turning()[a], still()[b]) for a in TURNING for b in STILL)
+    crossing = sum(clips.crossed(tris, still()[b]) for tris in [turning()[a] for a in TURNING] + [_abduction()]
+                   for b in STILL)
     coil, bend = 0, []
     for turn in np.linspace(lo, hi, 5):
         parts = posed(float(turn))

@@ -126,8 +126,7 @@ def laid():
     drum's, along the crossbar from that face, 'face': the guard's, 'guard': its (from, to, outside), 'band': (from,
     to, outside), 'bore': the drum's, 'skirt': the housing's bore over the ring,
     'wind': the coil's (tightest radius, ends' radius, most turns, least), 'meet': how far off the axis horn and rib
-    meet, 'over': the saddle's hug round the guard, 'tube': the arm's radius, 'seat': (the arm's foot's half widths
-    along the axis and across it, its face down the arm)}."""
+    meet, 'tube': the arm's radius}."""
     from tools.render import covered as cv
     sz, st, lean = sizes(), stack(), pivot()[1]
     tight, ends, most, least, (start, mouth), cant = _spool()
@@ -143,12 +142,10 @@ def laid():
     face = out['board'][0] - em.ROTOR_AIR - cv.WALL_M
     guard = cv.span(face, out['motor'][0], st['board'][0], can + wall)
     bore = wound()[1] + AIR_M
-    arm = em._stack()[2]
-    over = guard[2] + cv.FIT_M
     out.update(bar=bar, disc=1e-3 * sz['disc'], studs=1e-3 * sz['studs'], cant=cant, mouth=mouth,
                coil=(start, mouth), face=face, guard=guard, band=grip + (can + wall,), bore=bore,
-               skirt=ring + AIR_M, wind=(tight, ends, most, least), meet=bore + DRUM_M + 0.5 * RIB_UP, tube=arm,
-               lean=lean, over=over, seat=(arm + em.OVAL_PAST[0], arm + em.OVAL_PAST[1], over + em.SADDLE_M + em.SEAT_M))
+               skirt=ring + AIR_M, wind=(tight, ends, most, least), meet=bore + DRUM_M + 0.5 * RIB_UP,
+               tube=em._stack()[2], lean=lean)
     return out
 
 

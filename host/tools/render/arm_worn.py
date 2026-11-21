@@ -65,7 +65,7 @@ def arm(flex=0.0):
     foot under the shoulder's mount, that mount ('shoulder ...', the arm hanging), the forearm's tube down to the
     wrist; the forearm bent `flex` deg the way the page bends it."""
     import numpy as np
-    from tools.render import shoulder_laid as sl, shoulder_mount as sm
+    from tools.render import shoulder_mount as sm, shoulder_rolled as sr
     turn, shift, bend = placing()
     _page, shoulder, wrist = laid(False, ())
 
@@ -75,7 +75,7 @@ def arm(flex=0.0):
     still_parts, _gear, arm_in, arm_out = em._stack()
     over = max(r for *_x, r in still_parts) + 0.002
     face_t, face_s = over + em.SADDLE_M + em.SEAT_M, -(over + em.ROTOR_AIR + em.ROTOR_M + em.SEAT_M)
-    top, at = float(shoulder[1]) - sl.laid()['seat'][2] - em.FLANGE_M, (float(shift[0] * turn[0, 0]), 0.0)
+    top, at = float(shoulder[1]) - sr.laid()['down'] - em.FLANGE_M, (float(shift[0] * turn[0, 0]), 0.0)
     out = {'elbow': placed(parts), 'hose': placed(cables),
            'upper arm tube': m._prism(m._circle(arm_in, 40, at), face_t + em.FLANGE_M, top, em.CARBON),
            'forearm tube': km._turn(m._prism(m._circle(arm_out, 40, at), float(wrist[1]) + 0.01,

@@ -27,9 +27,11 @@ def test_the_shoulder_holds_turns_and_keeps_its_coil(report):
     stays with the torso through the travel, short of the stops where horn and rib meet, and crosses none of it
     with the arm hanging; the bus's hose, a coil round the crossbar, bends no tighter than the hose's own least
     radius and crosses no part at five turns of the arm; the travel takes the farthest the robot swung an arm back
-    while it stood and the farthest ahead short of a fall; and the arm's guards, laid clear of the whole arm,
-    cross nothing of the shoulder's mount (`arm_worn.capped`) - with no likeness beside the tree there is no figure
-    to lay them on."""
+    while it stood and the farthest ahead short of a fall; the abduction (`tools.render.shoulder_rolled`) holds its
+    loads at the margin, its yoke keeps a millimetre off what stays with the pitch through its travel short of the
+    stops, the arm rises past a T on it and the bus's span across it bends no tighter than the hose's own least;
+    and the arm's guards, laid clear of the whole arm, cross nothing of the shoulder's mount (`arm_worn.capped`) -
+    with no likeness beside the tree there is no figure to lay them on."""
     told: Any = _told('from tools.render import shoulder_mount as s; print(json.dumps(s.checked()))')
     report.check("every member holds the shoulder's loads at the margin", (told.get('held') or 0.0) >= 1.0,
                  told.get('failed') or told.get('held'))
@@ -41,6 +43,13 @@ def test_the_shoulder_holds_turns_and_keeps_its_coil(report):
     (lo, hi), (back, ahead) = told.get('travel') or (0.0, 0.0), told.get('asked') or (-1.0, 1.0)
     report.check('the travel takes the farthest the robot swung an arm back while it stood, and ahead short of a fall',
                  lo <= back and hi >= ahead, (told.get('travel'), told.get('asked')))
+    raised: Any = _told('from tools.render import shoulder_rolled as r; print(json.dumps(r.checked()))')
+    report.check("the abduction holds at the margin and its yoke keeps a millimetre off what stays through its travel",
+                 (raised.get('held') or 0.0) >= 1.0 and (raised.get('air') or 0.0) >= 1.0,
+                 raised.get('failed') or (raised.get('held'), raised.get('air')))
+    bend, own = raised.get('bend') or (0.0, 1.0)
+    report.check("the arm rises past a T on its abduction, the bus's span across it no tighter than the hose's own",
+                 (raised.get('reaches') or 0.0) >= 90.0 and bend >= own, (raised.get('reaches'), raised.get('bend')))
     from coaxial.graphics import likeness
     if not likeness.FOUND:                               # the guards are laid on the figure's body beside the tree
         report.skip("the arm's guards cross nothing of the shoulder's mount", 'no likeness beside the tree')
