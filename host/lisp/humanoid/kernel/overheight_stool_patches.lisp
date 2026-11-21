@@ -41,7 +41,8 @@
   (-> seated-high-stool-state
       ;; Anchor hands on seat corners, scoot buttocks 55mm past front bevel, lower pelvis
       ;; vertically via eccentric triceps dip until plantarflexed toes catch the floor, then stand!
-      (xform-overheight-arm-dip-egress :dip-lowering-speed-mps 0.15 :max-dip-travel-mm 162.0) ; the robot's dip
+      (xform-overheight-arm-dip-egress :dip-lowering-speed-mps 0.15
+                                       :max-dip-travel-mm (robot-vault-stroke-mm -0.6 0.95)) ; the robot's dip
       (specialize-vault-hand-anchor-topology :anchor-style :flat-carpal-beside-hips :seat-width-mm 340.0)
       (specialize-vault-for-light-tippy-stool :estimated-stool-mass-kg 5.0 :base-radius-mm 200.0)
       (specialize-dip-egress-with-footrest-rung)

@@ -75,7 +75,7 @@ double wbc_imp_surety(const wbc_imp_t *k, const wbc_surety_t *s, double prev, do
   w_stride = npmin(1.0, st[s->gain_now]) * npmin(1.0, npmax(0.0, s->out[s->held_out] - 1.0));
   w_sup = npmin(1.0, (0.42 + npmax(0.30 * (w[0] + w[1]) + 0.22 * npmax(w[0], w[1]), 0.38 * w_stride)) + 0.55 * w_prop);
   r_gait = 0.28 * npmin(1.0, st[s->gain_now]);
-  w_tilt = wbc_hypot(gyro[0], gyro[2]);
+  w_tilt = wbc_hypot(gyro[0], gyro[2]) * (1.0 - borne);
   {
     const wbc_view_t wv = {w, 2, 1}, lov = {&lo[0][0], 2, 1}, hiv = {&hi[0][0], 2, 1};
 

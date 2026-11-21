@@ -15,7 +15,7 @@ typedef struct
 {
   int           n;            /**< the robot's modes, and each's index */
   int           axial, lateral, drive, pitch, sagittal, lift, width, list, turn, arms, rock, reach, elbows;
-  int           o_ref, o_rate, o_acc, o_ks, o_ds, o_psi, o_sway, o_turns, o_held, o_yawed, o_bend, o_ducked, o_manifolded, o_asked;
+  int           o_ref, o_rate, o_acc, o_ks, o_ds, o_psi, o_sway, o_turns, o_held, o_yawed, o_bend, o_ducked, o_manifolded, o_asked, o_held_to;
   int           y_com, y_vcom, y_sole, y_vsole, y_load, y_quat, y_spin, y_moment, y_lowest, y_hip, y_tilt;
   int           y_tilt_rate, y_arm, y_prop, y_prop_lo, y_prop_hi, y_grip, y_vhead, y_hspin, y_elbow, y_palms;
   int           f_rot, f_w0, f_floor, f_weight, f_knee, f_pitch0, f_dt, f_reach0, f_hips_by, f_arm0, f_unit;
@@ -40,7 +40,7 @@ typedef struct
   /* machine.law.stride */
   double        limbs[2], stride_m, rock_rad, stirs, swing, swing_fast, pace_m_s, pace_fast_m_s, back, ahead_m_s, reach_m, apart_m, soon_s;
   double        rise_u, fall_u, rise_u2, fall_u2, arrive_u, leads, land_share, reach_m_s, reach_s, flat_k, heel_rad;
-  double        heel_rad_s, dip_m, edge_rad, fold_rad, heel_up, map_k;
+  double        heel_rad_s, dip_m, edge_rad, fold_rad, heel_up, sea_roll, map_k;
   /* numpy's own OpenBLAS: the robot's law's 1-d dots and vector-matrix products taken as numpy takes them,
      the kernel its CPU picks (SkylakeX's on AVX-512 sums otherwise than Haswell's) */
   wbc_blas_t    blas;
@@ -86,7 +86,7 @@ void wbc_imp_swings(const wbc_imp_t *k, const double *y, const double *fr, const
                     const double shod[2][3], const double floors[2], double rise, const wbc_imp_said_t *s,
                     const double clear[3][2], const double stance[2], double cruise, double grounded, double propped,
                     double got[2][3], double frame[3][3]);
-void wbc_imp_rested(const wbc_imp_t *k, const wbc_imp_said_t *s, double held, double grounded, const double aloft[2],
+void wbc_imp_rested(const wbc_imp_t *k, const wbc_imp_said_t *s, const double *out, double grounded, const double aloft[2],
                     const double limbs[2], const double floors[2], const double *y, const double shod[2][3],
                     const double *rot, double *a);
 void   wbc_imp_shares(const wbc_imp_t *k, const double stance[2], double bears[2]);

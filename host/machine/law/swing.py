@@ -3,7 +3,7 @@
     free, frame = swing.free(y, fr, at, said, clear, stance, cruise, grounded, propped)
     flies = swing.flew(thrown, grounded, v, low, shod)
     free, went, strides, level = swing.hung(free, step, strides, flies, (high, low, shod), (kp, kd))
-    sole_acc, rests = swing.rested(sole_acc, held, (grounded, aloft, strides), (kp, kd), (floors, y, shod, rot))
+    sole_acc, rests = swing.rested(sole_acc, out, (grounded, aloft, strides), (kp, kd), (floors, y, shod, rot))
 
 Arrays in, arrays out and no branch (tests/test_ortho.py); `machine.law.impedance` asks with them.
 """
@@ -13,7 +13,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine.law import poise
+from machine.law import latent, poise
 from machine.law.modal import AXIAL, COM, DRIVE, G, HOT, LIFT, LOWEST, SOLE, VCOM, VSOLE, WIDTH, Z0
 from machine.law.poise import TINY
 from machine.law.stride import ALONG, SOON_S, UP
@@ -70,9 +70,9 @@ def free(y, fr, at, said, clear, stance, cruise, grounded, propped):
     return off3[2] + kp[FREE_BY] * (off3[0] + lead) + kd[FREE_BY] * off3[1], frame
 
 
-def rested(sole_acc, held, on, gains, at):
+def rested(sole_acc, out, on, gains, at):
     """(each sole's acceleration, how far it rests): a sole that neither stands nor strides while anything
-    bears the robot - a seat, its other sole -, its ZMP let go to its text (`held` 0),
+    bears the robot - a seat, its other sole -, its ZMP let go to its text (`out`),
     rests where it is, still on the floor under it. `on` (grounded, aloft (2,), strides (2, 1)), `gains` the
     robot's modes' (kp, kd), `at` (the floor under each sole, modal's y, the soles' speeds in the robot's
     way's frame, its way); its step weighs its rows as a pressing contact's point's
@@ -81,6 +81,8 @@ def rested(sole_acc, held, on, gains, at):
     seat-off lifted 7 mm swung 0.33 m up and it fell; rested in its own stand, a stumble's step
     was held down and it bobbed 8 s, and on a bump into a bed's edge it fell onto it."""
     (grounded, aloft, strides), (kp, kd), (floors, y, shod, rot) = on, gains, at
+    off_soles = 1.0 * (out[latent.MANIFOLDED][1:].sum() > 0.0)
+    held = out[latent.HELD] + off_soles * (np.minimum(out[latent.HELD], out[latent.HELD_TO]) - out[latent.HELD])
     rest = ((1.0 - poise.clip(held, 0.0, 1.0)) * grounded * aloft)[:, None] * (1.0 - strides)
     kept = (kp[FREE_BY] * HOT3[UP] * (floors - y[LOWEST])[:, None] - kd[FREE_BY] * shod) @ rot
     return sole_acc + (rest * (kept - sole_acc.reshape(2, 3))).ravel(), rest[:, 0]

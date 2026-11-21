@@ -195,8 +195,11 @@ void wbc_imp_beat(const wbc_imp_t *k, double drive, double psi, double sway, dou
   for (int b = 0; b < 2; b++)
   {
     /* or from where the other came down, standing in the last FALL_U of its swing (stride.beat) */
-    const double came = (((stood[1 - b] * was[1 - b]) * (double)(u[1 - b] > 1.0 - k->fall_u)) * (double)(u[1 - b] < 1.0))
-                        * (double)(u[b] <= 0.0);
+    const double other = ((stood[1 - b] * was[1 - b]) * (double)(u[1 - b] > 1.0 - k->fall_u)) * (double)(u[1 - b] < 1.0);
+    const double side_hold = ((((k->sea_roll * (double)(fabs(drive) < 10.0 * k->stirs))
+                                * stood[b]) * stood[1 - b]) * was[b])
+                             * (double)(phi[b] > (phi_w - PI_D) - 0.5 * phi_w) * (double)(phi[b] <= phi_w - PI_D);
+    const double came = npmax(other, side_hold) * (double)(u[b] <= 0.0);
     /* its rhythm's alone on a standing other sole or aloft itself; a swing begun waits for the floor */
     const double window = (double)((phi[b] > phi_w - PI_D) && (phi[b] < phi_w)
                                    && !((stood[b] > 0.5) && (was[b] <= 0.5) && (need <= k->tiny) && (sweep[b] > k->early)));
@@ -247,7 +250,8 @@ void wbc_imp_meets(const wbc_imp_t *k, const double xi[2], const double c[3], co
   const double step_s = PI_D / npmax(turns, k->tiny), grown = wbc_exp(om * step_s);
   const double led = k->leads * npmax((xi[0] - c[0]) - cruise / om, -0.04), s_ac = npsign(across);
   const double led_lat = s_ac * npclip(s_ac * (xi[1] - c[1]) - (1.35 * fabs(across)) / om, -0.052, 0.042);
-  const double w_side = npclip((fabs(across) - 0.07) / 0.03, 0.0, 1.0);
+  const double thresh = 0.07 - (0.06 * k->sea_roll) * (1.0 - npclip(fabs(cruise) / 0.05, 0.0, 1.0));
+  const double w_side = npclip((fabs(across) - thresh) / 0.03, 0.0, 1.0);
   const double span = apart + w_side * npmaximum(wide - apart, 0.0);
 
   for (int b = 0; b < 2; b++)

@@ -266,6 +266,13 @@ def _identify() -> dict[str, Any]:
              tuple(round(p * df, 4) for p in (31, 79, 113)))
     free_rad = max(0.2, round(math.radians(abs(float(drives.TRAVEL['spine'][0]))), 1))
     margin = round(0.5 * (1.0 - eff), 3)
+    ind_f = round(0.5 * math.radians(max_bl), 3)
+    stick_v = round(12.5 * mesh_rad_s, 2)
+    ks_a = drives.series('left_ankle')
+    ka_eff = 1.0 / (1.0 / drives.wind('left_ankle') + 1.0 / ks_a) if ks_a > 0.0 else drives.wind('left_ankle')
+    unhinged_a = ks_a > 0.0 and drives.series('left_ankle_roll') > 0.0
+    rev_a = drives.play('left_ankle') + (0.0 if unhinged_a else drives.mesh('left_ankle') / ka_eff)
+    sprung_v = round(stick_v + rev_a * math.sqrt(ka_eff / drives.armature('left_ankle')), 2)
     swing = round(0.5 * (1.0 - float(svc['torque']) - 3.0 * margin), 2)
     l_hem = max(0.04, abs(figure.FIST_AT[1]) + 0.01)
     return {
@@ -288,9 +295,9 @@ def _identify() -> dict[str, Any]:
             'ramp_s': round(5.0 / smooth_hz, 2), 'pose': (('shoulder', 'flexion', 90.0),),
         },
         'sysid': {
-            'rows_at': rows_at, 'independent': 1e-3, 'none': 1e-9, 'tie': 1e-9,
-            'trust': round(1.0 - eff, 2), 'stick': round(12.5 * mesh_rad_s, 2),
-            'sprung_stick': inside, 'lever_m': max(0.05, round(0.5 * (figure.BALL + figure.HEEL), 1)),
+            'rows_at': rows_at, 'independent': ind_f, 'none': 1e-9, 'tie': round(math.radians(max_bl), 2),
+            'trust': round(1.0 - eff, 2), 'stick': stick_v,
+            'sprung_stick': sprung_v, 'lever_m': max(0.05, round(0.5 * (figure.BALL + figure.HEEL), 1)),
             'stop_deg': round(4.0 * max_bl, 1),
             'hem_acc_max': float(round(_compile.G_M_S2 / l_hem, -1)),
         },

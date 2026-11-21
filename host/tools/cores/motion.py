@@ -25,7 +25,7 @@ from tools.cores import orders, wbc
 #: wbc_imp_t's ints in its order, by the names of what fills them: the robot's modes (`machine.law.modal`),
 #: the offsets of latent.step's out, of modal's y, fr and a.
 MODES = 'axial lateral drive pitch sagittal lift width list turn arms rock reach elbows'.split()
-OUT = 'ref rate acc ks ds psi sway turns held yawed bend ducked manifolded asked'.split()
+OUT = 'ref rate acc ks ds psi sway turns held yawed bend ducked manifolded asked held_to'.split()
 Y = ('com vcom sole vsole load quat spin moment lowest hip tilt tilt_rate arm prop prop_lo prop_hi grip vhead '
      'hspin elbow palms').split()
 FR = ('rot w0 floor weight knee pitch0 dt reach0 hips_by arm0 unit z0 mass ground floor_at'
@@ -74,7 +74,7 @@ def _doubles():
             ('reach_m_s', stride.REACH_M_S), ('reach_s', stride.REACH_S), ('flat_k', stride.FLAT_K),
             ('heel_rad', stride.HEEL_RAD), ('heel_rad_s', stride.HEEL_RAD_S), ('dip_m', stride.DIP_M),
             ('edge_rad', stride.EDGE_RAD), ('fold_rad', stride.FOLD_RAD), ('heel_up', stride.HEEL_UP),
-            ('map_k', float(modal.MAP_K)))
+            ('sea_roll', stride.SEA_ROLL), ('map_k', float(modal.MAP_K)))
 
 
 @functools.lru_cache(maxsize=None)
@@ -208,7 +208,7 @@ def numpy_blas():
 #: wbc_law_t's ints and doubles in its order, by what fills them.
 LAW_INTS = ('n p driven z k d amp phase gain hz zmp yaw now from to t0 blend theta v0 v1 contig shape vals said at '
             'lerp curve shaped table ref rate acc ks ds psi sway turns held yawed bend duck ducked manifold '
-            'manifolded slide slid asked').split()
+            'manifolded slide slid asked held_to').split()
 LAW_DOUBLES = 'edge_s tau tau_v eso_0 eso_s sigma bleed'.split()
 
 
@@ -245,7 +245,8 @@ def latent_laid():
              'zmp': latent.ZMP, 'yaw': latent.YAW, 't0': latent.T0, 'blend': latent.BLEND, 'theta': latent.THETA,
              'contig': latent.CONTIG,
              'at': latent.AT, 'lerp': latent.LERP, 'curve': latent.CURVE, 'table': latent.TABLE, 'turns': latent.TURNS,
-             'held': latent.HELD, 'yawed': latent.YAWED, 'slide': latent.SLIDE, 'slid': latent.SLID}
+             'held': latent.HELD, 'yawed': latent.YAWED, 'slide': latent.SLIDE, 'slid': latent.SLID,
+             'held_to': latent.HELD_TO}
     k = Law(**{name: int(names[name]) if name in names else _at(getattr(latent, name.upper())) for name in LAW_INTS},
             edge_s=latent.EDGE_S, tau=math.tau, tau_v=support.TAU_V, eso_0=support.ESO_0, eso_s=support.ESO_S,
             sigma=support.SIGMA, bleed=support.BLEED)

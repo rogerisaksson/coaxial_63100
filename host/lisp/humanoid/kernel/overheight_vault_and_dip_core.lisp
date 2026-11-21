@@ -95,7 +95,7 @@
 (defprimitive drive-capstan-bevel-arm-vault
   [state &key (bevel-unweight-fraction 0.82)     ; Unload 82% of thigh normal force at the sharp edge!
               (bevel-half-width-mm 65.0)
-              (vault-clear-lift-mm 29.9)                 ; the robot's lockout from the dip's origin
+              (vault-clear-lift-mm (robot-vault-stroke-mm -0.72 0.0)) ; the robot's lockout from the dip's origin
               (rowing-velocity-mps -0.18)]
   (-> state
       (execute-bevel-arch-vault-homotopy

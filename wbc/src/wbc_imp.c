@@ -446,7 +446,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
       a[k->a_sole_acc + 3 * b + j] = (1.0 - strides[b]) * (ff[b][j] + gc[j]) + strides[b] * (fc[j] + gg[b][j]);
     }
   }
-  wbc_imp_rested(k, &s, out[k->o_held], grounded, aloft, limbs, floors, y, shod, rot, a);
+  wbc_imp_rested(k, &s, out, grounded, aloft, limbs, floors, y, shod, rot, a);
   /* its pitch on the rock's own spring, from the floor's under the soles that stand */
   pg = wbc_dot(&k->blas, bears, 1, pg2, 1, 2);
   for (int b = 0; b < 2; b++)

@@ -124,11 +124,13 @@ void wbc_imp_swings(const wbc_imp_t *k, const double *y, const double *fr, const
 /** machine.law.swing.rested: a sole that neither stands nor strides while anything bears the robot -
     a seat, its other sole -, its ZMP let go to its text (`held` 0), rests
     where it is, still on the floor under it; `a`'s soles' accelerations and rests laid. */
-void wbc_imp_rested(const wbc_imp_t *k, const wbc_imp_said_t *s, double held, double grounded, const double aloft[2],
+void wbc_imp_rested(const wbc_imp_t *k, const wbc_imp_said_t *s, const double *out, double grounded, const double aloft[2],
                     const double limbs[2], const double floors[2], const double *y, const double shod[2][3],
                     const double *rot, double *a)
 {
-  double kept[2][3], kw[2][3];
+  const double off_soles = 1.0 * (double)(npsum(out + k->o_manifolded + 1, 4) > 0.0);
+  const double held = out[k->o_held] + off_soles * (npmin(out[k->o_held], out[k->o_held_to]) - out[k->o_held]);
+  double       kept[2][3], kw[2][3];
 
   for (int b = 0; b < 2; b++)
   {

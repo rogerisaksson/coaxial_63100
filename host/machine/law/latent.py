@@ -67,7 +67,8 @@ DUCKED = slice(8 * N + 3, 8 * N + 6)
 MANIFOLDED = slice(8 * N + 6, 8 * N + 6 + len(ortho.MANIFOLDS))
 SLID = MANIFOLDED.stop
 ASKED = slice(SLID + 1, SLID + 1 + N)
-OUT = ASKED.stop
+HELD_TO = ASKED.stop
+OUT = HELD_TO + 1
 #: A row as the wire carries it.
 WIRE = np.dtype([('id', '<u4'), ('at', '<u4'), ('blend', '<u4'), ('flags', '<u4'), ('p', '<f4', (P,))])
 #: A row's time is met within this, s.
@@ -191,5 +192,6 @@ def step(st, tab, now, dt, out):
     out[MANIFOLDED] = p[MANIFOLD]
     out[SLID] = p[SLIDE]
     out[ASKED] = st[TO][GAIN] * st[TO][AMP]
+    out[HELD_TO] = st[TO][ZMP]
     return out
 

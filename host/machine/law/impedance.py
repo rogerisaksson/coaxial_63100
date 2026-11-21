@@ -173,7 +173,7 @@ def ask(out, y, fr, a):
     (free, went, strides, level), fell = swing.hung(free, (stride.goes(a[AIM].reshape(2, 2), flat, shod, v, u, off, turns * hurry / (1.0 - begun), kp[FREE_BY][:2], kd[FREE_BY][:2], phi_w), a[AIM].reshape(2, 2), flat, v, stride.eased(u, off)),
                                                     limbs * np.maximum(grounded, stride.flown(a[STRODE], off, stood, u, thrown, 1.0 * (v[UP] > 0.0))), flew, (lift2, y[LOWEST] - floors, shod), (kp, kd)), ((1.0 - grounded) * com) @ rot
     a[SOLE_ACC] = ((1.0 - strides) * (free @ frame + ((1.0 - grounded * BETWEEN) * com) @ rot) + strides * (fell + went @ rot)).ravel()
-    a[SOLE_ACC], a[RESTS] = swing.rested(a[SOLE_ACC], out[latent.HELD], (grounded, aloft, strides), (kp, kd), (floors, y, shod, rot))
+    a[SOLE_ACC], a[RESTS] = swing.rested(a[SOLE_ACC], out, (grounded, aloft, strides), (kp, kd), (floors, y, shod, rot))
     # a sole's pitch on the rock's own spring, from the floor's under the soles that stand; the loop's turn
     # law asked for what gives that
     a[TIPPED] = tilt + (aloft * stride.eased(u, off) * (level * tipped + kp[ROCK] * (level * tip + bears @ rocker.pitched(fr[GROUND]) - tilt) + kd[ROCK] * (level * tipping - tilting))

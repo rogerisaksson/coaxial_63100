@@ -180,6 +180,7 @@ def test_the_gym_runs_the_robot_in_a_process(report):
     """`sprung.Running`, the page's body: the robot's state said with its modes and what the digits
     say; an entry said, it does it; the gym's other text taken; a text the compiler refuses
     and a command the loop does not know said with the robot's state."""
+    from machine.body import mechatronics
     from machine.process import sprung
     from terminal.views import gym
     body = sprung.Running(walks=False)
@@ -187,7 +188,7 @@ def test_the_gym_runs_the_robot_in_a_process(report):
         first, _ = _until(body, lambda state: True)
         says = first.get('says', ()) if first else ()
         report.check('its state comes with the robot\'s modes and what the digits say',
-                     first is not None and len(first['modes']) == len(gym.SHORT) and says[:1] == ('gynoid_mesomorph_medium',)
+                     first is not None and len(first['modes']) == len(gym.SHORT) and says[:1] == (mechatronics.ROBOT,)
                      and 'crouch' in says,
                      '%s' % (says,))
         body.send(say=says.index('crouch') - 1 if 'crouch' in says else 0)

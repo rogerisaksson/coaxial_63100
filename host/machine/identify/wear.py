@@ -93,6 +93,7 @@ def laid(body, build=None):
             'z': np.zeros(len(names)), 'P': (PRIOR * PRIOR) * np.eye(len(names)), 'hours': 0.0, 'serviced_at': 0.0,
             'residual': np.zeros(n_d), 'read': np.zeros(n_d, int), 'armature': built[at:].reshape(n_d, 3)[:, 0].copy(),
             'boxes': np.zeros((n_d, len(campaign.BOX))), 'box_n': np.zeros(n_d, int),
+            'box_on': np.array([drives.series(j) == 0.0 for j in names_d], bool),
             'zero': np.zeros(n_d), 'torso': (0.0, (0.0, 0.0, 0.0)), 'hems': hems, 'hem_limb': hem_limb,
             'nominal_boxes': np.array([(drives.play(j), 1.0 / (1.0 / drives.wind(j) + (
                 1.0 / drives.series(j) if drives.series(j) else 0.0))) for j in names_d]), 'service': table}
@@ -142,7 +143,8 @@ def windowing(w, ys, taus, dt):
     A[np.arange(n * n_d), movers + drive] = (sliding - pred) * UNIT['kt']
     yield
     keep = np.abs(rows_).sum(axis=1) > 0.0
-    zero = (ys_arr[-1, edge.QM] - ys_arr[-1, edge.Q])[lay['joint']]
+    comp = np.where(w['box_on'], 0.0, 1.0 / w['nominal_boxes'][:, 1])
+    zero = (ys_arr[-1, edge.QM] - ys_arr[-1, edge.Q])[lay['joint']] - np.asarray(taus[-1], float)[lay['joint']] * comp
     alone = (ys_arr[:, edge.LOAD] >= leap.TOUCH_N).all(axis=1) & ~ys_arr[:, edge.TOUCH].reshape(len(ys_arr), -1, 3)[:, borne.ABOVE].any(axis=(1, 2))
     if alone.mean() > ALONE_SHARE:
         yield
@@ -190,12 +192,12 @@ def step(w, got):
 
 def boxed(w, ys, taus, dt):
     """The robot's boxes off the window (`campaign.boxes`, its build's armature the rotors'): each read
-    eased into `boxes` over BOX_WINDOWS where a box wound up, and each encoder's zero read;
-    rigid, only `zero`."""
+    eased into `boxes` over BOX_WINDOWS where a box without a series spring wound up, and each
+    encoder's zero read; rigid, only `zero`."""
     import numpy as np
     read = campaign.boxes(w['body'], ys, taus, dt, w['armature'])
     w['zero'] = read[:, ZERO].copy()
-    got = read[:, WIND] > 0.0
+    got = (read[:, WIND] > 0.0) & w['box_on']
     n = np.minimum(w['box_n'][got] + 1, BOX_WINDOWS)
     w['boxes'][got] += (read[got] - w['boxes'][got]) / n[:, None]
     w['box_n'][got] += 1
@@ -282,8 +284,10 @@ def told(w):
         alarms.append(('torso.m', float(t_mass), float(table['load_kg'])))
     zero_band = float(table.get('zero', math.inf))
     for i, name in enumerate(names_d):
-        if abs(float(w['zero'][i])) > zero_band:
-            alarms.append(('%s.zero' % name, float(w['zero'][i]), zero_band))
+        play0, k0 = w['nominal_boxes'][i]
+        zb = zero_band if w['box_on'][i] else max(zero_band, float(play0) + drives.mesh(name) / float(k0))
+        if abs(float(w['zero'][i])) > zb:
+            alarms.append(('%s.zero' % name, float(w['zero'][i]), zb))
     boxes = {}
     for i, name in enumerate(names_d):
         if w['box_n'][i] == 0:

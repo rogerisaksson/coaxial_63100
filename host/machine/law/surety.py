@@ -61,7 +61,7 @@ def field(y_in, y, fr, a, st, out, prev, dt, ct, t):
     r_gait = 0.28 * min(1.0, float(st[latent.NOW][latent.GAIN]))
     r_lo, r_hi = np.minimum(b_lo, lo.min(axis=0) - r_gait), np.maximum(b_hi, hi.max(axis=0) + r_gait)
     out_xi = (xi - np.clip(xi, r_lo, r_hi)) * (1.0 - w_prop)
-    w_tilt = float(libm.hypot(gyro[0], gyro[2]))
+    w_tilt = float(libm.hypot(gyro[0], gyro[2])) * (1.0 - float(a[modal.BORNE]))
     s_dir = cap * (0.45 + 0.55 * libm.exp(-(libm.sq(out_xi / 0.24)) - 0.04 * (libm.sq(v[:2] * (1.0 - w_prop))) - libm.sq(0.22 * w_tilt)))
     u_xy = np.array([float(up_w @ rot[0]), float(up_w @ rot[1])])
     e_vec = (xi - mid) * (1.0 - w_ext) + 0.35 * u_xy + 0.15 * v[:2]

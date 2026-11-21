@@ -26,9 +26,11 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import numpy as np
 
 from machine import libm
-from machine.body import gait
+from machine.body import drives as _drives, gait
 from machine.body.figure import TOE_M
 from machine.law.poise import EARLY, HALF_M, TINY, clip
+
+SEA_ROLL = float(_drives.track('left_ankle_roll') > 0.0)
 
 #: The robot's stride's numbers, its build's (`[gait.stride]`: each with what it was found at,
 #: Froude-similar on another leg, `machine.body.gait`).
@@ -111,7 +113,8 @@ def beat(drive, psi, sway, lateral, turns, was, need, lead, split, begun, stood,
     sweep, phi = side * s, libm.arctan2(side * s, side * c)
     u = clip((0.5 * (phi / phi_w + 1.0) - begun) / (1.0 - begun) + lead, 0.0, 1.0)
     window = (phi > phi_w - np.pi) * (phi < phi_w) * (1.0 - (stood > 0.5) * (was <= 0.5) * (need <= TINY) * (sweep > EARLY))
-    came = (stood * was * (u > 1.0 - FALL_U) * (u < 1.0))[::-1] * (u <= 0.0)
+    side_hold = SEA_ROLL * (np.abs(drive) < 10.0 * STIRS) * stood * stood[::-1] * was * (phi > phi_w - np.pi - 0.5 * phi_w) * (phi <= phi_w - np.pi)
+    came = np.maximum((stood * was * (u > 1.0 - FALL_U) * (u < 1.0))[::-1], side_hold) * (u <= 0.0)
     waits = was * (1.0 - stood) * stood[::-1]
     on = np.maximum(np.maximum(window * np.maximum(stood[::-1], 1.0 - stood), came), waits)
     u = np.maximum(u, waits * (1.0 - window) * (1.0 - (thrown > 0.0) * (0.5 * (phi / phi_w + 1.0) >= begun)))
@@ -181,7 +184,8 @@ def meets(xi, c, flat, cruise, om, turns, wide, across=0.0, reach=REACH_M, apart
                           -led_lat - LIMBS * wide / (grown + 1.0)], axis=1)
     landed = c[ALONG] + clip(meet[:, ALONG] - c[ALONG], -reach, reach)
     side = flat[::-1, LEFT] + (flat[::-1, ALONG] - landed) * libm.tan(planted[::-1])
-    w_side = clip((np.abs(across) - 0.07) / 0.03, 0.0, 1.0)
+    thresh = 0.07 - 0.06 * SEA_ROLL * (1.0 - clip(np.abs(cruise) / 0.05, 0.0, 1.0))
+    w_side = clip((np.abs(across) - thresh) / 0.03, 0.0, 1.0)
     span = apart + w_side * np.maximum(wide - apart, 0.0)
     return np.stack([landed, side + LIMBS * np.maximum(LIMBS * (meet[:, LEFT] - side), span / libm.cos(planted[::-1]))], axis=1)
 

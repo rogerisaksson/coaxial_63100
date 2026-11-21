@@ -271,6 +271,31 @@ def jump_launch_mm(env, depth_mm, dz_ref=1.0, dx_ref=0.0, legs=2.0, vx_mps=None)
     return round(1e3 * vz * vz / (2.0 * g), 1), round(1e3 * 2.0 * vx * vz / g, 1)
 
 
+@functools.cache
+def _vault_height_cached(_robot, origin_items, col_items, a):
+    import numpy as np
+    from machine.body import figure
+    origin, col = dict(origin_items), dict(col_items)
+    deg = _laid_origin({j: origin.get(j, 0.0) + a * col.get(j, 0.0) for j in set(origin) | set(col)})
+    fists = 0.5 * (np.array(figure.fist(deg, side='left')) + np.array(figure.fist(deg, side='right'))) - (
+        0.0, figure.FIST_R, 0.0)
+    centre = np.array(figure.com(deg, (0.0, 0.0, 0.0), figure.IDENT)) - fists
+    cy, cz = float(centre[1]), float(centre[2])
+    norm = math.sqrt(cy * cy + cz * cz)
+    return -(cy * float(fists[1]) + cz * float(fists[2])) / norm
+
+
+def vault_stroke_mm(env, a0, a1):
+    """mm: fist-hung pelvic vertical stroke between axial modal coordinates `a0` and `a1`."""
+    from machine.body import mechatronics
+    dip = env['high-vault-1jet-posture-atlas']['postures']['carpal-dip-suspension']
+    origin = tuple(sorted(dip['origin-q0'].items()))
+    col = tuple(sorted(dip['modal-basis-columns']['mode-axial-compression'].items()))
+    h0 = _vault_height_cached(mechatronics.ROBOT, origin, col, round(float(a0), 6))
+    h1 = _vault_height_cached(mechatronics.ROBOT, origin, col, round(float(a1), 6))
+    return round(1e3 * (h0 - h1), 1)
+
+
 #: Pure build-parameterized functions and special forms exposed in `machine.texts.dsp`.
 FUNCS = {
     'robot-clothoid-kappa': clothoid_kappa,
@@ -283,6 +308,7 @@ def special(val_fn):
     """Build-parameterized special forms `(args, env) -> value` for `dsp.SPECIAL`."""
     return {
         'robot-roll-radius-m': lambda _a, env: roll_radius_m(env),
+        'robot-vault-stroke-mm': lambda a, env: vault_stroke_mm(env, val_fn(a[0], env), val_fn(a[1], env)),
         'robot-jump-apex-mm': lambda a, env: jump_launch_mm(env, val_fn(a[0], env))[0],
         'robot-jump-angled-apex-mm': lambda a, env: jump_launch_mm(env, *(val_fn(x, env) for x in a))[0],
         'robot-jump-angled-span-mm': lambda a, env: jump_launch_mm(env, *(val_fn(x, env) for x in a))[1],

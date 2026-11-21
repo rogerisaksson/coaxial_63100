@@ -166,14 +166,16 @@ def _by(seg, low, high):
     return out
 
 
-def _reach(y, way, skin, hard):
-    """How far from the axis a guard's surface lies at the height `y` the `way` out: the capsules `skin`'s
-    furthest, or AIR_M and a foam past the mechanism `hard` the way meets within NEAR_M; -1 where neither."""
+def _reach(y, way, skin, hard, slim=1.0, behind=0.0):
+    """How far from the axis a guard's surface lies at the height `y` the `way` out: `slim` of the capsules
+    `skin`'s furthest, or AIR_M, a foam and what stands `behind` it (a hoop) past the mechanism `hard` the way meets
+    within NEAR_M; -1 where neither."""
     o = (0.0, y, 0.0)
-    out = max([_capsule(o, way, a, b, r) for a, b, r in skin] + [-1.0])
+    shell = max([_capsule(o, way, a, b, r) for a, b, r in skin] + [-1.0])
+    out = slim * shell if shell >= 0.0 else -1.0
     for a, b, r, capped in hard:
         t = _barrel(o, way, a, b, r, True) if capped else _capsule(o, way, a, b, r)
-        out = max(out, t + AIR_M + THICK_M - SKIN_M) if 0.0 <= t <= NEAR_M else out
+        out = max(out, t + AIR_M + THICK_M - SKIN_M + behind) if 0.0 <= t <= NEAR_M else out
     return out
 
 
@@ -200,13 +202,13 @@ def _strut(foot, tubes):
         [(across if i == j else 0.0) + (about - across) * w[i] * w[j] for j in range(3)] for i in range(3)]
 
 
-def _guard(s, top, foot, am, ah, skin, hard):
+def _guard(s, top, foot, am, ah, skin, hard, slim=1.0, behind=0.0):
     """([(centre, around, along, half sizes, kg)], [a strut's foot]): a guard from the height `top` down to
     `foot`, `ah` rad either side of `am`, in flat pieces round its axis; its x times `s`."""
     def way(a):
         return s * math.cos(a), 0.0, math.sin(a)
     ym = (top + foot) / 2.0
-    widest = max(_reach(y, way(a), skin, hard) for y in (top, ym, foot) for a in (am - ah, am, am + ah))
+    widest = max(_reach(y, way(a), skin, hard, slim, behind) for y in (top, ym, foot) for a in (am - ah, am, am + ah))
     if widest < 0.0:
         return [], []
     n = max(1, math.ceil(ah / math.acos(1.0 - THICK_M / (2.0 * (widest + SKIN_M)))))
@@ -215,7 +217,7 @@ def _guard(s, top, foot, am, ah, skin, hard):
     for k in range(n):
         a0, a1 = am - ah + 2.0 * ah * k / n, am - ah + 2.0 * ah * (k + 1) / n
         ac = (a0 + a1) / 2.0
-        told = [[_reach(y, way(a), skin, hard) * math.cos(a - ac) for a in
+        told = [[_reach(y, way(a), skin, hard, slim, behind) * math.cos(a - ac) for a in
                  (a0 + (a1 - a0) * j / (COLUMNS - 1) for j in range(COLUMNS))] for y in rows]
         every = [v for row in told for v in row if v >= 0.0]
         if not every:
@@ -242,7 +244,7 @@ def _guard(s, top, foot, am, ah, skin, hard):
     return out, feet
 
 
-def _hoop(s, hoop, skin, hard):
+def _hoop(s, hoop, skin, hard, slim=1.0, behind=0.0):
     """[(kg, centre, 3x3 inertia about it)]: a hoop (`HOOPS`) flat at its height round from and to, its middle
     CLIP_M behind its guards' backs, a chord of carbon between each two of its points, and a leg in from each end in
     its own plane to the axis - the hoop and its legs one sheet's cut."""
@@ -251,7 +253,7 @@ def _hoop(s, hoop, skin, hard):
     def at(a):
         sine, cosine = libm.sincos(a)
         way = (s * cosine, 0.0, sine)
-        r = max(_reach(y, way, skin, hard), 0.0) + SKIN_M - THICK_M - CLIP_M - HOOP_M[0] / 2.0
+        r = max(_reach(y, way, skin, hard, slim, behind), 0.0) + SKIN_M - THICK_M - CLIP_M - HOOP_M[0] / 2.0
         return tuple(r * v + (y if k == 1 else 0.0) for k, v in enumerate(way))
     path = [at(a0 + (a1 - a0) * k / 16.0) for k in range(17)]
     legs = [(end, (0.0, y, 0.0)) for end in (path[0], path[-1])]
@@ -291,15 +293,18 @@ def _lay(seg):
         rows.append((top, foot, r[2], r[3], shape(r)))
     skin = [(a, b, r) for r, a, b in skin_of(seg)]
     hard = _by(seg, min(foot for _t, foot, *_ in rows), max(top for top, *_ in rows))
+    slim, lift = (SLIM if seg == 'torso' else 1.0), (HOOP_M[0] + CLIP_M if hoops(part) else 0.0)
     slabs, pieces = [], []
     for top, foot, mid, half, form in rows:
-        laid, feet = _guard(s, top, foot, math.radians(mid), math.radians(half), skin, hard)
+        clip = held(part, top, foot, mid)
+        laid, feet = _guard(s, top, foot, math.radians(mid), math.radians(half), skin, hard,
+                            slim, 0.0 if clip is None else lift)
         share = _area(form[0]) / _area(POWER)                  # its outline's share of the box laid
         slabs += [(centre, around, along, size) for centre, around, along, _n, size, _kg in laid]
         pieces += [_box(kg * share, centre, (around, along, normal), size)
                    for centre, around, along, normal, size, kg in laid]
-        pieces += [] if held(part, top, foot, mid) is not None else [_strut(f, tubes(seg)) for f in feet]
-    pieces += [p for hoop in hoops(part) for p in _hoop(s, hoop, skin, hard)]
+        pieces += [] if clip is not None else [_strut(f, tubes(seg)) for f in feet]
+    pieces += [p for hoop in hoops(part) for p in _hoop(s, hoop, skin, hard, slim, lift)]
     return slabs, pieces
 
 

@@ -191,9 +191,12 @@ def test_a_recording_is_60_hz_and_whole_about_the_robots_stumble(report):
         worker.stepped(s)
     watch.recorded(s, name)
     worker.apply(s, {'say': 'walk'})
-    t0 = s['g']['t']
+    t0, shoved = s['g']['t'], False
     while (s['fallen_at'] is None and s['g']['t'] < t0 + SLIP_S) or (
             s['fallen_at'] is not None and s['g']['t'] < s['fallen_at'] + 1.5):
+        if not shoved and s['fallen_at'] is None and s['g']['t'] >= t0 + 4.0:
+            worker.apply(s, {'push': (200.0, 0.0, 0.0)})
+            shoved = True
         worker.stepped(s)
     scope = s['recording']['scope']
     watch.recorded(s, None)

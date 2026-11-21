@@ -12,6 +12,8 @@ points, the knees, the trunk, the robot's mass and the master insert's buffers (
 body form of the product of exponentials, T = T_parent X exp([S] q); the firmware runs it (`wbc/`), MuJoCo stays the reference
 (tests/test_wbc_core.py).
 """
+from contextlib import suppress
+import hashlib
 import importlib
 import os
 import sys
@@ -313,7 +315,7 @@ def compiled():
     if robot in _LAID:
         return _LAID[robot]
     from machine.stack import wbc
-    from tools.cores.build import OUT
+    from tools.cores.build import OUT, _claimed, _unmarked
     _LAID[robot] = None
     try:
         b = wbc.Body()
@@ -322,16 +324,21 @@ def compiled():
         _LAID.pop(robot)
     with open(HEADER, encoding='utf-8', newline='') as f:
         if f.read() != header:
-            raise RuntimeError('%s lays another wbc_model.h than wbc/inc holds' % mechatronics.ROBOT)
-    path, laid = os.path.join(OUT, 'wbc_model_%s.c' % mechatronics.ROBOT), None
-    if os.path.isfile(path):
-        with open(path, encoding='utf-8', newline='') as f:
-            laid = f.read()
-    if laid != source:
-        os.makedirs(OUT, exist_ok=True)
-        with open('%s.%d' % (path, os.getpid()), 'w', encoding='utf-8', newline='\n') as f:
-            f.write(source)
-        os.replace('%s.%d' % (path, os.getpid()), path)
+            raise RuntimeError('%s lays another wbc_model.h than wbc/inc holds' % robot)
+    digest = hashlib.sha1(source.encode('utf-8')).hexdigest()[:12]
+    path = os.path.join(OUT, 'wbc_model_%s_%s.c' % (robot, digest))
+    if not os.path.isfile(path) and _claimed(path):
+        try:
+            tmp = '%s.%d' % (path, os.getpid())
+            with open(tmp, 'w', encoding='utf-8', newline='\n') as f:
+                f.write(source)
+            with suppress(OSError):
+                os.replace(tmp, path)
+            if os.path.isfile(tmp):
+                with suppress(OSError):
+                    os.remove(tmp)
+        finally:
+            _unmarked(path + '.building')
     _LAID[robot] = path
     return path
 

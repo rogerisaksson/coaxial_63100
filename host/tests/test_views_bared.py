@@ -93,6 +93,7 @@ def test_guards_of_honeycomb_stood_off_the_tubes(report):
     its bars black and nothing behind them, the seat's net -, stood off the tubes on struts with air between; none
     closes its limb, a leg's inside and its back wear none, and its hips, its seat and the small of its back are open;
     a knee's cup clears its knee's drum."""
+    import math
     import numpy as np
     from coaxial.graphics import guards, gynoid, livery, panels
     from machine.body import skeleton
@@ -102,12 +103,17 @@ def test_guards_of_honeycomb_stood_off_the_tubes(report):
     report.check("a guard on each limb's four segments, a side each, and on the trunk; none on its hips, its neck, a "
                  'hand or a foot',
                  worn == sorted(['torso'] + [s + n for s in ('left_', 'right_') for n in guards.LIMB]), worn)
-    paints = (livery.FRAME, livery.VOID, livery.BOLT, livery.STEEL)
     air, free, cells, meets, opens, reach = {}, {}, {}, [], [], {}
     for seg in worn:
         corners, triangles, _uv, ink = body.parts[names.index('guard_' + seg)][5]
         side, _, limb = seg.partition('_')
-        x, steel = -1.0 if side == 'right' else 1.0, ink == livery.STEEL
+        part = limb if limb in guards.LIMB else seg
+        rows_g = ([(-a * panels.LIMBS[limb][0], -b * panels.LIMBS[limb][0], m) for _n, a, b, m, *_ in guards.LIMB[limb]]
+                  if limb in guards.LIMB else [(hi, lo, m) for _n, lo, hi, m, *_ in guards.TRUNK])
+        req = ({livery.FRAME, livery.VOID, livery.BOLT}
+               | ({livery.STEEL} if any(guards.held(part, top, foot, mid) is None for top, foot, mid in rows_g) else set())
+               | ({livery.TUBE} if guards.hoops(part) else set()))
+        x, hardware = -1.0 if side == 'right' else 1.0, np.isin(ink, (livery.STEEL, livery.TUBE))
         island = _islands(triangles, len(corners))
         roots, counts = np.unique(island, return_counts=True)
         rings = np.array([corners[island == r] for r, n in zip(roots, counts) if n == 12 and ink[r] == livery.VOID])
@@ -117,14 +123,17 @@ def test_guards_of_honeycomb_stood_off_the_tubes(report):
         apart[np.arange(len(rings)), np.arange(len(rings))] = 9.0
         meets.append(apart.min(axis=(1, 2, 3)))          # a corner shared with a neighbour's ring: 0
         opens.append(inner / out)
-        cells[seg] = len(rings) if set(np.unique(ink).tolist()) >= set(paints) else 0
+        cells[seg] = len(rings) if set(np.unique(ink).tolist()) >= req else 0
         if limb in guards.LIMB:
             tubes = skeleton.runs(limb, x)
-            air[seg], reach[seg] = float(_off(corners[~steel], tubes).min()), float(_off(corners[steel], tubes).min())
-            about = np.degrees(np.arctan2(corners[~steel, 2], x * corners[~steel, 0])) % 360.0
+            air[seg] = float(_off(corners[~hardware], tubes).min())
+            reach[seg] = float(_off(corners[ink == livery.STEEL], tubes).min())
+            about = np.degrees(np.arctan2(corners[~hardware, 2], x * corners[~hardware, 0])) % 360.0
             free[seg] = set(range(24)) - set((about // 15.0).astype(int).tolist())
-            low, high = corners[~steel, 1].min() / panels.LIMBS[limb][0], corners[~steel, 1].max() / panels.LIMBS[limb][0]
-            cells[seg] *= bool(-0.92 < low and high < 0.09)
+            low, high = (corners[~hardware, 1].min() / panels.LIMBS[limb][0],
+                         corners[~hardware, 1].max() / panels.LIMBS[limb][0])
+            span = max(0.92, max(float(b) for _n, _a, b, *_ in guards.LIMB[limb]) + 0.05)
+            cells[seg] *= bool(-span < low and high < 0.09)
     meet, opening = np.concatenate(meets), np.concatenate(opens)
     report.check("a guard is a rim, an open honeycomb in it - black bars, nothing behind them -, rivets and struts; its "
                  "cells a honeycomb - a ring of bars each, open within, meeting its neighbours' -, short of its limb's ends",
@@ -142,11 +151,14 @@ def test_guards_of_honeycomb_stood_off_the_tubes(report):
                  and all(inside | behind <= free[s + n] for s in ('left_', 'right_') for n in ('thigh', 'shank')),
                  {seg: len(ways) for seg, ways in free.items()})
     trunk, ink = body.parts[names.index('guard_torso')][5][0], body.parts[names.index('guard_torso')][5][3]
-    trunk = trunk[ink != livery.STEEL]
+    trunk = trunk[~np.isin(ink, (livery.STEEL, livery.TUBE))]
+    dorsal = min(float(lo) for _n, lo, _hi, mid, *_ in guards.TRUNK if math.sin(math.radians(float(mid))) < -0.5) - 0.005
+    ventral = min(float(lo) for _n, lo, *_ in guards.TRUNK) - 0.005
     report.check('its hips, its seat and the small of its back are open: no guard on its hips, the trunk\'s behind '
                  'none under its shoulder blades\' slat, ahead none under its belly\'s',
-                 'guard_pelvis' not in names and float(trunk[trunk[:, 2] < -0.02, 1].min()) > 0.15
-                 and float(trunk[:, 1].min()) > 0.055,
+                 'guard_pelvis' not in names and dorsal > 0.10 and ventral > 0.03
+                 and float(trunk[trunk[:, 2] < -0.02, 1].min()) > dorsal
+                 and float(trunk[:, 1].min()) > ventral,
                  'behind from %.3f m up the trunk, ahead from %.3f' % (trunk[trunk[:, 2] < -0.02, 1].min(), trunk[:, 1].min()))
     pos, _n = body.pose({})
     cup, drum = (pos[slice(*body.spans[names.index(name)])] for name in ('guard_left_shank', 'drive_left_knee'))

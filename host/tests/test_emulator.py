@@ -34,7 +34,7 @@ from tools.emu import protocol_emulator
 from tools.emu import world as worlds
 from tools.emu.emulator import (BOOT_ELF, ELF, FAITHFUL_MIPS, Emulator, Limb,
                                 find_renode)
-from emulator_kit import one, run
+from emulator_kit import one, run, stock_wbc
 
 AFE = worlds.AFE
 ANGLE = 'sysbus.spi4.angle'
@@ -71,20 +71,12 @@ def test_the_image_proves_itself(report, rig, emu):
 def test_the_loop_ticks_on_the_image(report, rig, emu):
     """The whole-body loop on the image, ticked on the model's stand: its cycles a tick, cold
     and warm, and its torques the host loop's on the same stand."""
-    from tools.cores import wbc as core
     got = rig.board.wbc.tick(2)
     report.check('the loop ticks on the image, its set settled', got['stuck'] == 0,
                  '%.0f us cold, %.0f us warm at %.0f MHz; %d held, %d passes' % (
                      got['us_first'], got['us_last'], got['sysclk_hz'] / 1e6, got['held'],
                      got['passes']))
-    from machine.stack import wbc
-    from test_wbc_core import _standing
-    b = wbc.Body()
-    _s, ask = _standing(b)
-    base, q, u, _t = core.state_of(b)
-    c = core.shared()
-    c.reset()
-    ours = c.stack(base, q, u, ask)['tau'][:3]
+    ours = stock_wbc()['loop_tau']
     report.check('its torques are the host loop\'s on the same stand, within 1e-3 N m',
                  max(abs(a - b) for a, b in zip(got['tau'], ours)) < 1e-3,
                  '%s against %s' % (['%.3f' % t for t in got['tau']], ['%.3f' % t for t in ours]))
@@ -94,23 +86,13 @@ def test_the_step_ticks_on_the_image(report, rig, emu):
     """The step without an active set (wbc_wrench.c) on the image at the robot's stand's pose, its
     torques and the robot's soles' loads the host's: on its stand, then its right sole swung
     (op 2) - its four rounds, striding, setting out."""
-    import numpy as np
-    from machine.stack import wbc
-    from test_wbc_core import _standing
-    from tools.cores import wbc as core
-    b = wbc.Body()
-    s, ask = _standing(b)
-    base, q, u, _t = core.state_of(b)
-    sole, step = s['feet'][1], rig.board.wbc
-    swung = dict(ask, stance=(True, False), fold={1: (0.6, 0.0, 0.0)},
-                 swing={1: (sole['sole'], np.zeros(3), np.zeros(3), sole['quat'])})
-    for label, got, asked in (('the step ticks on the image', step.step(2), ask),
-                              ('a sole swung, its four rounds', step.swung(2), swung),
-                              ('striding', step.swung(2, 1.0), dict(swung, strides=1.0)),
-                              ('setting out', step.swung(2, 0.5), dict(swung, strides=0.5))):
-        ours = core.shared().wrench(base, q, u, asked)
-        apart = max([abs(a - c) for a, c in zip(got['tau'], ours['tau'][:3])]
-                    + [abs(a - c) for a, c in zip(got['bears'], ours['bears'])])
+    step = rig.board.wbc
+    for (label, got), (tau, bears) in zip((('the step ticks on the image', step.step(2)),
+                                           ('a sole swung, its four rounds', step.swung(2)),
+                                           ('striding', step.swung(2, 1.0)),
+                                           ('setting out', step.swung(2, 0.5))), stock_wbc()['steps']):
+        apart = max([abs(a - c) for a, c in zip(got['tau'], tau)]
+                    + [abs(a - c) for a, c in zip(got['bears'], bears)])
         report.check(label + ': its torques and loads the host step has, within 2e-3', apart < 2e-3,
                      '%.0f us warm at %.0f MHz; %s N m, %s N; %.1e apart' % (
                          got['us_last'], got['sysclk_hz'] / 1e6, ['%.3f' % x for x in got['tau']],

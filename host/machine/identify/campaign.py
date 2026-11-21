@@ -178,6 +178,10 @@ def boxes(body, ys, taus, dt, armature, every=1):
             got_z = _deadband(delta[:, i], rel[:, i], mot3[:, i] - J * wacc[:, i], w_nm)
             if got_z is not None:
                 k, play, c, mesh, zero = got_z
+        ks = drives.series(joint_name)
+        if ks > 0.0 and (k == 0.0 or drives.track(joint_name) > 0.0) and len(taus):
+            k0 = 1.0 / (1.0 / drives.wind(joint_name) + 1.0 / ks)
+            zero = float(np.median(wound_up[:-1, driven[i]] - taus[:, driven[i]] / k0))
         out[i] = k, play, c, mesh, J, zero
     return out
 

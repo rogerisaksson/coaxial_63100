@@ -144,11 +144,8 @@ def truth(lay, m):
 
 
 def stepped(lay, theta):
-    """`theta` with each series drive's armature its servo's and its rotor's, as the world steps it - its armature
-    the servo's, its rotor the box's (`machine.world.physics`) -, where the robot's law lumps its rotor alone
-    (`mjcf`): the build as it runs. As the law holds it, an ankle's 0.293 kg m^2 for the world's 0.343 put the
-    robot's swing's torque 15 % short, and the on-line filter read the left ankle's torque an amp 0.42 down on
-    the robot as built (`wear`): stepped, 0.03, its misfit 2.36 -> 0.79 N m."""
+    """`theta` with each series drive's armature its servo's and its rotor's, as the world steps it
+    (`machine.world.physics`), where the robot's law lumps its rotor alone (`mjcf`)."""
     out = theta.copy()
     for i, name in enumerate(lay['drives']):
         if series(name):
@@ -159,7 +156,7 @@ def stepped(lay, theta):
 _rotations = campaign.rotations
 
 
-def _state(lay, body, ys, dt, every, extra=None):
+def _state(lay, body, ys, dt, every, extra=None, at=None):
     """(qpos, qvel, qacc, a0, wacc, at) of the robot's edge arrays `ys` a step `dt` apart, every
     `every`th: its turn, spin and specific force its IMU's, its joints the robot's
     encoders'; a rate's difference over the step its acceleration; what the robot does not measure - the
@@ -167,7 +164,7 @@ def _state(lay, body, ys, dt, every, extra=None):
     - at rest unless `extra` is given; each motor's acceleration through its gearbox (QM) by
     differences over the steps about each sample, the armature's column - rigid, the joint's own."""
     import numpy as np
-    m, at = body.m, np.arange(0, len(ys) - 1, every)
+    m, at = body.m, np.arange(0, len(ys) - 1, every) if at is None else at
     n, qadr, vadr = len(at), lay['qadr'], lay['vadr']
     qpos, qvel, qacc = np.zeros((n, m.nq)), np.zeros((n, m.nv)), np.zeros((n, m.nv))
     ys_arr = np.asarray(ys)
@@ -281,11 +278,20 @@ def borne(lay, body, ys, dt, every=1):
 
 def borning(lay, body, ys, dt, every=1):
     """`borne` a part at a time: its frames and its regressor ROWS_AT states a part, laid whole as
-    one call lays them - numpy's own orders the same on them."""
+    one call lays them - numpy's own orders the same on them; `every` past 1 snaps each sample to the
+    nearest step where the insoles refreshed (`sprung.passed`)."""
     import numpy as np
-    m = body.m
-    qpos, qvel, qacc, a0, wacc, at = _state(lay, body, ys, dt, every)
-    now = np.asarray([ys[i + 1] for i in at])
+    m, ys_arr = body.m, np.asarray(ys)
+    at = np.arange(0, len(ys_arr) - 1, every)
+    if every > 1 and len(at):
+        raw = np.c_[ys_arr[:, edge.PRESS], ys_arr[:, edge.COP]]
+        fresh = np.flatnonzero(np.any(np.diff(raw, axis=0) != 0.0, axis=1))
+        if len(fresh):
+            hi = np.clip(np.searchsorted(fresh, at), 0, len(fresh) - 1)
+            lo = np.maximum(hi - 1, 0)
+            at = np.where(np.abs(fresh[lo] - at) <= np.abs(fresh[hi] - at), fresh[lo], fresh[hi])
+    qpos, qvel, qacc, a0, wacc, at = _state(lay, body, ys_arr, dt, every, at=at)
+    now = ys_arr[at + 1]
     yield
     parts, Y = [], None
     for s in range(0, len(at), ROWS_AT):
@@ -414,12 +420,9 @@ def identify(b, Y, tau, min_condition=1e-9):
 
 
 def motor(t, q, tau, gear=1.0, hz=None):
-    """{J, b, f, gravity, offset, residual, rms} of one drive off its own rows: `t` s, `q` its
-    shaft, rad, `tau` its torque, N m - J qdd + b qd + f sgn qd + gravity sin(q / gear) + offset
-    = tau by least squares, q and tau low-passed at `hz` (`campaign.SMOOTH_HZ`) both ways, the
-    first and last second left out, and the rows either side of a gap in `t` (a record lost on
-    the wire: its differences are no derivative); residual N m rms of what is left, rms the
-    torque's, gaps how many rows a gap cost."""
+    """{J, b, f, gravity, offset, residual, rms, gaps} of one drive off its own rows: `t` s, `q` rad,
+    `tau` N m fitted by least squares, low-passed at `hz` (`campaign.SMOOTH_HZ`) both ways, the first
+    and last second and rows beside a gap in `t` left out."""
     import numpy as np
     from machine.identify import campaign
     dt, hz = float(np.median(np.diff(t))), hz or campaign.SMOOTH_HZ
