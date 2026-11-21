@@ -42,7 +42,7 @@ PIECES = (
     ('cradle', 'roll', ('cradle band', 'saddle'), X, 1), ('pitch guard', 'roll', ('pitch guard',), None, 1),
     ('pitch lid', 'roll', ('pitch lid',), None, 1), ('thigh arm', 'thigh', ('neck',), IN, 1),
     ('thigh knuckle', 'thigh', ('knuckle',), None, 1), ('thigh foot', 'still', ('thigh tube',), None, 1),
-    ('thigh shim', 'still', ('thigh seat',), None, 1), ('stator clamp', 'still', ('stator band', 'saddle'), X, 1),
+    ('thigh shim', 'still', ('thigh seat',), None, 1), ('stator clamp', 'still', ('stator band', 'saddle'), IN, 1),
     ('knee guard', 'still', ('board cover',), None, 1), ('knee lid', 'still', ('board lid',), None, 1),
     ('multi-clamp', 'turning', ('output band', 'web', 'pitch band', 'cage', 'shank seat'), IN, 1),
     ('shank shim', 'turning', ('shank seat',), None, 1), ('collar', 'turning', ('collar',), IN, 1),

@@ -5,17 +5,19 @@
 The knee's stack and the ankle's two drives under it as `skeleton.cans` lays them - the two back to back on one axis,
 each inverter on its motor's back between them -, the leg's tubes' radii as `[skeleton] hung` has them. Printed
 pieces, each laid on a bed face across the knee's axis and grown from it with nothing past 45 degrees. The stator
-clamp (the thigh's side), printed from its back face: a slit band round the motor, the saddle up to the thigh's seat;
-where the knee's inverter rides its motor's back, the board's cover behind it (`covered`) - its face the clamp's bed,
-an open black honeycomb, the bus's hose in a holder of its ring and its lid off beside it (`fittings`) - else a lip
-the motor is pushed back against. The multi-clamp (the shank's side), printed from its front face and pushed onto
-the knee's output ring: a sleeve round that ring, webs, a slit band round the pitch drive's motor and on
-from its back a cage round both inverters, its wall a honeycomb the air runs through, and the shank's seat on a foot
-under it. The pitch drive goes in through the cage's open top, its inverter resting on the cage's floor; the roll
+clamp (the thigh's side), printed from its front face: a slit band round the motor and on round the gearbox's still
+housing to that face, the saddle up to the thigh's seat, its waist the least that holds over what of it stands on
+the band; where the knee's inverter rides its motor's back, the board's cover behind it (`covered`) - its face flush
+with the clamp's back, an open black honeycomb, the bus's hose in a holder of its ring and its lid off beside it
+(`fittings`), the saddle over it - else a lip the motor is pushed back against. The multi-clamp (the shank's side),
+printed from its front face and pushed onto the knee's output ring: a sleeve round that ring, webs, a slit band
+round the pitch drive's motor and on from its back a cage round both inverters, its wall a honeycomb the air runs
+through, and the shank's seat on a foot under it - the foot on the cage and on past it on the pitch drive's band,
+its waist the least that holds over both. The pitch drive goes in through the cage's open top, its inverter resting on the cage's floor; the roll
 drive, its inverter first, after it, held by a collar - the third piece, printed from its flange - screwed onto the
 cage's top. The drives let down the shank just so far that the cage keeps AIR_M off the knee's stator (`laid`); the
 thigh's tube on a line through the hip's axis, leant (`tilt`) to pass `ahead` of the knee's by the least that lets the
-knee bend to the end of its travel (`ahead`), the shank's tube on its own line (`shank_line`).
+knee bend to the end of its travel (`knee_stop.ahead`), the shank's tube on its own line (`shank_line`).
 """
 import functools
 import math
@@ -95,7 +97,9 @@ def laid():
     shank just so far that the cage and the collar keep AIR_M off the knee's stator, 'drop': that move, 'walls':
     each band's wall, gripping its drum's torque and hiding its pinch screws (`sized.band`), 'cover': the knee's
     board's cover's (face, seat, board's radius, band's outside) or None, 'rim': the cage's rim's (wall, its
-    screws' thread mm), the collar screwed into it (`sized.rim`)}."""
+    screws' thread mm), the collar screwed into it (`sized.rim`), 'saddle': the stator clamp's saddle's (from, to)
+    along x - from the clamp's back to AIR_M short of the multi-clamp, the stator's band on round the gearbox's
+    still housing to its front: the clamp grows off that face, nothing hung}."""
     (m0, m1, can), (g0, g1, ring), ankles, thigh, shank = _stack()
     (pitch, (py, pz)), (roll, (ry, rz)) = ankles['pitch'], ankles['roll']
     assert abs(py - ry) < 1e-9 and abs(pz - rz) < 1e-9, "the ankle's drives on one axis"
@@ -106,15 +110,16 @@ def laid():
     bed_s = max(g1, pg0 + em.OUTPUT_SHARE * (pg1 - pg0) - 0.0025)   # the pitch drive's housing's end
     board = knee_board()
     bed_t = board[0] - AIR_M - cv.WALL_M if board else m0 - LIP_X   # the cover's face, else the lip behind the motor
-    bone = bed_t + thigh + em.OVAL_PAST[0]               # the thigh's seat flush with the stator clamp's bed
-    knee, ankle = kl.loads('knee')['swing'], ks.torque('ankle')
+    bone = bed_t + thigh + em.OVAL_PAST[0]               # the thigh's seat flush with the stator clamp's back
+    front = min(bone + thigh + em.OVAL_PAST[0], min(k_split + 0.0025, pm0) - AIR_M)   # its saddle's front, AIR_M
+    knee, ankle = kl.loads('knee')['swing'], ks.torque('ankle')                       # short of the multi-clamp
     grips = {'stator': (knee, 1e3 * can, 1e3 * (m1 - 0.002 - m0)), 'output': (knee, 1e3 * ring, 1e3 * (
         g1 - k_split - 0.0025)), 'pitch': (ankle, 1e3 * r_m, 1e3 * (bed_s - pm0)), 'collar': (ankle, 1e3 * r_m, 1e3 * (
             rm1 - COLLAR_M - rm0 - 0.002))}
     walls = {k: 1e-3 * ks.band(*grip) for k, grip in grips.items()}
     t_s, t_o, t_p, t_l = walls['stator'], walls['output'], walls['pitch'], walls['collar']
     stator = ([] if board else [(bed_t, can - LIP_M, can + t_s), (m0, can - LIP_M, can + t_s)]) + [
-        (m0, can, can + t_s), (m1 - 0.002, can, can + t_s)]
+        (m0, can, can + t_s), (max(m1 - 0.002, front), can, can + t_s)]   # on round the gearbox's housing to it
     cover = (bed_t, m0, board[2], can + t_s) if board else None
     output = [(k_split + 0.0025, ring, ring + t_o), (bed_s, ring, ring + t_o)]   # on past the ring, a sleeve
     r_c = max(pitch['board'][2], roll['board'][2]) + boards.LEAD_M   # round the inverters and their leads
@@ -130,7 +135,7 @@ def laid():
     cy = min(py, -math.sqrt(max(_need(held, still) ** 2 - pz ** 2, 0.0)))
     return {'bone': bone, 'bed': (bed_t, bed_s, rm1), 'stator': stator, 'output': output, 'pitch_band': pitch_band,
             'cage': cage, 'collar': collar, 'pitch': (pitch, (cy, pz)), 'roll': (roll, (cy, rz)), 'drop': py - cy,
-            'walls': walls, 'cover': cover, 'rim': rim}
+            'walls': walls, 'cover': cover, 'rim': rim, 'saddle': (bed_t, front)}
 
 
 @functools.lru_cache(maxsize=None)
@@ -231,11 +236,12 @@ def bodies(apart=False, flex=0.0, socket='torx', ahead=0.0):
     z_t = (ahead - deep_t, ahead + deep_t)
     top, low = seats(ahead)
     first = lay['output'][0][0]                          # the multi-clamp's web starts at the cage's end or its band
-    x_t = (bed_t, min(bone + reach_t, min(first, c1) - AIR_M))   # the saddle AIR_M short of it, however bent
-    waist, rounds = 1e-3 * ks.neck(1e3 * (x_t[1] - x_t[0])), [(x_t[0], x_t[1], over)]
+    x_t = lay['saddle']                                  # the saddle AIR_M short of it, however bent
+    rounds, on = [(x_t[0], x_t[1], over)], x_t[0]
     if lay['cover']:                                     # over the cover the saddle keeps off it, on the band it holds
-        _a, end, outside = cv.span(*lay['cover'])
-        rounds = [(x_t[0], end, outside + cv.FIT_M), (end, x_t[1], over)]
+        _a, on, outside = cv.span(*lay['cover'])
+        rounds = [(x_t[0], on, outside + cv.FIT_M), (on, x_t[1], over)]
+    waist = 1e-3 * ks.neck(1e3 * (x_t[1] - on))         # the least that holds over what stands on the band
     still['saddle'] = [t for a, b, r in rounds for t in em._rounded(cl.filleted(cl.necked(
         (0.0, 0.0), r, top, z_t, waist)), a, b, em.FRAME, axis=0, r=cl.EDGE_M, steps=1)]
     still['thigh seat'] = em._rounded(cl.oval(reach_t, deep_t, (bone, ahead)), top - 0.002, top + em.SEAT_M,
@@ -275,9 +281,11 @@ def bodies(apart=False, flex=0.0, socket='torx', ahead=0.0):
     ahead_s = shank_line()
     z_s = (ahead_s - deep_s, ahead_s + deep_s)
     x_s = (bone - reach_s, bed_s)
-    girth = 1e-3 * ks.neck(1e3 * (x_s[1] - x_s[0]))     # the foot's waist under the cage
-    foot = em._rounded(cl.filleted(cl.necked((py, pz), o_c - 0.001, low, z_s, girth)), c0, bed_s, em.FRAME, axis=0,
-                       r=cl.EDGE_M, steps=1)
+    girth = 1e-3 * ks.neck(1e3 * (x_s[1] - max(x_s[0], c0)))   # the foot's waist: the least that holds over what
+    foot = em._rounded(cl.filleted(cl.necked((py, pz), o_c - 0.001, low, z_s, girth)), c0, c1, em.FRAME, axis=0,
+                       r=cl.EDGE_M, steps=1)                  # stands on the cage and on past it on the pitch's band
+    foot += em._rounded(cl.filleted(cl.necked((py, pz), lay['pitch_band'][-1][2] - 0.001, low, z_s, girth)), c1,
+                        bed_s, em.FRAME, axis=0, r=cl.EDGE_M, steps=1)
     foot += em._rounded(cl.filleted(cl.necked((py, pz), o_c + AIR_M, low, z_s, girth)), x_s[0], c0, em.FRAME,
                         axis=0, r=cl.EDGE_M, steps=1)
     turning['shank seat'] = foot + em._rounded(cl.oval(reach_s, deep_s, (bone, ahead_s)), low + 0.002,
@@ -302,74 +310,6 @@ def bodies(apart=False, flex=0.0, socket='torx', ahead=0.0):
         return parts, [], still, turning
     parts = [t for v in still.values() for t in v] + km._turn([t for v in turning.values() for t in v], flex)
     return parts, cables, still, turning
-
-
-def _culprits(still, turning, deg, h):
-    """(still part, turning part, m): the two nearest each other with the shank's side turned `deg`."""
-    import numpy as np
-    best = ('', '', float('inf'))
-    for s, tris in still.items():
-        a = km._points(tris)
-        keys = km._key(np.floor(a / h).astype(np.int64))
-        order = np.argsort(keys)
-        for t, moving in turning.items():
-            d = km._least(keys[order], a[order], km._points(moving) @ km._rx(deg).T, h)
-            if d < best[2]:
-                best = (s, t, d)
-    return best
-
-
-def stop(ahead=0.0, step=2.5, coarse=4):
-    """(the knee's stop, deg, (still part, turning part, m) that set it or None): the last turn from straight at which
-    what turns stays CLEAR_M off what stays, up to the end of the knee's travel - looked at every `coarse` steps, then
-    step by step after the last clear look."""
-    import numpy as np
-    from machine.body import drives
-    _p, _c, still, turning = bodies(ahead=ahead)
-    moving = {k: v for k, v in turning.items() if k != 'output ring'}     # the output ring rides its bearing
-    h = 0.006
-    a = km._points([t for v in still.values() for t in v])
-    keys = km._key(np.floor(a / h).astype(np.int64))
-    order = np.argsort(keys)
-    pts = km._points([t for v in moving.values() for t in v])
-    turns = np.arange(0.0, drives.TRAVEL['knee'][1] + 0.1, step)
-
-    def hit(i):
-        return km._least(keys[order], a[order], pts @ km._rx(float(turns[i])).T, h) < em.CLEAR_M
-    looks = list(range(0, len(turns), coarse)) + ([len(turns) - 1] if (len(turns) - 1) % coarse else [])
-    first = next((i for i in looks if hit(i)), None)
-    if first is None:
-        return float(turns[-1]), None
-    for i in range(max(first - coarse + 1, 0), first + 1):
-        if i == first or hit(i):
-            return (float(turns[i - 1]) if i else 0.0), _culprits(still, moving, float(turns[i]), h)
-    return float(turns[first - 1]), None
-
-
-_STOPS = {}
-
-
-def _stopped(lead_mm):
-    """`stop` with the bone line `lead_mm` mm ahead, each looked at once."""
-    if lead_mm not in _STOPS:
-        _STOPS[lead_mm] = stop(lead_mm / 1000.0)
-    return _STOPS[lead_mm]
-
-
-def ahead():
-    """(m, deg): the least whole millimetres the bone line runs ahead of the knee's axis for the knee to bend to the
-    end of its travel (`drives.TRAVEL`), halving between none and the stator band's own radius - or, short of that
-    there, that radius - and the bend it gets."""
-    from machine.body import drives
-    end = drives.TRAVEL['knee'][1]
-    lo, hi = 0, int(math.ceil(1e3 * laid()['stator'][-1][2]))
-    if _stopped(lo)[0] >= end or _stopped(hi)[0] < end:
-        lead = lo if _stopped(lo)[0] >= end else hi
-        return lead / 1000.0, _stopped(lead)[0]
-    while hi - lo > 1:
-        mid = (lo + hi) // 2
-        lo, hi = (lo, mid) if _stopped(mid)[0] >= end else (mid, hi)
-    return hi / 1000.0, _stopped(hi)[0]
 
 
 def _framed(parts, pad=1.08):

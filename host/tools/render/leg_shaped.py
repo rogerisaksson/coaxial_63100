@@ -38,8 +38,9 @@ from tools.render import topo  # noqa: E402
 #: rooms as drawn, all solid (`topo.whole`, 3 mm voxels), the knuckle alone carries, x1.55: the arm bears 77 MPa at
 #: its front under the head, a neck narrower than the 64 mm its hand check takes; the yoke 126 where a cheek leaves
 #: the crown - a root no more than the ring's 2 mm air, 153 on 2 mm voxels -; the block 93 in its web, 6 mm off the
-#: bore and the band on 3 and 2 mm voxels alike; the clamp 90, 3 mm off its band on 2 and 1.5 mm voxels - its
-#: saddle on the band 21 mm long, the cover's ring under the rest, its waist sized for 51. Each stands drawn.
+#: bore and the band on 3 and 2 mm voxels alike; the clamp, its waist sized over the 27 mm of it on its band, x0.60:
+#: 60 MPa in its saddle 6 mm off what holds and loads it on 2 and 1.5 mm voxels, the seat 41 mm ahead of the knee's
+#: axis bending it aside (x0.35 with its waist sized over the 51 mm it spans). Each stands drawn.
 SHAPED = {'thigh arm': (3.0, 0.4), 'thigh knuckle': (3.0, 0.4), 'yoke': (3.0, 0.4), 'block': (3.0, 0.4),
           'stator clamp': (3.0, 0.4)}
 BOSS_MM, SEAT_MM = 9.0, 4.0
@@ -176,16 +177,17 @@ def _knee_loads(patch, turn, corner):
 
 def _stator(name, h, share):
     """The knee's stator clamp's case: held by its saddle's top where the thigh's tube's foot is seated, its band
-    round the knee's motor kept, the knee's loads on that band - its stator's, the drive's torque and what the
-    shank hands up through the drive's bearings."""
+    round the knee's motor and on round the gearbox's housing kept, the knee's loads where it grips the motor - its
+    stator's, the drive's torque and what the shank hands up through the drive's bearings."""
     import numpy as np
     from tools.render import knee_clamped as kc, leg_clamped as lc
     room, turn, corner, (x, y, z), _up = _room(name, h)
-    lay, top = kc.laid(), 1e3 * kc.seats(lc.stated())[0]
-    (x0, _r0, _o0), (x1, can, out) = lay['stator'][0], lay['stator'][-1]
+    lay, top, (m0, m1, _can) = kc.laid(), 1e3 * kc.seats(lc.stated())[0], kc._stack()[0]
+    (x0, _r0, _o0), (x1, _r1, out) = lay['stator'][0], lay['stator'][-1]
     held = room & (y >= top - 1.5 * h)
     band = room & (np.hypot(y, z) <= 1e3 * out + SEAT_MM) & (x >= 1e3 * x0) & (x <= 1e3 * x1)
-    return topo.case(name, room, held | band, held, _knee_loads(band, turn, corner), h, share, extruded=True)
+    grip = band & (x >= 1e3 * m0) & (x <= 1e3 * (m1 - 0.002))                        # where it holds the motor
+    return topo.case(name, room, held | band, held, _knee_loads(grip, turn, corner), h, share, extruded=True)
 
 
 @functools.lru_cache(maxsize=None)

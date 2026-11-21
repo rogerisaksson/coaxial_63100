@@ -77,7 +77,7 @@ def tube(joint='knee'):
 
 def stated():
     """How far ahead of the knee's axis the thigh's tube passes as the build states its run (`[skeleton] hung`), m:
-    the line's distance from the axis - what `knee_clamped.ahead` searches for, laid in the spec."""
+    the line's distance from the axis - what `knee_stop.ahead` searches for, laid in the spec."""
     from machine.body import skeleton
     from machine.body.figure import THIGH
     a, b, _r = skeleton.runs('thigh')[0]

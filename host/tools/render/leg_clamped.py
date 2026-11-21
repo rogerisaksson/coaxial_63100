@@ -31,6 +31,7 @@ from tools.render import hip_clamped as hc  # noqa: E402
 from tools.render import knee_clamped as kc  # noqa: E402
 from tools.render import knee_hose  # noqa: E402
 from tools.render import knee_mount as km  # noqa: E402
+from tools.render import knee_stop  # noqa: E402
 from tools.render import leaves  # noqa: E402
 from tools.render import sized as ks  # noqa: E402
 from tools.render import mounting as m  # noqa: E402
@@ -245,7 +246,7 @@ def stop(ahead, step=2.5, coarse=4):
         return float(turns[-1]), None
     for i in range(max(first - coarse + 1, 0), first + 1):
         if i == first or hit(i):
-            return (float(turns[i - 1]) if i else 0.0), kc._culprits(still, moving, float(turns[i]), h)
+            return (float(turns[i - 1]) if i else 0.0), knee_stop._culprits(still, moving, float(turns[i]), h)
     return float(turns[first - 1]), None
 
 
