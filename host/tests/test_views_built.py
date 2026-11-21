@@ -30,6 +30,8 @@ def test_the_shoulder_holds_turns_and_keeps_its_coil(report):
     while it stood and the farthest ahead short of a fall; the abduction (`tools.render.shoulder_rolled`) holds its
     loads at the margin, its yoke keeps a millimetre off what stays with the pitch through its travel short of the
     stops, the arm rises past a T on it and the bus's span across it bends no tighter than the hose's own least;
+    the bus's hoses lying still through it (`tools.render.shoulder_hosed`) bend no tighter than that either, lie
+    free no longer than `tees.unheld` and keep a millimetre off what turns by them through the abduction's travel;
     and the arm's guards, laid clear of the whole arm, cross nothing of the shoulder's mount (`arm_worn.capped`) -
     with no likeness beside the tree there is no figure to lay them on."""
     told: Any = _told('from tools.render import shoulder_mount as s; print(json.dumps(s.checked()))')
@@ -50,6 +52,10 @@ def test_the_shoulder_holds_turns_and_keeps_its_coil(report):
     bend, own = raised.get('bend') or (0.0, 1.0)
     report.check("the arm rises past a T on its abduction, the bus's span across it no tighter than the hose's own",
                  (raised.get('reaches') or 0.0) >= 90.0 and bend >= own, (raised.get('reaches'), raised.get('bend')))
+    bus: Any = _told('from tools.render import shoulder_hosed as h; print(json.dumps(h.checked()))')
+    (bend, own), (free, most) = bus.get('bend') or (0.0, 1.0), bus.get('free') or (1.0, 0.0)
+    report.check("the bus's hoses through the shoulder bend no tighter than their own, held, a millimetre off what "
+                 "turns by them", bend >= own and free <= most and (bus.get('air') or 0.0) >= 1.0, bus.get('failed') or bus)
     from coaxial.graphics import likeness
     if not likeness.FOUND:                               # the guards are laid on the figure's body beside the tree
         report.skip("the arm's guards cross nothing of the shoulder's mount", 'no likeness beside the tree')

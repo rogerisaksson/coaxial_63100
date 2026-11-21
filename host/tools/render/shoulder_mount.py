@@ -140,23 +140,27 @@ def turning():
 
 def posed(turn=0.0, roll=0.0):
     """{name: tris}: the shoulder with the arm turned `turn` deg and raised `roll` - what turns turned, the
-    abduction on it (`shoulder_rolled`: 'abduction', 'yoke', 'span'), the coil as it then lies."""
-    from tools.render import shoulder_rolled as sr
+    abduction on it (`shoulder_rolled`: 'abduction', 'yoke', 'span'), the bus on through it (`shoulder_hosed`:
+    'bus', 'bus on the arm'), the coil as it then lies."""
+    from tools.render import shoulder_hosed as sh, shoulder_rolled as sr
     line = sl.coil(turn, 400)
     out = dict(still(), **{name: km._turn(tris, turn) for name, tris in turning().items()})
-    raised = sr.posed(roll)
+    raised, bus = sr.posed(roll), sh.parts()
     out.update({'abduction': km._turn(raised['still'], turn), 'yoke': km._turn(raised['yoke'], turn),
-                'span': km._turn(raised['span'], turn)})
+                'span': km._turn(raised['span'], turn), 'bus': km._turn(bus['still'], turn),
+                'bus on the arm': km._turn(sr.rolled(bus['yoke'], roll), turn)})
     out['coil'] = tees.hose(line) + _banjo(line[0], line[0] - line[1], (sl.MOUTH_M + tees.HOSE_R + 0.001, 0.0, 0.0))
     return out
 
 
 def _abduction():
     """[(tri, colour)]: the abduction that turns with the arm about the shoulder's axis, the arm hanging - its hood,
-    drive and board, and the yoke above the arm's seat (`shoulder_rolled.parts`)."""
-    from tools.render import shoulder_rolled as sr
+    drive and board, the yoke above the arm's seat (`shoulder_rolled.parts`) and the bus on them
+    (`shoulder_hosed.parts`)."""
+    from tools.render import shoulder_hosed as sh, shoulder_rolled as sr
     low = -sr.laid()['down']
-    return sr.parts()['still'] + sr.parts()['ring'] + [t for t in sr.parts()['yoke'] if t[0][:, 1].min() > low]
+    return (sr.parts()['still'] + sr.parts()['ring'] + [t for t in sr.parts()['yoke'] if t[0][:, 1].min() > low]
+            + sh.parts()['still'] + sh.parts()['yoke'])
 
 
 @functools.lru_cache(maxsize=None)
