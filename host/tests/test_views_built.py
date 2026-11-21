@@ -26,8 +26,8 @@ def test_the_shoulder_holds_turns_and_keeps_its_coil(report):
     carbon plate, the crossbar and the arm's tube among them; what turns with the arm keeps a millimetre off what
     stays with the torso through the travel, short of the stops where horn and rib meet, and crosses none of it
     with the arm hanging; the bus's hose, a coil round the crossbar, bends no tighter than the hose's own least
-    radius and crosses no part at five turns of the arm; the travel takes the farthest the robot swung an arm back
-    while it stood and the farthest ahead short of a fall; the abduction (`tools.render.shoulder_rolled`) holds its
+    radius and crosses no part at five turns of the arm; the travel takes a human's swing back and the farthest the
+    robot swung an arm ahead short of a fall; the abduction (`tools.render.shoulder_rolled`) holds its
     loads at the margin, its yoke keeps a millimetre off what stays with the pitch through its travel short of the
     stops, the arm rises past a T on it and the bus's span across it bends no tighter than the hose's own least;
     the bus's hoses lying still through it (`tools.render.shoulder_hosed`) bend no tighter than that either, lie
@@ -43,7 +43,7 @@ def test_the_shoulder_holds_turns_and_keeps_its_coil(report):
     report.check("the coil bends no tighter than the hose's own least radius and crosses no part at five turns",
                  bend >= own and told.get('coil') == 0, (told.get('bend'), told.get('coil')))
     (lo, hi), (back, ahead) = told.get('travel') or (0.0, 0.0), told.get('asked') or (-1.0, 1.0)
-    report.check('the travel takes the farthest the robot swung an arm back while it stood, and ahead short of a fall',
+    report.check("the travel takes a human's swing back, and the farthest the robot swung an arm ahead short of a fall",
                  lo <= back and hi >= ahead, (told.get('travel'), told.get('asked')))
     raised: Any = _told('from tools.render import shoulder_rolled as r; print(json.dumps(r.checked()))')
     report.check("the abduction holds at the margin and its yoke keeps a millimetre off what stays through its travel",

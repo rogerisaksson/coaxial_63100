@@ -227,7 +227,9 @@ def parts():
     x0, x1 = _hood_x()
     post = _box((x0 + 0.002, x1 - 0.002), (-top + 0.001, -sl.laid()['band'][2] + 0.001), (-0.008, 0.008), em.FRAME)
     bush = _along(em._drum(lay['pin'] + BUSH_M, lay['boss'][0], lay['boss'][1], em.PLATE), 'z')
-    still = _along(drive, 'z') + horns + _hood() + bush + _along(board, 'y') + post
+    from tools.render import shoulder_shaped as ss       # the hood as its loads shaped it, once it carries them
+    hood = ss.drawn()
+    still = _along(drive, 'z') + horns + (_hood() if hood is None else hood) + bush + _along(board, 'y') + post
     p0, p1 = lay['plate']
     low, high = -lay['drop'] - 0.5 * lay['saddle'], -lay['drop'] + 0.5 * lay['saddle']
     lever_z = _lever_z()

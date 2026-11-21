@@ -28,12 +28,12 @@ from tools.render import shoulder_laid as sl  # noqa: E402
 from tools.render import shoulder_rolled as sr  # noqa: E402
 from tools.render import tees  # noqa: E402
 
-#: The air a hose keeps off what turns by it, m; the bearings round the pitch's axis, from under it toward ahead,
-#: the board's run passes the drum's front at - on round from the pipe's end at that end's own distance off the
-#: axis, beside the yoke's front plate's inner edge -, rad; how far inboard of the still fitting's inlet it climbs
-#: there, in the hose's own least radius - room for the quarter turn in: the cubic between two knots bends tighter
-#: than the arc it stands for.
-AIR_M, ROUND, TURN_IN = 0.001, (0.25 * math.pi, 0.5 * math.pi), 1.5
+#: The air a hose keeps off what turns by it, m; the bearing round the pitch's axis, from under it toward ahead,
+#: the board's run leaves the drum at - on round from the pipe's end at its reach, inboard of the yoke's front
+#: plate's sweep -, up and ahead into the span's still fitting from under: late enough that its one clip stands on
+#: the drum, soon enough that it bends no tighter than the hose's own (45 deg: 27.5 mm off the drum; 60: 20.4 mm
+#: round), rad.
+AIR_M, ROUND = 0.001, (math.radians(55.0),)
 
 
 def _pipe(at, out, up, toward, stub=None):
@@ -97,19 +97,19 @@ def laid():
     x, wall = 0.5 * (b0 + b1), -pitch['guard'][2]
     grommet = (km._rod((x, wall + 0.002, 0.0), (x, -top - 0.001, 0.0), tees.PIPE[1], tees.PIPE_INK)
                + km._rod((x, wall, 0.0), (x, wall - 0.0012, 0.0), tees.COLLAR_R, tees.PIPE_INK))
+    ends, rise = _ends(), np.array([0.0, 1.0, 0.0])
+    still, inlet = _elbow(*ends['still'], rise, lay['boss'][0])            # the trunk up into it from under
     r, mid = sr.stack()['board'][0] + sr.GUARD_M, -0.5 * sum(sr.board())
-    board, start, way = _pipe((r, mid, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 1.0))    # toward the torso, ahead
-    ends, inward = _ends(), np.array([-1.0, 0.0, 0.0])
-    still, inlet = _elbow(*ends['still'], inward, lay['boss'][0])          # the trunk in from the torso's side
-    off = float(np.hypot(start[1], start[2]))
-    x = inlet[0] + TURN_IN * float(mechatronics.materials()['hoses']['bus'][4])
-    knots = [(start, way)] + [(np.array([x, -off * math.cos(a), -off * math.sin(a)]),
+    turn = math.asin((tees.PIPE[0] + tees.PIPE_LEG) / -mid)          # its end's way round the pitch's axis
+    board, start, way = _pipe((r, mid, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (math.sin(turn), math.cos(turn)))
+    off = float(np.hypot(start[1], start[2]))                # the run on round at the pipe's end's reach
+    knots = [(start, way)] + [(np.array([start[0], -off * math.cos(a), -off * math.sin(a)]),
                                np.array([0.0, math.sin(a), -math.cos(a)])) for a in ROUND]
     lever, back_t = _fitting(*ends['turning'], sr._lever_z()[0])
     p1, drop = lay['plate'][1], lay['drop']
-    saddle, end, rise = _pipe((0.0, -drop, -p1), (0.0, 0.0, -1.0), (0.0, 1.0, 0.0), (1.0, 0.0))
-    up = tees.run(knots + [(inlet, inward)])
-    down = tees.laid(back_t, -ends['turning'][1], end, rise)
+    saddle, end, out = _pipe((0.0, -drop, -p1), (0.0, 0.0, -1.0), (0.0, 1.0, 0.0), (1.0, 0.0))
+    up = tees.run(knots + [(inlet, rise)])
+    down = tees.laid(back_t, -ends['turning'][1], end, out)
     return {'grommet': grommet, 'board': board, 'still': still, 'lever': lever, 'saddle': saddle, 'up': up,
             'down': down}
 

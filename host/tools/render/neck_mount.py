@@ -130,7 +130,7 @@ def _shoulders():
     at = nl.placed()
     c, s = math.cos(at['lean']), math.sin(at['lean'])
     turn = np.array([[-c, -s, 0.0], [-s, c, 0.0], [0.0, 0.0, -1.0]])    # the shoulder's sketch's axes in the torso's
-    drum = km._turn(sm.turning()['housing'], -180.0)
+    drum = km._turn(sm.turning()['housing'], -sl.drummed())
     left = [(tri @ turn + np.array(at['arm']), colour)
             for tri, colour in sm.still()['crossbar'] + sm.still()['block'] + drum]
     return {'left shoulder': left, 'right shoulder': [((tri * (-1.0, 1.0, 1.0))[::-1], colour) for tri, colour in left]}

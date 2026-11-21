@@ -2,14 +2,13 @@
 
     python -X utf8 tools/render/shoulder_laid.py        # its sizes, its travel and what holds, each by its margin
 
-What the shoulder is asked goes past a whole turn (STOOD), and a hose hung across a joint follows some 200 degrees:
-so the drive stands the other way round. The gearbox's output ring is screwed to a carbon plate, the plate studded to
+The shoulder swings as a human's - back BACK, ahead to AHEAD past SWUNG, between its stops (`travel`) - and a hose
+hung across a joint follows some 200 degrees at the most: so the drive stands the other way round. The gearbox's output ring is screwed to a carbon plate, the plate studded to
 a printed foot bonded in the crossbar's end, and the motor, the board and the arm turn about that: the still side is
 a tube and two discs, and the bus's hose a coil round the tube (`coil`) that a turn of the arm winds tighter or
 looser, in a drum that turns with the arm. The drum's bore runs on the two discs' rims: struck sideways, the arm
 leans on them and not on the gearbox's own bearing alone (`held`: 'rims'). A horn on the torso's block meets the
-drum's rib at the travel's ends (`travel`), the dead arc laid past the farthest the robot swung an arm back while it
-stood. The shoulder's axis is the figure's: square to the arm, which hangs leant out (`pivot`) - so the axis leans
+drum's rib at the travel's ends (`travel`), the dead arc between them. The shoulder's axis is the figure's: square to the arm, which hangs leant out (`pivot`) - so the axis leans
 that much up off the crossbar's, the foot's face cut that much off square, and the crossbar and its coil stand leant
 in the sketch's frame (`canted`), the coil no tighter than clears them. The frame is the elbow sketch's: x along the axis
 toward the torso - the gearbox at +x -, y up, z behind. Each size is the least its check asks; m, the checks in mm.
@@ -27,12 +26,13 @@ from tools.render import knee_loads as kl  # noqa: E402
 from tools.render import sized  # noqa: E402
 from tools.render import tees  # noqa: E402
 
-#: The farthest the robot swung an arm back and ahead through the scenarios it stood, deg (legload.py --all:
-#: standing_jump -231, falling_on_butt 143). What its texts ask of the shoulder, unwrapped, goes round whole turns
-#: (standing_jump one, standing_yawn two): a stop cuts some of that wherever it stands - laid EASE_DEG past the
-#: arm's farthest back, so it is the fall's reach ahead that is cut: ahead of SWUNG, the farthest a scenario that is
-#: no fall swung an arm ahead (hop_up 77).
-STOOD, SWUNG, EASE_DEG = (-231.0, 143.0), 77.0, 2.0
+#: What the stops take, deg, positive the arm ahead: back as far as a human swings an arm at the shoulder (its
+#: extension, the AAOS's norm), and ahead the farthest a scenario that is no fall swung one (legload.py --all:
+#: hop_up 77). A fall swings further (falling_on_butt 143) and the stop takes it; what the texts ask unwrapped goes
+#: round whole turns (standing_jump -231, standing_yawn two) - the law's own wraps, no swing a human makes. Ahead the
+#: stop stands where a human's arm reaches, straight up (its flexion, 180). The model's shoulder has no stop yet: one
+#: comes with a header of the build's own (`tools/cores/model.py` holds one for every build).
+BACK, SWUNG, AHEAD = -60.0, 77.0, 180.0
 #: The arm's push along the shoulder's axis, N: the most of its mean over 20 ms through the scenarios the build
 #: stood (slip; tools/sim/legload.py --table).
 THRUST = 337.0
@@ -50,6 +50,12 @@ STUDS, WASHER_M, HORN_M, RIB_M, HOLD_M, DRUM_M, AIR_M, PLAY_M = 8, 0.006, 0.010,
 RIB_UP = 0.006
 #: The coil: its turns with the arm at its travel's middle, and the air between two of them wound their tightest, m.
 TURNS, GAP_M = 2.5, 0.0013
+#: Where round the axis the drum's rib and the coil's fitting on it stand with the arm at its travel's middle, deg
+#: from up toward behind: so the horns at the stops and the coil's other fitting on the torso's block stand ahead
+#: of the shoulder's top - the upper horn no higher than the whole-turn travel's stood (307 deg): the neck's yoke
+#: over the crossbar and the hose behind the neck's motor (`neck_hosed`) meet one at 347 -, the fitting across
+#: from the drum's, ahead (253.5).
+MIDDLE_DEG = 73.5
 #: The foot's centring bore, mm, and the carbon plate's steps, mm.
 BORE, STEP = 6.0, 0.5
 
@@ -187,20 +193,29 @@ def canted(points):
 
 @functools.lru_cache(maxsize=None)
 def travel():
-    """(from, to), deg: the shoulder's travel between its stops - a whole turn less what the horn and the rib take
-    where they meet, from EASE_DEG past the farthest the robot swung an arm back while it stood."""
-    tight, dead = 1e-3 * sizes()['bar'][0] + tees.HOSE_R + 0.001, 0.0
-    for _ in range(8):                                   # the drum as wide as the coil's fewest turns ask
-        half = 0.5 * (360.0 - dead) / 360.0
-        meet = tight * (TURNS + half) / (TURNS - half) + tees.HOSE_R + AIR_M + DRUM_M + 0.5 * RIB_UP
-        dead = math.degrees((HORN_M + RIB_M) / meet)
-    return STOOD[0] - EASE_DEG, STOOD[0] - EASE_DEG + 360.0 - dead
+    """(from, to), deg: the shoulder's travel between its stops, BACK to AHEAD - the dead arc between them no
+    narrower than the horn and the rib take where they meet, on a drum as wide as the coil's fewest turns ask."""
+    from machine.errors import MachineError
+    lo, hi = BACK, AHEAD
+    half = 0.5 * (hi - lo) / 360.0
+    tight = 1e-3 * sizes()['bar'][0] + tees.HOSE_R + 0.001
+    meet = tight * (TURNS + half) / (TURNS - half) + tees.HOSE_R + AIR_M + DRUM_M + 0.5 * RIB_UP
+    if 360.0 - (hi - lo) < math.degrees((HORN_M + RIB_M) / meet):
+        raise MachineError('the shoulder travels %.0f deg: no room left between its stops for horn and rib' % (hi - lo))
+    return lo, hi
 
 
 def turns(turn):
     """The coil's turns with the arm turned `turn` deg: TURNS at its travel's middle, one more a whole turn on."""
     lo, hi = travel()
     return TURNS + (turn - 0.5 * (lo + hi)) / 360.0
+
+
+def drummed():
+    """Where round the axis the drum's rib and the coil's fitting on it stand with the arm hanging, deg from up
+    toward behind: MIDDLE_DEG at the travel's middle."""
+    lo, hi = travel()
+    return MIDDLE_DEG - 0.5 * (lo + hi)
 
 
 def _wound(count, middle, k):
@@ -214,8 +229,7 @@ def _wound(count, middle, k):
     ease = ease * ease * (3.0 - 2.0 * ease)
     along = x1 - tees.HOSE_R + (x0 - x1 + 2.0 * tees.HOSE_R) * u         # off the foot's face
     r = np.maximum(ends + (middle - ends) * ease, tight + math.tan(math.radians(pivot()[1])) * along)
-    lo, hi = travel()
-    start = math.pi - math.radians(360.0 * TURNS - 0.5 * (lo + hi))     # the drum's fitting under the axis at rest
+    start = math.radians(drummed() - 360.0 * turns(0.0))                # the drum's fitting where `drummed` says
     a = start + 2.0 * math.pi * count * u
     return np.c_[cant + along, r * np.cos(a), r * np.sin(a)]
 

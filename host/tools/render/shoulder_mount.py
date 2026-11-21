@@ -48,12 +48,15 @@ def _leant(tris):
 
 
 def _arc(inner, outer, x0, x1, low, high, colour, k=12):
-    """A piece of a ring round the axis between radii and bearings (rad, +y toward +z), from x0 to x1, rounded."""
+    """A piece of a ring round the axis between radii and bearings (rad, +y toward +z), from x0 to x1, its corners
+    rounded - a concave outline, its ends' faces each laid as it is (`foot._slab`), none across the ring's hole -,
+    `k` points round it at the fewest, one every 5 degrees where more."""
     import numpy as np
-    turn = np.linspace(low, high, k)
+    from tools.render import foot
+    turn = np.linspace(low, high, max(k, int(math.degrees(abs(high - low)) / 5.0) + 2))
     outline = np.r_[np.c_[outer * np.cos(turn), outer * np.sin(turn)],
                     np.c_[inner * np.cos(turn[::-1]), inner * np.sin(turn[::-1])]]
-    return em._rounded(outline, x0, x1, colour, axis=0, r=0.0015)
+    return foot._slab(cl.filleted(outline, r=0.0015), x0, x1, colour)
 
 
 def _banjo(at, along, stem=(0.0, 0.0, 0.0), out=0.0):
@@ -69,11 +72,11 @@ def _banjo(at, along, stem=(0.0, 0.0, 0.0), out=0.0):
 
 
 def _horn():
-    """(from, to), rad: the bearings the block's horn stands between - the dead arc, less the rib's half width at
-    either stop."""
-    lay, (lo, hi) = sl.laid(), sl.travel()
+    """(from, to), rad: the bearings the block's horns stand between - the dead arc, less the rib's half width at
+    either stop -, a horn at either end of it, as wide round as the rib meets it (`still`)."""
+    lay, (lo, hi), rib = sl.laid(), sl.travel(), math.radians(sl.drummed())
     half = 0.5 * sl.RIB_M / lay['meet']
-    return math.pi + math.radians(hi) + half, math.pi + math.radians(lo) + 2.0 * math.pi - half
+    return rib + math.radians(hi) + half, rib + math.radians(lo) + 2.0 * math.pi - half
 
 
 @functools.lru_cache(maxsize=None)
@@ -97,9 +100,11 @@ def still():
     round_, at = float(np.hypot(*start[1:])) + tees.FITTING[1] + PAST_M, math.atan2(start[2], start[1])
     hub = bar + HUB_M                                    # the block's own band round the crossbar, no wider
     block = (em._drum(hub, side, side + SIDE_M, em.FRAME)
-             + _arc(hub - 0.002, round_, side, side + SIDE_M, at - ARM, at + ARM, em.FRAME)
-             + _arc(hub - 0.002, far, side, side + SIDE_M, low, high, em.FRAME)
-             + _arc(far - sl.RIB_UP + sl.AIR_M, far, side - sl.MOUTH_M - sl.HOLD_M, side, low, high, em.FRAME))
+             + _arc(hub - 0.002, round_, side, side + SIDE_M, at - ARM, at + ARM, em.FRAME))
+    wide = min(sl.HORN_M / far, 0.5 * (high - low))      # a horn at either stop, on an arm off the block's side
+    for a, b in ((low, low + wide), (high - wide, high)):
+        block += (_arc(hub - 0.002, far, side, side + SIDE_M, a, b, em.FRAME)
+                  + _arc(far - sl.RIB_UP + sl.AIR_M, far, side - sl.MOUTH_M - sl.HOLD_M, side, a, b, em.FRAME))
     return {'crossbar': _leant(em._drum(bar, 0.0, lay['mouth'] + sl.MOUTH_M + SIDE_M + sl.BLOCK_M, em.CARBON)),
             'crossbar foot': em._drum(disc, f0, f1, em.FRAME) + _leant(cl.turned(collar, None)),
             'studs': studs, 'hub plate': em._drum(disc, p0, p1, em.CARBON),
@@ -120,7 +125,7 @@ def _housing(lay, can, ring):
     low = bore + sl.DRUM_M
     rib = [(-(low + sl.RIB_UP), -0.5 * sl.RIB_M), (-(low + sl.RIB_UP), 0.5 * sl.RIB_M), (-(bore + 0.0005), 0.5 * sl.RIB_M),
            (-(bore + 0.0005), -0.5 * sl.RIB_M)]
-    return shell + em._rounded(rib, cone - 0.002, mouth, em.FRAME, axis=0, r=0.0015)
+    return shell + km._turn(em._rounded(rib, cone - 0.002, mouth, em.FRAME, axis=0, r=0.0015), sl.drummed() - 180.0)
 
 
 @functools.lru_cache(maxsize=None)
@@ -183,8 +188,8 @@ def checked():
     """{'held': the least of `shoulder_laid.held`'s margins, 'air': what turns off what stays through the travel,
     mm, 'crossing': triangle pairs of what turns through what stays with the arm hanging, 'coil': the hose's
     crossings with every part but its own fittings at five turns of the arm, 'bend': (the least radius the coil is
-    drawn bent at, the hose's own least), mm, 'travel': (from, to) deg, 'asked': the farthest the robot swung an arm
-    back while it stood and ahead short of a fall}: what the suite holds."""
+    drawn bent at, the hose's own least), mm, 'travel': (from, to) deg, 'asked': how far back a human swings an
+    arm and the farthest ahead the robot swung one short of a fall}: what the suite holds."""
     import numpy as np
     from machine.body import mechatronics
     from tools.render import clips
@@ -199,7 +204,7 @@ def checked():
         bend.append(tees.tightest(hose))
     return {'held': round(min(sl.held().values()), 3), 'air': round(1e3 * aired(), 2), 'crossing': crossing,
             'coil': coil, 'bend': (round(1e3 * min(bend), 1), 1e3 * float(mechatronics.materials()['hoses']['bus'][4])),
-            'travel': tuple(round(v, 1) for v in (lo, hi)), 'asked': (sl.STOOD[0], sl.SWUNG)}
+            'travel': tuple(round(v, 1) for v in (lo, hi)), 'asked': (sl.BACK, sl.SWUNG)}
 
 
 def main(argv=None):
