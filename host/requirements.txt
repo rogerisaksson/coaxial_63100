@@ -46,9 +46,11 @@ fonttools>=4.40     # fontTools - both arrived with matplotlib and are imported 
 # Only for the sketches of the skeleton's mounts (tools/render): scipy's trees of
 # points, its fills and its sparse solve, and scikit-fem's linear elasticity on
 # the voxelled printed parts (knee_loads.py, knee_topo.py), each imported where
-# called.
+# called; contourpy's half-way lines round a shaped slab's layers (topo.py) - it
+# arrived with matplotlib and is imported where it is called, so written.
 scipy>=1.13
 scikit-fem>=11.0
+contourpy>=1.0
 
 # Only for tools/dev/cover.py: the line coverage of the hand-written code, the
 # Python followed into every suite's process (`patch = subprocess`, 7.10).

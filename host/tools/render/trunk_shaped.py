@@ -19,7 +19,6 @@ its place, `told` what each kept; with OUT_DIR the solids are written as STL, on
 import os
 import sys
 import types
-from typing import Any
 
 if __package__ in (None, ''):
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -27,7 +26,6 @@ if __package__ in (None, ''):
 from tools.render import elbow_mount as em  # noqa: E402
 from tools.render import hip_frame as hf  # noqa: E402
 from tools.render import knee_loads as kl  # noqa: E402
-from tools.render import knee_mount as km  # noqa: E402
 from tools.render import knee_topo as kt  # noqa: E402
 from tools.render import topo  # noqa: E402
 from tools.render import trunk_clamped as tc  # noqa: E402
@@ -41,30 +39,12 @@ from tools.render import trunk_rods as tr  # noqa: E402
 SHAPED, FINE, ROUND_MM = {'yoke': (4.0, 0.6), 'lever': (2.0, 0.6)}, 3, 4.0
 
 
-def _room(name):
-    """(room [across, up, deep], turn, corner, (x, y, z)): a print's drawing filled to voxels on its bed - the
-    frame's rows across, up the way it grows and deep, its low corner there, mm - and its voxels' middles in the
-    joint's frame, mm."""
-    import numpy as np
-    from scipy import ndimage
-    (link, way), h = tc.PRINTS[name], SHAPED[name][0]
-    up = np.asarray(way, float)
-    across = np.cross(up, (1.0, 0.0, 0.0) if abs(up[0]) < 0.9 else (0.0, 1.0, 0.0))
-    turn = np.array((across / np.linalg.norm(across), up, np.cross(across / np.linalg.norm(across), up)))
-    cell = h / FINE
-    drawing = [(tri, c) for tri, c in tc.links()[link][name] if tuple(c) == em.FRAME]
-    points = 1e3 * km._points(drawing, 1e-3 * cell / 3.0) @ turn.T
-    corner = points.min(axis=0)
-    at = np.floor((points - corner) / cell).astype(int) + FINE
-    faces = np.zeros(FINE * (-(-(at.max(axis=0) + 1 + FINE) // FINE)), bool)
-    faces[tuple(at.T)] = True
-    labelled: Any = ndimage.label(~faces)
-    flood = labelled[0]
-    solid = flood != flood[0, 0, 0]
-    n = np.array(solid.shape) // FINE
-    room = solid.reshape(n[0], FINE, n[1], FINE, n[2], FINE).mean(axis=(1, 3, 5))[1:-1, 1:-1, 1:-1] >= 0.5
-    middles = (corner + (np.indices(room.shape).transpose(1, 2, 3, 0) + 0.5) * h) @ turn
-    return room, turn, corner, (middles[..., 0], middles[..., 1], middles[..., 2])
+def _room(name, h):
+    """(room [across, up, deep], turn, corner, (x, y, z)): a print's drawing filled to `h`-mm voxels on its bed -
+    the frame's rows across, up the way it grows and deep, its low corner there, mm - and its voxels' middles in
+    the joint's frame, mm."""
+    link, way = tc.PRINTS[name]
+    return topo.filled([(tri, c) for tri, c in tc.links()[link][name] if tuple(c) == em.FRAME], way, h, FINE)
 
 
 def _loader(turn, corner):
@@ -82,7 +62,7 @@ def _yoke(name, h, share):
     """The pelvis's yoke's case: held by its base's foot on the web, loaded on its pins and its eyes."""
     import numpy as np
     spine, none = kl.loads('spine'), (0.0, 0.0, 0.0)
-    room, turn, corner, (x, y, z) = _room(name)
+    room, turn, corner, (x, y, z) = _room(name, h)
     load, ball = _loader(turn, corner), 1e3 * np.array(tl.BALL)
     held = ((y <= y[room].min() + 2.0 * h) & (np.abs(x) <= 1e3 * tc.BASE_X)          # the base's foot on the web
             & (z >= 1e3 * max(tc.BASE_Z[0], tc.WEB_Z[0])) & (z <= 1e3 * min(tc.BASE_Z[1], tc.WEB_Z[1])))
@@ -107,7 +87,7 @@ def _lever(name, h, share):
     """A drive's lever's case: held at its band's bore round the output ring, its band and its eye kept, the rod's
     most pull (`trunk_rods.worst`) on the pin's middle out at the cross, across the arm and along it."""
     import numpy as np
-    room, turn, corner, (_x, y, z) = _room(name)
+    room, turn, corner, (_x, y, z) = _room(name, h)
     lay, load = tr._laid(), _loader(turn, corner)
     at, pin = 1e3 * lay['at'], 1e3 * lay['pin']
     hub, round_pin = np.hypot(y - at[0], z - at[1]), np.hypot(y - pin[0], z - pin[1])
@@ -136,7 +116,7 @@ def drawn(name):
     case = cases()[name]
     if not topo.ready(case):
         return None
-    _room_, turn, corner, _at = _room(name)
+    _room_, turn, corner, _at = _room(name, SHAPED[name][0])
     got = topo.shaped(case)
     if got['margin'] < 1.0 or got['lost']:
         return None

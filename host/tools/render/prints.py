@@ -140,15 +140,23 @@ def cut():
 
 
 @functools.lru_cache(maxsize=None)
-def laid(name):
-    """(tris, (across, deep, tall) m): a piece on its bed - the plane y = 0, the piece grown up it -, its footprint
-    the least rectangle round it, its sides along x and z, a corner at their zero."""
+def piece(name):
+    """(tris, the way it grows off its bed): a piece as its sketch draws it, that sketch's frame, its printed inks."""
     import numpy as np
     _name, sketch, parts, way, _count = next(p for p in (trunk() if name.startswith('trunk ') else PIECES) if p[0] == name)
     inks, drawn = INKS.get(name, PRINTED), _trunk() if sketch == 'trunk' else _drawn()[sketch]
     tris = [(tri, c) for part in parts for tri, c in drawn[part] if tuple(c) in inks]
     points = np.concatenate([tri for tri, _c in tris])
-    up = np.asarray(way, float) if way else _way(points, _tube(name)[1] if name in ON_TUBE else None)
+    return tris, np.asarray(way, float) if way else _way(points, _tube(name)[1] if name in ON_TUBE else None)
+
+
+@functools.lru_cache(maxsize=None)
+def laid(name):
+    """(tris, (across, deep, tall) m): a piece on its bed - the plane y = 0, the piece grown up it -, its footprint
+    the least rectangle round it, its sides along x and z, a corner at their zero."""
+    import numpy as np
+    tris, up = piece(name)
+    points = np.concatenate([tri for tri, _c in tris])
     side = np.cross(up, X if abs(up[0]) < 0.9 else Y)
     side /= np.linalg.norm(side)
     turn = np.array([side, up, np.cross(side, up)])

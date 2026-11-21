@@ -168,17 +168,30 @@ def test_the_trunk_reaches_its_travel_and_prints_standing(report):
 def test_a_print_shaped_by_its_loads_stands_on_its_bed(report):
     """The optimiser the prints are shaped with (`tools.render.topo`), on its own trial piece - a bracket held by
     one end's face, pushed down at its other end's top edge: what the optimiser keeps is less than the room it
-    was given, carries the load within the printed polymer's allowable, keeps every voxel told to stay, and hangs
-    no voxel over the bed - each stands on one of the nine under it."""
-    told: Any = _told('from tools.render import topo; g = topo.shaped(topo.trial(), fresh=True); '
-                      'layers = g["solid"].transpose(1, 0, 2); '
+    was given, carries the load within the printed polymer's allowable - the room all solid (`topo.whole`) no less
+    -, keeps every voxel told to stay, and hangs no voxel over the bed - each stands on one of the nine under it;
+    shaped extruded, as a load-bearing slab is,
+    it is a prism up its bed - each column's own voxels all kept or all gone, its pockets through -, it keeps
+    every voxel told to stay, and its outline is drawn smooth (`topo.outlined`)."""
+    told: Any = _told('import numpy as np; from tools.render import topo; g = topo.shaped(topo.trial(), fresh=True); '
+                      'layers = g["solid"].transpose(1, 0, 2); c = dict(topo.trial(), extruded=True); '
+                      'e = topo.shaped(c, fresh=True); s, own = e["solid"], ~c["kept"]; '
                       'print(json.dumps({"grams": g["grams"], "room": g["room"], "margin": g["margin"], '
-                      '"lost": g["lost"], "hung": int((layers & ~topo.stood(layers)).sum())}))')
-    report.check('what the optimiser keeps is less than its room and carries the load within the allowable',
-                 0.0 < (told.get('grams') or 0.0) < 0.6 * (told.get('room') or 0.0) and (told.get('margin') or 0.0) >= 1.0,
-                 told.get('failed') or (told.get('grams'), told.get('room'), told.get('margin')))
+                      '"whole": topo.whole(topo.trial())["margin"], '
+                      '"lost": g["lost"], "hung": int((layers & ~topo.stood(layers)).sum()), '
+                      '"prism": bool((((s & own).any(axis=1) == (s | ~own).all(axis=1)) | ~own.any(axis=1)).all()), '
+                      '"extruded lost": e["lost"], "faces": len(topo.outlined(s, e["h"])), "margin x": e["margin"]}))')
+    report.check('what the optimiser keeps is less than its room and carries the load within the allowable, the '
+                 'room all solid no less',
+                 0.0 < (told.get('grams') or 0.0) < 0.6 * (told.get('room') or 0.0)
+                 and 1.0 <= (told.get('margin') or 0.0) <= (told.get('whole') or 0.0),
+                 told.get('failed') or (told.get('grams'), told.get('room'), told.get('margin'), told.get('whole')))
     report.check('every voxel told to stay is kept, and none hangs over the bed',
                  told.get('lost') == 0 and told.get('hung') == 0, (told.get('lost'), told.get('hung')))
+    report.check('extruded, it is a prism up its bed that carries the load, keeps what it was told to and is drawn smooth',
+                 bool(told.get('prism')) and told.get('extruded lost') == 0 and (told.get('faces') or 0) > 0
+                 and (told.get('margin x') or 0.0) >= 1.0,
+                 (told.get('prism'), told.get('extruded lost'), told.get('faces'), told.get('margin x')))
 
 
 ROSTER = (test_the_shoulder_holds_turns_and_keeps_its_coil, test_the_neck_holds_clears_and_keeps_its_hose,

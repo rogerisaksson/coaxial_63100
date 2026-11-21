@@ -7,18 +7,23 @@ case (`case`): its room - voxels on its bed, layers up y -, the voxels that must
 held by and its loads, a wrench on a patch of voxels each. Between the density filter and the stiffness stands the
 printing filter (`printed`): a voxel no denser than the densest of the nine under it - a smooth least of a smooth
 most, layer by layer off the bed, its sensitivities carried back down (`_back`) -, so what is kept stands on what
-lies under it within 45 degrees. The compliances are solved by conjugate gradients, each case started from its
-last round's answer: a direct solve does not end at these sizes. `shaped` runs a case - kept under .cache/topo by
-the case's content - and cuts the densities at the highest level whose solid, what hangs pruned off it, still
-carries the loads: the principal stress within the printed polymer's allowable, the stress up the layers within
-ACROSS of it, each load taken either way - what a robot bears turns round -, read in the voxels that were the
-optimiser's to shape. Told: the solid's voxels, its mass, its
-margin, what it lost. `knee_topo.faces` draws them, `knee_topo.stl` writes them.
+lies under it within 45 degrees; what the case keeps is solid whatever that filter says, and what is printed may
+stand on it. A case `extruded` - a load-bearing slab, printed up its thickness - has each column of voxels one
+density in place of that filter: a prism, its pockets through, nothing over its bed. The compliances are solved by
+conjugate gradients, each case started from its last round's answer: a direct solve does not end at these sizes.
+`shaped` runs a case - kept under .cache/topo by the case's content - and cuts the densities at the highest level
+whose solid, a kept voxel left hanging propped from under (`propped`) and what else hangs pruned off, still carries
+the loads: the principal stress within the printed polymer's allowable, the stress up the layers within ACROSS of
+it, each load taken either way - what a robot bears turns round -, read in the voxels that were the optimiser's to
+shape. Told: the solid's voxels, its mass, its margin, what it lost. `faced` draws them - an extruded one's prisms
+smooth (`outlined`) -, `knee_topo.stl` writes them. `whole` reads the room all solid the same way: a room that does
+not carry solid is its sketch's to fix, not the optimiser's.
 """
 import hashlib
 import math
 import os
 import sys
+from typing import Any
 
 if __package__ in (None, ''):
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -31,13 +36,46 @@ PENALTY, MOVE, ROUNDS, VOID = 3.0, 0.2, 60, 1e-3
 SHARP, EPS, HALF, LEVELS = 40.0, 1e-4, 0.5, (0.5, 0.4, 0.3, 0.2)
 
 
-def case(name, room, kept, held, loads, h, share):
+def case(name, room, kept, held, loads, h, share, extruded=False):
     """A piece to shape: its `room`, the voxels `kept` whatever the loads and those `held` still - bool arrays
     [across, up, deep] off the bed, `h` mm a voxel -, its `loads`, a case each: [(a patch of voxels, force N (3,),
-    moment N mm (3,), the point mm the force acts at and the moment is about)], summed -, and the `share` of what
-    is its to shape that it may keep."""
+    moment N mm (3,), the point mm the force acts at and the moment is about)], summed -, the `share` of what is
+    its to shape that it may keep, and, `extruded`, the shape a prism up its bed: each column of voxels one
+    density, a slab with its pockets through (`outlined`). Of the room only what hangs together with what holds it
+    is the piece's: a part cut off carries nothing."""
+    import numpy as np
+    from scipy import ndimage
+    labelled: Any = ndimage.label(room)
+    parts = np.asarray(labelled[0], dtype=np.int64)
+    room = np.isin(parts, np.unique(parts[held & room & (parts > 0)]))
     return {'name': name, 'room': room, 'kept': kept & room, 'held': held & room, 'loads': loads, 'h': float(h),
-            'share': float(share)}
+            'share': float(share), 'extruded': bool(extruded)}
+
+
+def filled(drawing, way, h, fine=3):
+    """(room [across, up, deep], turn, corner, (x, y, z)): a print's `drawing` [(tri, colour)] filled to `h`-mm
+    voxels on its bed - grown along `way`, its frame's rows across, up and deep (`turn`), its low corner there, mm -
+    and the voxels' middles in the drawing's frame, mm: its faces marked in cells `fine` to a voxel's side, the room
+    round them flooded from outside, what the flood never reached the solid, a voxel solid where half its cells are."""
+    import numpy as np
+    from scipy import ndimage
+    from tools.render import knee_mount as km
+    up = np.asarray(way, float)
+    across = np.cross(up, (1.0, 0.0, 0.0) if abs(up[0]) < 0.9 else (0.0, 1.0, 0.0))
+    turn = np.array((across / np.linalg.norm(across), up, np.cross(across / np.linalg.norm(across), up)))
+    cell = h / fine
+    points = 1e3 * km._points(drawing, 1e-3 * cell / 3.0) @ turn.T
+    corner = points.min(axis=0)
+    at = np.floor((points - corner) / cell).astype(int) + fine
+    faces = np.zeros(fine * (-(-(at.max(axis=0) + 1 + fine) // fine)), bool)
+    faces[tuple(at.T)] = True
+    labelled: Any = ndimage.label(~faces)
+    flood = np.asarray(labelled[0])
+    solid = flood != flood[0, 0, 0]
+    n = np.array(solid.shape) // fine
+    room = solid.reshape(n[0], fine, n[1], fine, n[2], fine).mean(axis=(1, 3, 5))[1:-1, 1:-1, 1:-1] >= 0.5
+    middles = (corner + (np.indices(room.shape).transpose(1, 2, 3, 0) + 0.5) * h) @ turn
+    return room, turn, corner, (middles[..., 0], middles[..., 1], middles[..., 2])
 
 
 def printed(x):
@@ -88,6 +126,63 @@ def stood(solid):
                 under |= pad[1 + a:pad.shape[0] - 1 + a, 1 + b:pad.shape[1] - 1 + b]
         out[k] &= under
     return out
+
+
+def propped(grid, need, room):
+    """`grid` [layer, across, deep] with what holds up each voxel of `need` added: under one standing on none of
+    the nine under it, the voxel straight under it where the room has one, and so on down - a prop, solid."""
+    import numpy as np
+    out, need = grid.copy(), need.copy()
+    for k in range(len(out) - 1, 0, -1):
+        pad = np.pad(out[k - 1], 1)
+        under = np.zeros_like(out[k])
+        for a in (-1, 0, 1):
+            for b in (-1, 0, 1):
+                under |= pad[1 + a:pad.shape[0] - 1 + a, 1 + b:pad.shape[1] - 1 + b]
+        prop = out[k] & need[k] & ~under & room[k - 1]
+        out[k - 1] |= prop
+        need[k - 1] |= prop
+    return out
+
+
+def outlined(solid, h, fine=4, blur=0.6):
+    """(n, 3, 3) mm in the bed's frame: a `solid` [across, up, deep] of `h`-mm voxels drawn as the prisms it
+    stacks, smooth - each run of layers alike one prism, its outline the half-way line of its layer blurred
+    `blur` of a voxel on a grid `fine` to a voxel's side (`contourpy`), its walls up it, its ends' faces those of
+    its outline's points' triangles whose middles lie inside."""
+    import contourpy
+    import numpy as np
+    from scipy import ndimage
+    from scipy.spatial import Delaunay
+    layers, out, k = solid.transpose(1, 0, 2), [], 0
+    while k < len(layers):
+        j = k + 1
+        while j < len(layers) and np.array_equal(layers[j], layers[k]):
+            j += 1
+        if layers[k].any():
+            field = ndimage.gaussian_filter(np.kron(np.pad(layers[k], 2).astype(float), np.ones((fine, fine))),
+                                            blur * fine)
+            across, deep = ((np.arange(n) + 0.5) / fine - 2.0 for n in field.shape)
+            loops = [h * np.asarray(line) for line in contourpy.contour_generator(x=deep, y=across, z=field).lines(0.5)]
+            z0, z1 = k * h, j * h
+            for p in loops:                              # (deep, across) mm round each outline
+                for (d0, a0), (d1, a1) in zip(p[:-1], p[1:]):
+                    out += [((a0, z0, d0), (a1, z0, d1), (a1, z1, d1)), ((a0, z0, d0), (a1, z1, d1), (a0, z1, d0))]
+            points = np.concatenate(loops)
+            simplices = Delaunay(points).simplices
+            middle = points[simplices].mean(axis=1) / h * fine + 2.0 * fine - 0.5
+            inside = ndimage.map_coordinates(field, [middle[:, 1], middle[:, 0]], order=1) > 0.5
+            for s in simplices[inside]:
+                (d, a) = points[s].T
+                out += [tuple((a[i], z, d[i]) for i in range(3)) for z in (z0, z1)]
+        k = j
+    return np.array(out, float).reshape(-1, 3, 3)
+
+
+def faced(got, c):
+    """(n, 3, 3) mm in the bed's frame: a shaped case's solid drawn - an extruded one's prisms smooth (`outlined`),
+    else its voxels' outer faces (`knee_topo.faces`)."""
+    return outlined(got['solid'], got['h']) if c.get('extruded') else kt.faces(got['points'], got['cells'])
 
 
 def wrench(points, force, moment, about):
@@ -166,25 +261,41 @@ def optimise(c, log=None):
 
     def taken(g):
         return g[cells[:, 1], cells[:, 0], cells[:, 2]]
+    column = np.unique(cells[:, 0] * shape[2] + cells[:, 2], return_inverse=True)[1]
+    design = (~kept).astype(float)
+    count = np.maximum(np.bincount(column, weights=design), 1.0)
+
+    def columned(soft):                                  # a prism up the bed: a column's own voxels at their mean
+        return np.where(kept, 1.0, (np.bincount(column, weights=soft * design) / count)[column]), None
+
+    def columned_back(_soft, _keep, d):                  # its adjoint: each one its share of its column's sum
+        return (np.bincount(column, weights=d * design) / count)[column] * design
+
+    def stood_up(soft):                                  # what is kept is solid: what stands on it is printed
+        grid, keep = printed(lain(soft))
+        return np.where(kept, 1.0, taken(grid)), keep
+
+    def stood_back(soft, keep, d):
+        return taken(_back(lain(soft), keep, lain(np.where(kept, 0.0, d))))
+    physical, back = (columned, columned_back) if c.get('extruded') else (stood_up, stood_back)
     x, starts, phys = np.where(kept, 1.0, c['share']), [None] * len(loads), None
     for step in range(ROUNDS):
         soft = np.where(kept, 1.0, (weights @ x) / sums)
-        grid, keep = printed(lain(soft))
-        phys = taken(grid)
+        phys, keep = physical(soft)
         young = e0 * (VOID + (1.0 - VOID) * phys ** PENALTY)
         sens, compliance = np.zeros(len(x)), 0.0
         for u in _moved(basis, k0, young, loads, free, starts):
             ce = np.einsum('ie,ij,je->e', u[ed], k0, u[ed])
             compliance += float((young * ce).sum())
             sens -= PENALTY * e0 * (1.0 - VOID) * phys ** (PENALTY - 1.0) * ce
-        sens = weights @ (taken(_back(lain(soft), keep, lain(sens))) / sums)
-        dv = np.maximum(weights @ (taken(_back(lain(soft), keep, lain(np.ones(len(x))))) / sums), 1e-12)
+        sens = weights @ (back(soft, keep, sens) / sums)
+        dv = np.maximum(weights @ (back(soft, keep, np.where(kept, 0.0, 1.0)) / sums), 1e-12)
         lo, hi, new = 0.0, 1e12, x
         while (hi - lo) / (hi + lo + 1e-30) > 1e-4:
             mid = 0.5 * (lo + hi)
             new = np.where(kept, 1.0, np.clip(x * np.sqrt(np.maximum(-sens, 0.0) / (dv * mid)),
                                               np.maximum(x - MOVE, 0.0), np.minimum(x + MOVE, 1.0)))
-            trial = taken(printed(lain(np.where(kept, 1.0, (weights @ new) / sums)))[0])
+            trial = physical(np.where(kept, 1.0, (weights @ new) / sums))[0]
             lo, hi = (mid, hi) if trial[~kept].mean() > c['share'] else (lo, mid)
         change = float(np.abs(new - x)[~kept].max())
         x = new
@@ -200,7 +311,7 @@ def _digest(c):
     """A case's content as a name: its arrays, its loads, its voxel, its share and the method's own numbers."""
     import numpy as np
     h = hashlib.sha256(repr((c['h'], c['share'], PENALTY, MOVE, ROUNDS, VOID, SHARP, EPS, LEVELS, kt.REACH,
-                             'either way', 'kept whole')).encode())
+                             'either way', 'kept whole', 'kept solid, propped', c.get('extruded', False))).encode())
     for part in (c['room'], c['kept'], c['held']):
         h.update(np.packbits(part).tobytes() + repr(part.shape).encode())
     for patch, force, moment, about in (part for parts in c['loads'] for part in parts):
@@ -218,30 +329,53 @@ def ready(c):
     return os.path.isfile(_path(c))
 
 
+def _margin(c, mesh, basis, fixed, loads, solid, kept):
+    """How many times over a case's `solid` (bool a voxel) carries its loads, each either way: the principal stress
+    within the printed polymer's allowable, the stress up the layers within ACROSS of it, read in what is not kept."""
+    import numpy as np
+    from machine.body import structural
+    h, e0, allow = c['h'], 1e3 * structural.PAHT_CF[0], structural.PAHT_CF[2]
+    free, k0, young = np.setdiff1d(np.arange(basis.N), fixed), kt.unit(h), np.where(solid, e0, e0 * VOID)
+    moved = _moved(basis, k0, young, loads, free, [None] * len(loads))
+    worst = kt.stresses(basis, mesh, k0, young, loads, fixed, h, e0, moved + [-u for u in moved])[solid & ~kept]
+    return float(min(allow / worst[:, 0].max(), kt.ACROSS_SHARE * allow / max(worst[:, 3].max(), 1e-9)))
+
+
+def whole(c):
+    """{'margin', 'grams'}: a case's room all solid - the most the optimiser could keep -, read as `shaped` reads a
+    cut: where it does not carry, no cut is asked to."""
+    import numpy as np
+    mesh, basis, cells, fixed, loads = _meshed(c)
+    return {'margin': _margin(c, mesh, basis, fixed, loads, np.ones(len(cells), bool), c['kept'][tuple(cells.T)]),
+            'grams': float(len(cells)) * c['h'] ** 3 * 1e-9 * kt.DENSITY * 1e3}
+
+
 def shaped(c, log=None, fresh=False):
     """{'solid': [across, up, deep] the voxels kept, 'h', 'grams', 'room': the room's grams, 'margin', 'level',
     'lost': the kept voxels the cut let hang, 'points', 'cells': its voxels' corners for `knee_topo.faces`}: a
     case shaped (`optimise`) and cut at the first level that carries its loads with nothing told to stay lost, else
     at the last - from .cache/topo where this very case was shaped before, unless `fresh`."""
     import numpy as np
-    from machine.body import structural
     path = _path(c)
     if os.path.isfile(path) and not fresh:
         with np.load(path) as got:
             return {k: (got[k] if got[k].ndim else got[k].item()) for k in got.files}
     phys, mesh, basis, cells, fixed, loads = optimise(c, log)
     shape, h, kept = c['room'].shape, c['h'], c['kept'][tuple(cells.T)]
-    e0, allow = 1e3 * structural.PAHT_CF[0], structural.PAHT_CF[2]
-    free, k0 = np.setdiff1d(np.arange(basis.N), fixed), kt.unit(h)
     out = None
+    room, keeps = (np.zeros((shape[1], shape[0], shape[2]), bool) for _ in range(2))
+    room[cells[:, 1], cells[:, 0], cells[:, 2]] = True
+    keeps[cells[:, 1], cells[:, 0], cells[:, 2]] = kept
     for level in LEVELS:
         grid = np.zeros((shape[1], shape[0], shape[2]), bool)
         grid[cells[:, 1], cells[:, 0], cells[:, 2]] = (phys >= level) | kept
+        for _ in range(len(grid)):                       # what is kept, held up where it hangs, till none falls
+            lost = keeps & ~stood(grid)
+            if not lost.any():
+                break
+            grid = propped(stood(grid) | keeps, lost, room)
         solid = stood(grid)[cells[:, 1], cells[:, 0], cells[:, 2]]
-        young = np.where(solid, e0, e0 * VOID)
-        moved = _moved(basis, k0, young, loads, free, [None] * len(loads))
-        worst = kt.stresses(basis, mesh, k0, young, loads, fixed, h, e0, moved + [-u for u in moved])[solid & ~kept]
-        margin = min(allow / worst[:, 0].max(), kt.ACROSS_SHARE * allow / max(worst[:, 3].max(), 1e-9))
+        margin = _margin(c, mesh, basis, fixed, loads, solid, kept)
         grams = float(solid.sum()) * h ** 3 * 1e-9 * kt.DENSITY * 1e3
         if log:
             log('  cut at %.1f: %.0f g, margin x%.2f, %d kept voxels lost' % (level, grams, margin,
