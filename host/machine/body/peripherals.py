@@ -341,6 +341,7 @@ def _build_mujoco() -> dict[str, Any]:
         'load_s': float(env.get('load_s', round(2.0 * float(w_cfg['sole_s']), 2))),
         'play_nm': float(b_cfg['play_nm']),
         'track': float(drives.TRACK),
+        'tracks': tuple(drives.track(j) for j in j_names),
         'observe_x': float(b_cfg['observe_x']),
         'rate_s': float(b_cfg['rate_s']),
         'mesh_rad_s': mesh_rad_s,

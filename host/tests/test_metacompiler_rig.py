@@ -282,9 +282,41 @@ def test_constants_and_external_toml_specs(r):
             and 'bend' not in coax_rods['ankle'], (lib_mot['peak_nm'], coax_rods['ankle_roll']['crank_x']))
 
 
+def test_robot2_coax_sea_tracks_and_kernel_parameters(r):
+    """`gynoid_mesomorph_medium_coax` derives per-joint SEA gravity-support `tracks`, un-geared leaf
+    hinge drag, and build-specific kernel clothoid, bedside and ballistic parameters."""
+    import math
+    probe = '\n'.join((
+        'import json, math, numpy as np',
+        'from machine.body import compile as body, gearbox, peripherals',
+        'from machine.law import se2; from machine.moves import ballistic; from machine.texts import kernel',
+        'from machine.way import obstacles, route; from machine.world import physics',
+        'st, bx, mj, w = body.subtrees(), gearbox.Boxes(np), peripherals.mujoco(), physics.World()',
+        'i_a, i_r = body.figure.JOINTS.index("left_ankle"), body.figure.JOINTS.index("left_ankle_roll")',
+        'cl = obstacles.laws()["clothoid"]',
+        'jmp = kernel.node("xform-standing-bilateral-jump", "ssc-launch")',
+        'v = ballistic.launch(jmp["phase-1-countermovement"]["crouch-depth-m"])[0]',
+        'apx = float(ballistic.parabola(v, 0.0)[0])',
+        'fl_a, fl_r = float(w.model.dof_frictionloss[w.vadr[i_a]]), float(w.model.dof_frictionloss[w.vadr[i_r]])',
+        'print(json.dumps({"ta": float(bx.track[i_a]), "tr": float(bx.track[i_r]),',
+        '                  "k_cl": float(bx.k[i_r] * (1.0 + bx.track[i_r])), "k_g": st["weight"] * st["h0"],',
+        '                  "fl_a": fl_a, "fl_r": fl_r,',
+        '                  "dk_err": abs(cl["dkappa-max"] - 1.0 / route.ARC_M / (0.5 * se2.BRAKE_S)),',
+        '                  "apx_err": abs(apx - jmp["desired-apex-z-m"])}))',
+    ))
+    out = subprocess.run([sys.executable, '-X', 'utf8', '-c', probe],
+                         env=dict(os.environ, COAXIAL_ROBOT='gynoid_mesomorph_medium_coax', PYTHONPATH=HOST),
+                         cwd=HOST, capture_output=True, text=True, check=True)
+    got = json.loads(out.stdout.strip().splitlines()[-1])
+    r.check('coax ankle SEA keeps pitch unlooped, braces ankle_roll to gravity stiffness and matches kernel laws',
+            got['ta'] == 0.0 and got['tr'] > 0.0 and math.isclose(got['k_cl'], got['k_g'], rel_tol=1e-3)
+            and got['fl_a'] == 0.0 and got['fl_r'] == 0.0
+            and got['dk_err'] < 0.01 and got['apx_err'] < 1e-3, got)
+
+
 ROSTER = (test_the_power_stage_is_the_librarys, test_the_stages_rate_and_envelope_are_stated_once,
           test_the_rig_reads_the_specs_as_files, test_a_motor_and_its_profile_are_one,
-          test_constants_and_external_toml_specs)
+          test_constants_and_external_toml_specs, test_robot2_coax_sea_tracks_and_kernel_parameters)
 
 
 def main(argv=None):

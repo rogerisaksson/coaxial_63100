@@ -196,7 +196,7 @@ def _read(report, c, hung):
     for p, tol in (('f', FRICTION), ('b', VISCOUS)):
         for k, name in enumerate(names):
             if name.endswith('.' + p):
-                err = abs(got['theta'][k] - true[k]) / (abs(true[k]) if p == 'f' else 1.0)
+                err = abs(got['theta'][k] - true[k]) / (max(abs(true[k]), VISCOUS) if p == 'f' else 1.0)
                 if err > tol:
                     off[name] = '%.3f for %.3f' % (got['theta'][k], true[k])
     report.check('every drive\'s Coulomb friction within %.0f %% of the world\'s' % (100 * FRICTION),
@@ -297,7 +297,8 @@ def test_a_world_off_the_figure_is_read_back(report, c):
     got = sysid.identify(base, Y, tau)
     true = sysid.projected(base, sysid.truth(lay, m))
     err = np.abs(got['theta'] - true) / np.maximum(np.abs(true), 1e-9)
-    f = {n: err[k] for k, n in enumerate(got['names']) if n.endswith('.f')}
+    f = {n: abs(got['theta'][k] - true[k]) / max(abs(true[k]), VISCOUS)
+         for k, n in enumerate(got['names']) if n.endswith('.f')}
     arm = {n: err[k] for k, n in enumerate(got['names']) if n.endswith('.J') and kind(n[:-2]) in ARMATURES}
     report.check('nothing touched the robot on the world %.0f %% off' % (100 * OFF), touched == 0, '%d steps' % touched)
     report.check('every drive\'s Coulomb friction read back within %.0f %%' % (100 * FRICTION),

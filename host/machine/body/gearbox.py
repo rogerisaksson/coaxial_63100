@@ -73,7 +73,7 @@ class Boxes:
         self.k = np.where(self.series > 0.0, 1.0 / (1.0 / np.maximum(wound, 1e-9) + 1.0 / np.maximum(self.series, 1e-9)), wound)
         self.j = np.array(_mj['armature'])
         self.c = 2.0 * np.array(_mj['zeta']) * np.sqrt(self.k * self.j)
-        self.track = TRACK * (self.series > 0.0)
+        self.track = np.array(_mj.get('tracks', TRACK)) * (self.series > 0.0)
         self.observe = np.where(self.sprung, OBSERVE_X * np.sqrt(self.k * (1.0 + self.track) / np.maximum(self.j, 1e-9)), 0.0)
         self.mesh = np.array(_mj['mesh'])
         self.shock = np.array(_mj['shock'])
@@ -132,6 +132,7 @@ class Boxes:
         lim = self.gap + self.shock / k
         self.rate += (dt / RATE_S) * ((feed - self.asked) / dt - self.rate)
         self.asked[:] = feed
+        trk = np.where((feed != 0.0) | (self.rate != 0.0), self.track, 0.0)
         for _ in range(SUBSTEPS):
             rel = self.w - qd
             past = np.sign(self.delta) * np.maximum(np.abs(self.delta) - self.gap, 0.0)
@@ -140,7 +141,8 @@ class Boxes:
             passed = np.where(on, np.clip(passed, -self.shock, self.shock), passed)
             self.p_int[:] = np.where(on, self.p_int + h * (self.drive - brake * self.w - self.hat), 0.0)
             self.hat[:] = self.observe * (self.p_int - j * self.w)
-            drive = ctrl + self.track * ((feed - self.hat) + self.c * (self.rate / k - rel))
+            cap = np.abs(self.hat) + PLAY_NM
+            drive = ctrl + trk * (np.clip(feed - self.hat, -cap, cap) + self.c * (self.rate / k - rel))
             self.drive[:] = np.where(on, np.clip(drive, -self.peak, self.peak), ctrl)
             self.w[:] = np.where(on, (self.w + h * (self.drive - passed) / j) / (1.0 + h * brake / j), qd)
             self.delta[:] = np.where(on, np.clip(self.delta + h * (self.w - qd), -lim, lim), self.delta)

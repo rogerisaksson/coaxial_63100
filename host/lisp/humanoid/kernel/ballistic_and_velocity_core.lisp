@@ -181,7 +181,7 @@
 ;; -----------------------------------------------------------------------------
 (defprimitive drive-stretch-shortening-ballistic-impulse
   [state &key (launch-topology :bilateral-in-phase) ; :bilateral-in-phase (two-footed jump) | :unilateral-split-leap (leap)
-              (target-apex-height-dz-mm 218.8)   ; the robot's knees' launch from its crouch (320.0)
+              (target-apex-height-dz-mm (robot-jump-apex-mm 175.6)) ; the robot's knees' launch from its crouch (320.0)
               (target-horizontal-span-dx-mm 0.0)
               (countermovement-depth-mm 175.6)   ; at the robot's size (185.0)
               (arm-flywheel-assist true)]

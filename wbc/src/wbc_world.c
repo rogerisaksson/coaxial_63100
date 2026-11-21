@@ -91,14 +91,16 @@ static void stepped(const wbc_steps_t *s, int n)
     for (int i = 0; i < n; i++)
     {
       const int    on = b->on[i] != 0U;
+      const double trk = ((p->feed[i] != 0.0) || (b->rate[i] != 0.0)) ? b->track[i] : 0.0;
       const double past = npsign(b->delta[i]) * npmaximum(fabs(b->delta[i]) - b->gap[i], 0.0);
       double       passed = (past != 0.0) ? (b->k[i] * past + b->c[i] * rel[i]) + b->mesh[i] * th[i] : 0.0;
-      double       drive;
+      double       cap, drive;
 
       passed = on ? npclip(passed, -b->shock[i], b->shock[i]) : passed;
       b->p_int[i] = on ? b->p_int[i] + h * ((b->drive[i] - brake[i] * b->w[i]) - b->hat[i]) : 0.0;
       b->hat[i] = b->observe[i] * (b->p_int[i] - j[i] * b->w[i]);
-      drive = ctrl[i] + b->track[i] * ((p->feed[i] - b->hat[i]) + b->c[i] * (b->rate[i] / k[i] - rel[i]));
+      cap = fabs(b->hat[i]) + b->play_nm;
+      drive = ctrl[i] + trk * (npclip(p->feed[i] - b->hat[i], -cap, cap) + b->c[i] * (b->rate[i] / k[i] - rel[i]));
       b->drive[i] = on ? npclip(drive, -b->peak[i], b->peak[i]) : ctrl[i];
       b->w[i] = on ? (b->w[i] + (h * (b->drive[i] - passed)) / j[i]) / (1.0 + (h * brake[i]) / j[i]) : qd[i];
       b->delta[i] = on ? npclip(b->delta[i] + h * (b->w[i] - qd[i]), -lim[i], lim[i]) : b->delta[i];

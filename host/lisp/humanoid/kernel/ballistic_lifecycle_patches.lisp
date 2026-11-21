@@ -42,8 +42,8 @@
         ;; 4. In-Stride Single-Leg Leap / Bound (1.45m bound over obstacle mid-stride! The robot's own 0.66 m, one knee)
         stage-4-stride-leap  (-> stage-3-sprangmarsch
                                  (xform-in-stride-unilateral-leap
-                                   :leap-apex-z-mm 79.6    ; one knee's launch, the robot's own (280.0)
-                                   :leap-span-x-mm 658.0)  ; at the robot's 2.58 m/s (1450.0)
+                                   :leap-apex-z-mm (robot-leap-apex-mm 109.2 2.582)   ; one knee's launch, the robot's own (280.0)
+                                   :leap-span-x-mm (robot-leap-span-mm 109.2 2.582))  ; at the robot's 2.58 m/s (1450.0)
                                  (apply-universal-deformable-overlay)
                                  (master-anti-spasm-insert))
 
@@ -65,8 +65,8 @@
         ;;    the robot's own 195 + 324 at its angle)
         stage-7-standing-jmp (-> stage-6-rapid-brake
                                  (xform-standing-bilateral-jump
-                                   :jump-height-z-mm 194.6            ; the robot's knees' launch at its angle (360.0)
-                                   :jump-distance-x-mm 323.6          ; (600.0)
+                                   :jump-height-z-mm (robot-jump-angled-apex-mm 185.1 360.0 600.0)   ; the robot's knees' launch at its angle (360.0)
+                                   :jump-distance-x-mm (robot-jump-angled-span-mm 185.1 360.0 600.0) ; (600.0)
                                    :countermovement-crouch-mm 185.1)  ; at the robot's size (195.0)
                                  (apply-universal-deformable-overlay)
                                  (master-anti-spasm-insert))]

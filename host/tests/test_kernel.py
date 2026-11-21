@@ -274,7 +274,7 @@ def test_the_kernel_reads_whole(report):
                  and got['*abi-field-descriptors*'][0] == (':bpm', 0.0, 0.016666668, 0.0, 4.0), '%r' % ((b0, b1, b2, a1, a2),))
 
 
-def _both(c, step, outs, got):
+def _both(c, step, outs, got, check_geom=None):
     """The robot's observer's `step` (wbc_gmo.c) on `c` scoped and on its copy whole (`whole`), in turns first, timed:
     `got` counts the law passes, those whose `outs` were apart, the robot's working set's sizes and each one's seconds.
     The copy on a 64-byte line as wbc_gmo_t is (`gmo.made`): ctypes' own copy keeps 16 bytes', on CI's host a crash."""
@@ -296,6 +296,8 @@ def _both(c, step, outs, got):
         got['lives'] += c.lives
         got['listed'] += c.listed
         got['touches'] += sum(t >= 0 for t in c.touched)
+        if check_geom is not None:
+            got['geom'] += int(check_geom())
     return stepped
 
 
@@ -306,22 +308,41 @@ def test_the_robots_observer_scoped_as_whole(report):
     scoped, about half the robot's unknowns split and a fraction of its pairs searched, within the text's
     envelope. The crouch touched only where its right thigh's capsule lay unmirrored, on its trunk
     (`figure.skin_of`): mirrored, none of 11067 passes touches."""
+    import numpy as np
+    from machine.body import capsules
+    from machine.senses import momentum
     from machine.texts import kernel
     from tools.cores.gmo import GMO_F
     from tools.sim import scenarios
     outs = ('r', 'f', 'force', 'at', 'touched', 'past', 'prior', 'speed', 'expected')
     envelope = kernel.said('evaluate-operating-point-horizon', 'manifold-preload-distance-mm') * 1e-3
-    for scene, touching in (('play_walk', False), ('sit_to_stand', True)):
-        got, held = dict.fromkeys(('passes', 'apart', 'lives', 'listed', 'touches', 'whole', 'scoped'), 0), {}
+    for scene in ('play_walk', 'sit_to_stand'):
+        got, held = dict.fromkeys(('passes', 'apart', 'lives', 'listed', 'touches', 'geom', 'whole', 'scoped'), 0), {}
 
         def laid(s, got=got, held=held):
-            obs = s['g']['observer']
+            obs, body = s['g']['observer'], s['g']['body']
             if held.get('obs') is not obs:
+                caps, pairs = momentum._capsules(body.m)
+                d = body.mj.MjData(body.m)
+                ids = np.array([body.m.body(seg).id for seg, *_r in caps])
+                ca, cb = np.array([a for _s, _r, a, _b in caps]), np.array([b for _s, _r, _a, b in caps])
+                cr, pr = np.array([r for _s, r, _a, _b in caps]), np.array(pairs)
+
+                def check_geom(m=body.m, mj=body.mj, d=d, qv=obs['q'], ids=ids, ca=ca, cb=cb, cr=cr, pr=pr):
+                    d.qpos[:7] = (0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0)
+                    d.qpos[7:7 + len(qv)] = qv
+                    mj.mj_kinematics(m, d)
+                    R, o = d.xmat[ids].reshape(-1, 3, 3), d.xpos[ids]
+                    return bool((capsules.nearest({'p0': o + np.einsum('nij,nj->ni', R, ca),
+                                                   'p1': o + np.einsum('nij,nj->ni', R, cb),
+                                                   'r0': cr, 'r1': cr}, pr)['d'] < -1e-9).any())
+
                 held['obs'], held['c'] = obs, obs['c']
-                obs['step'] = _both(obs['c'], obs['step'], outs, got)
+                obs['step'] = _both(obs['c'], obs['step'], outs, got, check_geom)
 
         scenarios.ran(scene, laid=laid)
         n, c = max(got['passes'], 1), held['c']
+        touching = False if scene == 'play_walk' else got['geom'] > 0
         report.check('%s, %d law passes scoped as whole bit for bit: %.0f of %d unknowns, %.0f of %d pairs within '
                      '%.2f m, %d touches; %.0f against %.0f us' % (
                          scene, got['passes'], got['lives'] / n, GMO_F, got['listed'] / n, c.pairs, c.horizon,

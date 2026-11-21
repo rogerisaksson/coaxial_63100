@@ -78,7 +78,7 @@
 ;; C. STANDING TWO-FOOTED JUMP (FROM A STANDSTILL, FEET TOGETHER)
 ;; =============================================================================
 (defmodifier xform-standing-bilateral-jump
-  [static-or-walking-state &key (jump-height-z-mm 223.6) ; the robot's knees' launch from its crouch (340.0)
+  [static-or-walking-state &key (jump-height-z-mm (robot-jump-apex-mm 180.4)) ; the robot's knees' launch from its crouch (340.0)
                                 (jump-distance-x-mm 0.0) ; 0 = vertical hop; >0 = standing broad jump!
                                 (countermovement-crouch-mm 180.4)] ; at the robot's size (190.0)
   (-> static-or-walking-state
@@ -100,8 +100,8 @@
 ;; =============================================================================
 (defmodifier xform-in-stride-unilateral-leap
   [gait-state &key (takeoff-leg :auto-next-stance)
-                   (leap-apex-z-mm 79.6)         ; one knee's launch, the robot's own (260.0)
-                   (leap-span-x-mm 658.0)]       ; from the robot's double-time march's 2.58 m/s (1350.0)
+                   (leap-apex-z-mm (robot-leap-apex-mm 109.2 2.582))  ; one knee's launch, the robot's own (260.0)
+                   (leap-span-x-mm (robot-leap-span-mm 109.2 2.582))] ; from the robot's double-time march's 2.58 m/s (1350.0)
   (-> gait-state
       ;; Wait for penultimate single-support on `takeoff-leg` without stopping the PLL clock!
       (drive-stretch-shortening-ballistic-impulse
@@ -124,8 +124,8 @@
 ;; Adjusts the mid-air knee tuck and shifts the expected touchdown Z-plane upward
 ;; by `+platform-elevation-z-mm` so the Momentum Observer latches on the elevated surface!
 (defmodifier specialize-jump-onto-elevated-platform
-  [jump-state &key (platform-elevation-z-mm +85.0)    ; the robot's launch at the text's angle, 205 up less 120 (+380.0)
-                   (platform-forward-x-mm 213.4)]     ; and 213 ahead (520.0)
+  [jump-state &key (platform-elevation-z-mm (- (robot-jump-angled-apex-mm 175.6 500.0 520.0) 120.0)) ; the robot's launch at the text's angle (+380.0)
+                   (platform-forward-x-mm (robot-jump-angled-span-mm 175.6 500.0 520.0))]            ; and ahead (520.0)
   (-> jump-state
       (drive-stretch-shortening-ballistic-impulse
         :launch-topology :bilateral-in-phase

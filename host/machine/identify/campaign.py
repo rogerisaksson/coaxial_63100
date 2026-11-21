@@ -121,8 +121,9 @@ def _deadband(delta, rel, passed, wound_nm):
     lo, hi = float(np.percentile(delta[z3], 2)), float(np.percentile(delta[z3], 98))
     play, zero = 0.5 * (hi - lo), 0.5 * (hi + lo)
     past = np.sign(delta - zero) * np.maximum(np.abs(delta - zero) - play, 0.0)
-    keep = (np.abs(passed) > wound_nm) & (past * passed > 0.0)
-    if keep.sum() < 2 * WOUND_ROWS:
+    high = np.abs(passed) > wound_nm
+    keep = high & (past * passed > 0.0)
+    if keep.sum() < ROTOR_ROWS // 2 or keep.sum() < 0.8 * high.sum():
         return None
     f = np.linalg.lstsq(np.column_stack([past[keep], rel[keep], np.tanh(rel[keep] / MESH_RAD_S)]),
                         passed[keep], rcond=None)[0]

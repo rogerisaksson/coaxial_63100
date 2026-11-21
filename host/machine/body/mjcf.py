@@ -159,7 +159,7 @@ def _held_deg(joint):
 
 def _joint(joint, axis, sign):
     """A joint's element: its drive's armature, its stops, its spring or its gearbox's drag."""
-    from machine.world.physics import BACKDRIVE, REFLECTED, STEP_S
+    from machine.world.physics import BACKDRIVE, REFLECTED
     idx = _J_IDX[joint]
     stop, spring = drives.TRAVEL.get(kind(joint)), drives.passive(joint)
     if spring:
@@ -167,15 +167,16 @@ def _joint(joint, axis, sign):
         hd = _held_deg(joint)
         stop = (rest - hd, rest + hd) if stiffness is None else stop
     axes = {'x': (1, 0, 0), 'y': (0, 1, 0), 'z': (0, 0, 1)}
-    s0, drag = float(_mj['servo_armature'][idx]), BACKDRIVE * float(_mj['backdrive_nm'][idx])
-    fast = ' solreffriction="%g 1"' % (2.0 * STEP_S) if float(_mj['series'][idx]) > 0.0 and s0 < 0.01 else ''
+    s0 = float(_mj['servo_armature'][idx])
+    peers = (idx,) + tuple(b if a == idx else a for a, b in _mj['pairs'] if idx in (a, b))
+    drag = 0.0 if all(float(_mj['series'][p]) > 0.0 for p in peers) else BACKDRIVE * float(_mj['backdrive_nm'][idx])
     return '<joint name="%s" axis="%g %g %g" armature="%g"%s%s/>' % (
         (joint,) + tuple(sign * v for v in axes[axis]) + (
             _passive_j(joint) if spring else s0 + REFLECTED * (float(_mj['armature'][idx]) - s0),
             ' limited="true" range="%g %g"' % stop if stop else '',
             ' stiffness="%g" springref="%g" damping="%g"' % (spring[0], spring[2], spring[1])
             if spring and spring[0] else
-            ' frictionloss="%g"%s' % (drag, fast) if BACKDRIVE and not spring else ''))
+            ' frictionloss="%g"' % drag if BACKDRIVE and not spring and drag > 0.0 else ''))
 
 
 def _guarded(name):

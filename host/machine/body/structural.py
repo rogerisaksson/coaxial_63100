@@ -267,18 +267,28 @@ def leaf_series(leaf):
     return out
 
 
-def leaf_track(series_map, armature_fn, rate_s=None, observe_x=None):
-    """SEA rotor torque-loop gain from leaf natural frequency vs observer/rate bandwidth ceiling."""
+def leaf_tracks(series_map, armature_fn, wind_fn=None, k_grav=0.0, rate_s=None, observe_x=None):
+    """{joint kind: gain} SEA rotor torque-loop gains from observer bandwidth and stance gravity stiffness."""
     if not series_map:
-        return 0.0
+        return {}
     from machine.body import drives
     bus_hz, law_div = drives.BUS_HZ, float(drives.LAW_DIV)
     r_s = (law_div + 2.0) / bus_hz if rate_s is None else float(rate_s)
     obs_x = round(2.0 + 1.0 / law_div, 1) if observe_x is None else float(observe_x)
     omega_sea = 0.90 / (obs_x * r_s)
-    gains = []
+    out = {}
     for kind, k_rot in series_map.items():
-        j_rot = max(armature_fn(linkage.joints(kind)[0]), 1e-6)
+        j_name = linkage.joints(kind)[0]
+        j_rot = max(armature_fn(j_name), 1e-6)
+        k_wnd = 0.0 if wind_fn is None else float(wind_fn(j_name))
+        k_eff = (k_wnd * k_rot) / (k_wnd + k_rot) if k_wnd > 0.0 and k_rot > 0.0 else k_rot
         omega_leaf = math.sqrt(k_rot / j_rot)
-        gains.append(0.0 if omega_leaf >= 0.70 * omega_sea else max(0.0, (omega_sea / omega_leaf) ** 2 - 1.0))
-    return max(gains)
+        g_bw = 0.0 if omega_leaf >= 0.70 * omega_sea else max(0.0, (omega_sea / omega_leaf) ** 2 - 1.0)
+        g_grav = max(0.0, float(k_grav) / max(k_eff, 1e-6) - 1.0) if k_eff > 0.0 else 0.0
+        out[kind] = round(max(g_bw, g_grav), 4)
+    return out
+
+
+def leaf_track(series_map, armature_fn, rate_s=None, observe_x=None):
+    """SEA rotor torque-loop gain ceiling across sprung joints (`leaf_tracks`)."""
+    return max(leaf_tracks(series_map, armature_fn, rate_s=rate_s, observe_x=observe_x).values(), default=0.0)

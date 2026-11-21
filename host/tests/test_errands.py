@@ -139,11 +139,14 @@ def test_doorway_arm_yields_and_the_robot_walks_on(report):
     near either jamb so its hand or forearm strikes the door frame, its arm yields backward (`<= -0.40 rad`)
     and it walks on past the doorway without braking to `stand`."""
     import numpy as np
-    from machine.world import physics
+    from machine.body import compile as body, drives, figure
+    from machine.world import physics, room
     from machine.senses import edge, touch
     from machine.process import worker
+    st, k_ar = body.subtrees(), drives.series('left_ankle_roll')
+    d_hd = (0.5 * st['weight'] * (figure.HIP_HALF - figure.SOLE_HALF) / k_ar) * st['h0'] / room.TO if k_ar > 0.0 else 0.0
     for side_name, hd, sh_idx, arm_skin in (('right jamb', 0.148, 13, touch.ARMS[1]),
-                                            ('left jamb', 0.265, 5, touch.ARMS[0])):
+                                            ('left jamb', 0.265 - d_hd, 5, touch.ARMS[0])):
         physics.ROOM = 1.0
         s = worker.session()
         worker.apply(s, {'scenario': 'flat'})

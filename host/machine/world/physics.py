@@ -151,6 +151,9 @@ class World:
         #: Whether any joint's box is stepped (`gearbox.Boxes.sprung`): every driven one BOXED, else the robot's
         #: ankle's leaf's; stepped, a joint's rotor is the box's, its armature the servo's.
         self.sprung = bool(self.boxes.sprung.any())
+        self.unhinged = self.driven & (self.boxes.series > 0.0)
+        for a, b in self.pairs:
+            self.unhinged[a] = self.unhinged[b] = bool(self.unhinged[a] and self.unhinged[b])
         self.motor = np.zeros(len(JOINTS))
         self.link = dclink.laid()
         if self.sprung:
@@ -344,7 +347,8 @@ class World:
             m.dof_armature[self.vadr[i]] = base if self.boxes.sprung[i] else base + REFLECTED * (seen - base)
             self.boxes.j[i] = seen
             b.rotor[i] = REFLECTED * ROTOR_FF * seen
-            m.dof_frictionloss[self.vadr[i]] = BACKDRIVE * drives.backdrive(joint) * s
+            m.dof_frictionloss[self.vadr[i]] = (0.0 if self.unhinged[i]
+                                                else BACKDRIVE * drives.backdrive(joint) * s)
             m.dof_damping[self.vadr[i]] = free + (self.damping[i] * s * s if self.shorted[i]
                                                   and not self.boxes.sprung[i] else 0.0)
 

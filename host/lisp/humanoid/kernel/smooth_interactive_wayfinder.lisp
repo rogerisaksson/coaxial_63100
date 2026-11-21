@@ -90,8 +90,8 @@
 ;; -----------------------------------------------------------------------------
 (defprimitive filter-streamline-via-se2-clothoid
   [state &key (curvature-bandwidth-radps 6.5)
-              (max-curvature-inv-m 0.61)       ; Min turning radius R_min ~ 0.54 m during normal walk! The robot's own 1.63 m, its arc
-              (max-clothoid-rate-inv-ms 1.39)  ; Bounds lateral jerk d^3(y)/dt^3! Text 2.4; the robot's own 0.61 /m over a step's 0.44 s
+              (max-curvature-inv-m (robot-clothoid-kappa))       ; Min turning radius R_min ~ 0.54 m during normal walk! The robot's own arc
+              (max-clothoid-rate-inv-ms (robot-clothoid-dkappa)) ; Bounds lateral jerk d^3(y)/dt^3! The robot's own arc over a step
               (harmonic-dipole-circulation 0.42)]
   (-> state
       (integrate-se2-clothoid-streamline
@@ -152,7 +152,7 @@
         :shoulder-aperture-slotting true)
       (filter-streamline-via-se2-clothoid
         :curvature-bandwidth-radps 6.5
-        :max-curvature-inv-m 0.61             ; 1.85! The robot's own 0.61, its arc
+        :max-curvature-inv-m (robot-clothoid-kappa) ; 1.85! The robot's own arc
         :harmonic-dipole-circulation 0.42)
       (allow-sub-overhang-interactive-footholds :shin-to-bevel-min-clearance-mm 14.0)
       (guard-3d-swing-and-prealign-ankle-so3

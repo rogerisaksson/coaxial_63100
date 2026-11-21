@@ -4,13 +4,8 @@
     g = got['patch-sneaker-runway']              # a gait: {node: {param: value}}
     plan = dsp.schedule(got['compile-omnidirectional-suite'])  # [(from bar, to bar, gait or Morph)]
 
-A gait is the suite's manifold as nodes of params, a sidechain on the node it ducks; the runway's
-dialect (runway.lisp, `tools/sim/identify.py`'s) says the same by ALIASES. Stages - transducers,
-modifiers, limiters, maneuvers, a patch with parameters - are functions of a gait threaded by `->`.
-A gait keeps the stages and transitions it went through in
-order ('_trace') and a maneuver's acts ('_events': an envelope, a contact's threshold and the acts
-it releases). `machine.texts.voicing` plays a gait on the robot's walk, `machine.texts.maneuver` a maneuver on
-it.
+A gait maps nodes to params with optional sidechains; stages thread a gait via `->` and record
+`'_trace'` and `'_events'`. `machine.texts.voicing` and `machine.texts.maneuver` execute them.
 """
 import collections
 import copy
@@ -20,7 +15,7 @@ import struct
 from typing import Any
 
 from machine import libm
-from machine.texts import kept, ortho, patch
+from machine.texts import kept, kernel as _kernel, ortho, patch
 from machine.texts.kernel import KEYED, MECHANISMS, QUERIES
 from machine.texts.packages import modules
 from machine.errors import MachineError
@@ -226,7 +221,7 @@ FUNCS = {**{k: (lambda k, f: lambda *a: Law(k, a) if Law in map(type, a) else f(
          '>': lambda a, b: bool(a > b), '<': lambda a, b: bool(a < b), '>=': lambda a, b: bool(a >= b),
          '<=': lambda a, b: bool(a <= b), 'eq': operator.eq,
          'get-param': _param, 'bars': lambda b0, b1, item: (b0, b1, item), 'oneshot': lambda g: ('oneshot', g),
-         'dwell-ms': lambda ms: ('dwell', 1e-3 * ms),
+         'dwell-ms': lambda ms: ('dwell', 1e-3 * ms), **_kernel.FUNCS,
          **{name: (lambda p: lambda g: g['oscillator'][p])(p) for name, p in (
              ('get-bpm', 'bpm'), ('get-phase-diff', 'inter-limb-phase-rad'), ('get-duty-l', 'duty-factor-l'),
              ('get-duty-r', 'duty-factor-r'), ('get-duty', 'duty-factor-l'))},
@@ -353,7 +348,8 @@ SPECIAL = {'let': _let, 'let*': _let, 'case': _case, 'ecase': _case, '->': _thre
            'quasiquote': lambda a, env: _quasi(a[0], env),
            'if': lambda a, env: value(a[1] if value(a[0], env) else (a[2] if len(a) > 2 else None), env),
            'and': lambda a, env: all(value(x, env) for x in a),
-           'or': lambda a, env: next(filter(None, (value(x, env) for x in a)), None)}
+           'or': lambda a, env: next(filter(None, (value(x, env) for x in a)), None),
+           **_kernel.special(lambda x, env: value(x, env))}
 
 
 def value(x, env) -> Any:
@@ -475,12 +471,13 @@ def read(paths, texts=None):
     """{name: what it defines} of lisp files `paths` in order, each `texts`' ({key: text}) where given
     (`ortho.source`): constants as {param: value}, states and patches as gaits, stages, transitions,
     a schedule as compile-to-soa's keys, functions as Defuns. Each call its own copy, the same texts
-    evaluated once a process."""
+    evaluated once a process per build."""
+    from machine.body import mechatronics
     try:
-        sources = tuple((path, ortho.source(path, texts)) for path in paths)
+        sources = (mechatronics.ROBOT,) + tuple((path, ortho.source(path, texts)) for path in paths)
     except (SyntaxError, OSError):  # a text missing: refused where the reading meets it, uncached
         return _evaluated((path, ortho.source(path, texts)) for path in paths)
-    return kept.loaded(_READ, sources, _evaluated)
+    return kept.loaded(_READ, sources, lambda keyed: _evaluated(keyed[1:]))
 
 
 def _evaluated(sources):

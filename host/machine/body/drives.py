@@ -1,17 +1,13 @@
 """The robot's drives: coaxial stacks of inverter disc, pancake outrunner and roller wave drive.
 
     size = drives.of('left_knee')      # (frame, Size)
-    drives.kt('left_knee')             # N m of joint torque an amp of q current
-    drives.peak('left_knee')           # N m at the board's amps
-    drives.armature('left_knee')       # kg m^2, the rotor and the gearbox seen through it
-    drives.speed('left_knee')          # deg/s at the supply's lowest, unloaded
-    drives.backdrive('left_knee')      # N m to turn it by its output, unpowered
-    drives.shock('left_knee')          # N m its gearbox takes momentarily, a fall's blow
-    drives.slew('left_knee')           # N m/s its torque slews at most, its board's current loop
-    drives.jerk('left_knee')           # rad/s^3 its joint's at most, that over its rotor's inertia
+    drives.kt('left_knee')             # N m/A q-axis joint torque
+    drives.peak('left_knee')           # N m peak joint torque
+    drives.armature('left_knee')       # kg m^2 reflected inertia
+    drives.backdrive('left_knee')      # N m unpowered output drag
+    drives.shock('left_knee')          # N m momentary gearbox limit
 
-Each joint has a `Size` (`STACKS`, `JOINTS`), on its axis or mounted on a segment and driving it
-through a rod (`machine.body.linkage`), sized from the parts library (`machine.solver.drivetrain`).
+Each joint has a `Size` (`STACKS`, `JOINTS`), coaxial or rod-driven (`machine.body.linkage`).
 """
 import math
 from typing import Any
@@ -47,11 +43,8 @@ class Size:
         self.drag, self.shock, self.board, self.parts = drag, shock, board, parts
 
 
-#: The robot's stacks' parts as the library has them: a motor's (can D m, height m, kg, line-to-line
-#: ohm, peak N m, rotor kg m^2) and its KV; a gearbox's diameter and stiffness; an inverter's
-#: (disc D m, amps, kg, its laminate's K/W to the air, its height m). Each kind's stack: (motor,
-#: gearbox, inverter). One gearbox for every stack: its ratio, its input's share of the rotor's
-#: inertia, its wind-up's damping ratio, its play and its mesh's friction.
+#: Stacks' parts from `machine/library` and `machine/humanoids`: motor `(can_m, height_m, kg, ohm, peak_nm, rotor)`,
+#: gearbox diameter/stiffness, inverter `(disc_m, amps, kg, laminate_k_w, height_m)`, and `[motor, gearbox, inverter]`.
 _ROTOR_RING, _KV_REF = float(_MAT['rotor_ring_share']), float(_MAT['kv_ref'])
 _RHO_STEEL, _MIN_WALL = float(_MAT['steel_kg_m3']), float(_MAT['min_wall_m'])
 _G_STEEL, _ALLOW_STEEL = float(_MAT['solids']['steel'][1]), float(_MAT['solids']['steel'][2])
@@ -150,6 +143,11 @@ def series(joint):
     return 0.0 if passive(joint) else float(_structural()[1].get(kind(joint), 0.0))
 
 
+def track(joint):
+    """SEA rotor torque-loop gain on `joint`'s series spring (`TRACKS`); 0 none, and none undriven."""
+    return 0.0 if passive(joint) else float(_tracks()[1].get(kind(joint), 0.0))
+
+
 def mesh(joint):
     """The friction in its gearbox's mesh at the joint, N m: the hysteresis loop's half width;
     none undriven."""
@@ -166,9 +164,7 @@ def zeta(joint):
     b = _box(joint)
     return float(b.get('zeta', wave_box(b).zeta))
 
-#: Joints without a drive (`passive`): a kind's way - 1 on a spring, 2 held - and a spring's
-#: (stiffness N m/rad, damping N m s/rad, rest deg); the toes' spring, its loss factor at its
-#: push-off's rad/s and its rest.
+#: Undriven joints (`passive`): way 1 sprung, way 2 held; `(stiffness, damping, rest)` and toe plate.
 WAYS = {k: v['way'] for k, v in _BUILD['passive'].items()}
 PASSIVE = {k: (v.get('stiffness'), float(v.get('damping', 0.0)), float(v.get('rest', 0.0)))
            for k, v in _BUILD['passive'].items()}
@@ -526,6 +522,7 @@ def heat(joint):
 
 
 _STRUCTURAL = None
+_TRACKS = None
 
 
 def _structural():
@@ -535,13 +532,32 @@ def _structural():
         wind_map = dict(_BUILD['wind']) if 'wind' in _BUILD else structural.wind_mrad()
         ser_map = ({k: v for k, v in _BUILD['series'].items() if k != 'track'}
                    if 'series' in _BUILD else structural.leaf_series(_BUILD.get('leaf')))
-        trk = (float(_BUILD['series'].get('track', 0.0))
-               if 'series' in _BUILD else structural.leaf_track(ser_map, armature))
-        _STRUCTURAL = (wind_map, ser_map, trk)
+        _STRUCTURAL = (wind_map, ser_map)
     return _STRUCTURAL
 
 
+def _tracks():
+    global _TRACKS
+    if _TRACKS is None:
+        from machine.body import compile as _compile, structural
+        wind_map, ser_map = _structural()
+        if 'series' in _BUILD:
+            trk = float(_BUILD['series'].get('track', 0.0))
+            trk_map = {k: trk for k in ser_map}
+        else:
+            st = _compile.subtrees()
+            def wind_fn(j):
+                lev = linkage.lever(j)
+                return (lev * lev) / (1.0 / BOX_K[STACKS[kind(j)][1]] + wind_map[kind(j)] * 1e-3)
+            trk_map = structural.leaf_tracks(ser_map, armature, wind_fn=wind_fn, k_grav=st['weight'] * st['h0'])
+            trk = float(trk_map.get('ankle', 0.0))
+        _TRACKS = (trk, trk_map)
+    return _TRACKS
+
+
 def __getattr__(name: str) -> Any:
-    if name in ('WIND', 'SERIES', 'TRACK'):
-        return _structural()[('WIND', 'SERIES', 'TRACK').index(name)]
+    if name in ('WIND', 'SERIES'):
+        return _structural()[('WIND', 'SERIES').index(name)]
+    if name in ('TRACK', 'TRACKS'):
+        return _tracks()[('TRACK', 'TRACKS').index(name)]
     raise AttributeError(name)
