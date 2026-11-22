@@ -26,9 +26,9 @@ from tools.render import covered as cv  # noqa: E402
 from tools.render import elbow_mount as em  # noqa: E402
 from tools.render import mounting as m  # noqa: E402
 
-#: The printer's plate: its side and the height over it, the corner at its front left kept free (across, deep) -
-#: its nozzle's wiper's -, the air between two pieces and off the plate's edge, m.
-PLATE_M, TALL_M, CORNER_M, AIR_M = 0.256, 0.256, (0.018, 0.028), 0.005
+#: The printer's plate (Bambu Lab P1S): 256 mm square, 250 mm tall with filament cutter active, front-left cutter
+#: exclusion corner (across, deep), and clearance between pieces and off the plate's edges, m.
+PLATE_M, TALL_M, CORNER_M, AIR_M = 0.256, 0.250, (0.018, 0.028), 0.005
 #: The inks printed: the frame's, the guards' and their first layers'; the bed's.
 PRINTED, BED = (em.FRAME, cv.BLACK, chain.ACCENT), (70, 74, 84)
 X, Y, Z, IN = (1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0), (-1.0, 0.0, 0.0)
@@ -83,7 +83,8 @@ UPPER_PIECES = (
     ('elbow cover', X, 2), ('elbow lid', X, 2), ('elbow foot', Y, 2), ('forearm head', (0.0, -1.0, 0.0), 2),
     ('crossbar foot', X, 2), ('shoulder block', IN, 2), ('shoulder housing', X, 2), ('arm saddle', X, 2),
     ('shoulder guard', X, 2), ('shoulder lid', X, 2), ('clevis socket', Y, 2), ('gimbal bridge', X, 2),
-    ('pectoral cover', Z, 2), ('pectoral lid', Z, 2), ('pectoral crank', Z, 2),
+    ('pectoral mount', (0.0, 0.0, -1.0), 2), ('pectoral cover', Z, 2), ('pectoral lid', Z, 2),
+    ('pectoral crank', Z, 2),
     ('torso block', X, 1), ('neck band', X, 1), ('spine foot', (0.0, -1.0, 0.0), 1), ('bay puck', Z, 1),
     ('bay clamp', Y, 1), ('bay guard', Z, 1), ('bay lid', Z, 1), ('shoulder bay guard', X, 2),
     ('shoulder bay lid', X, 2), ('neck cheek', X, 1), ('neck crown', Y, 1), ('neck shoe', X, 1))
@@ -99,7 +100,7 @@ def _upper():
     """{part: tris}: the upper body's printed parts as their sketches draw them."""
     import numpy as np
     from tools.render import boards, clamped as cl, hip_clamped as hc, leaves, neck_laid as nl, neck_mount as nm
-    from tools.render import shoulder_mount as sm, shoulder_rolled as sr, sized
+    from tools.render import shoulder_mount as sm, shoulder_rolled as sr, shoulder_shaped as ss, sized
     (_sp, (_g0, g1, ring), arm_in, arm_out, _can, motor, _brd, (narrow, reach), _split, (back, x1, band), cover,
      (_face, end, outside), over, (first, _rot), swing) = em._laid()
     fit, top, low = em._fitted(), over + em.SADDLE_M, over + em.ROTOR_AIR
@@ -132,6 +133,8 @@ def _upper():
     c_arm = em._rounded(cl.filleted(leaves.hull(c_root + leaves.ring((float(c_pin[0]), float(c_pin[1])),
                                                                      sr.PIN_R + 0.006))),
                         z0_c, z1_c, em.FRAME, axis=2, r=0.0015, steps=1)
+    p_mount = ss.drawn() or [((t @ rot_z) + (cx, cy, 0.0), c) for t, c in cl.turned(
+        [(pec['band'][0], can_p, pec['band'][2]), (pec['band'][1], ring_p, pec['band'][2])], 0.0)]
     lay_n, n_still, n_nod = nl.laid(), nm.still(), nm.nodding()
     return {'elbow stator band': stator_b, 'elbow stator saddle': stator_s, 'elbow rotor clamp': rotor_c,
             'elbow cover': cv.cover(*cover, outlet=fit[4], window=boards.window(turn)),
@@ -141,7 +144,7 @@ def _upper():
             'crossbar foot': s_still['crossbar foot'], 'shoulder block': s_still['block'],
             'shoulder housing': s_turn['housing'], 'arm saddle': s_turn['arm saddle'],
             'shoulder guard': s_turn['guard'], 'shoulder lid': s_turn['lid'],
-            'clevis socket': sock, 'gimbal bridge': bridge,
+            'clevis socket': sock, 'gimbal bridge': bridge, 'pectoral mount': p_mount,
             'pectoral cover': [((t @ rot_z), col) for t, col in p_drv['guard']],
             'pectoral lid': [((t @ rot_z), col) for t, col in p_drv['lid']],
             'pectoral crank': c_band + c_arm,
@@ -311,17 +314,22 @@ def main(argv=None):
     from PIL import Image, ImageDraw
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('out', nargs='?')
+    parser.add_argument('--group', choices=('leg', 'trunk', 'upper', 'all'), default='leg')
     args = parser.parse_args(argv)
-    got = plates()
+    groups = {'leg': PIECES, 'trunk': trunk(), 'upper': upper(),
+              'all': tuple((n, s, p, w, 2 * c) for n, s, p, w, c in PIECES) + trunk() + upper()}
+    chosen_rows = groups[args.group]
+    got = plates(chosen_rows)
     for k, plate in enumerate(got):
         for name, x, z, a, d in plate:
-            print('plate %d  %-16s %5.0f x %5.0f mm, %5.0f high, at %5.0f, %5.0f' % (
+            print('plate %d  %-24s %5.0f x %5.0f mm, %5.0f high, at %5.0f, %5.0f' % (
                 k + 1, name, 1e3 * a, 1e3 * d, 1e3 * laid(name)[1][2], 1e3 * x, 1e3 * z))
-    print(fitted())
-    for name, wide, long in cut():
-        print('cut, not printed: %-12s %.0f mm round, %.0f mm long' % (name, 1e3 * wide, 1e3 * long))
+    print(fitted(chosen_rows))
+    if args.group == 'leg':
+        for name, wide, long in cut():
+            print('cut, not printed: %-12s %.0f mm round, %.0f mm long' % (name, 1e3 * wide, 1e3 * long))
     if args.out:
-        px, wide = 760, min(3, len(got))
+        px, wide = 760, min(4 if len(got) > 6 else 3, len(got))
         sheet = Image.new('RGB', (px * wide, (px + 30) * -(-len(got) // wide)), (18, 18, 18))
         pen = ImageDraw.Draw(sheet)
         for k, plate in enumerate(got):
@@ -329,7 +337,8 @@ def main(argv=None):
                           centre=(0.5 * PLATE_M, 0.02, 0.5 * PLATE_M))
             at = (px * (k % wide), (px + 30) * (k // wide))
             sheet.paste(view, (at[0], at[1] + 30))
-            pen.text((at[0] + 12, at[1] + 8), 'plate %d: %s' % (k + 1, ', '.join(name for name, *_at in plate)),
+            label = ', '.join(n.removeprefix('upper ').removeprefix('trunk ') for n, *_at in plate)
+            pen.text((at[0] + 12, at[1] + 8), 'P1S plate %d (%d pcs): %s' % (k + 1, len(plate), label[:78]),
                      fill=(220, 220, 220))
         sheet.save(args.out)
         print(args.out)

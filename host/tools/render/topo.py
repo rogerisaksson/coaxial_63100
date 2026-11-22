@@ -185,8 +185,10 @@ def outlined(solid, h, fine=4, blur=0.6):
 
 
 def faced(got, c):
-    """(n, 3, 3) mm in the bed's frame: a shaped case's solid drawn smooth (`outlined` if extruded, else `surfaced`)."""
-    return outlined(got['solid'], got['h']) if c.get('extruded') else kt.surfaced(got['solid'], c['kept'], got['h'])
+    """(n, 3, 3) mm in the bed's frame: a shaped case's solid drawn smooth (`outlined` if prism, else `surfaced`)."""
+    s = got['solid']
+    return outlined(s, got['h']) if c.get('extruded') and bool((s[:, 1:] <= s[:, :1]).all()) else kt.surfaced(
+        s, c['kept'], got['h'])
 
 
 def wrench(points, force, moment, about):

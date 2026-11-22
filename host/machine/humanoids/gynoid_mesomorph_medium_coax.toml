@@ -48,24 +48,24 @@ knee = [-5.0, 155.0]
 # pictures the robot's look is drawn after wear them.
 [guards]
 thick_m = 0.005
-thigh = [[0.14, 0.62, 55.0, 37.0]]
-upper_arm = [[0.16, 0.40, 0.0, 34.0, 2.2, -0.15], [0.78, 1.08, 0.0, 40.0, 2.4, -0.15]]
-forearm = [[0.08, 0.66, -90.0, 49.0], [0.7, 0.84, 20.0, 39.0]]
-shank = [[-0.07, 0.11, 90.0, 36.0], [0.16, 0.72, 90.0, 27.0], [0.755, 0.835, 90.0, 34.0]]
+thigh = [[0.12, 0.64, 52.0, 36.0, 2.5], [0.68, 0.81, 58.0, 30.0, 2.6]]
+upper_arm = [[0.16, 0.56, 0.0, 36.0, 2.4, -0.16], [0.74, 0.98, 0.0, 35.0, 2.2]]
+forearm = [[0.06, 0.78, -82.0, 50.0, 2.6, -0.20]]
+shank = [[-0.02, 0.10, 78.0, 28.0, 2.3], [0.14, 0.78, 85.0, 26.0, 2.6, -0.24]]
 # The trunk's, slim and drawn after the figure: a small round cup a side and the gore between them, two slats down
 # the belly to the waist, the back's a V from the shoulder blades in to the small of the back and a small plate under
 # it, and on the pelvis a plate down each hip's crease on the bikini's line - [from, to, middle, half width, its
 # superellipse's power, how much wider its top than its middle, its slant, deg]; each clipped on a hoop cut from a
 # carbon sheet round behind it (`[guards.hoops]`: [height - m up the trunk, a share down a limb -, from, to, deg]) in
-# place of the stock's struts, as the elbow's cap is, the trunk's drawn in to `slim` of the figure's reach.
+# place of the stock's struts, the trunk's drawn in to `slim` and the limbs' to `limb_slim` of the figure's reach.
 torso = [[0.16, 0.25, 63.0, 21.0, 2.3], [0.16, 0.25, 117.0, 21.0, 2.3], [0.195, 0.30, 90.0, 7.0, 3.0, 0.35],
          [0.04, 0.15, 82.0, 7.0, 3.0, 0.25], [0.04, 0.15, 98.0, 7.0, 3.0, 0.25], [0.20, 0.37, -90.0, 34.0, 3.0, 0.45],
          [0.125, 0.175, -90.0, 9.0, 2.5, -0.35]]
 slim = 0.70
+limb_slim = 0.78
 
 [guards.hoops]
 torso = [[0.205, -78.0, 258.0], [0.09, 70.0, 110.0], [0.28, -130.0, -50.0], [0.15, -100.0, -80.0]]
-upper_arm = [[0.93, -32.0, 32.0]]
 
 # The elbow turned: its gearbox out, its motor's back with its inverter and its hose's fittings in toward the body.
 [mounts]

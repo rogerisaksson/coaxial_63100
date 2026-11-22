@@ -185,6 +185,7 @@ def surfaced(solid, kept, h, fine=2, sigma=1.15, rounds=6):
     h = float(h)
     if not solid.any():
         return np.zeros((0, 3, 3))
+    fine = max(int(fine), int(round(h)))
     step = h / fine
     s_ext = np.pad(solid, ((2, 2), (0, 2), (2, 2)), constant_values=False)
     s_ext = np.concatenate([np.repeat(s_ext[:, :1, :], 2, axis=1), s_ext], axis=1)
@@ -192,8 +193,16 @@ def surfaced(solid, kept, h, fine=2, sigma=1.15, rounds=6):
     k_ext = np.concatenate([np.repeat(k_ext[:, :1, :], 2, axis=1), k_ext], axis=1)
     edt_in = np.asarray(ndimage.distance_transform_edt(s_ext), float) - 0.5
     edt_out = np.asarray(ndimage.distance_transform_edt(~s_ext), float) - 0.5
-    d = np.where(k_ext, np.maximum(np.where(s_ext, edt_in, -edt_out), 0.45), np.where(s_ext, edt_in, -edt_out))
+    raw = np.where(s_ext, edt_in, -edt_out)
+    d = np.where(k_ext & s_ext, np.maximum(raw, 0.45), raw)
     phi = np.asarray(ndimage.zoom(ndimage.gaussian_filter(d, sigma), fine, order=3), float) * h
+    cross_k = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]], bool)
+    diag_k = np.array([[1, 0, 1], [0, 0, 0], [1, 0, 1]], bool)
+    diag_step = (math.sqrt(2.0) - 1.0) * step
+    for j in range(2 * fine + 1, phi.shape[1]):
+        prev = phi[:, j - 1, :]
+        phi[:, j, :] = np.minimum(phi[:, j, :], np.maximum(ndimage.maximum_filter(prev, footprint=cross_k),
+                                                           ndimage.maximum_filter(prev, footprint=diag_k) - diag_step))
     phi = np.minimum(phi, (((np.arange(int(phi.shape[1])) + 0.5) / fine - 2.0) * h)[None, :, None])
     ins = phi > 0.0
     e0, e1, e2 = ins[:-1] != ins[1:], ins[:, :-1] != ins[:, 1:], ins[:, :, :-1] != ins[:, :, 1:]

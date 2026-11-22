@@ -20,8 +20,8 @@ import math
 from coaxial.graphics.livery import BOLT, FOAM, FRAME, STEEL, TUBE, VOID
 from coaxial.graphics.panels import LIMBS
 from coaxial.graphics.shapes import joined, strut
-from machine.body.guards import (AIR_M, CLIP_M, HOOP_M, LAYOUT, POWER, SKIN_M, SLIM, STRUT_R, STRUTS, THICK_M, held,
-                                 hoops, shape, tubes)
+from machine.body.guards import (AIR_M, CLIP_M, HOOP_M, LAYOUT, LIMB_SLIM, POWER, SKIN_M, SLIM, STRUT_R, STRUTS,
+                                 THICK_M, held, hoops, shape, tubes)
 
 #: A surface is told about its axis in rows ROW_M along it and SECTORS round it: a body's
 #: corners stand 12-14 mm apart. Where the mechanism stands by it - a drum, a tube - the
@@ -291,8 +291,9 @@ def laid(surfaces, runs=None, stands=None):
         side, _, limb = seg.partition('_')
         x = -1.0 if side == 'right' else 1.0
         if limb in LIMB:
-            part, body, rows = limb, corners, [(-a * LIMBS[limb][0], -b * LIMBS[limb][0], mid, half, kind, form)
-                                               for _name, a, b, mid, half, kind, form in LIMB[limb]]
+            part, body, rows = limb, corners * (LIMB_SLIM, 1.0, LIMB_SLIM) if LIMB_SLIM < 1.0 else corners, [
+                (-a * LIMBS[limb][0], -b * LIMBS[limb][0], mid, half, kind, form)
+                for _name, a, b, mid, half, kind, form in LIMB[limb]]
         elif seg == 'torso':
             part, body, rows = seg, corners * (SLIM, 1.0, SLIM) if SLIM < 1.0 else corners, [
                 (high, low, mid, half, kind, form) for _name, low, high, mid, half, kind, form in TRUNK]

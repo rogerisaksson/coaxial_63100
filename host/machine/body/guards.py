@@ -40,8 +40,9 @@ POWER = 6.0
 #: flat in its own height -, and how far a guard's back stands off it, its clips' reach, m.
 HOOPS = {part: tuple(tuple(float(v) for v in hoop) for hoop in rows) for part, rows in _SPEC.get('hoops', {}).items()}
 HOOP_M, CLIP_M = (0.008, 0.004), 0.002
-#: How far toward its axis a trunk's guards follow its body's surface, a share of its reach (`[guards] slim`).
+#: How far toward its axis a trunk's or limb's guards follow its body's surface (`[guards] slim`, `limb_slim`).
 SLIM = float(_SPEC.get('slim', 1.0))
+LIMB_SLIM = float(_SPEC.get('limb_slim', 1.0))
 #: A guard's face SKIN_M over what it lies on, its foam AIR_M clear of the mechanism the axis meets within
 #: NEAR_M, a strut STRUTS of the guard's half width from its middle.
 SKIN_M, AIR_M, NEAR_M, STRUTS = 0.002, 0.006, 0.11, 0.45
@@ -293,7 +294,7 @@ def _lay(seg):
         rows.append((top, foot, r[2], r[3], shape(r)))
     skin = [(a, b, r) for r, a, b in skin_of(seg)]
     hard = _by(seg, min(foot for _t, foot, *_ in rows), max(top for top, *_ in rows))
-    slim, lift = (SLIM if seg == 'torso' else 1.0), (HOOP_M[0] + CLIP_M if hoops(part) else 0.0)
+    slim, lift = (SLIM if seg == 'torso' else LIMB_SLIM), (HOOP_M[0] + CLIP_M if hoops(part) else 0.0)
     slabs, pieces = [], []
     for top, foot, mid, half, form in rows:
         clip = held(part, top, foot, mid)
