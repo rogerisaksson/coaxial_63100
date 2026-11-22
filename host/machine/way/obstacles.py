@@ -104,8 +104,8 @@ def _affordance_aperture(field, node):
     cos t) / 2)^gamma, t the point's bearing from its centre off `face`, of the robot's reach across the
     robot's way (s 0: behind it, round its corners) and the robot's reach ahead with the text's standoff (s 1:
     before its face, walked in on head on) - `carve-anisotropic-affordance-docking-funnel`. The robot's
-    swinging foot reaches 0.32 m ahead, 0.24 across: low, it opens nothing; from the robot's hips up the
-    robot's reach ahead is the less."""
+    swinging foot reaches 0.32 m ahead, 0.24 across: low, it opens nothing; from the robot's hips up its
+    dock-approach reach ahead (`footprint.reach('dock')`, braked to `route.CORNER_SPEED` and stopped) is the less."""
     funnel = laws()['docking-funnel']
     goes = (field['slots'] == field['slot']) & (field['slot'] >= 0) & (field['face'] is not None) & (funnel['selector'] != ':none')
     if not goes.any():
@@ -136,11 +136,12 @@ def costed(points, things, floor, seen, slot=-1, face=None):
     node = laws()['costmap']
     things = boxes(things)
     meets, toward = footprint.met(things, floor, footprint.reach('walk'))
+    _d_meets, docked = footprint.met(things, floor, footprint.reach('dock'))
     things = [p for p, m in zip(things, meets) if m]
     reach = toward[meets][:, ACROSS].max(axis=1, initial=0.0)
     swell = np.array([float(p[6]) if len(p) > 6 else 0.0 for p in things], float)
     points = np.asarray(points, float).reshape(-1, 2)
-    field = {'points': points, 'things': things, 'reach': reach, 'ahead': toward[meets][:, 0],
+    field = {'points': points, 'things': things, 'reach': reach, 'ahead': docked[meets][:, 0],
              'margin': (reach + 0.5 * voxels.CELL_M + swell)[None, :], 'kept': np.ones(len(things), bool),
              'd': apart(points, things), 'cost': np.ones(len(points)), 'kinds': [p[0] for p in things],
              'slots': np.array([int(p[4]) if len(p) > 4 else -1 for p in things], np.int64),

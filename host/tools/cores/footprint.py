@@ -21,8 +21,11 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+if __name__ == '__main__' and '--write' in sys.argv:
+    os.environ.pop('COAXIAL_ROBOT', None)
+
 from machine.moves import leap
-from machine.law import modal, se2
+from machine.law import modal, rhythm, se2
 from machine.eyes import voxels
 from tools import REPO
 from tools.cores import written
@@ -38,6 +41,7 @@ SETTLE_S = 1.0
 MOTIONS = {
     'stand': ((2.0, (0.0, 0.0, 0.0)),),
     'walk': ((5.0, (se2.WALK_SPEED, 0.0, 0.0)), (3.0, (0.0, 0.0, 0.0))),
+    'dock': ((3.0, (rhythm.R['spin_still_m_s'] + rhythm.R['edge_m_s'], 0.0, 0.0)), (2.0, (0.0, 0.0, 0.0))),
     'back': ((3.0, (-se2.BACK_SPEED, 0.0, 0.0)), (2.0, (0.0, 0.0, 0.0))),
     'side': ((2.0, (0.0, se2.STRAFE_SPEED, 0.0)), (2.0, (0.0, 0.0, 0.0)), (2.0, (0.0, -se2.STRAFE_SPEED, 0.0)),
              (2.0, (0.0, 0.0, 0.0))),
@@ -224,8 +228,9 @@ def text(rows):
              'K, BAND_M, TURN_DEG = %d, %r, %r' % (rows['K'], rows['BAND_M'], rows['TURN_DEG']),
              "#: The least the robot's swinging soles clear the floor at a swing's top over its steady walk, m.",
              'STEP_M = %r' % rows['STEP_M']]
-    for name, what in (('STAND', 'Standing'), ('WALK', 'Walking and its stop'), ('BACK', 'Walking back and its stop'),
-                       ('SIDE', 'Sidesteps either way and their stops')):
+    for name, what in (('STAND', 'Standing'), ('WALK', 'Walking and its stop'),
+                       ('DOCK', 'Approaching a dock and its stop'),
+                       ('BACK', 'Walking back and its stop'), ('SIDE', 'Sidesteps either way and their stops')):
         lines += ['#: %s: each band from the floor up, the robot\'s reach about its pelvis along each direction, m.' % what,
                   '%s = (' % name] + ['    %s,' % (row,) for row in _rows(rows[name])] + [')']
     for name in ('LEFT', 'RIGHT'):

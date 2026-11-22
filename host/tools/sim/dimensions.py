@@ -14,6 +14,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+if __name__ == '__main__' and '--write' in sys.argv:
+    os.environ.pop('COAXIAL_ROBOT', None)
+
 from tools import REPO
 
 PAGE = os.path.join(REPO, 'docs', 'DIMENSIONS.md')

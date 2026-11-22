@@ -36,13 +36,13 @@ def _laid():
     """The robot's rows as arrays: {mode: (bands, K)}, {way: [(bands, K) a turn]}, (K,) its directions,
     rad."""
     import numpy as np
-    modes = {m: np.array(getattr(footprint_rows, m.upper())) * _S for m in ('stand', 'walk', 'back', 'side')}
+    modes = {m: np.array(getattr(footprint_rows, m.upper())) * _S for m in ('stand', 'walk', 'dock', 'back', 'side')}
     swept = {1.0: [np.array(h) * _S for h in footprint_rows.LEFT], -1.0: [np.array(h) * _S for h in footprint_rows.RIGHT]}
     return modes, swept, 2.0 * np.pi * np.arange(K) / K
 
 
 def reach(mode):
-    """(bands, K) m: the robot's reach about its pelvis in its own frame in `mode` (stand, walk, back,
+    """(bands, K) m: the robot's reach about its pelvis in its own frame in `mode` (stand, walk, dock, back,
     side)."""
     return _laid()[0][mode]
 

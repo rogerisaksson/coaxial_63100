@@ -21,6 +21,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+if __name__ == '__main__' and '--write' in sys.argv:
+    os.environ.pop('COAXIAL_ROBOT', None)
+
 from machine.body.reach import rows
 from tools import REPO
 from tools.cores import written

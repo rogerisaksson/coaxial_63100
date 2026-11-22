@@ -380,6 +380,9 @@ class SimulatedDaq(Acquisition):
         since = self._wall
         if not n:
             return n, step_us
+        if cfg.get('clock') == 'tim1':
+            self._wall = now
+            return n, step_us
         if not cfg.get('interval_us'):
             self._wall = now
             spread = step_us if since is None else (now - since) * 1e6 / n
@@ -423,7 +426,7 @@ class SimulatedDaq(Acquisition):
             windows = (cs['chain_decimate']
                        if (cs['accumulate'] and (cs['sections'] or cs['chain_decimate'] > 1))
                        else 1)
-            win_us = step_us / windows
+            win_us = (self._period_us() if windows > 1 else step_us) / windows
             sample_s = (win_us * 1e-6) / max(1, took)
             dtheta = (drive._omega() if drive is not None else 0.0) * sample_s
             half = 0.5 * dtheta

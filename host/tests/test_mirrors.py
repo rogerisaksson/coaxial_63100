@@ -332,7 +332,7 @@ def test_static_compiler_and_generators(r):
     with open(footprint.PATH, encoding='utf-8') as f:
         fp_disk = f.read()
     fp_dict = {k: getattr(footprint_rows, k) for k in (
-        'K', 'BAND_M', 'TURN_DEG', 'STEP_M', 'STAND', 'WALK', 'BACK', 'SIDE', 'LEFT', 'RIGHT',
+        'K', 'BAND_M', 'TURN_DEG', 'STEP_M', 'STAND', 'WALK', 'DOCK', 'BACK', 'SIDE', 'LEFT', 'RIGHT',
         'CARRY_LEFT', 'SPREAD_LEFT', 'TOOK_LEFT', 'CARRY_RIGHT', 'SPREAD_RIGHT', 'TOOK_RIGHT')}
     b = wbc.Body()
     hdr, _src = model.render(model.links(b), b, stand=([0.0] * 12, [0.0] * (b.n - 6)))
@@ -350,7 +350,7 @@ def test_footprint_rows_hold_their_shape(r):
     TURN_DEG, each reach a length (its text is held by test_static_compiler_and_generators)."""
     from machine.body import footprint_rows as rows
     names = ('LEFT', 'RIGHT', 'CARRY_LEFT', 'CARRY_RIGHT', 'SPREAD_LEFT', 'SPREAD_RIGHT', 'TOOK_LEFT', 'TOOK_RIGHT')
-    turns, bands = len(rows.TURN_DEG), ('STAND', 'WALK', 'BACK', 'SIDE')
+    turns, bands = len(rows.TURN_DEG), ('STAND', 'WALK', 'DOCK', 'BACK', 'SIDE')
     wide = all(len(row) == rows.K for name in bands for row in getattr(rows, name))
     turned = (all(len(getattr(rows, name)) == turns for name in names)
               and all(len(row) == rows.K for name in ('LEFT', 'RIGHT') for h in getattr(rows, name) for row in h))
