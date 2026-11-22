@@ -75,7 +75,7 @@ def stacks():
         cans = [c for c in skeleton.cans() if c[0] == joint]
         out[joint] = {n: (float(c[2][0]) - float(c[5]), float(c[2][0]) + float(c[5]), float(c[4]))
                       if joint == 'neck' else (float(c[4]), 2.0 * float(c[5])) for n, c in zip(names, cans)}
-    out['board'] = sl.stack()['board']
+    out['board'] = (float(drives.of('neck')[1].board[1]), float(drives.tall('neck')))
     return out
 
 

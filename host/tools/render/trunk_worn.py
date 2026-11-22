@@ -26,14 +26,17 @@ STEPS = (3, 5)
 
 
 def _carried():
-    """{name: tris} of what the chest carries, the trunk's joint's frame, upright: the trunk's chest's parts and the
-    torso's sketch - its block, its tube, its drives, its bay, the shoulders' mounts."""
-    from tools.render import neck_mount as nm
+    """{name: tris} of what the chest carries, the trunk's joint's frame, upright: the trunk's chest's parts, the
+    pectoral abduction drives and pushrods, and the torso's sketch - block, spine, drives, bay and shoulders."""
+    from tools.render import neck_mount as nm, shoulder_rolled as sr
     from tools.render import trunk_clamped as tc
     from tools.render import trunk_laid as tl
     out = {'trunk ' + name: tris for name, tris in tc.links()['chest'].items() if name != 'tube'}
     for name, tris in nm.posed(low=tc.seat()).items():
         out['neck ' + name] = [(tri - (0.0, tl.RAISED_M, 0.0), c) for tri, c in tris]
+    for side, right in (('left', False), ('right', True)):
+        out[side + ' pectoral'] = [(tri - (0.0, tl.RAISED_M, 0.0), c)
+                                   for tri, c in sr.chest(0.0, right=right)['pectoral']]
     return out
 
 

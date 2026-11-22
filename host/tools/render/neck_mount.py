@@ -169,20 +169,41 @@ def _bay():
     return {'bay': _put(puck + twin, at, BAY), 'bay clamp': band, 'bay guard': _put(drive['guard'], at, BAY),
             'bay lid': _put(drive['lid'], at, BAY),
             'bay leads': _put(drive['leads'] + boards.leads(front[0], front[1], (0.0, 0.0), front[1], turn, can + wall),
-                              at, BAY)}
+                              at, BAY), **_shoulder_bay()}
+
+
+def _shoulder_bay():
+    """Relocated `left_shoulder` and `right_shoulder` inverter boards in twin dorsal cups behind the neck/head bay."""
+    from machine.body import drives
+    from tools.render import covered as cv
+    b = drives.board('left_shoulder')
+    if b is None or b[0] != 'torso':
+        return {}
+    _seg, (bx, by, bz), _kg, r_b, _ax = b
+    half = 0.5 * drives.tall('left_shoulder')
+    z0, z1 = bz - half, bz + half
+    discs, wall, lid = [], [], []
+    for sgn in (-1.0, 1.0):
+        discs += [(t[:, (1, 2, 0)] + (sgn * bx, by, 0.0), col) for t, col in em._drum(r_b, z0, z1, em.BOARD)]
+        sleeve = cl.turned([(z0, r_b + 0.0005, r_b + cv.WALL_M + 0.0005),
+                            (z1, r_b + 0.0005, r_b + cv.WALL_M + 0.0005)], None)
+        wall += [(t[:, (1, 2, 0)] + (sgn * bx, by, 0.0), cv.BLACK) for t, _c in sleeve]
+        lid += [(t[:, (1, 2, 0)] + (sgn * bx, by, 0.0), col)
+                for t, col in em._drum(r_b + cv.WALL_M + 0.0005, z0 - cv.WALL_M, z0, cv.BLACK)]
+    return {'shoulder bay': discs, 'shoulder bay guard': wall, 'shoulder bay lid': lid}
 
 
 def _shoulders():
-    """{'left shoulder', 'right shoulder'}: each shoulder's mount where it stands on the crossbar - the crossbar,
-    the block's side with its horn, and its housing turned its rib up -, the right one the left's mirrored."""
+    """{'left shoulder', 'right shoulder'}: each shoulder's crossbar, clevis, gimbal and turning housing."""
     import numpy as np
-    from tools.render import shoulder_mount as sm
+    from tools.render import shoulder_mount as sm, shoulder_rolled as sr
     at = nl.placed()
     c, s = math.cos(at['lean']), math.sin(at['lean'])
     turn = np.array([[-c, -s, 0.0], [-s, c, 0.0], [0.0, 0.0, -1.0]])    # the shoulder's sketch's axes in the torso's
-    drum = km._turn(sm.turning()['housing'], -sl.drummed())
+    drum = km._turn(sm.turning()['housing'] + sm.turning()['arm saddle'], -sl.drummed())
     left = [(tri @ turn + np.array(at['arm']), colour)
-            for tri, colour in sm.still()['crossbar'] + sm.still()['block'] + drum]
+            for tri, colour in sm.still()['crossbar'] + sm.still()['block']
+            + sr.parts()['still'] + sr.parts()['yoke'] + drum]
     return {'left shoulder': left, 'right shoulder': [((tri * (-1.0, 1.0, 1.0))[::-1], colour) for tri, colour in left]}
 
 

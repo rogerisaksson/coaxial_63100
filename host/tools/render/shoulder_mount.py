@@ -1,18 +1,11 @@
-"""The shoulder's mount, sketched: the drive turned onto the arm, its hose a coil in a turning drum.
+"""The shoulder's mount, sketched: boardless MN6007 + B pitch drum on the abduction gimbal.
 
     COAXIAL_ROBOT=gynoid_mesomorph_medium_coax python -X utf8 tools/render/shoulder_mount.py OUT.png
 
-`shoulder_laid` sizes it; here its parts are drawn. What stays with the torso: the crossbar, its printed foot bonded in
-its end - the foot's face cut the arm's lean off square -, the studs through the foot into the carbon plate, the plate
-screwed on the gearbox's output ring, the torso's block's side - cut square to the axis too - with its horn, and the
-coil's fitting on that side. What turns with the arm: the drive's housing, its motor and its board under its guard
-and lid (`hip_clamped._drive`, the bus through the guard's wall), and one printed housing - a slit band round the
-motor and the gearbox's housing, a skirt on over the output ring whose bore runs on the plate's and the foot's rims,
-a cone out to the drum of honeycomb the coil lies in, the rib under the drum the horn meets -, and on it the
-abduction (`shoulder_rolled`): the hood over the housing with its drive behind, the board under, and the yoke the arm
-hangs in, raised about the axis ahead. The hose is drawn as it lies at a turn (`shoulder_laid.coil`), a fitting along
-its way at each end: on the block's side, and on a stem off the drum's wall, the leads on down the rib. Frame:
-`shoulder_laid`'s.
+`shoulder_laid` sizes Stage 2 (the compact boardless MN6007 + B coaxial pitch drive and concentric bus coil);
+`shoulder_rolled` sizes Stage 1 (the pectoral drive, pushrod and z-axis crossbar gimbal). Stage 2's hollow carbon arbor
+is carried by Stage 1's gimbal bridge so arm pitch (`turn`) spins only the 78 mm housing, coil drum, motor endcap and
+upper-arm carbon tube, never twisting the pushrod. Frame: `shoulder_laid`'s.
 """
 import argparse
 import functools
@@ -24,6 +17,7 @@ if __package__ in (None, ''):
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from tools.render import clamped as cl  # noqa: E402
+from tools.render import covered as cv  # noqa: E402
 from tools.render import elbow_mount as em  # noqa: E402
 from tools.render import knee_loads as kl  # noqa: E402
 from tools.render import knee_mount as km  # noqa: E402
@@ -31,26 +25,20 @@ from tools.render import mounting as m  # noqa: E402
 from tools.render import shoulder_laid as sl  # noqa: E402
 from tools.render import tees  # noqa: E402
 
-#: The gap that lets the band pinch beside the skirt, the block's side's thickness, how far that side stands round
-#: past the coil's fitting, a nut's radius and height, m.
-RELIEF_M, SIDE_M, PAST_M, NUT = 0.0012, 0.010, 0.004, (0.007 / 2.0, 0.0032)
-#: The block's side as far round the crossbar as the block's own band (`neck_laid`), m, and the half angle of its
-#: arm out to the coil's fitting, rad: the neck's drive stands close over it.
-HUB_M, ARM = 0.012, 0.45
-#: The pairs of parts the suite counts crossings of: what turns against what stays, the arm hanging - the rest
-#: are a screw in its hole, a band on its drum, a lead on its lug.
-STILL, TURNING = ('crossbar', 'crossbar foot', 'studs', 'hub plate', 'block'), ('housing', 'guard', 'lid')
+#: Band pinch relief, gimbal flange thickness, clearance past coil fitting, M4 nut (radius, height), m.
+RELIEF_M, SIDE_M, PAST_M, NUT = 0.0012, 0.008, 0.004, (0.007 / 2.0, 0.0032)
+HUB_M, ARM = 0.009, 0.45
+STILL = ('arbor', 'crossbar foot', 'studs', 'hub plate', 'block')
+TURNING = ('housing', 'arm saddle', 'guard', 'lid')
 
 
 def _leant(tris):
-    """`tris` drawn along the crossbar from the foot's face, in the sketch's frame (`shoulder_laid.canted`)."""
+    """`tris` drawn along the torso's crossbar from `cant`, in `shoulder_laid`'s frame."""
     return [(sl.canted(tri), colour) for tri, colour in tris]
 
 
 def _arc(inner, outer, x0, x1, low, high, colour, k=12):
-    """A piece of a ring round the axis between radii and bearings (rad, +y toward +z), from x0 to x1, its corners
-    rounded - a concave outline, its ends' faces each laid as it is (`foot._slab`), none across the ring's hole -,
-    `k` points round it at the fewest, one every 5 degrees where more."""
+    """Rounded ring sector around x between radii and bearings (rad, +y toward +z), from x0 to x1."""
     import numpy as np
     from tools.render import foot
     turn = np.linspace(low, high, max(k, int(math.degrees(abs(high - low)) / 5.0) + 2))
@@ -60,8 +48,7 @@ def _arc(inner, outer, x0, x1, low, high, colour, k=12):
 
 
 def _banjo(at, along, stem=(0.0, 0.0, 0.0), out=0.0):
-    """A fitting lying back along the hose's way `along` from its end `at`, and its stem into what carries it:
-    the vector `stem` from the fitting's back, or straight off the axis to the radius `out` about it."""
+    """Hose fitting lying back along `along` from `at`, with a stem to `out` or `stem`."""
     import numpy as np
     at, along = np.asarray(at, float), np.asarray(along, float)
     back = at - tees.FITTING[0] * along / np.linalg.norm(along)
@@ -72,8 +59,7 @@ def _banjo(at, along, stem=(0.0, 0.0, 0.0), out=0.0):
 
 
 def _horn():
-    """(from, to), rad: the bearings the block's horns stand between - the dead arc, less the rib's half width at
-    either stop -, a horn at either end of it, as wide round as the rib meets it (`still`)."""
+    """(from, to), rad: bearings of the pitch stop horns on Stage 1's flange."""
     lay, (lo, hi), rib = sl.laid(), sl.travel(), math.radians(sl.drummed())
     half = 0.5 * sl.RIB_M / lay['meet']
     return rib + math.radians(hi) + half, rib + math.radians(lo) + 2.0 * math.pi - half
@@ -81,53 +67,67 @@ def _horn():
 
 @functools.lru_cache(maxsize=None)
 def still():
-    """{name: tris} of what stays with the torso."""
+    """{name: tris} of Stage 2's stator on Stage 1's gimbal, plus `'crossbar'` fixed on the torso."""
     import numpy as np
+    from tools.render import shoulder_rolled as sr
     lay, sz = sl.laid(), sl.sizes()
-    bar, disc, play = lay['bar'], lay['disc'], kl.BOND * 1e-3
+    bar, arbor, disc, play = lay['bar'], lay['arbor'], lay['disc'], kl.BOND * 1e-3
     (f0, f1), (p0, p1), ring = lay['foot'], lay['plate'], sl.stack()['gear'][0]
-    side = lay['cant'] + lay['mouth'] + sl.MOUTH_M
-    collar = [(-0.002, bar + play, bar + play + 1e-3 * sz['collar']),
-              (kl.COLLAR_SHARE * 2.0 * bar, bar + play, bar + play + 1e-3 * sz['collar'])]
+    side = sl.FOOT_X + lay['coil'][1] + sl.MOUTH_M
+    collar = [(f1 - 0.002, arbor + play, arbor + play + 1e-3 * sz['collar']),
+              (f1 + kl.COLLAR_SHARE * 2.0 * arbor, arbor + play, arbor + play + 1e-3 * sz['collar'])]
     studs = []
     for i in range(sl.STUDS):
         a = (i + 0.5) * 2.0 * math.pi / sl.STUDS
         at = (lay['studs'] * math.cos(a), lay['studs'] * math.sin(a))
-        studs += em._drum(sl.WASHER_M, f1, f1 + 0.001, em.BOLT, at) + em._drum(NUT[0], f1, f1 + 0.001 + NUT[1], em.BOLT, at)
+        studs += (em._drum(sl.WASHER_M, f1, f1 + 0.001, em.BOLT, at)
+                  + em._drum(NUT[0], f1, f1 + 0.001 + NUT[1], em.BOLT, at))
     low, high = _horn()
     far = lay['meet'] + 0.5 * sl.RIB_UP
     start = sl.coil(0.0, 9)[0]
     round_, at = float(np.hypot(*start[1:])) + tees.FITTING[1] + PAST_M, math.atan2(start[2], start[1])
-    hub = bar + HUB_M                                    # the block's own band round the crossbar, no wider
+    hub = arbor + HUB_M
     block = (em._drum(hub, side, side + SIDE_M, em.FRAME)
              + _arc(hub - 0.002, round_, side, side + SIDE_M, at - ARM, at + ARM, em.FRAME))
-    wide = min(sl.HORN_M / far, 0.5 * (high - low))      # a horn at either stop, on an arm off the block's side
+    wide = min(sl.HORN_M / far, 0.5 * (high - low))
     for a, b in ((low, low + wide), (high - wide, high)):
         block += (_arc(hub - 0.002, far, side, side + SIDE_M, a, b, em.FRAME)
                   + _arc(far - sl.RIB_UP + sl.AIR_M, far, side - sl.MOUTH_M - sl.HOLD_M, side, a, b, em.FRAME))
-    return {'crossbar': _leant(em._drum(bar, 0.0, lay['mouth'] + sl.MOUTH_M + SIDE_M + sl.BLOCK_M, em.CARBON)),
-            'crossbar foot': em._drum(disc, f0, f1, em.FRAME) + _leant(cl.turned(collar, None)),
+    c0_bar = max(sr.laid()['root'] - lay['cant'] + 0.005, 0.025)
+    c1_bar = (sl.pivot()[0] - sl.BLOCK_M) / math.cos(math.radians(sl.pivot()[1])) - lay['cant']
+    return {'crossbar': _leant(em._drum(bar, c0_bar, c1_bar, em.CARBON)),
+            'arbor': em._drum(arbor, f0 + 0.002, side + SIDE_M + 0.006, em.CARBON),
+            'crossbar foot': em._drum(disc, f0, f1, em.FRAME) + cl.turned(collar, None),
             'studs': studs, 'hub plate': em._drum(disc, p0, p1, em.CARBON),
             'output ring': em._drum(ring, lay['ring'][0], lay['ring'][1], em.OUTPUT), 'block': block}
 
 
+def _saddle(lay):
+    """Compact PAHT-CF upper-arm saddle under Stage 2's slit band, grown cleanly along +x without overhang."""
+    tube, out = lay['tube'], lay['band'][2]
+    x_half, z_seat = tube + em.OVAL_PAST[1] + 0.002, tube + em.OVAL_PAST[0] + 0.002
+    y_hi, y_lo = -(out - 0.002), -lay['top']
+    prof = cl.filleted([(y_hi, -z_seat - 0.004), (y_hi, z_seat + 0.004), (y_lo, z_seat), (y_lo, -z_seat)], r=0.0025)
+    return [(tri[:, (2, 0, 1)], col) for tri, col in em._rounded(prof, -x_half, x_half, em.FRAME, axis=2, r=0.002)]
+
+
 def _housing(lay, can, ring):
-    """The printed housing that turns with the arm: band, skirt, rims' bore, cone, drum and rib."""
+    """Printed PAHT-CF housing turning with the arm: slit band, skirt, rims' bore, coil drum, rib and arm saddle."""
+    import numpy as np
+    from tools.render import foot
     band0, band1, out = lay['band']
-    plate0, cant, rims = lay['plate'][0], lay['cant'], lay['disc'] + sl.PLAY_M
+    plate0, f1, rims = lay['plate'][0], lay['f1'], lay['disc'] + sl.PLAY_M
     bore, m1, skirt = lay['bore'], lay['motor'][1], lay['skirt']
-    cone, mouth = cant + bore - rims, cant + lay['mouth']
+    cone, mouth = f1 + max(bore - rims, 0.003), f1 + lay['coil'][1]
     shell = cl.turned([(band0, can, out), (m1, can, out), (m1 + max(can - ring, 0.0), ring, out),
                        (band1, ring, out)], 0.0)
     shell += cl.slotted(skirt, out, band1 - 0.0005, plate0 - max(rims - skirt, 0.0) + 0.0005,
                         [(0.0, band1 - 0.0005, band1 + RELIEF_M, 0.020)], em.FRAME, k=96)
     shell += cl.turned([(band1, ring, out), (band1 + max(skirt - ring, 0.0), skirt, out)], 0.0, gap=0.020 / skirt)
     shell += cl.turned([(plate0 - max(rims - skirt, 0.0), skirt, out), (plate0, rims, out),
-                        (cant, rims, out), (cone, bore, bore + sl.DRUM_M)], None)
+                        (f1, rims, out), (cone, bore, bore + sl.DRUM_M)], None)
     shell += cl.honeycomb(bore, bore + sl.DRUM_M, cone - 0.0005, mouth)
     low, r0 = bore + sl.DRUM_M, cone - sl.RIB_UP - 0.003
-    import numpy as np
-    from tools.render import foot
     foot_rib = np.array([(r0, -(out - 0.002)), (cone, -(low + sl.RIB_UP)), (mouth, -(low + sl.RIB_UP)),
                          (mouth, -(bore + 0.0005)), (cone, -(bore + 0.0005)), (r0, -(rims + 0.001))])
     rib_tris = [(tri[:, (1, 2, 0)], col) for tri, col in foot._slab(foot_rib, -0.5 * sl.RIB_M, 0.5 * sl.RIB_M, em.FRAME)]
@@ -136,54 +136,58 @@ def _housing(lay, can, ring):
 
 @functools.lru_cache(maxsize=None)
 def turning():
-    """{name: tris} of what turns with the arm, the arm hanging: the drive under its guard and lid, its leads, the
-    housing, the coil's fitting on its stem."""
-    from tools.render import hip_clamped as hc
+    """{name: tris} of Stage 2's rotor at `turn = 0, roll = 0`: boardless MN6007 + B, slim endcap, housing & arm foot."""
     lay, st = sl.laid(), sl.stack()
-    can, ring = st['motor'][0], st['gear'][0]
-    drive = hc._drive({'board': lay['board'] + (st['board'][0],), 'motor': lay['motor'] + (can,),
-                       'gear': (lay['house'][0], lay['ring'][1], ring)}, lay['band'][2] - can, math.pi, leave=math.pi)
+    can, ring, tube = st['motor'][0], st['gear'][0], lay['tube']
+    (m0, m1), (h0, _h1), out = lay['motor'], lay['house'], lay['band'][2]
+    drive = em._drum(can, m0, m1, em.SERVO) + em._drum(ring, h0, lay['ring'][1], em.GEAR)
+    g0, g1, g_out = lay['guard']
+    guard = [(t, cv.BLACK) for t, _c in cl.turned([(g0 + cv.WALL_M, can + 0.0005, g_out),
+                                                   (g1, can + 0.0005, g_out)], None)]
+    lid = em._drum(g_out, g0, g0 + cv.WALL_M, cv.BLACK)
+    e = tube - 0.0012 - em.BORE_R - 0.003
+    dress, limb = em._limb(-lay['down'], -1.0, tube, -e, 'torx', False)
+    seat = em._rounded(em._oval(tube), -lay['top'], -lay['down'], em.PLATE, r=0.002) + dress + limb
     line = sl.coil(0.0, 400)
-    return {'drive': drive['still'], 'leads': drive['leads'], 'guard': drive['guard'], 'lid': drive['lid'],
-            'housing': _housing(lay, can, ring),
+    return {'drive': drive, 'leads': [], 'guard': guard, 'lid': lid, 'housing': _housing(lay, can, ring),
+            'arm saddle': _saddle(lay), 'arm seat': seat,
             'coil stem': _banjo(line[-1], line[-1] - line[-2], out=lay['bore'] + 0.001)}
 
 
-def posed(turn=0.0, roll=0.0):
-    """{name: tris}: the shoulder with the arm turned `turn` deg and raised `roll` - what turns turned, the
-    abduction on it (`shoulder_rolled`: 'abduction', 'yoke', 'span'), the bus on through it (`shoulder_hosed`:
-    'bus', 'bus on the arm'), the coil as it then lies."""
+def posed(turn=0.0, roll=0.0, chest=False):
+    """{name: tris}: Stage-1 clevis & gimbal (`roll`) carrying Stage-2 pitch drum (`turn`), coil and bus hoses."""
     from tools.render import shoulder_hosed as sh, shoulder_rolled as sr
+    st_still, st_turn = still(), turning()
     line = sl.coil(turn, 400)
-    out = dict(still(), **{name: km._turn(tris, turn) for name, tris in turning().items()})
-    raised, bus = sr.posed(roll), sh.parts()
-    out.update({'abduction': km._turn(raised['still'], turn), 'yoke': km._turn(raised['yoke'], turn),
-                'span': km._turn(raised['span'], turn), 'bus': km._turn(bus['still'], turn),
-                'bus on the arm': km._turn(sr.rolled(bus['yoke'], roll), turn)})
-    out['coil'] = tees.hose(line) + _banjo(line[0], line[0] - line[1], (sl.MOUTH_M + tees.HOSE_R + 0.001, 0.0, 0.0))
+    coil_tris = tees.hose(line) + _banjo(line[0], line[0] - line[1], (sl.MOUTH_M + tees.HOSE_R + 0.001, 0.0, 0.0))
+    raised, bus = sr.posed(roll, chest_parts=chest), sh.parts()
+    out = {'crossbar': st_still['crossbar'], 'clevis': raised['still'], 'span': raised['span']}
+    if 'pectoral' in raised:
+        out['pectoral'] = raised['pectoral']
+    # Stage 1 parts turn with `roll` only:
+    out['yoke'] = raised['yoke']
+    for k in ('arbor', 'crossbar foot', 'studs', 'hub plate', 'output ring', 'block'):
+        out[k] = sr.rolled(st_still[k], roll)
+    out['coil'] = sr.rolled(coil_tris, roll)
+    out['bus'] = sr.rolled(bus['still'], roll)
+    # Stage 2 parts turn first by `turn` about x, then by `roll` about z:
+    for k, tris in st_turn.items():
+        out[k] = sr.rolled(km._turn(tris, turn), roll)
+    out['bus on the arm'] = sr.rolled(km._turn(bus['yoke'], turn), roll)
     return out
-
-
-def _abduction():
-    """[(tri, colour)]: the abduction that turns with the arm about the shoulder's axis, the arm hanging - its hood,
-    drive and board, the yoke above the arm's seat (`shoulder_rolled.parts`) and the bus on them
-    (`shoulder_hosed.parts`)."""
-    from tools.render import shoulder_hosed as sh, shoulder_rolled as sr
-    low = -sr.laid()['down']
-    return (sr.parts()['still'] + sr.parts()['ring'] + [t for t in sr.parts()['yoke'] if t[0][:, 1].min() > low]
-            + sh.parts()['still'] + sh.parts()['yoke'])
 
 
 @functools.lru_cache(maxsize=None)
 def aired(step=10.0, ease=3.0):
-    """The least air between what turns and what stays, m, through the travel `ease` deg short of each stop - at a
-    stop horn and rib meet -, every `step` deg; the rims in their bore apart: they run there."""
+    """Least air between Stage 2's turning housing/cap and Stage 1's gimbal/stator across pitch travel, m."""
     import numpy as np
+    from tools.render import shoulder_rolled as sr
     lo, hi = sl.travel()
     h = 0.006
     a = km._points([t for name in STILL if name != 'hub plate' for t in still()[name]
-                    if name != 'crossbar foot' or t[0][:, 0].min() > sl.laid()['foot'][1] - 1e-9])
-    pts = km._points([t for name in TURNING for t in turning()[name]] + _abduction())
+                    if name not in ('crossbar foot', 'arbor') or t[0][:, 0].min() > sl.laid()['foot'][1] - 1e-9]
+                   + sr.parts()['yoke'])
+    pts = km._points([t for name in TURNING for t in turning()[name]])
     keys = km._key(np.floor(a / h).astype(np.int64))
     order = np.argsort(keys)
     return min(float(km._least(keys[order], a[order], pts @ km._rx(float(deg)).T, h))
@@ -191,22 +195,19 @@ def aired(step=10.0, ease=3.0):
 
 
 def checked():
-    """{'held': the least of `shoulder_laid.held`'s margins, 'air': what turns off what stays through the travel,
-    mm, 'crossing': triangle pairs of what turns through what stays with the arm hanging, 'coil': the hose's
-    crossings with every part but its own fittings at five turns of the arm, 'bend': (the least radius the coil is
-    drawn bent at, the hose's own least), mm, 'travel': (from, to) deg, 'asked': how far back a human swings an
-    arm and the farthest ahead the robot swung one short of a fall}: what the suite holds."""
+    """{'held', 'air', 'crossing', 'coil', 'bend', 'travel', 'asked'}: what `test_views_built` holds."""
     import numpy as np
     from machine.body import mechatronics
-    from tools.render import clips
+    from tools.render import clips, shoulder_rolled as sr
     lo, hi = sl.travel()
-    crossing = sum(clips.crossed(tris, still()[b]) for tris in [turning()[a] for a in TURNING] + [_abduction()]
-                   for b in STILL)
+    st_fixed = [still()[b] for b in STILL] + [sr.parts()['yoke']]
+    crossing = sum(clips.crossed(turning()[a], b_tris) for a in TURNING for b_tris in st_fixed)
     coil, bend = 0, []
     for turn in np.linspace(lo, hi, 5):
-        parts = posed(float(turn))
+        parts = posed(float(turn), 0.0)
         hose = tees.hose(sl.coil(float(turn), 400))
-        coil += sum(clips.crossed(hose, tris) for name, tris in parts.items() if name not in ('coil', 'coil stem'))
+        coil += sum(clips.crossed(hose, tris) for name, tris in parts.items()
+                    if name not in ('coil', 'coil stem', 'bus'))
         bend.append(tees.tightest(hose))
     return {'held': round(min(sl.held().values()), 3), 'air': round(1e3 * aired(), 2), 'crossing': crossing,
             'coil': coil, 'bend': (round(1e3 * min(bend), 1), 1e3 * float(mechatronics.materials()['hoses']['bus'][4])),
@@ -222,9 +223,9 @@ def main(argv=None):
     views = [(0.0, 35.0, 18.0), (0.0, -150.0, 14.0), (lo, 35.0, 18.0), (hi, 35.0, 18.0)]
     sheet = Image.new('RGB', (760 * len(views), 800), (18, 18, 18))
     for i, (turn, yaw, pitch) in enumerate(views):
-        tris = [t for part in posed(turn).values() for t in part]
-        sheet.paste(m.draw(tris, yaw=yaw, pitch=pitch, px=760, half=0.115, centre=(0.035, -0.03, 0.0)), (760 * i, 40))
-    ImageDraw.Draw(sheet).text((12, 10), 'shoulder: hanging, from ahead | from behind | at its stops %.0f and %.0f deg'
+        tris = [t for part in posed(turn, 0.0, chest=True).values() for t in part]
+        sheet.paste(m.draw(tris, yaw=yaw, pitch=pitch, px=760, half=0.18, centre=(0.04, -0.04, -0.04)), (760 * i, 40))
+    ImageDraw.Draw(sheet).text((12, 10), 'shoulder pitch (boardless): rest ahead | behind | stops %.0f and %.0f deg'
                                % (lo, hi), fill=(235, 235, 235))
     sheet.save(args.out)
     print(args.out, 'travel %.0f .. %.0f deg' % (lo, hi))

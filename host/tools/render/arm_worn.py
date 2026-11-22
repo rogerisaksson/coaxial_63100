@@ -13,6 +13,7 @@ drive's gable stays off the forearm bent its most; over them the likeness's tee'
 lays the jeans (`leg_worn.draped`). What still cuts through what is counted as leg_worn counts it.
 """
 import argparse
+import math
 import os
 import sys
 
@@ -60,10 +61,10 @@ def placing():
     return np.diag([way, 1.0, bend]), np.array([mid, 0.0, 0.0]), bend
 
 
-def arm(flex=0.0):
+def arm(flex=0.0, roll=0.0):
     """{name: tris} of the arm, the elbow's frame: the elbow's mount and its hose, the upper arm's tube up to its
-    foot under the shoulder's mount, that mount ('shoulder ...', the arm hanging), the forearm's tube down to the
-    wrist; the forearm bent `flex` deg the way the page bends it."""
+    foot under the shoulder's mount, that mount ('shoulder ...'), the forearm's tube down to the wrist; the forearm
+    bent `flex` deg and the arm raised `roll` deg about the shoulder's abduction axis."""
     import numpy as np
     from tools.render import shoulder_mount as sm, shoulder_rolled as sr
     turn, shift, bend = placing()
@@ -80,8 +81,13 @@ def arm(flex=0.0):
            'upper arm tube': m._prism(m._circle(arm_in, 40, at), face_t + em.FLANGE_M, top, em.CARBON),
            'forearm tube': km._turn(m._prism(m._circle(arm_out, 40, at), float(wrist[1]) + 0.01,
                                              face_s - em.FLANGE_M, em.CARBON), bend * flex)}
+    if roll:
+        piv_a = shoulder + np.array([-sr.X_ABD, 0.0, 0.0])
+        c_r, s_r = math.cos(math.radians(roll)), math.sin(math.radians(roll))
+        rz = np.array([[c_r, -s_r, 0.0], [s_r, c_r, 0.0], [0.0, 0.0, 1.0]])
+        out = {k: [((t - piv_a) @ rz.T + piv_a, col) for t, col in v] for k, v in out.items()}
     out.update({'shoulder ' + name: [(tri * (-1.0, 1.0, -1.0) + shoulder, c) for tri, c in tris]
-                for name, tris in sm.posed(0.0).items()})     # half a turn about the arm's line: its x toward the torso
+                for name, tris in sm.posed(0.0, roll).items()})
     return out
 
 

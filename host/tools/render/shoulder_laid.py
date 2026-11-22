@@ -1,17 +1,14 @@
-"""The shoulder's layout: its drive turned over onto the arm, its hose a coil round the crossbar.
+"""The shoulder's pitch layout: boardless MN6007 + B on the gimbal, concentric bus coil.
 
     python -X utf8 tools/render/shoulder_laid.py        # its sizes, its travel and what holds, each by its margin
 
-The shoulder swings as a human's - back BACK, ahead to AHEAD past SWUNG, between its stops (`travel`) - and a hose
-hung across a joint follows some 200 degrees at the most: so the drive stands the other way round. The gearbox's output ring is screwed to a carbon plate, the plate studded to
-a printed foot bonded in the crossbar's end, and the motor, the board and the arm turn about that: the still side is
-a tube and two discs, and the bus's hose a coil round the tube (`coil`) that a turn of the arm winds tighter or
-looser, in a drum that turns with the arm. The drum's bore runs on the two discs' rims: struck sideways, the arm
-leans on them and not on the gearbox's own bearing alone (`held`: 'rims'). A horn on the torso's block meets the
-drum's rib at the travel's ends (`travel`), the dead arc between them. The shoulder's axis is the figure's: square to the arm, which hangs leant out (`pivot`) - so the axis leans
-that much up off the crossbar's, the foot's face cut that much off square, and the crossbar and its coil stand leant
-in the sketch's frame (`canted`), the coil no tighter than clears them. The frame is the elbow sketch's: x along the axis
-toward the torso - the gearbox at +x -, y up, z behind. Each size is the least its check asks; m, the checks in mm.
+The shoulder's inverter board sits in the upper-back bay on the torso (`[boards] shoulder`), leaving only the compact
+MN6007 motor and B gearbox (71.2 mm round, 48 mm long) at the glenohumeral pivot. Stage 1 (`shoulder_rolled`) pivots
+the abduction gimbal about the z axis through the joint; Stage 2 (here) turns the arm in pitch (`BACK` to `AHEAD`)
+about the x axis on that gimbal so pitching the arm never twists the pectoral pushrod. The gearbox's output ring is
+bolted to a carbon hub plate studded onto a printed foot on the gimbal's concentric hollow arbor (`ARBOR_M`), and the
+bus's hose winds in a compact 2.25-turn concentric coil round that arbor inside a honeycomb drum that turns with the
+motor, housing and upper-arm saddle. Frame: x along the pitch axis toward the torso, y up, z behind, pivot at 0; m.
 """
 import functools
 import math
@@ -26,37 +23,23 @@ from tools.render import knee_loads as kl  # noqa: E402
 from tools.render import sized  # noqa: E402
 from tools.render import tees  # noqa: E402
 
-#: What the stops take, deg, positive the arm ahead: back as far as a human swings an arm at the shoulder (its
-#: extension, the AAOS's norm), and ahead the farthest a scenario that is no fall swung one (legload.py --all:
-#: hop_up 77). A fall swings further (falling_on_butt 143) and the stop takes it; what the texts ask unwrapped goes
-#: round whole turns (standing_jump -231, standing_yawn two) - the law's own wraps, no swing a human makes. Ahead the
-#: stop stands where a human's arm reaches, straight up (its flexion, 180). The model's shoulder has no stop yet: one
-#: comes with a header of the build's own (`tools/cores/model.py` holds one for every build).
+#: Pitch stops, deg, positive the arm ahead: human extension (`BACK`), farthest non-fall swing (`SWUNG`), overhead (`AHEAD`).
 BACK, SWUNG, AHEAD = -60.0, 77.0, 180.0
-#: The arm's push along the shoulder's axis, N: the most of its mean over 20 ms through the scenarios the build
-#: stood (slip; tools/sim/legload.py --table).
+#: Axial push along the shoulder's axis at 1x, N (`tools/sim/legload.py --table`).
 THRUST = 337.0
-#: Where the torso's block ends on the crossbar off the trunk's middle, and the air between its side and the drum's
-#: mouth, m: the drums lean in at their tops, as the shoulders' axes lean, and between them stand the neck's drive,
-#: the plate on its hub (`neck_laid.held`: 'drum air') and, beside its motor's back, the hose that takes the head's
-#: motor's leads across the neck's joint (`neck_hosed.checked`: 'air').
+#: Where the torso's central block ends on the crossbar off the trunk's middle, and the air at the coil drum's mouth, m.
 BLOCK_M, MOUTH_M = 0.045, 0.002
-#: Drawn: the studs a foot (as many as the hub's screws) and their washers' radius; the horn's and the rib's widths
-#: where they meet and how far along the axis they lap; the drum's wall; the air a turning part keeps off a still
-#: one; the rims' play in the bore, m.
-STUDS, WASHER_M, HORN_M, RIB_M, HOLD_M, DRUM_M, AIR_M, PLAY_M = 8, 0.006, 0.010, 0.012, 0.014, 0.003, 0.0015, 0.0002
-#: How far the rib stands off the drum, m: low - what it sweeps passes close under the neck's axis, and the neck's
-#: yoke swings there (`neck_mount.aired`).
-RIB_UP = 0.006
-#: The coil: its turns with the arm at its travel's middle, and the air between two of them wound their tightest, m.
-TURNS, GAP_M = 2.5, 0.0013
-#: Where round the axis the drum's rib and the coil's fitting on it stand with the arm at its travel's middle, deg
-#: from up toward behind: so the horns at the stops and the coil's other fitting on the torso's block stand ahead
-#: of the shoulder's top - the upper horn no higher than the whole-turn travel's stood (307 deg): the neck's yoke
-#: over the crossbar and the hose behind the neck's motor (`neck_hosed`) meet one at 347 -, the fitting across
-#: from the drum's, ahead (253.5).
-MIDDLE_DEG = 73.5
-#: The foot's centring bore, mm, and the carbon plate's steps, mm.
+#: Concentric hollow carbon arbor radius and wall on Stage 1's gimbal, and where the foot's inner face stands on x, m.
+ARBOR_M, ARBOR_WALL_MM, FOOT_X = 0.0175, 2.0, 0.015
+#: Drawn hardware and stop geometry, m.
+STUDS, WASHER_M, HORN_M, RIB_M, HOLD_M, DRUM_M, AIR_M, PLAY_M = 8, 0.0055, 0.010, 0.012, 0.012, 0.003, 0.0015, 0.0002
+#: Stop rib height off the coil drum, m.
+RIB_UP = 0.0055
+#: Concentric bus coil: turns at mid-travel and gap between turns wound tightest, m.
+TURNS, GAP_M = 2.25, 0.0012
+#: Bearing of the stop rib and drum fitting with the arm at mid-travel, deg from up toward behind.
+MIDDLE_DEG = 180.0
+#: Centring bore, mm, and carbon plate thickness step, mm.
 BORE, STEP = 6.0, 0.5
 
 
@@ -68,23 +51,25 @@ def pivot():
 
 
 def stack():
-    """{'board', 'motor', 'gear': (radius, length)} of the shoulder's drive (`skeleton.cans`), m."""
+    """{'motor', 'gear', 'board': (radius, length)} of the shoulder's drive kind (`drives`), m."""
     from machine.body import drives, skeleton
     names = [p for p, *_ in drives.along('left_shoulder')]
     cans = [c for c in skeleton.cans() if c[0] == 'left_shoulder']
-    return {name: (float(c[4]), 2.0 * float(c[5])) for name, c in zip(names, cans)}
+    out = {name: (float(c[4]), 2.0 * float(c[5])) for name, c in zip(names, cans)}
+    if 'board' not in out:
+        out['board'] = (float(drives.of('left_shoulder')[1].board[1]), float(drives.tall('left_shoulder')))
+    return out
 
 
 def carried():
-    """(The loads at the margin - `knee_loads.loads` -, the moment tilting the hub, N mm, the push along the axis, N)."""
+    """(Loads at the margin - `knee_loads.loads` -, hub tilting moment, N mm, axial push at margin, N)."""
     from machine.body import structural
     ld = kl.loads('shoulder')
     return ld, math.hypot(ld['lateral'], ld['torsion']), structural.MARGIN * THRUST
 
 
 def _mouth(collar, bar, tilt, ld, push):
-    """The highest principal stress, MPa, in the printed foot at the crossbar's mouth: its spigot and a collar
-    `collar` mm thick, the tilt bending them, the drive's own torque twisting them."""
+    """Highest principal stress, MPa, in a printed socket at a tube's mouth (`spigot` + `collar` mm)."""
     r, wall, _s = bar
     rings = [(r - wall - kl.BOND, BORE)] + ([(r + kl.BOND + collar, r + kl.BOND)] if collar else [])
     second = sum(math.pi / 4.0 * (a ** 4 - b ** 4) for a, b in rings)
@@ -95,15 +80,16 @@ def _mouth(collar, bar, tilt, ld, push):
 
 @functools.lru_cache(maxsize=None)
 def sizes():
-    """{'bar': the crossbar's (radius, wall, stress), 'collar', 'foot', 'plate': mm thick, 'studs': their circle's
-    radius, 'disc': the two discs' radius, mm, 'pull': a stud's at the margin, N}: each the least its check asks."""
+    """{'bar': crossbar (radius, wall, stress), 'arbor': concentric arbor (radius, wall, stress), 'collar', 'foot',
+    'plate': mm, 'studs', 'disc': radii mm, 'pull': stud pull N}: each the least its check asks."""
     from machine.body import structural
     ld, tilt, push = carried()
     allow, carbon = structural.PAHT_CF[2], structural.CARBON[2]
     reach = 1e3 * (pivot()[0] - BLOCK_M)
     bar = sized.tube(tilt + ld['axial'] * reach, ld['swing'], push)
-    collar = next((c for c in range(0, 13) if _mouth(c, bar, tilt, ld, push) <= allow), 12)
-    studs = bar[0] + kl.BOND + collar + 1e3 * WASHER_M + 0.5
+    arbor = sized.tube(tilt, ld['swing'], push, 1e3 * ARBOR_M)
+    collar = next((c for c in range(0, 13) if _mouth(c, arbor, tilt, ld, push) <= allow), 12)
+    studs = max(1e3 * ARBOR_M + kl.BOND + collar + 1e3 * WASHER_M + 0.5, kl.HUB[1] + 4.5)
     disc = studs + 1e3 * WASHER_M + 1.0
     pull = 2.0 * tilt / (STUDS * studs) + push / STUDS
     wide = 2.0 * math.pi * studs / STUDS
@@ -111,13 +97,12 @@ def sizes():
                 <= kl.ACROSS * allow)
     plate = next(STEP * n for n in range(int(kl.WALL / STEP), 60)
                  if 6.0 * pull * (studs - kl.HUB[1]) / (wide * (STEP * n) ** 2) <= carbon)
-    return {'bar': bar, 'collar': collar, 'foot': foot, 'plate': plate, 'studs': studs, 'disc': disc, 'pull': pull}
+    return {'bar': bar, 'arbor': arbor, 'collar': collar, 'foot': foot, 'plate': plate,
+            'studs': studs, 'disc': disc, 'pull': pull}
 
 
 def _gripped(lay, grip):
-    """(The lever between the band's middle and the rims', mm, the torque whose hoop the band's screws pull, N mm):
-    the drive's own and - a blow leaning the housing on its rims - half of what the band then bears, as the torque
-    of that hoop."""
+    """(Lever between band middle and rims middle, mm, torque whose hoop the band's screws pull, N mm)."""
     ld, tilt, _push = carried()
     lever = 1e3 * (0.5 * (lay['foot'][1] + lay['plate'][0]) - 0.5 * (grip[0] + grip[1]))
     turn = 2.0 * math.pi * kl.FRICTION * 1e3 * stack()['motor'][0]
@@ -125,58 +110,49 @@ def _gripped(lay, grip):
 
 
 @functools.lru_cache(maxsize=None)
+def _spool():
+    """(Coil tightest radius, ends radius, most turns, least turns, (start, mouth) off FOOT_X, crossbar cant), m."""
+    lo, hi = travel()
+    most, least = TURNS + 0.5 * (hi - lo) / 360.0, TURNS - 0.5 * (hi - lo) / 360.0
+    sz = sizes()
+    tight = ARBOR_M + tees.HOSE_R + 0.001
+    ends = max(tight * most / TURNS, ARBOR_M + 1e-3 * (kl.BOND + sz['collar']) + tees.FITTING[1] + AIR_M)
+    start = kl.COLLAR_SHARE * 2.0 * ARBOR_M + AIR_M
+    mouth = start + (most + 0.5) * (2.0 * tees.HOSE_R + GAP_M)
+    reach, lean = pivot()
+    cant = (reach - BLOCK_M) / math.cos(math.radians(lean)) - 0.0528
+    return tight, ends, most, least, (start, mouth), cant
+
+
+@functools.lru_cache(maxsize=None)
 def laid():
-    """The shoulder's layout, m, the pivot at 0 on the axis: {'foot', 'plate', 'ring', 'house', 'motor', 'board':
-    each (from, to) along x, 'bar': the crossbar's radius, 'disc', 'studs': radii, 'cant': where the foot's face
-    toward the torso stands - the crossbar leaves it `lean` deg off the axis -, 'coil': (from, to) and 'mouth': the
-    drum's, along the crossbar from that face, 'face': the guard's, 'guard': its (from, to, outside), 'band': (from,
-    to, outside), 'bore': the drum's, 'skirt': the housing's bore over the ring,
-    'wind': the coil's (tightest radius, ends' radius, most turns, least), 'meet': how far off the axis horn and rib
-    meet, 'tube': the arm's radius}."""
+    """The pitch drive's layout, m, pivot at 0: boardless MN6007 + B on Stage 1's concentric arbor."""
     from tools.render import covered as cv
     sz, st, lean = sizes(), stack(), pivot()[1]
     tight, ends, most, least, (start, mouth), cant = _spool()
     bar = 1e-3 * sz['bar'][0]
-    out, at = {}, cant                                  # the foot's face toward the torso, then outward part by part
+    out, at = {}, FOOT_X
     for name, long_ in (('foot', 1e-3 * sz['foot']), ('plate', 1e-3 * sz['plate']),
                         ('ring', (1.0 - em.OUTPUT_SHARE) * st['gear'][1]), ('house', em.OUTPUT_SHARE * st['gear'][1]),
-                        ('motor', st['motor'][1]), ('board', st['board'][1])):
+                        ('motor', st['motor'][1])):
         out[name], at = (at - long_, at), at - long_
     can, ring = st['motor'][0], st['gear'][0]
     grip = (out['motor'][0] + 0.002, out['house'][1])
     wall = 1e-3 * sized.band(_gripped(out, grip)[1], 1e3 * can, 1e3 * (grip[1] - grip[0]))
-    face = out['board'][0] - em.ROTOR_AIR - cv.WALL_M
-    guard = cv.span(face, out['motor'][0], st['board'][0], can + wall)
+    face = out['motor'][0] - 0.003 - cv.WALL_M
+    guard = (face, out['motor'][0] + 0.001, can + wall)
     bore = wound()[1] + AIR_M
-    out.update(bar=bar, disc=1e-3 * sz['disc'], studs=1e-3 * sz['studs'], cant=cant, mouth=mouth,
-               coil=(start, mouth), face=face, guard=guard, band=grip + (can + wall,), bore=bore,
-               skirt=ring + AIR_M, wind=(tight, ends, most, least), meet=bore + DRUM_M + 0.5 * RIB_UP,
-               tube=em._stack()[2], lean=lean)
+    saddle_h = 0.011
+    top_arm = can + wall + saddle_h
+    out.update(bar=bar, arbor=ARBOR_M, disc=1e-3 * sz['disc'], studs=1e-3 * sz['studs'], cant=cant, f1=FOOT_X,
+               mouth=FOOT_X + mouth - cant, coil=(start, mouth), face=face, guard=guard, band=grip + (can + wall,),
+               bore=bore, skirt=ring + AIR_M, wind=(tight, ends, most, least), meet=bore + DRUM_M + 0.5 * RIB_UP,
+               tube=em._stack()[2], lean=lean, saddle=saddle_h, top=top_arm, down=top_arm + em.SEAT_M)
     return out
 
 
-@functools.lru_cache(maxsize=None)
-def _spool():
-    """(The coil's tightest radius at the foot's face, its ends' radius there, its most turns, its least, where it
-    lies along the axis off the foot's face (from, to), where that face stands on the axis), m. Wound its tightest
-    the coil clears the crossbar by a millimetre - wider toward the torso, as the crossbar leans off the axis -,
-    its turns GAP_M apart, past the foot's collar; its ends a fitting clear of that collar; the foot where the
-    block's side stands MOUTH_M past the coil's far end."""
-    lo, hi = travel()
-    most, least = TURNS + 0.5 * (hi - lo) / 360.0, TURNS - 0.5 * (hi - lo) / 360.0
-    sz = sizes()
-    bar = 1e-3 * sz['bar'][0]
-    tight = bar + tees.HOSE_R + 0.001
-    ends = max(tight * most / TURNS, bar + 1e-3 * (kl.BOND + sz['collar']) + tees.FITTING[1] + AIR_M)
-    start = kl.COLLAR_SHARE * 2.0 * bar + AIR_M
-    mouth = start + (most + 0.5) * (2.0 * tees.HOSE_R + GAP_M)
-    reach, lean = pivot()
-    return tight, ends, most, least, (start, mouth), (reach - BLOCK_M) / math.cos(math.radians(lean)) - mouth - MOUTH_M
-
-
 def _lean():
-    """((3, 3) the crossbar's frame's turn into the sketch's, (3,) where the foot's face stands): the crossbar
-    leaves that face the arm's lean off the shoulder's axis, up toward the torso."""
+    """((3, 3) crossbar frame's turn into sketch frame, (3,) where crossbar axis meets `cant`)."""
     import numpy as np
     lean = math.radians(pivot()[1])
     c, s = math.cos(lean), math.sin(lean)
@@ -184,8 +160,7 @@ def _lean():
 
 
 def canted(points):
-    """`points` (k, 3) laid along the crossbar from the foot's face - x along it, toward the torso - in the
-    sketch's frame."""
+    """`points` (k, 3) laid along the torso's crossbar from `cant` toward the trunk's middle, in sketch frame."""
     import numpy as np
     turn, at = _lean()
     return np.asarray(points, float) @ turn + at
@@ -193,12 +168,11 @@ def canted(points):
 
 @functools.lru_cache(maxsize=None)
 def travel():
-    """(from, to), deg: the shoulder's travel between its stops, BACK to AHEAD - the dead arc between them no
-    narrower than the horn and the rib take where they meet, on a drum as wide as the coil's fewest turns ask."""
+    """(from, to), deg: the shoulder's pitch travel between its stops, BACK to AHEAD."""
     from machine.errors import MachineError
     lo, hi = BACK, AHEAD
     half = 0.5 * (hi - lo) / 360.0
-    tight = 1e-3 * sizes()['bar'][0] + tees.HOSE_R + 0.001
+    tight = ARBOR_M + tees.HOSE_R + 0.001
     meet = tight * (TURNS + half) / (TURNS - half) + tees.HOSE_R + AIR_M + DRUM_M + 0.5 * RIB_UP
     if 360.0 - (hi - lo) < math.degrees((HORN_M + RIB_M) / meet):
         raise MachineError('the shoulder travels %.0f deg: no room left between its stops for horn and rib' % (hi - lo))
@@ -206,32 +180,29 @@ def travel():
 
 
 def turns(turn):
-    """The coil's turns with the arm turned `turn` deg: TURNS at its travel's middle, one more a whole turn on."""
+    """The coil's turns with the arm pitched `turn` deg: TURNS at mid-travel, one more a whole turn on."""
     lo, hi = travel()
     return TURNS + (turn - 0.5 * (lo + hi)) / 360.0
 
 
 def drummed():
-    """Where round the axis the drum's rib and the coil's fitting on it stand with the arm hanging, deg from up
-    toward behind: MIDDLE_DEG at the travel's middle."""
+    """Bearing of the drum's rib and coil fitting with the arm hanging, deg from up toward behind."""
     lo, hi = travel()
     return MIDDLE_DEG - 0.5 * (lo + hi)
 
 
 def _wound(count, middle, k):
-    """(k, 3): a coil of `count` turns about the axis from the block's fitting to the drum's, the sketch's frame:
-    its ends at the fittings' radius and its middle turns `middle` round, eased between over half a turn - none
-    tighter than clears the crossbar where it has leant off the axis."""
+    """(k, 3): concentric coil of `count` turns round Stage 1's arbor from the gimbal flange to the drum's stem."""
     import numpy as np
-    tight, ends, _most, _least, (x0, x1), cant = _spool()
+    _tight, ends, _most, _least, (x0, x1), _cant = _spool()
     u = np.linspace(0.0, 1.0, k)
     ease = np.clip(np.minimum(u, 1.0 - u) * 2.0 * count, 0.0, 1.0)
     ease = ease * ease * (3.0 - 2.0 * ease)
-    along = x1 - tees.HOSE_R + (x0 - x1 + 2.0 * tees.HOSE_R) * u         # off the foot's face
-    r = np.maximum(ends + (middle - ends) * ease, tight + math.tan(math.radians(pivot()[1])) * along)
-    start = math.radians(drummed() - 360.0 * turns(0.0))                # the drum's fitting where `drummed` says
+    along = x1 - tees.HOSE_R + (x0 - x1 + 2.0 * tees.HOSE_R) * u
+    r = ends + (middle - ends) * ease
+    start = math.radians(drummed() - 360.0 * turns(0.0))
     a = start + 2.0 * math.pi * count * u
-    return np.c_[cant + along, r * np.cos(a), r * np.sin(a)]
+    return np.c_[FOOT_X + along, r * np.cos(a), r * np.sin(a)]
 
 
 def _long(points):
@@ -241,14 +212,13 @@ def _long(points):
 
 @functools.lru_cache(maxsize=None)
 def cut():
-    """The coil's hose's length, m: what its most turns take wound their tightest round the crossbar."""
+    """The coil's hose length, m: what its most turns take wound tightest round the concentric arbor."""
     tight, _ends, most, _least, _zone, _cant = _spool()
     return _long(_wound(most, tight, 2000))
 
 
 def coil(turn=0.0, k=400):
-    """(k, 3): the hose's centre line with the arm turned `turn` deg, from the block's fitting to the drum's: a
-    coil of `turns(turn)` about the axis, its middle turns as wide as its length (`cut`) lets them be."""
+    """(k, 3): hose centre line with the arm pitched `turn` deg, from Stage 1's flange fitting to the drum's."""
     count, lo, hi = turns(turn), _spool()[0], 4.0 * _spool()[0]
     for _ in range(40):
         mid = 0.5 * (lo + hi)
@@ -258,55 +228,49 @@ def coil(turn=0.0, k=400):
 
 @functools.lru_cache(maxsize=None)
 def wound():
-    """(The least radius the coil bends at, the farthest its hose's skin reaches off the axis, the least air that
-    skin keeps off the leant crossbar), m, through the travel, every fifth degree."""
+    """(Least bend radius, farthest hose skin off the pitch axis, least air off the concentric arbor), m."""
     import numpy as np
     from tools.render import hung
     lo, hi = travel()
-    turn_, at = _lean()
     bends, far, near = [], [], []
     for turn in np.arange(lo, hi + 0.1, 5.0):
         line = coil(float(turn), 160)
-        about = (line - at) @ turn_.T                    # along the crossbar
         bends.append(hung._radius(line))
-        far.append(float(np.hypot(line[:, 1], line[:, 2]).max()) + tees.HOSE_R)
-        near.append(float(np.hypot(about[:, 1], about[:, 2]).min()) - tees.HOSE_R - 1e-3 * sizes()['bar'][0])
+        rad = np.hypot(line[:, 1], line[:, 2])
+        far.append(float(rad.max()) + tees.HOSE_R)
+        near.append(float(rad.min()) - tees.HOSE_R - ARBOR_M)
     return min(bends), max(far), min(near)
 
 
 def held():
-    """{name: margin} of what holds the shoulder, each its strength over what it carries at the margin - past 1 it
-    holds: the hub's screws and the foot's studs parting, the hub slipping at once, the plate and the foot bending
-    between them, the foot at the crossbar's mouth, the spigot bearing in the tube, the crossbar and the arm's tube,
-    the washers and the studs' holes in the foot, the housing's rims where the arm is struck sideways, the band's
-    screws, the horn and the rib at a stop - the rib sheared off its drum, its face borne on -, and the coil: its least bend against the hose's own and its air round
-    the crossbar - the drum is as wide as the coil ever grows."""
+    """{name: margin} of every pitch-stage member at the margin (> 1 holds)."""
     from machine.body import mechatronics, structural
     ld, tilt, push = carried()
     sz, lay, k = sizes(), laid(), structural.MARGIN
     allow, carbon = structural.PAHT_CF[2], structural.CARBON[2]
-    bar, pull, wide = sz['bar'], sz['pull'], 2.0 * math.pi * sz['studs'] / STUDS
+    bar, arbor, pull = sz['bar'], sz['arbor'], sz['pull']
+    wide = 2.0 * math.pi * sz['studs'] / STUDS
     count, circle = kl.HUB
     m5, m4 = kl.SCREWS['M5'][0], kl.SCREWS['M4'][0]
     hub = 2.0 * tilt / (count * circle) + push / count
     slide = ld['swing'] / (count * circle) + ld['axial'] / count
     washer = math.pi * ((1e3 * WASHER_M) ** 2 - 2.2 ** 2)
-    spigot, deep = bar[0] - bar[1] - kl.BOND, kl.SPIGOT_SHARE * 2.0 * bar[0]
+    spigot, deep = arbor[0] - arbor[1] - kl.BOND, kl.SPIGOT_SHARE * 2.0 * arbor[0]
     arm = sized.tube(math.hypot(ld['swing'], ld['lateral']), ld['torsion'], ld['axial'], 1e3 * lay['tube'])
     lever, gripped = _gripped(lay, lay['band'][:2])
     rims = 1e3 * (lay['foot'][1] - lay['plate'][0])
     hoop = sized._hoop(gripped, 1e3 * stack()['motor'][0])
     pinch = next((p for p, _h in sized.PINCHES if sized.PINCH * p >= hoop), sized.PINCHES[-1][0])
-    stop = ld['swing'] / (1e3 * lay['meet'])             # the drive's own torque at the margin, on the rib, N
-    bend, far, near = wound()
+    stop = ld['swing'] / (1e3 * lay['meet'])
+    bend, _far, near = wound()
     hose = float(mechatronics.materials()['hoses']['bus'][4])
     return {'hub screws': m5 / (0.8 * hub), 'hub slip at 1x': kl.FRICTION * (m5 - 0.8 * hub / k) / (slide / k),
             'studs': m4 / (0.8 * pull), 'plate': carbon * wide * sz['plate'] ** 2 / (6.0 * pull * (sz['studs'] - circle)),
             'foot': kl.ACROSS * allow * wide * sz['foot'] ** 2 / (6.0 * pull * (1e3 * WASHER_M + 0.5)),
-            'mouth': allow / _mouth(sz['collar'], bar, tilt, ld, push),
+            'mouth': allow / _mouth(sz['collar'], arbor, tilt, ld, push),
             'spigot': allow * 2.0 * spigot * deep * deep / (6.0 * tilt),
-            'crossbar': carbon / bar[2], 'arm tube': carbon / arm[2], 'washers': allow * washer / pull,
-            'stud holes': allow * 4.0 * sz['foot'] * STUDS * sz['studs'] / ld['swing'],
+            'crossbar': carbon / bar[2], 'arbor': carbon / arbor[2], 'arm tube': carbon / arm[2],
+            'washers': allow * washer / pull, 'stud holes': allow * 4.0 * sz['foot'] * STUDS * sz['studs'] / ld['swing'],
             'rims': allow * 2.0 * sz['disc'] * rims * lever / tilt, 'band screws': sized.PINCH * pinch / hoop,
             'stop': allow * 1e6 * HOLD_M * min(kl.ACROSS * RIB_M, RIB_UP - AIR_M) / stop,
             'coil bend': bend / hose, 'coil air': 1.0 + near / tees.HOSE_R}
@@ -314,8 +278,9 @@ def held():
 
 def main():
     sz, lay = sizes(), laid()
-    print('crossbar %.0f x %.0f mm; collar %d, foot %d, plate %.1f mm; %d studs on %.1f mm, discs %.1f mm round'
-          % (2 * sz['bar'][0], sz['bar'][1], sz['collar'], sz['foot'], sz['plate'], STUDS, sz['studs'], sz['disc']))
+    print('crossbar %.0f x %.0f mm, arbor %.0f x %.1f mm; collar %d, foot %d, plate %.1f mm; discs %.1f mm'
+          % (2 * sz['bar'][0], sz['bar'][1], 2 * sz['arbor'][0], sz['arbor'][1], sz['collar'], sz['foot'],
+             sz['plate'], sz['disc']))
     print('travel %.0f .. %.0f deg; coil %.0f mm of hose, %.2f .. %.2f turns; drum %.0f mm round'
           % (*travel(), 1e3 * cut(), lay['wind'][3], lay['wind'][2], 2e3 * (lay['bore'] + DRUM_M)))
     for name, margin in held().items():

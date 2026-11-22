@@ -25,10 +25,12 @@ thick_m = 0.002615
 arch_m = 0.012
 length_m = 0.126
 
-# Every inverter of the leg on its motor's back, coaxial (false: no remote bay).
+# Every inverter of the leg on its motor's back, coaxial (false: no remote bay); each shoulder pitch drive's
+# inverter off the shoulder in the upper-back bay behind the neck/head twin, leaving only MN6007 + B at the joint.
 [boards]
 knee = false
 ankle = false
+shoulder = { on = "torso", at = [0.051, 0.255, -0.087], face = "z" }
 
 # The knee's hard stop where the thigh's tube, leant from the hip's axis, meets the calf's cage (its guards clear
 # to 158): past the deepest fold a program asks (150 deg, bed_pull's).

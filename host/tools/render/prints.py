@@ -81,11 +81,12 @@ def _trunk():
 UPPER_PIECES = (
     ('elbow stator band', IN, 2), ('elbow stator saddle', (0.0, -1.0, 0.0), 2), ('elbow rotor clamp', IN, 2),
     ('elbow cover', X, 2), ('elbow lid', X, 2), ('elbow foot', Y, 2), ('forearm head', (0.0, -1.0, 0.0), 2),
-    ('crossbar foot', X, 2), ('shoulder block', IN, 2), ('shoulder housing', X, 2), ('shoulder guard', X, 2),
-    ('shoulder lid', X, 2), ('abduction band', (0.0, 0.0, -1.0), 2), ('abduction guard', Y, 2),
-    ('abduction post', X, 2), ('abduction saddle', X, 2), ('torso block', X, 1), ('neck band', X, 1),
-    ('spine foot', (0.0, -1.0, 0.0), 1), ('bay puck', Z, 1), ('bay clamp', Y, 1), ('bay guard', Z, 1),
-    ('bay lid', Z, 1), ('neck cheek', X, 1), ('neck crown', Y, 1), ('neck shoe', X, 1))
+    ('crossbar foot', X, 2), ('shoulder block', IN, 2), ('shoulder housing', X, 2), ('arm saddle', X, 2),
+    ('shoulder guard', X, 2), ('shoulder lid', X, 2), ('clevis socket', Y, 2), ('gimbal bridge', X, 2),
+    ('pectoral cover', Z, 2), ('pectoral lid', Z, 2), ('pectoral crank', Z, 2),
+    ('torso block', X, 1), ('neck band', X, 1), ('spine foot', (0.0, -1.0, 0.0), 1), ('bay puck', Z, 1),
+    ('bay clamp', Y, 1), ('bay guard', Z, 1), ('bay lid', Z, 1), ('shoulder bay guard', X, 2),
+    ('shoulder bay lid', X, 2), ('neck cheek', X, 1), ('neck crown', Y, 1), ('neck shoe', X, 1))
 
 
 def upper():
@@ -96,8 +97,9 @@ def upper():
 @functools.lru_cache(maxsize=None)
 def _upper():
     """{part: tris}: the upper body's printed parts as their sketches draw them."""
-    from tools.render import boards, clamped as cl, knee_mount as km, neck_laid as nl, neck_mount as nm
-    from tools.render import shoulder_laid as sl, shoulder_mount as sm, shoulder_rolled as sr, sized
+    import numpy as np
+    from tools.render import boards, clamped as cl, hip_clamped as hc, leaves, neck_laid as nl, neck_mount as nm
+    from tools.render import shoulder_mount as sm, shoulder_rolled as sr, sized
     (_sp, (_g0, g1, ring), arm_in, arm_out, _can, motor, _brd, (narrow, reach), _split, (back, x1, band), cover,
      (_face, end, outside), over, (first, _rot), swing) = em._laid()
     fit, top, low = em._fitted(), over + em.SADDLE_M, over + em.ROTOR_AIR
@@ -108,19 +110,28 @@ def _upper():
     for a, b, r_in in [(first, g1, ring + wall_r - 0.001), (-reach, first, low)]:
         rotor_c += em._rounded(cl.filleted(cl.necked((0.0, 0.0), r_in, -(low + em.ROTOR_M), (-narrow, narrow), waist_r)),
                                a, b, em.FRAME, axis=0, r=0.002)
-    lay_r, st_r, s_still, s_turn = sr.laid(), sr.stack(), sm.still(), sm.turning()
-    sr_band = sr._along(cl.turned([(lay_r['house'][0] + 0.001, st_r['gear'][0], lay_r['band']),
-                                   (lay_r['motor'][1] - 0.001, st_r['motor'][0], lay_r['band'])], 0.0), 'z')
-    for deg, way in ((sr.TRAVEL[0], -1.0), (sr.TRAVEL[1], 1.0)):
-        r0 = lay_r['rib'] + 0.5 * sr.HORN_M
-        b = math.radians(deg) + way * sr.HORN_M / r0
-        at = (-r0 * math.sin(b), -r0 * math.cos(b))
-        sr_band += km._rod((at[0], at[1], lay_r['plate'][1] + sr.AIR_M), (at[0], at[1], lay_r['house'][0] + 0.002),
-                           0.5 * sr.HORN_M, em.FRAME)
-    top_b, bot_b = lay_r['board']
-    r_b, (x0_h, x1_h) = st_r['board'][0], sr._hood_x()
-    sr_guard = sr._along(em._drum(r_b + sr.GUARD_M, -bot_b - sr.GUARD_M, -bot_b, em.FRAME) + cl.turned(
-        [(-bot_b - sr.GUARD_M, r_b + 0.0005, r_b + sr.GUARD_M), (-top_b + 0.001, r_b + 0.0005, r_b + sr.GUARD_M)], None), 'y')
+    lay_r, st_r, pec = sr.laid(), sr.stack(), sr.pectoral()
+    s_still, s_turn = sm.still(), sm.turning()
+    (_c0, c1), (f0, f1), (bx0, bx1), root = lay_r['cheek'], lay_r['fork'], lay_r['bridge'], lay_r['root']
+    from tools.render import foot
+    web_xz = cl.filleted([(0.094, f0), (0.098, f1), (root + 0.003, 0.020),
+                          (root + 0.003, -0.020), (root + 0.003, -f1), (root, -f0), (root, 0.018)], r=0.0015)
+    sock = [(t[:, (1, 0, 2)][::-1], col) for t, col in foot._slab(web_xz, -0.015, 0.015, em.FRAME)]
+    bridge = em._rounded([(-0.016, -c1), (-0.016, c1), (0.016, c1), (0.016, -c1)], bx0, bx1, em.FRAME, axis=0, r=0.002)
+    can_p, ring_p, r_bp = st_r['motor'][0], st_r['gear'][0], st_r['board'][0]
+    p_drv = hc._drive({'board': pec['board'] + (r_bp,), 'motor': pec['motor'] + (can_p,),
+                       'gear': (pec['house'][0], pec['ring'][1], ring_p)},
+                      pec['band'][2] - can_p, 0.5 * math.pi, leave=0.5 * math.pi)
+    rot_z = np.array([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [-1.0, 0.0, 0.0]])
+    cx, cy = pec['xy']
+    z0_c, z1_c, out_c = pec['crank']
+    th, c_pin, _h_pin, _u_rod = sr.crank_at(0.0)
+    c_band = [((t @ rot_z) + (cx, cy, 0.0), col) for t, col in cl.turned([(z0_c, ring_p, out_c), (z1_c, ring_p, out_c)], 0.0)]
+    c_root = [(cx + (out_c - 0.001) * math.cos(th + a), cy + (out_c - 0.001) * math.sin(th + a))
+              for a in np.radians(np.linspace(-36.0, 36.0, 9))]
+    c_arm = em._rounded(cl.filleted(leaves.hull(c_root + leaves.ring((float(c_pin[0]), float(c_pin[1])),
+                                                                     sr.PIN_R + 0.006))),
+                        z0_c, z1_c, em.FRAME, axis=2, r=0.0015, steps=1)
     lay_n, n_still, n_nod = nl.laid(), nm.still(), nm.nodding()
     return {'elbow stator band': stator_b, 'elbow stator saddle': stator_s, 'elbow rotor clamp': rotor_c,
             'elbow cover': cv.cover(*cover, outlet=fit[4], window=boards.window(turn)),
@@ -128,14 +139,19 @@ def _upper():
             'elbow foot': em._limb(top + em.SEAT_M, 1.0, arm_in, 0.0, 'torx', False)[1],
             'forearm head': em._limb(-(low + em.ROTOR_M + em.SEAT_M), -1.0, arm_out, 0.0, 'torx', False)[1],
             'crossbar foot': s_still['crossbar foot'], 'shoulder block': s_still['block'],
-            'shoulder housing': s_turn['housing'], 'shoulder guard': s_turn['guard'], 'shoulder lid': s_turn['lid'],
-            'abduction band': sr_band, 'abduction guard': sr_guard,
-            'abduction post': sr._box((x0_h + 0.002, x1_h - 0.002), (-top_b, -sl.laid()['band'][2] + 0.001),
-                                      (-0.008, 0.008), em.FRAME),
-            'abduction saddle': sr._saddle(),
+            'shoulder housing': s_turn['housing'], 'arm saddle': s_turn['arm saddle'],
+            'shoulder guard': s_turn['guard'], 'shoulder lid': s_turn['lid'],
+            'clevis socket': sock, 'gimbal bridge': bridge,
+            'pectoral cover': [((t @ rot_z), col) for t, col in p_drv['guard']],
+            'pectoral lid': [((t @ rot_z), col) for t, col in p_drv['lid']],
+            'pectoral crank': c_band + c_arm,
             'torso block': nm._crossbar_block(lay_n), 'neck band': nm._neck_clamp(lay_n),
             'spine foot': n_still['spine'], 'bay puck': n_still['bay'], 'bay clamp': n_still['bay clamp'],
             'bay guard': n_still['bay guard'], 'bay lid': n_still['bay lid'],
+            'shoulder bay guard': [(t, cv.BLACK) for t, _c in cl.turned(
+                [(0.0, r_bp + 0.0005, r_bp + cv.WALL_M + 0.0005),
+                 (st_r['board'][1], r_bp + 0.0005, r_bp + cv.WALL_M + 0.0005)], None)],
+            'shoulder bay lid': em._drum(r_bp + cv.WALL_M + 0.0005, 0.0, cv.WALL_M, cv.BLACK),
             'neck cheek': n_nod['cheek'], 'neck crown': n_nod['crown'], 'neck shoe': n_nod['shoe']}
 
 

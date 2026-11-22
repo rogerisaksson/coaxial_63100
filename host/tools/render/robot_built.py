@@ -63,40 +63,62 @@ def _mirrored(tris):
     return [((tri * (-1.0, 1.0, 1.0))[::-1], colour) for tri, colour in tris]
 
 
-def _undrawn():
-    """What no sketch draws yet, the page's own in GHOST."""
+def _undrawn(roll=0.0):
+    """What no sketch draws yet, the page's own in GHOST (hands rotated with `roll` when raised)."""
+    import math
     import numpy as np
-    body, names, _frames, pos = _figure()
+    body, names, frames, pos = _figure()
     owner = np.repeat(np.arange(len(names)), [len(part[5][1]) for part in body.parts])
     index = body.index.astype(int)
-    return [(pos[tri], GHOST) for n in names if n in UNDRAWN for tri in index[owner == names.index(n)]]
+    out = []
+    for n in names:
+        if n not in UNDRAWN:
+            continue
+        tris = [(pos[tri], GHOST) for tri in index[owner == names.index(n)]]
+        if roll:
+            from tools.render import shoulder_rolled as sr
+            side = 'left_' if n.startswith('left_') else 'right_'
+            sgn = 1.0 if side == 'left_' else -1.0
+            turn_s, spot_s = frames[names.index(side + 'upper_arm')]
+            piv = spot_s + np.array([-sgn * sr.X_ABD, 0.0, 0.0]) @ turn_s.T
+            c_r, s_r = math.cos(math.radians(sgn * roll)), math.sin(math.radians(sgn * roll))
+            rz = np.array([[c_r, -s_r, 0.0], [s_r, c_r, 0.0], [0.0, 0.0, 1.0]])
+            tris = [((t - piv) @ rz.T + piv, col) for t, col in tris]
+        out += tris
+    return out
 
 
 @functools.lru_cache(maxsize=None)
-def whole():
-    """{name: tris} of the build, the root's frame (the pelvis's: x to the robot's left, y up, z ahead), standing:
-    'left leg', 'right leg' - hip, knee, calf and foot with their guards and cables -, 'left arm', 'right arm' -
-    shoulder, elbow, their tubes, hoses and guards -, 'neck' - the torso's block, the spine's tube, the bay, the neck's and
-    the head's drives, their leads -, 'trunk' - the pelvis's yoke, the cardan joint, the drive pair on the chest,
-    upright, the hips' yaw drives the legs' own -, 'trunk guards' - its cups, its sternum's, its belly's slats and
-    its back's - and 'undrawn'."""
+def whole(roll=0.0):
+    """{name: tris} of the build, the root's frame (the pelvis's: x to the robot's left, y up, z ahead), standing
+    (with the arms raised `roll` deg when told, e.g. `roll=90.0` for T-pose): legs, arms, bilateral pectoral drives
+    with SIMP chest mounts and carbon pushrods, neck/bay, trunk, trunk guards and undrawn hands."""
+    import math
     import numpy as np
     from tools.render import arm_worn as aw, leg_clamped as lc, leg_shaped as ls, leg_worn as lw
-    from tools.render import neck_hosed as nh, neck_mount as nm, trunk_clamped as tc, trunk_laid as tl
-    from tools.render import trunk_shaped as ts, trunk_worn as tw
+    from tools.render import neck_hosed as nh, neck_mount as nm, shoulder_rolled as sr
+    from tools.render import trunk_clamped as tc, trunk_laid as tl, trunk_shaped as ts, trunk_worn as tw
     leg = _put(ls.posed(lc.stated(), 0.0) + [t for part in lw.guards(lc.stated()).values() for t in part],
                'left_thigh', 'left_shank')
-    arm = _put([t for part in list(aw.arm(0.0).values()) + list(aw._guarded().values()) for t in part],
+    guards_a = [t for part in aw._guarded().values() for t in part]
+    if roll:
+        piv_a = aw.laid(False, ())[1] + np.array([-sr.X_ABD, 0.0, 0.0])
+        c_r, s_r = math.cos(math.radians(roll)), math.sin(math.radians(roll))
+        rz = np.array([[c_r, -s_r, 0.0], [s_r, c_r, 0.0], [0.0, 0.0, 1.0]])
+        guards_a = [((t - piv_a) @ rz.T + piv_a, col) for t, col in guards_a]
+    arm = _put([t for part in aw.arm(0.0, roll).values() for t in part] + guards_a,
                'left_upper_arm', 'left_forearm')
+    pec = sr.chest(roll, False)['pectoral'] + sr.chest(roll, True)['pectoral']
     neck = [t for name, part in dict(nm.posed(low=tc.seat()), **nh.posed()).items() if not name.endswith(' shoulder')
             for t in part]
     at = np.asarray(tl.joint()[0], float)
     trunk = [(tri + at, colour) for (link, name), part in ts.posed().items() if link != 'hips' and name != 'tube'
              for tri, colour in part]
     return {'left leg': leg, 'right leg': _mirrored(leg), 'left arm': arm, 'right arm': _mirrored(arm),
-            'neck': _put(neck, 'torso', 'torso'), 'trunk': _put(trunk, 'pelvis', 'pelvis'),
+            'pectoral': _put(pec, 'torso', 'torso'), 'neck': _put(neck, 'torso', 'torso'),
+            'trunk': _put(trunk, 'pelvis', 'pelvis'),
             'trunk guards': _put([(tri + at, colour) for tri, colour in tw.guards()], 'pelvis', 'pelvis'),
-            'undrawn': _undrawn()}
+            'undrawn': _undrawn(roll)}
 
 
 def sheets(out, px=2400):
