@@ -34,7 +34,7 @@ from tools.render import topo  # noqa: E402
 #: The voxel, mm; the share of what is the optimiser's to shape that the hood may keep; the way it grows off its
 #: bed along the abduction's axis (+1 from the boss's front face, -1 from the motor's end); how far past the bush's
 #: wall the boss is kept, mm; the step the yoke is swept through its travel at, deg, and the grid it is drawn on, m.
-H_MM, SHARE, UP, ROUND_MM, STEP, FINE_M = 3.0, 0.4, 1.0, 3.0, 1.0, 0.0005
+H_MM, SHARE, UP, ROUND_MM, STEP, FINE_M = 3.0, 0.55, 1.0, 3.0, 1.0, 0.0005
 
 
 def _axes(up):
@@ -78,24 +78,34 @@ def _swept(outline, x, y):
 @functools.lru_cache(maxsize=None)
 def _room(up=UP):
     """(room, kept, held [across, up, deep], the boss's and the band's voxels, the bed's corner mm): the hood's
-    voxels, its bed's rows (`_axes`) across along y, up the abduction's axis the way `up` says, deep along x."""
+    voxels inside a rounded deltoid dome, its bed's rows (`_axes`) across along y, up along `up`, deep along x."""
     import numpy as np
     from scipy.spatial import KDTree
     from tools.render import shoulder_hosed as sh, shoulder_mount as sm, tees
     lay, pitch, st, h, air = sr.laid(), sl.laid(), sr.stack(), 1e-3 * H_MM, sr.AIR_M
-    xs = np.arange(pitch['face'], pitch['cant'] - 0.5 * h, h) + 0.5 * h
-    ys = np.arange(-lay['band'] - h, lay['roof'] - 0.5 * h, h) + 0.5 * h
+    roof_m = lay['inside'] + 0.012
+    xs = np.arange(-lay['band'] - 0.5 * h, pitch['cant'] - 0.5 * h, h) + 0.5 * h
+    ys = np.arange(-lay['band'] - h, roof_m - 0.5 * h, h) + 0.5 * h
     zs = np.arange(lay['boss'][0], lay['motor'][1] - 0.5 * h, h) + 0.5 * h
     xs, zs = (xs, zs) if up > 0 else (xs[::-1], zs[::-1])
     y, z, x = np.meshgrid(ys, zs, xs, indexing='ij')
     r_x, r_z, edge = np.hypot(y, z), np.hypot(x, y), air + 0.9 * h
+    b0, m1 = lay['boss'][0], lay['motor'][1]
+    y_cap = np.minimum(roof_m, np.minimum(0.036 + 1.0 * (z - b0), 0.043 + 0.78 * (m1 - z)))
+    lat = ((np.maximum(-x - 0.004, 0.0) / 0.037) ** 2
+           + (np.maximum(y - 0.012, 0.0) / np.maximum(y_cap - 0.012, 0.015)) ** 2 > 1.0)
+    med = ((np.maximum(x - 0.040, 0.0) / 0.018) ** 2
+           + (np.maximum(y - 0.020, 0.0) / np.maximum(y_cap - 0.020, 0.015)) ** 2 > 1.0)
+    dome = lat | med | (np.abs(x - 0.006) > np.minimum(0.052, 0.024 + 0.95 * (z - b0))) | (y > y_cap)
     pts = km._points([t for n in ('housing', 'guard', 'lid', 'drive', 'leads') for t in sm.turning()[n]], 0.0015)
     reach = np.array([np.hypot(*pts[np.abs(pts[:, 0] - a) <= 0.5 * h + air][:, 1:].T).max(initial=0.0)
                       for a in xs])[None, None, :]
     foot = (x >= sr._hood_x()[0]) & (np.abs(z) <= sr.FOOT_M)                       # on the pitch's housing
-    out = r_x < reach + np.where(x >= sr._hood_x()[0], np.clip(np.abs(z) - sr.FOOT_M, 0.0, edge), edge)
+    out = dome | (r_x < reach + np.where(x >= sr._hood_x()[0], np.clip(np.abs(z) - sr.FOOT_M, 0.0, edge), edge))
+    bot_c = -lay['drop'] - 0.5 * lay['saddle'] + 0.5 * sr.WIDE_M
     hull = np.r_[[(sr.HUB_M * math.cos(a), sr.HUB_M * math.sin(a)) for a in np.linspace(0.0, 2.0 * math.pi, 49)[:-1]],
-                 [(-0.5 * sr.WIDE_M, -lay['drop'] - 0.5 * lay['saddle']), (0.5 * sr.WIDE_M, -lay['drop'] - 0.5 * lay['saddle'])]]
+                 [(0.5 * sr.WIDE_M * math.cos(a), bot_c + 0.5 * sr.WIDE_M * np.sin(a))
+                  for a in np.linspace(math.pi, 2.0 * math.pi, 25)]]
     plates, (p0, p1) = _swept(hull, x, y) < edge, lay['plate']
     out |= plates & ((np.abs(np.abs(z) - 0.5 * (p0 + p1)) <= 0.5 * (p1 - p0) + edge))
     rib = [(-0.5 * sr.HORN_M, -lay['rib'] - sr.HORN_M), (0.5 * sr.HORN_M, -lay['rib'] - sr.HORN_M),

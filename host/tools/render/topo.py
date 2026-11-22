@@ -184,10 +184,39 @@ def outlined(solid, h, fine=4, blur=0.6):
     return np.array(out, float).reshape(-1, 3, 3)
 
 
+def _smoothed(got, c, steps=14, lam=0.5, mu=-0.53):
+    """(n, 3, 3) mm: `kt.faces` smoothed by volume-preserving Taubin steps, the bed and mating seats held."""
+    import numpy as np
+    raw = kt.faces(got['points'], got['cells'])
+    if not len(raw):
+        return raw
+    pts, inv = np.unique(np.round(raw.reshape(-1, 3), 6), axis=0, return_inverse=True)
+    tris, h, room, kept = inv.reshape(-1, 3), float(got['h']), c['room'], c['kept']
+    ijk = np.rint(pts / h).astype(int)
+    in_kept, in_void = np.zeros(len(pts), bool), np.zeros(len(pts), bool)
+    sx, sy, sz = room.shape
+    for dx, dy, dz in np.indices((2, 2, 2)).reshape(3, -1).T:
+        cx, cy, cz = ijk[:, 0] - dx, ijk[:, 1] - dy, ijk[:, 2] - dz
+        ok = (cx >= 0) & (cx < sx) & (cy >= 0) & (cy < sy) & (cz >= 0) & (cz < sz)
+        kh, rm = np.zeros(len(pts), bool), ~ok.copy()
+        kh[ok], rm[ok] = kept[cx[ok], cy[ok], cz[ok]], ~room[cx[ok], cy[ok], cz[ok]]
+        in_kept, in_void = in_kept | kh, in_void | rm
+    edges = np.vstack([tris[:, [0, 1]], tris[:, [1, 2]], tris[:, [2, 0]],
+                       tris[:, [1, 0]], tris[:, [2, 1]], tris[:, [0, 2]]])
+    deg = np.bincount(edges[:, 0], minlength=len(pts)).astype(float)[:, None]
+    w = np.where(pts[:, 1] <= 1e-4, 0.0, np.where(in_kept & in_void, 0.2, 1.0))[:, None]
+    p = pts.copy()
+    for _ in range(steps):
+        for factor in (lam, mu):
+            acc = np.zeros_like(p)
+            np.add.at(acc, edges[:, 0], p[edges[:, 1]])
+            p = p + (factor * w) * (acc / np.maximum(deg, 1.0) - p)
+    return p[tris]
+
+
 def faced(got, c):
-    """(n, 3, 3) mm in the bed's frame: a shaped case's solid drawn - an extruded one's prisms smooth (`outlined`),
-    else its voxels' outer faces (`knee_topo.faces`)."""
-    return outlined(got['solid'], got['h']) if c.get('extruded') else kt.faces(got['points'], got['cells'])
+    """(n, 3, 3) mm in the bed's frame: a shaped case's solid drawn smooth (`outlined` if extruded, else `_smoothed`)."""
+    return outlined(got['solid'], got['h']) if c.get('extruded') else _smoothed(got, c)
 
 
 def wrench(points, force, moment, about):

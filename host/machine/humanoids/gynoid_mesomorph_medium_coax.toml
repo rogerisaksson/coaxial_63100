@@ -47,7 +47,7 @@ knee = [-5.0, 155.0]
 [guards]
 thick_m = 0.005
 thigh = [[0.14, 0.62, 55.0, 37.0]]
-upper_arm = [[-0.06, 0.32, 0.0, 55.0], [0.78, 1.08, 0.0, 40.0, 2.4, -0.15]]
+upper_arm = [[0.01, 0.32, 0.0, 40.0, 2.2, -0.18], [0.78, 1.08, 0.0, 40.0, 2.4, -0.15]]
 forearm = [[0.08, 0.66, -90.0, 49.0], [0.7, 0.84, 20.0, 39.0]]
 shank = [[-0.07, 0.11, 90.0, 36.0], [0.16, 0.72, 90.0, 27.0], [0.755, 0.835, 90.0, 34.0]]
 # The trunk's, slim and drawn after the figure: a small round cup a side and the gore between them, two slats down
@@ -69,7 +69,7 @@ upper_arm = [[0.93, -32.0, 32.0]]
 [mounts]
 ankle = { x_m = 0.0325, dy_m = 0.0 }
 ankle_roll = { x_m = -0.0325 }
-elbow = { on = "upper_arm", face = "x" }
+elbow = { face = "x" }
 
 # Each crank a tight clamp on its drive's output ring (`sized.band`, its screws hid), its lever out past the band
 # and the leaf's eye (54 mm), as long as its ball's arm and parallel to it: the rod a parallelogram, the ratio near
@@ -89,7 +89,7 @@ ankle_roll = false
 # a 30 mm one holds them by a twentieth alone -, the forearm's 30 mm at the elbow for its 126; their 25 mm ones stood
 # past the carbon's allowable, the upper arm's at more than twice it.
 [skeleton.hung]
-thigh = { tubes = [[[-0.009, -0.0825, 0.00873], [-0.009, 0.0842, 0.03234, "end"]]], radii = [0.020] }
+thigh = { tubes = [[[-0.009, -0.0825, 0.00873], [-0.009, 0.0842, 0.03234, "end"]]] }
 upper_arm = { radii = 0.0175 }
 forearm = { radii = [0.010, 0.015, 0.010, 0.010] }
 foot = { tubes = [[[0.0, -0.058, -0.045], [0.0, -0.050, 0.03], [0.0, -0.060, 0.105], [0.0, -0.055, 0.117]], [[0.013, 0.0, -0.0540], [-0.013, 0.0, -0.0540]], [[-0.03, -0.055, 0.117], [0.03, -0.055, 0.117]], [[0.0, 0.0, -0.0540], [0.0, 0.0, -0.026]]] }

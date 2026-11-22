@@ -41,7 +41,7 @@ KIND, TRAVEL = 'shoulder', (-20.0, 95.0)
 #: round the axis and their width at the saddle; the boss along the axis and its wall round the bush; the bush's
 #: wall; the rib's and the horns' width and how far along the axis they lap; the hood's foot along the axis either
 #: way off the pivot; the span's fittings off the axis; m.
-AIR_M, SHEET_M, HUB_M, WIDE_M, BOSS_M, BOSS_WALL, BUSH_M = 0.003, 0.004, 0.030, 0.044, 0.012, 0.004, 0.001
+AIR_M, SHEET_M, HUB_M, WIDE_M, BOSS_M, BOSS_WALL, BUSH_M = 0.003, 0.004, 0.030, 0.038, 0.012, 0.004, 0.001
 HORN_M, LAP_M, FOOT_M, REACH_M, PAST_M = 0.010, 0.006, 0.030, 0.035, 0.012
 #: The board's air under the pitch's guard, and round it the guard's wall and its lid's, m.
 BOARD_AIR, GUARD_M = 0.004, 0.003
@@ -174,18 +174,30 @@ def _box(x, y, z, colour, r=0.002):
 
 
 def _plate(z0, z1, rib=False):
-    """A yoke's plate, carbon, from z0 to z1: its hub round the axis tapering to the saddle's width under it; behind,
-    the stop's rib on its back outside the output ring."""
+    """A yoke's plate, carbon, from z0 to z1: its hub round the axis tapering to a rounded end at the saddle's width;
+    behind, the stop's rib on its back outside the output ring."""
     import numpy as np
     from scipy.spatial import ConvexHull
     lay = laid()
-    t = np.linspace(0.0, 2.0 * math.pi, 49)[:-1]
-    low = -lay['drop'] - 0.5 * lay['saddle']
-    pts = np.vstack([np.c_[HUB_M * np.cos(t), HUB_M * np.sin(t)], [[-0.5 * WIDE_M, low], [0.5 * WIDE_M, low]]])
+    t, b = np.linspace(0.0, 2.0 * math.pi, 49)[:-1], np.linspace(math.pi, 2.0 * math.pi, 25)
+    bot_c = -lay['drop'] - 0.5 * lay['saddle'] + 0.5 * WIDE_M
+    pts = np.vstack([np.c_[HUB_M * np.cos(t), HUB_M * np.sin(t)],
+                     np.c_[0.5 * WIDE_M * np.cos(b), bot_c + 0.5 * WIDE_M * np.sin(b)]])
     out = em._rounded(pts[ConvexHull(pts).vertices], z0, z1, em.CARBON, axis=2, r=0.001)
     if rib:
         out += _box((-0.5 * HORN_M, 0.5 * HORN_M), (-lay['rib'] - HORN_M, -lay['rib']), (z1, z1 + LAP_M), em.FRAME, 0.001)
     return out
+
+
+def _saddle():
+    """The yoke's printed saddle across the plates, chamfered from the plates' ends down to the arm's oval seat."""
+    lay, tube = laid(), sl.laid()['tube']
+    p1, low, high = lay['plate'][1], -lay['drop'] - 0.5 * lay['saddle'], -lay['drop'] + 0.5 * lay['saddle']
+    z_seat = tube + em.OVAL_PAST[0] + 0.002
+    prof = cl.filleted([(high, -p1), (high, p1), (low + 0.45 * lay['saddle'], p1),
+                        (low, z_seat), (low, -z_seat), (low + 0.45 * lay['saddle'], -p1)], r=0.004)
+    return [(tri[:, (2, 0, 1)], col) for tri, col in em._rounded(prof, -0.5 * WIDE_M, 0.5 * WIDE_M, em.FRAME, axis=2,
+                                                                 r=0.003)]
 
 
 def _hood():
@@ -231,7 +243,6 @@ def parts():
     hood = ss.drawn()
     still = _along(drive, 'z') + horns + (_hood() if hood is None else hood) + bush + _along(board, 'y') + post
     p0, p1 = lay['plate']
-    low, high = -lay['drop'] - 0.5 * lay['saddle'], -lay['drop'] + 0.5 * lay['saddle']
     lever_z = _lever_z()
     pin = _along(em._drum(lay['pin'], lever_z[0], -p0, em.BOLT)
                  + em._drum(lay['pin'] + BOSS_WALL, lever_z[0], lever_z[1], em.FRAME), 'z')
@@ -239,8 +250,7 @@ def parts():
     tube = sl.laid()['tube']
     e = tube - 0.0012 - em.BORE_R - 0.003
     dress, limb = em._limb(-lay['down'], -1.0, tube, -e, 'torx', False)
-    yoke = (_plate(p0, p1, rib=True) + _plate(-p1, -p0)
-            + _box((-0.5 * WIDE_M, 0.5 * WIDE_M), (low, high), (-p1, p1), em.FRAME) + pin + lever
+    yoke = (_plate(p0, p1, rib=True) + _plate(-p1, -p0) + _saddle() + pin + lever
             + em._rounded(em._oval(tube), -lay['top'], -lay['down'], em.PLATE, r=0.002) + dress + limb)
     return {'still': still, 'yoke': yoke, 'ring': _along(em._drum(ring, r0, r1, em.OUTPUT), 'z')}
 
