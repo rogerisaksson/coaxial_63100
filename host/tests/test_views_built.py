@@ -12,23 +12,14 @@ BUILD = 'gynoid_mesomorph_medium_coax'
 
 def _told(code):
     """What `code` prints last, as JSON, run in a process of its own on the build; {'failed': its fault} else."""
-    return _told_all({'one': code})['one']
-
-
-def _told_all(codes):
-    """{key: what `code` prints last as JSON} run side by side in processes of their own on the build."""
     import json
     import subprocess
     host = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     env = dict(os.environ, PYTHONPATH=host, COAXIAL_ROBOT=BUILD)
-    running = {k: subprocess.Popen([sys.executable, '-X', 'utf8', '-c', 'import json; ' + c], cwd=host,
-                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
-               for k, c in codes.items()}
-    out = {}
-    for k, run in running.items():
-        stdout, stderr = run.communicate()
-        out[k] = json.loads(stdout.strip().splitlines()[-1]) if run.returncode == 0 else {'failed': stderr[-400:]}
-    return out
+    env.setdefault('OPENBLAS_NUM_THREADS', '1')
+    run = subprocess.run([sys.executable, '-X', 'utf8', '-c', 'import json; ' + code], cwd=host, capture_output=True,
+                         text=True, env=env)
+    return json.loads(run.stdout.strip().splitlines()[-1]) if run.returncode == 0 else {'failed': run.stderr[-400:]}
 
 
 def test_the_shoulder_holds_turns_and_keeps_its_coil(report):
@@ -46,15 +37,14 @@ def test_the_shoulder_holds_turns_and_keeps_its_coil(report):
     and the arm's guards, laid clear of the whole arm, cross nothing of the shoulder's mount (`arm_worn.capped`) -
     with no likeness beside the tree there is no figure to lay them on."""
     from coaxial.graphics import likeness
-    jobs = {'mount': 'from tools.render import shoulder_mount as s; print(json.dumps(s.checked()))',
-            'raised': 'from tools.render import shoulder_rolled as r; print(json.dumps(r.checked()))',
-            'bus': 'from tools.render import shoulder_hosed as h; print(json.dumps(h.checked()))'}
-    if likeness.FOUND:
-        jobs['capped'] = 'from tools.render import arm_worn as a; print(json.dumps({"crossing": a.capped()}))'
-    got = _told_all(jobs)
-    told: Any = got['mount']
+    got: Any = _told('from coaxial.graphics import likeness; '
+                     'from tools.render import arm_worn as a, shoulder_hosed as h, shoulder_mount as s, '
+                     'shoulder_rolled as r; '
+                     'print(json.dumps({"mount": s.checked(), "raised": r.checked(), "bus": h.checked(), '
+                     '"capped": {"crossing": a.capped()} if likeness.FOUND else None}))')
+    told: Any = got.get('mount') or got
     report.check("every member holds the shoulder's loads at the margin", (told.get('held') or 0.0) >= 1.0,
-                 told.get('failed') or told.get('held'))
+                 got.get('failed') or told.get('held'))
     report.check('what turns keeps a millimetre off what stays through the travel, and crosses none of it hanging',
                  (told.get('air') or 0.0) >= 1.0 and told.get('crossing') == 0, (told.get('air'), told.get('crossing')))
     bend, own = told.get('bend') or (0.0, 1.0)
@@ -63,21 +53,21 @@ def test_the_shoulder_holds_turns_and_keeps_its_coil(report):
     (lo, hi), (back, ahead) = told.get('travel') or (0.0, 0.0), told.get('asked') or (-1.0, 1.0)
     report.check("the travel takes a human's swing back, and the farthest the robot swung an arm ahead short of a fall",
                  lo <= back and hi >= ahead, (told.get('travel'), told.get('asked')))
-    raised: Any = got['raised']
+    raised: Any = got.get('raised') or {}
     report.check("the abduction holds at the margin and its yoke keeps a millimetre off what stays through its travel",
                  (raised.get('held') or 0.0) >= 1.0 and (raised.get('air') or 0.0) >= 1.0,
-                 raised.get('failed') or (raised.get('held'), raised.get('air')))
+                 got.get('failed') or (raised.get('held'), raised.get('air')))
     bend, own = raised.get('bend') or (0.0, 1.0)
     report.check("the arm rises past a T on its abduction, the bus's span across it no tighter than the hose's own",
                  (raised.get('reaches') or 0.0) >= 90.0 and bend >= own, (raised.get('reaches'), raised.get('bend')))
-    bus: Any = got['bus']
+    bus: Any = got.get('bus') or {}
     (bend, own), (free, most) = bus.get('bend') or (0.0, 1.0), bus.get('free') or (1.0, 0.0)
     report.check("the bus's hoses through the shoulder bend no tighter than their own, held, a millimetre off what "
-                 "turns by them", bend >= own and free <= most and (bus.get('air') or 0.0) >= 1.0, bus.get('failed') or bus)
+                 "turns by them", bend >= own and free <= most and (bus.get('air') or 0.0) >= 1.0, got.get('failed') or bus)
     if not likeness.FOUND:                               # the guards are laid on the figure's body beside the tree
         report.skip("the arm's guards cross nothing of the shoulder's mount", 'no likeness beside the tree')
         return
-    capped: Any = got['capped']
+    capped: Any = got.get('capped') or {}
     report.check("the arm's guards cross nothing of the shoulder's mount", capped.get('crossing') == 0, capped)
 
 
@@ -211,63 +201,84 @@ def test_a_print_shaped_by_its_loads_stands_on_its_bed(report):
                  (told.get('prism'), told.get('extruded lost'), told.get('faces'), told.get('margin x')))
 
 
-def test_the_builds_rooms_carry_their_loads(report):
-    """Every structural room shaped for the coaxial build (`shoulder_shaped`, `trunk_shaped`, `leg_shaped`) carries
-    its loads all solid within the printed polymer's allowable and its interlayer share (`topo.whole`), and each one
-    already shaped in `.cache/topo` keeps less than its room, holds at the margin, loses nothing told to stay and
-    hangs no voxel over its bed."""
-    exprs = {'hood': ('shoulder_shaped', 'shoulder_shaped.case()'),
-             'trunk yoke': ('trunk_shaped', 'trunk_shaped.cases()["yoke"]'),
-             'trunk lever': ('trunk_shaped', 'trunk_shaped.cases()["lever"]'),
-             'thigh arm': ('leg_shaped', 'leg_shaped.cases()["thigh arm"]'),
-             'thigh knuckle': ('leg_shaped', 'leg_shaped.cases()["thigh knuckle"]'),
-             'hip yoke': ('leg_shaped', 'leg_shaped.cases()["yoke"]'),
-             'hip block': ('leg_shaped', 'leg_shaped.cases()["block"]'),
-             'stator clamp': ('leg_shaped', 'leg_shaped.cases()["stator clamp"]')}
-    codes = {name: ('from tools.render import topo, %s; c = %s; w = topo.whole(c); '
-                    's = topo.shaped(c) if topo.ready(c) else None; '
-                    'layers = s["solid"].transpose(1, 0, 2) if s else None; '
-                    'print(json.dumps({"whole": round(w["margin"], 3), '
-                    '"shaped": None if s is None else [round(float(s["grams"]), 1), round(float(s["room"]), 1), '
-                    'round(float(s["margin"]), 3), int(s["lost"]), int((layers & ~topo.stood(layers)).sum())]}))'
-                    % pair) for name, pair in exprs.items()}
-    got = _told_all(codes)
-    wholes = {k: v.get('whole') or 0.0 for k, v in got.items()}
-    report.check("every structural print's room carries its loads all solid at the margin",
-                 min(wholes.values()) >= 1.0, got if min(wholes.values()) < 1.0 else wholes)
-    shaped = {k: v['shaped'] for k, v in got.items() if isinstance(v.get('shaped'), list)}
+def _check_rooms(report, label, exprs):
+    """Verify `exprs` {name: (module, expr)} carry their loads all solid (`topo.whole`) and, where cached, shaped."""
+    mods = ', '.join(sorted({mod for mod, _e in exprs.values()}))
+    items = ', '.join('%r: %s' % (k, e) for k, (_m, e) in exprs.items())
+    got: Any = _told('from tools.render import topo, %s; out = {}\n'
+                     'for k, c in {%s}.items():\n'
+                     '    w = topo.whole(c)\n'
+                     '    s = topo.shaped(c) if topo.ready(c) else None\n'
+                     '    layers = s["solid"].transpose(1, 0, 2) if s else None\n'
+                     '    out[k] = {"whole": round(w["margin"], 3), "shaped": None if s is None else '
+                     '[round(float(s["grams"]), 1), round(float(s["room"]), 1), round(float(s["margin"]), 3), '
+                     'int(s["lost"]), int((layers & ~topo.stood(layers)).sum())]}\n'
+                     'print(json.dumps(out))' % (mods, items))
+    wholes = {k: (got.get(k) or {}).get('whole') or 0.0 for k in exprs}
+    report.check('%s carry their loads all solid at the margin' % label,
+                 'failed' not in got and min(wholes.values()) >= 1.0, got if 'failed' in got else wholes)
+    shaped = {k: got[k]['shaped'] for k in exprs if isinstance((got.get(k) or {}).get('shaped'), list)}
     if shaped:
-        report.check('every cached shaped print weighs less than its room, holds, keeps its seats and hangs nothing',
+        report.check('cached %s weigh less than their rooms, hold, keep their seats and hang nothing' % label,
                      all(0.0 < g < r and m >= 1.0 and lost == 0 and hung == 0 for g, r, m, lost, hung in shaped.values()),
                      shaped)
 
 
-def test_every_limb_and_upper_print_stands_and_fits_a_plate(report):
-    """Every printed PAHT-CF piece of the legs (`solids.STANDING`) and of the arms, shoulders, neck and bay
-    (`solids.UPPER`) encloses a solid shell, hangs nothing beyond noise over 45 degrees off its bed, and fits on the
-    printer's plates (`prints.fitted`)."""
-    from tools.render import solids as s
-    names = s.STANDING + s.UPPER
-    shards = {str(i): ('from tools.render import solids as s; '
-                       'print(json.dumps({n: s.told(n) for n in %r}))' % (names[i::8],)) for i in range(8)}
-    shards['fit'] = ('from tools.render import prints as p; '
-                     'print(json.dumps({"leg": p.fitted(p.PIECES), "upper": p.fitted(p.upper())}))')
-    got = _told_all(shards)
-    told = {n: row for i in range(8) for n, row in (got[str(i)] if 'failed' not in got[str(i)] else {}).items()}
-    over = {n: row['over'] for n, row in told.items() if row['over'] > s.NOISE_CM2}
+def test_the_hood_room_carries_its_loads(report):
+    """The shoulder abduction hood's room (`shoulder_shaped`) carries its loads all solid and, where cached, shaped."""
+    _check_rooms(report, "the shoulder hood's room", {'hood': ('shoulder_shaped', 'shoulder_shaped.case()')})
+
+
+def test_the_trunk_and_hip_rooms_carry_their_loads(report):
+    """The trunk's and hip's rooms (`trunk_shaped`, `leg_shaped`) carry their loads all solid and, where cached, shaped."""
+    _check_rooms(report, "the trunk's and hip's rooms",
+                 {'trunk yoke': ('trunk_shaped', 'trunk_shaped.cases()["yoke"]'),
+                  'trunk lever': ('trunk_shaped', 'trunk_shaped.cases()["lever"]'),
+                  'hip yoke': ('leg_shaped', 'leg_shaped.cases()["yoke"]'),
+                  'hip block': ('leg_shaped', 'leg_shaped.cases()["block"]')})
+
+
+def test_the_thigh_and_knee_rooms_carry_their_loads(report):
+    """The thigh's and knee's rooms (`leg_shaped`) carry their loads all solid and, where cached, shaped."""
+    _check_rooms(report, "the thigh's and knee's rooms",
+                 {'thigh arm': ('leg_shaped', 'leg_shaped.cases()["thigh arm"]'),
+                  'thigh knuckle': ('leg_shaped', 'leg_shaped.cases()["thigh knuckle"]'),
+                  'stator clamp': ('leg_shaped', 'leg_shaped.cases()["stator clamp"]')})
+
+
+def _check_prints(report, label, names_expr, rows_expr):
+    """Verify every piece in `names_expr` closes its shell, hangs <= NOISE_CM2 and fits on plates (`rows_expr`)."""
+    got: Any = _told('from tools.render import prints as p, solids as s; names = %s; '
+                     'told = {n: s.told(n) for n in names}; '
+                     'print(json.dumps({"n": len(names), "noise": s.NOISE_CM2, "told": told, '
+                     '"fit": p.fitted(%s)}))' % (names_expr, rows_expr))
+    told = got.get('told') or {}
+    noise = got.get('noise', 0.0)
+    over = {n: row['over'] for n, row in told.items() if row['over'] > noise}
     open_ = {n: row['shell'] for n, row in told.items() if row['shell'] >= 0.9}
-    report.check('every leg and upper-body print stands on its bed within 45 degrees and closes its shell',
-                 len(told) == len(names) and not over and not open_,
-                 {'count': (len(told), len(names)), 'over': over, 'open': open_})
-    fit: Any = got['fit']
-    report.check('every leg and upper-body print fits within the printer plates',
-                 fit.get('leg', {}).get('over') == [] and fit.get('upper', {}).get('over') == [], fit)
+    report.check('every %s print stands on its bed within 45 degrees and closes its shell' % label,
+                 'failed' not in got and len(told) == got.get('n', -1) and not over and not open_,
+                 got.get('failed') or {'over': over, 'open': open_})
+    fit: Any = got.get('fit') or {'over': ['none told']}
+    report.check('every %s print fits within the printer plates' % label,
+                 fit.get('over') == [] and fit.get('pieces', 0) > 0, fit)
+
+
+def test_every_limb_print_stands_and_fits_a_plate(report):
+    """Every printed PAHT-CF piece of the legs (`solids.STANDING`) closes its shell, stands <=45 deg and fits plates."""
+    _check_prints(report, 'leg', 's.STANDING', 'p.PIECES')
+
+
+def test_every_upper_print_stands_and_fits_a_plate(report):
+    """Every printed PAHT-CF piece of the arms, shoulders, neck and bay (`solids.UPPER`) stands <=45 deg and fits plates."""
+    _check_prints(report, 'upper-body', 's.UPPER', 'p.upper()')
 
 
 ROSTER = (test_the_shoulder_holds_turns_and_keeps_its_coil, test_the_neck_holds_clears_and_keeps_its_hose,
           test_a_mount_is_sized_for_what_it_bore_not_for_a_peak, test_the_trunk_reaches_its_travel_and_prints_standing,
-          test_a_print_shaped_by_its_loads_stands_on_its_bed, test_the_builds_rooms_carry_their_loads,
-          test_every_limb_and_upper_print_stands_and_fits_a_plate)
+          test_a_print_shaped_by_its_loads_stands_on_its_bed, test_the_hood_room_carries_its_loads,
+          test_the_trunk_and_hip_rooms_carry_their_loads, test_the_thigh_and_knee_rooms_carry_their_loads,
+          test_every_limb_print_stands_and_fits_a_plate, test_every_upper_print_stands_and_fits_a_plate)
 
 
 def main(argv=None):

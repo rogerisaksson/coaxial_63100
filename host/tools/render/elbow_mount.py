@@ -341,13 +341,14 @@ def bodies(apart=False, flex=0.0, socket='torx', hosed=True):
     return still + km._turn(output + turned, flex), cables, still, turned
 
 
+@functools.lru_cache(maxsize=None)
 def stop(step=2.0):
     """The elbow's stop, deg: the last turn from straight at which what turns stays CLEAR_M off what stays."""
     import numpy as np
     from machine.body import drives
     _p, _c, still, turning = bodies(hosed=False)
     h = 0.006
-    a, pts = km._points(still), km._points(turning)
+    a, pts = km._points(still, 0.0015), km._points(turning, 0.0015)
     keys = km._key(np.floor(a / h).astype(np.int64))
     order = np.argsort(keys)
     last = 0.0

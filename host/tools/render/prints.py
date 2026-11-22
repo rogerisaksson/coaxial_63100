@@ -55,7 +55,8 @@ PIECES = (
     ('pitch leaf stem', 'rods', ('stem ankle',), Z, 1), ('roll leaf stem', 'rods', ('stem ankle_roll',), Z, 1),
     ('foot half', 'shank', ('foot half',), X, 2))
 #: The pieces told by other inks than PRINTED: the seats' own, and the clamps' without their seats.
-INKS = {'thigh shim': (em.PLATE,), 'shank shim': (em.PLATE,), 'fork shim': (em.PLATE,)}
+INKS = {'thigh shim': (em.PLATE,), 'shank shim': (em.PLATE,), 'fork shim': (em.PLATE,),
+        'upper bay puck': (em.FRAME,)}
 #: The tubes' feet and heads, each grown up its tube: (the sketch, the part its tube is drawn in).
 ON_TUBE = {'thigh knuckle': ('thigh', 'thigh tube'), 'thigh foot': ('thigh', 'thigh tube'),
            'shank head': ('shank', 'shank tube'), 'shank foot': ('shank', 'shank tube')}
