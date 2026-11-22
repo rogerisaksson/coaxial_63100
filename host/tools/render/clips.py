@@ -60,6 +60,13 @@ def crossed(a, b):
     if not a or not b:
         return 0
     ta, tb = np.array([t for t, _c in a], float), np.array([t for t, _c in b], float)
+    lo, hi = np.maximum(ta.min(axis=(0, 1)), tb.min(axis=(0, 1))), np.minimum(ta.max(axis=(0, 1)), tb.max(axis=(0, 1)))
+    if (lo > hi).any():
+        return 0
+    ta = ta[(ta.max(axis=1) >= lo).all(axis=1) & (ta.min(axis=1) <= hi).all(axis=1)]
+    tb = tb[(tb.max(axis=1) >= lo).all(axis=1) & (tb.min(axis=1) <= hi).all(axis=1)]
+    if not len(ta) or not len(tb):
+        return 0
     pairs, out = _pairs(ta, tb), 0
     for k in range(0, len(pairs), AT_ONCE):
         x, y = ta[pairs[k:k + AT_ONCE, 0]], tb[pairs[k:k + AT_ONCE, 1]]

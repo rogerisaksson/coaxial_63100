@@ -127,55 +127,98 @@ def _ring():
              1e-3 * circle * math.sin((k + 0.5) * 2.0 * math.pi / count)) for k in range(count)]
 
 
+def _clean_poly(pts):
+    import numpy as np
+    p = np.asarray(pts, float)
+    p = p[[0] + [i for i in range(1, len(p)) if np.linalg.norm(p[i] - p[i - 1]) > 1e-6]]
+    p = p[:-1] if len(p) > 2 and np.linalg.norm(p[0] - p[-1]) <= 1e-6 else p
+    keep = [i for i in range(len(p)) if abs(
+        (p[i][0] - p[i - 1][0]) * (p[(i + 1) % len(p)][1] - p[i - 1][1])
+        - (p[i][1] - p[i - 1][1]) * (p[(i + 1) % len(p)][0] - p[i - 1][0])) > 1e-10]
+    return p[keep] if len(keep) >= 3 else p
+
+
+def _cap_y(poly, y, flip):
+    import numpy as np
+    p = _clean_poly(poly)
+    return [(np.c_[p[[i, k, j] if flip else [i, j, k], 0], np.full(3, y),
+                   p[[i, k, j] if flip else [i, j, k], 1]], em.FRAME) for i, j, k in foot._ears(p)]
+
+
 def yoke(low, back):
     """{'yoke', 'hub screws'}: the crown under the yaw drive's hub's face at `low`, the hub's screws' heads sunk in
-    its under face; its two cheeks either side of the yaw's ring back to the block's front face at `back`, a fin up
-    each's back end to take the block's upper screw; a root's round where a cheek leaves the crown - no more than
-    the ring's air - and where a fin leaves its cheek. One print, grown off the crown's under face."""
+    its under face; a 45-degree collar round the yaw's ring from `back` to the front, its two cheeks and back fins
+    up to FIN[0]. One print, grown off the crown's under face."""
     import numpy as np
-    floor = low - hl.CROWN_M
-    out = _prism(np.array([(-hl.CHEEK[1], CROWN_AFT), (hl.CHEEK[1], CROWN_AFT), (hl.CHEEK[1], 0.0),
-                           (hl.HUB_R, hl.CROWN_Z), (-hl.HUB_R, hl.CROWN_Z), (-hl.CHEEK[1], 0.0)]), floor, low, em.FRAME, 1)
-    for way in (1.0, -1.0):
-        side, x = sorted((way * hl.CHEEK[0], way * hl.CHEEK[1])), way * hl.CHEEK[0]
-        out += _prism(_box(side, (floor, hl.CHEEK[2])), back, CHEEK_FORE, em.FRAME, 2)
-        out += _prism(_box(side, (hl.CHEEK[2] - ROOT_M, hl.FIN[0])), back, hl.FIN[1], em.FRAME, 2)
-        out += m._prism(np.array([(x, low), (x - way * hl.AIR_M, low), (x, low + hl.AIR_M)]), CROWN_AFT, CHEEK_FORE,
-                        em.FRAME, 2)
-        out += m._prism(np.array([(hl.CHEEK[2], hl.FIN[1]), (hl.CHEEK[2], hl.FIN[1] + ROOT_M),
-                                  (hl.CHEEK[2] + ROOT_M, hl.FIN[1])]), side[0], side[1], em.FRAME, 0)
+    floor, outer_x, bore_r, top_y = low - hl.CROWN_M, hl.CHEEK[1], 0.0362, hl.CHEEK[2]
+    z_cheek, a0 = -0.001, 0.15 * math.pi
+    f_angs = np.linspace(a0, math.pi - a0, 15)
+
+    def ring_xz(y):
+        dy = y - floor
+        rf = min(0.0402, 0.0285 + 0.95 * dy)
+        arc = [(rf * math.cos(a), min(hl.CROWN_Z + dy, rf * math.sin(a))) for a in f_angs]
+        return ([(-outer_x, z_cheek), (-outer_x, back), (-bore_r, back), (-bore_r, -0.0555),
+                 (bore_r, -0.0555), (bore_r, back), (outer_x, back), (outer_x, z_cheek)] + arc)
+    ys = np.concatenate([np.linspace(floor, low, 6)[:-1], np.linspace(low, top_y, 8)])
+    rings = [np.array([(x, y, z) for x, z in ring_xz(y)]) for y in ys]
+    out = _cap_y(ring_xz(floor), floor, True)
+    out += [t for a, b in zip(rings[:-1], rings[1:]) for i in range(len(a)) for j in ((i + 1) % len(a),)
+            for t in ((np.array((a[i], a[j], b[j])), em.FRAME), (np.array((a[i], b[j], b[i])), em.FRAME))]
+    bore = [(bore_r * math.cos(a), bore_r * math.sin(a)) for a in np.linspace(0.0, 2.0 * math.pi, 49)[:-1]]
+    out += _cap_y(bore, low, False)
+    rb_lo, rb_hi = np.array([(x, low, z) for x, z in bore]), np.array([(x, top_y, z) for x, z in bore])
+    out += [t for i in range(len(bore)) for j in ((i + 1) % len(bore),)
+            for t in ((np.array((rb_lo[i], rb_hi[j], rb_lo[j])), em.FRAME),
+                      (np.array((rb_lo[i], rb_hi[i], rb_hi[j])), em.FRAME))]
+    top_f = [(0.0402 * math.cos(a), 0.0402 * math.sin(a)) for a in np.linspace(0.5 * math.pi, a0, 9)]
+    for s in (-1.0, 1.0):
+        half = [(s * bore_r * math.sin(a), bore_r * math.cos(a)) for a in np.linspace(0.0, math.pi, 25)]
+        fh = [(s * x, z) for x, z in top_f]
+        poly = (fh + [(outer_x, z_cheek), (outer_x, back), (bore_r, back), (bore_r, -0.0555), (0.0, -0.0555)] + half[::-1]
+                if s > 0.0 else [(0.0, -0.0555), (-bore_r, -0.0555), (-bore_r, back), (-outer_x, back),
+                                 (-outer_x, z_cheek)] + fh[::-1] + half)
+        out += _cap_y(poly, top_y, False)
+        out += _prism(_box(sorted((s * bore_r, s * outer_x)), (top_y - 0.003, hl.FIN[0])), back, hl.FIN[1], em.FRAME, 2)
     return {'yoke': out, 'hub screws': _sunk(_ring(), floor, -1.0, 1, em.HEAD)}
 
 
 def block(stack, wall, low):
     """{'block', 'block screws'}: the roll drive's (`stack`, its band's `wall`) slit band round its motor and its
     gearbox's housing, the pin's two needle bearings' housing under it - its cap behind the pin's end apart, the
-    bus's way in -, a web between and an ear either side, its roots on the band rounded; the ears lie on the back
-    ends of the yoke's cheeks and fins (the yaw drive's hub's face at `low`), two screws through each: their heads
-    on a strap on the ear's back, each into a cross dowel in the yoke - the upper one's in from the fin's outer
-    side, the lower one's up from the yoke's under face. One print, grown off its front face."""
+    bus's way in -, an A-frame to both ears and a 45-degree rear saddle to `b0`. One print, grown off its front face."""
     import numpy as np
     (m0, m1, can), (_g0, g1, r_g) = stack['motor'], stack['gear']
     at, outside, floor, rear = (hl.ROLL_AT[0], hl.ROLL_AT[1], 0.0), can + wall, low - hl.CROWN_M, g1 - hl.EAR_M
-    out = _put(cl.turned([(m0 + 0.002, can, outside), (m1, can, outside), (m1, r_g + 0.001, outside),
+    out = _put(cl.turned([(m0 + 0.002, can, outside), (m1 + max(can - r_g - 0.001, 0.0), r_g + 0.001, outside),
                           (g1, r_g + 0.001, outside)], SLIT), _along('roll'), at)
-    (_f0, f1), (b0, _b1) = hl.needles()
-    boss = hl.NEEDLE[0] + hl.HOUSED_M
-    out += _prism(m._circle(boss, 48), b0, f1 + hl.AIR_M, em.FRAME, 2)
+    (_f0, _f1), (b0, _b1) = hl.needles()
+    boss, outer_x = hl.NEEDLE[0] + hl.HOUSED_M, hl.CHEEK[1]
     out += _prism(m._circle(boss, 48), b0 - CAP * hl.HOUSED_M, b0, tees.PIPE_INK, 2)
-    out += _prism(cl.filleted(cl.bridged((0.0, 0.0), boss - 0.001, hl.ROLL_AT, outside - 0.001, 1.6 * boss), 0.003),
-                  m0 + 0.002, g1, em.FRAME, 2)
+    low_semi = [(boss * math.cos(a), boss * math.sin(a)) for a in np.linspace(-0.75 * math.pi, 0.08 * math.pi, 13)]
+    top_arc = [(outside * 0.95 * math.cos(a), hl.ROLL_AT[1] + outside * 0.95 * math.sin(a))
+               for a in np.linspace(0.20 * math.pi, 0.80 * math.pi, 15)]
+    af_poly = ([(-0.052, 0.002), (-0.028, -0.018)] + low_semi + [(0.018, 0.040), (outer_x, 0.046), (outer_x, hl.FIN[0])]
+               + top_arc + [(-outer_x, hl.FIN[0]), (-outer_x, 0.024)])
+    out += _slab(af_poly, m0 + 0.002, g1, em.FRAME, 2, False)
+    rg_arc = [(0.0585 * math.sin(a), 0.080 - 0.0585 * math.cos(a)) for a in np.linspace(0.30, -0.82, 13)]
+
+    def rear_ring(z):
+        dz = max(0.0, (m0 + 0.002) - z)
+        return ([(-0.049, 0.002), (-0.028, -0.018)] + low_semi + rg_arc
+                + [(-outer_x + dz, 0.058 - dz), (-outer_x + dz, 0.024 - dz)])
+    rings = [np.array([(x, y, z) for x, y in rear_ring(z)]) for z in np.linspace(b0, g1, 20)]
+    out += [t for a, b in zip(rings[:-1], rings[1:]) for i in range(len(a)) for j in ((i + 1) % len(a),)
+            for t in ((np.array((a[i], a[j], b[j])), em.FRAME), (np.array((a[i], b[j], b[i])), em.FRAME))]
+    for p, zc, flip in ((np.asarray(rear_ring(b0)), b0, True), (np.asarray(rear_ring(g1)), g1, False)):
+        out += [(np.c_[p[[i, k, j] if flip else [i, j, k], 0], p[[i, k, j] if flip else [i, j, k], 1],
+                       np.full(3, zc)], em.FRAME) for i, j, k in foot._ears(p)]
     screws = []
     for way in (1.0, -1.0):
-        side = sorted((way * hl.CHEEK[0], way * hl.CHEEK[1]))
-        out += _prism(_box(side, (floor, hl.FIN[0])), rear, g1, em.FRAME, 2)
-        over = [(-way * v, at[1] + u) for u, v in _root(outside, -hl.CHEEK[0], ROOT_M)]      # at the ear's inner face
-        under = [(way * u, at[1] - v) for u, v in _root(outside, at[1] - floor, ROOT_M)]     # at its under face
-        out += _slab(over, rear, g1, em.FRAME, 2, False) + _slab(under, rear, g1, em.FRAME, 2, False)
         spots, dowel = [(way * x, y) for x, y in hl.BLOCK_AT], (hl.BARREL[0], hl.BARREL[0])
         screws += _screwed(spots, rear, -1.0, 2)
-        screws += _sunk([(spots[1][1], hl.FIN[1] - hl.BARREL[0] - 0.001)], way * hl.CHEEK[1], way, 0, dowel, 'barrel')
-        screws += _sunk([(spots[0][0], CHEEK_FORE - 2.0 * hl.BARREL[0])], floor, -1.0, 1, dowel, 'barrel')
+        screws += _sunk([(spots[1][1], back_z := g1 - hl.EAR_M + 0.010)], way * outer_x, way, 0, dowel, 'barrel')
+        screws += _sunk([(spots[0][0], back_z)], floor, -1.0, 1, dowel, 'barrel')
     return {'block': out, 'block screws': screws}
 
 
@@ -199,12 +242,13 @@ def thigh(stack, riser):
 
     def flat(points):                                    # (reach, w) to a slab's outline (y, z)
         return np.array([(-r, w) for r, w in points])
+    fore_top = 0.025
     sole = ([start, (start[0] + start[1] - aft, aft), (low - up, aft), (low, aft + ahead)] + hl.chin(chin, hl.CHIN_M)
-            + [(top, hl.JOG_Z[1]), (top, fore)])
-    root = _root(head, fore, 1.5 * ROOT_M)[1:]           # the front's root on the head, then round the head
+            + [(top, fore), (0.068, 0.008), (0.044, fore_top)])
+    root = _root(head, fore_top, 1.5 * ROOT_M)[1:]       # the front's root on the head, then round the head
     over = _arc((0.0, 0.0), head, math.atan2(root[-1][1], root[-1][0]),
                 math.atan2(*_touch(start, head, -1.0)[::-1]) % (2.0 * math.pi), 48)[1:]
-    under = _arc((0.0, 0.0), cup, math.asin(fore / cup), math.atan2(*_touch(start, cup, -1.0)[::-1]), 32)
+    under = _arc((0.0, 0.0), cup, math.asin(min(fore_top / cup, 0.99)), math.atan2(*_touch(start, cup, -1.0)[::-1]), 32)
     neck = _slab(flat(sole + root + over), face, x1, em.FRAME) + _slab(flat(sole + under), x0, face, em.FRAME)
     neck += cl.turned([(split + 0.0025, r_q, skirt), (face - 2.0 * (skirt - head), r_q, skirt), (face, r_q, head),
                        (face + cl.EDGE_M, r_q, head)], None)                    # its foot in the head, no groove

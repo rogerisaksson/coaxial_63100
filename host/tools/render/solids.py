@@ -25,10 +25,11 @@ from tools.render import prints  # noqa: E402
 
 #: A cell's side, m, and how many points a cell's face is marked with along it.
 VOXEL_M, MARKS = 0.0006, 3.0
-#: The pieces held to hang nothing over their beds - the hip's frame - and what of an overhang is the cells' own
-#: noise on a face that slopes or steps by less than a cell, cm2.
-STANDING, NOISE_CM2 = ('yaw band', 'yoke', 'block', 'cradle', 'thigh arm', 'thigh knuckle'), 0.5
-TRUNK = ('trunk web', 'trunk yoke', 'trunk seat')
+#: The pieces held to hang nothing over their beds - every printed piece of the leg, trunk and upper body - and what of an
+#: overhang is the cells' own noise on a face that slopes or steps by less than a cell, cm2.
+STANDING, NOISE_CM2 = tuple(p[0] for p in prints.PIECES), 0.5
+TRUNK = tuple(p[0] for p in prints.trunk())
+UPPER = tuple(p[0] for p in prints.upper())
 
 
 @functools.lru_cache(maxsize=None)

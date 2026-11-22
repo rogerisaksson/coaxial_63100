@@ -199,8 +199,8 @@ def aired():
     origin = np.array([0.0, lay['neck'][0], lay['neck'][1]])
     fixed = KDTree(km._points([t for name in ('block', 'neck drive', 'left shoulder', 'right shoulder')
                                 for t in nm.still()[name]] + still()['neck leads'], 0.001))
-    nods = km._points([t for name in ('neck plate', 'crown', 'shoe', 'head drive') for t in nm.nodding()[name]],
-                      0.001) - origin
+    nods = km._points([t for name in ('neck plate', 'cheek', 'crown', 'shoe', 'head drive')
+                       for t in nm.nodding()[name]], 0.001) - origin
     least = math.inf
     for nod in (turn + drives.TRAVEL['neck'][0] for turn in hung.turns(span())):
         path = hung_at(nod)

@@ -2,8 +2,8 @@
 
     COAXIAL_ROBOT=gynoid_mesomorph_medium_coax python -X utf8 tools/render/robot_built.py OUT_DIR [--px N]
 
-The sketches lie each in a frame of its own: the leg's and the hip's in the knee's (`leg_worn`), the arm's and the
-shoulder's in the elbow's (`arm_worn`), the neck's, the head's and the bay's in the torso's (`neck_mount`,
+The sketches lie each in a frame of its own: the leg's and the hip's in the knee's (`leg_worn`, `leg_shaped`), the arm's
+and the shoulder's in the elbow's (`arm_worn`), the neck's, the head's and the bay's in the torso's (`neck_mount`,
 `neck_hosed`), the trunk's in its joint's (`trunk_clamped`, a first draft: the pelvis's yoke, the cardan joint low
 by the hips, the drive pair on the chest and the seat the spine's tube stands on - the prints `trunk_shaped` has
 shaped by their loads drawn as their solids -, its guards as the page lays them clear of it, `trunk_worn`). The
@@ -81,10 +81,11 @@ def whole():
     upright, the hips' yaw drives the legs' own -, 'trunk guards' - its cups, its sternum's, its belly's slats and
     its back's - and 'undrawn'."""
     import numpy as np
-    from tools.render import arm_worn as aw, leg_clamped as lc, leg_worn as lw, neck_hosed as nh, neck_mount as nm
-    from tools.render import trunk_clamped as tc, trunk_laid as tl, trunk_shaped as ts, trunk_worn as tw
-    up, down = lw._bare(lc.stated(), 0.0)
-    leg = _put([t for part in dict(up, **down).values() for t in part], 'left_thigh', 'left_shank')
+    from tools.render import arm_worn as aw, leg_clamped as lc, leg_shaped as ls, leg_worn as lw
+    from tools.render import neck_hosed as nh, neck_mount as nm, trunk_clamped as tc, trunk_laid as tl
+    from tools.render import trunk_shaped as ts, trunk_worn as tw
+    leg = _put(ls.posed(lc.stated(), 0.0) + [t for part in lw.guards(lc.stated()).values() for t in part],
+               'left_thigh', 'left_shank')
     arm = _put([t for part in list(aw.arm(0.0).values()) + list(aw._guarded().values()) for t in part],
                'left_upper_arm', 'left_forearm')
     neck = [t for name, part in dict(nm.posed(low=tc.seat()), **nh.posed()).items() if not name.endswith(' shoulder')

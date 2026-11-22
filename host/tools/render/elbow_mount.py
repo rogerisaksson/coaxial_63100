@@ -256,6 +256,30 @@ def _fitted():
     return span_, pipe_t, pipe_s, marks, pad
 
 
+def _stator(motor, back, x1, band, end, outside, over, top, rotor, narrow, reach, swing):
+    """(stator band, stator saddle): the motor's slit band with a 45-degree pedestal grown along -x, and its bolted
+    saddle grown off its flat seat along -y."""
+    import numpy as np
+    from tools.render import clamped as cl, covered as cv, foot as ft, sized
+    seat, waist = (-narrow, narrow), 1e-3 * sized.neck(2e3 * reach, 'elbow')
+    join, r_lo, r_hi = over + 0.004, band - 0.001, outside + cv.FIT_M
+
+    def ring_p(x):
+        pts = cl.filleted(cl.necked((0.0, 0.0), r_hi if x <= end else max(r_lo, r_hi - (x - end)), join, seat, waist),
+                          0.0015)
+        return np.c_[np.full(len(pts), x), pts]
+    rings = [ring_p(x) for x in sorted({-reach, end, min(end + (r_hi - r_lo), x1), x1})]
+    ped = [t for a, b in zip(rings[:-1], rings[1:]) for i in range(len(a)) for j in ((i + 1) % len(a),)
+           for t in ((np.array((a[i], a[j], b[j])), FRAME), (np.array((a[i], b[j], b[i])), FRAME))]
+    for cap, flip in ((rings[0], True), (rings[-1], False)):
+        ped += [(cap[[i, k, j] if flip else [i, j, k]], FRAME) for i, j, k in ft._ears(cap[:, 1:])]
+    sad = (_rounded(cl.filleted(cl.necked((0.0, 0.0), join, top, seat, waist)), -reach, x1 + 0.0005, FRAME, axis=0,
+                    r=cl.EDGE_M, steps=1)
+           + _rounded(cl.filleted(cl.necked((0.0, 0.0), rotor + ROTOR_AIR, top, seat, waist)), x1, reach, FRAME, axis=0,
+                      r=cl.EDGE_M, steps=1))
+    return _band(motor[2], band, back, x1, SLIT) + ped, sad
+
+
 def bodies(apart=False, flex=0.0, socket='torx', hosed=True):
     """(parts, cables, still, turning) of the elbow, the forearm's side turned by `flex` degrees; its hose hung
     unless not `hosed`."""
@@ -280,18 +304,15 @@ def bodies(apart=False, flex=0.0, socket='torx', hosed=True):
     face_t = top + SEAT_M
     up = (0.0, 0.03, 0.0) if apart else (0.0, 0.0, 0.0)
 
-    def clamp(r, x0, x2, y, span, past, start=None):
-        """A slit band round a drum `r` from x0 to x2, its screws hid, and its saddle to the seat's edge at `y`,
-        necked to the least that holds over its width `span`, round the band from `start` (else x0) and on `past`
-        clear of what it passes there."""
+    def clamp(r, x0, x2, y, span, past):
         grip = (swing, 1e3 * r, 1e3 * (x2 - x0))
         wall, waist = 1e-3 * sized.band(*grip), 1e-3 * sized.neck(1e3 * (span[1] - span[0]), 'elbow')
         tris = _band(r, r + wall, x0, x2, SLIT)
-        for a, b, round_ in [(x0 if start is None else start, x2, r + wall - 0.001)] + past:
+        for a, b, round_ in [(x0, x2, r + wall - 0.001)] + past:
             tris += _rounded(cl.filleted(cl.necked((0.0, 0.0), round_, y, seat, waist)), a, b, FRAME, axis=0, r=0.002)
         return tris
-    holder = clamp(motor[2], back, x1, top, (-reach, reach), [(-reach, end, outside + cv.FIT_M),   # over the cover,
-                                                            (x1, reach, rotor + ROTOR_AIR)], end)   # the rotor's band
+    stator_b, stator_s = _stator(motor, back, x1, band, end, outside, over, top, rotor, narrow, reach, swing)
+    holder = stator_b + stator_s
     holder += _rounded(_oval(arm_in), top - 0.002, face_t, PLATE, r=0.002)
     stack += (cv.cover(*cover, outlet=fitted[4], window=boards.window(turn))
               + cv.lid(cover[0], cover[2], cover[3], fitted[3], fitted[4]) + fitted[1] if fitted else cv.cover(*cover))

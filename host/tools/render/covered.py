@@ -175,17 +175,17 @@ def cover(face, seat, board_r, band_r, outlet=None, window=None, lidded=False):
     bore = max(room(board_r), band_r + FIT_M)
     outside = bore + WALL_M
     seat_r = band_r + FIT_M
-    stations = [(seat, bore, outside)]
+    stations = [(seat - 0.0005, bore, outside), (seat, bore, outside)]
     if seat_r < bore - 1e-6:                             # a cone down onto the narrower band, at 45 degrees
         stations.append((seat + bore - seat_r, seat_r, max(seat_r + WALL_M, outside - (bore - seat_r))))
     stations.append((stations[-1][0] + ON_M, seat_r, seat_r + WALL_M))
     if window is None:
-        wall = cl.honeycomb(bore, outside, face + WALL_M - cl.RIM_M, seat + cl.RIM_M, BLACK) + cl.turned(stations, None, BLACK)
+        wall = cl.honeycomb(bore, outside, face + WALL_M - 0.0015, seat, BLACK) + cl.turned(stations, None, BLACK)
     else:                                                # laid open about -y, then turned to where the leads are
         mid, half = window
         turn = km._rx(math.degrees(mid) - 180.0)
         wall = [(tri @ turn.T, colour) for tri, colour in cl.honeycomb(
-            bore, outside, face + WALL_M - cl.RIM_M, seat + cl.RIM_M, BLACK, (math.pi - half, math.pi + half))
+            bore, outside, face + WALL_M - 0.0015, seat, BLACK, (math.pi - half, math.pi + half))
             + cl.turned(stations, math.pi, BLACK, gap=2.0 * half)]
     first = face + FIRST_M                               # its first layers on the bed: the accent's
     tris = wall + m._band_x(outside - RING_M, outside, first, face + WALL_M, BLACK)

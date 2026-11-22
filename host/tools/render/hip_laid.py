@@ -57,7 +57,7 @@ TURNED = (-142.0, 66.0)
 MEASURED = {'force': (1048.0, 1326.0, 1074.0), 'moment': (215.0, 97.0, 136.0)}
 #: How much higher the yaw drive stands than the build lays it, m; the roll drive's axis off the roll's, (x, y) m -
 #: the gears' centres apart; the gears: module mm, the pinion's teeth, the sector's as a whole wheel's.
-RAISE_M, ROLL_AT, GEARS = 0.013, (0.0, 0.080), (4.0, 15, 25)
+RAISE_M, ROLL_AT, GEARS = 0.0185, (0.0, 0.080), (4.0, 15, 25)
 #: Steel: the roll's plate's thickness and the air it and the pinion keep, m; the pin's outside and bore radii, m;
 #: a drawn-cup needle bearing HK 3020: its outside radius and length, m, its static rating, N; the housing's wall, m.
 PLATE_M, AIR_M, KINGPIN, NEEDLE, HOUSED_M = 0.010, 0.002, (0.015, 0.009), (0.0185, 0.020, 27.5e3), 0.006
@@ -67,14 +67,14 @@ ROOT_MPA, YIELD_MPA = 500.0, 650.0
 SADDLE_M, SADDLE_Y, STEM_M = 0.003, 0.044, 0.012
 #: The crown under the yaw's hub: thickness, the hub's flange's radius, m; the cheeks on it either side of the yaw's
 #: ring: from x, to x, up to y; how far ahead of the yaw's axis the crown reaches, round its hub's screws' heads.
-CROWN_M, HUB_R, CHEEK, CROWN_Z = 0.014, 0.028, (0.036, 0.066, 0.104), 0.0245
+CROWN_M, HUB_R, CHEEK, CROWN_Z = 0.014, 0.028, (0.036, 0.066, 0.1095), 0.0245
 #: The thigh's neck: the arm's inner face off the gearbox's end (inboard of it, beside the output ring's skirt), its
 #: thickness - its head on the hub's face as thick but for that -, its head's radius - the yaw's crown passes
 #: 2.9 mm over it at the arm's outer face, 1.9 over one a millimetre more -, where it widens from its head (the
 #: reach from the hip's axis), its back there - the roll's plate, swung back, passes 50 mm behind the axis 40..48 mm
 #: down - and its z behind and ahead of that axis below; the jog's reach (from, to), its z and how much of its
 #: back top corner is cut off; m.
-ARM_X, ARM_M, HEAD_R, ARM_FROM, ARM_NECK, ARM_Z = -0.004, 0.030, 0.036, 0.058, -0.047, (-0.058, 0.006)
+ARM_X, ARM_M, HEAD_R, ARM_FROM, ARM_NECK, ARM_Z = -0.004, 0.033, 0.036, 0.058, -0.047, (-0.058, 0.006)
 JOG, JOG_Z, JOG_CUT = (0.106, 0.156), (-0.034, 0.0), 0.014
 #: Where the knuckle may be more than the jog, by what sweeps past the thigh through every pose asked (each other
 #: link's points in the thigh's frame, 2.5 deg of pitch a step, cells of 2 mm): ahead of it the pelvis's yaw band
@@ -90,7 +90,7 @@ CHIN_M, NOSE_M, JOG_SWELL = 0.020, 0.002, (0.128, 0.010)
 PAD_M, ENTRY_M = 0.012, 0.025
 #: The yoke's fins: up to y and from the cheeks' back ends ahead to z - 5.6 mm off the pelvis's yaw band at their
 #: inner front corners -; how long the block's ears lie on them, along the roll's axis; m.
-FIN, EAR_M = (0.125, -0.045), 0.020
+FIN, EAR_M = (0.1305, -0.045), 0.030
 #: Two prints' joint: its screws (`knee_loads.SCREWS`); a steel sleeve round each - its radius and the length
 #: either side of the joint's face its bearing is counted over -; the steel strap under their heads, its width - an
 #: ear's back beside the band is no wider -; a cross dowel for a nut - its radius, its length in the print; m. The
@@ -99,7 +99,7 @@ JOINT, SLEEVE, STRAP_M, BARREL, HUB_SLEEVE = 'M6', (0.006, 0.012), 0.013, (0.006
 #: The block's screws either side of the roll drive: (x off the yaw's axis, y) m. The knuckle's: (reach down the
 #: thigh, w ahead of its axis) m, the upper row and the lower - the bus's bore between them, the lower front one in
 #: the chin.
-BLOCK_AT = ((0.0585, 0.076), (0.0585, 0.117))
+BLOCK_AT = ((0.0585, 0.0815), (0.0585, 0.1225))
 KNUCKLE_AT = ((0.118, -0.009), (0.118, -0.021), (0.149, -0.027), (0.149, 0.005))
 #: The arm's back cut away at its foot, where the ankle's pre-curved leaf lies with the knee folded to its travel's
 #: end: how far ahead of the arm's back the cut stands at the foot and how far up the arm it runs out, m. Measured

@@ -170,7 +170,7 @@ def stresses(basis, mesh, k0, young, loads, fixed, h, e0, moved=None):
 def faces(points, cells):
     """The voxels' outer faces as triangles (n, 3, 3), in the points' units: a face two voxels share is inside."""
     import numpy as np
-    sides = ((0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3))
+    sides = ((0, 3, 5, 1), (2, 4, 7, 6), (0, 2, 6, 3), (1, 5, 7, 4), (0, 1, 4, 2), (3, 6, 7, 5))
     quads = np.concatenate([cells[list(f)].T for f in sides])
     _u, inverse, counts = np.unique(np.sort(quads, axis=1), axis=0, return_inverse=True, return_counts=True)
     outer = quads[counts[inverse.ravel()] == 1]

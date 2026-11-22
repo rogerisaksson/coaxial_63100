@@ -46,7 +46,7 @@ from tools.render import tees  # noqa: E402
 
 #: The yaw's travel the hose is hung through, deg; its riser's fitting off the yaw's axis and the thigh's off the
 #: pitch's, m; the thigh's riser's z behind the hip's axis, m.
-YAWED, RISER_M, THIGH_M, RISER_Z = (-30.0, 30.0), 0.075, 0.086, -0.006
+YAWED, RISER_M, THIGH_M, RISER_Z = (-30.0, 30.0), 0.091, 0.086, -0.006
 #: How far the yaw's hose's two pipes lean back, rad: their mouths rise, the hose an arch over the lid, never a
 #: straight slack one that may bow down onto it.
 LEANT = math.radians(15.0)

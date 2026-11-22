@@ -34,7 +34,7 @@ from tools.render import topo  # noqa: E402
 #: The voxel, mm; the share of what is the optimiser's to shape that the hood may keep; the way it grows off its
 #: bed along the abduction's axis (+1 from the boss's front face, -1 from the motor's end); how far past the bush's
 #: wall the boss is kept, mm; the step the yoke is swept through its travel at, deg, and the grid it is drawn on, m.
-H_MM, SHARE, UP, ROUND_MM, STEP, FINE_M = 3.0, 0.25, 1.0, 3.0, 1.0, 0.0005
+H_MM, SHARE, UP, ROUND_MM, STEP, FINE_M = 3.0, 0.4, 1.0, 3.0, 1.0, 0.0005
 
 
 def _axes(up):
@@ -88,12 +88,12 @@ def _room(up=UP):
     zs = np.arange(lay['boss'][0], lay['motor'][1] - 0.5 * h, h) + 0.5 * h
     xs, zs = (xs, zs) if up > 0 else (xs[::-1], zs[::-1])
     y, z, x = np.meshgrid(ys, zs, xs, indexing='ij')
-    r_x, r_z, edge = np.hypot(y, z), np.hypot(x, y), air + 0.5 * h
+    r_x, r_z, edge = np.hypot(y, z), np.hypot(x, y), air + 0.9 * h
     pts = km._points([t for n in ('housing', 'guard', 'lid', 'drive', 'leads') for t in sm.turning()[n]], 0.0015)
     reach = np.array([np.hypot(*pts[np.abs(pts[:, 0] - a) <= 0.5 * h + air][:, 1:].T).max(initial=0.0)
                       for a in xs])[None, None, :]
     foot = (x >= sr._hood_x()[0]) & (np.abs(z) <= sr.FOOT_M)                       # on the pitch's housing
-    out = r_x < reach + np.where(foot, 0.0, edge)
+    out = r_x < reach + np.where(x >= sr._hood_x()[0], np.clip(np.abs(z) - sr.FOOT_M, 0.0, edge), edge)
     hull = np.r_[[(sr.HUB_M * math.cos(a), sr.HUB_M * math.sin(a)) for a in np.linspace(0.0, 2.0 * math.pi, 49)[:-1]],
                  [(-0.5 * sr.WIDE_M, -lay['drop'] - 0.5 * lay['saddle']), (0.5 * sr.WIDE_M, -lay['drop'] - 0.5 * lay['saddle'])]]
     plates, (p0, p1) = _swept(hull, x, y) < edge, lay['plate']
@@ -113,7 +113,7 @@ def _room(up=UP):
     out |= (r_z < hole) & (z <= -p0)                                       # the pin in its bush, on to the plate
     line = sh.laid()['up']
     out |= KDTree(line).query(np.c_[x.ravel(), y.ravel(), z.ravel()])[0].reshape(x.shape) < tees.HOSE_R + edge
-    room = ~out
+    room = topo.stood((~out).transpose(1, 0, 2)).transpose(1, 0, 2)
     boss = room & (r_z <= hole + sr.BOSS_WALL + 1e-3 * ROUND_MM) & (z <= b1)
     band = room & (r_z <= lay['band']) & (z >= h0) & (z <= m1)
     held = room & foot & (r_x < reach + 1.5 * h)
@@ -146,6 +146,7 @@ def shaped(log=None, share=SHARE, up=UP):
     return topo.shaped(case(share, up), log)
 
 
+@functools.lru_cache(maxsize=None)
 def drawn(share=SHARE, up=UP):
     """[(tri, colour)] of the shaped hood's faces, the sketch's frame, m - None where it is not shaped yet, or its
     solid does not carry its loads or lost a voxel told to stay."""

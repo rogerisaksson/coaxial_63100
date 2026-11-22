@@ -1,4 +1,4 @@
-"""The knee's mount, sketched: printed clamps and a honeycomb cage cooling the calf's inverters.
+"""The knee's mount, sketched: printed clamps and a black cage round the calf's inverters.
 
     COAXIAL_ROBOT=gynoid_mesomorph_medium_coax python -X utf8 tools/render/knee_sheet.py OUT.png [--ahead M]
 
@@ -11,8 +11,8 @@ the band; where the knee's inverter rides its motor's back, the board's cover be
 with the clamp's back, an open black honeycomb, the bus's hose in a holder of its ring and its lid off beside it
 (`fittings`), the saddle over it - else a lip the motor is pushed back against. The multi-clamp (the shank's side),
 printed from its front face and pushed onto the knee's output ring: a sleeve round that ring, webs, a slit band
-round the pitch drive's motor and on from its back a cage round both inverters, its wall a honeycomb the air runs
-through, and the shank's seat on a foot under it - the foot on the cage and on past it on the pitch drive's band,
+round the pitch drive's motor and on from its back a solid black cage round both inverters, a narrow slot for each
+phase, and the shank's seat on a foot under it - the foot on the cage and on past it on the pitch drive's band,
 its waist the least that holds over both. The pitch drive goes in through the cage's open top, its inverter resting on the cage's floor; the roll
 drive, its inverter first, after it, held by a collar - the third piece, printed from its flange - screwed onto the
 cage's top. The drives let down the shank just so far that the cage keeps AIR_M off the knee's stator (`laid`); the
@@ -154,7 +154,7 @@ def fittings():
     (cy, cz), (_c0, _c1, r_c, o_c) = lay['roll'][1], lay['cage']
     ring, rim = 0.5 * (lay['collar'][0][2] + o_c), tees.PIPE[1] + 0.0018   # midway across; the outlet's collar
     head = 1e-3 * ks.PINCHES[ks.THREADS.index(lay['rim'][1])][1]         # a screw's head, on the rim's circle
-    screws = (np.arange(SCREWS) + 0.5) * 2.0 * math.pi / SCREWS
+    screws = np.arange(SCREWS) * 2.0 * math.pi / SCREWS
     clear = math.asin(min(1.0, (rim + head + AIR_M) / (0.5 * (r_c + o_c))))
     turns = np.radians(np.arange(0.0, 180.0, 0.5))                       # ahead of the calf's axis
     free = turns[np.abs((turns[:, None] - screws[None, :] + math.pi) % (2.0 * math.pi) - math.pi).min(axis=1) >= clear]
@@ -190,6 +190,31 @@ def shank_line():
     """How far ahead of the ankle's drives' axis the shank's tube runs, m: nearly through it - the slimmest shin -,
     as far forward as keeps its fork AIR_M off the rods' lower ends where the toes are farthest down (`leaves`)."""
     return leaves.reach()[1] + AIR_M + _stack()[4] + em.OVAL_PAST[1]
+
+
+def _saddle(x_t, over, top, z_t, cover):
+    """[(tri, colour)] of the stator clamp's saddle along x: constant outer contour, 45-degree inner step at `on`."""
+    import numpy as np
+    from tools.render import foot as ft
+    r_hi, on = over, x_t[0]
+    if cover:                                            # over the cover the saddle keeps off it, on the band it holds
+        _a, on, outside = cv.span(*cover)
+        r_hi = max(over, outside + cv.FIT_M)
+    angs = np.radians(np.linspace(90.0, -75.0, 37))
+
+    def ring_at(x):
+        r = r_hi if x <= on else max(over, r_hi - (x - on))
+        arc = [(r * math.cos(a), r * math.sin(a)) for a in angs]
+        pts = cl.filleted(np.array([(top, -r_hi * math.sin(math.radians(75.0))), (top, z_t[1] + 0.004),
+                                    (0.0, r_hi + 0.008)] + arc), 0.003)
+        return np.c_[np.full(len(pts), x), pts]
+    rings = [ring_at(x) for x in sorted({x_t[0], min(on, x_t[1]), min(on + (r_hi - over), x_t[1]), x_t[1]})]
+    tris = [t for a, b in zip(rings[:-1], rings[1:]) for i in range(len(a)) for j in ((i + 1) % len(a),)
+            for t in ((np.array((a[i], a[j], b[j])), em.FRAME), (np.array((a[i], b[j], b[i])), em.FRAME))]
+    for cap_s, flip in ((rings[0], True), (rings[-1], False)):
+        for i, j, k in ft._ears(cap_s[:, 1:]):
+            tris.append((cap_s[[i, k, j] if flip else [i, j, k]], em.FRAME))
+    return tris
 
 
 def bodies(apart=False, flex=0.0, socket='torx', ahead=0.0):
@@ -237,13 +262,7 @@ def bodies(apart=False, flex=0.0, socket='torx', ahead=0.0):
     top, low = seats(ahead)
     first = lay['output'][0][0]                          # the multi-clamp's web starts at the cage's end or its band
     x_t = lay['saddle']                                  # the saddle AIR_M short of it, however bent
-    rounds, on = [(x_t[0], x_t[1], over)], x_t[0]
-    if lay['cover']:                                     # over the cover the saddle keeps off it, on the band it holds
-        _a, on, outside = cv.span(*lay['cover'])
-        rounds = [(x_t[0], on, outside + cv.FIT_M), (on, x_t[1], over)]
-    waist = 1e-3 * ks.neck(1e3 * (x_t[1] - on))         # the least that holds over what stands on the band
-    still['saddle'] = [t for a, b, r in rounds for t in em._rounded(cl.filleted(cl.necked(
-        (0.0, 0.0), r, top, z_t, waist)), a, b, em.FRAME, axis=0, r=cl.EDGE_M, steps=1)]
+    still['saddle'] = _saddle(x_t, over, top, z_t, lay['cover'])
     still['thigh seat'] = em._rounded(cl.oval(reach_t, deep_t, (bone, ahead)), top - 0.002, top + em.SEAT_M,
                                       em.PLATE, r=cl.EDGE_M, steps=1)
     face_t = top + em.SEAT_M
@@ -259,11 +278,11 @@ def bodies(apart=False, flex=0.0, socket='torx', ahead=0.0):
     spot: Any = fittings()                               # the calf's boards branches off the collar's T-cross
     turning['calf leads'] = cw.leads(lay, spot[1]) if spot else []
     turning['pitch band'] = moved(cl.turned(lay['pitch_band'], em.SLIT), y=py, z=pz)
-    turning['cage'] = moved(cl.honeycomb(r_c, o_c, c0, c1, gaps=cw.windows()), y=py, z=pz)
+    turning['cage'] = moved(cl.slotted(r_c, o_c, c0, c1, cw.slots(lay), cv.BLACK), y=py, z=pz)
     turning['collar'] = moved(cl.turned(lay['collar'], em.SLIT), y=py, z=pz)
     heads, bolt = [], 0.5 * (r_c + o_c)                  # through the collar's flange into the cage's top rim
     head_r, head_h = 1e-3 * ks.PINCHES[ks.THREADS.index(lay['rim'][1])][1], 1e-3 * lay['rim'][1]
-    for t in np.arange(SCREWS) * 2.0 * math.pi / SCREWS + math.pi / SCREWS:
+    for t in np.arange(SCREWS) * 2.0 * math.pi / SCREWS:
         c = (py + bolt * math.cos(t), pz + bolt * math.sin(t))
         x_f = bed_c - COLLAR_M
         heads += m._cylinder_x(head_r, x_f - head_h, x_f, em.BOLT, k=16, at=c)

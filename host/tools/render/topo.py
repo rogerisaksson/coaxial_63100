@@ -130,18 +130,23 @@ def stood(solid):
 
 def propped(grid, need, room):
     """`grid` [layer, across, deep] with what holds up each voxel of `need` added: under one standing on none of
-    the nine under it, the voxel straight under it where the room has one, and so on down - a prop, solid."""
+    the nine under it, the nearest of the nine in the room under it, and so on down - a prop, solid."""
     import numpy as np
     out, need = grid.copy(), need.copy()
+    ways = ((0, 0), (-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1))
     for k in range(len(out) - 1, 0, -1):
-        pad = np.pad(out[k - 1], 1)
+        pad, rpad = np.pad(out[k - 1], 1), np.pad(room[k - 1], 1)
         under = np.zeros_like(out[k])
-        for a in (-1, 0, 1):
-            for b in (-1, 0, 1):
-                under |= pad[1 + a:pad.shape[0] - 1 + a, 1 + b:pad.shape[1] - 1 + b]
-        prop = out[k] & need[k] & ~under & room[k - 1]
-        out[k - 1] |= prop
-        need[k - 1] |= prop
+        for a, b in ways:
+            under |= pad[1 + a:pad.shape[0] - 1 + a, 1 + b:pad.shape[1] - 1 + b]
+        left = out[k] & need[k] & ~under
+        for a, b in ways:
+            hit = left & rpad[1 + a:rpad.shape[0] - 1 + a, 1 + b:rpad.shape[1] - 1 + b]
+            spad = np.pad(hit, 1)
+            prop = spad[1 - a:spad.shape[0] - 1 - a, 1 - b:spad.shape[1] - 1 - b]
+            out[k - 1] |= prop
+            need[k - 1] |= prop
+            left &= ~hit
     return out
 
 

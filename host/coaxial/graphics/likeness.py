@@ -65,9 +65,7 @@ def found(root=None):
     said = os.environ.get('COAXIAL_LIKENESS')
     if said is not None:
         return said if os.path.isfile(said) else None
-    beside = root or os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    for _ in range(BESIDE):
-        beside = os.path.dirname(beside)
+    for beside in wavefront.roots(root, BESIDE):
         for got in sorted(glob.glob(os.path.join(beside, 'stunts', '3d_models', '*', '*.obj')), key=lambda path: [
                 int(word) if word.isdigit() else word.lower() for word in re.split(r'(\d+)', path)]):
             if _t_posed(got):

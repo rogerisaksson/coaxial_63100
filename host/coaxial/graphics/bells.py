@@ -34,12 +34,7 @@ def found(root=None):
     repo `root` (the tree's unless told) or the checkout a worktree of it stands in, BESIDE folders
     up at the most; {} with none."""
     said = os.environ.get('COAXIAL_MOTORS')
-    folders = [said] if said is not None else []
-    if said is None:
-        beside = root or os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-        for _ in range(BESIDE):
-            beside = os.path.dirname(beside)
-            folders.append(os.path.join(beside, 'motors'))
+    folders = [said] if said is not None else [os.path.join(b, 'motors') for b in wavefront.roots(root, BESIDE)]
     for folder in folders:
         got = sorted(glob.glob(os.path.join(folder, '*.obj')))
         if got:

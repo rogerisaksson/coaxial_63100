@@ -16,6 +16,29 @@ from coaxial.graphics.lit import PAINTED
 MAP = 256
 
 
+def roots(root=None, beside=4):
+    """The folders up from `root` (else this tree and, in a worktree, its main checkout) a model beside the repo is
+    looked for in, `beside` up at the most."""
+    starts = [root or os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))]
+    git = os.path.join(starts[0], '.git')
+    if root is None and os.path.isfile(git):
+        with open(git, encoding='utf-8') as file:
+            line = file.read().strip()
+        if line.startswith('gitdir:'):
+            there = os.path.abspath(os.path.join(starts[0], line.partition(':')[2].strip()))
+            common = os.path.join(there, 'commondir')
+            if os.path.isfile(common):
+                with open(common, encoding='utf-8') as file:
+                    starts.append(os.path.dirname(os.path.abspath(os.path.join(there, file.read().strip()))))
+    out = []
+    for folder in starts:
+        for _ in range(beside):
+            folder = os.path.dirname(folder)
+            if folder not in out:
+                out.append(folder)
+    return out
+
+
 def read(path):
     """(corners (n, 3) m, [(names, triangles (k, 3))], each corner's place on its map (n, 2), nan
     with none) of an OBJ: `names` a group's and a material's in lower case, its faces fanned to

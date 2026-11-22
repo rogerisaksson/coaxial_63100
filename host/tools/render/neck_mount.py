@@ -39,7 +39,7 @@ BAY = ((0.0, 0.0, 1.0), (0.0, 1.0, 0.0), (-1.0, 0.0, 0.0))
 #: bay's clamp's half height and wall, m; what stays, what nods and what turns of the parts the checks take.
 SLITS, CLAMP_M = (-0.5 * math.pi, -1.9), (0.012, 0.006)
 FIXED = ('block', 'spine', 'bay', 'bay clamp', 'bay guard', 'bay lid', 'left shoulder', 'right shoulder')
-NODS, TURNS = ('neck plate', 'crown', 'head drive'), ('head ring', 'carrier')
+NODS, TURNS = ('neck plate', 'cheek', 'crown', 'head drive'), ('head ring', 'carrier')
 #: The skin's cells about the head's axis: a row's height, m, and the bearings round.
 CELL_M, BEARINGS = 0.0025, 96
 
@@ -51,22 +51,71 @@ def _put(tris, at, turn=None):
     return [(tri @ spin + np.asarray(at, float), colour) for tri, colour in tris]
 
 
+def _crossbar_block(lay):
+    """The crossbar's printed block, cupped for the neck's band and necked to the spine's seat, grown along +x."""
+    import numpy as np
+    (yc, zc, bar), (seat_y, spine_z, tube), (ny, nz) = lay['bar'], lay['seat'], lay['neck']
+    bored, h1, (b0, b1, out_n) = bar + 1e-3 * kl.BOND, lay['house'][1], lay['band']
+    angs = np.linspace(-0.5 * math.pi + 0.5 * em.SLIT_M / bored, 1.5 * math.pi - 0.5 * em.SLIT_M / bored, 96)
+
+    def ring_x(x):
+        r_o = lay['bore'] if x <= h1 - max(lay['bore'] - lay['under'], 0.0) else lay['under']
+        cup = (out_n + 0.0003) if b0 - 0.0005 <= x <= b1 + 0.0005 else (
+            max(0.0, out_n + 0.0003 - (x - b1 - 0.0005)) if x > b1 + 0.0005 else 0.0)
+        rim = []
+        for a in angs:
+            dy, dz = math.cos(a), math.sin(a)
+            py, pz = yc + r_o * dy, zc + r_o * dz
+            if cup > 0.0 and math.hypot(py - ny, pz - nz) < cup:
+                oy, oz = yc - ny, zc - nz
+                bq, cq = 2.0 * (oy * dy + oz * dz), oy * oy + oz * oz - cup * cup
+                t_r = min((-bq - math.sqrt(max(bq * bq - 4.0 * cq, 0.0))) * 0.5, r_o)
+                py, pz = yc + t_r * dy, zc + t_r * dz
+            rim.append((py, pz))
+        bore = [(yc + bored * math.cos(a), zc + bored * math.sin(a)) for a in angs[::-1]]
+        return np.c_[np.full(2 * len(angs), x), np.array(rim + bore)]
+    rings = [ring_x(x) for x in sorted({-lay['side'], b0 - 0.0006, b0 - 0.0005, b1 + 0.0005, b1 + 0.007, lay['side']})]
+    out = [t for a, b in zip(rings[:-1], rings[1:]) for i in range(len(a)) for j in ((i + 1) % len(a),)
+           for t in ((np.array((a[i], a[j], b[j])), em.FRAME), (np.array((a[i], b[j], b[i])), em.FRAME))]
+    for cap, flip in ((rings[0], True), (rings[-1], False)):
+        n = len(angs)
+        for j in range(n - 1):
+            q = (cap[j], cap[j + 1], cap[2 * n - 2 - j], cap[2 * n - 1 - j])
+            out += [(np.array((q[0], q[2], q[1]) if flip else (q[0], q[1], q[2])), em.FRAME),
+                    (np.array((q[0], q[3], q[2]) if flip else (q[0], q[2], q[3])), em.FRAME)]
+    half_x, half_z = tube + em.OVAL_PAST[0], tube + em.OVAL_PAST[1]
+    waist = 1e-3 * sized.neck(2e3 * half_x, 'spine')
+    pad_y = yc + 0.016
+    out += em._rounded(cl.filleted(cl.necked((yc, zc), lay['bore'] - 0.001, pad_y, (-0.026, 0.024), 0.050)),
+                       -lay['side'], b1 + 0.0005, em.FRAME, axis=0, r=cl.EDGE_M, steps=1)
+    out += em._rounded(cl.filleted(cl.necked((yc, zc), lay['bore'] - 0.001, seat_y,
+                                             (spine_z - half_z, spine_z + half_z), waist)),
+                       -lay['side'], half_x, em.FRAME, axis=0, r=cl.EDGE_M, steps=1)
+    return out
+
+
+def _neck_clamp(lay):
+    """The neck motor's slit band and its bolting ears onto the crossbar's block, grown along +x from `b0`."""
+    (yc, _zc, _bar), (ny, nz) = lay['bar'], lay['neck']
+    (_m0, m1, can), (_h0, _h1, ring), (b0, b1, out) = lay['motor'], lay['house'], lay['band']
+    band = _put(cl.turned([(b0, can, out), (m1, can, out), (m1 + max(can - ring, 0.0), ring, out),
+                           (b1, ring, out)], SLITS[1]), (0.0, ny, nz))
+    pad_y = yc + 0.016 + 0.0003
+    for z0, z1 in ((-0.026, -0.015), (0.013, 0.024)):
+        band += em._rounded(cl.filleted(cl.cupped((ny, nz), out - 0.001, pad_y, (z0, z1))),
+                            b0, b1, em.FRAME, axis=0, r=cl.EDGE_M, steps=1)
+    return band
+
+
 @functools.lru_cache(maxsize=None)
 def still(socket='torx', low=None):
     """{name: tris} of what stays with the torso; the spine's tube from `low` up, m over the torso's anchor, where
     told - a trunk that seats it higher (`trunk_clamped.seat`) -, else from its low end as the skeleton has it."""
     lay = nl.laid()
-    (yc, zc, bar), (ny, nz) = lay['bar'], lay['neck']
-    (m0, m1, can), (h0, h1, ring), (b0, b1, out) = lay['motor'], lay['house'], lay['band']
-    seat_y, spine_z, tube = lay['seat']
-    bored = bar + 1e-3 * kl.BOND                         # the crossbar's band: lower past the neck's housing
-    block = _put(cl.turned([(-lay['side'], bored, lay['bore']), (h1, bored, lay['bore']), (h1, bored, lay['under']),
-                            (lay['side'], bored, lay['under'])], SLITS[0]), (0.0, yc, zc))
-    block += _put(cl.turned([(b0, can, out), (m1, can, out), (m1, ring, out), (b1, ring, out)], SLITS[1]), (0.0, ny, nz))
-    half_x, half_z = tube + em.OVAL_PAST[0], tube + em.OVAL_PAST[1]
-    waist = 1e-3 * sized.neck(2e3 * half_x, 'spine')
-    block += em._rounded(cl.filleted(cl.necked((yc, zc), lay['bore'] - 0.001, seat_y, (spine_z - half_z, spine_z + half_z),
-                                               waist)), -half_x, half_x, em.FRAME, axis=0, r=0.002)
+    (ny, nz), (_seat_y, spine_z, tube) = lay['neck'], lay['seat']
+    (m0, m1, can), (h0, h1, ring) = lay['motor'], lay['house']
+    seat_y = lay['seat'][0]
+    block = _crossbar_block(lay) + _neck_clamp(lay)
     foot = seat_y - nl.SEAT_M
     e = tube - 0.0012 - em.BORE_R - 0.003
     dress, limb = em._limb(foot, -1.0, tube, -e, socket, False)
@@ -108,8 +157,9 @@ def _bay():
     nose = min(ring, lay['seat'][0] - nl.SEAT_M - em.FLANGE_M - nl.AIR_M - at[1])     # flange, its nose under it
     drive = hc._drive({'board': rear + (r_b,), 'motor': (front[1], -reach, can), 'gear': (-reach, 0.0, nose)}, wall,
                       math.pi, leave=math.pi)
+    rim = cl.turned([(front[1], can - 0.001, can + wall), (-reach, can - 0.001, can + wall)], 0.5 * math.pi)
     puck = [(tri, em.FRAME if colour in (em.SERVO, em.GEAR, em.OUTPUT) else colour)
-            for tri, colour in drive['still'] + drive['ring'] + drive['band']]
+            for tri, colour in drive['still'] + drive['ring']] + rim
     turn = cv.turned((-cv.edge(r_b, can + wall), 0.0))   # the head's board's lugs across from the neck's
     twin = (boards.placed(front[0], front[1], (0.0, 0.0), front[1], turn)
             or em._drum(r_b, front[0], front[1], em.BOARD))
@@ -158,33 +208,40 @@ def _hub(x, way, at=(0.0, 0.0)):
     return tris
 
 
+def _crown_top(lay):
+    """The crown's floor and the head motor's band on it, grown up the head's axis (+y) with 45-degree relief."""
+    (p0, p1), head, r0 = lay['plate'], lay['head'], lay['round']
+    (b0, b1, wall), can, gear, m1 = head['band'], head['can'], head['gear'], head['motor'][1]
+    crown = em._drum(r0, p0, p1, em.FRAME)
+    crown += cl.slotted(can, r0, p1 - 0.001, b0 + 0.003, [(math.pi, p1 - 0.001, b0, 0.016)], em.FRAME, k=96)
+    crown += cl.turned([(b0, can, r0), (b0 + max(wall - r0, 0.0), can, wall), (m1, can, wall),
+                        (m1 + max(can - gear, 0.0), gear, wall), (b1, gear, wall)], math.pi)
+    return _put(crown, (0.0, 0.0, lay['yaw']), UP)
+
+
 @functools.lru_cache(maxsize=None)
 def nodding():
     """{name: tris} of what nods with the neck, upright: the neck's output ring, the yoke - its carbon plate on the
     ring's hub and the printed crown on that: a cheek screwed to the plate, a floor, on the floor a band round the
     head's motor, slit behind and free of the floor either side of its slit -, the crown's shoe on the neck's
     band, the head's motor and its gearbox's housing."""
-    from tools.render import shoulder_mount as sm
     lay = nl.laid()
     (ny, nz), (r0, r1, ring), (web0, web1), (c0, c1) = lay['neck'], lay['ring'], lay['web'], lay['cheek']
-    (p0, p1), out, yaw, head = lay['plate'], lay['band'][2], lay['yaw'], lay['head']
+    (p0, _p1), out, yaw, head = lay['plate'], lay['band'][2], lay['yaw'], lay['head']
     plate = em._rounded(_plate(ring, p0 - ny), web0, web1, em.CARBON, axis=0, r=0.001) + _hub(web1, 1.0)
     (low, high), (rear, front) = lay['patch']
     cheek = em._rounded([(low, rear), (low, front), (high, front), (high, rear)], c0, c1, em.FRAME, axis=0, r=0.002)
     for at in ((y, z) for y in (low + nl.EDGE_M, high - nl.EDGE_M) for z in (rear + nl.EDGE_M, front - nl.EDGE_M)):
         plate += em._drum(em.HEAD[0], web1, web1 + 0.001, em.BOLT, at)
-    (b0, b1, wall), can, gear = head['band'], head['can'], head['gear']
-    crown = em._drum(lay['round'], p0, p1, em.FRAME)
-    crown += cl.turned([(b0, can, wall), (head['motor'][1], can, wall), (head['motor'][1], gear, wall),
-                        (b1, gear, wall)], math.pi)
-    crown += sm._arc(can, wall, p1, b0 + 0.001, -0.6 * math.pi, 0.6 * math.pi, em.FRAME, k=24)
+    can, gear = head['can'], head['gear']
     shoe = em._rounded(cl.cupped((0.0, 0.0), out + sl.PLAY_M, p0 - ny, (-0.5 * nl.SHOE_M, 0.5 * nl.SHOE_M), below=False),
                        lay['band'][0], lay['band'][1], em.FRAME, axis=0, r=0.0015)
     (m0, m1), (h0, h1) = head['motor'], head['house']
     drive = em._drum(can, m0, m1, em.SERVO) + em._drum(gear, h0, h1, em.GEAR)
     return {'neck ring': _put(em._drum(ring, r0, r1, em.OUTPUT), (0.0, ny, nz)),
-            'neck plate': _put(plate, (0.0, ny, nz)), 'crown': _put(cheek, (0.0, ny, nz)) + _put(crown, (0.0, 0.0, yaw), UP),
-            'shoe': _put(shoe, (0.0, ny, nz)), 'head drive': _put(drive, (0.0, 0.0, yaw), UP)}
+            'neck plate': _put(plate, (0.0, ny, nz)), 'cheek': _put(cheek, (0.0, ny, nz)),
+            'crown': _crown_top(lay), 'shoe': _put(shoe, (0.0, ny, nz)),
+            'head drive': _put(drive, (0.0, 0.0, yaw), UP)}
 
 
 @functools.lru_cache(maxsize=None)

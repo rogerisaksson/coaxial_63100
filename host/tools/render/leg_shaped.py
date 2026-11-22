@@ -14,7 +14,7 @@ hub and bears all the block hands on at the block's four screws. The block is he
 ears; the pin turns in its needles' bore - the forces and the moments across the pin there - and the roll's moment
 comes through the sector into the pinion: the tooth's push on the bore and back on the roll drive's band. The
 knee's stator clamp is held by its saddle's top under the thigh's tube's foot and bears the knee's loads in its band
-round the knee's motor (`knee_loads.loads`). The arm, the block and the clamp, slabs up the way they print, are
+round the knee's motor (`knee_loads.loads`). The stator clamp, a slab up the way it prints, is
 shaped extruded - each column through one density, the pockets through, the outline drawn smooth
 (`topo.outlined`) -, the rest grown standing (`topo.printed`). `topo.shaped`
 runs a case once (.cache/topo keeps it), `drawn` gives its solid's faces in the hip's frame - None until it carries
@@ -34,15 +34,11 @@ from tools.render import knee_loads as kl  # noqa: E402
 from tools.render import topo  # noqa: E402
 
 #: The prints shaped: {name: (its voxel, mm, the share of what is the optimiser's to shape that it may keep)};
-#: how far round a screw's axis its boss is kept and loaded, and past a seat's face its voxels are, mm. Of the
-#: rooms as drawn, all solid (`topo.whole`, 3 mm voxels), the knuckle alone carries, x1.55: the arm bears 77 MPa at
-#: its front under the head, a neck narrower than the 64 mm its hand check takes; the yoke 126 where a cheek leaves
-#: the crown - a root no more than the ring's 2 mm air, 153 on 2 mm voxels -; the block 93 in its web, 6 mm off the
-#: bore and the band on 3 and 2 mm voxels alike; the clamp, its waist sized over the 27 mm of it on its band, x0.60:
-#: 60 MPa in its saddle 6 mm off what holds and loads it on 2 and 1.5 mm voxels, the seat 41 mm ahead of the knee's
-#: axis bending it aside (x0.35 with its waist sized over the 51 mm it spans). Each stands drawn.
-SHAPED = {'thigh arm': (3.0, 0.4), 'thigh knuckle': (3.0, 0.4), 'yoke': (3.0, 0.4), 'block': (3.0, 0.4),
-          'stator clamp': (3.0, 0.4)}
+#: how far round a screw's axis its boss is kept and loaded, and past a seat's face its voxels are, mm. Every room
+#: as drawn carries all solid (`topo.whole`, 3 mm voxels): the knuckle x1.55, the yoke x1.32, the arm x1.23, the
+#: stator clamp x1.15 and the block x1.11.
+SHAPED = {'thigh arm': (3.0, 0.7), 'thigh knuckle': (3.0, 0.4), 'yoke': (3.0, 0.5), 'block': (3.0, 0.65),
+          'stator clamp': (3.0, 0.6)}
 BOSS_MM, SEAT_MM = 9.0, 4.0
 
 
@@ -93,10 +89,10 @@ def _arm(name, h, share):
     face, split, x0 = 1e3 * (q1 + 0.0005), 1e3 * (q0 + em.OUTPUT_SHARE * (q1 - q0)), 1e3 * (q1 + hl.ARM_X)
     x1, head, pad = x0 + 1e3 * hl.ARM_M, 1e3 * hl.HEAD_R, x0 - 1e3 * hl.PAD_M
     held = (x >= face) & (x <= face + 1.5 * h) & (r <= head)
-    kept = (held | ((x >= face) & (x <= x1) & (r <= head))
+    kept = (held | ((x >= face) & (x <= x1) & (r <= head + SEAT_MM))
             | ((x >= 1e3 * split) & (x <= face) & (r <= 1e3 * r_q + kl.WALL + SEAT_MM)))
     bosses = _screws(x, yu, zu, pad, x1)
-    return topo.case(name, room, kept | bosses, held, _loads(bosses & room, turn, corner), h, share, extruded=True)
+    return topo.case(name, room, kept | bosses, held, _loads(bosses & room, turn, corner), h, share, extruded=False)
 
 
 def _knuckle(name, h, share):
@@ -124,16 +120,16 @@ def _block_screws(x, y, z, z0, z1):
 
 
 def _yoke(name, h, share):
-    """The yaw's yoke's case: held by its crown's face under the yaw drive's hub, the crown under the hub and the
+    """The yaw's yoke's case: held by its crown's face under the yaw drive's hub, the crown under the ring and the
     block's screws' bosses kept, the hip's loads - all the block hands on - on those bosses."""
     import numpy as np
     room, turn, corner, (x, y, z), _up = _room(name, h)
     st = hl.stacks()
     low, back = 1e3 * min(a for a, _b, _r in st['yaw'].values()), 1e3 * st['roll']['gear'][1]
-    hub = (np.hypot(x, z) <= 1e3 * hl.HUB_R) & (y >= low - 1e3 * hl.CROWN_M)
-    held = hub & (y >= low - 1.5 * h)
+    seat = (np.hypot(x, z) <= 1e3 * st['yaw']['gear'][2] + SEAT_MM) & (y <= low + 1.0)
+    held = (np.hypot(x, z) <= 1e3 * hl.HUB_R) & (y >= low - 1.5 * h) & (y <= low + 1.0)
     bosses = _block_screws(x, y, z, back, back + 1e3 * hl.EAR_M + 2.0 * BOSS_MM)
-    return topo.case(name, room, hub | bosses, held, _loads(bosses & room, turn, corner), h, share)
+    return topo.case(name, room, seat | bosses, held, _loads(bosses & room, turn, corner), h, share)
 
 
 def _block(name, h, share):
@@ -144,13 +140,20 @@ def _block(name, h, share):
     import numpy as np
     room, turn, corner, (x, y, z), _up = _room(name, h)
     st, (small, big, _tip) = hl.stacks(), hl.teeth()
-    (m0, _m1, can), (_g0, g1, r_g) = st['roll']['motor'], st['roll']['gear']
+    (m0, m1, can), (_g0, g1, r_g) = st['roll']['motor'], st['roll']['gear']
     (_f0, f1), (b0, _b1) = hl.needles()
     roll = np.hypot(x - 1e3 * hl.ROLL_AT[0], y - 1e3 * hl.ROLL_AT[1])
+    room = (room & ~((np.hypot(x, y) < 1e3 * hl.NEEDLE[0]) & (z >= 1e3 * b0 - 5.0) & (z <= 1e3 * f1 + 5.0))
+            & ~((roll < 1e3 * can) & (z >= 1e3 * m0 - 2.0) & (z <= 1e3 * m1 + 1.0))
+            & ~((roll < 1e3 * (r_g + 0.001)) & (z >= 1e3 * m1) & (z <= 1e3 * g1 + 5.0)))
     held = _block_screws(x, y, z, 1e3 * (g1 - hl.EAR_M), 1e3 * g1)
-    band = ((roll <= 1e3 * (can + hl.walls()['roll'])) & (roll >= 1e3 * r_g) & (z >= 1e3 * m0) & (z <= 1e3 * g1)
-            & room)
-    bore = (np.hypot(x, y) <= 1e3 * (hl.NEEDLE[0] + hl.HOUSED_M)) & (z >= 1e3 * b0) & (z <= 1e3 * f1) & room
+    ears = np.zeros(x.shape, bool)
+    for way in (1.0, -1.0):
+        for bx, by in hl.BLOCK_AT:
+            ears |= (np.hypot(x - 1e3 * way * bx, y - 1e3 * by) <= BOSS_MM + SEAT_MM) & (z >= 1e3 * (g1 - hl.EAR_M - 0.004))
+    band = ((roll <= 1e3 * (can + hl.walls()['roll']) + SEAT_MM) & (roll >= 1e3 * r_g) & (z >= 1e3 * m0)
+            & (z <= 1e3 * g1) & room)
+    bore = (np.hypot(x, y) <= 1e3 * (hl.NEEDLE[0] + hl.HOUSED_M + 0.006)) & (z >= 1e3 * b0) & (z <= 1e3 * g1) & room
     ld = hl.loads()
     force, moment = np.array(ld['force'], float), np.array(ld['moment'], float)
     push = np.array([moment[2] / (1e3 * big), 0.0, 0.0])                 # the sector's tooth's, N: the roll's moment
@@ -160,7 +163,7 @@ def _block(name, h, share):
     def rolled(f, m):                                     # the pin's load and the roll's through the pinion
         return [(bore, turn @ (f + push), turn @ m, -corner), (band, -(turn @ push), np.zeros(3), mesh)]
     loads = _loads(bore, turn, corner)[:5] + [rolled(np.zeros(3), np.zeros(3)), rolled(force, across)]
-    return topo.case(name, room, held | band | bore, held, loads, h, share, extruded=True)
+    return topo.case(name, room, ears | band | bore, held, loads, h, share, extruded=False)
 
 
 def _knee_loads(patch, turn, corner):
@@ -198,7 +201,7 @@ def cases():
 
 
 def drawn(name):
-    """[(tri, colour)] of a shaped print's voxels' faces, the hip's frame, m - None where it is not shaped yet, or
+    """[(tri, colour)] of a shaped print's voxels' faces, its sketch's frame, m - None where it is not shaped yet, or
     its solid does not carry its loads or lost a voxel told to stay."""
     case = cases()[name]
     if not topo.ready(case):
@@ -208,6 +211,33 @@ def drawn(name):
     if got['margin'] < 1.0 or got['lost']:
         return None
     return [(1e-3 * (tri + corner) @ turn, em.FRAME) for tri in topo.faced(got, case)]
+
+
+def posed(ahead=None, flex=0.0):
+    """`leg_clamped.bodies` with every shaped print that carries its loads drawn in place of its sketch."""
+    from tools.render import hip_clamped as hc, knee_clamped as kc, knee_hose, knee_mount as km, leg_clamped as lc
+    from machine.body.figure import THIGH
+    lead = lc.stated() if ahead is None else ahead
+    _parts, _cables, still, turning = kc.bodies(flex=flex, ahead=lead)
+    stator = drawn('stator clamp')
+    if stator is not None:
+        still = dict(still, **{'stator band': stator, 'saddle': []})
+    links = {k: dict(v) for k, v in hc.links().items()}
+    for name, link, key in (('thigh arm', 'thigh', 'neck'), ('thigh knuckle', 'thigh', 'knuckle'),
+                            ('yoke', 'yaw', 'yoke'), ('block', 'yaw', 'block')):
+        tris = drawn(name)
+        if tris is not None:
+            links[link][key] = tris
+    def lifted(parts, word=''):
+        return {word + n: [(t + (0.0, THIGH, 0.0), c) for t, c in ts] for n, ts in parts.items() if ts}
+    hip = dict(lifted(links['roll'], 'cradle '), **lifted(links['yaw'], 'yaw '),
+               **lifted(links['pelvis'], 'pelvis '), **lifted({'hip hoses': hc.slung()}))
+    up = [t for v in dict(lifted(links['thigh']), **hip, **knee_hose.knee(flex)).values() for t in v]
+    lower = lc.shank()
+    down = [t for v in dict(lower, **knee_hose.ankle(lc.under(), lower['fork'])).values() for t in v]
+    all_still = [t for v in still.values() for t in v]
+    all_turn = km._turn([t for v in turning.values() for t in v], flex)
+    return all_still + all_turn + up + km._turn(down, flex)
 
 
 def told(log=None):

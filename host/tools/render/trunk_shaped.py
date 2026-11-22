@@ -32,11 +32,10 @@ from tools.render import trunk_clamped as tc  # noqa: E402
 from tools.render import trunk_laid as tl  # noqa: E402
 from tools.render import trunk_rods as tr  # noqa: E402
 
-#: The prints shaped: {name: (its voxel, mm, the share of what is the optimiser's that it may keep - the yoke's
-#: at 0.6 carried x0.82 at its lowest cut held for both of the travel's corners, its room as drawn on 3 mm voxels
-#: x0.89 at its notch's foot and x0.81 up its layers where it stands on the web: it does not carry yet, and stands
-#: drawn)}; how many cells a voxel's side is filled by, and how far round an axis a seat's voxels are kept, mm.
-SHAPED, FINE, ROUND_MM = {'yoke': (4.0, 0.6), 'lever': (2.0, 0.6)}, 3, 4.0
+#: The prints shaped: {name: (its voxel, mm, the share of what is the optimiser's that it may keep - both rooms as
+#: drawn carry all solid (`topo.whole`): the yoke x1.07 on 4 mm voxels, the lever x1.43 on 2 mm voxels)}; how many
+#: cells a voxel's side is filled by, and how far round an axis a seat's voxels are kept, mm.
+SHAPED, FINE, ROUND_MM = {'yoke': (4.0, 0.65), 'lever': (2.0, 0.6)}, 3, 4.0
 
 
 def _room(name, h):

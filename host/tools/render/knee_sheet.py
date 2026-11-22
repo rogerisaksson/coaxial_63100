@@ -62,8 +62,8 @@ def main(argv=None):
     near = [t for k in ('cage', 'pitch drive', 'roll drive', 'collar', 'collar screws', 'pitch band')
             for t in turning[k]]
     centre, half = kc._framed(near, pad=1.2)
-    views.append(('the cage round the inverters, its honeycomb', m.draw(near, yaw=15.0, pitch=10.0, px=px, half=half,
-                                                                         centre=centre)))
+    views.append(('the cage round the inverters, its phase slots', m.draw(near, yaw=15.0, pitch=10.0, px=px, half=half,
+                                                                           centre=centre)))
     parts, cables, _s, _t = kc.bodies(flex=limit, ahead=lead)
     centre, half = kc._framed(parts)
     views.append(('bent to its stop %.0f deg (travel %.0f)' % (limit, drives.TRAVEL['knee'][1]),
@@ -82,7 +82,7 @@ def main(argv=None):
     sheet = Image.new('RGB', (px * 4, 3 * (px + 30) + 30), (18, 18, 18))
     pen = ImageDraw.Draw(sheet)
     pen.text((12, 8), "knee, round 8: the thigh's tube from the hip's axis, %.0f mm ahead of the knee's, the ankle's"
-             " drives back to back %.1f mm under the knee's, their inverters in a honeycomb cage"
+             " drives back to back %.1f mm under the knee's, their inverters in a slotted black cage"
              % (1e3 * lead, -1e3 * lay['pitch'][1][0]),
              fill=(235, 235, 235))
     for i, (name, img) in enumerate(views):

@@ -115,17 +115,23 @@ def _housing(lay, can, ring):
     """The printed housing that turns with the arm: band, skirt, rims' bore, cone, drum and rib."""
     band0, band1, out = lay['band']
     plate0, cant, rims = lay['plate'][0], lay['cant'], lay['disc'] + sl.PLAY_M
-    bore = lay['bore']
+    bore, m1, skirt = lay['bore'], lay['motor'][1], lay['skirt']
     cone, mouth = cant + bore - rims, cant + lay['mouth']
-    shell = cl.turned([(band0, can, out), (lay['motor'][1], can, out), (lay['motor'][1], ring, out),
+    shell = cl.turned([(band0, can, out), (m1, can, out), (m1 + max(can - ring, 0.0), ring, out),
                        (band1, ring, out)], 0.0)
-    shell += cl.turned([(band1 + RELIEF_M, lay['skirt'], out), (plate0, lay['skirt'], out), (plate0, rims, out),
+    shell += cl.slotted(skirt, out, band1 - 0.0005, plate0 - max(rims - skirt, 0.0) + 0.0005,
+                        [(0.0, band1 - 0.0005, band1 + RELIEF_M, 0.020)], em.FRAME, k=96)
+    shell += cl.turned([(band1, ring, out), (band1 + max(skirt - ring, 0.0), skirt, out)], 0.0, gap=0.020 / skirt)
+    shell += cl.turned([(plate0 - max(rims - skirt, 0.0), skirt, out), (plate0, rims, out),
                         (cant, rims, out), (cone, bore, bore + sl.DRUM_M)], None)
-    shell += cl.honeycomb(bore, bore + sl.DRUM_M, cone, mouth)
-    low = bore + sl.DRUM_M
-    rib = [(-(low + sl.RIB_UP), -0.5 * sl.RIB_M), (-(low + sl.RIB_UP), 0.5 * sl.RIB_M), (-(bore + 0.0005), 0.5 * sl.RIB_M),
-           (-(bore + 0.0005), -0.5 * sl.RIB_M)]
-    return shell + km._turn(em._rounded(rib, cone - 0.002, mouth, em.FRAME, axis=0, r=0.0015), sl.drummed() - 180.0)
+    shell += cl.honeycomb(bore, bore + sl.DRUM_M, cone - 0.0005, mouth)
+    low, r0 = bore + sl.DRUM_M, cone - sl.RIB_UP - 0.003
+    import numpy as np
+    from tools.render import foot
+    foot_rib = np.array([(r0, -(out - 0.002)), (cone, -(low + sl.RIB_UP)), (mouth, -(low + sl.RIB_UP)),
+                         (mouth, -(bore + 0.0005)), (cone, -(bore + 0.0005)), (r0, -(rims + 0.001))])
+    rib_tris = [(tri[:, (1, 2, 0)], col) for tri, col in foot._slab(foot_rib, -0.5 * sl.RIB_M, 0.5 * sl.RIB_M, em.FRAME)]
+    return shell + km._turn(rib_tris, sl.drummed() - 180.0)
 
 
 @functools.lru_cache(maxsize=None)

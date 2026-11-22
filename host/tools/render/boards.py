@@ -61,13 +61,9 @@ BUS_INKS, EYE_M = ((150, 44, 40), (38, 38, 42), (118, 120, 128), (64, 124, 76)),
 def found(root=None):
     """The board's OBJ: COAXIAL_BOARDS's, else under boards/ beside the repo `root` (the tree's unless told) or the
     checkout a worktree of it stands in, BESIDE folders up at the most; None with none."""
+    from coaxial.graphics import wavefront
     said = os.environ.get('COAXIAL_BOARDS')
-    folders = [said] if said is not None else []
-    if said is None:
-        beside = root or os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-        for _ in range(BESIDE):
-            beside = os.path.dirname(beside)
-            folders.append(os.path.join(beside, 'boards'))
+    folders = [said] if said is not None else [os.path.join(b, 'boards') for b in wavefront.roots(root, BESIDE)]
     return next((got[0] for got in (sorted(glob.glob(os.path.join(f, '*63100*.obj'))) for f in folders) if got), None)
 
 

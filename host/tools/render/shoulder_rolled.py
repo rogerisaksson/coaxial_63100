@@ -225,7 +225,7 @@ def parts():
     board = (em._drum(r, -bottom, -top, em.BOARD) + em._drum(r + GUARD_M, -bottom - GUARD_M, -bottom, em.FRAME)
              + cl.turned([(-bottom - GUARD_M, r + 0.0005, r + GUARD_M), (-top + 0.001, r + 0.0005, r + GUARD_M)], None))
     x0, x1 = _hood_x()
-    post = _box((x0 + 0.002, x1 - 0.002), (-top + 0.001, -sl.laid()['band'][2] + 0.001), (-0.008, 0.008), em.FRAME)
+    post = _box((x0 + 0.002, x1 - 0.002), (-top, -sl.laid()['band'][2] + 0.001), (-0.008, 0.008), em.FRAME)
     bush = _along(em._drum(lay['pin'] + BUSH_M, lay['boss'][0], lay['boss'][1], em.PLATE), 'z')
     from tools.render import shoulder_shaped as ss       # the hood as its loads shaped it, once it carries them
     hood = ss.drawn()

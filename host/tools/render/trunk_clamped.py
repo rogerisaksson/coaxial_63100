@@ -59,8 +59,8 @@ BLOCK_M, PIN_R, PIN_X = 0.017, 0.008, 0.033
 #: outside it, as wide as the yaw drives leave, its top - a 45 deg chamfer out from the plate - under where the
 #: cage comes leant: the plate's depth where the notch takes it, and down the notch's sides where they cut the
 #: plate lower, so that in print no edge of it hangs off the plate; m.
-ARM_X, ARM_M, EYE_R, TOP_Y, LOW_Y, CHAMFER_M, NOTCH_M = 0.021, 0.010, 0.013, 0.013, -0.091, 0.0065, 0.030
-BASE_X, BASE_Z, BASE_Y, BAR_Y, SKIRT_Y = 0.037, (-0.040, 0.012), -0.044, -0.048, 0.003
+ARM_X, ARM_M, EYE_R, TOP_Y, LOW_Y, CHAMFER_M, NOTCH_M = 0.021, 0.0145, 0.013, 0.013, -0.091, 0.0080, 0.030
+BASE_X, BASE_Z, BASE_Y, BAR_Y, SKIRT_Y = 0.037, (-0.040, 0.012), -0.044, -0.048, 0.0045
 #: The seat's thickness over the cage's top under the spine's tube's foot; the cage's floor - flat under the
 #: inverters, its wall and its air over them: the round cage dips onto the pelvis's eyes leant 35 deg and bowed
 #: back, and the hubs 6 mm higher would cost a tenth of the pair's least share; m.
@@ -133,7 +133,9 @@ def _stood():
         start = min(math.asin(min(top / EYE_R, 1.0)), 0.25 * math.pi)  # the eye's round where it falls past 45 deg
         arc = [(EYE_R * math.sin(a), EYE_R * math.cos(a)) for a in np.linspace(start, -0.5 * math.pi, 13)]
         return np.array(([(top, tip - top)] if top > arc[0][0] + 1e-9 else []) + arc + [
-            (BASE_Y, BASE_Z[1]), (LOW_Y, back), (top, back), (top, mid - (top - dip)), (dip, mid), (top, mid + (top - dip))])
+            (BASE_Y, BASE_Z[1]), (LOW_Y, back), (top, back), (top, mid - (top - dip)), (dip, mid),
+            (top, mid + (top - dip))])
+
     def skirt(top):                                      # a skirt's (x, y) corners, its top at the plate `top`
         return [(ARM_X + ARM_M, LOW_Y), (BASE_X, LOW_Y), (BASE_X, top - (BASE_X - ARM_X - ARM_M)), (ARM_X + ARM_M, top)]
     cut, edge = TOP_Y - CHAMFER_M, ARM_X + ARM_M - CHAMFER_M
@@ -144,15 +146,17 @@ def _stood():
     knee = boss[1] - (TOP_Y - ball[1] - PIN_EYE)                     # the bar's top falls 45 deg to each boss
     bar = [(-boss[1], BAR_Y), (boss[1], BAR_Y), (boss[1], ball[1] + PIN_EYE), (knee, TOP_Y), (-knee, TOP_Y),
            (-boss[1], ball[1] + PIN_EYE)]
+    za, zb = mid - (SKIRT_Y - dip), mid + (SKIRT_Y - dip)
     side = (hf._slab(outline(TOP_Y), ARM_X, edge, em.FRAME, rounded=False)
             + hf._slab(outline(cut), edge, ARM_X + ARM_M, em.FRAME, rounded=False)
             + _hulled([(x, y, back) for x, y in tri] + [(x, y, mid - (y - dip)) for x, y in tri], em.FRAME)
             + _hulled([(x, y, mid + (y - dip)) for x, y in tri] + ahead, em.FRAME)
-            + [t for z0, z1 in ((back, mid - (SKIRT_Y - dip)), (mid + (SKIRT_Y - dip), BASE_Z[1]))
+            + [t for z0, z1 in ((back, za), (zb, BASE_Z[1]))
                for t in hf._slab(np.array(skirt(SKIRT_Y)), z0, z1, em.FRAME, 2, False)]
-            + [t for z0, z1, t0, t1 in ((mid - (SKIRT_Y - dip), mid, SKIRT_Y, dip), (mid, mid + (SKIRT_Y - dip), dip, SKIRT_Y))
+            + [t for z0, z1, t0, t1 in ((za, mid, SKIRT_Y, dip), (mid, zb, dip, SKIRT_Y))
                for t in _hulled([(x, y, z0) for x, y in skirt(t0)] + [(x, y, z1) for x, y in skirt(t1)], em.FRAME)])
-    roof = [(-BASE_X, high), (BASE_X, high), (BASE_X, BASE_Y - (BASE_X - ARM_X - ARM_M)), (ARM_X + ARM_M, BASE_Y),
+    roof_y = min(high, -0.0455)
+    roof = [(-BASE_X, roof_y), (BASE_X, roof_y), (BASE_X, BASE_Y - (BASE_X - ARM_X - ARM_M)), (ARM_X + ARM_M, BASE_Y),
             (ARM_X, BASE_Y), (0.0, BASE_Y - ARM_X), (-ARM_X, BASE_Y), (-ARM_X - ARM_M, BASE_Y),
             (-BASE_X, BASE_Y - (BASE_X - ARM_X - ARM_M))]
     pin = m._cylinder_x(tr.PIN_R[0], boss[0], ball[0] + tr.COLLAR_X + 0.003, em.CARBON, at=(ball[1], ball[2]))
@@ -179,7 +183,7 @@ def _chest():
         over = can + 1e-3 * ks.band(ks.torque('left_ankle'), 1e3 * can, 1e3 * (m1 - m0 - 0.004))
         rim, end = (c1, m1 - 0.002) if side == 'left' else (c0, m0 + 0.002)
         cone = rim + math.copysign(outside - over, end)
-        bands[side] = _moved(cl.turned(sorted([(rim, can, outside), (cone, can, over), (end, can, over)]), math.pi), at)
+        bands[side] = _moved(cl.turned(sorted([(rim, can, outside), (cone, can, over), (end, can, over)]), em.SLIT), at)
     floor = tl.HUB[1] - stacks['left']['board'][2] - sum(FLOOR_M)            # the floor's under face, its height
     half = math.acos((tl.HUB[1] - floor) / outside)                          # the bearing its edges stand at
     chord = outside * math.sin(half)

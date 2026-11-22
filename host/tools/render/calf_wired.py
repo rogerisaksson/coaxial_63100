@@ -15,16 +15,20 @@ from tools.render import tees
 
 #: How the calf's two boards lie turned about their axis, rad: half a turn apart.
 TURNS = {'pitch': 0.0, 'roll': math.pi}
-#: The branch's pipe's radius along the cage, m.
-BRANCH_R = 0.003
+#: The branch's pipe's radius along the cage, and a phase slot's width across its lug (1 mm air a side), m.
+BRANCH_R, SLOT_M = 0.003, 0.007
 
 
-def windows():
-    """((from, to) at the roll drive's end of the cage, at the pitch drive's), rad about the calf's axis from +y
-    toward +z: where each board's phase lugs and leads pass the cage's wall (`boards.window`); None with no
-    model."""
-    wide = [boards.window(TURNS[which]) for which in ('roll', 'pitch')]
-    return tuple(w and ((w[0] - w[1]) % (2.0 * math.pi), (w[0] + w[1]) % (2.0 * math.pi)) for w in wide)
+def slots(lay):
+    """[(bearing, x0, x1, width)] of the six phase slots in the calf's cage (`knee_clamped.laid`), rad about the
+    calf's axis from +y toward +z and m: each board's three from its inner face out to its motor's end of the cage;
+    () with no model."""
+    c0, c1 = lay['cage'][:2]
+    out = []
+    for which, span in (('roll', (c0, lay['roll'][0]['board'][1])), ('pitch', (lay['pitch'][0]['board'][0], c1))):
+        out += [((TURNS[which] + math.atan2(z, y)) % (2.0 * math.pi), span[0], span[1], SLOT_M)
+                for y, z, _top in boards.screws()[0]]
+    return tuple(out)
 
 
 def leads(lay, spot):

@@ -207,12 +207,16 @@ def held():
         out[name + ' band screws'] = sized.held(sized.leant(ld['swing'], math.hypot(ld['lateral'], ld['torsion']),
                                                             1e3 * drum, long_), 1e3 * drum)
     out['crossbar band screws'] = sized.held(sz['asked'], sl.sizes()['bar'][0])
-    thin = 1e3 * (lay['under'] - lay['bar'][2]) - kl.BOND
+    apart = math.hypot(lay['neck'][0] - lay['bar'][0], lay['neck'][1] - lay['bar'][1])
+    thin = min(1e3 * (lay['under'] - lay['bar'][2]), 1e3 * (apart - lay['band'][2] - 0.0003 - lay['bar'][2])) - kl.BOND
     out['crossbar band'] = sized.hooped(sz['asked'], sl.sizes()['bar'][0], 2e3 * lay['side'], thin)
     wide = 1e3 * (lay['band'][1] - lay['band'][0])
-    apart, ra, rb = math.hypot(lay['neck'][0] - lay['bar'][0], lay['neck'][1] - lay['bar'][1]), lay['bore'], lay['band'][2]
+    ra, rb = lay['bore'], lay['band'][2]
     lens = 2e3 * math.sqrt(max(0.0, ra * ra - ((apart * apart + ra * ra - rb * rb) / (2.0 * apart)) ** 2))
-    out['block web'] = lens / sized.neck(wide, 'neck')   # the two bands lap: as wide as their lens, across the neck
+    out['block web'] = lens / sized.neck(wide, 'neck')   # the cradle's width across the neck, bolted by 4xM5
+    pull_b = (neck['lateral'] + head['torsion']) / (2.0 * (wide - 7.0)) + max(neck['swing'], head['lateral']) / 76.0 + head['axial'] / 4.0
+    out['block screws'] = m5 / (0.8 * pull_b)
+    out['crown screws'] = m5 / (0.8 * (head['lateral'] + head['torsion']) / 26.0)
     tube = sized.tube(math.hypot(spine['swing'], spine['lateral']), spine['torsion'], spine['axial'],
                       1e3 * lay['seat'][2])
     out['spine tube'] = carbon / tube[2]
