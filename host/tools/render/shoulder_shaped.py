@@ -1,21 +1,19 @@
-"""The abduction's hood shaped by its loads, printable: material only where they ask it.
+"""The abduction's cradle shaped by its loads: folded under and inboard, no arch over the shoulder.
 
     COAXIAL_ROBOT=gynoid_mesomorph_medium_coax python -X utf8 tools/render/shoulder_shaped.py [OUT.png]
 
-The hood `shoulder_rolled` draws is a prism; here the optimiser (`topo`) is given all the hood may fill (`_room`):
-from the pitch's guard's outer face to the foot of the housing's cone, from the band round the abduction's drive up
-to the roof, from the pin's boss back to the motor's end - less what turns by the hood as the arm is raised (the
-yoke's plates and the stop's rib swept through the travel, the drive's output ring, AIR_M off), what turns with
-it but is another part (the pitch's housing, guard, lid and drive, the drive's housing and motor, the bush, the
-stops' horns, the bus's hose), and with the boss round the bush, the band round the drive and the foot that sits on
-the pitch's housing kept - held there. The hood's loads at the margin (`shoulder_rolled.carried`), a case each: the
-drive's own torque on the band; the yoke's two supports' pushes - the arm's twist and swing as couples across them,
-half its pull each - on the boss and on the band. Printed up the abduction's axis from the boss's front face: the
-bush's bore, the boss and the band rings round it, each stands on itself. A prism along the pitch's axis - the
-columns its room frees all through, extruded - has 756 g of room that carries x0.74 all solid (`topo.whole`), the
-room grown along the abduction's axis 1041 g that carries x1.89: the hood grows. `shaped` runs the case once
-(.cache/topo keeps it); `drawn` gives the solid's faces in the sketch's frame - None until it is shaped, or where
-it does not carry its loads or lost a voxel told to stay: the hood then stays as drawn.
+The cradle `shoulder_rolled` draws sits under and inboard of the pitch's housing; here the optimiser (`topo`) is given
+all the cradle may fill (`_room`): from the inboard spine beside the torso's side out under the housing's band and cone,
+from the pin's boss ahead back to the abduction motor's end - less what turns by the cradle as the arm is raised (the
+yoke's plates and the stop's rib swept through the travel, the drive's output ring, AIR_M off), what turns with the
+pitch or stands on the torso (the pitch's housing, guard, lid, drive, leads, coil stem and torso block, the abduction's
+housing, motor and board guard, the bush, the stops' horns, the bus's hose), and with the boss round the bush, the band
+round the drive and the seat on the pitch's housing kept - held there. The cradle's loads at the margin
+(`shoulder_rolled.carried`), a case each: the drive's own torque on the band; the yoke's two supports' pushes - the
+arm's twist and swing as couples across them, half its pull each - on the boss and on the band. Printed from its flat
+inboard spine out along -x (`up > 0`). `shaped` runs the case once (.cache/topo keeps it); `drawn` gives the solid's
+smooth surface (`topo.faced`) in the sketch's frame - None until shaped, or where a solid does not carry or lost a
+voxel told to stay: the cradle then stays as drawn.
 """
 import functools
 import math
@@ -27,21 +25,21 @@ if __package__ in (None, ''):
 
 from tools.render import elbow_mount as em  # noqa: E402
 from tools.render import knee_mount as km  # noqa: E402
-from tools.render import shoulder_laid as sl  # noqa: E402
 from tools.render import shoulder_rolled as sr  # noqa: E402
 from tools.render import topo  # noqa: E402
 
-#: The voxel, mm; the share of what is the optimiser's to shape that the hood may keep; the way it grows off its
-#: bed along the abduction's axis (+1 from the boss's front face, -1 from the motor's end); how far past the bush's
-#: wall the boss is kept, mm; the step the yoke is swept through its travel at, deg, and the grid it is drawn on, m.
-H_MM, SHARE, UP, ROUND_MM, STEP, FINE_M = 3.0, 0.55, 1.0, 3.0, 1.0, 0.0005
+#: The voxel, mm; the share of what is the optimiser's to shape that the cradle may keep; the way it grows off its
+#: bed (+1 from its inboard spine out along -x, -1 along -z); how far past the bush's and band's walls seats stay, mm;
+#: the step the yoke is swept through its travel at, deg, and the grid it is drawn on, m.
+H_MM, SHARE, UP, ROUND_MM, STEP, FINE_M = 3.0, 0.60, 1.0, 3.0, 1.0, 0.0005
 
 
 def _axes(up):
-    """(3, 3): the bed's rows across, up and deep in the sketch's frame - y, the abduction's axis `up` its way, and
-    the third that keeps them a turn."""
+    """(3, 3): the bed's rows across, up and deep in the sketch's frame - for `up > 0`, grown along -x off the inboard
+    spine `(y, -x, z)`; for `up < 0`, grown along -z `(y, -z, -x)`."""
     import numpy as np
-    return np.array([(0.0, 1.0, 0.0), (0.0, 0.0, up), (up, 0.0, 0.0)])
+    return np.array([(0.0, 1.0, 0.0), (-1.0, 0.0, 0.0), (0.0, 0.0, 1.0)] if up > 0
+                    else [(0.0, 1.0, 0.0), (0.0, 0.0, -1.0), (-1.0, 0.0, 0.0)])
 
 
 def _bed(v, up):
@@ -49,7 +47,7 @@ def _bed(v, up):
     sign, and a case's content its name (`topo._digest`)."""
     import numpy as np
     v = np.asarray(v, float)
-    return np.array([v[1], up * v[2], up * v[0]]) if up < 0 else np.roll(v, -1)
+    return np.array([v[1], -v[0], v[2]]) if up > 0 else np.array([v[1], -v[2], -v[0]])
 
 
 def _swept(outline, x, y):
@@ -77,41 +75,47 @@ def _swept(outline, x, y):
 
 @functools.lru_cache(maxsize=None)
 def _room(up=UP):
-    """(room, kept, held [across, up, deep], the boss's and the band's voxels, the bed's corner mm): the hood's
-    voxels inside a rounded deltoid dome, its bed's rows (`_axes`) across along y, up along `up`, deep along x."""
+    """(room, kept, held [across, up, deep], the boss's and the band's voxels, the bed's corner mm): the cradle's
+    voxels folded under and inboard of the pitch's housing, with no arch over the shoulder's top."""
     import numpy as np
+    from scipy import ndimage
     from scipy.spatial import KDTree
     from tools.render import shoulder_hosed as sh, shoulder_mount as sm, tees
-    lay, pitch, st, h, air = sr.laid(), sl.laid(), sr.stack(), 1e-3 * H_MM, sr.AIR_M
-    roof_m = lay['inside'] + 0.012
-    xs = np.arange(-lay['band'] - 0.5 * h, pitch['cant'] - 0.5 * h, h) + 0.5 * h
-    ys = np.arange(-lay['band'] - h, roof_m - 0.5 * h, h) + 0.5 * h
+    lay, st, h, air = sr.laid(), sr.stack(), 1e-3 * H_MM, sr.AIR_M
+    xs = np.arange(0.066, -lay['band'] - 0.5 * h, -h) - 0.5 * h
+    ys = np.arange(-0.062, lay['band'] + 0.5 * h, h) + 0.5 * h
     zs = np.arange(lay['boss'][0], lay['motor'][1] - 0.5 * h, h) + 0.5 * h
-    xs, zs = (xs, zs) if up > 0 else (xs[::-1], zs[::-1])
-    y, z, x = np.meshgrid(ys, zs, xs, indexing='ij')
+    if up > 0:
+        y, x, z = np.meshgrid(ys, xs, zs, indexing='ij')
+    else:
+        zs = zs[::-1]
+        y, z, x = np.meshgrid(ys, zs, xs, indexing='ij')
     r_x, r_z, edge = np.hypot(y, z), np.hypot(x, y), air + 0.9 * h
-    b0, m1 = lay['boss'][0], lay['motor'][1]
-    y_cap = np.minimum(roof_m, np.minimum(0.036 + 1.0 * (z - b0), 0.043 + 0.78 * (m1 - z)))
-    lat = ((np.maximum(-x - 0.004, 0.0) / 0.037) ** 2
-           + (np.maximum(y - 0.012, 0.0) / np.maximum(y_cap - 0.012, 0.015)) ** 2 > 1.0)
-    med = ((np.maximum(x - 0.040, 0.0) / 0.018) ** 2
-           + (np.maximum(y - 0.020, 0.0) / np.maximum(y_cap - 0.020, 0.015)) ** 2 > 1.0)
-    dome = lat | med | (np.abs(x - 0.006) > np.minimum(0.052, 0.024 + 0.95 * (z - b0))) | (y > y_cap)
-    pts = km._points([t for n in ('housing', 'guard', 'lid', 'drive', 'leads') for t in sm.turning()[n]], 0.0015)
-    reach = np.array([np.hypot(*pts[np.abs(pts[:, 0] - a) <= 0.5 * h + air][:, 1:].T).max(initial=0.0)
-                      for a in xs])[None, None, :]
-    foot = (x >= sr._hood_x()[0]) & (np.abs(z) <= sr.FOOT_M)                       # on the pitch's housing
-    out = dome | (r_x < reach + np.where(x >= sr._hood_x()[0], np.clip(np.abs(z) - sr.FOOT_M, 0.0, edge), edge))
+    pts = km._points([t for n in ('housing', 'guard', 'lid', 'drive', 'leads', 'coil stem')
+                      for t in sm.turning()[n]], 0.0015)
+    still = km._points([t for k, v in sm.still().items() if k != 'output ring' for t in v], 0.002)
+    rm = np.array([np.hypot(*pts[np.abs(pts[:, 0] - a) <= 0.5 * h + air][:, 1:].T).max(initial=0.0) for a in xs])
+    st_r = np.array([np.hypot(*still[np.abs(still[:, 0] - a) <= 0.5 * h + air][:, 1:].T).max(initial=0.0) for a in xs])
+    reach = np.maximum(rm, st_r)[(None, slice(None), None) if up > 0 else (None, None, slice(None))]
+    foot = (x >= -0.006) & (x <= 0.056) & (np.abs(z) <= 0.052) & (y <= 0.030) & ((x >= 0.012) | (y <= -0.010))
+    cap = np.clip(0.015 + 0.24 * np.maximum(x, 0.0), 0.015, 0.030)
+    y_top = np.where(z >= lay['house'][0] - 0.010,
+                     np.maximum(0.030, np.sqrt(np.maximum((lay['band'] + 0.004) ** 2 - x ** 2, 0.0))), cap)
+    env = ((y > y_top) | (y < -0.060)
+           | ((z < lay['house'][0] - 0.010) & (x < -0.016) & (r_z > lay['pin'] + sr.BUSH_M + sr.BOSS_WALL + 0.005)))
+    out = env | (r_x < reach + np.where(foot, 0.0, edge))
     bot_c = -lay['drop'] - 0.5 * lay['saddle'] + 0.5 * sr.WIDE_M
     hull = np.r_[[(sr.HUB_M * math.cos(a), sr.HUB_M * math.sin(a)) for a in np.linspace(0.0, 2.0 * math.pi, 49)[:-1]],
-                 [(0.5 * sr.WIDE_M * math.cos(a), bot_c + 0.5 * sr.WIDE_M * np.sin(a))
+                 [(0.5 * sr.WIDE_M * math.cos(a), bot_c + 0.5 * sr.WIDE_M * math.sin(a))
                   for a in np.linspace(math.pi, 2.0 * math.pi, 25)]]
     plates, (p0, p1) = _swept(hull, x, y) < edge, lay['plate']
     out |= plates & ((np.abs(np.abs(z) - 0.5 * (p0 + p1)) <= 0.5 * (p1 - p0) + edge))
     rib = [(-0.5 * sr.HORN_M, -lay['rib'] - sr.HORN_M), (0.5 * sr.HORN_M, -lay['rib'] - sr.HORN_M),
            (0.5 * sr.HORN_M, -lay['rib']), (-0.5 * sr.HORN_M, -lay['rib'])]
     out |= (_swept(rib, x, y) < edge) & (z >= p1 - edge) & (z <= p1 + sr.LAP_M + edge)
-    (r0, r1), (h0, h1), (m0, m1) = lay['ring'], lay['house'], lay['motor']
+    out |= (np.hypot(x, z) < st['board'][0] + sr.GUARD_M + edge) & (y <= -lay['board'][0] + edge)
+    out |= (np.hypot(x + 0.0262, z) < 0.010) & (y < -0.045)
+    (r0, r1), (h0, h1), (_m0, m1) = lay['ring'], lay['house'], lay['motor']
     bore = np.where(z < h1, st['gear'][0], st['motor'][0])
     out |= (r_z < st['gear'][0] + edge) & (z >= r0 - edge) & (z < r1) | (r_z < bore) & (z >= r1)
     for deg, way in ((sr.TRAVEL[0], -1.0), (sr.TRAVEL[1], 1.0)):        # the stops' horns, as `shoulder_rolled`
@@ -124,17 +128,18 @@ def _room(up=UP):
     line = sh.laid()['up']
     out |= KDTree(line).query(np.c_[x.ravel(), y.ravel(), z.ravel()])[0].reshape(x.shape) < tees.HOSE_R + edge
     room = topo.stood((~out).transpose(1, 0, 2)).transpose(1, 0, 2)
-    boss = room & (r_z <= hole + sr.BOSS_WALL + 1e-3 * ROUND_MM) & (z <= b1)
-    band = room & (r_z <= lay['band']) & (z >= h0) & (z <= m1)
+    boss = room & (r_z <= hole + sr.BOSS_WALL + 0.004) & (z <= b1)
+    band = room & (r_z <= lay['band'] + 1e-3 * ROUND_MM) & (z >= h0) & (z <= m1)
     held = room & foot & (r_x < reach + 1.5 * h)
+    seat = room & np.asarray(ndimage.binary_dilation(held), bool)
     corner = 1e3 * _bed((xs[0], ys[0], zs[0]), up) - 0.5 * H_MM
-    return room, held | boss | band, held, boss, band, corner
+    return room, seat | boss | band, held, boss, band, corner
 
 
 @functools.lru_cache(maxsize=None)
 def case(share=SHARE, up=UP):
-    """The hood's case for `topo` - its room, what must stay, what holds it, its loads, in its bed's frame, mm -
-    keeping `share` of what is the optimiser's, grown `up` along the abduction's axis."""
+    """The cradle's case for `topo` - its room, what must stay, what holds it, its loads, in its bed's frame, mm -
+    keeping `share` of what is the optimiser's, grown `up`."""
     room, kept, held, boss, band, corner = _room(up)
     lay = sr.laid()
     ld, own, _push, _twist = sr.carried()
@@ -152,13 +157,13 @@ def case(share=SHARE, up=UP):
 
 
 def shaped(log=None, share=SHARE, up=UP):
-    """The hood shaped (`topo.shaped`): run once, then from .cache/topo."""
+    """The cradle shaped (`topo.shaped`): run once, then from .cache/topo."""
     return topo.shaped(case(share, up), log)
 
 
 @functools.lru_cache(maxsize=None)
 def drawn(share=SHARE, up=UP):
-    """[(tri, colour)] of the shaped hood's faces, the sketch's frame, m - None where it is not shaped yet, or its
+    """[(tri, colour)] of the shaped cradle's faces, the sketch's frame, m - None where not shaped yet, or where a
     solid does not carry its loads or lost a voxel told to stay."""
     if not topo.ready(case(share, up)):
         return None
@@ -170,7 +175,7 @@ def drawn(share=SHARE, up=UP):
 
 def told(log=None, share=SHARE, up=UP):
     """{'room', 'grams': g before and after, 'margin', 'level', 'lost': kept voxels that hung, 'hung': voxels of the
-    solid with none of the nine under them} of the hood shaped."""
+    solid with none of the nine under them} of the cradle shaped."""
     got = shaped(log, share, up)
     layers = got['solid'].transpose(1, 0, 2)
     return {'room': round(float(got['room']), 1), 'grams': round(float(got['grams']), 1),
@@ -190,7 +195,7 @@ def main(argv=None):
         for i, (roll, yaw, tilt) in enumerate(views):
             tris = [t for part in sm.posed(0.0, roll).values() for t in part]
             sheet.paste(m.draw(tris, yaw=yaw, pitch=tilt, px=760, half=0.14, centre=(0.0, -0.04, 0.0)), (760 * i, 40))
-        ImageDraw.Draw(sheet).text((12, 10), "the abduction's hood shaped: %(grams).0f g, margin x%(margin).2f" % got,
+        ImageDraw.Draw(sheet).text((12, 10), "the abduction's cradle shaped: %(grams).0f g, margin x%(margin).2f" % got,
                                    fill=(235, 235, 235))
         sheet.save(out[0])
         print(out[0])

@@ -177,6 +177,74 @@ def faces(points, cells):
     return points.T[np.concatenate([outer[:, [0, 1, 2]], outer[:, [0, 2, 3]]])]
 
 
+def surfaced(solid, kept, h, fine=2, sigma=1.15, rounds=6):
+    """(n, 3, 3) mm: a closed 2-manifold surface net on a tricubic signed distance field of `solid`, relaxed
+    tangentially and projected onto the zero level set, the bed flat at y = 0 and `kept` seats held."""
+    import numpy as np
+    from scipy import ndimage
+    h = float(h)
+    if not solid.any():
+        return np.zeros((0, 3, 3))
+    step = h / fine
+    s_ext = np.pad(solid, ((2, 2), (0, 2), (2, 2)), constant_values=False)
+    s_ext = np.concatenate([np.repeat(s_ext[:, :1, :], 2, axis=1), s_ext], axis=1)
+    k_ext = np.pad(kept, ((2, 2), (0, 2), (2, 2)), constant_values=False)
+    k_ext = np.concatenate([np.repeat(k_ext[:, :1, :], 2, axis=1), k_ext], axis=1)
+    edt_in = np.asarray(ndimage.distance_transform_edt(s_ext), float) - 0.5
+    edt_out = np.asarray(ndimage.distance_transform_edt(~s_ext), float) - 0.5
+    d = np.where(k_ext, np.maximum(np.where(s_ext, edt_in, -edt_out), 0.45), np.where(s_ext, edt_in, -edt_out))
+    phi = np.asarray(ndimage.zoom(ndimage.gaussian_filter(d, sigma), fine, order=3), float) * h
+    phi = np.minimum(phi, (((np.arange(int(phi.shape[1])) + 0.5) / fine - 2.0) * h)[None, :, None])
+    ins = phi > 0.0
+    e0, e1, e2 = ins[:-1] != ins[1:], ins[:, :-1] != ins[:, 1:], ins[:, :, :-1] != ins[:, :, 1:]
+    cell = np.zeros(np.array(phi.shape) - 1, bool)
+    for a in (0, 1):
+        for b in (0, 1):
+            cell |= e0[:, a:cell.shape[1] + a, b:cell.shape[2] + b]
+            cell |= e1[a:cell.shape[0] + a, :, b:cell.shape[2] + b]
+            cell |= e2[a:cell.shape[0] + a, b:cell.shape[1] + b, :]
+    cid, ijk = -np.ones(cell.shape, int), np.argwhere(cell)
+    if not len(ijk):
+        return np.zeros((0, 3, 3))
+    cid[cell] = np.arange(len(ijk))
+    p, parts = (ijk.astype(float) + 1.0) * step - 2.0 * h, []
+    for axis, mask in ((0, e0[:, 1:-1, 1:-1]), (1, e1[1:-1, :, 1:-1]), (2, e2[1:-1, 1:-1, :])):
+        ii, jj, kk = np.nonzero(mask)
+        if axis == 0:
+            jj, kk = jj + 1, kk + 1
+            q = np.c_[cid[ii, jj - 1, kk - 1], cid[ii, jj, kk - 1], cid[ii, jj, kk], cid[ii, jj - 1, kk]]
+        elif axis == 1:
+            ii, kk = ii + 1, kk + 1
+            q = np.c_[cid[ii - 1, jj, kk - 1], cid[ii - 1, jj, kk], cid[ii, jj, kk], cid[ii, jj, kk - 1]]
+        else:
+            ii, jj = ii + 1, jj + 1
+            q = np.c_[cid[ii - 1, jj - 1, kk], cid[ii, jj - 1, kk], cid[ii, jj, kk], cid[ii - 1, jj, kk]]
+        flip = ins[ii, jj, kk][:, None]
+        parts += [np.where(flip, q[:, [0, 1, 2]], q[:, [0, 2, 1]]), np.where(flip, q[:, [0, 2, 3]], q[:, [0, 3, 2]])]
+    tris = np.vstack(parts)
+    edges = np.vstack([tris[:, [0, 1]], tris[:, [1, 2]], tris[:, [2, 0]],
+                       tris[:, [1, 0]], tris[:, [2, 1]], tris[:, [0, 2]]])
+    deg = np.maximum(np.bincount(edges[:, 0], minlength=len(p)).astype(float)[:, None], 1.0)
+    for _ in range(rounds):
+        bed = p[:, 1] <= 0.15 * step
+        g = (p + 2.0 * h) / step - 0.5
+        grad = np.column_stack([ndimage.map_coordinates(phi, (g + 0.5 * np.eye(3)[k]).T, order=1, mode='nearest')
+                                - ndimage.map_coordinates(phi, (g - 0.5 * np.eye(3)[k]).T, order=1, mode='nearest')
+                                for k in range(3)]) / step
+        n2 = np.sum(grad * grad, axis=1, keepdims=True) + 1e-8
+        acc = np.zeros_like(p)
+        np.add.at(acc, edges[:, 0], p[edges[:, 1]])
+        lap = acc / deg - p
+        tang = lap - (np.sum(lap * grad, axis=1, keepdims=True) / n2) * grad
+        p = p + np.where(bed[:, None], 0.35 * np.c_[lap[:, 0], np.zeros(len(p)), lap[:, 2]], 0.45 * tang)
+        g = (p + 2.0 * h) / step - 0.5
+        val = ndimage.map_coordinates(phi, g.T, order=1, mode='nearest')
+        dp = np.clip(val[:, None] / n2, -0.5 * step, 0.5 * step) * grad
+        p = p - np.where(bed[:, None], np.c_[dp[:, 0], np.zeros(len(p)), dp[:, 2]], dp)
+        p[:, 1] = np.where(bed, 0.0, np.maximum(p[:, 1], 0.0))
+    return p[tris]
+
+
 def stl(path, mesh, solid):
     """The solid voxels' outer faces as a binary STL, mm."""
     import numpy as np

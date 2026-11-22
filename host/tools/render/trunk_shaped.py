@@ -119,7 +119,7 @@ def drawn(name):
     got = topo.shaped(case)
     if got['margin'] < 1.0 or got['lost']:
         return None
-    return [(1e-3 * (tri + corner) @ turn, em.FRAME) for tri in kt.faces(got['points'], got['cells'])]
+    return [(1e-3 * (tri + corner) @ turn, em.FRAME) for tri in topo.faced(got, case)]
 
 
 def posed(roll=0.0, pitch=0.0):

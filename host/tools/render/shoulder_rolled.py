@@ -201,17 +201,18 @@ def _saddle():
 
 
 def _hood():
-    """The printed hood on the pitch's housing: a foot on the band, an arch over the guard, its front leg down round
-    the pin's bush, its back down to the band round the drive; a prism along x, printed on its side."""
+    """The printed cradle under and inboard of the pitch's housing: a foot under the band, an inverted U-spine past the
+    housing on the torso side, its front arm in to the pin's bush, its rear arm in to the drive's band."""
     lay = laid()
-    x0, x1 = _hood_x()
-    (b0, b1), low = lay['boss'], -(lay['pin'] + BUSH_M + BOSS_WALL)
-    outline = [(low, b0), (lay['roof'], b0), (lay['roof'], lay['motor'][1]), (lay['band'] - 0.004, lay['motor'][1]),
-               (lay['band'] - 0.004, lay['house'][0]), (lay['inside'], lay['house'][0]), (lay['inside'], b1),
-               (low, b1)]
-    shell = foot._slab(cl.filleted(outline, r=0.002), x0 - PAST_M, x1 + PAST_M, em.FRAME)
-    return shell + _box((x0 + 0.002, x1 - 0.002), (sl.laid()['band'][2] - 0.001, lay['inside'] + 0.001),
-                        (-FOOT_M, FOOT_M), em.FRAME)
+    x0, _x1 = _hood_x()
+    (b0, b1), (h0, _h1), m1 = lay['boss'], lay['house'], lay['motor'][1]
+    outline = [(-0.014, b0), (0.018, b0), (0.018, -0.050), (-0.048, -0.036), (-0.048, 0.036), (0.020, 0.050),
+               (0.020, m1), (-0.022, m1), (-0.022, 0.054), (-0.057, 0.040), (-0.057, -0.040), (-0.014, -0.054)]
+    spine = foot._slab(cl.filleted(outline, r=0.003), 0.040, 0.050, em.FRAME)
+    front = _box((-0.012, 0.050), (-0.012, 0.012), (b0, b1), em.FRAME, r=0.003)
+    back = _box((0.0, 0.050), (-0.020, 0.020), (h0 + 0.002, m1 - 0.002), em.FRAME, r=0.003)
+    base = _box((x0 + 0.002, 0.048), (-0.057, -sl.laid()['band'][2] + 0.001), (-0.022, 0.022), em.FRAME)
+    return spine + front + back + base
 
 
 @functools.lru_cache(maxsize=None)
