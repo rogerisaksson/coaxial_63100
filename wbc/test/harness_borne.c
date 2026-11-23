@@ -1,7 +1,9 @@
-/** harness_borne.c - A flat C API over wbc_borne.c and wbc_hull.c for tools.cores.borne, through ctypes: what bears
-    the robot off its soles, its seat's cone, its supports, its lean and its support's hull. */
+/** harness_borne.c - A flat C API over wbc_borne.c, wbc_hull.c and wbc_upright.c for tools.cores.borne, through
+    ctypes: what bears the robot off its soles, its seat's cone, its supports, its lean, its support's hull and
+    control's weighing on them. */
 #include "wbc_borne.h"
 #include "wbc_hull.h"
+#include "wbc_upright.h"
 
 #ifdef _WIN32
 #define API __declspec(dllexport)
@@ -44,4 +46,16 @@ API int wbh_borne_leaned(const wbc_borne_t *b, const double *way, const double *
 API int wbh_hull(const double *pts, int n, double *ring)
 {
   return wbc_hull(pts, n, ring);
+}
+
+API int wbh_upright_size(void)
+{
+  return (int)sizeof(wbc_upright_t);
+}
+
+API void wbh_upright(const wbc_upright_t *u, const wbc_borne_t *b, const double *st, const double *out, const double *a,
+                     const double *rest, const double *told, const double *tab, int rows, double load0, double load1,
+                     double weight, double reclined, double sw, double w_hop, double *got)
+{
+  wbc_upright(u, b, st, out, a, rest, told, tab, rows, load0, load1, weight, reclined, sw, w_hop, got);
 }

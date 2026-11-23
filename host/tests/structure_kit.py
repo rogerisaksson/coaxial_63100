@@ -26,7 +26,8 @@ NUMPY_AT_IMPORT = tuple(os.path.join('machine', *m.split('/')) + '.py' for m in 
     'senses/inekf texts/lowering law/schema stack/shrunk body/capsules eyes/registry eyes/classes law/somatic body/bemf '
     'law/brace way/affordance eyes/voxels way/obstacles moves/fours body/bends stack/pressed world/groundwork '
     'world/substrate moves/crawl moves/bedside moves/emancipation moves/cascade moves/seated moves/anatomy moves/bedexit '
-    'moves/scoot moves/sensed law/surety eyes/stacked senses/momentum eyes/wholes libm libm_twin stack/clipped stack/within law/posed').split())
+    'moves/scoot moves/sensed law/surety eyes/stacked senses/momentum eyes/wholes libm libm_twin stack/clipped stack/within law/posed '
+    'law/upright').split())
 
 
 SCRIPTS = ('tools', 'examples')
@@ -423,7 +424,7 @@ def _laid_hooks():
             fn = val.func.attr if isinstance(val.func, ast.Attribute) else ''
             if fn in ('on_body', 'on_args', 'on_shapes'):
                 bodied_k.add(key)
-            elif fn in ('partial', 'laid', 'supported', 'leaned', 'hulled'):
+            elif fn in ('partial', 'laid', 'supported', 'leaned', 'hulled', 'uprighted'):
                 other_k.add(key)
     for n in ast.walk(comp):
         if isinstance(n, ast.Dict):

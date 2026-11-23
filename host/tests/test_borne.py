@@ -186,8 +186,54 @@ def test_the_robots_hull_in_c_as_in_python(report, c):
     report.check('its support\'s hull in C as in python: %d draws' % draws, not apart, '%d apart' % apart)
 
 
+def test_the_robots_weighing_in_c_as_in_python(report, c):
+    """control's weighing between its parts in C (`tools.cores.upright`) and `upright.weighs` at every pass of the
+    robot's law lying into a bed, rising off it and walking: its seat, its arms' hold, its weights and whether its
+    pelvis bears the same bits and types; its C's time beside its python's."""
+    from machine.law import upright
+    from machine.process import worker
+    from tools.sim import told
+    tally, spent = {'calls': 0, 'apart': 0, 'pelvic': 0, 'seat': 0, 'hold': 0, 'neck': 0}, ([], [])
+
+    def held(g):
+        real = g['upright']
+
+        def beside(g_, s, told_, ask, sw, w_hop):
+            t0 = time.perf_counter()
+            got = real(g_, s, told_, ask, sw, w_hop)
+            t1 = time.perf_counter()
+            twin = upright.weighs(g_, s, told_, ask, sw, w_hop)
+            spent[0].append(t1 - t0)
+            spent[1].append(time.perf_counter() - t1)
+            tally['apart'] += any(type(a) is not type(b) or np.float64(a).tobytes() != np.float64(b).tobytes()
+                                  for a, b in zip(got, twin))
+            tally['calls'] += 1
+            tally['pelvic'] += bool(twin[6])
+            tally['seat'] += twin[0] > 0.0
+            tally['hold'] += twin[1] > 1.0
+            tally['neck'] += twin[2] not in (0.0, twin[3])
+            return got
+        g['upright'] = beside
+    r = told.Run('bed_foot_behind')
+    held(r.s['g'])
+    r.tell(say='lie_bed')
+    r.go(LIE_S)
+    r.tell(say='rise_bed')
+    r.go(RISE_S)
+    s = worker.session(walks=True)
+    held(s['g'])
+    for _ in range(WALK_PASSES // 3):
+        worker.stepped(s)
+    us = [1e6 * float(np.median(each)) for each in spent]
+    report.check('its weighing in C as in python lying, rising and walking: %(calls)d law passes (%(pelvic)d with its '
+                 'pelvis borne, %(seat)d sat upright, %(hold)d its arms held, %(neck)d its neck apart from its base)' % tally,
+                 tally['calls'] > 1000 and tally['pelvic'] > 100 and not tally['apart'],
+                 '%d apart; %.1f us a call, its python %.1f' % ((tally['apart'],) + tuple(us)))
+
+
 ROSTER = (test_what_bears_the_robot_in_c_as_in_python, test_the_robots_supports_in_c_as_in_python,
-          test_the_robots_lean_in_c_as_in_python, test_the_robots_hull_in_c_as_in_python)
+          test_the_robots_lean_in_c_as_in_python, test_the_robots_hull_in_c_as_in_python,
+          test_the_robots_weighing_in_c_as_in_python)
 
 
 def main(argv=None):

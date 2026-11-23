@@ -18,7 +18,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import numpy as np
 
 from machine import libm
-from machine.law import barrier, brace, composer, impedance, latent, melt, modal, schema, se2, somatic, stride, supervisor, waits
+from machine.law import barrier, brace, composer, latent, melt, modal, schema, se2, somatic, supervisor, waits
 from machine.body import bemf, capsules, figure, servos
 from machine.senses import estimate, field, grip, inekf, observer, situation, touch
 from machine.moves import cascade, emancipation, leap, seated
@@ -30,8 +30,6 @@ from machine.way import cocoon, wayfinder
 from machine.law.upper import step_modal
 
 
-#: The robot's arms' modes, its hold's (`ask['hold']`).
-ARMED = np.array([modal.ARMS, modal.REACH, modal.ELBOWS])
 #: The robot's axial stiffness in its latent state, where it goes and where it comes from; past HOP_K
 #: (midpoint between resting axial stiffness and knee-lever throw stiffness, N/m) a hop's.
 _AXIAL_K = tuple(block.start + latent.K.start + modal.AXIAL for block in (latent.TO, latent.FROM))
@@ -103,6 +101,7 @@ def gated(g, s, ask):
     return chain.outside(s, ask, g['loads'], float(g['fr'][modal.OMEGA]), float(g['fr'][modal.WEIGHT]), g['told'])
 
 
+
 def control(g, dt):
     """A pass of the robot's latent loop on what it senses: `g['got']` solved, `g['leg_kp']` its legs'
     stiffness by their stance."""
@@ -155,14 +154,10 @@ def control(g, dt):
     emancipation.opened(g, s, ask, dt * ev)
     somatic.asked(g, s, out, told, ask)
     bears = np.array(g['loads']) >= leap.TOUCH_N
-    isch, pal = emancipation.SEAT_ROWS[0], latent.MANIFOLD.start + ortho.PALMAR
-    pelvis_up = sum(float(c['f'][1]) * float(int(c.get('body', -1)) == body.pelvis) for c in s.get('contacts', ()))
-    isch_w = min(1.0, float(told[isch]) / max(0.5 * float(told.sum()), observer.TINY))
-    borne_w = min(1.0, pelvis_up / max(impedance.PROP_ON * float(g['fr'][modal.WEIGHT]), observer.TINY))
-    pal_due = max(float(told[ortho.PALMAR]), float(g['st'][latent.TO][pal]), float(g['tab'][:, pal].max(initial=0.0)))
-    upright = float((~bool(bears.all())) & (pal_due <= 0.0) & (float(ask.get('reclined', 0.0)) <= 0.5)
-                    & (float(g['st'][latent.TO][latent.ZMP]) < 0.5) & (abs(float(out[latent.SLID])) <= 1e-6))
-    ask['sat'] = max(ask['sat'], isch_w * borne_w * upright)
+    # control's weighing between its parts at once (`upright.weighs`, its C `g['upright']`): what it reads, none of
+    # them writes before it is read below
+    seat, hold, w_neck, w_base, w_hop_base, w_hop_base2, pelvic = g['upright'](g, s, told, ask, sw, w_hop)
+    ask['sat'] = max(ask['sat'], seat)
     g['observer']['slide'][:] = ask['slide']
     held, rest = emancipation.held(g, s, bears, unfelt)
     g['support'] = held
@@ -173,19 +168,8 @@ def control(g, dt):
     ask['posture'], g['schema'] = schema.shielded(body, g['clear'](g['schema_body'], s, g['schema_at']), s, ask,
                                                   float(y_in[edge.LINK][0]), g['shield'])
     ask['mu'] = g['sloped'](g['grip'], g['situations']['grips'])
-    ask['hold'] = max(1.0, float((g['out'][latent.KS][ARMED] / g['rest'][latent.K][ARMED]).max()))
-    w_gait = min(1.0, max(0.0, (0.05 - float(g['st'][latent.NOW][latent.GAIN])) / 0.05))
-    w_drive = min(1.0, abs(float(g['st'][latent.TO][latent.AMP][modal.DRIVE])) / stride.STIRS)
-    foot = min(1.0, max(0.0, float(g['out'][latent.HELD]) - 1.0))
-    # a sole up while borne is no stride: counted one, lying back the robot's neck let go and flexed at 1034
-    # deg/s
-    rest = (1.0 - float(g['a'][modal.STRIDES]) * (1.0 - float(g['a'][modal.BORNE]))) * w_gait
-    w_base = sw * max(w_hop, rest)
-    # the robot's neck holds pitch through a brake and its blend into stand (`NOW[GAIN]`), and when seated
-    g_on = max(float(g['st'][latent.TO][latent.GAIN]), float(g['st'][latent.NOW][latent.GAIN]))
-    brake = foot * (1.0 - w_drive) * g_on
-    w_neck = sw * max(w_hop, max(rest, brake))
-    w_up = np.array([w_neck, w_base, w_hop * w_base, w_hop * w_base])
+    ask['hold'] = hold
+    w_up = np.array([w_neck, w_base, w_hop_base, w_hop_base2])
     M = g['braced'].scaled(s['M'], w_up)
     lo, hi = g['bounds'](s['v'][body.act], float(y_in[edge.LINK][0]))
     # the robot's rise's gate keeps closed chains only as they leave it, never taking it into them
@@ -193,9 +177,8 @@ def control(g, dt):
     ask['lean'] = chain.rise()[0] * ask['outside']
     chained = g['chained'] = chain.chained(ask)
     # thighs join the cone only while seated upright with hands bearing (soles, ischia, palms)
-    sat = any(int(c.get('body', -1)) == body.pelvis for c in s.get('contacts', ()))
     told = (g.get('palmar', 0.0) > 0.0) & (float(ask.get('reclined', 0.0)) <= 0.5)
-    legs = body.legs[:int(sat & told) * len(body.legs)]
+    legs = body.legs[:int(pelvic & told) * len(body.legs)]
     # the step's inputs kept for the robot's introspection (`borne.named`, chain_trace's replay), its answer
     # `got`
     g['solve_in'] = (dict(s, M=M, contacts=chain.bearing(s, g['loads'], ask['stance'], chained, g['emancipation']['iota'],
@@ -280,6 +263,8 @@ def laid(g):
     g['em_supports'] = c_borne.supported(g['borne'])     # `emancipation.supports` on its contacts, in C
     g['leaned'] = c_borne.leaned(g['borne'])     # `somatic.leaned` on its contacts, in C
     g['hull'] = c_borne.hulled()     # `barrier.hull` of what bears it, in C
+    from tools.cores import upright as c_upright
+    g['upright'] = c_upright.uprighted(g, g['borne'])     # `upright.weighs`, control's weighing, in C
     g['_skin_ids'] = np.array([body.m.body(n).id for n in edge.SKIN])
     g['schema_at'], g['schema_body'] = capsules.ids(body.m), capsules.Own(body)
     g['_tips'] = np.array(touch.TIPS)
