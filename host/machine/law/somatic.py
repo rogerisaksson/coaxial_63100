@@ -123,9 +123,10 @@ def propped(s, way):
     hands = [c['p'] for c in s.get('contacts', ()) if c.get('carpal')]
     if not len(seat) or not len(hands):
         return float(len(hands) > 0)
-    at, palm = way @ np.mean(seat, axis=0), way @ np.mean(hands, axis=0)
+    middle = _middle(seat)
+    at, palm = way @ middle, way @ _middle(hands)
     c, v = np.asarray(s['com'], float), np.asarray(s['vcom'], float)
-    xi = c + v / np.sqrt(modal.G / max(float(c[1]) - float(np.mean(seat, axis=0)[1]), ANKLE_H))
+    xi = c + v / np.sqrt(modal.G / max(float(c[1]) - float(middle[1]), ANKLE_H))
     return float(CLIP((at - way @ xi) / np.maximum(at - palm, 1e-3), 0.0, 1.0))
 
 
@@ -140,8 +141,14 @@ def lever(s, way, weight):
     hands = sum(max(float(c['f'][1]), 0.0) for c in s.get('contacts', ()) if c.get('carpal')) / weight
     if not len(contacts):
         return 0.0
-    seat = way @ np.mean([c['p'] for c in contacts], axis=0)
-    rear = way @ np.mean([f['sole'] for f in s['feet']], axis=0) - ROOM[1]
+    seat = way @ _middle([c['p'] for c in contacts])
+    rear = way @ _middle([f['sole'] for f in s['feet']]) - ROOM[1]
     gap = rear - seat
     need = np.where(gap > 0.0, CLIP((rear - way @ np.asarray(s['com'])) / np.maximum(gap, TINY), 0.0, 1.0), 0.0)
     return np.maximum(need - hands, 0.0)
+
+
+def _middle(points):
+    """`points`' mean as numpy's `np.mean(points, axis=0)` takes it, without its layers: their sum a row at a time
+    over their count - its wrappers were 4 us of each of the five a law pass seated."""
+    return np.add.reduce(np.array(points), axis=0) / len(points)

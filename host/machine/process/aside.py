@@ -108,16 +108,45 @@ def _said(out, answer):
         return False
 
 
-def serve(answer, ready=SILENT):
+def _spun(inp, spin_s):
+    """Up to `spin_s` s polled for an ask on the pipe `inp` reads before its read blocks, the pipe's end told at
+    once: its asker's asks alternate with its answers, so its buffer holds none of the next."""
+    if spin_s <= 0.0:
+        return
+    import time
+    end = time.perf_counter() + spin_s
+    if sys.platform == 'win32':
+        import ctypes
+        import msvcrt
+        from ctypes import wintypes
+        peek = ctypes.WinDLL('kernel32').PeekNamedPipe
+        peek.argtypes = [wintypes.HANDLE, ctypes.c_void_p, wintypes.DWORD, ctypes.c_void_p,
+                         ctypes.POINTER(wintypes.DWORD), ctypes.c_void_p]
+        handle, avail = msvcrt.get_osfhandle(inp.fileno()), wintypes.DWORD(0)
+        while time.perf_counter() < end:
+            if not peek(handle, None, 0, None, ctypes.byref(avail), None) or avail.value:
+                return
+        return
+    import select
+    fd = inp.fileno()
+    while time.perf_counter() < end:
+        if select.select([fd], [], [], 0.0)[0]:
+            return
+
+
+def serve(answer, ready=SILENT, spin=0.0):
     """This process a module served: `ready` said first where given, then each ask off stdin answered on
     stdout, pickled; None, stdin's end or its asker gone (`_said`) ends it. This process's prints go to
-    stderr: its stdout is its answers'. Placed a core apart from the robot's others (`placed`)."""
+    stderr: its stdout is its answers'. Placed a core apart from the robot's others (`placed`). Up to `spin` s
+    after each answer its core kept awake, polling for the next ask (`_spun`): blocked on its pipe that long the core
+    slept, and the robot's vision apart took a seated look in 980 us where its own process took 410."""
     placed.placed()
     out, inp, sys.stdout = sys.stdout.buffer, sys.stdin.buffer, sys.stderr
     if ready is not SILENT and not _said(out, ready):
         return
     while True:
         try:
+            _spun(inp, spin)
             ask = pickle.load(inp)
         except EOFError:
             return

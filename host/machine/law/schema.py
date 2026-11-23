@@ -121,9 +121,16 @@ def shielded(body, near, s, ask, volts, shield_=None):
                                                          act)
     if (short[which] > 0.0).any():
         return _shielded(body, near, s, ask, volts)
-    f = int(EVADES[which].any(0).sum())
+    f = _evading(which.tobytes())
     return posture + np.zeros(len(act)) / POSTURE_KD[0], {'d': near['d'], 'h': h[which], 'which': which,
                                                           'spill': np.zeros(f + len(which))[f:], 'held': []}
+
+
+@functools.lru_cache(maxsize=256)
+def _evading(which):
+    """How many joints the text's evasions move (EVADES) for the near pairs `which` (`np.flatnonzero`'s bytes): told
+    once a set of pairs - each law pass 13 us, the pairs near the robot's floors a few sets in an errand."""
+    return int(EVADES[np.frombuffer(which, dtype=np.intp)].any(0).sum())
 
 
 def shield(d, J, M, v, q, posture, volts, act):

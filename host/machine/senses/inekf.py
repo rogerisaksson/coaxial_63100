@@ -121,7 +121,8 @@ def stepped(f, body, y, shares, dt, points, step):
     """A law pass of the robot's edge's `y` on its law's `body` posed at its estimate: last pass's bearing
     points now, this pass's laid; the filter `dt` on, each sole and its core bearing `shares` of its
     weight - by `points` and `step`, this module's or their C (`motion.laid`)."""
-    core = np.linalg.norm(y[edge.TOUCH].reshape(-1, 3)[CORE], axis=1)
+    pushed = y[edge.TOUCH].reshape(-1, 3)[CORE]
+    core = np.sqrt(np.add.reduce(pushed * pushed, axis=1))     # numpy's norm of each row, its own sum, its layers left
     local = np.vstack([y[edge.COP].reshape(-1, 3), y[edge.AT].reshape(-1, 3)[CORE]])
     weights = np.concatenate([np.maximum(y[edge.PRESS], 0.0), core]) + 1e-9
     sh = np.asarray(shares, float)

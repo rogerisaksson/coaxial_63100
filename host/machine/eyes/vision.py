@@ -26,6 +26,12 @@ LOOKS = (lambda g: g['world'].props(), lambda g: g['keep'].told())
 #: What the robot's vision apart says for a look whose boxes are the last one's to the bit (`main`): its things as
 #: they were; and before the rows of a look whose things are the last one's but those rows: the rest as they were.
 SAME, ROWS = 'its things as the look before', 'its things as the look before but these rows'
+#: How many of the robot's looks' periods (`schema.REFRESH_S`) its vision apart stays awake for the next after an
+#: answer (`aside.serve`'s spin), where it holds a core of its own (`placed`) - on one it shared it would take the
+#: robot's loop's: the next a period on at the robot's own pace, later at a pace under 1.5. Blocked between them its
+#: process's core slept, a seated look took it 0.98 ms and the robot's law waited 0.36 to 0.57 ms a look for it, awake
+#: 0.11 (seated x0.83-0.92 -> x0.96-0.97, the bed's rest 1.01-1.07 -> 1.13-1.17 its worst).
+AWAKE = 1.5
 
 
 # the robot's step's clamps told its drives as zeros it rests limp (`se2.limp`, `motion.drives`): nothing of
@@ -251,9 +257,9 @@ def _laid(g):
 def main():
     """The robot's vision apart (`aside.serve`): its registry as laid, each look - its changes on the last -
     passed into it, its boxes kept and restacked where they changed (`registry.seen`), said; its C warmed first
-    (`registry.warm`), its ready said then (`Apart.ready`)."""
+    (`registry.warm`), its ready said then (`Apart.ready`); awake between looks (AWAKE)."""
     import numpy as np
-    placed.placed(cache=True)
+    alone = placed.placed(cache=True)
     kept: dict = {'looks': []}
     registry.warm()
 
@@ -280,7 +286,8 @@ def main():
             return SAME
         return (ROWS, rows.tolist(), boxes[1][rows], boxes[2][rows], boxes[3][rows], [boxes[5][k] for k in rows],
                 [boxes[6][k] for k in rows])
-    aside.serve(answered, ready=True)
+    from machine.law import schema
+    aside.serve(answered, ready=True, spin=AWAKE * schema.REFRESH_S * float(alone))
 
 
 if __name__ == '__main__':
