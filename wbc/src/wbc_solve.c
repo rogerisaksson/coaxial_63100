@@ -53,6 +53,21 @@ int wbc_cholesky(int n, int ld, double *a)
   return 1;
 }
 
+/** x = (L^T)^-1 x in place: each x[i] less l[k][i] x[k] in k's order from i + 1, over l[i][i]. */
+static void backed(int n, int ld, const double *l, double *x)
+{
+  for (int i = n - 1; i >= 0; i--)
+  {
+    double s = x[i];
+
+    for (int k = i + 1; k < n; k++)
+    {
+      s -= l[k * ld + i] * x[k];
+    }
+    x[i] = s / l[i * ld + i];
+  }
+}
+
 void wbc_chol_solve(int n, int ld, const double *l, const double *b, double *x)
 {
   /* forward: each b[i] less l[i][k] x[k] in k's order as each x[k] is had - the rows' subtractions independent */
@@ -70,16 +85,35 @@ void wbc_chol_solve(int n, int ld, const double *l, const double *b, double *x)
       x[i] -= l[i * ld + k] * xk;
     }
   }
-  for (int i = n - 1; i >= 0; i--)
-  {
-    double s = x[i];
+  backed(n, ld, l, x);
+}
 
-    for (int k = i + 1; k < n; k++)
-    {
-      s -= l[k * ld + i] * x[k];
-    }
-    x[i] = s / l[i * ld + i];
+void wbc_chol_solve_from(int n, int ld, const double *l, const double *b, int from, double *y, double *x)
+{
+  /* the rows from `from` anew, each less l[i][k] y[k] in k's order - those kept first - as wbc_chol_solve's */
+  for (int i = from; i < n; i++)
+  {
+    y[i] = b[i];
   }
+  for (int k = 0; k < from; k++)
+  {
+    for (int i = from; i < n; i++)
+    {
+      y[i] -= l[i * ld + k] * y[k];
+    }
+  }
+  for (int k = from; k < n; k++)
+  {
+    const double yk = y[k] / l[k * ld + k];
+
+    y[k] = yk;
+    for (int i = k + 1; i < n; i++)
+    {
+      y[i] -= l[i * ld + k] * yk;
+    }
+  }
+  memcpy(x, y, (size_t)n * sizeof(double));
+  backed(n, ld, l, x);
 }
 
 int wbc_invert6(double a[6][6], double inv[6][6])

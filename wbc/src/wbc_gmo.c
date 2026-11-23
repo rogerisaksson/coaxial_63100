@@ -1,5 +1,6 @@
 /** wbc_gmo.c - the robot's generalized momentum observer (wbc_gmo.h). */
 #include "wbc_gmo.h"
+#include "wbc_gmo_factor.h"
 #include "wbc_solve.h"
 #include "wbc_libm_arc.h"
 
@@ -402,71 +403,43 @@ static void columns(wbc_gmo_t *o, const double q[NH])
     it alone, the tie-break toward `expected` on their diagonal: what the rows cannot tell, the robot's
     soles' last pass and gravity elsewhere do): a push joins the set where it lowers the residual past
     rounding, one not felt (`gated`) or moving past `still` only where none else would, the set solved, a
-    push it would pull stepped back to none and out. */
-/** Push `b` joined to the `n` pushing `at` (in the order they joined): `o->k`'s factor L of K = H over them
-    grown a row by forward substitution, the rows before it as they were, its new diagonal's square no less
-    than `least` - eps top lies on K's diagonal, so no Schur complement of it is smaller. 53 factorizations
-    of 26 a step from scratch were half the robot's observer's time. */
-static int joined(wbc_gmo_t *o, int at[NF], int n, int b, double least)
+    push it would pull stepped back to none and out; its factor kept as pushes join and leave
+    (wbc_gmo_factor.c). */
+/** The unknowns a row of `h` is summed for at once (`added`): a 64-byte line of them, its sums held in registers. */
+#define WBC_GMO_LANES 8
+_Static_assert(WBC_GMO_F + WBC_GMO_LANES - 1 <= WBC_GMO_LD, "a row's last block read within its padding");
+
+/** Row `x` of `h` from `x` to `m`, each element summed over the `weighed` gathered rows in their order from +0, `c`
+    each row's weight times its x-th column: a block of WBC_GMO_LANES elements along memory at once, their sums
+    apart in registers and each stored once - summed a gathered row at a time, each element was loaded and stored
+    a row, 1800 short loops a round. The last block reads the row's padding past `m` and stores none of it. */
+static void added(wbc_gmo_t *o, int x, int m, int weighed, const double c[WBC_N])
 {
-  double d = o->h[b][b];
-
-  /* each of the row's entries less its terms in their order, as each before it is had: the rows independent */
-  for (int x = 0; x < n; x++)
+  for (int y0 = x; y0 < m; y0 += WBC_GMO_LANES)
   {
-    o->k[n][x] = o->h[b][at[x]];
-  }
-  for (int x = 0; x < n; x++)
-  {
-    const double kx = o->k[n][x] / o->k[x][x];
+    const int lanes = (m - y0 < WBC_GMO_LANES) ? (m - y0) : WBC_GMO_LANES;
+    double    sum[WBC_GMO_LANES];
 
-    o->k[n][x] = kx;
-    d -= kx * kx;
-    for (int y = x + 1; y < n; y++)
+    for (int j = 0; j < WBC_GMO_LANES; j++)
     {
-      o->k[n][y] -= kx * o->k[y][x];
+      sum[j] = 0.0;
+    }
+    for (int k = 0; k < weighed; k++)
+    {
+      for (int j = 0; j < WBC_GMO_LANES; j++)
+      {
+        sum[j] += c[k] * o->ag[k][y0 + j];
+      }
+    }
+    for (int j = 0; j < lanes; j++)
+    {
+      o->h[x][y0 + j] = sum[j];
     }
   }
-  at[n] = b;
-  o->k[n][n] = sqrt(fmax(d, least));
-  return n + 1;
 }
 
-/** The push at `p` among the `n` pushing `at` left: L's row taken out, its columns from `p` turned back
-    lower-triangular by Givens rotations - L L' K less its row and column. */
-static int left(wbc_gmo_t *o, int at[NF], int n, int p)
-{
-  for (int r = p; r < n - 1; r++)
-  {
-    at[r] = at[r + 1];
-    memcpy(o->k[r], o->k[r + 1], (size_t)(r + 2) * sizeof(double));
-  }
-  for (int j = p; j < n - 1; j++)
-  {
-    const double a = o->k[j][j], b = o->k[j][j + 1], r = wbc_hypot(a, b), c = a / r, s = b / r;
-
-    for (int i = j; i < n - 1; i++)
-    {
-      const double t1 = o->k[i][j], t2 = o->k[i][j + 1];
-
-      o->k[i][j] = c * t1 + s * t2;
-      o->k[i][j + 1] = c * t2 - s * t1;
-    }
-  }
-  return n - 1;
-}
-
-/** Row `x` of `h` from `x` to `m` its gathered row `k`'s times `c` more; the gradient to `m` row `c` of `h` times `fc`
-    less: one product and one sum an element, each element apart - its lanes independent, along memory, the fields
-    apart in the robot's observer's struct. */
-static void added(wbc_gmo_t *o, int x, int m, int k, double c)
-{
-  for (int y = x; y < m; y++)
-  {
-    o->h[x][y] += c * o->ag[k][y];
-  }
-}
-
+/** The gradient to `m` row `c` of `h` times `fc` less: one product and one sum an element, each element apart - its
+    lanes independent, along memory, the fields apart in the robot's observer's struct. */
 static void lessened(wbc_gmo_t *o, int m, int c, double fc)
 {
   for (int x = 0; x < m; x++)
@@ -477,11 +450,11 @@ static void lessened(wbc_gmo_t *o, int m, int c, double fc)
 
 static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[WBC_N])
 {
-  static double g[NF], z[NF], sub[NF], f[NF];
+  static double g[NF], z[NF], sub[NF], f[NF], forward[NF];
   static int    set[NF], at[NF], gate[NF], gated[NF], on[NF];
   const int     m = o->lives;
   int           rows[WBC_N], weighed = 0;
-  double        top = 0.0, most = 0.0;
+  double        top = 0.0, most = 0.0, scale[WBC_N];
 
   /* A row weighed 0, or a push f 0, adds exactly +-0 to a sum that starts at +0: left out, the same bits. */
   for (int i = 0; i < WBC_N; i++)
@@ -516,16 +489,13 @@ static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[
 
       g[x] += weight[i] * o->ag[k][x] * (o->r[i] - shift[i]);
     }
-    /* each h[x][y] summed over the weighed rows in their order, the row's y innermost along its memory; a
+    /* each h[x][y] summed over the weighed rows in their order, blocks of the row along its memory (`added`); a
        weighed row's weight is 1, so (1 a) b is b a bit for bit: h symmetric, its lower half mirrored */
-    for (int y = x; y < m; y++)
-    {
-      o->h[x][y] = 0.0;
-    }
     for (int k = 0; k < weighed; k++)
     {
-      added(o, x, m, k, weight[rows[k]] * o->ag[k][x]);
+      scale[k] = weight[rows[k]] * o->ag[k][x];
     }
+    added(o, x, m, weighed, scale);
     for (int y = 0; y < x; y++)
     {
       o->h[x][y] = o->h[y][x];
@@ -540,7 +510,9 @@ static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[
     g[x] += o->eps * top * o->expected[o->live[x]];
     most = fmax(most, fabs(g[x]));
   }
-  int n = 0;
+  /* the set's L^-1 g kept from solve to solve (`forward`), its first `solved` rows standing: a push joined grows L a
+     row, one left changes L from its row on (wbc_chol_solve_from) - 107 forward passes a law pass solved whole */
+  int n = 0, solved = 0;
 
   for (int round = 0; round < 3 * NF; round++)
   {
@@ -552,7 +524,8 @@ static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[
       pushing += f[y] != 0.0;
     }
     /* each w[x] less h[x][c] f[c] over the pushing c in their order, h[c] streamed along memory for every x
-       at once - h mirrored, h[c][x] is h[x][c] bit for bit; a push in the set is never picked: its w unread */
+       at once - h mirrored, h[c][x] is h[x][c] bit for bit; a push in the set is never picked: its w unread.
+       The most each pick has found held beside it, not read back through it. */
     for (int x = 0; x < m; x++)
     {
       o->w[x] = g[x];
@@ -561,12 +534,20 @@ static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[
     {
       lessened(o, m, on[k], f[on[k]]);
     }
+    const double tol = DBL_EPSILON * NF * most;
+    double       free_w = 0.0, held_w = 0.0;
+
     for (int x = 0; x < m; x++)
     {
-      const int fits = !set[x] && o->w[x] > DBL_EPSILON * NF * most;
+      const double wx = o->w[x];
+      const int    fits = !set[x] && wx > tol;
+      const int    freed = fits && !gate[x] && (free_ < 0 || wx > free_w);
+      const int    kept = fits && gate[x] && (held < 0 || wx > held_w);
 
-      free_ = (fits && !gate[x] && (free_ < 0 || o->w[x] > o->w[free_])) ? x : free_;
-      held = (fits && gate[x] && (held < 0 || o->w[x] > o->w[held])) ? x : held;
+      free_ = freed ? x : free_;
+      free_w = freed ? wx : free_w;
+      held = kept ? x : held;
+      held_w = kept ? wx : held_w;
     }
     const int best = (free_ >= 0) ? free_ : held;
 
@@ -575,7 +556,7 @@ static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[
       break;
     }
     set[best] = 1;
-    n = joined(o, at, n, best, o->eps * top);
+    n = wbc_gmo_joined(o, at, n, best, o->eps * top);
     for (int inner = 0; inner < NF; inner++)
     {
       int    out = -1;
@@ -585,7 +566,8 @@ static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[
       {
         sub[x] = g[at[x]];
       }
-      wbc_chol_solve(n, WBC_GMO_LD, &o->k[0][0], sub, z);
+      wbc_chol_solve_from(n, WBC_GMO_LD, &o->k[0][0], sub, solved, forward, z);
+      solved = n;
       for (int x = 0; x < n; x++)
       {
         const double was = f[at[x]], ratio = (z[x] <= 0.0) ? was / (was - z[x]) : 1.0;
@@ -607,7 +589,8 @@ static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[
 
         f[at[x]] = drop ? 0.0 : f[at[x]];
         set[at[x]] = !drop;
-        n = drop ? left(o, at, n, x) : n;
+        solved = (drop && x < solved) ? x : solved;
+        n = drop ? wbc_gmo_left(o, at, n, x) : n;
       }
     }
   }

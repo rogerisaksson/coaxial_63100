@@ -10,6 +10,11 @@ int wbc_cholesky(int n, int ld, double *a);
 /** x = (L L^T)^-1 b. */
 void wbc_chol_solve(int n, int ld, const double *l, const double *b, double *x);
 
+/** wbc_chol_solve's x, its forward solution y = L^-1 b kept to the next call: y's first `from` elements as the last
+    call left them - L's rows and b's elements before `from` unchanged since -, the rest solved anew; the same bits
+    as wbc_chol_solve. */
+void wbc_chol_solve_from(int n, int ld, const double *l, const double *b, int from, double *y, double *x);
+
 /** a's inverse by Gauss and Jordan, the largest pivot a column, into inv, a spent; 0 where it
     has none. */
 int wbc_invert6(double a[6][6], double inv[6][6]);

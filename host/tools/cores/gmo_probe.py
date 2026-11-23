@@ -1,8 +1,8 @@
 """The robot's observer's C (wbc_gmo.c) timed function by function, in a build of its own.
 
-gmo_probe.c beside this includes wbc_gmo.c whole and unchanged, built apart from the robot's library with
--finstrument-functions over that file alone - its calls out to the chain's dynamics, a Jacobian, the split's solve
-and a Givens rotation's hypot wrapped there.
+gmo_probe.c beside this includes the observer's sources (`OBSERVER`) whole and unchanged, built apart from the
+robot's library with -finstrument-functions over them alone - their calls out to the chain's dynamics, a Jacobian,
+the split's solves and a Givens rotation's hypot wrapped there.
 
     probe = gmo_probe.Probe()              # built once for its sources' bytes, typed, its clock's rate read
     probe.step(o, base, q, u, dt)          # wbh_gmo_step's step on an observer (`gmo.Gmo`): the same bits
@@ -24,9 +24,9 @@ from tools.cores import build, gmo
 from tools.cores.model import built
 from tools.cores.wbc_sources import FLAGS, INCLUDES, SOURCES
 
-#: The probe's source; the observer it includes.
+#: The probe's source; the observer's it includes.
 SOURCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gmo_probe.c')
-OBSERVER = os.path.join(REPO, 'wbc', 'src', 'wbc_gmo.c')
+OBSERVER = tuple(os.path.join(REPO, 'wbc', 'src', name) for name in ('wbc_gmo.c', 'wbc_gmo_factor.c'))
 #: wbc_gmo.c's functions too small to time - a call's hooks would cost more than the call -, their seconds their
 #: callers'.
 UNTIMED = ('turned', 'dot', 'clip01', 'passed', 'along', 'pushed', 'closest', 'own', 'added', 'lessened')
@@ -48,13 +48,16 @@ def _untimed_files(sources, includes):
 def library():
     """The probe built once for its sources', wbc_gmo.c's and the headers' bytes (`build.cached`), loaded: the
     robot's library's sources and flags (`tools.cores.wbc.library`), gmo_probe.c in wbc_gmo.c's place."""
-    sources = [SOURCE] + [p for p in built(SOURCES) if os.path.normcase(p) != os.path.normcase(OBSERVER)]
-    includes = list(INCLUDES) + [os.path.dirname(OBSERVER)]
+    included = {os.path.normcase(p) for p in OBSERVER}
+    sources = [SOURCE] + [p for p in built(SOURCES) if os.path.normcase(p) not in included]
+    includes = list(INCLUDES) + [os.path.dirname(OBSERVER[0])]
     extra = list(FLAGS) + ['-finstrument-functions',
                            '-finstrument-functions-exclude-file-list=' + ','.join(_untimed_files(sources, includes)),
                            '-finstrument-functions-exclude-function-list=' + ','.join(UNTIMED)]
-    with open(OBSERVER, 'rb') as f:
-        heads = build.headers(build.beside(sources, includes)) + f.read()
+    heads = build.headers(build.beside(sources, includes))
+    for path in OBSERVER:
+        with open(path, 'rb') as f:
+            heads += f.read()
     path, _warnings = build.cached(sources, includes, 'gmo_probe', extra, heads)
     return ctypes.CDLL(path)
 

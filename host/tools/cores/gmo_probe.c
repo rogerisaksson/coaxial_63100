@@ -1,4 +1,4 @@
-/** gmo_probe.c - the robot's observer (wbc_gmo.c, included whole and unchanged) timed function by function for
+/** gmo_probe.c - the robot's observer (wbc_gmo.c and wbc_gmo_factor.c, included whole and unchanged) timed for
     tools.cores.gmo_probe: built apart from the robot's library, with -finstrument-functions over this file alone,
     wbc_gmo.c's calls out of it wrapped here to be timed too - the chain's dynamics, a Jacobian, the split's
     solve, a Givens rotation's hypot. Each function's calls, its ticks with what it calls and without, the
@@ -63,6 +63,11 @@ static void probe_solve(int n, int ld, const double *l, const double *b, double 
   wbc_chol_solve(n, ld, l, b, x);
 }
 
+static void probe_solve_from(int n, int ld, const double *l, const double *b, int from, double *y, double *x)
+{
+  wbc_chol_solve_from(n, ld, l, b, from, y, x);
+}
+
 static double probe_hypot(double x, double y)
 {
   return wbc_hypot(x, y);
@@ -73,13 +78,16 @@ static double probe_hypot(double x, double y)
 #define wbc_body_bias     probe_bias
 #define wbc_body_jacobian probe_jacobian
 #define wbc_chol_solve    probe_solve
+#define wbc_chol_solve_from probe_solve_from
 #define wbc_hypot         probe_hypot
 #include "wbc_gmo.c"
+#include "wbc_gmo_factor.c"
 #undef wbc_body_pose
 #undef wbc_body_mass
 #undef wbc_body_bias
 #undef wbc_body_jacobian
 #undef wbc_chol_solve
+#undef wbc_chol_solve_from
 #undef wbc_hypot
 
 /** A call's hooks measured: an empty function called n times. */
@@ -110,11 +118,11 @@ static const probe_fn_t probe_fns[] = {
     {(void (*)(void))probe_jacobian, "wbc_body_jacobian"}, {(void (*)(void))expect, "expect"},
     {(void (*)(void))touches, "touches"},             {(void (*)(void))stage, "stage"},
     {(void (*)(void))scoped, "scoped"},               {(void (*)(void))split, "split"},
-    {(void (*)(void))pushes, "pushes"},               {(void (*)(void))joined, "joined"},
-    {(void (*)(void))left, "left"},                   {(void (*)(void))probe_solve, "wbc_chol_solve"},
+    {(void (*)(void))pushes, "pushes"},               {(void (*)(void))wbc_gmo_joined, "wbc_gmo_joined"},
+    {(void (*)(void))wbc_gmo_left, "wbc_gmo_left"},   {(void (*)(void))probe_solve, "wbc_chol_solve"},
     {(void (*)(void))probe_hypot, "wbc_hypot"},       {(void (*)(void))shared, "shared"},
-    {(void (*)(void))wbc_gmo_felt, "wbc_gmo_felt"},   {(void (*)(void))probe_empties, "probe_empties"},
-    {(void (*)(void))probe_empty, "probe_empty"}};
+    {(void (*)(void))wbc_gmo_felt, "wbc_gmo_felt"},   {(void (*)(void))probe_solve_from, "wbc_chol_solve_from"},
+    {(void (*)(void))probe_empties, "probe_empties"}, {(void (*)(void))probe_empty, "probe_empty"}};
 #define PROBE_FNS   ((int)(sizeof probe_fns / sizeof probe_fns[0]))
 #define PROBE_SLOTS (PROBE_FNS + 1)
 #define PROBE_DEPTH 32

@@ -508,6 +508,11 @@ ROWS = {
         },
     }),
     'gcc 16 x86_64': (('avx', 'avx2', 'avx512'), {
+        'wbc_afford.c': {
+            'moved_of': (1, 1, 1),
+            'wbc_afford_clear': (2, 2, 2),
+            'wbc_afford_near': (1, 1, 1),
+        },
         'wbc_blas.c': {
             'wbc_qr': (0, 0, 1),
         },
@@ -527,6 +532,8 @@ ROWS = {
         'wbc_borne.c': {
             'normal_of': (2, 2, 2),
             'room_of': (2, 2, 2),
+            'summed': (1, 1, 1),
+            'wbc_borne_leaned': (3, 3, 3),
             'wbc_borne_read': (1, 1, 1),
             'wbc_borne_seated': (2, 2, 3),
             'wbc_borne_supports': (1, 1, 2),
@@ -567,7 +574,6 @@ ROWS = {
             'closest': (1, 1, 1),
             'columns': (1, 1, 1),
             'expect': (2, 2, 2),
-            'left': (1, 1, 1),
             'lessened': (1, 1, 1),
             'pushes': (0, 0, 1),
             'shared': (1, 1, 1),
@@ -576,6 +582,12 @@ ROWS = {
             'touches': (3, 3, 3),
             'wbc_gmo_felt': (1, 1, 1),
             'wbc_gmo_step': (1, 1, 1),
+        },
+        'wbc_gmo_factor.c': {
+            'wbc_gmo_left': (1, 1, 1),
+        },
+        'wbc_hull.c': {
+            'wbc_hull': (2, 2, 2),
         },
         'wbc_imp.c': {
             'wbc_imp_ask': (6, 6, 9),
