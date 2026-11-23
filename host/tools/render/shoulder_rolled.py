@@ -15,14 +15,33 @@ if __package__ in (None, ''):
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from tools.render import (  # noqa: E402
-    clamped as cl, covered as cv, elbow_mount as em, hip_frame as hf, knee_loads as kl,
+    clamped as cl, covered as cv, csg, elbow_mount as em, hip_frame as hf, knee_loads as kl,
     knee_mount as km, leaves, mounting as m, shoulder_laid as sl, sized, tees,
 )
 
 KIND, TRAVEL, X_ABD, PEC_AT = 'shoulder', (-30.0, 95.0), 0.049, (0.0575, 0.218, 0.066)
-CRANK_R, Z_CRANK, HORN_R, Z_HORN, ROD_R, PIN_R = 0.054, 0.142, 0.032, 0.094, 0.006, 0.008
+CRANK_R, Z_CRANK, HORN_R, Z_HORN, ROD_R, PIN_R = 0.056, 0.140, 0.028, 0.136, 0.004, 0.0055
 AIR_M, CHEEK_T, FORK_T, HUB_R, WIDE_M, CLEVIS_PIN_R, BUSH_M = 0.0036, 0.0080, 0.0080, 0.0175, 0.034, 0.005, 0.001
 STOP_M, LAP_M, REACH_M, POLYMER = 0.010, 0.010, 0.041, (226, 222, 206)
+
+
+def _ann(r_in, r_out, z0, z1, col, at=(0.0, 0.0)):
+    """Annular cylinder from `z0` to `z1` along z around `at` (`csg`)."""
+    return csg.extrude(csg.circle2d(r_out, 24, at), (csg.circle2d(r_in, 24, at),), z0, z1, axis=2, colour=col).tris()
+
+
+def _plate(pts, bore, z0, z1):
+    """Chamfered carbon plate extruded along z with `bore` hole."""
+    return csg.extrude(pts, (bore,), z0, z1, axis=2, colour=em.CARBON, chamfer_lo=0.0008, chamfer_hi=0.0008).tris()
+
+
+def _hull(*rings):
+    """Filleted convex hull of `(center, radius)` circles."""
+    return cl.filleted(leaves.hull([pt for at, r in rings for pt in leaves.ring(at, r)]))
+
+
+def _rect(x0, x1, y0, y1):
+    return [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
 
 
 def _torso_frame():
@@ -71,10 +90,10 @@ def linkage():
     rolls = np.radians(np.linspace(TRAVEL[0], TRAVEL[1], 231))
     dz = Z_HORN - Z_CRANK
     best = None
-    for off_deg in np.linspace(4.0, 8.0, 17):
+    for off_deg in np.linspace(1.5, 3.2, 18):
         beta0 = phi - 0.5 * math.pi - math.radians(0.5 * sum(TRAVEL)) + math.radians(off_deg)
         hx, hy = px + HORN_R * np.cos(beta0 + rolls), py + HORN_R * np.sin(beta0 + rolls)
-        for length in np.linspace(0.122, 0.128, 17):
+        for length in np.linspace(0.128, 0.134, 13):
             l_xy2 = length * length - dz * dz
             if l_xy2 <= 1e-4:
                 continue
@@ -160,8 +179,7 @@ def laid():
     bridge_x = (sl.FOOT_X + lay_s['coil'][1] + sl.MOUTH_M + 0.008,
                 sl.FOOT_X + lay_s['coil'][1] + sl.MOUTH_M + 0.019)
     root_x = X_ABD + 0.0585
-    _turn, arm, _p = _torso_frame()
-    horn_z = float(arm[2]) - Z_HORN
+    horn_z = float(_torso_frame()[1][2]) - Z_HORN
     return {'x_abd': X_ABD, 'gap': g, 'cheek': cheek, 'fork': fork, 'pin': CLEVIS_PIN_R,
             'bridge': bridge_x, 'root': root_x, 'horn_z': horn_z, 'top': lay_s['top'], 'down': lay_s['down']}
 
@@ -170,26 +188,25 @@ def held():
     """{name: margin} of the pectoral crank, carbon pushrod, gimbal cheeks, crossbar fork, pins, stops and hose."""
     from machine.body import mechatronics, structural
     ld, own, push, rod_f = carried()
-    pec, lay, lk = pectoral(), laid(), linkage()
+    lay, lk = laid(), linkage()
     carbon, steel, allow = structural.CARBON[2], structural.STEEL[2], structural.PAHT_CF[2]
     rod_mm, l_mm = 1e3 * ROD_R, 1e3 * lk['length']
     euler = math.pi ** 2 * 1e3 * structural.ROD[0] * (math.pi * rod_mm ** 4 / 4.0) / (l_mm * l_mm)
     rod_stress = rod_f / (math.pi * rod_mm * rod_mm)
-    pin_lever = 1e3 * max(abs(Z_CRANK - (Z_CRANK - 0.0055)), 0.008)
-    pin_bend = 32.0 * rod_f * pin_lever / (math.pi * (2e3 * PIN_R) ** 3)
+    pin_bend = 32.0 * rod_f * 8.0 / (math.pi * (2e3 * PIN_R) ** 3)
     c_pin = 1e3 * lay['pin']
     c_shear = (push + 0.5 * rod_f) / (math.pi * c_pin * c_pin)
     bush_p = (push + 0.5 * rod_f) / (2.0 * c_pin * 1e3 * FORK_T)
     wide = 1e3 * WIDE_M
     cheek_s = 6.0 * (0.5 * ld['torsion'] * 0.35 + 0.5 * own) / (1e3 * CHEEK_T * wide * wide)
     fork_s = 6.0 * (0.5 * ld['swing'] + 0.5 * ld['torsion'] * 0.4) / (1e3 * FORK_T * (wide + 4.0) ** 2)
-    horn_s = 6.0 * (0.5 * own) / (7.0 * 24.0 * 24.0)
+    horn_s = 6.0 * (0.5 * own) / (14.0 * 28.0 * 28.0)
     hoop = sized._hoop(own, 1e3 * stack()['gear'][0])
     pinch = next((p for p, _h in sized.PINCHES if sized.PINCH * p >= hoop), sized.PINCHES[-1][0])
-    stop_f = own / (1e3 * (HUB_R + 0.5 * STOP_M))
+    stop_f = own / (1e3 * (HUB_R + 0.0025))
     return {'crank band': sized.PINCH * pinch / hoop, 'crank pin': structural.ROD[2] / pin_bend,
             'rod buckle': euler / rod_f, 'rod carbon': structural.ROD[2] / rod_stress,
-            'horn': carbon / horn_s, 'cheeks': carbon / cheek_s, 'fork': carbon / fork_s,
+            'horn': allow / horn_s, 'cheeks': carbon / cheek_s, 'fork': carbon / fork_s,
             'clevis pins': (0.58 * steel) / c_shear, 'bushings': 80.0 / bush_p,
             'stop': allow * 1e6 * STOP_M * LAP_M / stop_f,
             'span bend': span_least() / float(mechatronics.materials()['hoses']['bus'][4])}
@@ -222,13 +239,12 @@ def _crank_arm(cx, cy, c_pin, th, z0, z1, out_r):
     """Printable PAHT-CF crank arm and raised clevis boss (`over = 0.0`)."""
     import numpy as np
     root = [(cx + (out_r - 0.001) * math.cos(th + a), cy + (out_r - 0.001) * math.sin(th + a))
-            for a in np.radians(np.linspace(-38.0, 38.0, 9))]
-    arm_2d = cl.filleted(leaves.hull(root + leaves.ring((float(c_pin[0]), float(c_pin[1])), PIN_R + 0.0075)))
-    neck = (cx + (out_r + 0.012) * math.cos(th), cy + (out_r + 0.012) * math.sin(th))
-    boss_2d = cl.filleted(leaves.hull(leaves.ring(neck, PIN_R + 0.0036)
-                                      + leaves.ring((float(c_pin[0]), float(c_pin[1])), PIN_R + 0.0055)))
+            for a in np.radians(np.linspace(-34.0, 34.0, 9))]
+    arm_2d = cl.filleted(leaves.hull(root + leaves.ring((float(c_pin[0]), float(c_pin[1])), PIN_R + 0.0065)))
+    neck = (cx + (out_r + 0.002) * math.cos(th), cy + (out_r + 0.002) * math.sin(th))
+    boss_2d = _hull((neck, PIN_R + 0.0036), ((float(c_pin[0]), float(c_pin[1])), PIN_R + 0.0055))
     return (em._rounded(arm_2d, z0, z1, em.FRAME, axis=2, r=0.0012, steps=1)
-            + em._rounded(boss_2d, z0 + 0.001, Z_CRANK - 0.0055, em.FRAME, axis=2, r=0.001, steps=1))
+            + em._rounded(boss_2d, z0 + 0.001, Z_CRANK - 0.0056, em.FRAME, axis=2, r=0.001, steps=1))
 
 
 def _crank_parts(roll=0.0):
@@ -242,12 +258,16 @@ def _crank_parts(roll=0.0):
             for t, col in cl.turned([(z0, ring + 3e-4, out_r), (z1, ring + 3e-4, out_r)], th + 0.5 * math.pi)]
     arm = _crank_arm(cx, cy, c_pin, th, z0, z1, out_r)
     pin = km._rod((c_pin[0], c_pin[1], z0 + 0.0005), (c_pin[0], c_pin[1], Z_CRANK + 0.0058), PIN_R, hf.STEEL)
-    rod = km._rod(c_pin + 0.014 * u_rod, h_pin - 0.014 * u_rod, ROD_R, em.CARBON)
+    rod = km._rod(c_pin + 0.013 * u_rod, h_pin - 0.013 * u_rod, ROD_R, em.CARBON)
     ends = []
     for pt, ax_z in ((c_pin, 1.0), (h_pin, -1.0)):
-        ends += km._rod(pt - (0.0, 0.0, 0.0055), pt + (0.0, 0.0, 0.0055), PIN_R + 0.0036, hf.STEEL)
-        ends += km._rod(pt, pt + ax_z * 0.015 * u_rod, ROD_R + 0.003, em.FRAME)
-        ends += km._rod(pt - (0.0, 0.0, 0.006), pt + (0.0, 0.0, 0.006), PIN_R + 0.001, POLYMER)
+        at, zp = (float(pt[0]), float(pt[1])), float(pt[2])
+        ends += _ann(PIN_R + 0.0012, PIN_R + 0.0036, zp - 0.0045, zp + 0.0045, hf.STEEL, at)
+        ends += _ann(PIN_R + 0.0004, PIN_R + 0.0012, zp - 0.0055, zp + 0.0055, POLYMER, at)
+        if ax_z < 0.0:
+            ends += _ann(PIN_R + 0.0004, PIN_R + 0.0018, zp - 0.0086, zp - 0.0055, hf.STEEL, at)
+            ends += _ann(PIN_R + 0.0004, PIN_R + 0.0018, zp + 0.0055, zp + 0.0086, hf.STEEL, at)
+        ends += km._rod(pt + ax_z * (PIN_R + 0.0036) * u_rod, pt + ax_z * 0.014 * u_rod, ROD_R, em.FRAME)
     return {'ring': ring_tris, 'band': band, 'arm': arm, 'pin': pin, 'rod': rod, 'ends': ends}
 
 
@@ -271,70 +291,54 @@ def _clevis_parts(lay):
     web_xz = cl.filleted([(0.094, f0), (0.098, f1), (root + 0.003, 0.022),
                           (root + 0.003, -0.022), (root + 0.003, -f1), (root, -f0), (root, 0.020)], r=0.0015)
     sock = [(t[:, (1, 0, 2)][::-1], col) for t, col in foot._slab(web_xz, -0.017, 0.017, em.FRAME)]
-    bridge = em._rounded([(-0.017, -c1), (-0.017, c1), (0.017, c1), (0.017, -c1)], bx0, bx1, em.FRAME, axis=0, r=0.002)
+    bridge = em._rounded(_rect(-0.018, 0.018, -c1 - 0.001, c1 + 0.001),
+                         bx0, bx1, em.FRAME, axis=0, r=0.002)
     return sock, bridge
 
 
 @functools.lru_cache(maxsize=None)
 def parts():
     """{name: tris} at the shoulder in `shoulder_laid`'s frame (`roll = 0`): 'still', 'yoke', 'ring'."""
-    import numpy as np
-    lay, lk = laid(), linkage()
+    lay = laid()
     (c0, c1), (f0, f1), (bx0, bx1), root = lay['cheek'], lay['fork'], lay['bridge'], lay['root']
-    arm_pts_f = cl.filleted(leaves.hull(leaves.ring((X_ABD, 0.0), HUB_R)
-                                        + [(root, -0.017), (root + 0.003, -0.017),
-                                           (root + 0.003, 0.017), (root, 0.017)]))
-    arm_pts_r = cl.filleted(leaves.hull(leaves.ring((X_ABD, 0.0), HUB_R)
-                                        + [(0.094, -0.017), (0.098, -0.017),
-                                           (0.098, 0.017), (0.094, 0.017)]))
-    fork_tris = (em._rounded(arm_pts_r, f0, f1, em.CARBON, axis=2, r=0.001)
-                 + em._rounded(arm_pts_f, -f1, -f0, em.CARBON, axis=2, r=0.001))
+    bore_f = csg.circle2d(lay['pin'] + BUSH_M + 0.0002, fn=24, at=(X_ABD, 0.0))
+    bore_c = csg.circle2d(lay['pin'] + 0.0002, fn=24, at=(X_ABD, 0.0))
+    fork_tris = (_plate(cl.filleted(leaves.hull(leaves.ring((X_ABD, 0.0), HUB_R) + _rect(0.094, 0.098, -0.017, 0.017))),
+                        bore_f, f0, f1)
+                 + _plate(cl.filleted(leaves.hull(leaves.ring((X_ABD, 0.0), HUB_R) + _rect(root, root + 0.003, -0.017, 0.017))),
+                          bore_f, -f1, -f0))
     sock, bridge = _clevis_parts(lay)
     stops = []
-    r_st = HUB_R + 0.5 * STOP_M
     for deg, way in ((TRAVEL[0], -1.0), (TRAVEL[1], 1.0)):
-        b = math.radians(deg) + way * STOP_M / r_st
-        at = (X_ABD - r_st * math.sin(b), -r_st * math.cos(b))
-        stops += km._rod((at[0], at[1], -f1), (at[0], at[1], -c1 - 0.002), 0.45 * STOP_M, em.FRAME)
-    _turn, arm, p_abd = _torso_frame()
-    h_torso = np.array([float(p_abd[0]) + HORN_R * math.cos(lk['beta0']),
-                        float(p_abd[1]) + HORN_R * math.sin(lk['beta0']), Z_HORN])
-    h_sk = (h_torso - arm) @ _turn.T
+        b = math.radians(deg) + way * (math.atan2(0.5 * STOP_M, HUB_R) + 0.24)
+        ca, sa = math.cos(b), math.sin(b)
+        pts = [(X_ABD - r_i * sa - t_i * ca, -r_i * ca + t_i * sa)
+               for r_i, t_i in ((0.0178, -0.003), (0.0225, -0.003), (0.0225, 0.003), (0.0178, 0.003))]
+        stops += em._rounded(cl.filleted(pts, r=0.0005), -f0 - 0.001, -c1 - 0.0015, em.FRAME, axis=2, r=0.0004, steps=1)
+    _turn, arm, _p = _torso_frame()
+    h_sk = (crank_at(0.0)[2] - arm) @ _turn.T
     hx0, hy0, hz = float(h_sk[0]), float(h_sk[1]), lay['horn_z']
-    # Monolithic cheek + double-shear pushrod clevis bracket directly on front cradle (`-c1..-c0`, no standoff).
-    cheek_pts = cl.filleted(leaves.hull(leaves.ring((X_ABD, 0.0), HUB_R - 0.001)
-                                        + [(bx0, -0.017), (bx1, -0.017), (bx1, 0.017), (bx0, 0.017)]))
-    cheeks = (em._rounded(cheek_pts, c0, c1, em.CARBON, axis=2, r=0.001)
-              + em._rounded(cheek_pts, -c1, -c0, em.CARBON, axis=2, r=0.001))
-    stop_rib = em._rounded([(X_ABD - 0.5 * STOP_M, -r_st - 0.5 * STOP_M),
-                            (X_ABD + 0.5 * STOP_M, -r_st - 0.5 * STOP_M),
-                            (X_ABD + 0.5 * STOP_M, -HUB_R - 0.003),
-                            (X_ABD - 0.5 * STOP_M, -HUB_R - 0.003)],
+    cheek_pts = cl.filleted(leaves.hull(leaves.ring((X_ABD, 0.0), HUB_R - 0.001) + _rect(bx0, bx0 + 0.002, -0.016, 0.016)))
+    cheeks = _plate(cheek_pts, bore_c, c0, c1) + _plate(cheek_pts, bore_c, -c1, -c0)
+    stop_rib = em._rounded(_rect(X_ABD - 0.5 * STOP_M, X_ABD + 0.5 * STOP_M, -0.0225, -HUB_R + 0.001),
                            -f0 + 0.0015, -c1 + 0.001, em.FRAME, axis=2, r=0.0005)
-    p_top, p_elb = (0.014, 0.042), (0.037, 0.042)
-    s_dir = np.array([p_top[0] - hx0, p_top[1] - hy0])
-    s_dir /= float(np.linalg.norm(s_dir))
-    s_at = tuple(np.array([hx0, hy0]) + 0.010 * s_dir)
-    lug_2d = cl.filleted(leaves.hull(leaves.ring((hx0, hy0), 0.0115) + leaves.ring(s_at, 0.008)))
-    front_span = cl.filleted(leaves.hull(leaves.ring(s_at, 0.0075) + leaves.ring(p_top, 0.006)))
-    top_bar = cl.filleted(leaves.hull(leaves.ring(p_top, 0.006) + leaves.ring(p_elb, 0.006)))
-    cheek_web = cl.filleted(leaves.hull(leaves.ring(p_elb, 0.006) + leaves.ring((X_ABD, 0.0), 0.015)))
-    horn = (em._rounded(cheek_web, -c1, -c0, em.FRAME, axis=2, r=0.001)
-            + em._rounded(top_bar, -c1, -0.058, em.FRAME, axis=2, r=0.001)
-            + em._rounded(leaves.ring(p_top, 0.006), hz - 0.0135, -0.058, em.FRAME, axis=2, r=0.001)
-            + em._rounded(front_span, hz - 0.0135, -f1 - 0.002, em.FRAME, axis=2, r=0.001)
-            + em._rounded(lug_2d, hz + 0.0062, -f1 - 0.002, em.FRAME, axis=2, r=0.001)
-            + em._rounded(lug_2d, hz - 0.0135, hz - 0.0062, em.FRAME, axis=2, r=0.001)
-            + km._rod((hx0, hy0, hz - 0.014), (hx0, hy0, -f1 - 0.0015), PIN_R, hf.STEEL))
+    p_base, p_a, p_b, p_u = (0.068, -0.009), (0.034, -0.028), (0.047, -0.034), (0.042, -0.009)
+    horn = [t for p2, za, zb in (
+        (_hull((p_base, 0.007), (p_b, 0.007)), -c1 + 0.0005, -c0 + 0.0012),
+        (_hull((p_a, 0.007), (p_b, 0.007)), hz + 0.0092, -c1 + 0.0025),
+        (_hull((p_a, 0.007), (p_u, 0.0055), ((hx0, hy0), 0.0085)), hz + 0.0092, hz + 0.0165),
+        (leaves.ring(p_u, 0.005), hz - 0.0145, hz + 0.0105),
+        (_hull((p_u, 0.005), ((hx0, hy0), 0.0080)), hz - 0.0145, hz - 0.0092),
+    ) for t in em._rounded(p2, za, zb, em.FRAME, axis=2, r=0.001)] + km._rod(
+        (hx0, hy0, hz - 0.015), (hx0, hy0, hz + 0.017), PIN_R, hf.STEEL)
     lz0, lz1 = _lever_z()
     pins = []
     for sgn, z_out in ((1.0, lz1), (-1.0, -f1 - 0.0015)):
         z_a, z_b = min(sgn * (c0 - 0.001), z_out), max(sgn * (c0 - 0.001), z_out)
         pins += [(t[:, (1, 2, 0)] + (X_ABD, 0.0, 0.0), col) for t, col in em._drum(lay['pin'], z_a, z_b, em.BOLT)]
-        pins += [(t[:, (1, 2, 0)] + (X_ABD, 0.0, 0.0), col)
-                 for t, col in em._drum(lay['pin'] + BUSH_M, sgn * f0, sgn * f1, POLYMER)]
-    lever = em._rounded([(X_ABD - 0.008, -REACH_M - 0.006), (X_ABD + 0.008, -REACH_M - 0.006),
-                         (X_ABD + 0.008, 0.008), (X_ABD - 0.008, 0.008)], lz0, lz1, em.FRAME, axis=2, r=0.0018)
+        bz0, bz1 = min(sgn * f0, sgn * f1), max(sgn * f0, sgn * f1)
+        pins += _ann(lay['pin'] + 0.0002, lay['pin'] + BUSH_M, bz0 + 0.0002, bz1 - 0.0002, POLYMER, (X_ABD, 0.0))
+    lever = em._rounded(_rect(X_ABD - 0.008, X_ABD + 0.008, -REACH_M - 0.006, 0.008), lz0, lz1, em.FRAME, axis=2, r=0.0018)
     return {'still': fork_tris + sock + stops, 'yoke': cheeks + bridge + stop_rib + horn + lever, 'ring': pins}
 
 
