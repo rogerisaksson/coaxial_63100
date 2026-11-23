@@ -165,8 +165,29 @@ def test_the_robots_lean_in_c_as_in_python(report, c):
                  '%d apart; %.1f us a call, its python %.1f' % ((tally['apart'],) + tuple(us)))
 
 
+def test_the_robots_hull_in_c_as_in_python(report, c):
+    """The hull of the robot's support's floor points in C (`tools.cores.borne.hulled`) and `barrier.hull` on draws
+    of 0 to 40 points - a sole's corners, repeated points, points on a line, equal x - the same shapes and bits."""
+    from machine.law import barrier
+    from tools.cores import borne as c_borne
+    hull, rng, apart, draws = c_borne.hulled(), np.random.default_rng(7), 0, 0
+    for n in range(41):
+        for kind in range(4):
+            pts = rng.normal(size=(n, 2))
+            if kind == 1 and n:
+                pts = pts[rng.integers(0, n, n)]
+            elif kind == 2:
+                pts[:, 1] = 2.0 * pts[:, 0] + 0.5
+            elif kind == 3:
+                pts = np.round(pts, 1)
+            got, want = hull(pts), barrier.hull(pts)
+            apart += got.shape != want.shape or got.dtype != want.dtype or got.tobytes() != want.tobytes()
+            draws += 1
+    report.check('its support\'s hull in C as in python: %d draws' % draws, not apart, '%d apart' % apart)
+
+
 ROSTER = (test_what_bears_the_robot_in_c_as_in_python, test_the_robots_supports_in_c_as_in_python,
-          test_the_robots_lean_in_c_as_in_python)
+          test_the_robots_lean_in_c_as_in_python, test_the_robots_hull_in_c_as_in_python)
 
 
 def main(argv=None):

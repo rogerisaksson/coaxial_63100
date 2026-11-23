@@ -423,7 +423,7 @@ def _laid_hooks():
             fn = val.func.attr if isinstance(val.func, ast.Attribute) else ''
             if fn in ('on_body', 'on_args', 'on_shapes'):
                 bodied_k.add(key)
-            elif fn in ('partial', 'laid', 'supported', 'leaned'):
+            elif fn in ('partial', 'laid', 'supported', 'leaned', 'hulled'):
                 other_k.add(key)
     for n in ast.walk(comp):
         if isinstance(n, ast.Dict):

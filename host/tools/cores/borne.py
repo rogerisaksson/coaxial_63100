@@ -195,3 +195,31 @@ def leaned(read):
         return (np.float64(out[0]) if n else 0.0), float(out[1])
     leans.kept = (read, out)
     return leans
+
+
+#: The most floor points a hull takes (wbc_hull.h).
+HULL_MOST = 64
+
+
+@functools.lru_cache(maxsize=None)
+def _hulling():
+    """The support's hull's C typed (wbc_hull)."""
+    lib = wbc.library()
+    lib.wbh_hull.argtypes, lib.wbh_hull.restype = [_vp, _i, _vp], _i
+    return lib.wbh_hull
+
+
+def hulled():
+    """`barrier.hull` in C (wbc_hull): the hull of floor points (n, 2) as numpy's array of Python's tuples makes it -
+    (m, 2), or (0,) with none. Sorted and chained on Python's floats, 15 us of each law pass."""
+    from machine.errors import MachineError
+    fn = _hulling()
+
+    def hull(points):
+        pts = np.ascontiguousarray(points, dtype=np.float64)
+        ring = np.empty((2 * len(pts) + 2, 2))
+        m = fn(wbc.pointer(pts), len(pts), wbc.pointer(ring))
+        if m < 0:
+            raise MachineError('a hull past %d points (wbc_hull.h)' % HULL_MOST)
+        return ring[:m].copy() if m else np.array([])
+    return hull

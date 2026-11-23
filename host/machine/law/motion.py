@@ -166,7 +166,8 @@ def control(g, dt):
     g['observer']['slide'][:] = ask['slide']
     held, rest = emancipation.held(g, s, bears, unfelt)
     g['support'] = held
-    ask['com_acc'] = barrier.barred(ask['com_acc'], s['com'], s['vcom'], float(g['fr'][modal.OMEGA]), held, rest, g['ringed'])
+    ask['com_acc'] = barrier.barred(ask['com_acc'], s['com'], s['vcom'], float(g['fr'][modal.OMEGA]), held, rest, g['ringed'],
+                                    g['hull'])
     barrier.ahead(g['ringed'], g['ringed_ahead'])
     ask['posture'][g['head_idx']] -= gauge
     ask['posture'], g['schema'] = schema.shielded(body, g['clear'](g['schema_body'], s, g['schema_at']), s, ask,
@@ -278,6 +279,7 @@ def laid(g):
     g['borne'] = c_borne.laid(body)
     g['em_supports'] = c_borne.supported(g['borne'])     # `emancipation.supports` on its contacts, in C
     g['leaned'] = c_borne.leaned(g['borne'])     # `somatic.leaned` on its contacts, in C
+    g['hull'] = c_borne.hulled()     # `barrier.hull` of what bears it, in C
     g['_skin_ids'] = np.array([body.m.body(n).id for n in edge.SKIN])
     g['schema_at'], g['schema_body'] = capsules.ids(body.m), capsules.Own(body)
     g['_tips'] = np.array(touch.TIPS)

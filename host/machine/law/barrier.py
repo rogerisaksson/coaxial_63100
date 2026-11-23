@@ -82,6 +82,7 @@ def ahead(law, left):
         left.pop(0)
 
 
-def barred(acc, com, vcom, om, corners, rest, law=ringed):
-    """`ringed` by `law` (its C, or itself) over the hull of floor `corners` (n, 3)."""
-    return law(acc, com, vcom, om, hull(np.asarray(corners)[:, [0, 2]]), rest)
+def barred(acc, com, vcom, om, corners, rest, law=ringed, hull_=hull):
+    """`ringed` by `law` (its C, or itself) over the hull of floor `corners` (n, 3) by `hull_` (its C,
+    `tools.cores.borne.hulled`, or `hull`)."""
+    return law(acc, com, vcom, om, hull_(np.asarray(corners)[:, [0, 2]]), rest)
