@@ -112,12 +112,17 @@ def laid(b):
                    wbc.address(g['seat_f']), wbc.address(v)) < 0:
                 raise MachineError('the robot\'s skin and its seat bear it at more than %d points (wbc_borne.h)' % CONTACTS)
             g['seat_on'], g['seat_near'] = t.seat_on, t.seat_near
-        w = views
-        contacts = [{'p': w['p'][c].copy(), 'f': w['f'][c].copy(), 'n': w['nrm'][c].copy(), 'J': w['J'][c, :, :n].copy(),
-                     'dJv': w['dJv'][c].copy(), 'carpal': float(w['carpal_of'][c]), 'side': int(w['side'][c]),
-                     'patch': int(w['patch'][c]), 'room': float(w['room'][c]), 'body': int(w['body'][c]),
-                     **({'corner': int(w['corner'][c])} if w['corner'][c] >= 0 else {}),
-                     'give': float(w['give'][c])} for c in range(t.nc)]
+        w, nc = views, t.nc
+        # each field copied out once, a contact's arrays its rows' views, its numbers off one list: a copy each field
+        # and contact and a number read each were 5 us a contact, sat on 16 of them 85 us of the robot's law pass
+        p, f, nrm, dJv, J = (w['p'][:nc].copy(), w['f'][:nc].copy(), w['nrm'][:nc].copy(), w['dJv'][:nc].copy(),
+                             w['J'][:nc, :, :n].copy())
+        carpal, side, patch, room, body, corner, give = (w[k][:nc].tolist() for k in (
+            'carpal_of', 'side', 'patch', 'room', 'body', 'corner', 'give'))
+        contacts = [{'p': p[c], 'f': f[c], 'n': nrm[c], 'J': J[c], 'dJv': dJv[c], 'carpal': float(carpal[c]),
+                     'side': int(side[c]), 'patch': int(patch[c]), 'room': float(room[c]), 'body': int(body[c]),
+                     **({'corner': int(corner[c])} if corner[c] >= 0 else {}),
+                     'give': float(give[c])} for c in range(nc)]
         low, high = w['low'].copy(), w['high'].copy()
         held_ = np.isfinite(low[0])
         return (t.up / weight, np.where(held_, low, 0.0), np.where(held_, high, 0.0)), contacts, w['palms'] / weight

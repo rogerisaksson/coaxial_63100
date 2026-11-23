@@ -37,6 +37,10 @@ TORN = (OSError, EOFError, pickle.UnpicklingError, AttributeError, ImportError, 
 _HELD: dict = {}
 #: The kinds whose kept file was read in this process.
 _READ: set = set()
+#: What `taken` tells a part not waiting while a kept library of its kind still loads: it asks again at its next call,
+#: numpy's meanwhile - waited for, the robot's loop stood 6 to 22 ms at a part laid anew on a shape it met first (its
+#: legs' leave at each new count of what bears it, seated), a library its build had lost a compile's whole.
+LOADING = object()
 
 
 def _key(part):
@@ -132,12 +136,14 @@ def store(part, prog, info, specs, lib, cfn):
             os.remove(whole)
 
 
-def taken(part, args, bound):
+def taken(part, args, bound, waited=True):
     """(program, info, specs, a `bound` - `bodied.Bound` - of its build on `args`) of a program held for `part`'s
     kind that `args` fit - its body's constants rebound to `args`' body where they are of the same bits, a kept one's
-    library waited for where it still loads -; None where none fits."""
+    library waited for where it still loads, or LOADING where not `waited` -; None where none fits."""
     warm(part)
     held_here = _HELD.get(_key(part), [])
+    if not waited and any(len(entry) == 4 and not entry[3]['done'].is_set() for entry in held_here):
+        return LOADING
     for k, entry in enumerate(held_here):
         if len(entry) == 4:
             prog, info, specs, job = entry

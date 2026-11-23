@@ -277,8 +277,8 @@ def coupled(laid_, q, qd, ref_q, ref_v, eso_z, out):
 
 
 #: Every C or compiled hook `machine.law.motion.control` dispatches through on `g` (`sprung.laid` and `motion.laid`).
-HOOKS = ('sensed', 'solves', 'estimated', 'felt', 'weighed', 'clear', 'gap', 'rooms', 'outside', 'readings', 'read', 'modes',
-         'pitched', 'capped', 'told_on', 'settling', 'bounds', 'gripped', 'sured', 'released', 'poses', 'ringed',
+HOOKS = ('sensed', 'solves', 'estimated', 'felt', 'weighed', 'clear', 'gap', 'rooms', 'outside', 'sloped', 'readings', 'read',
+         'modes', 'pitched', 'capped', 'told_on', 'settling', 'bounds', 'gripped', 'sured', 'released', 'poses', 'ringed',
          'modal_sensed', 'inekf_points', 'inekf_step', 'seek', 'leave', 'em_asked', 'em_released', 'em_opening',
          'kept', 'shield', 'impedance', 'surety_field', 'latent', 'couple', 'borne', 'em_supports', 'touched_step',
          'twist_step', 'waits', 'braced')

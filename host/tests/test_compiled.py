@@ -139,7 +139,7 @@ def test_the_robots_sensing_in_c_is_its_numpys(report, c):
 
 
 def _copies(args):
-    """Each array copied, a dict's float arrays too - its others pinned (`bodied._tree_in`), the same."""
+    """Each array copied, a dict's float arrays too - its others pinned (`arguments.tree_in`), the same."""
     return [a.copy() if isinstance(a, np.ndarray) else {
         k: v.copy() if isinstance(v, np.ndarray) and v.dtype.kind in 'fb' else v for k, v in a.items()}
         if isinstance(a, dict) else a for a in args]

@@ -34,12 +34,13 @@ SAME, ROWS = 'its things as last asked', 'its things as last asked but these row
 
 def answered(ask):
     """An ask's answer: a dock's {laid, stops, curve, held}, `laid` (`dock.docked`) None alone where no
-    face fits the robot; a plan's {stops, curve, held}; a watch's that where its way left is barred, else
-    {}."""
+    face fits the robot - a peek's at its standoff told here (`peek.standoff`); a plan's {stops, curve, held}; a
+    watch's that where its way left is barred, else {}."""
     import numpy as np
-    from machine.way import dock, route
+    from machine.way import dock, peek, route
     if ask['kind'] == 'peek':
-        return {'laid': dock.docked(ask['at'], ask['things'], ask['floor'], *ask['dock'])}
+        verb, box = ask['dock']
+        return {'laid': dock.docked(ask['at'], ask['things'], ask['floor'], verb, box, peek.standoff(ask))}
     laid = dock.docked(ask['at'], ask['things'], ask['floor'], *ask['dock']) if ask['kind'] == 'dock' else {}
     if laid is None:
         return {'laid': None}

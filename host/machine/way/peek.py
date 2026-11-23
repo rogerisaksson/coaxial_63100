@@ -78,13 +78,22 @@ def peeked(s):
         st['none'] = None if st['todo'] else g['things']
     if not st['todo']:
         return
-    from machine.way import dock, furniture
+    from machine.way import furniture
     verb, box = st['todo'].pop(0)
-    standoff = dock.standoff(verb, level(verb, box), g['suite'])
     q = furniture.where(g)
+    # its standoff told by the planner apart (`standoff`): a seat creeping under the robot told it anew at each of
+    # its peeks here, 1.2 to 5.6 ms of the robot's loop a peek, 18 to 37 ms of each second it sat
     planner.ask(g['t'], {'kind': 'peek', 'at': (float(q[0]), float(q[2])), 'things': list(g['things']),
-                         'floor': furniture.floor(g), 'dock': (verb, box, standoff)})
+                         'floor': furniture.floor(g), 'dock': (verb, box), 'suite': g['suite']})
     st['asked'] = (st['epoch'], verb, box)
+
+
+def standoff(ask):
+    """A peek's (`peeked`) dock's standoff (`dock.standoff`) on its thing's level (`level`), in the robot's
+    texts' suite it was asked in."""
+    from machine.way import dock
+    verb, box = ask['dock']
+    return dock.standoff(verb, level(verb, box), ask['suite'])
 
 
 def told(s):

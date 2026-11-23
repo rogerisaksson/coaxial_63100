@@ -73,10 +73,13 @@ def _same(kept, things):
 
 def _laid(g, source):
     """(index, boxes) of the things `source` (`_boxlike`, `_boxes`), laid once a list of things: each verb's telling of
-    one look takes them - the robot's errand's, its peeks' three, its move's bed (`lain`) laid them anew each."""
+    one look takes them - the robot's errand's, its peeks' three, its move's bed (`lain`) laid them anew each. A look's
+    things with their arrays beside them (`registry.Things`) are boxes each, laid so: sought one by one, a bed creeping
+    under the robot had them 32 us of each look."""
     laid = g.get('_boxes_laid')
     if laid is None or not _same(laid, source):
-        index = [k for k, p in enumerate(source) if _boxlike(p)]
+        index = (list(range(len(source))) if getattr(source, 'arrays', None) is not None
+                 else [k for k, p in enumerate(source) if _boxlike(p)])
         laid = g['_boxes_laid'] = (source, tuple(source), index, _boxes(source, index))
     return laid[2], laid[3]
 
@@ -94,12 +97,13 @@ def _nearby(g, kept, source, index):
 
 def _boxes(things, index):
     """`things`' boxes at `index`, their arrays beside them where `things` has them (`affordance.Boxes`, a look's
-    `registry.Things`) - what affords a verb read of all of them over a box at once (`affordance.clear`)."""
-    boxes = affordance.Boxes(things[k] for k in index)
+    `registry.Things`) - what affords a verb read of all of them over a box at once (`affordance.clear`); all of them,
+    its own arrays, read alone."""
+    whole = len(index) == len(things)
+    boxes = affordance.Boxes(things if whole else (things[k] for k in index))
     arrays = getattr(things, 'arrays', None)
     if arrays is not None and len(arrays[0]) == len(things):
-        at = list(index)
-        boxes.arrays = tuple(a[at] for a in arrays)
+        boxes.arrays = arrays if whole else tuple(a[list(index)] for a in arrays)
     return boxes
 
 
@@ -116,8 +120,9 @@ def _near(kept, things, index):
     arrays, before = getattr(things, 'arrays', None), getattr(kept[0], 'arrays', None)
     if arrays is None or before is None or len(arrays[0]) != len(before[0]):
         return None
-    at = np.asarray(index, int)
-    now, was = [a[at].reshape(len(at), -1) for a in arrays], [a[at].reshape(len(at), -1) for a in before]
+    n = len(index)
+    at = slice(None) if n == len(arrays[0]) else np.asarray(index, int)     # all of them read in place
+    now, was = [a[at].reshape(n, -1) for a in arrays], [a[at].reshape(n, -1) for a in before]
     # a thing the very tuple it was (its look's rows that moved alone told anew, `vision.ROWS`) is as it was
     moved = np.any(np.hstack(now) != np.hstack(was), axis=1) | np.array(
         [things[k] is not kept[0][k] and (things[k][0] != kept[0][k][0] or things[k][5:6] != kept[0][k][5:6])

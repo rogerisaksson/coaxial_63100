@@ -171,7 +171,7 @@ def control(g, dt):
     ask['posture'][g['head_idx']] -= gauge
     ask['posture'], g['schema'] = schema.shielded(body, g['clear'](g['schema_body'], s, g['schema_at']), s, ask,
                                                   float(y_in[edge.LINK][0]), g['shield'])
-    ask['mu'] = grip.sloped(g['grip'], g['situations']['grips'])
+    ask['mu'] = g['sloped'](g['grip'], g['situations']['grips'])
     ask['hold'] = max(1.0, float((g['out'][latent.KS][ARMED] / g['rest'][latent.K][ARMED]).max()))
     w_gait = min(1.0, max(0.0, (0.05 - float(g['st'][latent.NOW][latent.GAIN])) / 0.05))
     w_drive = min(1.0, abs(float(g['st'][latent.TO][latent.AMP][modal.DRIVE])) / stride.STIRS)
@@ -246,6 +246,7 @@ def laid(g):
     g['gap'] = bodied.on_shapes(wayfinder.gap, 'gap', (0, 1, 2, 3, 4, 5))
     g['rooms'] = bodied.on_shapes(cocoon.rooms_of, 'rooms', (0, 1, 2, 3, 4, 5))     # the cocoon's room along a way
     g['outside'] = bodied.on_args(grip.outside, 'outside', (0, 1))
+    g['sloped'] = bodied.on_args(grip.sloped, 'sloped', (0, 1))     # each sole's slope (`ask['mu']`): numpy's 24 us
     g['readings'] = bodied.on_args(situation.readings, 'readings', (0, 1, 2, 3, 4, 5))
     g['read'] = bodied.on_args(situation.read, 'read', (0, 1))
     g['modes'] = bodied.on_args(modal.read, 'modes', (0, 1, 2))     # the robot's modes said to its page (`sprung.state`)
