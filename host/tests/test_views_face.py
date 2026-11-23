@@ -23,7 +23,7 @@ def _told(code):
 
 
 def test_the_mechanical_face_clears_plates_gimbals_and_neck(report):
-    """Verify stereo gimbals, binaural ear mics, expression linkages, C1 neck clearance and CSG manifolds."""
+    """Verify ovoid cranium, stereo gimbals, flush ear mics, expression linkages, C1 neck clearance and manifolds."""
     got: Any = _told(
         'import numpy as np; '
         'from machine.eyes import gimbal, stereo; '
@@ -42,10 +42,13 @@ def test_the_mechanical_face_clears_plates_gimbals_and_neck(report):
         'brow_span = float(np.vstack([t for t, _ in cur["left_brow"]])[:, 1].mean() '
         '                  - np.vstack([t for t, _ in foc["left_brow"]])[:, 1].mean()); '
         'ear_x = float(np.vstack([t for t, _ in neu["left_ear_mic"]])[:, 0].max()); '
+        'cranium_x = float(np.vstack([t for t, _ in neu["left_temporal"]])[:, 0].max()); '
+        'face_x = float(np.vstack([t for t, _ in neu["left_maxilla"]])[:, 0].max()); '
         'pos, nrm, uv, mat, idx = f.lit_mesh(f.posed("neutral")); '
         'print(json.dumps({"chk": chk, "jaw_mm": round(1e3 * jaw_dy, 2), '
         '"smile_mm": round(1e3 * smile_dy, 2), "brow_mm": round(1e3 * brow_span, 2), '
-        '"ear_mm": round(1e3 * ear_x, 2), "bare_keys": sorted(bare.keys()), '
+        '"ear_mm": round(1e3 * ear_x, 2), "cranium_mm": round(1e3 * cranium_x, 2), '
+        '"face_mm": round(1e3 * face_x, 2), "bare_keys": sorted(bare.keys()), '
         '"verts": int(len(pos)), "tris": int(len(idx)), "target_b_mm": round(1e3 * stereo.BASELINE_M, 2)}))'
     )
     chk: Any = got.get('chk') or {}
@@ -57,11 +60,14 @@ def test_the_mechanical_face_clears_plates_gimbals_and_neck(report):
                  abs((chk.get('baseline_mm') or 0.0) - (got.get('target_b_mm') or 120.0)) < 1.0
                  and sum((chk.get('open_edges') or {'x': 1}).values()) == 0,
                  (chk.get('baseline_mm'), chk.get('open_edges')))
-    report.check('binaural ear mics sit at the temporal recesses and bare mode exposes all internal servos',
-                 74.0 <= (got.get('ear_mm') or 0.0) <= 84.0
+    report.check('ovoid cranium crown, narrower facial proportions and flush ear mics match anthropometric targets',
+                 225.0 <= (chk.get('crown_mm') or 0.0) <= 232.0
+                 and 70.0 <= (got.get('cranium_mm') or 0.0) <= 74.5
+                 and 68.0 <= (got.get('face_mm') or 0.0) <= 71.8
+                 and 68.5 <= (got.get('ear_mm') or 0.0) <= 72.5
                  and {'chassis', 'gaze_servos', 'gaze_linkages', 'brow_servos', 'lid_servos',
                       'smile_servos', 'jaw_servos'} <= set(got.get('bare_keys') or ()),
-                 (got.get('ear_mm'), got.get('bare_keys')))
+                 (chk.get('crown_mm'), got.get('cranium_mm'), got.get('face_mm'), got.get('ear_mm')))
     report.check('jaw, lip-corner smile linkages and brows articulate visibly across the five presets',
                  (got.get('jaw_mm') or 0.0) >= 8.0 and (got.get('smile_mm') or 0.0) >= 2.0
                  and (got.get('brow_mm') or 0.0) >= 3.5 and (got.get('tris') or 0) >= 4000,

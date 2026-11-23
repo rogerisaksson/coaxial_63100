@@ -3,9 +3,9 @@
     COAXIAL_ROBOT=gynoid_mesomorph_medium_coax python -X utf8 tools/render/face_built.py OUT_DIR
 
 Poses the parametric CSG solids of `tools.render.face_laid` without decorative props: coupled
-2-axis stereo camera gimbals and three cranial gaze/vergence servos (`gimbal`, `stereo`), binaural
-temporal ear microphone arrays, segmented carbon/PAHT-CF facial plates, and miniature expression
-servos/linkages mounted onto `neck_mount.turning()['carrier']` clear of `NECK_RINGS`.
+2-axis stereo camera gimbals and three cranial gaze/vergence servos (`gimbal`, `stereo`), flush
+binaural ear microphone arrays, high ovoid feminine cranium and segmented facial plates, and
+miniature expression servos/linkages mounted onto `neck_mount.turning()['carrier']` clear of `NECK_RINGS`.
 """
 import argparse
 import math
@@ -27,7 +27,7 @@ PRESETS = {
 }
 
 STATIC_PLATE_KEYS = ('cranium_dome', 'left_temporal', 'right_temporal', 'left_orbital_pillar',
-                     'right_orbital_pillar', 'nasal_bridge', 'left_maxilla', 'right_maxilla', 'upper_lip')
+                     'right_orbital_pillar', 'nasal_bridge', 'left_maxilla', 'right_maxilla', 'philtrum', 'upper_lip')
 
 
 def _eyes_posed(gaze):
@@ -37,15 +37,15 @@ def _eyes_posed(gaze):
     gz = (max(-gm.YAW, min(gm.YAW, float(gaze[0]))), max(gm.PITCH[0], min(gm.PITCH[1], float(gaze[1]))),
           max(0.0, min(gm.VERGE, float(gaze[2]) if len(gaze) > 2 else 0.0)))
     cam_l, ring_l, pins_l = fl.camera_and_gimbal_local()
-    sy_b, sy_h, py_h, _ = fl.micro_servo((0.022, 0.099, 0.044), 'y', gz[0], 0.0070)
-    sp_b, sp_h, pp_h, _ = fl.micro_servo((-0.022, 0.113, 0.044), 'x', gz[1], 0.0068)
-    sv_b, sv_h, pv_l, pv_r = fl.micro_servo((0.0, 0.099, 0.046), 'y', 0.5 * gz[2] + gz[0], 0.0135, (1.0, 0.0, 0.0), True)
-    ry, rz = 0.113, 0.052
-    rock = csg.sweep(csg.circle2d(0.0014, fn=14), [(-0.046, ry, rz), (0.046, ry, rz)],
+    sy_b, sy_h, py_h, _ = fl.micro_servo((0.020, 0.099, 0.042), 'y', gz[0], 0.0066)
+    sp_b, sp_h, pp_h, _ = fl.micro_servo((-0.020, 0.113, 0.042), 'x', gz[1], 0.0064)
+    sv_b, sv_h, pv_l, pv_r = fl.micro_servo((0.0, 0.099, 0.044), 'y', 0.5 * gz[2] + gz[0], 0.0125, (1.0, 0.0, 0.0), True)
+    ry, rz = 0.113, 0.050
+    rock = csg.sweep(csg.circle2d(0.0013, fn=14), [(-0.044, ry, rz), (0.044, ry, rz)],
                      chamfer_ends=0.0004, colour=fl.TITANIUM).tris()
     links = (sy_h + sp_h + sv_h + rock
-             + fl.rod(py_h, 0.5 * (pv_l + pv_r) + np.array([0.004, 0.002, 0.0]), 0.0009)
-             + fl.rod(pp_h, (-0.022, ry + 0.005 * math.cos(gz[1]), rz + 0.005 * math.sin(gz[1])), 0.0009))
+             + fl.rod(py_h, 0.5 * (pv_l + pv_r) + np.array([0.004, 0.002, 0.0]), 0.00085)
+             + fl.rod(pp_h, (-0.020, ry + 0.005 * math.cos(gz[1]), rz + 0.005 * math.sin(gz[1])), 0.00085))
     out = {'gaze_servos': sy_b + sp_b + sv_b}
     for side, sgn in (('left', 1.0), ('right', -1.0)):
         at0 = np.array([sgn * 0.5 * stereo.BASELINE_M, float(gimbal.EYES[1]), float(gimbal.EYES[2])])
@@ -53,15 +53,15 @@ def _eyes_posed(gaze):
         piv = at0 - rm @ np.array([0.0, 0.0, -float(gimbal.LEVER[side])])
         ang = gimbal.angles(side, gz)
         rc, rr = gimbal.eye(side, ang), gimbal.turned((ang[0], 0.0)) @ rm
-        lx = sgn * 0.0138
-        lbox = csg.filleted2d(csg.box2d((min(lx, sgn * 0.0108), max(lx, sgn * 0.0108)), (-0.0015, 0.0015)), r=0.0005)
-        ylug = csg.extrude(lbox, a=-0.0012, b=0.0012, axis=2, colour=fl.TITANIUM, chamfer=0.0004).tris()
+        lx = sgn * 0.0098
+        lbox = csg.filleted2d(csg.box2d((min(lx, sgn * 0.0076), max(lx, sgn * 0.0076)), (-0.0012, 0.0012)), r=0.00038)
+        ylug = csg.extrude(lbox, a=-0.0009, b=0.0009, axis=2, colour=fl.TITANIUM, chamfer=0.0003).tris()
         out[side + '_camera'] = fl.turn_tris(cam_l, rc, (0.0, 0.0, 0.0), piv)
         out[side + '_gimbal'] = (fl.turn_tris(ring_l + ylug, rr, (0.0, 0.0, 0.0), piv)
                                  + fl.turn_tris(pins_l, rm, (0.0, 0.0, 0.0), piv))
-        links += (fl.rod((pv_l if sgn > 0 else pv_r) + np.array([0.0, 0.0, 0.004]), piv + rr @ np.array([lx, 0.0, 0.0]), 0.00095)
-                  + fl.rod(np.array([sgn * 0.045, ry - 0.0055 * math.sin(gz[1]), rz + 0.0055 * math.cos(gz[1])]),
-                           piv + rc @ np.array([0.0, 0.0094, 0.0024]), 0.00095))
+        links += (fl.rod((pv_l if sgn > 0 else pv_r) + np.array([0.0, 0.0, 0.004]), piv + rr @ np.array([lx, 0.0, 0.0]), 0.00085)
+                  + fl.rod(np.array([sgn * 0.043, ry - 0.0050 * math.sin(gz[1]), rz + 0.0050 * math.cos(gz[1])]),
+                           piv + rc @ np.array([0.0, 0.0066, 0.0020]), 0.00085))
     out['gaze_linkages'] = links
     return out
 
@@ -77,37 +77,37 @@ def _expressions_posed(blink, brow_lift, brow_tilt, smile, jaw_open):
     brow0, ulid0, llid0, piv_l, comm0, jaw0 = fl.moving_rest()
     out = {k: [] for k in ('brow_servos', 'brow_linkages', 'lid_servos', 'lid_linkages',
                            'smile_servos', 'smile_linkages', 'jaw_servos', 'jaw_linkages')}
-    dy = 0.0028 * blf
+    dy = 0.0023 * blf
     for side, sgn in (('left', 1.0), ('right', -1.0)):
-        bpiv, rb = np.array([sgn * 0.047, 0.123, 0.088]), fl.rot('z', -sgn * math.radians(5.8 * btl))
+        bpiv, rb = np.array([sgn * 0.040, 0.118, 0.089]), fl.rot('z', -sgn * math.radians(3.2 * btl))
         out[side + '_brow'] = fl.turn_tris(brow0 if sgn > 0 else fl.mirror_x(brow0), rb, bpiv, (0.0, dy, 0.0))
-        sb1, hb1, tb1, _ = fl.micro_servo((sgn * 0.033, 0.144, 0.056), 'x', -0.45 * (blf + 0.5 * btl), 0.0065, sgn=sgn)
-        sb2, hb2, tb2, _ = fl.micro_servo((sgn * 0.054, 0.143, 0.052), 'x', -0.45 * (blf - 0.5 * btl), 0.0065, sgn=sgn)
+        sb1, hb1, tb1, _ = fl.micro_servo((sgn * 0.022, 0.138, 0.054), 'x', -0.45 * (blf + 0.5 * btl), 0.0060, sgn=sgn)
+        sb2, hb2, tb2, _ = fl.micro_servo((sgn * 0.040, 0.136, 0.048), 'x', -0.45 * (blf - 0.5 * btl), 0.0060, sgn=sgn)
         out['brow_servos'] += sb1 + sb2
         out['brow_linkages'] += (hb1 + hb2
-                                 + fl.rod(tb1, bpiv + rb @ np.array([-sgn * 0.014, 0.003, -0.004]) + (0.0, dy, 0.0), 0.00085)
-                                 + fl.rod(tb2, bpiv + rb @ np.array([sgn * 0.008, 0.002, -0.008]) + (0.0, dy, 0.0), 0.00085))
+                                 + fl.rod(tb1, bpiv + rb @ np.array([-sgn * 0.014, -0.001, -0.003]) + (0.0, dy, 0.0), 0.00080)
+                                 + fl.rod(tb2, bpiv + rb @ np.array([sgn * 0.006, -0.001, -0.012]) + (0.0, dy, 0.0), 0.00080))
 
         ps = piv_l * (sgn, 1.0, 1.0)
-        ru, rl = fl.rot('x', math.radians(17.5 * bl)), fl.rot('x', math.radians(-21.5 * bl))
+        ru, rl = fl.rot('x', math.radians(16.0 * bl)), fl.rot('x', math.radians(-19.5 * bl))
         out[side + '_upper_lid'] = fl.turn_tris(ulid0 if sgn > 0 else fl.mirror_x(ulid0), ru, ps)
         out[side + '_lower_lid'] = fl.turn_tris(llid0 if sgn > 0 else fl.mirror_x(llid0), rl, ps)
-        slb, slh, tl, _ = fl.micro_servo((sgn * 0.065, 0.108, 0.054), 'x', 0.55 * bl, 0.0060, sgn=sgn)
+        slb, slh, tl, _ = fl.micro_servo((sgn * 0.048, 0.108, 0.048), 'x', 0.55 * bl, 0.0056, sgn=sgn)
         out['lid_servos'] += slb
-        out['lid_linkages'] += slh + fl.rod(tl, ps + ru @ np.array([sgn * 0.0098, 0.0095, 0.0085]), 0.0008)
+        out['lid_linkages'] += slh + fl.rod(tl, ps + ru @ np.array([sgn * 0.0036, 0.0074, 0.0068]), 0.00075)
 
-        cpiv, rc = np.array([sgn * 0.0250, 0.0478, 0.0930]), fl.rot('z', sgn * math.radians(14.5 * sm))
+        cpiv, rc = np.array([sgn * 0.0206, 0.0458, 0.0932]), fl.rot('z', sgn * math.radians(18.0 * sm))
         out[side + '_lip_corner'] = fl.turn_tris(comm0 if sgn > 0 else fl.mirror_x(comm0), rc, cpiv, (0.0, 0.0012 * sm, 0.0))
-        ssb, ssh, ts, _ = fl.micro_servo((sgn * 0.050, 0.068, 0.054), 'z', sgn * 0.55 * sm, 0.0065, (sgn, 0.0, 0.0))
+        ssb, ssh, ts, _ = fl.micro_servo((sgn * 0.036, 0.068, 0.050), 'z', sgn * 0.55 * sm, 0.0060, (sgn, 0.0, 0.0))
         out['smile_servos'] += ssb
-        out['smile_linkages'] += ssh + fl.rod(ts, cpiv + rc @ np.array([sgn * 0.0155, 0.0010, -0.0095]) + (0.0, 0.0012 * sm, 0.0), 0.00085)
+        out['smile_linkages'] += ssh + fl.rod(ts, cpiv + rc @ np.array([sgn * 0.0080, 0.0006, -0.0095]) + (0.0, 0.0012 * sm, 0.0), 0.00080)
 
-    jpiv, rj = np.array([0.0, 0.066, 0.024]), fl.rot('x', math.radians(16.0 * jw))
+    jpiv, rj = np.array([0.0, 0.066, 0.024]), fl.rot('x', math.radians(15.5 * jw))
     out['mandible'] = fl.turn_tris(jaw0, rj, jpiv)
     for sgn in (1.0, -1.0):
-        sjb, sjh, tj, _ = fl.micro_servo((sgn * 0.056, 0.056, 0.035), 'x', 0.60 * jw, 0.0068, sgn=sgn)
+        sjb, sjh, tj, _ = fl.micro_servo((sgn * 0.035, 0.078, 0.038), 'x', 0.58 * jw, 0.0062, sgn=sgn)
         out['jaw_servos'] += sjb
-        out['jaw_linkages'] += sjh + fl.rod(tj, jpiv + rj @ np.array([sgn * 0.0495, -0.030, 0.024]), 0.00095)
+        out['jaw_linkages'] += sjh + fl.rod(tj, jpiv + rj @ np.array([sgn * 0.0410, -0.024, 0.026]), 0.00085)
     return out
 
 
@@ -201,7 +201,7 @@ def lit_mesh(parts_dict):
     return np.vstack(pl), np.vstack(nl_), np.vstack(ul), np.concatenate(ml), np.vstack(il)
 
 
-def render_panel(parts_dict, yaw=0.0, pitch=6.0, width=700, height=820, centre=(0.0, 0.545, 0.028), scale=2520.0, distance=0.85, raster=None):
+def render_panel(parts_dict, yaw=0.0, pitch=6.0, width=640, height=840, centre=(0.0, 0.562, 0.016), scale=2320.0, distance=0.88, raster=None):
     """Render one 2x-SSAA studio panel via `gpu.LitRaster` (or `lit.splat` fallback)."""
     from PIL import Image
     from coaxial.graphics import gpu, lit
@@ -225,7 +225,7 @@ def render_panel(parts_dict, yaw=0.0, pitch=6.0, width=700, height=820, centre=(
 
 
 def render_sheets(out_dir):
-    """Render `face_artificial_ortho.png` and `face_artificial_expressions.png` at 2x SSAA."""
+    """Render `face_artificial_ortho.png` (with High-Crown 3/4) and `face_artificial_expressions.png` at 2x SSAA."""
     from PIL import Image, ImageDraw, ImageFont
     from coaxial.graphics import gpu
     os.makedirs(out_dir, exist_ok=True)
@@ -234,23 +234,26 @@ def render_sheets(out_dir):
         font = ImageFont.load_default(size=20)
     except TypeError:
         font = ImageFont.load_default()
-    specs = [('FRONT ORTHO', posed('neutral'), 0.0, 4.0), ('3/4 STUDIO', posed('neutral'), 32.0, 9.0),
-             ('SIDE EAR-MIC PROFILE', posed('neutral'), 88.0, 4.0), ('INTERNAL SERVOS & GIMBALS', posed('curious', plates=False), 26.0, 12.0)]
-    pw, ph, top = 680, 800, 52
+    specs = [('FRONT ORTHO', posed('neutral'), 0.0, 4.0),
+             ('3/4 STUDIO', posed('neutral'), 30.0, 8.0),
+             ('HIGH-CROWN 3/4', posed('neutral'), 26.0, 26.0),
+             ('SIDE EAR-MIC PROFILE', posed('neutral'), 88.0, 4.0),
+             ('INTERNAL SERVOS & GIMBALS', posed('curious', plates=False), 26.0, 12.0)]
+    pw, ph, top = 600, 820, 52
     ortho = Image.new('RGB', (pw * len(specs), ph + top), (16, 18, 24))
     po = ImageDraw.Draw(ortho)
     for i, (lbl, pts, yw, pt) in enumerate(specs):
         ortho.paste(render_panel(pts, yw, pt, pw, ph, raster=lr), (i * pw, top))
-        po.text((i * pw + 22, 16), lbl, fill=(230, 234, 242), font=font)
+        po.text((i * pw + 20, 16), lbl, fill=(230, 234, 242), font=font)
     op = os.path.join(out_dir, 'face_artificial_ortho.png')
     ortho.save(op)
 
-    ew, eh, names = 580, 720, ('neutral', 'smile', 'curious', 'focused', 'speaking')
+    ew, eh, names = 560, 760, ('neutral', 'smile', 'curious', 'focused', 'speaking')
     expr = Image.new('RGB', (ew * len(names), eh + top), (16, 18, 24))
     pe = ImageDraw.Draw(expr)
     for i, nm_ in enumerate(names):
-        expr.paste(render_panel(posed(nm_), 18.0, 6.0, ew, eh, scale=2280.0, raster=lr), (i * ew, top))
-        pe.text((i * ew + 22, 16), nm_.upper(), fill=(230, 234, 242), font=font)
+        expr.paste(render_panel(posed(nm_), 20.0, 7.0, ew, eh, scale=2160.0, raster=lr), (i * ew, top))
+        pe.text((i * ew + 20, 16), nm_.upper(), fill=(230, 234, 242), font=font)
     ep = os.path.join(out_dir, 'face_artificial_expressions.png')
     expr.save(ep)
     return op, ep
@@ -270,7 +273,8 @@ def checked():
         pl = st + mv
         pc[nm_] = int(clips.crossed(mv, st) + clips.crossed(p['left_upper_lid'] + p['right_upper_lid'], p['left_lower_lid'] + p['right_lower_lid'])
                       + clips.crossed(p['left_lip_corner'] + p['right_lip_corner'], p['mandible'])
-                      + clips.crossed(ey, pl) + clips.crossed(p['left_ear_mic'] + p['right_ear_mic'], pl))
+                      + clips.crossed(ey, pl) + clips.crossed(p['left_ear_mic'] + p['right_ear_mic'], pl)
+                      + clips.crossed(ey, p['chassis']))
     bf = head_parts(blink=1.0, plates=True)
     lshut = int(clips.crossed(bf['left_upper_lid'] + bf['right_upper_lid'], bf['left_lower_lid'] + bf['right_lower_lid']))
     nc = mc = 0
@@ -282,11 +286,12 @@ def checked():
     neu = head_parts(**PRESETS['neutral'], plates=True)
     cl, cr = (np.vstack([t for t, _c in neu[k]]).mean(0) for k in ('left_camera', 'right_camera'))
     berr = round(1e3 * abs(float(cl[0] - cr[0]) - float(stereo.BASELINE_M)), 2)
+    crown_mm = round(1e3 * float(np.vstack([t for t, _c in neu['cranium_dome']])[:, 1].max()), 2)
     oe = {k: int(solids.printable([1e3 * t for t, _c in neu[k]])['open'])
-          for k in ('cranium_dome', 'nasal_bridge', 'left_brow', 'left_maxilla', 'left_orbital_pillar', 'upper_lip')}
+          for k in ('cranium_dome', 'left_temporal', 'nasal_bridge', 'left_brow', 'left_maxilla', 'left_orbital_pillar', 'philtrum', 'upper_lip')}
     return {'ok': sum(pc.values()) == 0 and lshut == 0 and nc == 0 and mc == 0 and berr < 1.0 and sum(oe.values()) == 0 and abs(float(gimbal.DOWN_DEG) - 15.0) < 1e-6,
             'preset_cross': pc, 'lid_shut_cross': lshut, 'neck_cross': int(nc), 'mount_cross': int(mc),
-            'baseline_mm': round(1e3 * float(cl[0] - cr[0]), 2), 'open_edges': oe, 'part_count': len(neu)}
+            'baseline_mm': round(1e3 * float(cl[0] - cr[0]), 2), 'crown_mm': crown_mm, 'open_edges': oe, 'part_count': len(neu)}
 
 
 def main(argv=None):
