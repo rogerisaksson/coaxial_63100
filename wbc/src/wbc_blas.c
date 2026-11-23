@@ -240,12 +240,100 @@ int wbc_potrf(const wbc_blas_t *l, wbc_view_t a, int n, double *x, double *work)
   return info != 0;
 }
 
+/** The columns a reflector takes at once (`block`). */
+#define BLOCK 8
+
+/** Reflector k of `af` (m, q) on `w` (at most BLOCK) columns of `x` from `j` (m, cols), rows along each column's
+    row: each column's npsum of its products along the reflector op for op - its eight partial sums from 8 rows on,
+    its first rows' running sum under 8 -, its row k beside it, times tau, taken down the reflector. */
+static void block(const double *af, int len, int q, int k, double tau, double *x, int cols, int j, int w)
+{
+  const int whole = len - (len % 8);
+  double    r[8][BLOCK], c[BLOCK];
+  int       i = 0;
+
+  for (int b = 0; b < w; b++)
+  {
+    c[b] = 0.0;
+  }
+  if (len >= 8)
+  {
+    for (int u = 0; u < 8; u++)
+    {
+      const double  v  = af[(k + 1 + u) * q + k];
+      const double *xr = x + (k + 1 + u) * cols + j;
+
+      for (int b = 0; b < w; b++)
+      {
+        r[u][b] = v * xr[b];
+      }
+    }
+    for (i = 8; i < whole; i += 8)
+    {
+      for (int u = 0; u < 8; u++)
+      {
+        const double  v  = af[(k + 1 + i + u) * q + k];
+        const double *xr = x + (k + 1 + i + u) * cols + j;
+
+        for (int b = 0; b < w; b++)
+        {
+          r[u][b] += v * xr[b];
+        }
+      }
+    }
+    for (int b = 0; b < w; b++)
+    {
+      c[b] = ((r[0][b] + r[1][b]) + (r[2][b] + r[3][b])) + ((r[4][b] + r[5][b]) + (r[6][b] + r[7][b]));
+    }
+  }
+  for (; i < len; i++)
+  {
+    const double  v  = af[(k + 1 + i) * q + k];
+    const double *xr = x + (k + 1 + i) * cols + j;
+
+    for (int b = 0; b < w; b++)
+    {
+      c[b] += v * xr[b];
+    }
+  }
+  for (int b = 0; b < w; b++)
+  {
+    c[b] = tau * (x[k * cols + j + b] + c[b]);
+    x[k * cols + j + b] -= c[b];
+  }
+  for (i = 0; i < len; i++)
+  {
+    const double v  = af[(k + 1 + i) * q + k];
+    double      *xr = x + (k + 1 + i) * cols + j;
+
+    for (int b = 0; b < w; b++)
+    {
+      xr[b] -= v * c[b];
+    }
+  }
+}
+
 /** Reflector k of `af` (m, q, C-ordered) on columns j0..cols-1 of `x` (m, cols): each column's sum along the
-    reflector - its row k and numpy's pairwise sum of the rest (`t` m doubles) - times tau, taken down the reflector. */
+    reflector - its row k and numpy's pairwise sum of the rest (`t` m doubles) - times tau, taken down the reflector;
+    BLOCK columns at once along their rows where npsum sums in one block (128 or fewer), its bits a column's alone. */
 static void reflected(const double *af, int m, int q, int k, double tau, double *x, int cols, int j0, double *t)
 {
   const int len = m - k - 1;
 
+  if (len <= 128)
+  {
+    int j = j0;
+
+    for (; j + BLOCK <= cols; j += BLOCK)
+    {
+      block(af, len, q, k, tau, x, cols, j, BLOCK);
+    }
+    if (j < cols)
+    {
+      block(af, len, q, k, tau, x, cols, j, cols - j);
+    }
+    return;
+  }
   for (int j = j0; j < cols; j++)
   {
     for (int i = 0; i < len; i++)

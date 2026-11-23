@@ -3,7 +3,7 @@
 Unknowns 2 to 60 under 0 to 200 rows met at a point drawn: rows too short to keep, problems no x meets, warm starts
 from the last solve's held rows, the dual given one step so the interior point answers - the C's x, the rows it
 holds and their multipliers are the python's bit for bit on an exact host, within their last bits elsewhere; a
-solve's time."""
+solve's time. The dual's QR (wbc_qr) beside `qp.householder` on every shape it takes, bit for bit; a QR's time."""
 import os
 import sys
 import time
@@ -81,7 +81,41 @@ def test_the_dual_active_set_in_c_is_the_stacks(report):
     report.check('a solve of 40 unknowns under 120 rows on this host', us < 20000.0, '%.0f us' % us)
 
 
-ROSTER = (test_the_dual_active_set_in_c_is_the_stacks,)
+def test_the_qr_in_c_is_its_numpy_twins(report):
+    """`wbc_qr` beside `qp.householder` on every shape of 1 to 48 rows and on 129 to 136 (its reflectors' sums past
+    one of npsum's blocks): random columns, a zero column, a column repeated - Q and R bit for bit; a QR's time."""
+    import numpy as np
+    from machine.stack import qp
+    from tools.cores import motion as c_motion, qp as c_qp
+    rng = np.random.default_rng(5)
+    shapes = [(m, q) for m in range(1, 49) for q in range(1, m + 1)] + [(m, q) for m in range(129, 137) for q in (1, 9, 17)]
+    worst, unlike = 0.0, 0
+    for k, (m, q) in enumerate(shapes):
+        a = rng.normal(size=(m, q))
+        if q > 2 and k % 3 == 1:
+            a[:, 1] = 0.0
+        if q > 3 and k % 3 == 2:
+            a[:, 3] = a[:, 0]
+        theirs = c_qp.qr(a)
+        pairs = list(zip(qp.householder(a), theirs)) if theirs is not None else []
+        same = bool(pairs) and all(x.shape == y.shape and x.tobytes() == y.tobytes() for x, y in pairs)
+        worst = max([worst] + [float(np.abs(x - y).max()) for x, y in pairs if x.shape == y.shape])
+        unlike += not same
+    line = '%d shapes: %d unlike, %.1e apart at most' % (len(shapes), unlike, worst)
+    if c_motion.exact_host():
+        report.check("the QR in C is its numpy twin's bit for bit", unlike == 0, line)
+    else:
+        report.check("the QR in C is its numpy twin's within its last bits where numpy dispatches elsewhere",
+                     worst <= APART, line)
+    a = rng.normal(size=(39, 20))
+    t = time.perf_counter()
+    for _ in range(200):
+        c_qp.qr(a)
+    us = 1e6 * (time.perf_counter() - t) / 200
+    report.check('a QR of 39 rows by 20 on this host', us < 2000.0, '%.1f us' % us)
+
+
+ROSTER = (test_the_dual_active_set_in_c_is_the_stacks, test_the_qr_in_c_is_its_numpy_twins)
 
 
 def main(argv=None):
