@@ -1,5 +1,5 @@
 ; humanoid gcode 1
-; rig gynoid_mesomorph_medium
+; rig gynoid_mesomorph_medium_coax
 ; take t_pose/T-Pose
 ; hz 30.000
 ; leg 0.770

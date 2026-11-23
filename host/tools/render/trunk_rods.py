@@ -56,7 +56,7 @@ STEM_R, STEM_P, WASHER_R, WASHER_M, NUT_M = 0.004, 0.00125, 0.008, 0.0015, 0.006
 #: middle, m - leant 25 deg the upper fork's cheeks come to 75.7 mm -, how far in from the gable the band's outer
 #: face stands, still on the output ring - leant 35 deg and bowed back near dead centre the leaves' inner edge sweeps
 #: the gable's plane 0.7 mm off, 35 to 38 mm round -, and how far off the gearbox's still housing the band's bed, m.
-SPREAD, EYE_M, EYE_X, BAND_IN, HOUSE_AIR = 80.0, 0.008, 0.072, 0.002, 0.002
+SPREAD, EYE_M, EYE_X, BAND_IN, HOUSE_AIR = 80.0, 0.008, 0.073, 0.002, 0.002
 #: The cartridge's width - the calf's leaves narrowed: there a 15 mm cartridge passes the drive's output ring's
 #: face 1.5 mm off -, m, and a leaf's bow as a share of its length.
 WIDE_M, BOW = 0.0135, 0.095

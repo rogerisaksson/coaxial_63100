@@ -77,4 +77,13 @@ STUNTS = {
     'standing_jump': ('standing/Standing Jump', 'flat', [(1.0, {'charge': 1.0, 'say': 'hop'})], 1.0, ('rise', 'flight', 'travel')),
     'crawl_backwards': ('crawl/Crawl Backwards', 'flat', [(1.0, {'say': 'scoot_floor'}), (8.0, {'twist': _BACK})], 8.0,
                         ('travel', 'back', 'knee', 'hips back')),
+    't_pose': ('t_pose/T-Pose', 'flat', [(1.0, {'take': 't_pose'})], 1.0, ('ended',)),
+    'left_turn': ('turning/Left Turn', 'flat', [(0.5, {'twist': KEYS['a']})], MOMENTS[0], ('turned',)),
+    'right_turn': ('turning/Right Turn', 'flat', [(0.5, {'twist': KEYS['d']})], MOMENTS[0], ('turned',)),
+    'walking_arc_left': ('turning/Walking Arc Left', 'flat', [(0.5, {'twist': KEYS['wa']})], MOMENTS[0],
+                         ('turned', 'travel', 'speed')),
+    'run_arc_left': ('turning/Run Arc Left', 'flat', [(0.5, {'twist': KEYS['Wa']})], MOMENTS[0],
+                     ('turned', 'travel', 'speed')),
+    'running_right_turn': ('turning/Running Right Turn', 'flat', [(0.5, {'twist': KEYS['Wd']})], MOMENTS[0],
+                           ('turned', 'travel', 'speed')),
 }

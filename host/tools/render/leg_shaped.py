@@ -220,15 +220,7 @@ def posed(ahead=None, flex=0.0):
     from machine.body.figure import THIGH
     lead = lc.stated() if ahead is None else ahead
     _parts, _cables, still, turning = kc.bodies(flex=flex, ahead=lead)
-    stator = drawn('stator clamp')
-    if stator is not None:
-        still = dict(still, **{'stator band': stator, 'saddle': []})
     links = {k: dict(v) for k, v in hc.links().items()}
-    for name, link, key in (('thigh arm', 'thigh', 'neck'), ('thigh knuckle', 'thigh', 'knuckle'),
-                            ('yoke', 'yaw', 'yoke'), ('block', 'yaw', 'block')):
-        tris = drawn(name)
-        if tris is not None:
-            links[link][key] = tris
     def lifted(parts, word=''):
         return {word + n: [(t + (0.0, THIGH, 0.0), c) for t, c in ts] for n, ts in parts.items() if ts}
     hip = dict(lifted(links['roll'], 'cradle '), **lifted(links['yaw'], 'yaw '),

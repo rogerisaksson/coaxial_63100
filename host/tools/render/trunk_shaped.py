@@ -24,7 +24,6 @@ if __package__ in (None, ''):
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from tools.render import elbow_mount as em  # noqa: E402
-from tools.render import hip_frame as hf  # noqa: E402
 from tools.render import knee_loads as kl  # noqa: E402
 from tools.render import knee_topo as kt  # noqa: E402
 from tools.render import topo  # noqa: E402
@@ -123,25 +122,8 @@ def drawn(name):
 
 
 def posed(roll=0.0, pitch=0.0):
-    """`trunk_clamped.posed` with every print shaped so far drawn as its solid - a lever on either drive, turned
-    where its rod holds it."""
-    import math
-    from tools.render import clamped as cl
-    out = tc.posed(roll, pitch)
-    turns = dict(zip(('cross', 'chest'), tl.turn(roll, pitch)))
-    for name in SHAPED:
-        tris, link = drawn(name), tc.PRINTS[name][0]
-        if tris is None:
-            continue
-        if link == 'left crank':
-            got, rest = tl.cranked(roll, pitch), math.radians(tl.CRANK[1])
-            assert got is not None, 'every pose of the travel is reached (trunk_laid.reached)'
-            for side, (bearing, _pin, _ball) in zip(('left', 'right'), got):
-                own = tris if side == 'left' else tc._mirrored(tris)
-                out[(side + ' crank', name)] = hf._put(cl.tilted(own, bearing - rest, tl.HUB[1:]), turns['chest'])
-        else:
-            out[(link, name)] = hf._put(tris, turns[link]) if link in turns else tris
-    return out
+    """`trunk_clamped.posed` using crisp parametric CAD prints (no voxelized mesh overwrites)."""
+    return tc.posed(roll, pitch)
 
 
 def told(log=None):

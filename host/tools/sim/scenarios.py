@@ -111,8 +111,8 @@ def stunt_window(key, played=None):
     (`takes.ENTER_S`) - told None, from the s `played` its joint program began -, for its take's seconds at the
     robot's size (`stunts.similar`)."""
     ref, told = stunts.reference()[key], STUNTS[key][3]
-    start = played if told is None else told + takes.ENTER_S
-    return start, start + ref['seconds'] * stunts.similar(ref['leg'], 'time')
+    start = float(played or 0.0) if told is None else told + takes.ENTER_S
+    return start, start + max(ref['seconds'] * stunts.similar(ref['leg'], 'time'), 0.1)
 
 
 def borne(world, robot_own, kinds, force):

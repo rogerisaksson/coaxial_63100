@@ -111,7 +111,7 @@ def rig(joints):
         out[s + 'KF'], out[s + 'AF'] = _angle(d, sh), _angle(sh, toe) - 90.0
         knee = np.cross(d, sh)                                        # the knee's bending plane's normal, toward the robot's left
         knee = _unit(knee * np.sign(_dot(knee, l_p) + 1e-12)[:, None])
-        out[s + 'AR'] = _asin(sign * _dot(toe, knee)) * (_angle(d, sh) > BENT)
+        out[s + 'AR'] = _asin(sign * _dot(toe, knee)) * (_angle(d, sh) > 20.0)
         a, r = _unit(J[side + 'ForeArm'] - J[side + 'Arm']), _unit(J[side + 'Hand'] - J[side + 'ForeArm'])
         h = _unit(J[side + 'HandMiddle1'] - J[side + 'Hand'])
         sag = libm.hypot(_dot(a, f_t), _dot(a, u_t))
@@ -125,30 +125,35 @@ def rig(joints):
 
 
 def _held(values):
-    """`values` with each rotation word (HR, SR) unwrapped over the frames and held where its bend (KF, EF) is
-    within BENT of straight, the ankle roll and sagittal shoulder flexion near +-90 deg abduction held likewise."""
+    """`values` with each rotation word (HR, SR) unwrapped within contiguous readable segments and held where
+    its bend (KF, EF) is within BENT of straight, ankle roll held below 20 deg knee bend and sagittal shoulder
+    flexion near +-90 deg abduction held likewise."""
     import numpy as np
+
+    def _unwrap_held(v, readable, wrap):
+        if not readable.any():
+            return np.zeros_like(v)
+        first = int(np.argmax(readable))
+        last = float(((v[first] + 180.0) % 360.0) - 180.0)
+        out = np.empty_like(v)
+        out[:first] = last
+        for i in range(first, len(v)):
+            if readable[i]:
+                if wrap and i > first and readable[i - 1]:
+                    last = last + float(((v[i] - last + 180.0) % 360.0) - 180.0)
+                else:
+                    last = float(((v[i] + 180.0) % 360.0) - 180.0)
+            out[i] = last
+        return out
+
     for word, bend in (('HR', 'KF'), ('SR', 'EF'), ('AR', 'KF')):
+        min_bend = 20.0 if word == 'AR' else BENT
         for s, _side, _sign in SIDES:
             k, b = WORDS.index(s + word), WORDS.index(s + bend)
-            readable = values[:, b] > BENT
-            v = values[:, k].copy()
-            if word != 'AR':
-                v[readable] = np.degrees(np.unwrap(np.radians(v[readable])))
-            last = 0.0
-            for i in range(len(v)):
-                last = v[i] if readable[i] else last
-                v[i] = last
-            values[:, k] = v
+            values[:, k] = _unwrap_held(values[:, k], values[:, b] > min_bend, word != 'AR')
     for s, _side, _sign in SIDES:
         k, a = WORDS.index(s + 'SF'), WORDS.index(s + 'SA')
-        readable = (90.0 - np.abs(values[:, a])) > BENT
-        v = np.degrees(np.unwrap(np.radians(values[:, k].copy())))
-        last = 0.0
-        for i in range(len(v)):
-            last = v[i] if readable[i] else last
-            v[i] = last
-        values[:, k] = v
+        values[:, k] = _unwrap_held(values[:, k], (90.0 - np.abs(values[:, a])) > BENT, True)
     return values
 
 

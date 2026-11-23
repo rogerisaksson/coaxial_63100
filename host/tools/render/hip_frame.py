@@ -162,7 +162,10 @@ def yoke(low, back):
                  (bore_r, -0.0555), (bore_r, back), (outer_x, back), (outer_x, z_cheek)] + arc)
     ys = np.concatenate([np.linspace(floor, low, 6)[:-1], np.linspace(low, top_y, 8)])
     rings = [np.array([(x, y, z) for x, z in ring_xz(y)]) for y in ys]
-    out = _cap_y(ring_xz(floor), floor, True)
+    from tools.render import csg
+    fl_poly, fl_ears = csg.bridge_holes(ring_xz(floor), (), clean=False)
+    p_fl = np.c_[fl_poly[:, 0], np.full(len(fl_poly), floor), fl_poly[:, 1]]
+    out = [(p_fl[[i, k, j]], em.FRAME) for i, j, k in fl_ears]
     out += [t for a, b in zip(rings[:-1], rings[1:]) for i in range(len(a)) for j in ((i + 1) % len(a),)
             for t in ((np.array((a[i], a[j], b[j])), em.FRAME), (np.array((a[i], b[j], b[i])), em.FRAME))]
     bore = [(bore_r * math.cos(a), bore_r * math.sin(a)) for a in np.linspace(0.0, 2.0 * math.pi, 49)[:-1]]
@@ -171,15 +174,11 @@ def yoke(low, back):
     out += [t for i in range(len(bore)) for j in ((i + 1) % len(bore),)
             for t in ((np.array((rb_lo[i], rb_hi[j], rb_lo[j])), em.FRAME),
                       (np.array((rb_lo[i], rb_hi[i], rb_hi[j])), em.FRAME))]
-    top_f = [(0.0402 * math.cos(a), 0.0402 * math.sin(a)) for a in np.linspace(0.5 * math.pi, a0, 9)]
+    cap_poly, cap_ears = csg.bridge_holes(ring_xz(top_y), (bore,), clean=False)
+    p_top = np.c_[cap_poly[:, 0], np.full(len(cap_poly), top_y), cap_poly[:, 1]]
+    out += [(p_top[[i, j, k]], em.FRAME) for i, j, k in cap_ears]
     for s in (-1.0, 1.0):
-        half = [(s * bore_r * math.sin(a), bore_r * math.cos(a)) for a in np.linspace(0.0, math.pi, 25)]
-        fh = [(s * x, z) for x, z in top_f]
-        poly = (fh + [(outer_x, z_cheek), (outer_x, back), (bore_r, back), (bore_r, -0.0555), (0.0, -0.0555)] + half[::-1]
-                if s > 0.0 else [(0.0, -0.0555), (-bore_r, -0.0555), (-bore_r, back), (-outer_x, back),
-                                 (-outer_x, z_cheek)] + fh[::-1] + half)
-        out += _cap_y(poly, top_y, False)
-        out += _prism(_box(sorted((s * bore_r, s * outer_x)), (top_y - 0.003, hl.FIN[0])), back, hl.FIN[1], em.FRAME, 2)
+        out += _prism(_box(sorted((s * bore_r, s * outer_x)), (top_y, hl.FIN[0])), back, hl.FIN[1], em.FRAME, 2)
     return {'yoke': out, 'hub screws': _sunk(_ring(), floor, -1.0, 1, em.HEAD)}
 
 

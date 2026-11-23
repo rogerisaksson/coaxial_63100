@@ -1,12 +1,12 @@
 ; humanoid gcode 1
-; rig gynoid_mesomorph_medium
+; rig gynoid_mesomorph_medium_coax
 ; take sitting/Sit To Stand
 ; hz 30.000
 ; leg 0.770
 ; general general
 ; similar 0.931
 ; dropped NKL LSA LSR LWF RSA RSR RWF
-; clamped left_ankle_roll:7 right_ankle_roll:23
+; clamped left_ankle_roll:3 right_ankle_roll:16
 ; slowed 1.73
 ; stretched 1.04
 G1 T0.000 spine13.587 spine_roll-4.540 waist0.333 neck11.402 left_hip-83.658 left_hip_roll13.631 left_hip_yaw5.469 left_knee93.549 left_ankle11.400 left_ankle_roll-9.470 left_shoulder19.993 left_elbow56.903 right_hip-85.350 right_hip_roll8.831 right_hip_yaw1.907 right_knee96.326 right_ankle7.960 right_ankle_roll15.000 right_shoulder30.799 right_elbow34.255
@@ -68,10 +68,10 @@ G1 T1.799 spine2.841 spine_roll1.300 waist10.856 neck21.057 left_hip-25.391 left
 G1 T1.830 spine2.284 spine_roll1.382 waist11.357 neck20.645 left_hip-24.673 left_hip_roll7.302 left_hip_yaw8.589 left_knee32.750 left_ankle1.160 left_ankle_roll7.560 left_shoulder-10.532 left_elbow24.969 right_hip-19.702 right_hip_roll1.694 right_hip_yaw2.874 right_knee26.222 right_ankle1.293 right_ankle_roll15.000 right_shoulder-6.609 right_elbow28.754
 G1 T1.861 spine1.728 spine_roll1.448 waist11.619 neck20.221 left_hip-23.198 left_hip_roll7.692 left_hip_yaw8.445 left_knee29.608 left_ankle2.755 left_ankle_roll9.328 left_shoulder-9.672 left_elbow21.440 right_hip-18.242 right_hip_roll1.467 right_hip_yaw2.859 right_knee25.400 right_ankle1.310 right_ankle_roll15.000 right_shoulder-8.018 right_elbow27.107
 G1 T1.892 spine1.156 spine_roll1.486 waist11.651 neck19.868 left_hip-20.833 left_hip_roll7.818 left_hip_yaw7.046 left_knee24.871 left_ankle5.249 left_ankle_roll12.811 left_shoulder-8.556 left_elbow17.379 right_hip-16.614 right_hip_roll1.250 right_hip_yaw2.791 right_knee24.283 right_ankle1.451 right_ankle_roll15.000 right_shoulder-9.173 right_elbow25.379
-G1 T1.923 spine0.582 spine_roll1.518 waist11.439 neck19.533 left_hip-18.076 left_hip_roll7.510 left_hip_yaw3.569 left_knee19.807 left_ankle8.159 left_ankle_roll15.000 left_shoulder-7.479 left_elbow13.043 right_hip-15.134 right_hip_roll1.057 right_hip_yaw2.774 right_knee23.425 right_ankle1.475 right_ankle_roll15.000 right_shoulder-10.099 right_elbow23.629
-G1 T1.954 spine0.008 spine_roll1.633 waist10.981 neck19.158 left_hip-15.950 left_hip_roll7.256 left_hip_yaw0.875 left_knee16.838 left_ankle10.563 left_ankle_roll15.000 left_shoulder-6.527 left_elbow8.727 right_hip-14.061 right_hip_roll0.846 right_hip_yaw2.936 right_knee23.297 right_ankle1.173 right_ankle_roll15.000 right_shoulder-10.815 right_elbow21.915
-G1 T1.985 spine-0.562 spine_roll1.888 waist10.252 neck18.694 left_hip-15.239 left_hip_roll7.579 left_hip_yaw1.167 left_knee17.150 left_ankle10.831 left_ankle_roll15.000 left_shoulder-5.760 left_elbow4.993 right_hip-13.254 right_hip_roll0.543 right_hip_yaw3.151 right_knee23.654 right_ankle0.659 right_ankle_roll15.000 right_shoulder-10.954 right_elbow20.112
-G1 T2.016 spine-1.133 spine_roll2.250 waist9.246 neck18.181 left_hip-15.304 left_hip_roll8.272 left_hip_yaw2.408 left_knee19.072 left_ankle9.536 left_ankle_roll15.000 left_shoulder-5.186 left_elbow1.861 right_hip-12.428 right_hip_roll0.153 right_hip_yaw3.350 right_knee23.947 right_ankle0.186 right_ankle_roll15.000 right_shoulder-10.510 right_elbow17.909
+G1 T1.923 spine0.582 spine_roll1.518 waist11.439 neck19.533 left_hip-18.076 left_hip_roll7.510 left_hip_yaw3.569 left_knee19.807 left_ankle8.159 left_ankle_roll12.811 left_shoulder-7.479 left_elbow13.043 right_hip-15.134 right_hip_roll1.057 right_hip_yaw2.774 right_knee23.425 right_ankle1.475 right_ankle_roll15.000 right_shoulder-10.099 right_elbow23.629
+G1 T1.954 spine0.008 spine_roll1.633 waist10.981 neck19.158 left_hip-15.950 left_hip_roll7.256 left_hip_yaw0.875 left_knee16.838 left_ankle10.563 left_ankle_roll12.811 left_shoulder-6.527 left_elbow8.727 right_hip-14.061 right_hip_roll0.846 right_hip_yaw2.936 right_knee23.297 right_ankle1.173 right_ankle_roll15.000 right_shoulder-10.815 right_elbow21.915
+G1 T1.985 spine-0.562 spine_roll1.888 waist10.252 neck18.694 left_hip-15.239 left_hip_roll7.579 left_hip_yaw1.167 left_knee17.150 left_ankle10.831 left_ankle_roll12.811 left_shoulder-5.760 left_elbow4.993 right_hip-13.254 right_hip_roll0.543 right_hip_yaw3.151 right_knee23.654 right_ankle0.659 right_ankle_roll15.000 right_shoulder-10.954 right_elbow20.112
+G1 T2.016 spine-1.133 spine_roll2.250 waist9.246 neck18.181 left_hip-15.304 left_hip_roll8.272 left_hip_yaw2.408 left_knee19.072 left_ankle9.536 left_ankle_roll12.811 left_shoulder-5.186 left_elbow1.861 right_hip-12.428 right_hip_roll0.153 right_hip_yaw3.350 right_knee23.947 right_ankle0.186 right_ankle_roll15.000 right_shoulder-10.510 right_elbow17.909
 G1 T2.047 spine-1.706 spine_roll2.635 waist8.023 neck17.634 left_hip-14.903 left_hip_roll8.834 left_hip_yaw2.949 left_knee20.046 left_ankle8.719 left_ankle_roll15.000 left_shoulder-4.833 left_elbow-0.743 right_hip-11.288 right_hip_roll-0.290 right_hip_yaw3.388 right_knee23.594 right_ankle0.034 right_ankle_roll15.000 right_shoulder-9.827 right_elbow15.467
 G1 T2.078 spine-2.283 spine_roll3.038 waist6.651 neck17.061 left_hip-14.080 left_hip_roll9.280 left_hip_yaw3.016 left_knee20.148 left_ankle8.345 left_ankle_roll15.000 left_shoulder-4.703 left_elbow-2.442 right_hip-9.782 right_hip_roll-0.808 right_hip_yaw3.198 right_knee22.480 right_ankle0.264 right_ankle_roll15.000 right_shoulder-9.083 right_elbow12.886
 G1 T2.109 spine-2.864 spine_roll3.457 waist5.195 neck16.472 left_hip-13.022 left_hip_roll9.669 left_hip_yaw2.813 left_knee19.728 left_ankle8.247 left_ankle_roll15.000 left_shoulder-4.746 left_elbow-3.202 right_hip-8.008 right_hip_roll-1.396 right_hip_yaw2.786 right_knee20.780 right_ankle0.796 right_ankle_roll15.000 right_shoulder-8.179 right_elbow10.245

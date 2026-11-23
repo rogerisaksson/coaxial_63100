@@ -259,6 +259,10 @@ def modes(times, joints, fr):
     line = j['LeftUpLeg'] - j['RightUpLeg']
     arm = [j[s + 'ForeArm'] - j[s + 'Arm'] for s in SIDES]
     swing = np.stack([np.arctan2(u @ along, -(u @ UP)) for u in arm])
+    fore = [j[s + 'Hand'] - j[s + 'ForeArm'] for s in SIDES]
+    bend = np.stack([np.arccos(np.clip(
+        np.einsum('ti,ti->t', u, f) / np.maximum(np.linalg.norm(u, axis=1) * np.linalg.norm(f, axis=1), 1e-9),
+        -1.0, 1.0)) for u, f in zip(arm, fore)])
     foot = [j[s + 'ToeBase'] - j[s + 'Foot'] for s in SIDES]
     tilt = np.stack([np.arcsin(np.clip(f @ UP / np.maximum(np.linalg.norm(f, axis=1), 1e-9), -1.0, 1.0)) for f in foot])
     out = np.zeros((len(t), modal.N))
@@ -273,8 +277,11 @@ def modes(times, joints, fr):
     out[:, modal.PITCH] = (pitch - fr[modal.PITCH0][1]) / modal.PITCH_RAD
     out[:, modal.LIST] = np.arctan2(line @ UP, line @ left) / modal.LIST_RAD
     out[:, modal.TURN] = np.arctan2(line @ along, line @ left) / modal.TURN_RAD
-    out[:, modal.ARMS] = 0.5 * (modal.LIMBS @ (swing - np.median(swing[:, stood], axis=1)[:, None])) / modal.ARM_RAD
+    arm_delta = swing - np.median(swing[:, stood], axis=1)[:, None]
+    out[:, modal.ARMS] = 0.5 * (modal.LIMBS @ arm_delta) / modal.ARM_RAD
     out[:, modal.ROCK] = 0.5 * (modal.LIMBS @ (tilt - np.median(tilt[:, stood], axis=1)[:, None])) / stride.ROCK_RAD
+    out[:, modal.REACH] = 0.5 * arm_delta.sum(axis=0) / modal.ARM_RAD
+    out[:, modal.ELBOWS] = 0.5 * (bend - np.median(bend[:, stood], axis=1)[:, None]).sum(axis=0) / modal.ARM_RAD
     return ((t - t[0]) * similar(leg, 'time')).astype(np.float32), out.astype(np.float32)
 
 

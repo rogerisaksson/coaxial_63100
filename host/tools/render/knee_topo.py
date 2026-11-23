@@ -337,11 +337,12 @@ def surfaced(solid, kept, h, fine=2, sigma=1.05, rounds=6, room=None):
                                 - ndimage.map_coordinates(phi, (g - 0.5 * np.eye(3)[k]).T, order=1, mode='nearest')
                                 for k in range(3)]) / step
         n2 = np.sum(grad * grad, axis=1, keepdims=True) + 1e-8
-        acc = np.zeros_like(p)
-        np.add.at(acc, edges[:, 0], p[edges[:, 1]])
-        lap = acc / deg - p
-        tang = lap - (np.sum(lap * grad, axis=1, keepdims=True) / n2) * grad
-        p = p + np.where(bed[:, None], 0.35 * np.c_[lap[:, 0], np.zeros(len(p)), lap[:, 2]], 0.40 * tang)
+        for scale in (0.48, -0.45):
+            acc = np.zeros_like(p)
+            np.add.at(acc, edges[:, 0], p[edges[:, 1]])
+            lap = acc / deg - p
+            tang = lap - (np.sum(lap * grad, axis=1, keepdims=True) / n2) * grad
+            p = p + np.where(bed[:, None], 0.30 * np.c_[lap[:, 0], np.zeros(len(p)), lap[:, 2]], scale * tang)
         g = (p + 2.0 * h) / step - 0.5
         val = ndimage.map_coordinates(phi, g.T, order=1, mode='nearest')
         dp = np.clip(val[:, None] / n2, -0.5 * step, 0.5 * step) * grad

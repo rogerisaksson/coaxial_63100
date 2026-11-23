@@ -8,6 +8,7 @@ WALK, STOP = (se2.WALK_SPEED, 0.0, 0.0), (0.0, 0.0, 0.0)
 _YAW = round(se2.YAW_RATE, 2)
 KEYS = {'w': WALK, 's': (-se2.BACK_SPEED, 0.0, 0.0), 'q': (0.0, se2.STRAFE_SPEED, 0.0), 'e': (0.0, -se2.STRAFE_SPEED, 0.0),
         'wa': (se2.WALK_SPEED, 0.0, _YAW), 'wd': (se2.WALK_SPEED, 0.0, -_YAW), 'a': (0.0, 0.0, _YAW),
+        'd': (0.0, 0.0, -_YAW), 'Wa': (se2.RUN_SPEED, 0.0, _YAW), 'Wd': (se2.RUN_SPEED, 0.0, -_YAW),
         'W': (se2.RUN_SPEED, 0.0, 0.0), '-': STOP}
 PLAYS = {'start_stop': 'w3 -3 w3 -3', 'turns': 'w2 wa2 wd2 -3', 'strafes': 'q2 e2 -3', 'reverse': 'w2 s2 w2 -3',
          'sprint': 'w2 W3 w2 -3', 'spin': 'a3 -3', 'weave': 'w1 wa1 w1 wd1 w1 -3', 'about': 'a2 wa1 w2 -3',

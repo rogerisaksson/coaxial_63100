@@ -39,7 +39,7 @@ PEC_AT = (0.0575, 0.218, 0.066)
 CRANK_R, Z_CRANK, HORN_R, Z_HORN, ROD_R, PIN_R = 0.056, 0.142, 0.033, 0.104, 0.006, 0.008
 #: Stage-1 clevis & gimbal dimensions, m (`shoulder_laid` frame).
 AIR_M, CHEEK_T, FORK_T, HUB_R, WIDE_M, CLEVIS_PIN_R, BUSH_M = 0.0036, 0.0045, 0.005, 0.016, 0.030, 0.005, 0.001
-STOP_M, LAP_M, REACH_M = 0.009, 0.009, 0.041
+STOP_M, LAP_M, REACH_M = 0.010, 0.010, 0.041
 POLYMER = (226, 222, 206)
 
 
