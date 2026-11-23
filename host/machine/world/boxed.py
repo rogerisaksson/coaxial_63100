@@ -111,9 +111,11 @@ def _laid_props(world):
 
 
 def rounds(world):
-    """Whether each of `props`' boxes is a round geom's - the stool's -, in its order: the page draws it round."""
-    d = world.data
-    return [rnd for g, _kind, box, rnd in _laid_props(world) if box or _box_of(world.model, d, g) is not None]
+    """Whether each of `props`' boxes is a round geom's - the stool's -, in its order: the page draws it round. A
+    moving geom's box is there where `_box_of` lays one, at or above the page's floor: its box laid only to be
+    tested was 125 us of each 330 the page is told."""
+    xpos = world.data.geom_xpos
+    return [rnd for g, _kind, box, rnd in _laid_props(world) if box or not xpos[g][1] < -0.5]
 
 
 #: A box along the room's axes.
