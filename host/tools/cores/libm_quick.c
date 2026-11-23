@@ -1,7 +1,7 @@
 /** libm_quick.c - the robot's own libm (wbc_libm.h) as an extension of this interpreter (tools.cores.libm_quick): a
- * number - a float, numpy's float64, an int - a call inlined, an array of float64 laid in C's order its run
- * (wbc_libm.c: a few a call each, more in vector lanes) into a new array of its shape, anything else handed to
- * Python's (`laid`'s other: an array strided or of another type, two to broadcast). The same bits each way. The
+ * number - a float, numpy's float64, an int - a call inlined, an array of float64 its run in C's order (wbc_libm.c: a
+ * few a call each, more in vector lanes) into a new array of its shape - a strided one copied so first -, anything
+ * else handed to Python's (`laid`'s other: an array of another type, two to broadcast). The same bits each way. The
  * host's alone. */
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
@@ -42,13 +42,31 @@ static int number(PyObject *x, double *v)
   return 0;
 }
 
-/* Whether `x` is an ndarray itself of native float64 in C's order, of a dimension and more and an int32 of elements. */
-static int laid_array(PyObject *x)
+/* Whether `x` is an ndarray itself of native float64, of a dimension and more and an int32 of elements. */
+static int float64_array(PyObject *x)
 {
   PyArrayObject *a = (PyArrayObject *)x;
 
-  return PyArray_CheckExact(x) && PyArray_TYPE(a) == NPY_DOUBLE && PyArray_ISNOTSWAPPED(a) && PyArray_IS_C_CONTIGUOUS(a)
-         && PyArray_NDIM(a) > 0 && PyArray_SIZE(a) <= INT32_MAX;
+  return PyArray_CheckExact(x) && PyArray_TYPE(a) == NPY_DOUBLE && PyArray_ISNOTSWAPPED(a) && PyArray_NDIM(a) > 0
+         && PyArray_SIZE(a) <= INT32_MAX;
+}
+
+/* Whether `x` is a float64 array (`float64_array`) in C's order. */
+static int laid_array(PyObject *x)
+{
+  return float64_array(x) && PyArray_IS_C_CONTIGUOUS((PyArrayObject *)x);
+}
+
+/* `x` as C runs it, a new reference: itself where laid, a float64 array strided - a column's view, a transpose's rows -
+ * copied in C's order, as Python's way laid it (`np.ascontiguousarray`: 37 us a call there, 571 a second of the
+ * robot's bed rest); NULL where it is neither - no error set - or its copy's error. */
+static PyArrayObject *ordered(PyObject *x)
+{
+  if (laid_array(x))
+  {
+    return (PyArrayObject *)Py_NewRef(x);
+  }
+  return float64_array(x) ? (PyArrayObject *)PyArray_NewCopy((PyArrayObject *)x, NPY_CORDER) : NULL;
 }
 
 /* A new float64 array of `a`'s shape, or NULL. */
@@ -67,29 +85,36 @@ static PyObject *elsewhere(const char *name, PyObject *x, PyObject *y)
   return (y == NULL) ? PyObject_CallFunction(other, "sO", name, x) : PyObject_CallFunction(other, "sOO", name, x, y);
 }
 
-static PyObject *run_one(run1_t run, PyObject *x)
+/* A run of one over `x` (`ordered`), its error, or Python's way's where C takes it not. */
+static PyObject *run_one(run1_t run, const char *name, PyObject *x)
 {
-  PyArrayObject *a = (PyArrayObject *)x, *out = shaped(a);
+  PyArrayObject *a = ordered(x), *out;
 
+  if (a == NULL)
+  {
+    return (PyErr_Occurred() != NULL) ? NULL : elsewhere(name, x, NULL);
+  }
+  out = shaped(a);
   if (out != NULL)
   {
     run((const double *)PyArray_DATA(a), (double *)PyArray_DATA(out), (int32_t)PyArray_SIZE(a));
   }
+  Py_DECREF(a);
   return (PyObject *)out;
 }
 
-#define ONE(NAME)                                                                   \
-  static PyObject *lq_##NAME(PyObject *self, PyObject *x)                           \
-  {                                                                                 \
-    double    v;                                                                    \
-    const int is = number(x, &v);                                                   \
-                                                                                    \
-    (void)self;                                                                     \
-    if (is != 0)                                                                    \
-    {                                                                               \
-      return (is < 0) ? NULL : PyFloat_FromDouble(wbc_##NAME(v));                   \
-    }                                                                               \
-    return laid_array(x) ? run_one(wbc_libm_##NAME, x) : elsewhere(#NAME, x, NULL); \
+#define ONE(NAME)                                                 \
+  static PyObject *lq_##NAME(PyObject *self, PyObject *x)         \
+  {                                                               \
+    double    v;                                                  \
+    const int is = number(x, &v);                                 \
+                                                                  \
+    (void)self;                                                   \
+    if (is != 0)                                                  \
+    {                                                             \
+      return (is < 0) ? NULL : PyFloat_FromDouble(wbc_##NAME(v)); \
+    }                                                             \
+    return run_one(wbc_libm_##NAME, #NAME, x);                    \
   }
 
 ONE(sin)
@@ -105,8 +130,9 @@ ONE(tanh)
 
 static PyObject *lq_sincos(PyObject *self, PyObject *x)
 {
-  double    v, s, c;
-  const int is = number(x, &v);
+  double         v, s, c;
+  const int      is = number(x, &v);
+  PyArrayObject *a, *sines, *cosines;
 
   (void)self;
   if (is != 0)
@@ -118,21 +144,24 @@ static PyObject *lq_sincos(PyObject *self, PyObject *x)
     wbc_sincos(v, &s, &c);
     return Py_BuildValue("(dd)", s, c);
   }
-  if (laid_array(x))
+  a = ordered(x);
+  if (a == NULL)
   {
-    PyArrayObject *a = (PyArrayObject *)x, *sines = shaped(a), *cosines = shaped(a);
-
-    if (sines == NULL || cosines == NULL)
-    {
-      Py_XDECREF(sines);
-      Py_XDECREF(cosines);
-      return NULL;
-    }
-    wbc_libm_sincos((const double *)PyArray_DATA(a), (double *)PyArray_DATA(sines), (double *)PyArray_DATA(cosines),
-                    (int32_t)PyArray_SIZE(a));
-    return Py_BuildValue("(NN)", sines, cosines);
+    return (PyErr_Occurred() != NULL) ? NULL : elsewhere("sincos", x, NULL);
   }
-  return elsewhere("sincos", x, NULL);
+  sines = shaped(a);
+  cosines = shaped(a);
+  if (sines == NULL || cosines == NULL)
+  {
+    Py_DECREF(a);
+    Py_XDECREF(sines);
+    Py_XDECREF(cosines);
+    return NULL;
+  }
+  wbc_libm_sincos((const double *)PyArray_DATA(a), (double *)PyArray_DATA(sines), (double *)PyArray_DATA(cosines),
+                  (int32_t)PyArray_SIZE(a));
+  Py_DECREF(a);
+  return Py_BuildValue("(NN)", sines, cosines);
 }
 
 /* Whether two laid arrays are of one shape. */
@@ -141,16 +170,16 @@ static int alike(PyArrayObject *a, PyArrayObject *b)
   return PyArray_NDIM(a) == PyArray_NDIM(b) && PyArray_CompareLists(PyArray_DIMS(a), PyArray_DIMS(b), PyArray_NDIM(a));
 }
 
-/* `x` itself where it is laid, a number spread to `like`'s shape (each a new reference); NULL where it is neither -
+/* `x` as C runs it (`ordered`), a number spread to `like`'s shape (each a new reference); NULL where it is neither -
  * no error set - or its error. */
 static PyArrayObject *spread(PyObject *x, PyArrayObject *like)
 {
   double         v;
-  PyArrayObject *out;
+  PyArrayObject *out = ordered(x);
 
-  if (laid_array(x))
+  if (out != NULL || PyErr_Occurred() != NULL)
   {
-    return (PyArrayObject *)Py_NewRef(x);
+    return out;
   }
   if (number(x, &v) <= 0)
   {
@@ -170,10 +199,11 @@ static PyArrayObject *spread(PyObject *x, PyArrayObject *like)
   return out;
 }
 
-/* A run of two: arrays laid alike, or one laid and a number beside it; NULL with no error where it takes neither. */
+/* A run of two: float64 arrays of one shape, or one and a number beside it, each as C runs it (`spread`); NULL with no
+ * error where it takes neither. */
 static PyObject *run_two(run2_t run, PyObject *x, PyObject *y)
 {
-  PyArrayObject *like = laid_array(x) ? (PyArrayObject *)x : (laid_array(y) ? (PyArrayObject *)y : NULL);
+  PyArrayObject *like = float64_array(x) ? (PyArrayObject *)x : (float64_array(y) ? (PyArrayObject *)y : NULL);
   PyArrayObject *a, *b, *out = NULL;
 
   if (like == NULL)

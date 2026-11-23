@@ -7,9 +7,10 @@
 
 A call of Python's math is 0.09 us and numpy's on an array of three 0.5; the robot's libm through ctypes was 7.7 us a
 call and its numpy twin 81 - neither a way to call it from the robot's loop. Here a float is a call inlined in C
-(wbc_sin, ...) and an array of float64 in C's order its run in wbc_libm.c, as cheap as math's and numpy's; what is
-neither - an int, a numpy scalar, an array strided or of another type, two arguments to broadcast - goes to the
-callable `laid` holds (`machine.libm`'s: laid as C takes it, then back here). Built once with the host's compiler
+(wbc_sin, ...) and an array of float64 its run in wbc_libm.c in C's order - a strided one copied so in C, where the
+callable's way was 37 us a call -, as cheap as math's and numpy's; what is neither - an array of another type, two
+arguments to broadcast - goes to the callable `laid` holds (`machine.libm`'s: laid as C takes it, then back here).
+Built once with the host's compiler
 for its instruction sets, nothing contracted, as the robot's cores are (`build.native`); where none can be built its
 callers keep the numpy twin.
 """

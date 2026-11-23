@@ -276,7 +276,9 @@ def passed(g, dt=0.001):
     on: felt through its edge, its motion pass at its law's (`machine.law.motion`), the
     robot's drives' pass and its law's joints told its boards in one C call, its felt in it
     between the robot's law's passes (`tools.cores.beat`), a program over them; its world's step's first
-    half begun beside its law (`steps.ahead`), joined here where its pass raised before it."""
+    half begun beside its law (`steps.ahead`), and between its law's passes beside its program's pass where one
+    plays - lying on the bed the program's pass (`joints.played`) and the step's first half were each 0.1 ms of
+    every pass; with none, nothing to begin it beside -, joined here where its pass raised before it."""
     import numpy as np
     modal, motion, schema = _law()
     world, y, ev = g['world'], g['sense'], g['every']
@@ -302,6 +304,8 @@ def passed(g, dt=0.001):
         else:
             step = both
         motion.drives(g, dt, step)
+        if step is both and g.get('played') is not None:
+            steps.ahead(world)
         joints.played(g, world)
         # a bus refusing the robot's setpoints longer than its balance's horizon 1/omega is no longer sporadic
         edge.held(world, 1.0 / (float(g['fr'][modal.OMEGA]) * dt))

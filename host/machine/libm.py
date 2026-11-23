@@ -10,8 +10,8 @@ The platform's libm rounds its last bit its own way (Windows' UCRT and Linux's g
 hypot: tests/test_platform.py), so what the robot computes with it parts between machines. These are wbc_libm.h's
 bits, each call the cheapest way to them: a number inlined in C and an array of float64 its run - a few a call
 each, more in vector lanes - through an extension of this interpreter (`tools.cores.libm_quick`: a float 0.05 us
-where math's is 0.06, an array of three 0.2 where numpy's is 0.5); anything else - an array strided or of another
-type, a number with an array, two arguments to broadcast - laid as C takes it first (`_other`). Where no compiler builds the
+where math's is 0.06, an array of three 0.2 where numpy's is 0.5, a strided one copied in C's order there); anything
+else - an array of another type, two arguments to broadcast - laid as C takes it first (`_other`). Where no compiler builds the
 extension, the numpy twin (`machine.libm_twin`: the same bits, 81 us a call). A float in, a float out; an array in,
 a new float64 array of its shape. A power is the platform's pow wherever a float or a numpy scalar takes `**` -
 `x ** 2` there is not `x * x` once in 2000 -, so the code writes a whole power as its products (`sq`, `cube`,
