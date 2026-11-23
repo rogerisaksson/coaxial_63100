@@ -61,33 +61,37 @@ def placing():
     return np.diag([way, 1.0, bend]), np.array([mid, 0.0, 0.0]), bend
 
 
-def arm(flex=0.0, roll=0.0):
+def arm(flex=0.0, roll=0.0, turn=0.0):
     """{name: tris} of the arm, the elbow's frame: the elbow's mount and its hose, the upper arm's tube up to its
     foot under the shoulder's mount, that mount ('shoulder ...'), the forearm's tube down to the wrist; the forearm
-    bent `flex` deg and the arm raised `roll` deg about the shoulder's abduction axis."""
+    bent `flex` deg, pitched `turn` deg and the arm raised `roll` deg about the shoulder's abduction axis."""
     import numpy as np
     from tools.render import shoulder_mount as sm, shoulder_rolled as sr
-    turn, shift, bend = placing()
+    turn_p, shift, bend = placing()
     _page, shoulder, wrist = laid(False, ())
 
     def placed(tris):                                    # into the page's frame, faces kept outward
-        return [(((tri + shift) @ turn)[::int(np.linalg.det(turn))], c) for tri, c in tris]
+        return [(((tri + shift) @ turn_p)[::int(np.linalg.det(turn_p))], c) for tri, c in tris]
     parts, cables, _still, _turned = em.bodies(flex=flex)
     still_parts, _gear, arm_in, arm_out = em._stack()
     over = max(r for *_x, r in still_parts) + 0.002
     face_t, face_s = over + em.SADDLE_M + em.SEAT_M, -(over + em.ROTOR_AIR + em.ROTOR_M + em.SEAT_M)
-    top, at = float(shoulder[1]) - sr.laid()['down'] - em.FLANGE_M, (float(shift[0] * turn[0, 0]), 0.0)
+    top, at = float(shoulder[1]) - sr.laid()['down'] - em.FLANGE_M, (float(shift[0] * turn_p[0, 0]), 0.0)
+    collar = m._prism(m._circle(arm_out + 0.0022, 40, at), float(wrist[1]) + 0.002, float(wrist[1]) + 0.014, em.CARBON)
+    forearm = m._prism(m._circle(arm_out, 40, at), float(wrist[1]) + 0.004, face_s - em.FLANGE_M, em.CARBON) + collar
     out = {'elbow': placed(parts), 'hose': placed(cables),
            'upper arm tube': m._prism(m._circle(arm_in, 40, at), face_t + em.FLANGE_M, top, em.CARBON),
-           'forearm tube': km._turn(m._prism(m._circle(arm_out, 40, at), float(wrist[1]) + 0.01,
-                                             face_s - em.FLANGE_M, em.CARBON), bend * flex)}
+           'forearm tube': km._turn(forearm, bend * flex)}
+    if turn:
+        rx = km._rx(-turn)
+        out = {k: [((t - shoulder) @ rx.T + shoulder, col) for t, col in v] for k, v in out.items()}
     if roll:
         piv_a = shoulder + np.array([-sr.X_ABD, 0.0, 0.0])
         c_r, s_r = math.cos(math.radians(roll)), math.sin(math.radians(roll))
         rz = np.array([[c_r, -s_r, 0.0], [s_r, c_r, 0.0], [0.0, 0.0, 1.0]])
         out = {k: [((t - piv_a) @ rz.T + piv_a, col) for t, col in v] for k, v in out.items()}
     out.update({'shoulder ' + name: [(tri * (-1.0, 1.0, -1.0) + shoulder, c) for tri, c in tris]
-                for name, tris in sm.posed(0.0, roll).items()})
+                for name, tris in sm.posed(turn, roll).items()})
     return out
 
 

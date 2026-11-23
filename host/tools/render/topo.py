@@ -2,22 +2,10 @@
 
     python -X utf8 tools/render/topo.py            # a trial piece - a bracket on its bed - told
 
-`knee_topo`'s method (SIMP on voxels, a density filter, optimality steps) made general and printable. A piece is a
-case (`case`): its room - voxels on its bed, layers up y -, the voxels that must stay (seats, bosses), those it is
-held by and its loads, a wrench on a patch of voxels each. Between the density filter and the stiffness stands the
-printing filter (`printed`): a voxel no denser than the densest of the nine under it - a smooth least of a smooth
-most, layer by layer off the bed, its sensitivities carried back down (`_back`) -, so what is kept stands on what
-lies under it within 45 degrees; what the case keeps is solid whatever that filter says, and what is printed may
-stand on it. A case `extruded` - a load-bearing slab, printed up its thickness - has each column of voxels one
-density in place of that filter: a prism, its pockets through, nothing over its bed. The compliances are solved by
-conjugate gradients, each case started from its last round's answer: a direct solve does not end at these sizes.
-`shaped` runs a case - kept under .cache/topo by the case's content - and cuts the densities at the highest level
-whose solid, a kept voxel left hanging propped from under (`propped`) and what else hangs pruned off, still carries
-the loads: the principal stress within the printed polymer's allowable, the stress up the layers within ACROSS of
-it, each load taken either way - what a robot bears turns round -, read in the voxels that were the optimiser's to
-shape. Told: the solid's voxels, its mass, its margin, what it lost. `faced` draws them - an extruded one's prisms
-smooth (`outlined`) -, `knee_topo.stl` writes them. `whole` reads the room all solid the same way: a room that does
-not carry solid is its sketch's to fix, not the optimiser's.
+`knee_topo`'s SIMP optimiser on voxels: `case` holds room, kept/held masks and wrench loads; `printed` and `_back`
+enforce 45-deg self-support layer by layer (or `extruded` uniform columns); conjugate gradients solve displacements
+and `shaped` caches under `.cache/topo` the first cut whose `stood` + `propped` solid (and `surfaced_margin`) holds
+within PAHT-CF allowable and `ACROSS_SHARE` either way. `faced` meshes `outlined` prisms or smooth `surfaced` solids.
 """
 import hashlib
 import math
@@ -152,9 +140,7 @@ def propped(grid, need, room):
 
 def outlined(solid, h, fine=4, blur=0.6):
     """(n, 3, 3) mm in the bed's frame: a `solid` [across, up, deep] of `h`-mm voxels drawn as the prisms it
-    stacks, smooth - each run of layers alike one prism, its outline the half-way line of its layer blurred
-    `blur` of a voxel on a grid `fine` to a voxel's side (`contourpy`), its walls up it, its ends' faces those of
-    its outline's points' triangles whose middles lie inside."""
+    stacks, smooth and watertight: outward-wound side walls, bottom bed cap (n_y = -1) and top cap (n_y = +1)."""
     import contourpy
     import numpy as np
     from scipy import ndimage
@@ -168,27 +154,60 @@ def outlined(solid, h, fine=4, blur=0.6):
             field = ndimage.gaussian_filter(np.kron(np.pad(layers[k], 2).astype(float), np.ones((fine, fine))),
                                             blur * fine)
             across, deep = ((np.arange(n) + 0.5) / fine - 2.0 for n in field.shape)
-            loops = [h * np.asarray(line) for line in contourpy.contour_generator(x=deep, y=across, z=field).lines(0.5)]
+            rings = []
+            for line in contourpy.contour_generator(x=deep, y=across, z=field).lines(0.5):
+                pts = h * np.asarray(line, float)
+                ring = pts[:-1] if len(pts) > 3 and np.linalg.norm(pts[0] - pts[-1]) < 1e-6 else pts
+                if len(ring) >= 3:
+                    rings.append(ring)
             z0, z1 = k * h, j * h
-            for p in loops:                              # (deep, across) mm round each outline
-                for (d0, a0), (d1, a1) in zip(p[:-1], p[1:]):
+            for ring in rings:                           # (deep, across) mm, field > 0.5 on the left
+                for i in range(len(ring)):
+                    (d0, a0), (d1, a1) = ring[i], ring[(i + 1) % len(ring)]
                     out += [((a0, z0, d0), (a1, z0, d1), (a1, z1, d1)), ((a0, z0, d0), (a1, z1, d1), (a0, z1, d0))]
-            points = np.concatenate(loops)
+            points = np.concatenate(rings)
             simplices = Delaunay(points).simplices
             middle = points[simplices].mean(axis=1) / h * fine + 2.0 * fine - 0.5
             inside = ndimage.map_coordinates(field, [middle[:, 1], middle[:, 0]], order=1) > 0.5
             for s in simplices[inside]:
-                (d, a) = points[s].T
-                out += [tuple((a[i], z, d[i]) for i in range(3)) for z in (z0, z1)]
+                d, a = points[s].T
+                ccw = (d[1] - d[0]) * (a[2] - a[0]) - (a[1] - a[0]) * (d[2] - d[0]) > 0.0
+                top_order = (0, 1, 2) if ccw else (0, 2, 1)
+                out.append(tuple((a[i], z0, d[i]) for i in reversed(top_order)))
+                out.append(tuple((a[i], z1, d[i]) for i in top_order))
         k = j
     return np.array(out, float).reshape(-1, 3, 3)
 
 
 def faced(got, c):
-    """(n, 3, 3) mm in the bed's frame: a shaped case's solid drawn smooth (`outlined` if prism, else `surfaced`)."""
-    s = got['solid']
-    return outlined(s, got['h']) if c.get('extruded') and bool((s[:, 1:] <= s[:, :1]).all()) else kt.surfaced(
-        s, c['kept'], got['h'])
+    """(n, 3, 3) mm in the bed's frame: a shaped case's solid drawn smooth (`outlined` when constant-section
+    extruded, else `surfaced`)."""
+    import numpy as np
+    if c.get('extruded'):
+        layers = got['solid'].transpose(1, 0, 2)
+        active = [layer for layer in layers if layer.any()]
+        if active and all(np.array_equal(layer, active[0]) for layer in active[1:]):
+            return outlined(got['solid'], got['h'])
+        return kt.surfaced(got['solid'], c['kept'], got['h'], sigma=0.85)
+    return kt.surfaced(got['solid'], c['kept'], got['h'], room=c.get('room'))
+
+
+def surfaced_margin(got, c):
+    """Post-cone FEM stress margin (`_margin`) on the <=45-deg surfaced field of `got`."""
+    import numpy as np
+    if c.get('extruded'):
+        active = [ly for ly in got['solid'].transpose(1, 0, 2) if ly.any()]
+        if active and all(np.array_equal(ly, active[0]) for ly in active[1:]):
+            return float(got['margin'])
+        s_but, phi0, phi1 = kt._sdf(got['solid'], c['kept'], got['h'], sigma=0.85)
+    else:
+        s_but, phi0, phi1 = kt._sdf(got['solid'], c['kept'], got['h'], room=c.get('room'))
+    nx, ny, nz = s_but.shape
+    sub0 = (phi0[4:4 + 2 * nx, 4:4 + 2 * ny, 4:4 + 2 * nz] > 0.0).reshape(nx, 2, ny, 2, nz, 2).mean(axis=(1, 3, 5))
+    sub1 = (phi1[4:4 + 2 * nx, 4:4 + 2 * ny, 4:4 + 2 * nz] > 0.0).reshape(nx, 2, ny, 2, nz, 2).mean(axis=(1, 3, 5))
+    s_post = ((s_but & ((sub0 - sub1) < 0.5)) | (sub1 >= 0.5)) | c['kept']
+    mesh, basis, cells, fixed, loads = _meshed(c)
+    return _margin(c, mesh, basis, fixed, loads, s_post[tuple(cells.T)], c['kept'][tuple(cells.T)])
 
 
 def wrench(points, force, moment, about):
@@ -390,7 +409,7 @@ def shaped(c, log=None, fresh=False):
                'room': float(len(cells)) * h ** 3 * 1e-9 * kt.DENSITY * 1e3, 'lost': int((kept & ~solid).sum()),
                'points': mesh.p, 'cells': mesh.t[:, solid]}
         out['solid'][tuple(cells[solid].T)] = True
-        if margin >= 1.0 and not out['lost']:
+        if margin >= 1.0 and not out['lost'] and surfaced_margin(out, c) >= 1.0:
             break
     assert out is not None
     os.makedirs(os.path.dirname(path), exist_ok=True)

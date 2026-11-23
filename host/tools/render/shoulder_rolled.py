@@ -2,13 +2,11 @@
 
     COAXIAL_ROBOT=gynoid_mesomorph_medium_coax python -X utf8 tools/render/shoulder_rolled.py OUT.png
 
-Each shoulder's abduction drive (MN6007 on B with its coaxial_63100 inverter) sits in the anterior pectoral seat of
-the chest (`PEC_AT`, facing +z in a cone from the 100 mm inverter at the base to the 68 mm gearbox inside the bust),
-held to the spine tube and crossbar by the load-shaped PAHT-CF chest mount (`shoulder_shaped`). A calf-style slit-band
-crank (`sized.band`) clamped on the gearbox's output ring drives a pultruded carbon pushrod on cardan crosses up inside
-the chest to a carbon horn on Stage 1's z-axis abduction gimbal (`X_ABD` inboard on the crossbar, clear of the arm's
-full pitch sweep), raising the arm from -20 deg alongside the ribs to +95 deg past T-pose (`TRAVEL`) while Stage 2
-(`shoulder_laid`) pitches the arm independently. Frame: `shoulder_laid`'s.
+Each shoulder's abduction drive (MN6007 + B with coaxial_63100) sits in a bilateral chest seat (`PEC_AT`, facing +z),
+held to spine and crossbar by the support-free PAHT-CF mount (`shoulder_shaped`). An outboard slit-band crank
+(`sized.band`) clamped on the output ring drives a carbon pushrod on cardan crosses outside the pectoral stack up to
+Stage 1's horn (`X_ABD`), swinging the arm across `TRAVEL` (-30 to +95 deg past T-pose) without crossing itself or
+anything stationary. Frame: `shoulder_laid`'s.
 """
 import argparse
 import functools
@@ -31,22 +29,22 @@ from tools.render import shoulder_laid as sl  # noqa: E402
 from tools.render import sized  # noqa: E402
 from tools.render import tees  # noqa: E402
 
-#: Abduction drive kind (`MN6007 + B`) and travel off hanging rest, deg (-20 in to +95 past T-pose).
-KIND, TRAVEL = 'shoulder', (-20.0, 95.0)
-#: Stage-1 abduction pivot along x in `shoulder_laid`'s frame (inboard of the arm's saddle so arm pitch clears 360 deg).
+#: Abduction drive kind (`MN6007 + B`) and travel off hanging rest, deg.
+KIND, TRAVEL = 'shoulder', (-30.0, 95.0)
+#: Stage-1 abduction x in `shoulder_laid`'s frame (inboard of arm saddle).
 X_ABD = 0.049
-#: Pectoral drive axis `(x, y, z_back)` in `torso` m (board -> motor -> gearbox along +z inside the bust).
-PEC_AT = (0.0555, 0.218, 0.0725)
-#: Four-bar geometry, m: crank radius and pin z in `torso`, horn radius and pin z in `torso`, pushrod and pin radii.
-CRANK_R, Z_CRANK, HORN_R, Z_HORN, ROD_R, PIN_R = 0.049, 0.109, 0.043, 0.068, 0.006, 0.008
-#: Stage-1 clevis & gimbal dimensions at the shoulder, m (`shoulder_laid` frame).
+#: Pectoral drive axis `(x, y, z_back)` in `torso` m.
+PEC_AT = (0.0575, 0.218, 0.066)
+#: Four-bar geometry, m: crank, horn, pushrod and pin radii/z in `torso`.
+CRANK_R, Z_CRANK, HORN_R, Z_HORN, ROD_R, PIN_R = 0.056, 0.142, 0.033, 0.104, 0.006, 0.008
+#: Stage-1 clevis & gimbal dimensions, m (`shoulder_laid` frame).
 AIR_M, CHEEK_T, FORK_T, HUB_R, WIDE_M, CLEVIS_PIN_R, BUSH_M = 0.0036, 0.0045, 0.005, 0.016, 0.030, 0.005, 0.001
-STOP_M, LAP_M, REACH_M = 0.009, 0.009, 0.035
+STOP_M, LAP_M, REACH_M = 0.009, 0.009, 0.041
 POLYMER = (226, 222, 206)
 
 
 def _torso_frame():
-    """(turn (3, 3) sketch->torso, arm (3,) pivot in torso, p_abd (3,) Stage-1 pivot in torso)."""
+    """(turn (3, 3) sketch->torso, arm (3,) pivot, p_abd (3,) Stage-1 pivot in torso)."""
     import numpy as np
     from machine.body import figure
     seg = next(s for s in figure.SEGMENTS if s[0] == 'left_upper_arm')
@@ -57,25 +55,25 @@ def _torso_frame():
 
 
 def to_sketch(tris):
-    """`tris` in `torso` frame mapped into `shoulder_laid`'s sketch frame."""
+    """`tris` in `torso` mapped into `shoulder_laid`'s frame."""
     turn, arm, _p = _torso_frame()
     return [((tri - arm) @ turn.T, col) for tri, col in tris]
 
 
 def to_torso(tris, right=False):
-    """`tris` in `shoulder_laid`'s sketch frame mapped into `torso` frame (mirrored across x when `right`)."""
+    """`tris` in `shoulder_laid`'s mapped into `torso` (mirrored across x when `right`)."""
     turn, arm, _p = _torso_frame()
     out = [(tri @ turn + arm, col) for tri, col in tris]
     return [((t * (-1.0, 1.0, 1.0))[::-1], col) for t, col in out] if right else out
 
 
 def stack():
-    """{'board', 'motor', 'gear': (radius, length)} of the pectoral abduction drive, m."""
+    """{'board', 'motor', 'gear': (radius, length)} of the pectoral drive, m."""
     return sl.stack()
 
 
 def gap():
-    """Inner z-offset of Stage 1's gimbal cheeks off the pitch axis, m: clear outside Stage 2's coil drum and stop rib."""
+    """Inner z-offset of Stage 1's cheeks off the pitch axis, m."""
     lay = sl.laid()
     return lay['bore'] + sl.DRUM_M + sl.RIB_UP + AIR_M
 
@@ -91,10 +89,10 @@ def linkage():
     rolls = np.radians(np.linspace(TRAVEL[0], TRAVEL[1], 231))
     dz = Z_HORN - Z_CRANK
     best = None
-    for off_deg in np.linspace(-14.0, 14.0, 29):
-        beta0 = phi + 0.5 * math.pi - math.radians(0.5 * sum(TRAVEL)) + math.radians(off_deg)
+    for off_deg in np.linspace(-18.0, 18.0, 37):
+        beta0 = phi - 0.5 * math.pi - math.radians(0.5 * sum(TRAVEL)) + math.radians(off_deg)
         hx, hy = px + HORN_R * np.cos(beta0 + rolls), py + HORN_R * np.sin(beta0 + rolls)
-        for length in np.linspace(0.105, 0.165, 121):
+        for length in np.linspace(0.105, 0.175, 141):
             l_xy2 = length * length - dz * dz
             if l_xy2 <= 1e-4:
                 continue
@@ -103,7 +101,7 @@ def linkage():
             ca = (d * d + CRANK_R * CRANK_R - l_xy2) / (2.0 * d * CRANK_R)
             if float(np.abs(ca).max()) > 0.96:
                 continue
-            th = np.arctan2(uy, ux) + np.arccos(ca)
+            th = np.arctan2(uy, ux) - np.arccos(ca)
             if not (np.diff(th) > 1e-4).all():
                 continue
             cx, cy = cx0 + CRANK_R * np.cos(th), cy0 + CRANK_R * np.sin(th)
@@ -132,7 +130,7 @@ def crank_at(roll=0.0):
     d = math.hypot(ux, uy)
     l_xy2 = lk['length'] ** 2 - lk['dz'] ** 2
     ca = max(-1.0, min(1.0, (d * d + CRANK_R * CRANK_R - l_xy2) / (2.0 * d * CRANK_R)))
-    th = math.atan2(uy, ux) + math.acos(ca)
+    th = math.atan2(uy, ux) - math.acos(ca)
     crank = np.array([cx0 + CRANK_R * math.cos(th), cy0 + CRANK_R * math.sin(th), Z_CRANK])
     rod = horn - crank
     return th, crank, horn, rod / float(np.linalg.norm(rod))
@@ -195,7 +193,7 @@ def held():
     rod_mm, l_mm = 1e3 * ROD_R, 1e3 * lk['length']
     euler = math.pi ** 2 * 1e3 * structural.ROD[0] * (math.pi * rod_mm ** 4 / 4.0) / (l_mm * l_mm)
     rod_stress = rod_f / (math.pi * rod_mm * rod_mm)
-    pin_lever = 1e3 * max(abs(pec['crank'][0] - Z_CRANK), 0.012)
+    pin_lever = 1e3 * max(abs(Z_CRANK - 0.5 * (pec['crank'][0] + pec['crank'][1])), 0.012)
     pin_bend = 32.0 * rod_f * pin_lever / (math.pi * (2e3 * PIN_R) ** 3)
     c_pin = 1e3 * lay['pin']
     c_shear = (push + 0.5 * rod_f) / (math.pi * c_pin * c_pin)
@@ -215,10 +213,10 @@ def held():
             'span bend': span_least() / float(mechatronics.materials()['hoses']['bus'][4])}
 
 
-def _pectoral_still():
-    """[(tri, col)] in `torso` frame of the left pectoral drive, guard, lid and SIMP chest mount."""
+def _pectoral_drive():
+    """(`hc._drive`, rot_z, cx, cy, can, ring) of the left pectoral stack."""
     import numpy as np
-    from tools.render import hip_clamped as hc, shoulder_shaped as ss
+    from tools.render import hip_clamped as hc
     pec, st = pectoral(), stack()
     cx, cy = pec['xy']
     can, ring, r_b = st['motor'][0], st['gear'][0], st['board'][0]
@@ -226,42 +224,49 @@ def _pectoral_still():
                      'gear': (pec['house'][0], pec['ring'][1], ring)},
                     pec['band'][2] - can, 0.5 * math.pi, leave=0.5 * math.pi)
     rot_z = np.array([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [-1.0, 0.0, 0.0]])
-    tris = [((t @ rot_z) + (cx, cy, 0.0), c) for k in ('still', 'ring', 'leads', 'guard', 'lid') for t, c in drv[k]]
-    mount = ss.drawn()
-    if mount is None:
-        b0, b1, out_r = pec['band']
-        band = cl.turned([(b0, can, out_r), (pec['motor'][1], can, out_r),
-                          (pec['motor'][1] + max(can - ring, 0.0), ring, out_r), (b1, ring, out_r)], 0.0)
-        mount = [((t @ rot_z) + (cx, cy, 0.0), c) for t, c in band]
+    return drv, rot_z, cx, cy, can, ring
+
+
+def _pectoral_still():
+    """[(tri, col)] of the stationary left pectoral drive, guard, lid and mount."""
+    from tools.render import shoulder_shaped as ss
+    drv, rot_z, cx, cy, _can, _ring = _pectoral_drive()
+    tris = [((t @ rot_z) + (cx, cy, 0.0), c) for k in ('still', 'leads', 'guard', 'lid') for t, c in drv[k]]
+    mount = ss.drawn() or ss.sketched()
     return tris + mount
 
 
-def _crank_and_rod(roll=0.0):
-    """[(tri, col)] in `torso` frame of the clamped pectoral crank and carbon pushrod at `roll` deg."""
+def _crank_parts(roll=0.0):
+    """{'ring', 'band', 'arm', 'pin', 'rod', 'ends': tris} of the rotating crank and pushrod."""
     import numpy as np
-    pec, st = pectoral(), stack()
-    cx, cy = pec['xy']
-    ring = st['gear'][0]
+    pec = pectoral()
+    drv, rot_z, cx, cy, _can, ring = _pectoral_drive()
     z0, z1, out_r = pec['crank']
     th, c_pin, h_pin, u_rod = crank_at(roll)
-    rot_z = np.array([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [-1.0, 0.0, 0.0]])
-    band = [((t @ rot_z) + (cx, cy, 0.0), col) for t, col in cl.turned([(z0, ring, out_r), (z1, ring, out_r)], 0.0)]
+    ring_tris = [((t @ rot_z) + (cx, cy, 0.0), c) for t, c in drv['ring']]
+    band = [((t @ rot_z) + (cx, cy, 0.0), col)
+            for t, col in cl.turned([(z0, ring + 3e-4, out_r), (z1, ring + 3e-4, out_r)], th + 0.5 * math.pi)]
     root = [(cx + (out_r - 0.001) * math.cos(th + a), cy + (out_r - 0.001) * math.sin(th + a))
             for a in np.radians(np.linspace(-36.0, 36.0, 9))]
     arm_2d = cl.filleted(leaves.hull(root + leaves.ring((float(c_pin[0]), float(c_pin[1])), PIN_R + 0.006)))
     arm = em._rounded(arm_2d, z0, z1, em.FRAME, axis=2, r=0.0015, steps=1)
-    pin = km._rod((c_pin[0], c_pin[1], z1 + 0.001), (c_pin[0], c_pin[1], Z_CRANK - 0.007), PIN_R, em.CARBON)
+    pin = km._rod((c_pin[0], c_pin[1], z0 + 0.0005), (c_pin[0], c_pin[1], Z_CRANK + 0.0065), PIN_R, em.CARBON)
     rod = km._rod(c_pin + 0.014 * u_rod, h_pin - 0.014 * u_rod, ROD_R, em.CARBON)
     ends = []
     for pt, ax_z in ((c_pin, 1.0), (h_pin, -1.0)):
-        ends += km._rod(pt - (0.0, 0.0, 0.006), pt + (0.0, 0.0, 0.006), PIN_R + 0.0036, hf.STEEL)
+        ends += km._rod(pt - (0.0, 0.0, 0.0055), pt + (0.0, 0.0, 0.0055), PIN_R + 0.0036, hf.STEEL)
         ends += km._rod(pt, pt + ax_z * 0.015 * u_rod, ROD_R + 0.003, em.FRAME)
-        ends += km._rod(pt - (0.0, 0.0, 0.0065), pt + (0.0, 0.0, 0.0065), PIN_R + 0.001, POLYMER)
-    return band + arm + pin + rod + ends
+        ends += km._rod(pt - (0.0, 0.0, 0.006), pt + (0.0, 0.0, 0.006), PIN_R + 0.001, POLYMER)
+    return {'ring': ring_tris, 'band': band, 'arm': arm, 'pin': pin, 'rod': rod, 'ends': ends}
+
+
+def _crank_and_rod(roll=0.0):
+    """[(tri, col)] of the rotating output ring, clamped crank and pushrod at `roll` deg."""
+    return [t for v in _crank_parts(roll).values() for t in v]
 
 
 def chest(roll=0.0, right=False):
-    """{name: tris} in `torso` frame of one side's pectoral drive, SIMP chest mount, crank and pushrod."""
+    """{name: tris} of one side's pectoral drive, mount, crank and pushrod."""
     tris = _pectoral_still() + _crank_and_rod(roll)
     if right:
         tris = [((t * (-1.0, 1.0, 1.0))[::-1], col) for t, col in tris]
@@ -270,8 +275,7 @@ def chest(roll=0.0, right=False):
 
 @functools.lru_cache(maxsize=None)
 def parts():
-    """{name: tris} at the shoulder in `shoulder_laid`'s frame (`roll = 0`): 'still' (crossbar clevis fork fixed on
-    torso), 'yoke' (Stage-1 abduction gimbal cheeks, bridge and front horn) and 'ring' (clevis pins & bushings)."""
+    """{name: tris} at the shoulder in `shoulder_laid`'s frame (`roll = 0`): 'still', 'yoke', 'ring'."""
     import numpy as np
     lay, lk = laid(), linkage()
     (c0, c1), (f0, f1), (bx0, bx1), root = lay['cheek'], lay['fork'], lay['bridge'], lay['root']
@@ -309,11 +313,12 @@ def parts():
                         float(p_abd[1]) + HORN_R * math.sin(lk['beta0']), Z_HORN])
     h_sk = (h_torso - arm) @ _turn.T
     horn_2d = cl.filleted(leaves.hull(leaves.ring((X_ABD, 0.0), 0.014) + leaves.ring((float(h_sk[0]), float(h_sk[1])), 0.011)))
-    horn = (em._rounded(horn_2d, lay['horn_z'] - 0.0025, lay['horn_z'] + 0.0025, em.CARBON, axis=2, r=0.001)
-            + km._rod((h_sk[0], h_sk[1], lay['horn_z'] - 0.008), (h_sk[0], h_sk[1], -f1 - 0.004), PIN_R, em.CARBON))
+    hz = lay['horn_z']
+    horn = (em._rounded(horn_2d, hz + 0.0065, hz + 0.0115, em.CARBON, axis=2, r=0.001)
+            + km._rod((h_sk[0], h_sk[1], hz - 0.0065), (h_sk[0], h_sk[1], hz + 0.011), PIN_R, em.CARBON))
     lz0, lz1 = _lever_z()
     pins = []
-    for sgn, z_out in ((1.0, lz1), (-1.0, lay['horn_z'] - 0.003)):
+    for sgn, z_out in ((1.0, lz1), (-1.0, hz + 0.0055)):
         z_a, z_b = min(sgn * (c0 - 0.001), z_out), max(sgn * (c0 - 0.001), z_out)
         pins += [(t[:, (1, 2, 0)] + (X_ABD, 0.0, 0.0), col) for t, col in em._drum(lay['pin'], z_a, z_b, em.BOLT)]
         pins += [(t[:, (1, 2, 0)] + (X_ABD, 0.0, 0.0), col)
@@ -390,7 +395,7 @@ def aired(step=5.0, ease=3.0):
                          + [t for k, v in sm.still().items() if k != 'crossbar' for t in v]
                          + [t for v in sm.turning().values() for t in v if t[0][:, 1].min() > -laid()['down']], 0.002)
     # Exclude points inside the pin hub where clevis pin runs, and check across travel:
-    keep = (np.hypot(mov_pts[:, 0] - X_ABD, mov_pts[:, 1]) > near) & (mov_pts[:, 2] > laid()['horn_z'] + 0.005)
+    keep = (np.hypot(mov_pts[:, 0] - X_ABD, mov_pts[:, 1]) > near) & (mov_pts[:, 2] > laid()['horn_z'] + 0.013)
     moving = mov_pts[keep] - piv
     out = 9.0
     for roll in np.arange(TRAVEL[0] + ease, TRAVEL[1] - ease + 0.1, step):
@@ -400,14 +405,32 @@ def aired(step=5.0, ease=3.0):
     return out
 
 
+@functools.lru_cache(maxsize=None)
+def crossed():
+    """Triangle crossings across `TRAVEL`: bilateral pectoral overlap plus moving crank/rod vs stationary stack."""
+    from tools.render import clips, shoulder_mount as sm
+    still = _pectoral_still()
+    total = 0
+    for roll in (TRAVEL[0], -15.0, 0.0, 45.0, 90.0, TRAVEL[1]):
+        cr = _crank_parts(roll)
+        mov = [t for k, v in cr.items() if k != 'ring' for t in v]
+        left = still + [t for v in cr.values() for t in v]
+        right = [((t * (-1.0, 1.0, 1.0))[::-1], c) for t, c in left]
+        sh_p = sm.posed(0.0, roll)
+        sh_turn = to_torso(sh_p['housing'] + sh_p['arm saddle'])
+        total += clips.crossed(left, right) + clips.crossed(mov, still) + clips.crossed(cr['rod'], sh_turn)
+    return total
+
+
 def checked():
-    """{'held', 'air', 'travel', 'reaches', 'bend', 'length', 'lever'}: what the suite holds."""
+    """{'held', 'air', 'travel', 'reaches', 'bend', 'length', 'lever', 'crossing'}: what the suite holds."""
     from machine.body import mechatronics
     from tools.render import hung
     return {'held': round(min(held().values()), 3), 'air': round(1e3 * aired(), 2), 'travel': TRAVEL,
             'reaches': TRAVEL[1] + sl.pivot()[1],
             'bend': (round(1e3 * span_least(), 1), 1e3 * float(mechatronics.materials()['hoses']['bus'][4])),
-            'length': round(1e3 * hung.long(span()), 1), 'lever': round(linkage()['eff'], 3)}
+            'length': round(1e3 * hung.long(span()), 1), 'lever': round(linkage()['eff'], 3),
+            'crossing': crossed()}
 
 
 def main(argv=None):

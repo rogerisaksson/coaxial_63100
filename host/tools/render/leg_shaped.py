@@ -96,8 +96,8 @@ def _arm(name, h, share):
 
 
 def _knuckle(name, h, share):
-    """The thigh's knuckle's case: held by the four screws through it into the arm's pad, its collar and spigot
-    kept, the hip's loads on them where the thigh's tube bears."""
+    """The thigh's knuckle's case: held by the four screws through it into the arm's pad, its collar, spigot and
+    flat bed datum kept, the hip's loads on them where the thigh's tube bears."""
     import numpy as np
     from tools.render import knee_clamped as kc
     room, turn, corner, (x, y, z), (yu, zu) = _room(name, h)
@@ -106,7 +106,8 @@ def _knuckle(name, h, share):
     held = _screws(x, yu, zu, -1e9, x0 - 1e3 * hl.PAD_M)
     low = -1e3 * hl.JOG[1]                                # the collar's top, the tube's way down from it
     seat = (np.hypot(x - bone, zu) <= tube + SEAT_MM) & (yu <= low + SEAT_MM)
-    return topo.case(name, room, held | seat, held, _loads(seat & room, turn, corner), h, share)
+    bed_face = room & (np.arange(room.shape[1])[None, :, None] == 0)
+    return topo.case(name, room, held | seat | bed_face, held, _loads(seat & room, turn, corner), h, share)
 
 
 def _block_screws(x, y, z, z0, z1):

@@ -327,6 +327,7 @@ def dressed(parts_, liked):
     (BLENDS), what of it lies under another garment tucked (TUCK_M) - and of the
     robot what its clothes leave to see (`_under`): an arm past its sleeve's cuff, its neck
     over the collar, a foot under a hem. No cloth is stood through."""
+    from coaxial.graphics import mechanism
     from coaxial.model.blocks import numpy as np
     cloth = []
     for name, parent, *rest in liked:
@@ -338,4 +339,8 @@ def dressed(parts_, liked):
             reach = np.hypot(at[tucked, 0], at[tucked, 2])
             at[tucked] *= np.stack([1.0 - TUCK_M / np.maximum(reach, 2.0 * TUCK_M), np.ones(len(reach))], 1)[:, [0, 1, 0]]
             cloth.append((name, parent, (), rest[0], 0.0, (at, index.reshape(-1, 3), uv[used], worn[used])))
-    return _under(list(parts_), cloth) + cloth
+    full = list(parts_)
+    for s, side in ((1.0, 'left_'), (-1.0, 'right_')):
+        full.append(('hung_bridge_' + side + 'upper_arm', side + 'upper_arm', (), (0.0, 0.0, 0.0), 0.0,
+                     mechanism._tube((0.0, -0.065, 0.0), (-0.014 * s, -0.145, -0.016), 0.0125, paint(mechanism.CARBON))))
+    return _under(full, cloth) + cloth

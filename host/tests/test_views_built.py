@@ -23,25 +23,19 @@ def _told(code):
 
 
 def test_the_shoulder_holds_turns_and_keeps_its_coil(report):
-    """The coaxial build's shoulder as sketched (`tools.render.shoulder_mount`, sized by `shoulder_laid`): every
-    member holds the shoulder's loads at the margin by its hand checks - the hub's screws, the foot's studs, the
-    carbon plate, the crossbar and the arm's tube among them; what turns with the arm keeps a millimetre off what
-    stays with the torso through the travel, short of the stops where horn and rib meet, and crosses none of it
-    with the arm hanging; the bus's hose, a coil round the crossbar, bends no tighter than the hose's own least
-    radius and crosses no part at five turns of the arm; the travel takes a human's swing back and the farthest the
-    robot swung an arm ahead short of a fall; the abduction (`tools.render.shoulder_rolled`) holds its
-    loads at the margin, its yoke keeps a millimetre off what stays with the pitch through its travel short of the
-    stops, the arm rises past a T on it and the bus's span across it bends no tighter than the hose's own least;
-    the bus's hoses lying still through it (`tools.render.shoulder_hosed`) bend no tighter than that either, lie
-    free no longer than `tees.unheld` and keep a millimetre off what turns by them through the abduction's travel;
-    and the arm's guards, laid clear of the whole arm, cross nothing of the shoulder's mount (`arm_worn.capped`) -
-    with no likeness beside the tree there is no figure to lay them on."""
+    """The coaxial shoulder (`tools.render.shoulder_mount`, `shoulder_laid`): every member holds the shoulder's loads
+    at the margin; what turns keeps a millimetre off what stays through travel and crosses none hanging; its bus coil
+    bends no tighter than the hose's own least radius and crosses nothing; travel spans a human swing back to ahead;
+    its abduction (`shoulder_rolled`) holds at the margin, clears what stays, never crosses across travel, rises past a
+    T and rotates inward after shoulder pitch to clasp hands front and back; its bus (`shoulder_hosed`) holds; and arm
+    guards clear the shoulder's mount."""
     from coaxial.graphics import likeness
     got: Any = _told('from coaxial.graphics import likeness; '
-                     'from tools.render import arm_worn as a, shoulder_hosed as h, shoulder_mount as s, '
-                     'shoulder_rolled as r; '
+                     'from tools.render import arm_worn as a, robot_built as b, shoulder_hosed as h, '
+                     'shoulder_mount as s, shoulder_rolled as r; '
                      'print(json.dumps({"mount": s.checked(), "raised": r.checked(), "bus": h.checked(), '
-                     '"capped": {"crossing": a.capped()} if likeness.FOUND else None}))')
+                     '"capped": {"crossing": a.capped()} if likeness.FOUND else None, '
+                     '"clasp": b.clasped() if likeness.FOUND else None}))')
     told: Any = got.get('mount') or got
     report.check("every member holds the shoulder's loads at the margin", (told.get('held') or 0.0) >= 1.0,
                  got.get('failed') or told.get('held'))
@@ -54,9 +48,10 @@ def test_the_shoulder_holds_turns_and_keeps_its_coil(report):
     report.check("the travel takes a human's swing back, and the farthest the robot swung an arm ahead short of a fall",
                  lo <= back and hi >= ahead, (told.get('travel'), told.get('asked')))
     raised: Any = got.get('raised') or {}
-    report.check("the abduction holds at the margin and its yoke keeps a millimetre off what stays through its travel",
-                 (raised.get('held') or 0.0) >= 1.0 and (raised.get('air') or 0.0) >= 1.0,
-                 got.get('failed') or (raised.get('held'), raised.get('air')))
+    report.check("the abduction holds at the margin, clears what stays, and never crosses across its travel",
+                 (raised.get('held') or 0.0) >= 1.0 and (raised.get('air') or 0.0) >= 1.0
+                 and raised.get('crossing') == 0,
+                 got.get('failed') or (raised.get('held'), raised.get('air'), raised.get('crossing')))
     bend, own = raised.get('bend') or (0.0, 1.0)
     report.check("the arm rises past a T on its abduction, the bus's span across it no tighter than the hose's own",
                  (raised.get('reaches') or 0.0) >= 90.0 and bend >= own, (raised.get('reaches'), raised.get('bend')))
@@ -69,6 +64,11 @@ def test_the_shoulder_holds_turns_and_keeps_its_coil(report):
         return
     capped: Any = got.get('capped') or {}
     report.check("the arm's guards cross nothing of the shoulder's mount", capped.get('crossing') == 0, capped)
+    clasp: Any = got.get('clasp') or {}
+    report.check('turning the shoulders ahead or back and drawing the pectoral drives brings the hands together cleanly',
+                 bool(clasp.get('in_travel')) and clasp.get('front_gap', 9.0) <= 2.0
+                 and clasp.get('back_gap', 9.0) <= 2.0 and clasp.get('front_lap', 9.0) <= 5.0
+                 and clasp.get('back_lap', 9.0) <= 5.0 and clasp.get('crossing') == 0, clasp)
 
 
 def test_the_neck_holds_clears_and_keeps_its_hose(report):
@@ -180,11 +180,13 @@ def test_a_print_shaped_by_its_loads_stands_on_its_bed(report):
     shaped extruded, as a load-bearing slab is,
     it is a prism up its bed - each column's own voxels all kept or all gone, its pockets through -, it keeps
     every voxel told to stay, and its outline is drawn smooth (`topo.outlined`)."""
-    told: Any = _told('import numpy as np; from tools.render import topo; g = topo.shaped(topo.trial(), fresh=True); '
+    told: Any = _told('import numpy as np; from tools.render import solids, topo; g = topo.shaped(topo.trial(), fresh=True); '
                       'layers = g["solid"].transpose(1, 0, 2); c = dict(topo.trial(), extruded=True); '
                       'e = topo.shaped(c, fresh=True); s, own = e["solid"], ~c["kept"]; '
+                      'pg = solids.printable(topo.faced(g, topo.trial())); pe = solids.printable(topo.faced(e, c)); '
+                      'sm = round(topo.surfaced_margin(g, topo.trial()), 3); '
                       'print(json.dumps({"grams": g["grams"], "room": g["room"], "margin": g["margin"], '
-                      '"whole": topo.whole(topo.trial())["margin"], '
+                      '"whole": topo.whole(topo.trial())["margin"], "pg": pg, "pe": pe, "sm": sm, '
                       '"lost": g["lost"], "hung": int((layers & ~topo.stood(layers)).sum()), '
                       '"prism": bool((((s & own).any(axis=1) == (s | ~own).all(axis=1)) | ~own.any(axis=1)).all()), '
                       '"extruded lost": e["lost"], "faces": len(topo.outlined(s, e["h"])), "margin x": e["margin"]}))')
@@ -195,6 +197,14 @@ def test_a_print_shaped_by_its_loads_stands_on_its_bed(report):
                  told.get('failed') or (told.get('grams'), told.get('room'), told.get('margin'), told.get('whole')))
     report.check('every voxel told to stay is kept, and none hangs over the bed',
                  told.get('lost') == 0 and told.get('hung') == 0, (told.get('lost'), told.get('hung')))
+    pg: Any = told.get('pg') or {}
+    pe: Any = told.get('pe') or {}
+    report.check('surfaced trial parts stay closed on a flat bed with <=45-deg overhangs and carry their loads',
+                 pg.get('over_cm2', 1.0) <= 0.05 and pg.get('worst_deg', 90.0) <= 45.0 and pg.get('open', 1) == 0
+                 and pg.get('bed_cm2', 0.0) >= 2.0 and (told.get('sm') or 0.0) >= 1.0
+                 and pe.get('over_cm2', 1.0) <= 0.05 and pe.get('worst_deg', 90.0) <= 45.0
+                 and pe.get('open', 1) == 0 and pe.get('bed_cm2', 0.0) >= 0.4,
+                 (pg, pe, told.get('sm')))
     report.check('extruded, it is a prism up its bed that carries the load, keeps what it was told to and is drawn smooth',
                  bool(told.get('prism')) and told.get('extruded lost') == 0 and (told.get('faces') or 0) > 0
                  and (told.get('margin x') or 0.0) >= 1.0,
@@ -205,23 +215,30 @@ def _check_rooms(report, label, exprs):
     """Verify `exprs` {name: (module, expr)} carry their loads all solid (`topo.whole`) and, where cached, shaped."""
     mods = ', '.join(sorted({mod for mod, _e in exprs.values()}))
     items = ', '.join('%r: %s' % (k, e) for k, (_m, e) in exprs.items())
-    got: Any = _told('from tools.render import topo, %s; out = {}\n'
+    got: Any = _told('from tools.render import solids, topo, %s; out = {}\n'
                      'for k, c in {%s}.items():\n'
                      '    w = topo.whole(c)\n'
                      '    s = topo.shaped(c) if topo.ready(c) else None\n'
                      '    layers = s["solid"].transpose(1, 0, 2) if s else None\n'
+                     '    p = solids.printable(topo.faced(s, c)) if s else None\n'
+                     '    sm = round(topo.surfaced_margin(s, c), 3) if s else None\n'
                      '    out[k] = {"whole": round(w["margin"], 3), "shaped": None if s is None else '
-                     '[round(float(s["grams"]), 1), round(float(s["room"]), 1), round(float(s["margin"]), 3), '
-                     'int(s["lost"]), int((layers & ~topo.stood(layers)).sum())]}\n'
+                     '{"grams": round(float(s["grams"]), 1), "room": round(float(s["room"]), 1), '
+                     '"margin": round(float(s["margin"]), 3), "lost": int(s["lost"]), '
+                     '"hung": int((layers & ~topo.stood(layers)).sum()), "print": p, "surf_margin": sm}}\n'
                      'print(json.dumps(out))' % (mods, items))
     wholes = {k: (got.get(k) or {}).get('whole') or 0.0 for k in exprs}
     report.check('%s carry their loads all solid at the margin' % label,
                  'failed' not in got and min(wholes.values()) >= 1.0, got if 'failed' in got else wholes)
-    shaped = {k: got[k]['shaped'] for k in exprs if isinstance((got.get(k) or {}).get('shaped'), list)}
+    shaped = {k: got[k]['shaped'] for k in exprs if isinstance((got.get(k) or {}).get('shaped'), dict)}
     if shaped:
         report.check('cached %s weigh less than their rooms, hold, keep their seats and hang nothing' % label,
-                     all(0.0 < g < r and m >= 1.0 and lost == 0 and hung == 0 for g, r, m, lost, hung in shaped.values()),
-                     shaped)
+                     all(0.0 < d['grams'] < d['room'] and d['margin'] >= 1.0 and d['lost'] == 0 and d['hung'] == 0
+                         for d in shaped.values()), shaped)
+        report.check('cached surfaced %s stand closed on a flat bed within 45 deg and carry their loads' % label,
+                     all(d['print']['over_cm2'] <= 0.05 and d['print']['worst_deg'] <= 45.0
+                         and d['print']['open'] == 0 and d['print']['bed_cm2'] >= 8.0 and d['surf_margin'] >= 1.0
+                         for d in shaped.values()), shaped)
 
 
 def test_the_hood_room_carries_its_loads(report):

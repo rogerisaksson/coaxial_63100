@@ -290,7 +290,7 @@ class Body:
                 above, at = placed[parent]
                 spot = at + above @ np.asarray(offset, float)
                 if spread and rest and name.endswith('_upper_arm'):
-                    rest = rest + math.copysign(spread, rest)
+                    rest = rest + spread * math.copysign(1.0, rest)
                 here = above @ turn_about('z', rest) if rest else above
             else:
                 spot, here = np.asarray(where, float), np.asarray(turn, float)

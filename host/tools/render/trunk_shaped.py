@@ -35,7 +35,7 @@ from tools.render import trunk_rods as tr  # noqa: E402
 #: The prints shaped: {name: (its voxel, mm, the share of what is the optimiser's that it may keep - both rooms as
 #: drawn carry all solid (`topo.whole`): the yoke x1.07 on 4 mm voxels, the lever x1.43 on 2 mm voxels)}; how many
 #: cells a voxel's side is filled by, and how far round an axis a seat's voxels are kept, mm.
-SHAPED, FINE, ROUND_MM = {'yoke': (4.0, 0.65), 'lever': (2.0, 0.6)}, 3, 4.0
+SHAPED, FINE, ROUND_MM = {'yoke': (4.0, 0.72), 'lever': (2.0, 0.6)}, 3, 4.0
 
 
 def _room(name, h):

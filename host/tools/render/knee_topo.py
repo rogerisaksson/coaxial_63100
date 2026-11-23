@@ -15,6 +15,7 @@ import argparse
 import math
 import os
 import sys
+from typing import Any
 
 if __package__ in (None, ''):
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -177,32 +178,127 @@ def faces(points, cells):
     return points.T[np.concatenate([outer[:, [0, 1, 2]], outer[:, [0, 2, 3]]])]
 
 
-def surfaced(solid, kept, h, fine=2, sigma=1.15, rounds=6):
-    """(n, 3, 3) mm: a closed 2-manifold surface net on a tricubic signed distance field of `solid`, relaxed
-    tangentially and projected onto the zero level set, the bed flat at y = 0 and `kept` seats held."""
+def _buttress(solid, room):
+    """Buttress `solid` [across, up, deep] downward inside `room` with <=45-deg cardinal props."""
+    import numpy as np
+    if room is None:
+        return solid
+    ways = ((0, 0), (-1, 0), (1, 0), (0, -1), (0, 1))
+    out, rm = solid.transpose(1, 0, 2).copy(), room.transpose(1, 0, 2)
+    need = out.copy()
+    for k in range(len(out) - 1, 0, -1):
+        pad, rpad = np.pad(out[k - 1], 1), np.pad(rm[k - 1], 1)
+        under = np.zeros_like(out[k])
+        for a, b in ways:
+            under |= pad[1 + a:pad.shape[0] - 1 + a, 1 + b:pad.shape[1] - 1 + b]
+        left = out[k] & need[k] & ~under
+        for a, b in ways:
+            hit = left & rpad[1 + a:rpad.shape[0] - 1 + a, 1 + b:rpad.shape[1] - 1 + b]
+            spad = np.pad(hit, 1)
+            prop = spad[1 - a:spad.shape[0] - 1 - a, 1 - b:spad.shape[1] - 1 - b]
+            out[k - 1] |= prop
+            need[k - 1] |= prop
+            left &= ~hit
+    return out.transpose(1, 0, 2)
+
+
+def _cone_phi(phi, j0, slope=1.0):
+    """Clamp continuous SDF `phi` [x, y, z] off bed `j0` via upwind HJ d(phi)/dy <= slope * |grad_xz|."""
+    import numpy as np
+    from scipy import ndimage
+    out = phi.copy()
+    for j in range(j0 + 1, out.shape[1]):
+        prev = out[:, j - 1, :]
+        if not (prev > 0.0).any():
+            out[:, j:, :] = -1.0
+            break
+        px = np.pad(prev, ((1, 1), (0, 0)), mode='edge')
+        pz = np.pad(prev, ((0, 0), (1, 1)), mode='edge')
+        gx = np.maximum(np.maximum(px[:-2, :] - prev, px[2:, :] - prev), 0.0)
+        gz = np.maximum(np.maximum(pz[:, :-2] - prev, pz[:, 2:] - prev), 0.0)
+        out[:, j, :] = np.minimum(out[:, j, :], prev + slope * np.hypot(gx, gz))
+    out[:, :j0, :] = out[:, j0:j0 + 1, :]
+    moore, lim = np.ones((3, 3), bool), math.sqrt(17.5)
+    ins = out > 0.0
+    for j in range(j0 + 1, ins.shape[1]):
+        dil: Any = ndimage.binary_dilation(ins[:, j - 1, :], moore)
+        ins[:, j, :] &= np.asarray(dil, bool)
+        if j >= j0 + 4:
+            edt: Any = ndimage.distance_transform_edt(~ins[:, j - 4, :])
+            ins[:, j, :] &= np.asarray(edt, float) <= lim
+    out[(out > 0.0) & ~ins] = -0.15
+    return out
+
+
+def _project_45(p, tris, max_deg=44.5, iters=220):
+    """Project vertices in `p` so non-bed downward faces slope <= `max_deg` off vertical while `y = 0` stays flat."""
+    import numpy as np
+    v = p.copy()
+    v[:, 1] -= float(v[:, 1].min())
+    bed_v = v[:, 1] <= 0.05
+    v[bed_v, 1] = 0.0
+    sin_m, cos_m = math.sin(math.radians(max_deg)), math.cos(math.radians(max_deg))
+    cx_m, cz_m = float(v[:, 0].mean()), float(v[:, 2].mean())
+    for _ in range(iters):
+        t = v[tris]
+        cr = np.cross(t[:, 1] - t[:, 0], t[:, 2] - t[:, 0])
+        area2 = np.linalg.norm(cr, axis=1)
+        ny = cr[:, 1] / (area2 + 1e-30)
+        bad = (t[:, :, 1].max(axis=1) > 0.12) & (ny < -sin_m) & (area2 > 1e-10)
+        if not bad.any():
+            break
+        tb, fb = t[bad], tris[bad]
+        n_bad = cr[bad] / (area2[bad, None] + 1e-30)
+        nh = np.hypot(n_bad[:, 0], n_bad[:, 2])
+        cent = tb.mean(axis=1)[:, [0, 2]] - np.array((cx_m, cz_m))
+        cn = np.linalg.norm(cent, axis=1, keepdims=True) + 1e-12
+        uh = np.where((nh > 1e-6)[:, None], n_bad[:, [0, 2]] / (nh[:, None] + 1e-12), cent / cn)
+        n_tar = np.c_[uh[:, 0] * cos_m, np.full(len(tb), -sin_m), uh[:, 1] * cos_m]
+        imin = np.argmin(tb[:, :, 1], axis=1)
+        p0 = tb[np.arange(len(tb)), imin]
+        dv, cnt = np.zeros_like(v), np.zeros((len(v), 1))
+        for kc in range(3):
+            idx = fb[:, kc]
+            dot = np.einsum('ij,ij->i', tb[:, kc] - p0, n_tar)
+            move = (dot > 0.0) & (~bed_v[idx]) & (idx != fb[np.arange(len(tb)), imin])
+            if move.any():
+                im = idx[move]
+                np.add.at(dv, im, -0.8 * dot[move, None] * n_tar[move])
+                np.add.at(cnt, im, 1.0)
+        mv = (cnt[:, 0] > 0) & (~bed_v)
+        if not mv.any():
+            break
+        v[mv] += dv[mv] / cnt[mv]
+    return v[tris]
+
+
+def _sdf(solid, kept, h, fine=2, sigma=1.05, room=None):
+    """(buttressed solid, smooth SDF `phi0`, cone-clamped SDF `phi1`) on `h / fine`-mm grid."""
+    import numpy as np
+    from scipy import ndimage
+    s_but = _buttress(solid, room)
+    s_ext = np.pad(s_but, ((2, 2), (0, 2), (2, 2)), constant_values=False)
+    s_ext = np.concatenate([np.repeat(s_ext[:, :1, :], 2, axis=1), s_ext], axis=1)
+    k_ext = np.pad(kept, ((2, 2), (0, 2), (2, 2)), constant_values=False)
+    k_ext = np.concatenate([np.repeat(k_ext[:, :1, :], 2, axis=1), k_ext], axis=1)
+    ei: Any = ndimage.distance_transform_edt(s_ext)
+    eo: Any = ndimage.distance_transform_edt(~s_ext)
+    d_raw = np.where(s_ext, np.asarray(ei, float) - 0.5, -(np.asarray(eo, float) - 0.5))
+    d = np.where(k_ext, np.maximum(d_raw, 0.35), d_raw)
+    phi0 = np.asarray(ndimage.zoom(ndimage.gaussian_filter(d, sigma), fine, order=3), float) * float(h)
+    return s_but, phi0, _cone_phi(phi0, 2 * fine)
+
+
+def surfaced(solid, kept, h, fine=2, sigma=1.05, rounds=6, room=None):
+    """(n, 3, 3) mm: a closed 2-manifold surface net on a <=45-deg self-supporting tricubic SDF of `solid`,
+    relaxed tangentially and projected onto y = 0 flat bed with every overhanging face <= 45 deg off vertical."""
     import numpy as np
     from scipy import ndimage
     h = float(h)
     if not solid.any():
         return np.zeros((0, 3, 3))
-    fine = max(int(fine), int(round(h)))
     step = h / fine
-    s_ext = np.pad(solid, ((2, 2), (0, 2), (2, 2)), constant_values=False)
-    s_ext = np.concatenate([np.repeat(s_ext[:, :1, :], 2, axis=1), s_ext], axis=1)
-    k_ext = np.pad(kept, ((2, 2), (0, 2), (2, 2)), constant_values=False)
-    k_ext = np.concatenate([np.repeat(k_ext[:, :1, :], 2, axis=1), k_ext], axis=1)
-    edt_in = np.asarray(ndimage.distance_transform_edt(s_ext), float) - 0.5
-    edt_out = np.asarray(ndimage.distance_transform_edt(~s_ext), float) - 0.5
-    raw = np.where(s_ext, edt_in, -edt_out)
-    d = np.where(k_ext & s_ext, np.maximum(raw, 0.45), raw)
-    phi = np.asarray(ndimage.zoom(ndimage.gaussian_filter(d, sigma), fine, order=3), float) * h
-    cross_k = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]], bool)
-    diag_k = np.array([[1, 0, 1], [0, 0, 0], [1, 0, 1]], bool)
-    diag_step = (math.sqrt(2.0) - 1.0) * step
-    for j in range(2 * fine + 1, phi.shape[1]):
-        prev = phi[:, j - 1, :]
-        phi[:, j, :] = np.minimum(phi[:, j, :], np.maximum(ndimage.maximum_filter(prev, footprint=cross_k),
-                                                           ndimage.maximum_filter(prev, footprint=diag_k) - diag_step))
+    _s_but, _phi0, phi = _sdf(solid, kept, h, fine, sigma, room)
     phi = np.minimum(phi, (((np.arange(int(phi.shape[1])) + 0.5) / fine - 2.0) * h)[None, :, None])
     ins = phi > 0.0
     e0, e1, e2 = ins[:-1] != ins[1:], ins[:, :-1] != ins[:, 1:], ins[:, :, :-1] != ins[:, :, 1:]
@@ -235,7 +331,7 @@ def surfaced(solid, kept, h, fine=2, sigma=1.15, rounds=6):
                        tris[:, [1, 0]], tris[:, [2, 1]], tris[:, [0, 2]]])
     deg = np.maximum(np.bincount(edges[:, 0], minlength=len(p)).astype(float)[:, None], 1.0)
     for _ in range(rounds):
-        bed = p[:, 1] <= 0.15 * step
+        bed = p[:, 1] <= 0.25 * step
         g = (p + 2.0 * h) / step - 0.5
         grad = np.column_stack([ndimage.map_coordinates(phi, (g + 0.5 * np.eye(3)[k]).T, order=1, mode='nearest')
                                 - ndimage.map_coordinates(phi, (g - 0.5 * np.eye(3)[k]).T, order=1, mode='nearest')
@@ -245,13 +341,13 @@ def surfaced(solid, kept, h, fine=2, sigma=1.15, rounds=6):
         np.add.at(acc, edges[:, 0], p[edges[:, 1]])
         lap = acc / deg - p
         tang = lap - (np.sum(lap * grad, axis=1, keepdims=True) / n2) * grad
-        p = p + np.where(bed[:, None], 0.35 * np.c_[lap[:, 0], np.zeros(len(p)), lap[:, 2]], 0.45 * tang)
+        p = p + np.where(bed[:, None], 0.35 * np.c_[lap[:, 0], np.zeros(len(p)), lap[:, 2]], 0.40 * tang)
         g = (p + 2.0 * h) / step - 0.5
         val = ndimage.map_coordinates(phi, g.T, order=1, mode='nearest')
         dp = np.clip(val[:, None] / n2, -0.5 * step, 0.5 * step) * grad
         p = p - np.where(bed[:, None], np.c_[dp[:, 0], np.zeros(len(p)), dp[:, 2]], dp)
-        p[:, 1] = np.where(bed, 0.0, np.maximum(p[:, 1], 0.0))
-    return p[tris]
+        p[:, 1] = np.where(bed, 0.0, np.maximum(p[:, 1], 0.1 * step))
+    return _project_45(p, tris)
 
 
 def stl(path, mesh, solid):

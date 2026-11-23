@@ -26,7 +26,7 @@ from tools.render import covered as cv  # noqa: E402
 from tools.render import elbow_mount as em  # noqa: E402
 from tools.render import mounting as m  # noqa: E402
 
-#: The printer's plate (Bambu Lab P1S): 256 mm square, 250 mm tall with filament cutter active, front-left cutter
+#: The printer's plate: 256 mm square, 250 mm tall with filament cutter active, front-left cutter
 #: exclusion corner (across, deep), and clearance between pieces and off the plate's edges, m.
 PLATE_M, TALL_M, CORNER_M, AIR_M = 0.256, 0.250, (0.018, 0.028), 0.005
 #: The inks printed: the frame's, the guards' and their first layers'; the bed's.
@@ -127,14 +127,14 @@ def _upper():
     cx, cy = pec['xy']
     z0_c, z1_c, out_c = pec['crank']
     th, c_pin, _h_pin, _u_rod = sr.crank_at(0.0)
-    c_band = [((t @ rot_z) + (cx, cy, 0.0), col) for t, col in cl.turned([(z0_c, ring_p, out_c), (z1_c, ring_p, out_c)], 0.0)]
+    c_band = [((t @ rot_z) + (cx, cy, 0.0), col)
+              for t, col in cl.turned([(z0_c, ring_p + 3e-4, out_c), (z1_c, ring_p + 3e-4, out_c)], th + 0.5 * math.pi)]
     c_root = [(cx + (out_c - 0.001) * math.cos(th + a), cy + (out_c - 0.001) * math.sin(th + a))
               for a in np.radians(np.linspace(-36.0, 36.0, 9))]
     c_arm = em._rounded(cl.filleted(leaves.hull(c_root + leaves.ring((float(c_pin[0]), float(c_pin[1])),
                                                                      sr.PIN_R + 0.006))),
                         z0_c, z1_c, em.FRAME, axis=2, r=0.0015, steps=1)
-    p_mount = ss.drawn() or [((t @ rot_z) + (cx, cy, 0.0), c) for t, c in cl.turned(
-        [(pec['band'][0], can_p, pec['band'][2]), (pec['band'][1], ring_p, pec['band'][2])], 0.0)]
+    p_mount = ss.drawn() or ss.sketched()
     lay_n, n_still, n_nod = nl.laid(), nm.still(), nm.nodding()
     return {'elbow stator band': stator_b, 'elbow stator saddle': stator_s, 'elbow rotor clamp': rotor_c,
             'elbow cover': cv.cover(*cover, outlet=fit[4], window=boards.window(turn)),
@@ -338,7 +338,7 @@ def main(argv=None):
             at = (px * (k % wide), (px + 30) * (k // wide))
             sheet.paste(view, (at[0], at[1] + 30))
             label = ', '.join(n.removeprefix('upper ').removeprefix('trunk ') for n, *_at in plate)
-            pen.text((at[0] + 12, at[1] + 8), 'P1S plate %d (%d pcs): %s' % (k + 1, len(plate), label[:78]),
+            pen.text((at[0] + 12, at[1] + 8), 'plate %d (%d pcs): %s' % (k + 1, len(plate), label[:78]),
                      fill=(220, 220, 220))
         sheet.save(args.out)
         print(args.out)

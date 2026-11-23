@@ -63,6 +63,35 @@ def told(name):
             'over': round(1e4 * float(hung.sum()) * VOXEL_M ** 2, 1)}
 
 
+def printable(tris_mm, bed_mm=0.25, max_deg=45.0):
+    """{'cm3', 'bed_cm2', 'over_cm2', 'worst_deg', 'open'}: mesh-level printability audit on bed `y = 0` mm."""
+    import numpy as np
+    t = np.asarray(tris_mm, float)
+    if len(t) == 0:
+        return {'cm3': 0.0, 'bed_cm2': 0.0, 'over_cm2': 0.0, 'worst_deg': 0.0, 'open': 0}
+    t = t.copy()
+    t[:, :, 1] -= float(t[:, :, 1].min())
+    cr = np.cross(t[:, 1] - t[:, 0], t[:, 2] - t[:, 0])
+    area = 0.5 * np.linalg.norm(cr, axis=1)
+    valid = area > 1e-8
+    svol = float(np.sum(np.einsum('ij,ij->i', t[:, 0], np.cross(t[:, 1], t[:, 2]))) / 6.0)
+    sign = 1.0 if svol >= 0.0 else -1.0
+    n = np.zeros_like(cr)
+    n[valid] = sign * cr[valid] / (2.0 * area[valid, None])
+    ymid, ymax = t[:, :, 1].mean(axis=1), t[:, :, 1].max(axis=1)
+    bed_cm2 = float(area[valid & (ymax <= bed_mm) & (n[:, 1] < -0.95)].sum()) / 100.0
+    above = valid & (ymid > bed_mm)
+    alpha = np.degrees(np.arcsin(np.clip(-n[:, 1], 0.0, 1.0)))
+    over_cm2 = float(area[above & (alpha > max_deg)].sum()) / 100.0
+    worst_deg = float(alpha[above].max()) if above.any() else 0.0
+    _, inv = np.unique(np.round(t.reshape(-1, 3), 5), axis=0, return_inverse=True)
+    idx = inv.reshape(-1, 3)
+    edges = np.vstack([idx[:, [0, 1]], idx[:, [1, 2]], idx[:, [2, 0]]])
+    _, u_cnt = np.unique(np.sort(edges, axis=1), axis=0, return_counts=True)
+    return {'cm3': round(abs(svol) / 1e3, 1), 'bed_cm2': round(bed_cm2, 2),
+            'over_cm2': round(over_cm2, 3), 'worst_deg': round(worst_deg, 2), 'open': int((u_cnt == 1).sum())}
+
+
 def hung(names=STANDING):
     """{piece: cm2 of its faces hung over its bed}: the pieces held to hang nothing - STANDING, or `names`."""
     return {name: told(name)['over'] for name in names}
