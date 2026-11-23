@@ -1,11 +1,11 @@
-"""The pectoral abduction mount shaped by its loads: parametric PAHT-CF CSG truss on the chest.
+"""The pectoral abduction mount shaped by its loads: thick revolved/lofted chamfered PAHT-CF CAD.
 
     COAXIAL_ROBOT=gynoid_mesomorph_medium_coax python -X utf8 tools/render/shoulder_shaped.py [OUT.png]
 
-Each pectoral abduction stack (`shoulder_rolled.pectoral`) sits in the chest's bust envelope facing +z; a smooth
-parametric CSG mount (`csg`) clamps the motor housing (`z = +108..+115.6 mm`), bridges clear over the 100 mm
-inverter guard via a triangulated truss web and wraps a teardrop-crowned 40 mm carbon spine saddle
-(`y = 178..274 mm`), with <=45-deg self-supporting geometry and zero voxel artifacts. `case()` verifies FEM loads.
+Each pectoral abduction stack (`shoulder_rolled.pectoral`) sits in the chest's bust envelope facing +z; a thick
+parametric CAD mount (`csg`) combines a chamfered motor collar (`z = 106.8..115.6 mm`), 12 mm revolved conical motor
+bells (`revolve_profile`) with bevelled rim/end chamfers and C1 smooth chamfered spine arch lofts cradling the 40 mm
+carbon spine saddle (`y = 140..293 mm`), keeping <=42-deg overhangs and zero thin walls. `case()` verifies FEM loads.
 """
 import functools
 import os
@@ -33,40 +33,28 @@ def pectoral_csg():
     (cx, cy), z_top = pec['xy'], pec['band'][1]
     can, (_sy, sp_z, sp_r) = st['motor'][0], lay_n['seat']
     r_in, x_min = can + 0.0002, 0.008
-    y_top0, y_top1, y_bot0, y_bot1 = 0.274, 0.292, 0.140, 0.161
+    y_top0, y_top1, y_bot0, y_bot1 = 0.274, 0.293, 0.140, 0.162
     th0, th1 = math.radians(62.0), math.radians(365.0)
     ang_hi = np.linspace(math.radians(268.0), th1, 17)
-    ang_up = np.linspace(th0, math.radians(102.0), 10)
-    arc_out = ([(cx + 0.068 * math.cos(a), cy + 0.068 * math.sin(a)) for a in ang_up]
+    ang_up = np.linspace(th0, math.radians(102.0), 12)
+    arc_out = ([(cx + 0.0685 * math.cos(a), cy + 0.0685 * math.sin(a)) for a in ang_up]
                + [(0.058, y_top1), (x_min, y_top1), (x_min, y_top0)]
-               + [(cx + 0.054 * math.cos(a), cy + 0.054 * math.sin(a)) for a in np.linspace(math.radians(144.0), math.radians(216.0), 17)]
+               + [(cx + 0.056 * math.cos(a), cy + 0.056 * math.sin(a))
+                  for a in np.linspace(math.radians(144.0), math.radians(216.0), 17)]
                + [(x_min, y_bot1), (x_min, y_bot0), (0.058, y_bot0)]
-               + [(cx + 0.068 * math.cos(a), cy + 0.068 * math.sin(a)) for a in ang_hi])
+               + [(cx + 0.0685 * math.cos(a), cy + 0.0685 * math.sin(a)) for a in ang_hi])
     arc_in = [(cx + r_in * math.cos(a), cy + r_in * math.sin(a)) for a in np.linspace(th1, th0, 49)]
-    collar = csg.extrude(csg.filleted2d(arc_out + arc_in, r=0.0015), (), a=0.1068, b=z_top, axis=2, colour=em.FRAME)
+    collar = csg.extrude(csg.filleted2d(arc_out + arc_in, r=0.003), (), a=0.1068, b=z_top, axis=2,
+                         colour=em.FRAME, chamfer_lo=0.0014, chamfer_hi=0.0011)
 
-    def _sector(a0, a1):
-        aa = np.linspace(a0, a1, 17)
-        pts = [(cx + 0.068 * math.cos(a), cy + 0.068 * math.sin(a)) for a in aa] + [(cx + r_in * math.cos(a), cy + r_in * math.sin(a)) for a in aa[::-1]]
-        return csg.extrude(csg.filleted2d(pts, r=0.0012), (), a=0.1008, b=z_top, axis=2, colour=em.FRAME)
-
-    def _cowl_bot(z):
-        s = np.clip((0.062 - z) / (0.062 - 0.020), 0.0, 1.0)
-        r_o, r_i = 0.068 * (1.0 - 0.16 * s), 0.0596 * (1.0 - 0.18 * s)
-        aa = np.linspace(math.radians(265.0), th1 - s * math.radians(68.0), 14)
-        y_in = y_bot1 if z >= 0.0595 else min(0.205, y_bot1 + 0.85 * (0.0595 - z))
-        pts = ([(0.036, y_bot0)] + [(cx + r_o * math.cos(a), cy + r_o * math.sin(a)) for a in aa]
-               + [(cx + r_i * math.cos(a), cy + r_i * math.sin(a)) for a in aa[::-1]] + [(0.036, y_in)])
-        return [(x, y, z) for x, y in pts]
-
-    def _cowl_top(z):
-        s = np.clip((0.062 - z) / (0.062 - 0.020), 0.0, 1.0)
-        r_o, r_i = 0.068 * (1.0 - 0.16 * s), 0.0596 * (1.0 - 0.18 * s)
-        aa = np.linspace(th0 + s * math.radians(22.0), math.radians(105.0), 12)
-        y_in = y_top0 if z >= 0.0595 else max(0.230, y_top0 - 0.85 * (0.0595 - z))
-        pts = ([(cx + r_o * math.cos(a), cy + r_o * math.sin(a)) for a in aa]
-               + [(0.036, y_top1), (0.036, y_in)] + [(cx + r_i * math.cos(a), cy + r_i * math.sin(a)) for a in aa[::-1]])
-        return [(x, y, z) for x, y in pts]
+    # Thick 12 mm axisymmetric conical bells (bed-level chamfer kept crisp <=37 deg; top corners rounded).
+    top_rz = list(csg.filleted2d([(0.0685, 0.062), (0.0580, 0.0235), (0.0566, 0.022), (0.0474, 0.022),
+                                  (0.0460, 0.0235), (0.0565, 0.062)], r=0.0015))[1:-1]
+    rz = [(r_in, z_top - 0.0016), (r_in + 0.0012, z_top), (0.0673, z_top), (0.0685, z_top - 0.0016)] + top_rz + [(r_in, 0.1008)]
+    bell_top = csg.revolve_profile(rz, angle=math.radians(39.0), start=math.radians(62.0), axis=2,
+                                   at=(cx, cy), fn=24, end_chamfer=0.0015, bed_z=None, slope=1.55, colour=em.FRAME)
+    bell_bot = csg.revolve_profile(rz, angle=math.radians(90.0), start=math.radians(270.0), axis=2,
+                                   at=(cx, cy), fn=24, end_chamfer=0.0015, bed_z=None, slope=1.55, colour=em.FRAME)
 
     r_sp = sp_r + 0.0006
     ang = math.radians(38.0)
@@ -80,8 +68,8 @@ def pectoral_csg():
             return max(x_min, math.sqrt(max(0.0, r_sp * r_sp - (z - sp_z) ** 2)))
         return max(x_min, x_t - (z_t - z) * tan38)
 
-    def _rect(x0, x1, y0, y1, z, r=0.002):
-        r = min(r, 0.45 * (x1 - x0), 0.45 * (y1 - y0))
+    def _rect(x0, x1, y0, y1, z, r=0.0045):
+        r = min(r, 0.42 * (x1 - x0), 0.42 * (y1 - y0))
         pts = [(x1 - r + r * math.cos(a), y0 + r + r * math.sin(a), z) for a in np.linspace(-0.5 * math.pi, 0.0, 4)]
         pts += [(x1 - r + r * math.cos(a), y1 - r + r * math.sin(a), z) for a in np.linspace(0.0, 0.5 * math.pi, 4)]
         pts += [(x0 + r + r * math.cos(a), y1 - r + r * math.sin(a), z) for a in np.linspace(0.5 * math.pi, math.pi, 4)]
@@ -89,29 +77,29 @@ def pectoral_csg():
         return pts
 
     z_aft = z_t - (x_t - x_min) / tan38
-    zs = [z_aft, sp_z - 0.008, sp_z, sp_z + 0.008, sp_z + r_sp, 0.042, 0.0595, 0.085, 0.1068, z_top]
+    zs = np.concatenate([[z_aft, z_aft + 0.0020], np.linspace(z_aft + 0.0036, 0.1068, 16),
+                         [z_top - 0.00145, z_top]])
     y_mid = 0.218
     y_top_sp = max(y_mid, y_top0 - 0.90 * (0.0595 - sp_z))
     y_bot_sp = min(y_mid, y_bot1 + 0.90 * (0.0595 - sp_z))
     top_rings, bot_rings = [], []
     for z in zs:
-        x0 = _x_bore(z) if z < sp_z + r_sp else x_min
-        t_x = np.clip((z - sp_z) / (0.085 - sp_z), 0.0, 1.0)
-        x1 = max(0.046 + 0.014 * t_x, x0 + 0.012)
-        if z >= 0.0595:
-            y0_t, y1_b = y_top0, y_bot1
-        elif z >= sp_z:
-            y0_t = max(y_mid, y_top0 - 0.90 * (0.0595 - z))
-            y1_b = min(y_mid, y_bot1 + 0.90 * (0.0595 - z))
+        ch = 0.0015 if abs(z - z_aft) < 1e-6 else (0.0011 if abs(z - z_top) < 1e-6 else 0.0)
+        x0 = (_x_bore(z) if z < sp_z + r_sp else x_min) + ch
+        t_x = 0.5 * (1.0 - math.cos(math.pi * float(np.clip((z - sp_z) / (0.095 - sp_z), 0.0, 1.0))))
+        x1 = max(0.048 + 0.015 * t_x, x0 + 0.014) - ch
+        t_y = 0.5 * (1.0 - math.cos(math.pi * float(np.clip((z - sp_z) / (0.090 - sp_z), 0.0, 1.0))))
+        if z >= sp_z:
+            y0_t = y_top_sp + (y_top0 - y_top_sp) * t_y
+            y1_b = y_bot_sp + (y_bot1 - y_bot_sp) * t_y
         else:
-            y0_t = max(0.210, y_top_sp - 0.48 * (sp_z - z))
-            y1_b = min(0.226, y_bot_sp + 0.48 * (sp_z - z))
-        top_rings.append(_rect(x0, x1, y0_t, y_top1, z))
-        bot_rings.append(_rect(x0, x1, y_bot0, y1_b, z))
-    cowl_b = csg.loft([_cowl_bot(z) for z in (0.022, 0.040, 0.0595, 0.1008, z_top)], colour=em.FRAME)
-    cowl_t = csg.loft([_cowl_top(z) for z in (0.022, 0.040, 0.0595, 0.1008, z_top)], colour=em.FRAME)
-    return csg.union(collar, _sector(math.radians(272.0), th1), _sector(th0, math.radians(102.0)),
-                     cowl_b, cowl_t, csg.loft(top_rings, colour=em.FRAME), csg.loft(bot_rings, colour=em.FRAME))
+            s_dn = (sp_z - z) / max(sp_z - z_aft, 1e-6)
+            y0_t = y_top_sp + (0.208 - y_top_sp) * s_dn
+            y1_b = y_bot_sp + (0.228 - y_bot_sp) * s_dn
+        top_rings.append(_rect(x0, x1, y0_t + ch, y_top1 - ch, float(z)))
+        bot_rings.append(_rect(x0, x1, y_bot0 + ch, y1_b - ch, float(z)))
+    return csg.union(collar, bell_top, bell_bot, csg.loft(top_rings, colour=em.FRAME),
+                     csg.loft(bot_rings, colour=em.FRAME))
 
 
 @functools.lru_cache(maxsize=None)

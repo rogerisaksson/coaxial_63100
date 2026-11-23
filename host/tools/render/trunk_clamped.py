@@ -160,9 +160,11 @@ def _stood():
             (ARM_X, BASE_Y), (0.0, BASE_Y - ARM_X), (-ARM_X, BASE_Y), (-ARM_X - ARM_M, BASE_Y),
             (-BASE_X, BASE_Y - (BASE_X - ARM_X - ARM_M))]
     pin = m._cylinder_x(tr.PIN_R[0], boss[0], ball[0] + tr.COLLAR_X + 0.003, em.CARBON, at=(ball[1], ball[2]))
+    from tools.render import csg
     return {'web': hf._prism(hf._box((-half, half), (low, high)), WEB_Z[0], WEB_Z[1], em.FRAME, 2),
             'yoke': (side + _mirrored(side) + hf._slab(np.array(roof), BASE_Z[0], BASE_Z[1], em.FRAME, 2, False)
-                     + hf._slab(np.array(bar), back, rear, em.FRAME, 2, False)),
+                     + csg.extrude(csg.filleted2d(bar, r=0.002), (), a=back, b=rear, axis=2,
+                                   colour=em.FRAME, chamfer=0.0010, slope=0.85).tris()),
             'pins': pin + _mirrored(pin)}
 
 

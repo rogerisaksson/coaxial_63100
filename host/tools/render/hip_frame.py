@@ -58,11 +58,16 @@ def _box(u, v):
     return np.array([(u[0], v[0]), (u[1], v[0]), (u[1], v[1]), (u[0], v[1])])
 
 
-def _slab(outline, a, b, colour, axis=0, rounded=True):
-    """A profile - simple, not convex (`foot._slab`), its corners rounded ROOT_M unless not `rounded` - from `a` to
-    `b`: its outline (y, z) along x, or (x, y) along z (`axis` 2)."""
+def _slab(outline, a, b, colour, axis=0, rounded=True, chamfer_lo=0.0, chamfer_hi=0.0, slope=1.30):
+    """A profile - simple, not convex (`foot._slab` or chamfered `csg.extrude`), its corners rounded ROOT_M unless
+    not `rounded` - from `a` to `b`: its outline (y, z) along x, or (x, y) along z (`axis` 2)."""
     import numpy as np
-    tris = foot._slab(cl.filleted(outline, ROOT_M) if rounded else np.asarray(outline, float), a, b, colour)
+    pts = cl.filleted(outline, ROOT_M) if rounded else np.asarray(outline, float)
+    if chamfer_lo > 0.0 or chamfer_hi > 0.0:
+        from tools.render import csg
+        return csg.extrude(pts, (), a=a, b=b, axis=axis, colour=colour,
+                           chamfer_lo=chamfer_lo, chamfer_hi=chamfer_hi, slope=slope).tris()
+    tris = foot._slab(pts, a, b, colour)
     return tris if axis == 0 else [(tri[:, (1, 2, 0)], c) for tri, c in tris]
 
 
@@ -127,22 +132,34 @@ def _ring():
              1e-3 * circle * math.sin((k + 0.5) * 2.0 * math.pi / count)) for k in range(count)]
 
 
-def _clean_poly(pts):
+def _fillet_at(pts, indices, r=0.0020, n=3):
+    """Round selected corner `indices` of closed 2D `pts` with fixed vertex count (zero duplicate points)."""
     import numpy as np
     p = np.asarray(pts, float)
-    p = p[[0] + [i for i in range(1, len(p)) if np.linalg.norm(p[i] - p[i - 1]) > 1e-6]]
-    p = p[:-1] if len(p) > 2 and np.linalg.norm(p[0] - p[-1]) <= 1e-6 else p
-    keep = [i for i in range(len(p)) if abs(
-        (p[i][0] - p[i - 1][0]) * (p[(i + 1) % len(p)][1] - p[i - 1][1])
-        - (p[i][1] - p[i - 1][1]) * (p[(i + 1) % len(p)][0] - p[i - 1][0])) > 1e-10]
-    return p[keep] if len(keep) >= 3 else p
-
-
-def _cap_y(poly, y, flip):
-    import numpy as np
-    p = _clean_poly(poly)
-    return [(np.c_[p[[i, k, j] if flip else [i, j, k], 0], np.full(3, y),
-                   p[[i, k, j] if flip else [i, j, k], 1]], em.FRAME) for i, j, k in foot._ears(p)]
+    want, out = {i % len(p) for i in indices}, []
+    for i, pt in enumerate(p):
+        if i not in want:
+            out.append((float(pt[0]), float(pt[1])))
+            continue
+        u, v = p[i - 1] - pt, p[(i + 1) % len(p)] - pt
+        lu, lv = float(np.linalg.norm(u)), float(np.linalg.norm(v))
+        tu, tv = u / max(lu, 1e-12), v / max(lv, 1e-12)
+        ang = math.acos(float(np.clip(tu @ tv, -1.0, 1.0)))
+        if ang > math.radians(172.0):
+            out += [tuple(pt + s * 1e-4 * (tv - tu)) for s in np.linspace(-0.2, 0.2, n)]
+            continue
+        half = 0.5 * ang
+        tan_d = min(r / max(math.tan(half), 1e-4), 0.35 * min(lu, lv))
+        rr = tan_d * math.tan(half)
+        bdir = tu + tv
+        bdir /= max(float(np.linalg.norm(bdir)), 1e-12)
+        c = pt + (rr / max(math.sin(half), 1e-4)) * bdir
+        p1, p2 = pt + tan_d * tu, pt + tan_d * tv
+        a1, a2 = math.atan2(p1[1] - c[1], p1[0] - c[0]), math.atan2(p2[1] - c[1], p2[0] - c[0])
+        da = (a2 - a1 + math.pi) % (2.0 * math.pi) - math.pi
+        out += [(float(c[0] + rr * math.cos(a1 + s * da)), float(c[1] + rr * math.sin(a1 + s * da)))
+                for s in np.linspace(0.0, 1.0, n)]
+    return np.asarray(out, float)
 
 
 def yoke(low, back):
@@ -150,35 +167,37 @@ def yoke(low, back):
     its under face; a 45-degree collar round the yaw's ring from `back` to the front, its two cheeks and back fins
     up to FIN[0]. One print, grown off the crown's under face."""
     import numpy as np
+    from tools.render import csg
     floor, outer_x, bore_r, top_y = low - hl.CROWN_M, hl.CHEEK[1], 0.0362, hl.CHEEK[2]
     z_cheek, a0 = -0.001, 0.15 * math.pi
-    f_angs = np.linspace(a0, math.pi - a0, 15)
 
     def ring_xz(y):
         dy = y - floor
         rf = min(0.0402, 0.0285 + 0.95 * dy)
-        arc = [(rf * math.cos(a), min(hl.CROWN_Z + dy, rf * math.sin(a))) for a in f_angs]
-        return ([(-outer_x, z_cheek), (-outer_x, back), (-bore_r, back), (-bore_r, -0.0555),
-                 (bore_r, -0.0555), (bore_r, back), (outer_x, back), (outer_x, z_cheek)] + arc)
-    ys = np.concatenate([np.linspace(floor, low, 6)[:-1], np.linspace(low, top_y, 8)])
-    rings = [np.array([(x, y, z) for x, z in ring_xz(y)]) for y in ys]
-    from tools.render import csg
-    fl_poly, fl_ears = csg.bridge_holes(ring_xz(floor), (), clean=False)
-    p_fl = np.c_[fl_poly[:, 0], np.full(len(fl_poly), floor), fl_poly[:, 1]]
-    out = [(p_fl[[i, k, j]], em.FRAME) for i, j, k in fl_ears]
-    out += [t for a, b in zip(rings[:-1], rings[1:]) for i in range(len(a)) for j in ((i + 1) % len(a),)
-            for t in ((np.array((a[i], a[j], b[j])), em.FRAME), (np.array((a[i], b[j], b[i])), em.FRAME))]
+        ac = max(a0 + 0.02, min(0.49 * math.pi, math.asin(min((hl.CROWN_Z + dy) / rf, 0.99))))
+        arc_r = [(rf * math.cos(a), rf * math.sin(a)) for a in np.linspace(a0, ac, 6)]
+        arc_l = [(rf * math.cos(a), rf * math.sin(a)) for a in np.linspace(math.pi - ac, math.pi - a0, 6)]
+        raw = ([(-outer_x, z_cheek), (-outer_x, back), (-bore_r, back), (-bore_r, -0.0555),
+                (bore_r, -0.0555), (bore_r, back), (outer_x, back), (outer_x, z_cheek)] + arc_r + arc_l)
+        return _fillet_at(raw, (0, 1, 2, 3, 4, 5, 6, 7), r=0.0018, n=3)
+
+    def xz_y(pts, y):
+        return np.array([(x, y, z) for x, z in pts], float)
+
+    r_fl = ring_xz(floor)
+    r_fl_in = csg.inset2d(r_fl, 0.0011, outer=True)
+    ys_lo = [floor, floor + 0.00143] + list(np.linspace(floor + 0.003, low, 4))
+    yoke_lo = csg.loft([xz_y(r_fl_in if k == 0 else ring_xz(y), y) for k, y in enumerate(ys_lo)], colour=em.FRAME)
     bore = [(bore_r * math.cos(a), bore_r * math.sin(a)) for a in np.linspace(0.0, 2.0 * math.pi, 49)[:-1]]
-    out += _cap_y(bore, low, False)
-    rb_lo, rb_hi = np.array([(x, low, z) for x, z in bore]), np.array([(x, top_y, z) for x, z in bore])
-    out += [t for i in range(len(bore)) for j in ((i + 1) % len(bore),)
-            for t in ((np.array((rb_lo[i], rb_hi[j], rb_lo[j])), em.FRAME),
-                      (np.array((rb_lo[i], rb_hi[i], rb_hi[j])), em.FRAME))]
-    cap_poly, cap_ears = csg.bridge_holes(ring_xz(top_y), (bore,), clean=False)
-    p_top = np.c_[cap_poly[:, 0], np.full(len(cap_poly), top_y), cap_poly[:, 1]]
-    out += [(p_top[[i, j, k]], em.FRAME) for i, j, k in cap_ears]
+    bore_hi = [((bore_r + 0.0010) * math.cos(a), (bore_r + 0.0010) * math.sin(a))
+               for a in np.linspace(0.0, 2.0 * math.pi, 49)[:-1]]
+    ys_hi = [low, top_y - 0.0013, top_y]
+    yoke_hi = csg.loft([xz_y(ring_xz(y), y) for y in ys_hi],
+                       holes=[[xz_y(bore, low), xz_y(bore, top_y - 0.0013), xz_y(bore_hi, top_y)]], colour=em.FRAME)
+    out = yoke_lo.tris() + yoke_hi.tris()
     for s in (-1.0, 1.0):
-        out += _prism(_box(sorted((s * bore_r, s * outer_x)), (top_y, hl.FIN[0])), back, hl.FIN[1], em.FRAME, 2)
+        fin = csg.filleted2d(_box(sorted((s * bore_r, s * outer_x)), (top_y, hl.FIN[0])), r=0.0018)
+        out += csg.extrude(fin, (), a=back, b=hl.FIN[1], axis=2, colour=em.FRAME, chamfer=0.0009, slope=0.85).tris()
     return {'yoke': out, 'hub screws': _sunk(_ring(), floor, -1.0, 1, em.HEAD)}
 
 
@@ -187,6 +206,7 @@ def block(stack, wall, low):
     gearbox's housing, the pin's two needle bearings' housing under it - its cap behind the pin's end apart, the
     bus's way in -, an A-frame to both ears and a 45-degree rear saddle to `b0`. One print, grown off its front face."""
     import numpy as np
+    from tools.render import csg
     (m0, m1, can), (_g0, g1, r_g) = stack['motor'], stack['gear']
     at, outside, floor, rear = (hl.ROLL_AT[0], hl.ROLL_AT[1], 0.0), can + wall, low - hl.CROWN_M, g1 - hl.EAR_M
     out = _put(cl.turned([(m0 + 0.002, can, outside), (m1 + max(can - r_g - 0.001, 0.0), r_g + 0.001, outside),
@@ -199,19 +219,20 @@ def block(stack, wall, low):
                for a in np.linspace(0.20 * math.pi, 0.80 * math.pi, 15)]
     af_poly = ([(-0.052, 0.002), (-0.028, -0.018)] + low_semi + [(0.018, 0.040), (outer_x, 0.046), (outer_x, hl.FIN[0])]
                + top_arc + [(-outer_x, hl.FIN[0]), (-outer_x, 0.024)])
-    out += _slab(af_poly, m0 + 0.002, g1, em.FRAME, 2, False)
+    out += csg.extrude(csg.filleted2d(af_poly, r=0.0022), (), a=m0 + 0.002, b=g1, axis=2,
+                       colour=em.FRAME, chamfer=0.0012).tris()
     rg_arc = [(0.0585 * math.sin(a), 0.080 - 0.0585 * math.cos(a)) for a in np.linspace(0.30, -0.82, 13)]
 
     def rear_ring(z):
         dz = max(0.0, (m0 + 0.002) - z)
-        return ([(-0.049, 0.002), (-0.028, -0.018)] + low_semi + rg_arc
-                + [(-outer_x + dz, 0.058 - dz), (-outer_x + dz, 0.024 - dz)])
-    rings = [np.array([(x, y, z) for x, y in rear_ring(z)]) for z in np.linspace(b0, g1, 20)]
-    out += [t for a, b in zip(rings[:-1], rings[1:]) for i in range(len(a)) for j in ((i + 1) % len(a),)
-            for t in ((np.array((a[i], a[j], b[j])), em.FRAME), (np.array((a[i], b[j], b[i])), em.FRAME))]
-    for p, zc, flip in ((np.asarray(rear_ring(b0)), b0, True), (np.asarray(rear_ring(g1)), g1, False)):
-        out += [(np.c_[p[[i, k, j] if flip else [i, j, k], 0], p[[i, k, j] if flip else [i, j, k], 1],
-                       np.full(3, zc)], em.FRAME) for i, j, k in foot._ears(p)]
+        return np.asarray([(-0.049, 0.002), (-0.028, -0.018)] + low_semi + rg_arc
+                          + [(-outer_x + 0.96 * dz, 0.058 - 0.96 * dz), (-outer_x + 0.96 * dz, 0.024 - 0.96 * dz)],
+                          float)
+
+    r_b0 = csg.inset2d(rear_ring(b0), 0.0011, outer=True)
+    zs_blk = [b0, b0 + 0.00143] + list(np.linspace(b0 + 0.003, m0 + 0.002, 10)) + [g1]
+    out += csg.loft([np.c_[r_b0 if k == 0 else rear_ring(z), np.full(len(r_b0), z)]
+                     for k, z in enumerate(zs_blk)], colour=em.FRAME).tris()
     screws = []
     for way in (1.0, -1.0):
         spots, dowel = [(way * x, y) for x, y in hl.BLOCK_AT], (hl.BARREL[0], hl.BARREL[0])
@@ -248,15 +269,16 @@ def thigh(stack, riser):
     over = _arc((0.0, 0.0), head, math.atan2(root[-1][1], root[-1][0]),
                 math.atan2(*_touch(start, head, -1.0)[::-1]) % (2.0 * math.pi), 48)[1:]
     under = _arc((0.0, 0.0), cup, math.asin(min(fore_top / cup, 0.99)), math.atan2(*_touch(start, cup, -1.0)[::-1]), 32)
-    neck = _slab(flat(sole + root + over), face, x1, em.FRAME) + _slab(flat(sole + under), x0, face, em.FRAME)
+    neck = (_slab(flat(sole + root + over), face, x1, em.FRAME, chamfer_hi=0.0012)
+            + _slab(flat(sole + under), x0, face, em.FRAME, chamfer_lo=0.0012))
     neck += cl.turned([(split + 0.0025, r_q, skirt), (face - 2.0 * (skirt - head), r_q, skirt), (face, r_q, head),
                        (face + cl.EDGE_M, r_q, head)], None)                    # its foot in the head, no groove
-    neck += _slab(flat(hl.jog(chin, hl.CHIN_M)), pad, x0, em.FRAME)
+    neck += _slab(flat(hl.jog(chin, hl.CHIN_M)), pad, x0, em.FRAME, chamfer_lo=0.0012)
     ramp = [(x0, -(top - hl.PAD_M)), (x0, -top), (pad, -top)]                       # (x, y): 45 degrees up to the pad
     neck += _slab(ramp, hl.JOG_Z[0] + hl.JOG_CUT, hl.JOG_Z[1], em.FRAME, 2, False)
     circle = 1e-3 * kl.HUB[1]
     ring = m._band_x(circle - 0.5 * hl.STRAP_M, circle + 0.5 * hl.STRAP_M, x1 - 0.002, x1 + 0.0002, STEEL)
-    knuckle = _slab(flat(hl.jog(chin, collar)), xi, pad, em.FRAME)
+    knuckle = _slab(flat(hl.jog(chin, collar)), xi, pad, em.FRAME, chamfer_lo=0.0010, chamfer_hi=0.0010, slope=0.85)
     knuckle += km._ring_y(tube_r + 0.0002, collar, -low - em.COLLAR_SHARE * 2.0 * tube_r, -low, bone, em.FRAME)
     knuckle += m._prism(m._circle(1e-3 * kl.spigot()[0], 32, (bone, 0.0)), -low - kl.SPIGOT_SHARE * 2.0 * tube_r, -low,
                         em.FRAME)

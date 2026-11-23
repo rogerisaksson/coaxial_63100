@@ -193,28 +193,33 @@ def shank_line():
 
 
 def _saddle(x_t, over, top, z_t, cover):
-    """[(tri, colour)] of the stator clamp's saddle along x: constant outer contour, 45-degree inner step at `on`."""
+    """[(tri, colour)] of the stator clamp's saddle along x: C1-smooth transition and 37.6-deg end chamfers."""
     import numpy as np
-    from tools.render import foot as ft
+    from tools.render import csg
     r_hi, on = over, x_t[0]
     if cover:                                            # over the cover the saddle keeps off it, on the band it holds
         _a, on, outside = cv.span(*cover)
         r_hi = max(over, outside + cv.FIT_M)
     angs = np.radians(np.linspace(90.0, -75.0, 37))
 
-    def ring_at(x):
-        r = r_hi if x <= on else max(over, r_hi - (x - on))
+    def ring_2d(r):
         arc = [(r * math.cos(a), r * math.sin(a)) for a in angs]
-        pts = cl.filleted(np.array([(top, -r_hi * math.sin(math.radians(75.0))), (top, z_t[1] + 0.004),
-                                    (0.0, r_hi + 0.008)] + arc), 0.003)
-        return np.c_[np.full(len(pts), x), pts]
-    rings = [ring_at(x) for x in sorted({x_t[0], min(on, x_t[1]), min(on + (r_hi - over), x_t[1]), x_t[1]})]
-    tris = [t for a, b in zip(rings[:-1], rings[1:]) for i in range(len(a)) for j in ((i + 1) % len(a),)
-            for t in ((np.array((a[i], a[j], b[j])), em.FRAME), (np.array((a[i], b[j], b[i])), em.FRAME))]
-    for cap_s, flip in ((rings[0], True), (rings[-1], False)):
-        for i, j, k in ft._ears(cap_s[:, 1:]):
-            tris.append((cap_s[[i, k, j] if flip else [i, j, k]], em.FRAME))
-    return tris
+        pts = [(top, -r_hi * math.sin(math.radians(75.0))), (top, z_t[1] + 0.004), (0.0, r_hi + 0.008)] + arc
+        return csg.filleted2d(pts, r=0.003)
+
+    step = on + 1.25 * max(0.0, r_hi - over)
+    xs = sorted({x_t[0], x_t[0] + 0.00156, min(on, x_t[1] - 0.002),
+                 *np.linspace(min(on, x_t[1] - 0.002), min(step, x_t[1] - 0.002), 8)[1:],
+                 x_t[1] - 0.00156, x_t[1]})
+    rings = []
+    for k, x in enumerate(xs):
+        t = 0.0 if x <= on or step <= on + 1e-9 else float(np.clip((x - on) / (step - on), 0.0, 1.0))
+        r = r_hi - (r_hi - over) * 0.5 * (1.0 - math.cos(math.pi * t))
+        p2 = ring_2d(r)
+        if k in (0, len(xs) - 1):
+            p2 = csg.inset2d(p2, 0.0012, outer=True)
+        rings.append(np.c_[np.full(len(p2), x), p2])
+    return csg.loft(rings, colour=em.FRAME).tris()
 
 
 def bodies(apart=False, flex=0.0, socket='torx', ahead=0.0):
