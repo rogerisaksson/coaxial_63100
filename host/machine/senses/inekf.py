@@ -19,6 +19,7 @@ robot's IMU the pass's mean (`felt`). The update X+ = exp(dx) X, the covariance 
 """
 import math
 import os
+import types
 
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
@@ -117,10 +118,23 @@ def points(body, y, local, weights):
     return out
 
 
-def stepped(f, body, y, shares, dt, points, step):
+def stepped(f, body, y, shares, dt, points, step, glue=None):
     """A law pass of the robot's edge's `y` on its law's `body` posed at its estimate: last pass's bearing
     points now, this pass's laid; the filter `dt` on, each sole and its core bearing `shares` of its
-    weight - by `points` and `step`, this module's or their C (`motion.laid`)."""
+    weight - by `points` and `step`, this module's or their C (`motion.laid`), the arithmetic around them
+    `glue`'s where laid (`tools.cores.inekf`, bit for bit), else its own (`bearing`, `rolled`)."""
+    glue = glue if glue is not None and len(shares) <= CONTACTS else _TWIN
+    local, weights, sh = glue.bearing(y, shares)
+    anchors = points(body, y, local, weights)
+    soles = points(body, y, *f['last']) if 'last' in f else anchors
+    f['last'] = (local, weights)
+    glue.rolled(f, soles, anchors, sh, dt)
+    return step(f, y, soles, anchors, sh, dt)
+
+
+def bearing(y, shares):
+    """(each insole's and core segment's point in its frame, its weight, each contact's share) off the robot's edge's
+    `y` and its contacts' `shares`: the core's share held to its touch (`stepped`'s, `glue.bearing` its C)."""
     pushed = y[edge.TOUCH].reshape(-1, 3)[CORE]
     core = np.sqrt(np.add.reduce(pushed * pushed, axis=1))     # numpy's norm of each row, its own sum, its layers left
     local = np.vstack([y[edge.COP].reshape(-1, 3), y[edge.AT].reshape(-1, 3)[CORE]])
@@ -128,9 +142,12 @@ def stepped(f, body, y, shares, dt, points, step):
     sh = np.asarray(shares, float)
     sh = np.pad(sh, (0, CONTACTS - len(sh))) if len(sh) < CONTACTS else sh.copy()
     sh[2] *= float(core.sum() >= edge.TOUCHED_N)
-    anchors = points(body, y, local, weights)
-    soles = points(body, y, *f['last']) if 'last' in f else anchors
-    f['last'] = (local, weights)
+    return local, weights, sh
+
+
+def rolled(f, soles, anchors, sh, dt):
+    """The filter `f`'s drift a law pass `dt` on, the roll its contacts add returned (`stepped`'s, `glue.rolled` its
+    C)."""
     # the robot's drift since its floor last held it (`seen`): its gyro's on the
     # robot's turn, a sole's point's travel along it as it rolls, bearing this pass and the last, on the
     # robot's place - what its contacts, telling it how it moved, cannot tell the
@@ -139,14 +156,18 @@ def stepped(f, body, y, shares, dt, points, step):
     # (the robot's drift 0.2-1.2 m a look so); summed in floats over its contacts - as numpy arrays it
     # was 14 us of the robot's pass, 4.7 so
     cap = libm.sq(ROLL_M_S * dt)
-    rolled = sum(min(x * x + y * y + z * z, cap) * (s >= observer.RELEASE) * (o > 0.5) for (x, y, z), s, o in
-                 zip((soles - anchors).tolist(), sh.tolist(), f['on'].tolist()))
+    roll = sum(min(x * x + y * y + z * z, cap) * (s >= observer.RELEASE) * (o > 0.5) for (x, y, z), s, o in
+               zip((soles - anchors).tolist(), sh.tolist(), f['on'].tolist()))
     drift = f['drift']
     drift[0, 0] += (GYRO * GYRO) * dt
-    drift[1, 1] += rolled
-    drift[2, 2] += rolled
-    drift[3, 3] += rolled
-    return step(f, y, soles, anchors, sh, dt)
+    drift[1, 1] += roll
+    drift[2, 2] += roll
+    drift[3, 3] += roll
+    return roll
+
+
+#: `stepped`'s arithmetic in python, where no C is laid.
+_TWIN = types.SimpleNamespace(bearing=bearing, rolled=rolled)
 
 
 def step(f, y, soles, anchors, shares, dt):

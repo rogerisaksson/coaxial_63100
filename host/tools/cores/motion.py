@@ -279,7 +279,7 @@ def coupled(laid_, q, qd, ref_q, ref_v, eso_z, out):
 #: Every C or compiled hook `machine.law.motion.control` dispatches through on `g` (`sprung.laid` and `motion.laid`).
 HOOKS = ('sensed', 'solves', 'estimated', 'felt', 'weighed', 'clear', 'gap', 'rooms', 'outside', 'sloped', 'readings', 'read',
          'modes', 'pitched', 'capped', 'told_on', 'settling', 'bounds', 'gripped', 'sured', 'released', 'poses', 'ringed',
-         'modal_sensed', 'inekf_points', 'inekf_step', 'seek', 'leave', 'em_asked', 'em_released', 'em_opening',
+         'modal_sensed', 'inekf_points', 'inekf_step', 'inekf_glue', 'seek', 'leave', 'em_asked', 'em_released', 'em_opening',
          'kept', 'shield', 'impedance', 'surety_field', 'latent', 'couple', 'borne', 'em_supports', 'leaned', 'hull',
          'upright', 'touched_step', 'twist_step', 'waits', 'braced')
 
@@ -373,7 +373,7 @@ def twins(g):
              surety_field=lambda prev, dt, ct, t: py_surety.field(
                  g['sense'], g['y'], g['fr'], g['a'], g['st'], g['out'], prev, dt, ct, t),
              latent=latent.step, couple=support.couple, borne=borne_twin, em_supports=emancipation.supports,
-             leaned=somatic.leaned, hull=barrier.hull, upright=law_upright.weighs, touched_step=touched_twin,
+             leaned=somatic.leaned, hull=barrier.hull, upright=law_upright.weighs, inekf_glue=None, touched_step=touched_twin,
              twist_step=lambda dt, vel, held, prior: se2.twisted(
                  g['sense'], vel, g['y'], g['fr'], g['a'], g['st'], g['out'], g['posture'], held, prior, g['twisted'],
                  g['words'], dt, g['waist_idx'], g['head_idx']),

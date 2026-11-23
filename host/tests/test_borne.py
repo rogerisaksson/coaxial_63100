@@ -231,9 +231,67 @@ def test_the_robots_weighing_in_c_as_in_python(report, c):
                  '%d apart; %.1f us a call, its python %.1f' % ((tally['apart'],) + tuple(us)))
 
 
+def test_the_robots_bearing_points_in_c_as_in_python(report, c):
+    """The invariant EKF's arithmetic around its points and its step in C (`tools.cores.inekf`) and
+    `inekf.bearing`, `inekf.rolled` at every pass of the robot's law lying into a bed, rising off it and walking:
+    its points' frames, weights and shares, its drift and roll the same bits; its C's time beside its python's."""
+    from machine.process import worker
+    from machine.senses import inekf
+    from tools.sim import told
+    tally, spent = {'calls': 0, 'apart': 0, 'rolled': 0, 'core': 0}, ([], [])
+
+    class Beside:
+
+        def __init__(self, real):
+            self.real = real
+
+        def bearing(self, y, shares):
+            t0 = time.perf_counter()
+            got = self.real.bearing(y, shares)
+            t1 = time.perf_counter()
+            twin = inekf.bearing(y, shares)
+            spent[0].append(t1 - t0)
+            spent[1].append(time.perf_counter() - t1)
+            tally['apart'] += any(a.shape != b.shape or a.tobytes() != b.tobytes() for a, b in zip(got, twin))
+            tally['core'] += float(twin[2][2]) > 0.0
+            return got
+
+        def rolled(self, f, soles, anchors, sh, dt):
+            f2 = dict(f, drift=f['drift'].copy())
+            t0 = time.perf_counter()
+            got = self.real.rolled(f, soles, anchors, sh, dt)
+            t1 = time.perf_counter()
+            twin = inekf.rolled(f2, soles, anchors, sh, dt)
+            spent[0].append(t1 - t0)
+            spent[1].append(time.perf_counter() - t1)
+            tally['apart'] += (type(got) is not type(twin) or np.float64(got).tobytes() != np.float64(twin).tobytes()
+                               or f['drift'].tobytes() != f2['drift'].tobytes())
+            tally['calls'] += 1
+            tally['rolled'] += twin > 0.0
+            return got
+
+    def held(g):
+        g['inekf_glue'] = Beside(g['inekf_glue'])
+    r = told.Run('bed_foot_behind')
+    held(r.s['g'])
+    r.tell(say='lie_bed')
+    r.go(LIE_S)
+    r.tell(say='rise_bed')
+    r.go(RISE_S)
+    s = worker.session(walks=True)
+    held(s['g'])
+    for _ in range(WALK_PASSES // 3):
+        worker.stepped(s)
+    us = [1e6 * float(np.median(each)) for each in spent]
+    report.check('its bearing points in C as in python lying, rising and walking: %(calls)d law passes (%(rolled)d '
+                 'rolling, %(core)d its core sharing)' % tally,
+                 tally['calls'] > 1000 and tally['rolled'] > 100 and not tally['apart'],
+                 '%d apart; %.1f us a call, its python %.1f' % ((tally['apart'],) + tuple(us)))
+
+
 ROSTER = (test_what_bears_the_robot_in_c_as_in_python, test_the_robots_supports_in_c_as_in_python,
           test_the_robots_lean_in_c_as_in_python, test_the_robots_hull_in_c_as_in_python,
-          test_the_robots_weighing_in_c_as_in_python)
+          test_the_robots_weighing_in_c_as_in_python, test_the_robots_bearing_points_in_c_as_in_python)
 
 
 def main(argv=None):

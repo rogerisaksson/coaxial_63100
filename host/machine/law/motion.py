@@ -57,7 +57,7 @@ def seen(g, dt):
     observer.step(g['observer'], s, qpos, dt)
     shares = np.append(g['observer']['soles'] * g['unanchored'],
                        g['observer']['normal'][observer.ROWS[1:4]].sum()) / float(g['fr'][modal.WEIGHT])
-    inekf.stepped(g['inekf'], body, g['sense'], shares, dt, g['inekf_points'], g['inekf_step'])
+    inekf.stepped(g['inekf'], body, g['sense'], shares, dt, g['inekf_points'], g['inekf_step'], g['inekf_glue'])
     s['hips'], s['arms'], s['elbows'], s['qpos'] = (body.d.xpos[limbs['hips']].copy(), s['q'][limbs['shoulders']],
                                                     s['q'][limbs['elbows']], qpos.copy())
     palmar = g['palmar'] = min(float(g['told'][ortho.PALMAR]), float(g['st'][latent.TO][latent.MANIFOLD.start + ortho.PALMAR]))
@@ -186,9 +186,12 @@ def control(g, dt):
                      dict(ask, wep=bool((g['left'] > 0.0) & (sr > 0.25)), derate=g['_derate'], lo=lo, hi=hi))
     g['got'] = g['solves'][chained](body, *g['solve_in'])
     got = g['got']
-    g['seat_f'][:] = 0.0
+    # each seat corner's push summed in python's floats, the same additions in the same order as into the array: a
+    # numpy element's read and write a contact were 1 us each, lain on the bed 16 of them
+    seat_f = [0.0] * len(g['seat_f'])
     for c, f in zip(s.get('contacts', ()), got.get('borne', ())):
-        g['seat_f'][c.get('corner', 0)] += float(f[1]) * float('corner' in c)
+        seat_f[c.get('corner', 0)] += float(f[1]) * float('corner' in c)
+    g['seat_f'][:] = seat_f
     g['jeff'], g['leg_kp'] = g['braced'].blend(s['M'], M, s['q'], s['v'], s['h'], ask['posture'], got['qacc'], got['tau'],
                                                got['over'], sw, bw, d_ax, d_lat, w_hop, w_up, np.array(ask['stance'], float))
     _told(g)
@@ -248,6 +251,8 @@ def laid(g):
     g['modal_sensed'] = bodied.on_args(modal.sensed, 'modal_sensed', (0, 1, 2))     # the robot's sensing's arrays walked in C
     g['inekf_points'] = bodied.on_body(inekf.points, 'inekf_points', (2, 3))
     g['inekf_step'] = bodied.on_args(inekf.step, 'inekf', (0, 2, 3, 4))
+    from tools.cores import inekf as c_inekf
+    g['inekf_glue'] = c_inekf.glued()     # `inekf.stepped`'s arithmetic around its points and step, in C
     g['seek'] = bodied.on_args(field.seek, 'seek', (0, 1, 2, 3, 4, 6))
     g.update(cascade.compiled())
     g['kept'] = bodied.on_args(seated.kept, 'kept', (0, 1, 2, 3, 4, 5))
