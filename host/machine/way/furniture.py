@@ -124,16 +124,25 @@ def _near(kept, things, index):
     at = slice(None) if n == len(arrays[0]) else np.asarray(index, int)     # all of them read in place
     now, was = [a[at].reshape(n, -1) for a in arrays], [a[at].reshape(n, -1) for a in before]
     # a thing the very tuple it was (its look's rows that moved alone told anew, `vision.ROWS`) is as it was
-    moved = np.any(np.hstack(now) != np.hstack(was), axis=1) | np.array(
-        [things[k] is not kept[0][k] and (things[k][0] != kept[0][k][0] or things[k][5:6] != kept[0][k][5:6])
-         for k in index], bool)
+    told = np.array([things[k] is not kept[0][k]
+                     and (things[k][0] != kept[0][k][0] or things[k][5:6] != kept[0][k][5:6]) for k in index], bool)
+    core = affordance.cored()
+    return (near_twin if core is None else core.near)(now, was, told, CELL_M, affordance.ROOT2)
+
+
+def near_twin(now, was, told, cell, root2):
+    """`tools.cores.afford.near` in numpy: (n,) whether each row of `now` (centres, half sizes, rotations) is told
+    anew as it follows `was` - it moved, its numbers or (`told`) its word, or a moved row's circle and its own within
+    `cell` m, either look's, `root2` a rectangle's reach over its circle."""
+    import numpy as np
+    moved = np.any(np.hstack(now) != np.hstack(was), axis=1) | told
     if not moved.any():
         return moved
     near = moved.copy()
     for c, h in ((now[0], now[1]), (was[0], was[1])):
         plan, r = c[:, [0, 2]], libm.hypot(h[:, 0], h[:, 2])
         gap = libm.hypot(*(plan[:, None, :] - plan[None, moved, :]).transpose(2, 0, 1))
-        near |= (gap <= r[:, None] + affordance.ROOT2 * r[None, moved] + CELL_M + 1e-9).any(axis=1)
+        near |= (gap <= r[:, None] + root2 * r[None, moved] + cell + 1e-9).any(axis=1)
     return near
 
 

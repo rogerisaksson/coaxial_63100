@@ -10,7 +10,10 @@ is seen clear: a seat or a bed is such a surface, a structure's top unknown is n
 text's `evaluate-situational-affordances` kernels on its SDF slabs (`configure-foliated-sdf-bands`), the
 robot's lumbar's height over a seat its figure's.
 """
+import functools
+import itertools
 import math
+import operator
 import os
 
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
@@ -116,10 +119,26 @@ def clear(box, things, slab):
     c, _axes, h = fb
     lo, hi, reach = top(box) + slab[0], top(box) + slab[1], math.hypot(h[0], h[1])
     if getattr(things, 'arrays', None) is not None:
+        core = cored()
+        if core is not None:
+            other = np.fromiter(map(operator.is_not, things, itertools.repeat(box)), bool, len(things))
+            return core.clear(things.arrays, other, fb, lo, hi, reach, ROOT2)
         return float(4.0 * h[0] * h[1]) - sum(_covers(box, things, fb, (lo, hi), reach).tolist())
     over = [t for t in things if t is not box and lo <= bottom(t) <= hi and math.hypot(
         float(t[1][0]) - c[0], float(t[1][2]) - c[1]) <= reach + ROOT2 * math.hypot(t[2][0], t[2][2]) + 1e-9]
     return float(4.0 * h[0] * h[1]) - sum(covered(box, t, fb) for t in over)
+
+
+@functools.cache
+def cored():
+    """A look's telling in C (`tools.cores.afford`: `clear` on its arrays, `furniture._near`), None where no host
+    compiler builds it - `_covers` and `furniture.near_twin` then, the same bits: a bed creeping under the robot
+    re-told each look in numpy, the robot's lying's 6-7 %."""
+    from tools.cores.build import find_cc
+    if find_cc() is None:
+        return None
+    from tools.cores import afford
+    return afford
 
 
 def _covers(box, things, fb, slab, reach):
