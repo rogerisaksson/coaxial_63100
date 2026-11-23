@@ -18,11 +18,11 @@ import math
 from typing import Any
 
 from coaxial.graphics import drums, guards, mechanism, seat
-from coaxial.graphics.lit import PAINTED, UNDER, WOVEN, paint
+from coaxial.graphics.lit import PAINTED, SKIN, UNDER, WOVEN, paint
 from coaxial.graphics.livery import BOARD, BOLT, FRAME, GEAR, SERVO, STEEL, TUBE
 from coaxial.graphics.panels import SHELL
-from coaxial.graphics.shapes import turn_about
-from machine.body import figure
+from coaxial.graphics.shapes import finer, loft, turn_about
+from machine.body import figure, mechatronics
 from machine.body.guards import NEAR_M
 
 #: A likeness's part, the segment its corners bend into, the local y where the bend begins and
@@ -38,11 +38,12 @@ BLENDS = (('like_torso', 'pelvis', 0.03, -0.035), ('like_pelvis', '{side}_thigh'
           ('like_{side}_upper_arm', 'torso', None, None), ('like_torso', '{side}_upper_arm', None, None),
           ('like_{side}_forearm', '{side}_upper_arm', -0.03, 0.03),
           ('like_{side}_hand', '{side}_forearm', -0.015, 0.015),
-          ('like_neck', 'torso', -0.02, 0.02), ('like_head', 'neck', -0.02, 0.02))
+          ('like_neck', 'torso', -0.02, 0.02), ('like_head', 'neck', -0.02, 0.02),
+          ('skin_neck', 'torso', 0.025, -0.036), ('skin_neck', 'head', 0.040, 0.072))
 #: What of a likeness is worn in the place of the robot's own - its head, its hands -, the
 #: segments whose bones those hands stand for, and what of the robot's own head is kept where
 #: no figure's is worn: by its name, or its name's end.
-WORN = ('like_head', 'like_hair', 'like_fall', 'like_left_hand', 'like_right_hand')
+WORN = ('like_head', 'like_hair', 'like_fall', 'like_left_hand', 'like_right_hand', 'skin_neck')
 HANDS = ('left_hand', 'left_fingers', 'right_hand', 'right_fingers')
 KEPT, ENDS = ('jaw', 'nose', 'lips'), ('_ear', '_eye')
 #: A drive is bolted: BOLTS heads a face of its motor's can, on a circle CIRCLE of its radius, a
@@ -132,7 +133,7 @@ def framed(gone=()):
             materials == carbon, TUBE, np.where(materials == laminate, BOARD, STEEL))
         mesh = (corners, triangles, uv, np.where(materials >= PAINTED, ink, materials))
         out.append((*head, tuple(each[:0] for each in mesh) if name in gone else mesh))
-        if name.startswith('drive_'):
+        if name.startswith('drive_') and name not in gone:
             joint = name[len('drive_'):]
             out.append(('bolts_' + joint, head[1], (), head[3], 0.0,
                         _bolts(np.array(drums.AXES[joint][0]), corners, triangles)))
@@ -150,6 +151,15 @@ def _own(meshes, extra):
     return out
 
 
+def _skin_neck(figured):
+    """Smooth closed neck and nape skin loft (`shapes.loft`), tinted to match `like_head` or `SKIN`."""
+    rings = [(-0.040, 0.056, 0.056, -0.005), (-0.020, 0.050, 0.054, -0.004), (0.000, 0.046, 0.052, -0.003),
+             (0.025, 0.043, 0.048, -0.002), (0.042, 0.040, 0.036, 0.008), (0.058, 0.038, 0.034, 0.011),
+             (0.072, 0.034, 0.030, 0.012)]
+    return loft(finer(rings, -0.040, 0.072, 0.004), paint((172, 138, 121)) if figured else SKIN,
+                poles=(-0.044, 0.076))
+
+
 def parts(meshes, extra, liked: Any = None):
     """[(name, parent, joints, offset, rest, mesh)]: the robot bare of its clothes - its
     mechanism (`framed`), its head, its hands, its shoes and its guards. `meshes` {segment:
@@ -164,8 +174,14 @@ def parts(meshes, extra, liked: Any = None):
     body = {part[1]: part for part in liked if part[0].startswith('form_')}
     worn = [part for part in liked if part[0] in WORN and not (body and part[0].endswith('_hand'))]
     worn += [part for seg, part in body.items() if seg.endswith('_hand')]
-    figured, z0 = any(part[0] == 'like_head' for part in worn), (0.0, 0.0, 0.0)
-    out = framed(HANDS if any(part[0].endswith('_hand') for part in worn) else ())
+    figured, coax, z0 = any(part[0] == 'like_head' for part in worn), mechatronics.ROBOT != mechatronics.STOCK, (0.0, 0.0, 0.0)
+    gone = HANDS if any(part[0].endswith('_hand') for part in worn) else ()
+    if coax:
+        gone = tuple(gone) + tuple(p[0] for p in mechanism.parts()
+                                   if p[0] != 'board_neck' and p[0].endswith(('_neck', '_neck_frame')))
+    out = framed(gone)
+    if coax:
+        out.append(('skin_neck', 'neck', (), z0, 0.0, _skin_neck(figured)))
     for name, parent, *rest in worn:
         joints, offset = (rest[0], rest[1]) if len(rest) == 3 else ((), rest[0])
         out.append((name, parent, joints, offset, 0.0, (*rest[-1][:3], np.where(rest[-1][3] == SHELL, TUBE, rest[-1][3]))))

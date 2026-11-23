@@ -23,7 +23,8 @@ from machine.body import figure
 BLENDS = (('cloth_tee', 'pelvis', 0.03, -0.035),
           ('cloth_seat', '{side}_thigh', -0.02, -0.11),
           ('cloth_{side}_shin', '{side}_thigh', -0.01, 0.035),
-          ('cloth_{side}_sleeve', 'torso', -0.03, 0.03))
+          ('cloth_{side}_sleeve', 'torso', -0.03, 0.03),
+          ('skin_neck', 'torso', 0.025, -0.036), ('skin_neck', 'head', 0.040, 0.072))
 
 #: The two axes a turn about x, y or z turns, in its hand's order.
 TURNED = {'x': (1, 2), 'y': (2, 0), 'z': (0, 1)}

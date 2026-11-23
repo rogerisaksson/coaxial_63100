@@ -292,11 +292,18 @@ def test_every_upper_print_stands_and_fits_a_plate(report):
     _check_prints(report, 'upper-body', 's.UPPER', 'p.upper()')
 
 
+def test_the_build_wears_symbolic_parts_clothes_and_neck_skin(report):
+    """Robot 2.0 keeps Robot 1.0 shoes, seat nets, sleeves and C1 neck skin."""
+    g: Any = _told('from tools.render import robot_worn as w; print(json.dumps(w.checked()))')
+    report.check('neck skin, shoes, seat nets, sleeves and dress hold', bool(g.get('ok')), g.get('failed') or g)
+
+
 ROSTER = (test_the_shoulder_holds_turns_and_keeps_its_coil, test_the_neck_holds_clears_and_keeps_its_hose,
           test_a_mount_is_sized_for_what_it_bore_not_for_a_peak, test_the_trunk_reaches_its_travel_and_prints_standing,
           test_a_print_shaped_by_its_loads_stands_on_its_bed, test_the_hood_room_carries_its_loads,
           test_the_trunk_and_hip_rooms_carry_their_loads, test_the_thigh_and_knee_rooms_carry_their_loads,
-          test_every_limb_print_stands_and_fits_a_plate, test_every_upper_print_stands_and_fits_a_plate)
+          test_every_limb_print_stands_and_fits_a_plate, test_every_upper_print_stands_and_fits_a_plate,
+          test_the_build_wears_symbolic_parts_clothes_and_neck_skin)
 
 
 def main(argv=None):

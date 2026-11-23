@@ -14,6 +14,7 @@ import functools
 import math
 import os
 import sys
+from typing import Any
 
 if __package__ in (None, ''):
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -26,9 +27,6 @@ UNDRAWN = ('left_hand', 'left_fingers', 'right_hand', 'right_fingers')
 HEAD_LIKED = ('like_head', 'like_hair', 'like_fall')
 HEAD_SHELL = ('shell_head', 'shell_jaw', 'shell_nose', 'shell_lips', 'shell_left_ear', 'shell_right_ear',
               'shell_left_eye', 'shell_right_eye')
-CLOTH = ('like_torso', 'like_left_upper_arm', 'like_right_upper_arm', 'like_pelvis', 'like_left_thigh',
-         'like_right_thigh', 'like_left_shank', 'like_right_shank')
-SHOES = ('shell_left_foot', 'shell_left_toes', 'shell_right_foot', 'shell_right_toes')
 #: Canonical horizontal T-pose abduction roll (deg): adds to the 6-deg rest upper arm for 90-deg horizontal.
 T_POSE_ROLL = 84.0
 #: Hand-clasp poses (Stage-2 shoulder pitch `turn`, Stage-1 pectoral `roll`, elbow `flex`, deg): front & behind.
@@ -123,46 +121,6 @@ def _head_and_hands(roll=0.0, turn=0.0, flex=0.0):
     return {'head': head, 'hands': left_hand + _mirrored(left_hand)}
 
 
-def _smooth_cloth(body_d, names_d, pos_d, norm_d, obs_tris):
-    """[(tri, rgb)] of CLOTH in `body_d`, gently offset outward along normals past `obs_tris` without steps."""
-    import numpy as np
-    from scipy.spatial import KDTree
-    from tools.render import leg_worn as lw
-    pts = np.vstack([t for t, _c in obs_tris])
-    _, idx = np.unique(np.floor(pts / 0.006).astype(np.int64), axis=0, return_index=True)
-    tree = KDTree(pts[idx])
-    out = []
-    for name in CLOTH:
-        if name not in names_d:
-            continue
-        k = names_d.index(name)
-        lo, hi = body_d.spans[k]
-        v = pos_d[lo:hi].copy()
-        n = norm_d[lo:hi]
-        n = n / np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-12)
-        tris = body_d.parts[k][5][1]
-        dists, hits = tree.query(v, k=6, distance_upper_bound=0.045)
-        valid = np.isfinite(dists)
-        safe = np.where(valid, hits, 0)
-        delta = pts[idx[safe]] - v[:, None, :]
-        proj = (delta * n[:, None, :]).sum(axis=-1)
-        tang = np.linalg.norm(delta - proj[..., None] * n[:, None, :], axis=-1)
-        need = np.where(valid & (tang < 0.018), np.clip(proj + 0.005, 0.0, 0.030), 0.0).max(axis=1)
-        e0 = np.concatenate([tris[:, 0], tris[:, 1], tris[:, 2], tris[:, 1], tris[:, 2], tris[:, 0]])
-        e1 = np.concatenate([tris[:, 1], tris[:, 2], tris[:, 0], tris[:, 0], tris[:, 1], tris[:, 2]])
-        d = need.copy()
-        for _ in range(6):
-            acc, cnt = np.zeros(len(v)), np.zeros(len(v))
-            np.add.at(acc, e0, d[e1])
-            np.add.at(cnt, e0, 1.0)
-            nbr = acc / np.maximum(cnt, 1.0)
-            d = np.maximum(need, 0.30 * d + 0.70 * nbr)
-        v += d[:, None] * n
-        mats = body_d.materials[lo:hi]
-        out += [(v[t], lw._rgb(mats[t[0]])) for t in tris]
-    return out
-
-
 def _posed_arm_cad(flex, turn, roll, bare_guards=True):
     """[(tri, rgb)] of the left arm CAD in `arm_worn` elbow frame, posed at `(flex, turn, roll)`."""
     from tools.render import arm_worn as aw, knee_mount as km
@@ -180,50 +138,64 @@ def _posed_arm_cad(flex, turn, roll, bare_guards=True):
         aw._guarded()['left_upper_arm'] + gf, turn, roll)
 
 
+_UNSET = object()
+
+
 @functools.lru_cache(maxsize=None)
-def whole(roll=0.0, dressed=False, turn=0.0, flex=0.0):
+def whole(roll=0.0, dressed=False, turn=0.0, flex=0.0, nod=0.0, head_yaw=0.0, like=_UNSET):
     """{name: tris} of the build in root frame (`pelvis`), standing (`turn` deg shoulder pitch, `roll` deg pectoral
-    abduction, `flex` deg elbow bend), bare or `dressed`, complete with head, face, hair and coaxial hands."""
+    abduction, `flex` deg elbow bend, `nod`/`head_yaw` deg head pose), bare or `dressed`, with Robot 1.0
+    shoes, buttock honeycomb nets (`seat`), smooth clothes, magenta livery and closed C1 `neck skin`."""
     import numpy as np
     from coaxial.graphics import likeness
     from tools.render import leg_clamped as lc, leg_shaped as ls, leg_worn as lw
-    from tools.render import neck_hosed as nh, neck_mount as nm, shoulder_rolled as sr
+    from tools.render import neck_hosed as nh, neck_mount as nm, robot_worn as rw, shoulder_rolled as sr
     from tools.render import trunk_clamped as tc, trunk_laid as tl, trunk_shaped as ts, trunk_worn as tw
+    like = likeness.FOUND if like is _UNSET else like
     _b, _nb, _fb, _pb = _figure(False)
     foot_y = float(_fb[_nb.index('left_foot')][1][1])
     leg = _put(ls.posed(lc.stated(), 0.0) + [t for part in lw.guards(lc.stated()).values() for t in part],
                'left_thigh', 'left_shank')
     pec = sr.chest(roll, False)['pectoral'] + sr.chest(roll, True)['pectoral']
-    neck = [t for name, part in dict(nm.posed(low=tc.seat()), **nh.posed()).items() if not name.endswith(' shoulder')
-            for t in part]
+    neck = rw.trim_neck(dict(nm.posed(low=tc.seat()), **nh.posed()), nod=nod)
     at = np.asarray(tl.joint()[0], float)
     trunk_rel = [t for (link, name), part in ts.posed().items() if link != 'hips' and name != 'tube' for t in part]
     trunk = [(tri + at, colour) for tri, colour in trunk_rel]
     guards_t = [(tri + at, colour) for tri, colour in tw.guards()]
-    if dressed and likeness.FOUND:
-        body_d, names_d, _fd, _pd = _figure(True)
-        root = ((0.0, 0.0, 0.0), np.eye(3))
-        angles = ({'t_pose': 1.0} if abs(roll - T_POSE_ROLL) < 1e-6 and not turn and not flex else {
-            'arms_out': roll, 'left_shoulder': turn, 'right_shoulder': turn, 'left_elbow': flex, 'right_elbow': flex})
-        pos_d, norm_d = body_d.pose(angles, root=root)
-        arm_low_l, arm_full_l = _posed_arm_cad(flex, turn, roll, bare_guards=False)
+    shoes = rw.symbolic_shoes(dressed=dressed)
+    if dressed:
+        arm_low_l, arm_full_l = rw.arm_parts_dressed(flex=flex, turn=turn, roll=roll)
         arm_full_root = _put(arm_full_l, 'left_upper_arm', 'left_forearm')
         obs = (_put(pec, 'torso', 'torso') + _put(trunk + guards_t, 'pelvis', 'pelvis')
                + leg + _mirrored(leg) + arm_full_root + _mirrored(arm_full_root))
-        cloth = _smooth_cloth(body_d, names_d, pos_d, norm_d, obs)
-        shoes = _extract(body_d, names_d, pos_d, SHOES)
-        leg_low = [t for t in leg if t[0][:, 1].min() < foot_y + 0.025]
-        neck_up = [(t, c) for t, c in neck if t[:, 1].max() >= 0.355]
+        cloth = rw.draped_clothes(roll=roll, turn=turn, flex=flex, obs_tris=obs, like=like)
+        leg_low = rw.trim_leg(leg, foot_y, dressed=True)
         arm = _put(arm_low_l, 'left_upper_arm', 'left_forearm')
-        out = {'left arm': arm, 'right arm': _mirrored(arm), 'left ankle': leg_low, 'right ankle': _mirrored(leg_low),
-               'shoes': shoes, 'garments': cloth, 'neck': _put(neck_up, 'torso', 'torso')}
+        cad = {'left arm': arm, 'right arm': _mirrored(arm), 'left ankle': leg_low, 'right ankle': _mirrored(leg_low)}
     else:
+        leg_bare = rw.trim_leg(leg, foot_y, dressed=False)
         arm = _put(_posed_arm_cad(flex, turn, roll, bare_guards=True), 'left_upper_arm', 'left_forearm')
-        out = {'left leg': leg, 'right leg': _mirrored(leg), 'left arm': arm, 'right arm': _mirrored(arm),
+        cad = {'left leg': leg_bare, 'right leg': _mirrored(leg_bare), 'left arm': arm, 'right arm': _mirrored(arm),
                'pectoral': _put(pec, 'torso', 'torso'), 'neck': _put(neck, 'torso', 'torso'),
                'trunk': _put(trunk, 'pelvis', 'pelvis'), 'trunk guards': _put(guards_t, 'pelvis', 'pelvis')}
-    out.update(_head_and_hands(roll, turn, flex))
+    out: dict[str, Any] = {k: rw.apply_livery(v) for k, v in cad.items()}
+    if dressed:
+        out['garments'] = cloth
+    else:
+        out['seat'] = rw.seat_nets()
+    out['shoes'] = shoes
+    out['neck skin'] = rw.neck_skin(nod=nod, head_yaw=head_yaw, like=like)
+    out['head'] = rw.symbolic_head(nod=nod, head_yaw=head_yaw, like=like)
+    out['hands'] = rw.symbolic_hands(roll=roll, turn=turn, flex=flex, like=like)
     return out
+
+
+def lit_body(roll=0.0, dressed=False, turn=0.0, flex=0.0, nod=0.0, head_yaw=0.0, like=_UNSET):
+    """Indexed `(positions, normals, uv, materials, index)` for `gpu.LitRaster` of Robot 2.0."""
+    from coaxial.graphics import likeness
+    from tools.render import robot_worn as rw
+    like = likeness.FOUND if like is _UNSET else like
+    return rw.lit_mesh(roll=roll, dressed=dressed, turn=turn, flex=flex, nod=nod, head_yaw=head_yaw, like=like)
 
 
 def clasped():
