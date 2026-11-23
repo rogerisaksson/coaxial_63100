@@ -63,6 +63,7 @@ MACHINE = (
     ('host/machine/process/placed.py',                 (STRUCTURE, PLACED, ERRANDS, WEAR)),
     ('host/machine/analyzers/',                (STRUCTURE, INTROSPECT)),
     ('host/machine/rig/gate.py',                   (STRUCTURE, GATE)),
+    ('host/machine/rig/gated.py',                  (STRUCTURE, GATE)),
     ('host/machine/rig/streams.py',                (STRUCTURE, GATE)),
     ('host/machine/body/bemf.py',                   (STRUCTURE, SHIELD, ORTHO, SCENES)),
     ('host/machine/law/margin.py',                 (STRUCTURE, SHIELD)),

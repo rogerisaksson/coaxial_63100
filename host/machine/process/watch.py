@@ -116,6 +116,10 @@ def recorded(s, name):
     if was is not None:
         was['on'] = False
         was['scope'].disarm(s, was['key'])
+        # the recording's writer and hook let go with it: kept, each recording's writer ran on, a process and two
+        # threads, and its hook stayed on the robot's passes holding its Tap, Watch and Scope, for the session's life
+        was['scope'].close()
+        s['each'].remove(was['hook'])
     if not name:
         return None
     scope, tap, w = gate.Scope(), introspect.Tap(), Watch()
@@ -134,6 +138,7 @@ def recorded(s, name):
         except Exception as exc:
             r['on'], s['refused'] = False, 'recording %s: %s: %s' % (name, type(exc).__name__, exc)
             scope.dropped(s)
+    r['hook'] = hook
     s['each'].append(hook)
     s['recording'] = r
     return r

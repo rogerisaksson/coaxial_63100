@@ -244,7 +244,43 @@ def test_a_gate_writes_from_a_daemon(report):
         os.remove(n['file'])
 
 
-ROSTER = (test_each_gated_section_is_the_robots_passes_own, test_a_gate_writes_from_a_daemon)
+def _writers(me):
+    """The gate writers process `me` runs (`gate.Scope._writer`)."""
+    import psutil
+    out = []
+    for child in me.children(recursive=True):
+        try:
+            out += [child] if 'machine.rig.gate' in ' '.join(child.cmdline()) else []
+        except psutil.Error:
+            pass
+    return out
+
+
+def test_a_recording_ended_lets_its_writer_go(report):
+    """The robot's recordings begun and ended as its page's R does (`watch.recorded`): each written, and each ended
+    let go - its hook off the robot's passes, its writer's process ended. Kept, every recording left a process, two
+    threads and a hook a pass for the robot's session."""
+    import psutil
+    from machine.process import worker
+    me, s = psutil.Process(), worker.session()
+    hooks, ran = len(s['each']), len(_writers(me))
+    with tempfile.TemporaryDirectory() as folder:
+        for k in range(3):
+            worker.apply(s, {'record': os.path.join(folder, 'r%d' % k)})
+            for _ in range(60):
+                worker.stepped(s)
+            worker.apply(s, {'record': None})
+        t0 = time.monotonic()
+        while len(_writers(me)) > ran and time.monotonic() - t0 < 30.0:
+            time.sleep(0.05)
+        sizes = [os.path.getsize(os.path.join(folder, name)) for name in sorted(os.listdir(folder))]
+        report.check('three recordings written, each ended let go: its hook off the robot\'s passes, its writer ended',
+                     len(sizes) == 3 and all(sizes) and len(s['each']) == hooks and len(_writers(me)) == ran,
+                     (sizes, len(s['each']) - hooks, len(_writers(me)) - ran))
+
+
+ROSTER = (test_each_gated_section_is_the_robots_passes_own, test_a_gate_writes_from_a_daemon,
+          test_a_recording_ended_lets_its_writer_go)
 
 
 def main(argv=None):

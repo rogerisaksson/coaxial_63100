@@ -1,6 +1,7 @@
 """The gynoid worker process on its latent loop: paced to the clock, commands heard, state said."""
 import ctypes
 import functools
+import gc
 import math
 import os
 import queue
@@ -172,14 +173,16 @@ def session(every=sprung.STACK_EVERY, walks=False, heard=None, texts=None, ber=0
 
 def laid(s):
     """A new epoch: the robot's world laid anew, standing (walking where the session `walks`); the last one's
-    camera ended, its planner and its vision kept."""
+    camera ended, its planner and its vision kept, the rest of it collected."""
     import numpy as np
     if s.get('g') is not None and s['g']['keep'] is not None:
         s['g']['keep'].close()
     was = s.get('g')
     g = s['g'] = sprung.laid(s['every'], texts=s['texts'], suite=s['suite'])
-    if was is not None:
+    relaid = was is not None
+    if relaid:
         g['planner'], g['vision'] = was['planner'], was['vision']
+    del was
     if s['walks']:
         sprung.walked(g)
     edge.noise(g['world'], s['ber'], seed=s['epoch'] + 2)
@@ -188,6 +191,13 @@ def laid(s):
              passes=0, wear=wear.laid(g['body']))
     s['worn'].laid(s['wear'])
     s['wear_told'] = wear.told(s['wear'])
+    if relaid:
+        # the last world let go whole: its parts, its law's body and their MuJoCo data hang in cycles the
+        # collector alone frees, and its full passes count objects, blind to a world's native memory - left to
+        # them, 16 worlds laid anew held 914 MB, a pass freeing 632 MB in 78 ms. Passes till one finds none: a
+        # finalizer's garbage is freed a pass on
+        while gc.collect():
+            pass
     s['heard']((s['epoch'], 0, g['t'], {'laid': {'every': s['every'], 'walks': s['walks'], 'gym': s['gym_name'],
                                                  'room': physics.ROOM, 'sight': physics.SIGHT}}))
 

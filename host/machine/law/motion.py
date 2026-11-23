@@ -249,8 +249,10 @@ def laid(g):
     g['ringed'] = bodied.on_shapes(barrier.ringed, 'ringed', (0, 1, 2, 3, 4, 5))
     g['ringed_ahead'] = list(barrier.HULLS)
     g['modal_sensed'] = bodied.on_args(modal.sensed, 'modal_sensed', (0, 1, 2))     # the robot's sensing's arrays walked in C
-    g['inekf_points'] = bodied.on_body(inekf.points, 'inekf_points', (2, 3))
-    g['inekf_step'] = bodied.on_args(inekf.step, 'inekf', (0, 2, 3, 4))
+    # the robot's edge's `y` an input of each, not a constant: guarded as one, a world laid anew (its own `y`) traced
+    # and held both again, each held kept (`kept`) - 13 MB a world
+    g['inekf_points'] = bodied.on_body(inekf.points, 'inekf_points', (1, 2, 3))
+    g['inekf_step'] = bodied.on_args(inekf.step, 'inekf', (0, 1, 2, 3, 4))
     from tools.cores import inekf as c_inekf
     g['inekf_glue'] = c_inekf.glued()     # `inekf.stepped`'s arithmetic around its points and step, in C
     g['seek'] = bodied.on_args(field.seek, 'seek', (0, 1, 2, 3, 4, 6))

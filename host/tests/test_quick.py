@@ -137,7 +137,58 @@ def test_the_robots_step_asked_in_c_as_by_python(report, c):
                  tally['calls'] > 3000 and tally['contacts'] > 1000 and not tally['apart'], '%(apart)d apart' % tally)
 
 
-ROSTER = (test_a_part_called_whole_in_c_as_by_its_glue, test_the_robots_step_asked_in_c_as_by_python)
+def test_a_runner_lets_its_part_go(report, c):
+    """A part's runner (quick_run.c) holds its Bound and the Bound's leaf, and the Bound holds the runner: the
+    collector walks what the runner holds, so a part dropped is let go - as a capsule the runner hid that cycle, and
+    every Bound laid outlived its world."""
+    import functools
+    import gc
+    import weakref
+    from tools.cores import quick
+    q = quick.module()
+    if q is None:
+        report.check('a runner lets its part go, where the extension is built', True, 'not built here')
+        return
+
+    class Part:
+        def __init__(self):
+            self.runner = functools.partial(q.run, q.runner(self, None, -1, (), (), (), np.array_equal, None, [], self.leaf,
+                                                            (), 0, False, (None,) * 6, (), np.zeros(1, np.int64), 0, (),
+                                                            (4, None), np.linalg.LinAlgError, quick.MISS, quick.SLOW))
+
+        def leaf(self, _j, _a):
+            return True
+    part = Part()
+    gone = weakref.ref(part)
+    del part
+    gc.collect()
+    report.check('a part\'s runner lets the part go: the collector walks what the runner holds', gone() is None, '')
+
+
+def test_a_world_laid_anew_lets_those_before_go(report, c):
+    """The robot's world laid anew again and again - a restart, a fall's recovery -: the worlds laid before it let
+    go by the worker itself, no more of theirs held after six than after three - the last body bound to a part till
+    its next call -. A part's runner hid its cycle from the collector, a cache by the world's model and a part
+    guarding the robot's edge kept each world's, and a world's cycles waited on the collector's full passes: 34 MB a
+    world laid anew."""
+    import weakref
+    from machine.process import worker
+    from machine.world import struck
+    s, laid, held = worker.session(walks=True), [], {}
+    for k in range(6):
+        for _ in range(PASSES // 10):
+            worker.stepped(s)
+        struck.touching(s['g']['world'])
+        laid += [weakref.ref(s['g']['world'].model), weakref.ref(s['g']['body'])]
+        worker.apply(s, {'restart': True})
+        if k in (2, 5):
+            held[k + 1] = sum(w() is not None for w in laid)
+    report.check('a world laid anew lets those before it go: %d of their models and bodies held after three, %d after '
+                 'six' % (held[3], held[6]), held[6] <= held[3], '')
+
+
+ROSTER = (test_a_part_called_whole_in_c_as_by_its_glue, test_the_robots_step_asked_in_c_as_by_python,
+          test_a_runner_lets_its_part_go, test_a_world_laid_anew_lets_those_before_go)
 
 
 def main(argv=None):

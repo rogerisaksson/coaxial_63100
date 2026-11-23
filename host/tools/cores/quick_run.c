@@ -57,21 +57,91 @@ typedef struct
   int        returns;
 } run_t;
 
-static void dropped(PyObject *capsule)
+/* A runner (`quick_runner`): a part's call laid once, on an object the collector walks. A Bound holds its runner and
+ * the runner holds that Bound, its body and its leaf: as a capsule, that cycle was hidden from the collector, and each
+ * Bound laid outlived its world - with the robot's body it bound and that body's MuJoCo data, 34 MB a world laid
+ * anew. */
+typedef struct
 {
-  run_t *r = PyCapsule_GetPointer(capsule, "quick.run");
+  PyObject_HEAD
+  run_t *r;
+} runner_t;
+
+/* The count of a runner's object fields (`fields`). */
+enum
+{
+  FIELDS = 18
+};
+
+/* Each object field of `r`, in one table: visited, cleared and let go alike. */
+static void fields(run_t *r, PyObject **at[FIELDS])
+{
+  PyObject **all[FIELDS] = {&r->bound, &r->body, &r->consts, &r->pins, &r->checks, &r->array_equal, &r->walk,
+                            &r->seen, &r->leaf, &r->places, &r->shape, &r->turns, &r->blocks[0], &r->blocks[1],
+                            &r->singular, &r->miss, &r->slow, &r->last_name};
+  memcpy(at, all, sizeof all);
+}
+
+static int traversed(PyObject *self, visitproc visit, void *arg)
+{
+  run_t     *r = ((runner_t *)self)->r;
+  PyObject **at[FIELDS];
   if (r == NULL)
-    return;
-  PyObject *held[] = {r->bound, r->body, r->consts, r->pins, r->checks, r->array_equal, r->walk, r->seen, r->leaf,
-                      r->places, r->shape, r->turns, r->blocks[0], r->blocks[1], r->singular, r->miss, r->slow,
-                      r->last_name};
-  for (size_t k = 0; k < sizeof held / sizeof held[0]; k++)
-    Py_XDECREF(held[k]);
-  for (Py_ssize_t k = 0; k < r->nleaves; k++)
-    Py_XDECREF(r->leaves[k].path);
-  PyMem_Free(r->leaves);
-  PyMem_Free(r->made);
-  PyMem_Free(r);
+    return 0;
+  fields(r, at);
+  for (int k = 0; k < FIELDS; k++)
+    Py_VISIT(*at[k]);
+  for (Py_ssize_t k = 0; r->leaves != NULL && k < r->nleaves; k++)
+    Py_VISIT(r->leaves[k].path);
+  for (Py_ssize_t k = 0; r->made != NULL && k < r->nleaves; k++)
+    Py_VISIT(r->made[k]);
+  return 0;
+}
+
+static int cleared(PyObject *self)
+{
+  run_t     *r = ((runner_t *)self)->r;
+  PyObject **at[FIELDS];
+  if (r == NULL)
+    return 0;
+  fields(r, at);
+  for (int k = 0; k < FIELDS; k++)
+    Py_CLEAR(*at[k]);
+  for (Py_ssize_t k = 0; r->leaves != NULL && k < r->nleaves; k++)
+    Py_CLEAR(r->leaves[k].path);
+  for (Py_ssize_t k = 0; r->made != NULL && k < r->nleaves; k++)
+    Py_CLEAR(r->made[k]);
+  return 0;
+}
+
+static void dropped(PyObject *self)
+{
+  run_t *r = ((runner_t *)self)->r;
+  PyObject_GC_UnTrack(self);
+  cleared(self);
+  if (r != NULL)
+  {
+    PyMem_Free(r->leaves);
+    PyMem_Free(r->made);
+    PyMem_Free(r);
+  }
+  Py_TYPE(self)->tp_free(self);
+}
+
+static PyTypeObject runner_type = {
+  PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_quick.Runner",
+  .tp_basicsize = sizeof(runner_t),
+  .tp_dealloc = dropped,
+  .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
+  .tp_doc = "A part's call laid once (runner): what the runner holds walked by the collector.",
+  .tp_traverse = traversed,
+  .tp_clear = cleared,
+  .tp_free = PyObject_GC_Del,
+};
+
+int quick_run_ready(void)
+{
+  return PyType_Ready(&runner_type);
 }
 
 /* Whether the exception set is one glue.head's try takes as not traced (KeyError, IndexError, TypeError): cleared. */
@@ -339,12 +409,14 @@ PyObject *quick_runner(PyObject *self, PyObject *const *args, Py_ssize_t n)
   run_t *r = PyMem_Calloc(1, sizeof *r);
   if (r == NULL)
     return PyErr_NoMemory();
-  PyObject *capsule = PyCapsule_New(r, "quick.run", dropped);
-  if (capsule == NULL)
+  runner_t *laid = PyObject_GC_New(runner_t, &runner_type);
+  if (laid == NULL)
   {
     PyMem_Free(r);
     return NULL;
   }
+  laid->r = r;
+  PyObject *runner = (PyObject *)laid;
   r->bound = Py_NewRef(args[BOUND]);
   r->body = Py_NewRef(args[BODY]);
   r->consts = Py_NewRef(args[CONSTS]);
@@ -379,7 +451,7 @@ PyObject *quick_runner(PyObject *self, PyObject *const *args, Py_ssize_t n)
   if (r->leaves == NULL || r->made == NULL || r->last_name == NULL || PyErr_Occurred())
   {
     const int memory = r->leaves == NULL || r->made == NULL;
-    Py_DECREF(capsule);
+    Py_DECREF(runner);
     return memory ? PyErr_NoMemory() : NULL;
   }
   for (Py_ssize_t k = 0; k < r->nleaves; k++)
@@ -394,7 +466,7 @@ PyObject *quick_runner(PyObject *self, PyObject *const *args, Py_ssize_t n)
     if (l->nd > MAXD)
     {
       PyErr_SetString(PyExc_ValueError, "runner: a leaf of more dimensions than MAXD");
-      Py_DECREF(capsule);
+      Py_DECREF(runner);
       return NULL;
     }
     for (int d = 0; d < l->nd; d++)
@@ -402,23 +474,27 @@ PyObject *quick_runner(PyObject *self, PyObject *const *args, Py_ssize_t n)
   }
   if (PyErr_Occurred())
   {
-    Py_DECREF(capsule);
+    Py_DECREF(runner);
     return NULL;
   }
-  return capsule;
+  PyObject_GC_Track(runner);
+  return runner;
 }
 
 PyObject *quick_run(PyObject *self, PyObject *const *args, Py_ssize_t n)
 {
   (void)self;
-  if (n != 2 || !PyTuple_Check(args[1]))
+  if (n != 2 || !Py_IS_TYPE(args[0], &runner_type) || !PyTuple_Check(args[1]))
   {
     PyErr_SetString(PyExc_TypeError, "run(runner, args - a tuple -)");
     return NULL;
   }
-  const run_t *r = PyCapsule_GetPointer(args[0], "quick.run");
-  if (r == NULL)
+  const run_t *r = ((runner_t *)args[0])->r;
+  if (r->bound == NULL)
+  {
+    PyErr_SetString(PyExc_ReferenceError, "run: a runner the collector cleared");
     return NULL;
+  }
   PyObject *given = args[1];
   int       fits = headed(r, given);
   if (fits == 1)

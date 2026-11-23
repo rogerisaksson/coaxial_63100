@@ -289,7 +289,7 @@ PyMODINIT_FUNC PyInit__quick(void)
 {
   import_array();
   PyObject *m = PyModule_Create(&quick);
-  if (m != NULL && quick_part_ready(m) < 0)
+  if (m != NULL && (quick_part_ready(m) < 0 || quick_run_ready() < 0))
     Py_CLEAR(m);
   return m;
 }

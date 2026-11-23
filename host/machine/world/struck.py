@@ -8,22 +8,15 @@ the body's turn about its centre of mass), summed and the fastest kept a body of
 the robot's own tells it: the landing analyzer's (`machine.analyzers.landing`) and the fall probe's
 (`tools/sim/falls.py`), introspect's `ground` layer.
 """
-import functools
-
-
-@functools.cache
-def _robots(m):
-    """(the robot's root's id, each body's name) of the world's model `m`."""
-    return int(m.body_rootid[m.body('pelvis').id]), tuple(m.body(k).name for k in range(m.nbody))
-
-
 def touching(world):
     """{the robot's body's name: [the normal force on it, N; the fastest any point of it closes on what it
     touches, m/s]} this pass, of `world` (`physics.World`): 121 us with the robot's two soles down, twenty
     contacts."""
     import numpy as np
     m, d, mj = world.model, world.data, world._mj
-    root, names = _robots(m)
+    # the robot's root off the world's pelvis, and the names of the bodies touching alone: cached by the world's
+    # model, they kept the model of every world laid anew
+    root = m.body_rootid[world.pelvis]
     con, f6 = d.contact, np.zeros(6)
     b1, b2 = m.geom_bodyid[con.geom1], m.geom_bodyid[con.geom2]
     h1 = m.body_rootid[b1] == root
@@ -45,4 +38,4 @@ def touching(world):
     force, fastest = np.zeros(len(bodies)), np.full(len(bodies), -np.inf)
     np.add.at(force, which, normal)
     np.maximum.at(fastest, which, closing)
-    return {names[b]: [float(f), float(c)] for b, f, c in zip(bodies, force, fastest)}
+    return {m.body(int(b)).name: [float(f), float(c)] for b, f, c in zip(bodies, force, fastest)}

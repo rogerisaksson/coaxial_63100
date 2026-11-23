@@ -26,6 +26,7 @@ def fallen(g, world):
         down = {m.body(n).id for n in edge.SKIN if not n.endswith(('_shank', '_foot', '_toes'))}
         masks = (np.isin(m.geom_bodyid, list(down)), np.isin(m.geom_bodyid, list(floor.grounds(m))))
         g['_falls_by'], g['_falls_down'] = (m, masks, [address(mask) for mask in masks]), down
+        g['_falls_parts'] = observer.parts(m)     # each manifold's bodies, once a world
     # the robot's law lays g['told'] anew a law pass, written nowhere after (`motion.control`): said once a
     # law pass
     if g.get('_said_of', (None,))[0] is not g['told']:
@@ -41,7 +42,8 @@ def fallen(g, world):
         g['_told_with'] = (told, entry, tuple(g['_told_by'][1] > 0.0))
     on = g['_told_with'][2]
     if g.get('_falls_of') != on:
-        g['_falls_of'], g['_falls_by'][1][0][:] = on, world._np.isin(m.geom_bodyid, observer.unborne(m, on, g['_falls_down']))
+        unborne = observer.unborne(g['_falls_parts'], on, g['_falls_down'])
+        g['_falls_of'], g['_falls_by'][1][0][:] = on, world._np.isin(m.geom_bodyid, unborne)
     # MuJoCo's contacts read off its data in C (`steps.paired`): its contacts' views made a pass were 4 us of 12
     below = float(g['fr'][modal.FLOOR]) + figure.ANKLE_H + figure.SHANK
     down, grounds = g['_falls_by'][2]

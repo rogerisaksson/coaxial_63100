@@ -51,9 +51,10 @@ extern PyArray_Descr *quick_f64;
  * exception cleared), else the row Python lays. */
 Py_ssize_t quick_walked(const walk_t *w, PyObject *given, Py_ssize_t start);
 
-/* runner(...) and run(runner, args) (quick_run.c). */
+/* runner(...) and run(runner, args), the runner's type readied with the module (quick_run.c). */
 PyObject *quick_runner(PyObject *self, PyObject *const *args, Py_ssize_t n);
 PyObject *quick_run(PyObject *self, PyObject *const *args, Py_ssize_t n);
+int       quick_run_ready(void);
 
 /* stepper(...) and step(stepper, k, b, s, ask) (quick_step.c). */
 PyObject *quick_stepper(PyObject *self, PyObject *const *args, Py_ssize_t n);

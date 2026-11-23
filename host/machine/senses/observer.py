@@ -25,7 +25,6 @@ The floor scoot's squat, the robot's knees on their stops (17-25 N m) and its th
 sole a free wrench read 72-143 N on its butt with none there and its soles pulling to -1 365 N. Blind: no skin, no
 load cell.
 """
-import functools
 import os
 
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
@@ -194,20 +193,21 @@ def said(told):
 _SAID: list = [None, None]
 
 
-@functools.cache
 def parts(m):
     """Each manifold's bodies of `m` (ROWS' order): its points' segments (POINTS), a whole arm where one of its
     segments is among them (`touch.ARMS`), and their children: lain back onto the robot's forearm, the robot's
-    hands told, it was called fallen."""
+    hands told, it was called fallen. Laid once a world by its referee, not cached by `m`: so cached, every world
+    laid anew kept its model."""
     found = [{m.body(seg).id for shares, seg, _p, _n in POINTS if MANIFOLDS[r] in {s[0] for s in shares}} for r in ROWS]
     arms = [{m.body(edge.SKIN[i]).id for i in arm} for arm in touch.ARMS]
     found = [ids.union(*(arm for arm in arms if arm & ids)) for ids in found]
     return [ids | {b for b in range(m.nbody) if m.body_parentid[b] in ids} for ids in found]
 
 
-def unborne(m, on, down):
-    """[`down`'s bodies] less those of the manifolds `on` (ROWS', a bool each) bear (`parts`)."""
-    return list(down - set().union(*(p for o, p in zip(on, parts(m)) if o)))
+def unborne(manifolds, on, down):
+    """[`down`'s bodies] less those of the manifolds `on` (ROWS', a bool each) bear, `manifolds` each one's bodies
+    (`parts`)."""
+    return list(down - set().union(*(p for o, p in zip(on, manifolds) if o)))
 
 
 def weighed(obs, told, weight, dt):
