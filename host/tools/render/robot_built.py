@@ -121,21 +121,50 @@ def _head_and_hands(roll=0.0, turn=0.0, flex=0.0):
     return {'head': head, 'hands': left_hand + _mirrored(left_hand)}
 
 
+def _clip_x_min(tris, x_min):
+    """Clip `tris` [(tri, colour)] cleanly against half-space `x >= x_min`."""
+    import numpy as np
+    out = []
+    for tri, col in tris:
+        xs = tri[:, 0]
+        if float(xs.min()) >= x_min:
+            out.append((tri, col))
+            continue
+        if float(xs.max()) <= x_min:
+            continue
+        poly = []
+        for i in range(3):
+            a, b = tri[i], tri[(i + 1) % 3]
+            ia, ib = a[0] >= x_min, b[0] >= x_min
+            if ia:
+                poly.append(a)
+            if ia != ib:
+                t = (x_min - a[0]) / (b[0] - a[0])
+                poly.append(a + t * (b - a))
+        for k in range(1, len(poly) - 1):
+            out.append((np.stack([poly[0], poly[k], poly[k + 1]]), col))
+    return out
+
+
 def _posed_arm_cad(flex, turn, roll, bare_guards=True):
     """[(tri, rgb)] of the left arm CAD in `arm_worn` elbow frame, posed at `(flex, turn, roll)`."""
     from tools.render import arm_worn as aw, knee_mount as km
     turn_p, _s, bend_p = aw.placing()
-    arm_d = aw.arm(flex, roll, turn)
+    arm_d, gd = aw.arm(flex, roll, turn), aw._guarded()
     if bare_guards:
-        gf = km._turn(aw._guarded()['left_forearm'], bend_p * flex) if flex else aw._guarded()['left_forearm']
-        ga = _pose_arm_local(aw._guarded()['left_upper_arm'] + gf, turn, roll)
-        return [t for part in arm_d.values() for t in part] + ga
+        gf = km._turn(gd['left_forearm'], bend_p * flex) if flex else gd['left_forearm']
+        ga = _pose_arm_local(gd['left_upper_arm'] + gf, turn, roll)
+        clevis = _clip_x_min(_put(arm_d['shoulder clevis'] + arm_d['shoulder crossbar'],
+                                  'left_upper_arm', 'left_forearm'), 0.0415)
+        rest = _put([t for k, part in arm_d.items() if k not in ('shoulder clevis', 'shoulder crossbar')
+                     for t in part] + ga, 'left_upper_arm', 'left_forearm')
+        return clevis + rest
     low = [t for k in ('elbow', 'hose', 'forearm tube') for t in arm_d[k]]
     low += [(t, c) for t, c in arm_d['upper arm tube'] if t[:, 1].min() < 0.165]
-    gu_low = [(t, c) for t, c in aw._guarded()['left_upper_arm'] if t[:, 1].min() < 0.125]
-    gf = km._turn(aw._guarded()['left_forearm'], bend_p * flex) if flex else aw._guarded()['left_forearm']
+    gu_low = [(t, c) for t, c in gd['left_upper_arm'] if t[:, 1].min() < 0.125]
+    gf = km._turn(gd['left_forearm'], bend_p * flex) if flex else gd['left_forearm']
     return low + _pose_arm_local(gu_low + gf, turn, roll), [t for part in arm_d.values() for t in part] + _pose_arm_local(
-        aw._guarded()['left_upper_arm'] + gf, turn, roll)
+        gd['left_upper_arm'] + gf, turn, roll)
 
 
 _UNSET = object()
@@ -174,7 +203,7 @@ def whole(roll=0.0, dressed=False, turn=0.0, flex=0.0, nod=0.0, head_yaw=0.0, li
         cad = {'left arm': arm, 'right arm': _mirrored(arm), 'left ankle': leg_low, 'right ankle': _mirrored(leg_low)}
     else:
         leg_bare = rw.trim_leg(leg, foot_y, dressed=False)
-        arm = _put(_posed_arm_cad(flex, turn, roll, bare_guards=True), 'left_upper_arm', 'left_forearm')
+        arm = _posed_arm_cad(flex, turn, roll, bare_guards=True)
         cad = {'left leg': leg_bare, 'right leg': _mirrored(leg_bare), 'left arm': arm, 'right arm': _mirrored(arm),
                'pectoral': _put(pec, 'torso', 'torso'), 'neck': _put(neck, 'torso', 'torso'),
                'trunk': _put(trunk, 'pelvis', 'pelvis'), 'trunk guards': _put(guards_t, 'pelvis', 'pelvis')}
@@ -207,7 +236,7 @@ def clasped():
     from machine.body.figure import THIGH
     from tools.render import arm_worn as aw, clips, elbow_mount as em, hip_clamped as hc, knee_mount as km
     from tools.render import shoulder_laid as sl, shoulder_mount as sm, shoulder_rolled as sr
-    from tools.render import trunk_clamped as tc, trunk_laid as tl
+    from tools.render import trunk_clamped as tc, trunk_laid as tl, trunk_worn as tw
     body, names, frames, pos = _figure(False)
     wanted_body = [n for n in names if n in ('guard_torso', 'guard_left_thigh', 'guard_right_thigh',
                                              'left_seat', 'right_seat')
@@ -219,10 +248,11 @@ def clasped():
     at = np.asarray(tl.joint()[0], float)
     trunk_obs = _put([(t + at, c) for (link, name), part in tc.posed().items()
                       if link != 'hips' and name != 'tube' for t, c in part], 'pelvis', 'pelvis')
+    guards_obs = _put([(t + at, c) for t, c in tw.guards()], 'pelvis', 'pelvis')
     hip = [((t + (0.0, THIGH, 0.0)), c) for group in ('thigh', 'roll', 'yaw', 'pelvis')
            for ts in hc.links()[group].values() for t, c in ts]
     hip_obs = _put(hip, 'left_thigh', 'left_shank')
-    body_obs = fig_obs + trunk_obs + hip_obs + _mirrored(hip_obs)
+    body_obs = fig_obs + trunk_obs + guards_obs + hip_obs + _mirrored(hip_obs)
     turn_p, shift_p, bend_p = aw.placing()
     _p, shoulder, wrist = aw.laid(False, ())
     still_parts, _gear, arm_in, arm_out = em._stack()

@@ -13,6 +13,7 @@ drive's gable stays off the forearm bent its most; over them the likeness's tee'
 lays the jeans (`leg_worn.draped`). What still cuts through what is counted as leg_worn counts it.
 """
 import argparse
+import functools
 import math
 import os
 import sys
@@ -110,10 +111,14 @@ def _swept(step=40.0):
     return out
 
 
+@functools.lru_cache(maxsize=None)
 def _guarded():
     """{segment: tris}: the arm's guards, laid clear of the whole arm - the shoulder's mount with it -, the upper
     arm's of what turns with the forearm through the elbow's travel too (`_swept`)."""
     import numpy as np
+    from coaxial.graphics import likeness
+    if not likeness.FOUND:
+        return {'left_upper_arm': [], 'left_forearm': []}
     return lw.worn(arm(), {'left_upper_arm': laid(False, ())[1], 'left_forearm': np.zeros(3)},
                    {'left_upper_arm': 'upper arm tube', 'left_forearm': 'forearm tube'}, {'left_upper_arm': _swept()})
 

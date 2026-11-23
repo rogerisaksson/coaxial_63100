@@ -30,7 +30,7 @@ length_m = 0.126
 [boards]
 knee = false
 ankle = false
-shoulder = { on = "torso", at = [0.051, 0.255, -0.087], face = "z" }
+shoulder = { on = "torso", at = [0.055, 0.070, 0.072], face = "z" }
 
 # The knee's hard stop where the thigh's tube, leant from the hip's axis, meets the calf's cage (its guards clear
 # to 158): past the deepest fold a program asks (150 deg, bed_pull's).
@@ -58,14 +58,14 @@ shank = [[-0.02, 0.10, 78.0, 28.0, 2.3], [0.14, 0.78, 85.0, 26.0, 2.6, -0.24]]
 # superellipse's power, how much wider its top than its middle, its slant, deg]; each clipped on a hoop cut from a
 # carbon sheet round behind it (`[guards.hoops]`: [height - m up the trunk, a share down a limb -, from, to, deg]) in
 # place of the stock's struts, the trunk's drawn in to `slim` and the limbs' to `limb_slim` of the figure's reach.
-torso = [[0.172, 0.238, 65.0, 16.0, 2.3], [0.172, 0.238, 115.0, 16.0, 2.3], [0.195, 0.272, 90.0, 5.5, 3.0, 0.30],
-         [0.04, 0.15, 82.0, 7.0, 3.0, 0.25], [0.04, 0.15, 98.0, 7.0, 3.0, 0.25], [0.20, 0.37, -90.0, 34.0, 3.0, 0.45],
-         [0.125, 0.175, -90.0, 9.0, 2.5, -0.35]]
-slim = 0.70
+torso = [[0.182, 0.226, 77.0, 8.8, 2.2], [0.182, 0.226, 103.0, 8.8, 2.2], [0.195, 0.256, 90.0, 3.8, 3.0, 0.12],
+         [0.04, 0.15, 82.0, 6.0, 3.0, 0.20], [0.04, 0.15, 98.0, 6.0, 3.0, 0.20], [0.258, 0.365, -90.0, 23.0, 3.0, -0.15],
+         [0.112, 0.152, -90.0, 8.5, 2.5, -0.35]]
+slim = 0.58
 limb_slim = 0.78
 
 [guards.hoops]
-torso = [[0.205, -78.0, 258.0], [0.09, 70.0, 110.0], [0.28, -130.0, -50.0], [0.15, -100.0, -80.0]]
+torso = [[0.145, -78.0, 258.0], [0.09, 75.0, 105.0], [0.360, -104.0, -76.0], [0.135, -98.0, -82.0]]
 
 # The elbow turned: its gearbox out, its motor's back with its inverter and its hose's fittings in toward the body.
 [mounts]

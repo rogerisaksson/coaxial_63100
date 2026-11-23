@@ -33,7 +33,8 @@ def _carried():
     from tools.render import trunk_laid as tl
     out = {'trunk ' + name: tris for name, tris in tc.links()['chest'].items() if name != 'tube'}
     for name, tris in nm.posed(low=tc.seat()).items():
-        out['neck ' + name] = [(tri - (0.0, tl.RAISED_M, 0.0), c) for tri, c in tris]
+        if not name.endswith(' shoulder'):
+            out['neck ' + name] = [(tri - (0.0, tl.RAISED_M, 0.0), c) for tri, c in tris]
     for side, right in (('left', False), ('right', True)):
         out[side + ' pectoral'] = [(tri - (0.0, tl.RAISED_M, 0.0), c)
                                    for tri, c in sr.chest(0.0, right=right)['pectoral']]

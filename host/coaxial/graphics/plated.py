@@ -19,8 +19,8 @@ from typing import Any
 
 from coaxial.graphics import drums, guards, mechanism, seat
 from coaxial.graphics.lit import PAINTED, SKIN, UNDER, WOVEN, paint
-from coaxial.graphics.livery import BOARD, BOLT, FRAME, GEAR, SERVO, STEEL, TUBE
-from coaxial.graphics.panels import SHELL
+from coaxial.graphics.livery import BOARD, BOLT, FRAME, GEAR, PAD, SERVO, STEEL, TUBE
+from coaxial.graphics.panels import OPEN, SHELL
 from coaxial.graphics.shapes import finer, loft, turn_about
 from machine.body import figure, mechatronics
 from machine.body.guards import NEAR_M
@@ -39,7 +39,7 @@ BLENDS = (('like_torso', 'pelvis', 0.03, -0.035), ('like_pelvis', '{side}_thigh'
           ('like_{side}_forearm', '{side}_upper_arm', -0.03, 0.03),
           ('like_{side}_hand', '{side}_forearm', -0.015, 0.015),
           ('like_neck', 'torso', -0.02, 0.02), ('like_head', 'neck', -0.02, 0.02),
-          ('skin_neck', 'torso', 0.025, -0.036), ('skin_neck', 'head', 0.040, 0.072))
+          ('skin_neck', 'torso', 0.025, -0.036), ('skin_neck', 'head', 0.040, 0.068))
 #: What of a likeness is worn in the place of the robot's own - its head, its hands -, the
 #: segments whose bones those hands stand for, and what of the robot's own head is kept where
 #: no figure's is worn: by its name, or its name's end.
@@ -154,10 +154,10 @@ def _own(meshes, extra):
 def _skin_neck(figured):
     """Smooth closed neck and nape skin loft (`shapes.loft`), tinted to match `like_head` or `SKIN`."""
     rings = [(-0.040, 0.056, 0.056, -0.005), (-0.020, 0.050, 0.054, -0.004), (0.000, 0.046, 0.052, -0.003),
-             (0.025, 0.043, 0.048, -0.002), (0.042, 0.040, 0.036, 0.008), (0.058, 0.038, 0.034, 0.011),
-             (0.072, 0.034, 0.030, 0.012)]
-    return loft(finer(rings, -0.040, 0.072, 0.004), paint((172, 138, 121)) if figured else SKIN,
-                poles=(-0.044, 0.076))
+             (0.025, 0.043, 0.048, -0.002), (0.042, 0.040, 0.036, 0.008), (0.058, 0.036, 0.032, 0.011),
+             (0.068, 0.028, 0.024, 0.012)]
+    return loft(finer(rings, -0.040, 0.068, 0.004), paint((172, 138, 121)) if figured else SKIN,
+                poles=(-0.044, 0.070))
 
 
 def parts(meshes, extra, liked: Any = None):
@@ -184,7 +184,12 @@ def parts(meshes, extra, liked: Any = None):
         out.append(('skin_neck', 'neck', (), z0, 0.0, _skin_neck(figured)))
     for name, parent, *rest in worn:
         joints, offset = (rest[0], rest[1]) if len(rest) == 3 else ((), rest[0])
-        out.append((name, parent, joints, offset, 0.0, (*rest[-1][:3], np.where(rest[-1][3] == SHELL, TUBE, rest[-1][3]))))
+        c, t, u, m = rest[-1]
+        if name == 'like_head':
+            t = t[~(m[t] == OPEN).any(axis=1)]
+            used, inv = np.unique(t, return_inverse=True)
+            c, t, u, m = c[used], inv.reshape(-1, 3), u[used], m[used]
+        out.append((name, parent, joints, offset, 0.0, (c, t, u, np.where(m == SHELL, TUBE, m))))
     for seg, (corners, triangles, uv, materials) in meshes.items():
         if seg.endswith(('_foot', '_toes')):
             out.append(('shell_' + seg, seg, (), z0, 0.0, (corners, triangles, uv, np.full(len(corners), TUBE))))
@@ -197,10 +202,16 @@ def parts(meshes, extra, liked: Any = None):
     rested = [(part[0], part[1], part[5][0] @ frame[0].T + frame[1], part[5][1]) for part, frame in zip(out, frames)
               if frame is not None and len(part[5][0])]
     pelvis = [(c, t) for _n, parent, c, t in rested if parent == 'pelvis']
+    from typing import Any, Callable, cast
+    rim_fn = getattr(seat, 'rim', None)
     for name, side in (('left', 1.0), ('right', -1.0)):
         joint = placed[name + '_hip_yaw'][1]
         drive = ([(n, c, t) for n, parent, c, t in rested if parent == name + '_hip_yaw'], joint)
         out.append((name + '_seat', name + '_hip_yaw', (), tuple(-joint), 0.0, seat.plate(side, drive, pelvis)))
+        if callable(rim_fn):
+            rc, rt, ru, rm = cast(Callable[..., tuple[Any, Any, Any, Any]], rim_fn)(side, drive, pelvis)
+            rm_pad = rm if (rm >= PAINTED).all() else np.full(len(rc), PAD)
+            out.append(('rim_' + name + '_seat', name + '_hip_yaw', (), tuple(-joint), 0.0, (rc, rt, ru, rm_pad)))
     for s, side in ((1.0, 'left_'), (-1.0, 'right_')):
         if not body:
             break

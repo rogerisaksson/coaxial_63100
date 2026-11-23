@@ -99,8 +99,10 @@ def worn(parts, lifts, tubes, swept=None):
     from coaxial.graphics import form, likeness, plated
     from coaxial.graphics import guards as gd
     from machine.body.guards import NEAR_M
-    pts = km._points([t for v in parts.values() for t in v], STEP_M)
     body = {part[1]: part[-1][0] for part in form.worn(likeness.FOUND) if part[0].startswith('form_')}
+    if not body:
+        return {seg: [] for seg in lifts}
+    pts = km._points([t for v in parts.values() for t in v], STEP_M)
     surfaces, runs, stands = {}, {}, {}
     turns = [np.array([[math.cos(a), 0.0, -math.sin(a)], [0.0, 1.0, 0.0], [math.sin(a), 0.0, math.cos(a)]])
              for a in (-math.pi / gd.SECTORS, 0.0, math.pi / gd.SECTORS)]
@@ -108,8 +110,13 @@ def worn(parts, lifts, tubes, swept=None):
         at, corners, moving = pts - up, body[seg], (swept or {}).get(seg)
         near = np.vstack([at, km._points(moving, STEP_M) - up]) if moving else at
         low, high = float(corners[:, 1].min()) - plated.DRUM_M, float(corners[:, 1].max()) + plated.DRUM_M
-        reach = 0.25 if seg == 'torso' else NEAR_M
-        by = near[(near[:, 1] > low) & (near[:, 1] < high) & (np.hypot(near[:, 0], near[:, 2]) < reach)]
+        reach = 0.185 if seg == 'torso' else NEAR_M
+        keep = (near[:, 1] > low) & (near[:, 1] < high) & (np.hypot(near[:, 0], near[:, 2]) < reach)
+        if seg == 'torso':
+            keep &= (np.abs(near[:, 0]) <= 0.105)
+            keep &= ~((near[:, 2] > 0.080) & (near[:, 1] >= 0.16) & (np.abs(near[:, 0]) > 0.068))
+            keep &= ~((near[:, 2] < 0.0) & (near[:, 1] >= 0.22) & (np.abs(near[:, 0]) > 0.062))
+        by = near[keep]
         # Each part told in the half-cells about its own too: a guard's face, read between its cells' middles, keeps its
         # air off a part as thin as a hose wherever between them it stands without smearing inboard clips across ahead.
         by = np.vstack([by @ t.T + (0.0, dy, 0.0) for t in turns for dy in (-0.5 * gd.ROW_M, 0.0, 0.5 * gd.ROW_M)])
@@ -139,7 +146,10 @@ def guards(ahead, step=15.0):
     of its cranks swept and of its cables, the knee's bent `step` deg at a time - as the thigh sees them on the
     thigh's, as the shank does on the shank's."""
     import numpy as np
+    from coaxial.graphics import likeness
     from machine.body.figure import THIGH
+    if not likeness.FOUND:
+        return {'left_thigh': [], 'left_shank': []}
     _p, _c, still, turning = kc.bodies(ahead=ahead)
     parts = dict({'knee ' + k: v for k, v in dict(still, **turning).items()}, **lc.thigh(ahead), **lc.hip(), **lc.shank())
     bent = [(knee_hose.knee(float(d)), float(d)) for d in _travel(step)]
