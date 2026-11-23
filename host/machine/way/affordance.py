@@ -69,10 +69,34 @@ def surface(box):
     return len(box) < 6 or float(box[5]) > 0.0
 
 
+#: Each box's footprint kept by the box itself while it is one (`footprint`), PRINTS of them at most.
+_PRINTS: dict = {}
+PRINTS = 512
+
+
+def _frozen(box):
+    """Whether a box is tuples of numbers all through - its centre, half sizes and turn never written in place."""
+    return (type(box) is tuple and type(box[1]) is tuple and type(box[2]) is tuple and type(box[3]) is tuple
+            and all(type(r) is not list and not isinstance(r, np.ndarray) for r in box[3]))
+
+
 def footprint(box):
-    """(its centre (2,), its floor axes (2, 2) a row each, its half sizes along them (2,)) of a box."""
+    """(its centre (2,), its floor axes (2, 2) a row each, its half sizes along them (2,)) of a box, read only: a
+    box of tuples alone (`_frozen`) the same object pass to pass, its footprint laid once - sat or lain, the robot's
+    errand asked a footprint 5.4 times a pass at 5.1 us each."""
+    kept = _PRINTS.get(id(box))
+    if kept is not None and kept[0] is box:
+        return kept[1]
     c, h, R = box[1], box[2], np.asarray(box[3], float).reshape(3, 3)
-    return np.array([c[0], c[2]], float), np.array([[R[0][0], R[2][0]], [R[0][2], R[2][2]]]), np.array([h[0], h[2]], float)
+    got = (np.array([c[0], c[2]], float), np.array([[R[0][0], R[2][0]], [R[0][2], R[2][2]]]),
+           np.array([h[0], h[2]], float))
+    for a in got:
+        a.flags.writeable = False
+    if _frozen(box):
+        if len(_PRINTS) >= PRINTS:
+            _PRINTS.clear()
+        _PRINTS[id(box)] = (box, got)
+    return got
 
 
 def distance(box, at):

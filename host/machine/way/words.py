@@ -219,6 +219,18 @@ def _faces(g, kind, box):
     return kept[3]
 
 
+@functools.cache
+def _refreshing():
+    """What `_refreshed` reads, imported at its first refresh and not looked up again: sat or lain it refreshes
+    each pass, its imports 8 of each."""
+    from machine.body import figure
+    from machine.eyes import voxels
+    from machine.law import se2, stride
+    from machine.moves import seated
+    from machine.way import affordance, dock, furniture, peek
+    return figure, voxels, se2, stride, seated, affordance, dock, furniture, peek
+
+
 def _refreshed(g, er):
     """The robot's dock's edge on its thing as the robot's map holds it close (`_arrived`, `_faced`, `settle`):
     laid from afar or nudged loose as the robot arrives, its edge and heading update before the robot backs and
@@ -226,11 +238,7 @@ def _refreshed(g, er):
     the robot's hips on its lip."""
     if not g.get('things') or er['through']:
         return
-    from machine.body import figure
-    from machine.eyes import voxels
-    from machine.law import se2, stride
-    from machine.moves import seated
-    from machine.way import affordance, dock, furniture, peek
+    figure, voxels, se2, stride, seated, affordance, dock, furniture, peek = _refreshing()
     box = furniture.nearest(g, er['kind'], (er['x_dock'], er['z_dock']), thing=er.get('thing'))[6]
     if box is None or affordance.distance(box, (er['x_dock'], er['z_dock'])) > stride.STRIDE_M:
         return
