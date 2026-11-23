@@ -41,7 +41,7 @@ ROW_M, SECTORS, SKIRT = 0.015, 24, 3
 #: row tells its own, its taper and its tilt (`machine.body.guards.shape`) -, and what fills it
 #: is laid in RINGS rings on the surface: a fan from its middle cut over a thigh's hollows and
 #: hid its cells.
-PITCH_M, FILL, PROUD_M, AROUND, RINGS = 0.026, 0.8, 0.003, 32, 6
+PITCH_M, FILL, PROUD_M, AROUND, RINGS = 0.0165, 0.685, 0.003, 32, 6
 #: A guard is a slab: its face SKIN_M over the surface, THICK_M of foam under it, on two struts
 #: STRUT_R round STRUTS of its half width either side of its middle (the build's). The rim is
 #: BAND_M wide - as wide as the slab is thick: a slim build's guards wear a slim rim - and no

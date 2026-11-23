@@ -1,12 +1,9 @@
-"""The shoulder's abduction: pectoral drive, clamped crank and carbon pushrod to a clevis.
+"""The shoulder's abduction: pectoral drive, clamped crank and carbon pushrod to a direct clevis.
 
     COAXIAL_ROBOT=gynoid_mesomorph_medium_coax python -X utf8 tools/render/shoulder_rolled.py OUT.png
 
-Each shoulder's abduction drive (MN6007 + B with coaxial_63100) sits in a bilateral chest seat (`PEC_AT`, facing +z),
-held to spine and crossbar by the support-free PAHT-CF mount (`shoulder_shaped`). An outboard slit-band crank
-(`sized.band`) clamped on the output ring drives a carbon pushrod on cardan crosses outside the pectoral stack up to
-Stage 1's horn (`X_ABD`), swinging the arm across `TRAVEL` (-30 to +95 deg past T-pose) without crossing itself or
-anything stationary. Frame: `shoulder_laid`'s.
+Each pectoral MN6007+B sits in `shoulder_shaped` (`PEC_AT`, +z) and drives Stage 1's integral clevis
+(`Z_HORN`, `TRAVEL` -30..+95 deg) via a clamped crank (`sized.band`) and pushrod in `shoulder_laid`'s frame.
 """
 import argparse
 import functools
@@ -17,30 +14,15 @@ import sys
 if __package__ in (None, ''):
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from tools.render import clamped as cl  # noqa: E402
-from tools.render import covered as cv  # noqa: E402
-from tools.render import elbow_mount as em  # noqa: E402
-from tools.render import hip_frame as hf  # noqa: E402
-from tools.render import knee_loads as kl  # noqa: E402
-from tools.render import knee_mount as km  # noqa: E402
-from tools.render import leaves  # noqa: E402
-from tools.render import mounting as m  # noqa: E402
-from tools.render import shoulder_laid as sl  # noqa: E402
-from tools.render import sized  # noqa: E402
-from tools.render import tees  # noqa: E402
+from tools.render import (  # noqa: E402
+    clamped as cl, covered as cv, elbow_mount as em, hip_frame as hf, knee_loads as kl,
+    knee_mount as km, leaves, mounting as m, shoulder_laid as sl, sized, tees,
+)
 
-#: Abduction drive kind (`MN6007 + B`) and travel off hanging rest, deg.
-KIND, TRAVEL = 'shoulder', (-30.0, 95.0)
-#: Stage-1 abduction x in `shoulder_laid`'s frame (inboard of arm saddle).
-X_ABD = 0.049
-#: Pectoral drive axis `(x, y, z_back)` in `torso` m.
-PEC_AT = (0.0575, 0.218, 0.066)
-#: Four-bar geometry, m: crank, horn, pushrod and pin radii/z in `torso`.
-CRANK_R, Z_CRANK, HORN_R, Z_HORN, ROD_R, PIN_R = 0.056, 0.142, 0.033, 0.104, 0.006, 0.008
-#: Stage-1 clevis & gimbal dimensions, m (`shoulder_laid` frame).
-AIR_M, CHEEK_T, FORK_T, HUB_R, WIDE_M, CLEVIS_PIN_R, BUSH_M = 0.0036, 0.0045, 0.005, 0.016, 0.030, 0.005, 0.001
-STOP_M, LAP_M, REACH_M = 0.010, 0.010, 0.041
-POLYMER = (226, 222, 206)
+KIND, TRAVEL, X_ABD, PEC_AT = 'shoulder', (-30.0, 95.0), 0.049, (0.0575, 0.218, 0.066)
+CRANK_R, Z_CRANK, HORN_R, Z_HORN, ROD_R, PIN_R = 0.054, 0.142, 0.032, 0.094, 0.006, 0.008
+AIR_M, CHEEK_T, FORK_T, HUB_R, WIDE_M, CLEVIS_PIN_R, BUSH_M = 0.0036, 0.0080, 0.0080, 0.0175, 0.034, 0.005, 0.001
+STOP_M, LAP_M, REACH_M, POLYMER = 0.010, 0.010, 0.041, (226, 222, 206)
 
 
 def _torso_frame():
@@ -89,10 +71,10 @@ def linkage():
     rolls = np.radians(np.linspace(TRAVEL[0], TRAVEL[1], 231))
     dz = Z_HORN - Z_CRANK
     best = None
-    for off_deg in np.linspace(-18.0, 18.0, 37):
+    for off_deg in np.linspace(4.0, 8.0, 17):
         beta0 = phi - 0.5 * math.pi - math.radians(0.5 * sum(TRAVEL)) + math.radians(off_deg)
         hx, hy = px + HORN_R * np.cos(beta0 + rolls), py + HORN_R * np.sin(beta0 + rolls)
-        for length in np.linspace(0.105, 0.175, 141):
+        for length in np.linspace(0.122, 0.128, 17):
             l_xy2 = length * length - dz * dz
             if l_xy2 <= 1e-4:
                 continue
@@ -176,8 +158,8 @@ def laid():
     cheek = (g, g + CHEEK_T)
     fork = (cheek[1] + 0.0036, cheek[1] + 0.0036 + FORK_T)
     bridge_x = (sl.FOOT_X + lay_s['coil'][1] + sl.MOUTH_M + 0.008,
-                sl.FOOT_X + lay_s['coil'][1] + sl.MOUTH_M + 0.014)
-    root_x = X_ABD + 0.0555
+                sl.FOOT_X + lay_s['coil'][1] + sl.MOUTH_M + 0.019)
+    root_x = X_ABD + 0.0585
     _turn, arm, _p = _torso_frame()
     horn_z = float(arm[2]) - Z_HORN
     return {'x_abd': X_ABD, 'gap': g, 'cheek': cheek, 'fork': fork, 'pin': CLEVIS_PIN_R,
@@ -193,7 +175,7 @@ def held():
     rod_mm, l_mm = 1e3 * ROD_R, 1e3 * lk['length']
     euler = math.pi ** 2 * 1e3 * structural.ROD[0] * (math.pi * rod_mm ** 4 / 4.0) / (l_mm * l_mm)
     rod_stress = rod_f / (math.pi * rod_mm * rod_mm)
-    pin_lever = 1e3 * max(abs(Z_CRANK - 0.5 * (pec['crank'][0] + pec['crank'][1])), 0.012)
+    pin_lever = 1e3 * max(abs(Z_CRANK - (Z_CRANK - 0.0055)), 0.008)
     pin_bend = 32.0 * rod_f * pin_lever / (math.pi * (2e3 * PIN_R) ** 3)
     c_pin = 1e3 * lay['pin']
     c_shear = (push + 0.5 * rod_f) / (math.pi * c_pin * c_pin)
@@ -201,7 +183,7 @@ def held():
     wide = 1e3 * WIDE_M
     cheek_s = 6.0 * (0.5 * ld['torsion'] * 0.35 + 0.5 * own) / (1e3 * CHEEK_T * wide * wide)
     fork_s = 6.0 * (0.5 * ld['swing'] + 0.5 * ld['torsion'] * 0.4) / (1e3 * FORK_T * (wide + 4.0) ** 2)
-    horn_s = 6.0 * own / (5.0 * 26.0 * 26.0)
+    horn_s = 6.0 * (0.5 * own) / (7.0 * 24.0 * 24.0)
     hoop = sized._hoop(own, 1e3 * stack()['gear'][0])
     pinch = next((p for p, _h in sized.PINCHES if sized.PINCH * p >= hoop), sized.PINCHES[-1][0])
     stop_f = own / (1e3 * (HUB_R + 0.5 * STOP_M))
@@ -236,9 +218,21 @@ def _pectoral_still():
     return tris + mount
 
 
+def _crank_arm(cx, cy, c_pin, th, z0, z1, out_r):
+    """Printable PAHT-CF crank arm and raised clevis boss (`over = 0.0`)."""
+    import numpy as np
+    root = [(cx + (out_r - 0.001) * math.cos(th + a), cy + (out_r - 0.001) * math.sin(th + a))
+            for a in np.radians(np.linspace(-38.0, 38.0, 9))]
+    arm_2d = cl.filleted(leaves.hull(root + leaves.ring((float(c_pin[0]), float(c_pin[1])), PIN_R + 0.0075)))
+    neck = (cx + (out_r + 0.012) * math.cos(th), cy + (out_r + 0.012) * math.sin(th))
+    boss_2d = cl.filleted(leaves.hull(leaves.ring(neck, PIN_R + 0.0036)
+                                      + leaves.ring((float(c_pin[0]), float(c_pin[1])), PIN_R + 0.0055)))
+    return (em._rounded(arm_2d, z0, z1, em.FRAME, axis=2, r=0.0012, steps=1)
+            + em._rounded(boss_2d, z0 + 0.001, Z_CRANK - 0.0055, em.FRAME, axis=2, r=0.001, steps=1))
+
+
 def _crank_parts(roll=0.0):
     """{'ring', 'band', 'arm', 'pin', 'rod', 'ends': tris} of the rotating crank and pushrod."""
-    import numpy as np
     pec = pectoral()
     drv, rot_z, cx, cy, _can, ring = _pectoral_drive()
     z0, z1, out_r = pec['crank']
@@ -246,11 +240,8 @@ def _crank_parts(roll=0.0):
     ring_tris = [((t @ rot_z) + (cx, cy, 0.0), c) for t, c in drv['ring']]
     band = [((t @ rot_z) + (cx, cy, 0.0), col)
             for t, col in cl.turned([(z0, ring + 3e-4, out_r), (z1, ring + 3e-4, out_r)], th + 0.5 * math.pi)]
-    root = [(cx + (out_r - 0.001) * math.cos(th + a), cy + (out_r - 0.001) * math.sin(th + a))
-            for a in np.radians(np.linspace(-36.0, 36.0, 9))]
-    arm_2d = cl.filleted(leaves.hull(root + leaves.ring((float(c_pin[0]), float(c_pin[1])), PIN_R + 0.006)))
-    arm = em._rounded(arm_2d, z0, z1, em.FRAME, axis=2, r=0.0015, steps=1)
-    pin = km._rod((c_pin[0], c_pin[1], z0 + 0.0005), (c_pin[0], c_pin[1], Z_CRANK + 0.0065), PIN_R, em.CARBON)
+    arm = _crank_arm(cx, cy, c_pin, th, z0, z1, out_r)
+    pin = km._rod((c_pin[0], c_pin[1], z0 + 0.0005), (c_pin[0], c_pin[1], Z_CRANK + 0.0058), PIN_R, hf.STEEL)
     rod = km._rod(c_pin + 0.014 * u_rod, h_pin - 0.014 * u_rod, ROD_R, em.CARBON)
     ends = []
     for pt, ax_z in ((c_pin, 1.0), (h_pin, -1.0)):
@@ -273,6 +264,17 @@ def chest(roll=0.0, right=False):
     return {'pectoral': tris}
 
 
+def _clevis_parts(lay):
+    """(sock, bridge): thick PAHT-CF crossbar socket and gimbal bridge shared with `prints`."""
+    from tools.render import foot
+    c1, (f0, f1), (bx0, bx1), root = lay['cheek'][1], lay['fork'], lay['bridge'], lay['root']
+    web_xz = cl.filleted([(0.094, f0), (0.098, f1), (root + 0.003, 0.022),
+                          (root + 0.003, -0.022), (root + 0.003, -f1), (root, -f0), (root, 0.020)], r=0.0015)
+    sock = [(t[:, (1, 0, 2)][::-1], col) for t, col in foot._slab(web_xz, -0.017, 0.017, em.FRAME)]
+    bridge = em._rounded([(-0.017, -c1), (-0.017, c1), (0.017, c1), (0.017, -c1)], bx0, bx1, em.FRAME, axis=0, r=0.002)
+    return sock, bridge
+
+
 @functools.lru_cache(maxsize=None)
 def parts():
     """{name: tris} at the shoulder in `shoulder_laid`'s frame (`roll = 0`): 'still', 'yoke', 'ring'."""
@@ -280,58 +282,66 @@ def parts():
     lay, lk = laid(), linkage()
     (c0, c1), (f0, f1), (bx0, bx1), root = lay['cheek'], lay['fork'], lay['bridge'], lay['root']
     arm_pts_f = cl.filleted(leaves.hull(leaves.ring((X_ABD, 0.0), HUB_R)
-                                        + [(root, -0.015), (root + 0.003, -0.015),
-                                           (root + 0.003, 0.015), (root, 0.015)]))
+                                        + [(root, -0.017), (root + 0.003, -0.017),
+                                           (root + 0.003, 0.017), (root, 0.017)]))
     arm_pts_r = cl.filleted(leaves.hull(leaves.ring((X_ABD, 0.0), HUB_R)
-                                        + [(0.094, -0.015), (0.098, -0.015),
-                                           (0.098, 0.015), (0.094, 0.015)]))
+                                        + [(0.094, -0.017), (0.098, -0.017),
+                                           (0.098, 0.017), (0.094, 0.017)]))
     fork_tris = (em._rounded(arm_pts_r, f0, f1, em.CARBON, axis=2, r=0.001)
                  + em._rounded(arm_pts_f, -f1, -f0, em.CARBON, axis=2, r=0.001))
-    from tools.render import foot
-    web_xz = cl.filleted([(0.094, f0), (0.098, f1), (root + 0.003, 0.020),
-                          (root + 0.003, -0.020), (root + 0.003, -f1), (root, -f0), (root, 0.018)], r=0.0015)
-    sock = [(t[:, (1, 0, 2)][::-1], col) for t, col in foot._slab(web_xz, -0.015, 0.015, em.FRAME)]
+    sock, bridge = _clevis_parts(lay)
     stops = []
     r_st = HUB_R + 0.5 * STOP_M
     for deg, way in ((TRAVEL[0], -1.0), (TRAVEL[1], 1.0)):
         b = math.radians(deg) + way * STOP_M / r_st
         at = (X_ABD - r_st * math.sin(b), -r_st * math.cos(b))
         stops += km._rod((at[0], at[1], -f1), (at[0], at[1], -c1 - 0.002), 0.45 * STOP_M, em.FRAME)
-    # Stage-1 gimbal cheeks stay at x >= X_ABD - HUB_R = +0.027 m, 5 mm inboard of Stage 2's arm saddle!
+    _turn, arm, p_abd = _torso_frame()
+    h_torso = np.array([float(p_abd[0]) + HORN_R * math.cos(lk['beta0']),
+                        float(p_abd[1]) + HORN_R * math.sin(lk['beta0']), Z_HORN])
+    h_sk = (h_torso - arm) @ _turn.T
+    hx0, hy0, hz = float(h_sk[0]), float(h_sk[1]), lay['horn_z']
+    # Monolithic cheek + double-shear pushrod clevis bracket directly on front cradle (`-c1..-c0`, no standoff).
     cheek_pts = cl.filleted(leaves.hull(leaves.ring((X_ABD, 0.0), HUB_R - 0.001)
-                                        + [(bx0, -0.015), (bx1, -0.015), (bx1, 0.015), (bx0, 0.015)]))
+                                        + [(bx0, -0.017), (bx1, -0.017), (bx1, 0.017), (bx0, 0.017)]))
     cheeks = (em._rounded(cheek_pts, c0, c1, em.CARBON, axis=2, r=0.001)
               + em._rounded(cheek_pts, -c1, -c0, em.CARBON, axis=2, r=0.001))
-    bridge = em._rounded([(-0.016, -c1), (-0.016, c1), (0.016, c1), (0.016, -c1)], bx0, bx1, em.FRAME, axis=0, r=0.002)
     stop_rib = em._rounded([(X_ABD - 0.5 * STOP_M, -r_st - 0.5 * STOP_M),
                             (X_ABD + 0.5 * STOP_M, -r_st - 0.5 * STOP_M),
                             (X_ABD + 0.5 * STOP_M, -HUB_R - 0.003),
                             (X_ABD - 0.5 * STOP_M, -HUB_R - 0.003)],
                            -f0 + 0.0015, -c1 + 0.001, em.FRAME, axis=2, r=0.0005)
-    _turn, arm, p_abd = _torso_frame()
-    h_torso = np.array([float(p_abd[0]) + HORN_R * math.cos(lk['beta0']),
-                        float(p_abd[1]) + HORN_R * math.sin(lk['beta0']), Z_HORN])
-    h_sk = (h_torso - arm) @ _turn.T
-    horn_2d = cl.filleted(leaves.hull(leaves.ring((X_ABD, 0.0), 0.014) + leaves.ring((float(h_sk[0]), float(h_sk[1])), 0.011)))
-    hz = lay['horn_z']
-    horn = (em._rounded(horn_2d, hz + 0.0065, hz + 0.0115, em.CARBON, axis=2, r=0.001)
-            + km._rod((h_sk[0], h_sk[1], hz - 0.0065), (h_sk[0], h_sk[1], hz + 0.011), PIN_R, em.CARBON))
+    p_top, p_elb = (0.014, 0.042), (0.037, 0.042)
+    s_dir = np.array([p_top[0] - hx0, p_top[1] - hy0])
+    s_dir /= float(np.linalg.norm(s_dir))
+    s_at = tuple(np.array([hx0, hy0]) + 0.010 * s_dir)
+    lug_2d = cl.filleted(leaves.hull(leaves.ring((hx0, hy0), 0.0115) + leaves.ring(s_at, 0.008)))
+    front_span = cl.filleted(leaves.hull(leaves.ring(s_at, 0.0075) + leaves.ring(p_top, 0.006)))
+    top_bar = cl.filleted(leaves.hull(leaves.ring(p_top, 0.006) + leaves.ring(p_elb, 0.006)))
+    cheek_web = cl.filleted(leaves.hull(leaves.ring(p_elb, 0.006) + leaves.ring((X_ABD, 0.0), 0.015)))
+    horn = (em._rounded(cheek_web, -c1, -c0, em.FRAME, axis=2, r=0.001)
+            + em._rounded(top_bar, -c1, -0.058, em.FRAME, axis=2, r=0.001)
+            + em._rounded(leaves.ring(p_top, 0.006), hz - 0.0135, -0.058, em.FRAME, axis=2, r=0.001)
+            + em._rounded(front_span, hz - 0.0135, -f1 - 0.002, em.FRAME, axis=2, r=0.001)
+            + em._rounded(lug_2d, hz + 0.0062, -f1 - 0.002, em.FRAME, axis=2, r=0.001)
+            + em._rounded(lug_2d, hz - 0.0135, hz - 0.0062, em.FRAME, axis=2, r=0.001)
+            + km._rod((hx0, hy0, hz - 0.014), (hx0, hy0, -f1 - 0.0015), PIN_R, hf.STEEL))
     lz0, lz1 = _lever_z()
     pins = []
-    for sgn, z_out in ((1.0, lz1), (-1.0, hz + 0.0055)):
+    for sgn, z_out in ((1.0, lz1), (-1.0, -f1 - 0.0015)):
         z_a, z_b = min(sgn * (c0 - 0.001), z_out), max(sgn * (c0 - 0.001), z_out)
         pins += [(t[:, (1, 2, 0)] + (X_ABD, 0.0, 0.0), col) for t, col in em._drum(lay['pin'], z_a, z_b, em.BOLT)]
         pins += [(t[:, (1, 2, 0)] + (X_ABD, 0.0, 0.0), col)
                  for t, col in em._drum(lay['pin'] + BUSH_M, sgn * f0, sgn * f1, POLYMER)]
-    lever = em._rounded([(X_ABD - 0.006, -REACH_M - 0.005), (X_ABD + 0.006, -REACH_M - 0.005),
-                         (X_ABD + 0.006, 0.006), (X_ABD - 0.006, 0.006)], lz0, lz1, em.FRAME, axis=2, r=0.0015)
+    lever = em._rounded([(X_ABD - 0.008, -REACH_M - 0.006), (X_ABD + 0.008, -REACH_M - 0.006),
+                         (X_ABD + 0.008, 0.008), (X_ABD - 0.008, 0.008)], lz0, lz1, em.FRAME, axis=2, r=0.0018)
     return {'still': fork_tris + sock + stops, 'yoke': cheeks + bridge + stop_rib + horn + lever, 'ring': pins}
 
 
 def _lever_z():
     """(From, to) along +z (behind) of the bus span's lever on the rear clevis pin, m."""
     f1 = laid()['fork'][1]
-    return f1 + 0.0025, f1 + 0.0065
+    return f1 + 0.0025, f1 + 0.0100
 
 
 def rolled(tris, roll):
@@ -380,76 +390,64 @@ def posed(roll=0.0, chest_parts=False):
 
 @functools.lru_cache(maxsize=None)
 def aired(step=5.0, ease=3.0):
-    """Least air, m, between what turns with `roll` (gimbal + Stage 2) and the fixed crossbar fork."""
+    """Least air, m, between Stage-1 turning parts + Stage 2 and the fixed fork across `TRAVEL`."""
     import numpy as np
     from tools.render import shoulder_mount as sm
-    piv = np.array([X_ABD, 0.0, 0.0])
-    # Exclude stop pins at the ends when checking within `ease` of the stops? No, stop pins only meet at TRAVEL ends!
-    fixed_tris = [t for t in parts()['still'] if np.hypot(t[0][:, 0] - X_ABD, t[0][:, 1]).min() > laid()['pin'] + BUSH_M + 0.002]
-    fixed = km._points(fixed_tris + sm.still()['crossbar'], 0.002)
-    h = 0.006
+    piv, h, near = np.array([X_ABD, 0.0, 0.0]), 0.006, laid()['pin'] + BUSH_M + 0.003
+    fixed = km._points([t for t in parts()['still'] if np.hypot(t[0][:, 0] - X_ABD, t[0][:, 1]).min() > near - 0.001]
+                       + sm.still()['crossbar'], 0.002)
     keys = km._key(np.floor(fixed / h).astype(np.int64))
     order = np.argsort(keys)
-    near = laid()['pin'] + BUSH_M + 0.003
-    mov_pts = km._points([t for t in parts()['yoke']]
+    mov_pts = km._points(parts()['yoke']
                          + [t for k, v in sm.still().items() if k != 'crossbar' for t in v]
                          + [t for v in sm.turning().values() for t in v if t[0][:, 1].min() > -laid()['down']], 0.002)
-    # Exclude points inside the pin hub where clevis pin runs, and check across travel:
-    keep = (np.hypot(mov_pts[:, 0] - X_ABD, mov_pts[:, 1]) > near) & (mov_pts[:, 2] > laid()['horn_z'] + 0.013)
-    moving = mov_pts[keep] - piv
+    moving = mov_pts[np.hypot(mov_pts[:, 0] - X_ABD, mov_pts[:, 1]) > near] - piv
     out = 9.0
     for roll in np.arange(TRAVEL[0] + ease, TRAVEL[1] - ease + 0.1, step):
         c, s = math.cos(math.radians(roll)), math.sin(math.radians(roll))
-        rz = np.array([[c, s, 0.0], [-s, c, 0.0], [0.0, 0.0, 1.0]])
-        out = min(out, float(km._least(keys[order], fixed[order], moving @ rz.T + piv, h)))
+        out = min(out, float(km._least(keys[order], fixed[order], moving @ np.array([[c, s, 0.0], [-s, c, 0.0], [0.0, 0.0, 1.0]]).T + piv, h)))
     return out
 
 
 @functools.lru_cache(maxsize=None)
 def crossed():
-    """Triangle crossings across `TRAVEL`: bilateral pectoral overlap plus moving crank/rod vs stationary stack."""
+    """Triangle crossings across `TRAVEL`: bilateral overlap plus moving crank/rod vs stack/arm."""
     from tools.render import clips, shoulder_mount as sm
-    still = _pectoral_still()
-    total = 0
+    still, total = _pectoral_still(), 0
     for roll in (TRAVEL[0], -15.0, 0.0, 45.0, 90.0, TRAVEL[1]):
         cr = _crank_parts(roll)
         mov = [t for k, v in cr.items() if k != 'ring' for t in v]
         left = still + [t for v in cr.values() for t in v]
-        right = [((t * (-1.0, 1.0, 1.0))[::-1], c) for t, c in left]
         sh_p = sm.posed(0.0, roll)
-        sh_turn = to_torso(sh_p['housing'] + sh_p['arm saddle'])
-        total += clips.crossed(left, right) + clips.crossed(mov, still) + clips.crossed(cr['rod'], sh_turn)
+        total += (clips.crossed(left, [((t * (-1.0, 1.0, 1.0))[::-1], c) for t, c in left])
+                  + clips.crossed(mov, still) + clips.crossed(cr['rod'], to_torso(sh_p['housing'] + sh_p['arm saddle'])))
     return total
 
 
 def checked():
-    """{'held', 'air', 'travel', 'reaches', 'bend', 'length', 'lever', 'crossing'}: what the suite holds."""
+    """{'held', 'air', 'travel', 'reaches', 'bend', 'length', 'lever', 'crossing'}: suite checks."""
     from machine.body import mechatronics
     from tools.render import hung
     return {'held': round(min(held().values()), 3), 'air': round(1e3 * aired(), 2), 'travel': TRAVEL,
             'reaches': TRAVEL[1] + sl.pivot()[1],
             'bend': (round(1e3 * span_least(), 1), 1e3 * float(mechatronics.materials()['hoses']['bus'][4])),
-            'length': round(1e3 * hung.long(span()), 1), 'lever': round(linkage()['eff'], 3),
-            'crossing': crossed()}
+            'length': round(1e3 * hung.long(span()), 1), 'lever': round(linkage()['eff'], 3), 'crossing': crossed()}
 
 
 def main(argv=None):
-    from PIL import Image, ImageDraw
+    """Render 4-view abduction contact sheet and print safety margins."""
+    from PIL import Image
     from tools.render import shoulder_mount as sm
-    parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
-    parser.add_argument('out')
-    args = parser.parse_args(argv)
-    views = [(0.0, 28.0, 14.0), (0.0, -155.0, 14.0), (TRAVEL[1], 25.0, 12.0), (TRAVEL[0], 35.0, 12.0)]
+    ap = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
+    ap.add_argument('out')
+    args = ap.parse_args(argv)
+    views = ((0.0, 28.0, 14.0), (0.0, -155.0, 14.0), (TRAVEL[1], 25.0, 12.0), (TRAVEL[0], 35.0, 12.0))
     sheet = Image.new('RGB', (760 * len(views), 800), (18, 18, 18))
     for i, (roll, yaw, tilt) in enumerate(views):
         tris = [t for part in sm.posed(0.0, roll, chest=True).values() for t in part]
         sheet.paste(m.draw(tris, yaw=yaw, pitch=tilt, px=760, half=0.19, centre=(0.04, -0.05, -0.04)), (760 * i, 40))
-    ImageDraw.Draw(sheet).text((12, 10), 'pectoral pushrod abduction: rest ahead | behind | T+ %.0f | in %.0f deg'
-                               % (TRAVEL[1], TRAVEL[0]), fill=(235, 235, 235))
     sheet.save(args.out)
-    for name, margin in held().items():
-        print('  %-12s %.2f' % (name, margin))
-    print(args.out, checked())
+    print(args.out, checked(), {k: round(v, 2) for k, v in held().items()})
     return 0
 
 

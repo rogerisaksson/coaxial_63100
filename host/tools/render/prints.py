@@ -99,7 +99,7 @@ def upper():
 def _upper():
     """{part: tris}: the upper body's printed parts as their sketches draw them."""
     import numpy as np
-    from tools.render import boards, clamped as cl, hip_clamped as hc, leaves, neck_laid as nl, neck_mount as nm
+    from tools.render import boards, clamped as cl, hip_clamped as hc, neck_laid as nl, neck_mount as nm
     from tools.render import shoulder_mount as sm, shoulder_rolled as sr, shoulder_shaped as ss, sized
     (_sp, (_g0, g1, ring), arm_in, arm_out, _can, motor, _brd, (narrow, reach), _split, (back, x1, band), cover,
      (_face, end, outside), over, (first, _rot), swing) = em._laid()
@@ -113,12 +113,7 @@ def _upper():
                                a, b, em.FRAME, axis=0, r=0.002)
     lay_r, st_r, pec = sr.laid(), sr.stack(), sr.pectoral()
     s_still, s_turn = sm.still(), sm.turning()
-    (_c0, c1), (f0, f1), (bx0, bx1), root = lay_r['cheek'], lay_r['fork'], lay_r['bridge'], lay_r['root']
-    from tools.render import foot
-    web_xz = cl.filleted([(0.094, f0), (0.098, f1), (root + 0.003, 0.020),
-                          (root + 0.003, -0.020), (root + 0.003, -f1), (root, -f0), (root, 0.018)], r=0.0015)
-    sock = [(t[:, (1, 0, 2)][::-1], col) for t, col in foot._slab(web_xz, -0.015, 0.015, em.FRAME)]
-    bridge = em._rounded([(-0.016, -c1), (-0.016, c1), (0.016, c1), (0.016, -c1)], bx0, bx1, em.FRAME, axis=0, r=0.002)
+    sock, bridge = sr._clevis_parts(lay_r)
     can_p, ring_p, r_bp = st_r['motor'][0], st_r['gear'][0], st_r['board'][0]
     p_drv = hc._drive({'board': pec['board'] + (r_bp,), 'motor': pec['motor'] + (can_p,),
                        'gear': (pec['house'][0], pec['ring'][1], ring_p)},
@@ -129,11 +124,7 @@ def _upper():
     th, c_pin, _h_pin, _u_rod = sr.crank_at(0.0)
     c_band = [((t @ rot_z) + (cx, cy, 0.0), col)
               for t, col in cl.turned([(z0_c, ring_p + 3e-4, out_c), (z1_c, ring_p + 3e-4, out_c)], th + 0.5 * math.pi)]
-    c_root = [(cx + (out_c - 0.001) * math.cos(th + a), cy + (out_c - 0.001) * math.sin(th + a))
-              for a in np.radians(np.linspace(-36.0, 36.0, 9))]
-    c_arm = em._rounded(cl.filleted(leaves.hull(c_root + leaves.ring((float(c_pin[0]), float(c_pin[1])),
-                                                                     sr.PIN_R + 0.006))),
-                        z0_c, z1_c, em.FRAME, axis=2, r=0.0015, steps=1)
+    c_arm = sr._crank_arm(cx, cy, c_pin, th, z0_c, z1_c, out_c)
     p_mount = ss.drawn() or ss.sketched()
     lay_n, n_still, n_nod = nl.laid(), nm.still(), nm.nodding()
     return {'elbow stator band': stator_b, 'elbow stator saddle': stator_s, 'elbow rotor clamp': rotor_c,

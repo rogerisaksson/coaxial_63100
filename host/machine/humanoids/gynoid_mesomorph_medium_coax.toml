@@ -58,7 +58,7 @@ shank = [[-0.02, 0.10, 78.0, 28.0, 2.3], [0.14, 0.78, 85.0, 26.0, 2.6, -0.24]]
 # superellipse's power, how much wider its top than its middle, its slant, deg]; each clipped on a hoop cut from a
 # carbon sheet round behind it (`[guards.hoops]`: [height - m up the trunk, a share down a limb -, from, to, deg]) in
 # place of the stock's struts, the trunk's drawn in to `slim` and the limbs' to `limb_slim` of the figure's reach.
-torso = [[0.16, 0.25, 63.0, 21.0, 2.3], [0.16, 0.25, 117.0, 21.0, 2.3], [0.195, 0.30, 90.0, 7.0, 3.0, 0.35],
+torso = [[0.172, 0.238, 65.0, 16.0, 2.3], [0.172, 0.238, 115.0, 16.0, 2.3], [0.195, 0.272, 90.0, 5.5, 3.0, 0.30],
          [0.04, 0.15, 82.0, 7.0, 3.0, 0.25], [0.04, 0.15, 98.0, 7.0, 3.0, 0.25], [0.20, 0.37, -90.0, 34.0, 3.0, 0.45],
          [0.125, 0.175, -90.0, 9.0, 2.5, -0.35]]
 slim = 0.70

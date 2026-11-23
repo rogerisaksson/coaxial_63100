@@ -1,4 +1,4 @@
-"""The robot's sneaker, size 37-38, drawn: the shoe and the toe cap as lofts along z, their gum soles.
+"""The robot's slim size 36-37 sneaker: the shoe and toe cap as lofts along z, and gum soles.
 
     sneaker.feet(side)     # {side + '_foot': mesh, side + '_toes': mesh}
     sneaker.soles(side)    # [(name, parent, offset, mesh)]: the gum under each
@@ -7,8 +7,8 @@ The shoe's rings forward of the ankle, (z, half width, half height), each hung s
 the sole, flat ANKLE_H under the ankle, as the walk plants it - the collar round the ankle, the
 tongue over the instep, the laces down to the ball; the toe cap's from the ball, its sole sprung
 SPRING_M up at its tip `figure.TOE_M` ahead; its sole SOLE_M deep at the heel and at the ball
-(the drop), gum. A 38's: 237 long, 94 wide at the ball, 76 tall at the
-heel, 15 of toe spring, the sole 28 and 18. The sneaker's mass `build.HOLDS`, its grip and give
+(the drop), gum. A slim 37's: 229 long, 80 wide at the ball, 70 tall at the
+heel, 13 of toe spring, the sole 20 and 13. The sneaker's mass `build.HOLDS`, its grip and give
 `machine.body.mjcf`, its sole's box `figure.CONTACTS`, its forefoot's bend `drives.TOE_K`. Built, the
 sole is printed in TPU with air pockets and the shoe goes over it, so nothing breaks.
 """
@@ -17,13 +17,13 @@ from coaxial.graphics.shapes import loft
 from machine.body.figure import ANKLE_H, BALL, HEEL, TOE_M, TOE_RY
 
 SNEAKER, GUM, LACE, COUNTER = (236, 236, 232), (196, 150, 100), (218, 220, 226), (222, 224, 220)
-SHOE = ((-0.052, 0.031, 0.041), (-0.028, 0.034, 0.034), (0.0, 0.038, 0.031),
-        (0.033, 0.036, 0.032), (0.066, 0.045, 0.027), (0.095, 0.048, 0.022), (BALL, 0.047, 0.019))
-LAST_X = (0.0, -0.001, -0.002, 0.004, 0.001, -0.003, -0.004)
-TOE_CAP = ((0.0, 0.047, 0.019), (0.019, 0.046, 0.018), (0.035, 0.042, 0.016),
-           (0.052, 0.034, 0.013), (0.063, 0.024, 0.009))
-TOE_X = (-0.004, -0.005, -0.006, -0.007, -0.008)
-SPRING_M, SOLE_M, SOLE_PROUD = 0.015, (0.028, 0.018), 0.002
+SHOE = ((-0.049, 0.026, 0.035), (-0.026, 0.029, 0.031), (0.0, 0.032, 0.029),
+        (0.033, 0.031, 0.027), (0.066, 0.037, 0.022), (0.094, 0.039, 0.018), (BALL, 0.038, 0.015))
+LAST_X = (0.0, -0.001, -0.0015, 0.003, 0.001, -0.002, -0.003)
+TOE_CAP = ((0.0, 0.038, 0.015), (0.018, 0.037, 0.014), (0.034, 0.033, 0.0125),
+           (0.049, 0.026, 0.010), (0.058, 0.018, 0.0075))
+TOE_X = (-0.003, -0.004, -0.005, -0.006, -0.0065)
+SPRING_M, SOLE_M, SOLE_PROUD = 0.013, (0.020, 0.013), 0.0012
 
 
 def _spring(z):
@@ -34,7 +34,7 @@ def _spring(z):
 def _sole_m(z):
     """The sole's depth `z` m ahead of the ankle: the heel's to the ball's (SOLE_M) with lug tread."""
     t = min(1.0, max(0.0, (z + HEEL) / (BALL + HEEL)))
-    lug = 0.0015 if int(round((z + HEEL) / 0.018)) % 2 == 0 else 0.0
+    lug = 0.0012 if int(round((z + HEEL) / 0.018)) % 2 == 0 else 0.0
     return SOLE_M[0] + (SOLE_M[1] - SOLE_M[0]) * t + lug
 
 
@@ -50,9 +50,9 @@ def feet(side):
     """{segment: mesh}: `side`'s shoe on its foot and its toe cap on its toes."""
     white, s = paint(SNEAKER), (1.0 if side == 'left' else -1.0)
     shoe = loft([(z, rx, rv, ANKLE_H - rv) for z, rx, rv in SHOE], white,
-                poles=(-HEEL, BALL + 0.006), along='z')
+                poles=(-HEEL + 0.003, BALL + 0.004), along='z')
     toes = loft([(z, rx, rv, -(rv - TOE_RY + _spring(z))) for z, rx, rv in TOE_CAP], white,
-                poles=(-0.006, TOE_M + 0.002), along='z')
+                poles=(-0.005, TOE_M - 0.004), along='z')
     return {side + '_foot': _skew(shoe, [r[0] for r in SHOE], LAST_X, s),
             side + '_toes': _skew(toes, [r[0] for r in TOE_CAP], TOE_X, s)}
 
@@ -64,16 +64,16 @@ def soles(side):
     s = 1.0 if side == 'left' else -1.0
     main_sole = _skew(loft(
         [(z, rx + SOLE_PROUD, _sole_m(z) / 2.0, ANKLE_H - _sole_m(z) / 2.0) for z, rx, _rv in SHOE],
-        gum, poles=(-HEEL - SOLE_PROUD, BALL + 0.006), along='z'), [r[0] for r in SHOE], LAST_X, s)
+        gum, poles=(-HEEL + 0.003 - SOLE_PROUD, BALL + 0.004), along='z'), [r[0] for r in SHOE], LAST_X, s)
     toe_sole = _skew(loft(
         [(z, rx + SOLE_PROUD, h, -(h - TOE_RY + _spring(z))) for z, rx, _rv in TOE_CAP],
-        gum, poles=(-0.006, TOE_M + SOLE_PROUD), along='z'), [r[0] for r in TOE_CAP], TOE_X, s)
+        gum, poles=(-0.005, TOE_M - 0.004 + SOLE_PROUD), along='z'), [r[0] for r in TOE_CAP], TOE_X, s)
     heel_cup = _skew(loft(
-        [(z, rx + 0.001, rv * 0.72, ANKLE_H - rv * 1.15) for z, rx, rv in SHOE[:3]],
-        counter, poles=(-HEEL - 0.002, 0.004), along='z'), [r[0] for r in SHOE[:3]], LAST_X[:3], s)
+        [(z, rx + 0.0008, rv * 0.72, ANKLE_H - rv * 1.15) for z, rx, rv in SHOE[:3]],
+        counter, poles=(-HEEL + 0.002, 0.004), along='z'), [r[0] for r in SHOE[:3]], LAST_X[:3], s)
     eyestay = _skew(loft(
-        [(z, rx * 0.52, 0.006, ANKLE_H - 2.0 * rv - 0.003) for z, rx, rv in SHOE[2:6]],
-        lace, poles=(0.005, 0.098), along='z'), [r[0] for r in SHOE[2:6]], LAST_X[2:6], s)
+        [(z, rx * 0.52, 0.005, ANKLE_H - 2.0 * rv - 0.0025) for z, rx, rv in SHOE[2:6]],
+        lace, poles=(0.005, 0.094), along='z'), [r[0] for r in SHOE[2:6]], LAST_X[2:6], s)
     return [(side + '_sole', side + '_foot', (0.0, 0.0, 0.0), main_sole),
             (side + '_toe_sole', side + '_toes', (0.0, 0.0, 0.0), toe_sole),
             (side + '_counter_sole', side + '_foot', (0.0, 0.0, 0.0), heel_cup),

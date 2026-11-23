@@ -24,7 +24,6 @@ from tools.render import mounting as m  # noqa: E402
 #: Legacy fallback colour when `likeness.FOUND` is absent, and raw segment names for hands and head.
 GHOST = (62, 84, 116)
 UNDRAWN = ('left_hand', 'left_fingers', 'right_hand', 'right_fingers')
-HEAD_LIKED = ('like_head', 'like_hair', 'like_fall')
 HEAD_SHELL = ('shell_head', 'shell_jaw', 'shell_nose', 'shell_lips', 'shell_left_ear', 'shell_right_ear',
               'shell_left_eye', 'shell_right_eye')
 #: Canonical horizontal T-pose abduction roll (deg): adds to the 6-deg rest upper arm for 90-deg horizontal.
@@ -115,8 +114,9 @@ def _left_hand_local(flex=0.0, turn=0.0, roll=0.0):
 def _head_and_hands(roll=0.0, turn=0.0, flex=0.0):
     """{'head', 'hands': [(tri, rgb)]} in root frame with complete face, hair and coaxial posed hands."""
     from coaxial.graphics import likeness
+    from tools.render import robot_worn as rw
     body, names, _frames, pos = _figure(False)
-    head = _extract(body, names, pos, HEAD_LIKED if likeness.FOUND else HEAD_SHELL)
+    head = _extract(body, names, pos, rw.HEAD_LIKED if likeness.FOUND else HEAD_SHELL)
     left_hand = _put(_left_hand_local(flex, turn, roll), 'left_upper_arm', 'left_forearm')
     return {'head': head, 'hands': left_hand + _mirrored(left_hand)}
 

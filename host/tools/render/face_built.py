@@ -16,16 +16,7 @@ if __package__ in (None, ''):
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from tools.render import csg, face_laid as fl, neck_mount as nm  # noqa: E402
-
-NECK_RINGS = (
-    (-0.040, 0.057, 0.057, -0.005),
-    (-0.020, 0.051, 0.056, -0.004),
-    (0.000, 0.048, 0.055, -0.003),
-    (0.025, 0.047, 0.052, -0.002),
-    (0.042, 0.047, 0.041, 0.009),
-    (0.058, 0.046, 0.039, 0.013),
-    (0.072, 0.042, 0.035, 0.014),
-)
+from tools.render.robot_worn import NECK_RINGS  # noqa: E402
 
 PRESETS = {
     'neutral': {'gaze': (0.0, 0.0, 0.02), 'blink': 0.0, 'brow_lift': 0.0, 'brow_tilt': 0.0, 'smile': 0.0, 'jaw_open': 0.0},

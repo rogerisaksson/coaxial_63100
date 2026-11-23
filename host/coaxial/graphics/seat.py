@@ -21,7 +21,7 @@ from machine.body.guards import AIR_M
 
 #: The user's pick among sixty looks (M5): a white shell over the drive read as a box, as eyes through a window or as a
 #: cup when round and big; the honeycomb alone, black, smaller, its bars thick enough to be seen, a buttock's form.
-POWER, EGG, SIDE, CLEFT, CELL, FILL = 2.75, 0.45, 0.42, 0.016, 0.018, 0.75
+POWER, EGG, SIDE, CLEFT, CELL, FILL = 2.75, 0.45, 0.42, 0.016, 0.0125, 0.64
 STACK = ('drive_', 'inv_', 'gear_', 'bolts_')
 A, B = (-90.0, 90.0), (-90.0, 90.0)
 BEND: tuple = ()
