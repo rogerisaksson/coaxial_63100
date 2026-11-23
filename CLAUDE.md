@@ -289,6 +289,7 @@ Evaluate the prompt and working tree before invoking any tool:
 - [INV-STYLE] <=100-char synopsis, within token budget, ASCII, 0 corp info? [YES / NO]
 - [INV-BUILD] (Re)built all binaries for all targets? [YES / NO]
 - [INV-RT] Exceeds 1.5 times RT performance in the rigid body simulator (MuJoCo)? [YES / NO / N/A]
+- [INV-MEM] No memory leaks? [YES / NO]
 - [INV-UX] Exceeds 30 frames per second in the system_terminal user interface? [YES / NO / N/A]
 ```
 
