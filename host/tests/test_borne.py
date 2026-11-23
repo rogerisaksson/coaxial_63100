@@ -122,7 +122,51 @@ def test_the_robots_supports_in_c_as_in_python(report, c):
                  tally['calls'] > 1000 and tally['felt'] > 100 and not tally['apart'], '%(apart)d apart' % tally)
 
 
-ROSTER = (test_what_bears_the_robot_in_c_as_in_python, test_the_robots_supports_in_c_as_in_python)
+def test_the_robots_lean_in_c_as_in_python(report, c):
+    """What bears the robot but its hands must take of its weight and its hands' share sat in C on borne's contacts
+    as read (`tools.cores.borne.leaned`) and `somatic.leaned` on their dicts at every pass of its law lying into a
+    bed, rising off it and walking: both the same bits and types; its C's time beside its python's."""
+    from machine.law import somatic
+    from machine.process import worker
+    from tools.sim import told
+    tally, spent = {'calls': 0, 'apart': 0, 'borne': 0, 'hands': 0}, ([], [])
+
+    def held(g):
+        real = g['leaned']
+
+        def beside(s, way, weight):
+            t0 = time.perf_counter()
+            got = real(s, way, weight)
+            t1 = time.perf_counter()
+            twin = somatic.leaned(s, way, weight)
+            spent[0].append(t1 - t0)
+            spent[1].append(time.perf_counter() - t1)
+            tally['apart'] += any(type(a) is not type(b) or np.float64(a).tobytes() != np.float64(b).tobytes()
+                                  for a, b in zip(got, twin))
+            tally['calls'] += 1
+            tally['borne'] += float(twin[0]) > 0.0
+            tally['hands'] += float(twin[1]) not in (0.0, 1.0)
+            return got
+        g['leaned'] = beside
+    r = told.Run('bed_foot_behind')
+    held(r.s['g'])
+    r.tell(say='lie_bed')
+    r.go(LIE_S)
+    r.tell(say='rise_bed')
+    r.go(RISE_S)
+    s = worker.session(walks=True)
+    held(s['g'])
+    for _ in range(WALK_PASSES // 3):
+        worker.stepped(s)
+    us = [1e6 * float(np.median(each)) for each in spent]
+    report.check('its lean in C as in python lying, rising and walking: %(calls)d law passes (%(borne)d with something '
+                 'bearing it, %(hands)d with its hands sharing)' % tally,
+                 tally['calls'] > 1000 and tally['borne'] > 100 and not tally['apart'],
+                 '%d apart; %.1f us a call, its python %.1f' % ((tally['apart'],) + tuple(us)))
+
+
+ROSTER = (test_what_bears_the_robot_in_c_as_in_python, test_the_robots_supports_in_c_as_in_python,
+          test_the_robots_lean_in_c_as_in_python)
 
 
 def main(argv=None):

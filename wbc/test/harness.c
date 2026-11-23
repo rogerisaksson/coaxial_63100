@@ -2,7 +2,6 @@
     through ctypes beside MuJoCo. */
 #include "wbc.h"
 #include "wbc_beat.h"
-#include "wbc_borne.h"
 #include "wbc_registry.h"
 #include "wbc_imp.h"
 #include "wbc_law.h"
@@ -352,31 +351,6 @@ API void wbh_touch_step(const wbc_imp_t *k, const wbc_touch_t *t, const double *
 API int wbh_touch_size(void)
 {
   return (int)sizeof(wbc_touch_t);
-}
-
-API int wbh_borne_read(wbc_borne_t *b, const double *y, const double *v, double hands, const double *let_go)
-{
-  return wbc_borne_read(b, y, v, hands, let_go);
-}
-
-API int wbh_borne_size(void)
-{
-  return (int)sizeof(wbc_borne_t);
-}
-
-API int wbh_borne_seated(wbc_borne_t *b, const double *points, const int64_t *rows, int npoints, int row, double told,
-                         double floor, double emancipated, double sat, const double *seat_f, const double *v)
-{
-  return wbc_borne_seated(b, points, rows, npoints, row, told, floor, emancipated, sat, seat_f, v);
-}
-
-API int wbh_borne_supports(const wbc_borne_t *b, int np_, const unsigned char *said, const double *points,
-                           const double *rooms, const double *corners0, int nc0, const double *corners1, int nc1,
-                           const double *loads, const double *legs, double touch_n, int cap, double *pts, double *room,
-                           double *soles)
-{
-  return wbc_borne_supports(b, np_, said, points, rooms, corners0, nc0, corners1, nc1, loads, legs, touch_n, cap, pts,
-                            room, soles);
 }
 
 API void wbh_registry_passed(wbc_registry_t *r, const int64_t *live, int nl, const double *movable, const double *pos,

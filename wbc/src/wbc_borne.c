@@ -533,3 +533,87 @@ int wbc_borne_supports(const wbc_borne_t *b, int np_, const unsigned char *said,
   }
   return n;
 }
+
+/* `p` (3) onto `sum`: numpy's add.reduce down its rows - from its identity, a row at a time. */
+static void summed(double sum[3], const double p[3])
+{
+  for (int j = 0; j < 3; j++)
+  {
+    sum[j] += p[j];
+  }
+}
+
+int wbc_borne_leaned(const wbc_borne_t *b, const double way[3], const double sole0[3], const double sole1[3],
+                     const double com[3], const double vcom[3], double weight, double behind, double tiny, double g,
+                     double ankle_h, double out[2])
+{
+  const wbc_blas_t *l = b->blas;
+  double            bore[3] = {0.0, 0.0, 0.0}, palm[3] = {0.0, 0.0, 0.0}, seat[3] = {0.0, 0.0, 0.0};
+  pysum_t           pressed = {0.0, 0.0, 0};
+  int               nb = 0, nh = 0, ns = 0;
+
+  /* a contact its hands' where its carpal share is anything but zero (Python's truth: nan too); their push
+     Python's sum */
+  for (int c = 0; c < b->nc; c++)
+  {
+    if (b->carpal_of[c] != 0.0)
+    {
+      pysum_add(&pressed, npmax(b->f[c][1], 0.0));
+      summed(palm, b->p[c]);
+      nh++;
+    }
+    else
+    {
+      summed(bore, b->p[c]);
+      nb++;
+    }
+    if (b->patch[c] < b->carpal)
+    {
+      summed(seat, b->p[c]);
+      ns++;
+    }
+  }
+  /* somatic.lever: what bears the robot but its hands, from its middle to its soles' rear edge */
+  out[0] = 0.0;
+  if (nb > 0)
+  {
+    const double hands = pysum_of(&pressed) / weight;
+    double       mid[3], soles[3] = {0.0, 0.0, 0.0};
+    double       at, rear, gap, need;
+
+    summed(soles, sole0);
+    summed(soles, sole1);
+    for (int j = 0; j < 3; j++)
+    {
+      mid[j]   = bore[j] / (double)nb;
+      soles[j] = soles[j] / 2.0;
+    }
+    at     = wbc_dot(l, way, 1, mid, 1, 3);
+    rear   = wbc_dot(l, way, 1, soles, 1, 3) - behind;
+    gap    = rear - at;
+    need   = (gap > 0.0) ? npclip((rear - wbc_dot(l, way, 1, com, 1, 3)) / npmaximum(gap, tiny), 0.0, 1.0) : 0.0;
+    out[0] = npmaximum(need - hands, 0.0);
+  }
+  /* somatic.propped: the capture point behind the seat's contacts toward the hands' middle */
+  out[1] = (nh > 0) ? 1.0 : 0.0;
+  if ((ns > 0) && (nh > 0))
+  {
+    double mid[3], hand[3], xi[3];
+    double at, toward, root;
+
+    for (int j = 0; j < 3; j++)
+    {
+      mid[j]  = seat[j] / (double)ns;
+      hand[j] = palm[j] / (double)nh;
+    }
+    at     = wbc_dot(l, way, 1, mid, 1, 3);
+    toward = wbc_dot(l, way, 1, hand, 1, 3);
+    root   = sqrt(g / npmax(com[1] - mid[1], ankle_h));
+    for (int j = 0; j < 3; j++)
+    {
+      xi[j] = com[j] + vcom[j] / root;
+    }
+    out[1] = npclip((at - wbc_dot(l, way, 1, xi, 1, 3)) / npmaximum(at - toward, 1e-3), 0.0, 1.0);
+  }
+  return nb;
+}

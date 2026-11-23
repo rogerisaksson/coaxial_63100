@@ -64,7 +64,7 @@ def asked(g, s, out, told, ask):
     way, weight = fr[modal.ROT].reshape(3, 3)[stride.ALONG], fr[modal.WEIGHT]
     edge, ask['slide'], ask['fz_cap'], ask['hand_cap'], ask['slid_cap'] = g.get('capped', capped)(
         s['hips'], s['feet'][0]['sole'], s['feet'][1]['sole'], told, np.asarray(ask['edge'], float), fr[modal.ROT],
-        out[latent.SLID], weight, g['sat'], lever(s, way, weight), propped(s, way))
+        out[latent.SLID], weight, g['sat'], *g.get('leaned', leaned)(s, way, weight))
     ask['edge'] = tuple(edge)
     ask['posture'], g['fists'] = g.get('kept', seated.kept)(g['y'], g['fr'], float(told[ortho.PALMAR]), ask['posture'], s['q'],
                                                         g.setdefault('fists', np.zeros(14)))
@@ -108,6 +108,13 @@ def capped(hips, sole0, sole1, told, edge, rot, along, weight, sat, lever_, prop
             np.where(rho.mean() < THIGH / LEG_M, sat * braced + (1.0 - sat) * weight * (told[ortho.PALMAR] > 0.0),
                      told_hand),
             np.where(np.abs(along) > 0.0, np.where(along > 0.0, CAPS[1], CAPS[0]) * weight, np.inf))
+
+
+def leaned(s, way, weight):
+    """(`lever`, `propped`) of the robot's sensed state `s` along its `way`, of its `weight`: what bears the robot
+    but its hands must take of it, its hands' share sat - in C on borne's contacts where the robot's law laid it
+    (`tools.cores.borne.leaned`, `g['leaned']`)."""
+    return lever(s, way, weight), propped(s, way)
 
 
 def propped(s, way):

@@ -65,6 +65,42 @@ static inline double npsign(double x)
   return x > 0.0 ? 1.0 : (x < 0.0 ? -1.0 : (x == 0.0 ? 0.0 : x));
 }
 
+/** Python's sum of floats from its int zero, as CPython 3.12 sums them: the first added to 0, each after by
+    Neumaier's compensation, the compensation added at the end where it is non-zero and finite. */
+typedef struct
+{
+  double sum, c;
+  int    n;
+} pysum_t;
+
+static inline void pysum_add(pysum_t *s, double x)
+{
+  if (s->n == 0)
+  {
+    s->sum = 0.0 + x;
+  }
+  else
+  {
+    const double t = s->sum + x;
+
+    if (fabs(s->sum) >= fabs(x))
+    {
+      s->c += (s->sum - t) + x;
+    }
+    else
+    {
+      s->c += (x - t) + s->sum;
+    }
+    s->sum = t;
+  }
+  s->n++;
+}
+
+static inline double pysum_of(const pysum_t *s)
+{
+  return ((s->c != 0.0) && (isfinite(s->c) != 0)) ? s->sum + s->c : s->sum;
+}
+
 /** numpy's sum of a contiguous row: eight running sums under 129, halves over. */
 static inline double npsum(const double *a, int n)
 {

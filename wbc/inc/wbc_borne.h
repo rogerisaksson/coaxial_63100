@@ -82,4 +82,14 @@ int wbc_borne_supports(const wbc_borne_t *b, int np_, const unsigned char *said,
                        const double *loads, const double *legs, double touch_n, int cap, double *pts, double *room,
                        double *soles);
 
+/** machine.law.somatic.lever and propped on a read's contacts: out[0] the share of the robot's `weight` what
+    bears it but its hands must take - its centre of mass `com` along its `way` between their middle and its soles'
+    (`sole0`, `sole1`) middle `behind` it, the gap no less than `tiny`, less what its hands bear -, out[1] its hands'
+    share sat - its capture point (`vcom`, its pendulum's `g` over the seat's height, no less than `ankle_h`) behind
+    its seat's contacts toward its hands' middle; numpy's means, its OpenBLAS's dots. The count of the robot's
+    contacts but its hands'. */
+int wbc_borne_leaned(const wbc_borne_t *b, const double way[3], const double sole0[3], const double sole1[3],
+                     const double com[3], const double vcom[3], double weight, double behind, double tiny, double g,
+                     double ankle_h, double out[2]);
+
 #endif

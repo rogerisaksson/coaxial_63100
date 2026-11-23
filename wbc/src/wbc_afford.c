@@ -7,42 +7,6 @@
 
 #include <math.h>
 
-/** Python's sum of floats from its int zero, as CPython 3.12 sums them: the first added to 0, each after by
-    Neumaier's compensation, the compensation added at the end where it is non-zero and finite. */
-typedef struct
-{
-  double sum, c;
-  int    n;
-} pysum_t;
-
-static void pysum_add(pysum_t *s, double x)
-{
-  if (s->n == 0)
-  {
-    s->sum = 0.0 + x;
-  }
-  else
-  {
-    const double t = s->sum + x;
-
-    if (fabs(s->sum) >= fabs(x))
-    {
-      s->c += (s->sum - t) + x;
-    }
-    else
-    {
-      s->c += (x - t) + s->sum;
-    }
-    s->sum = t;
-  }
-  s->n++;
-}
-
-static double pysum_of(const pysum_t *s)
-{
-  return ((s->c != 0.0) && (isfinite(s->c) != 0)) ? s->sum + s->c : s->sum;
-}
-
 /** The robot's hypot of one pair, as its libm's arrays tell each (libm.hypot). */
 static double hyp(double x, double y)
 {

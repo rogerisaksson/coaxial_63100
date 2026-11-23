@@ -280,8 +280,8 @@ def coupled(laid_, q, qd, ref_q, ref_v, eso_z, out):
 HOOKS = ('sensed', 'solves', 'estimated', 'felt', 'weighed', 'clear', 'gap', 'rooms', 'outside', 'sloped', 'readings', 'read',
          'modes', 'pitched', 'capped', 'told_on', 'settling', 'bounds', 'gripped', 'sured', 'released', 'poses', 'ringed',
          'modal_sensed', 'inekf_points', 'inekf_step', 'seek', 'leave', 'em_asked', 'em_released', 'em_opening',
-         'kept', 'shield', 'impedance', 'surety_field', 'latent', 'couple', 'borne', 'em_supports', 'touched_step',
-         'twist_step', 'waits', 'braced')
+         'kept', 'shield', 'impedance', 'surety_field', 'latent', 'couple', 'borne', 'em_supports', 'leaned',
+         'touched_step', 'twist_step', 'waits', 'braced')
 
 
 class _WaitsTwin:
@@ -343,7 +343,8 @@ class _BracedTwin:
 
 def twins(g):
     """`g` rebound to the pure-python twins of every `HOOKS` entry `motion.control` calls, returning `g`."""
-    from machine.law import brace as py_brace, impedance, latent, modal, se2, support, surety as py_surety, waits as py_waits
+    from machine.law import brace as py_brace, impedance, latent, modal, se2, somatic, support, surety as py_surety
+    from machine.law import waits as py_waits
     from machine.moves import emancipation
     from machine.senses import borne as py_borne, edge, touch as py_touch
     from machine.stack import wrench
@@ -371,7 +372,7 @@ def twins(g):
              surety_field=lambda prev, dt, ct, t: py_surety.field(
                  g['sense'], g['y'], g['fr'], g['a'], g['st'], g['out'], prev, dt, ct, t),
              latent=latent.step, couple=support.couple, borne=borne_twin, em_supports=emancipation.supports,
-             touched_step=touched_twin,
+             leaned=somatic.leaned, touched_step=touched_twin,
              twist_step=lambda dt, vel, held, prior: se2.twisted(
                  g['sense'], vel, g['y'], g['fr'], g['a'], g['st'], g['out'], g['posture'], held, prior, g['twisted'],
                  g['words'], dt, g['waist_idx'], g['head_idx']),

@@ -164,3 +164,34 @@ def supported(read):
         return pts[:n], room[:n], soles[:2 * n].reshape(2, n)
     supports.kept = (read, rooms)
     return supports
+
+
+@functools.lru_cache(maxsize=None)
+def _leaning():
+    """The lever's and the hands' share's C typed (wbc_borne_leaned)."""
+    lib = wbc.library()
+    lib.wbh_borne_leaned.argtypes = [ctypes.POINTER(Borne)] + [_vp] * 5 + [_d] * 5 + [_vp]
+    lib.wbh_borne_leaned.restype = _i
+    return lib.wbh_borne_leaned
+
+
+def leaned(read):
+    """`somatic.leaned` in C (wbc_borne_leaned) on the contacts `read` (`laid`'s) last read - the robot's law reads
+    them each pass after them -: (the lever's share, numpy's float64 or 0.0 with none but its hands; its hands' share
+    sat, a float). Their dicts walked in numpy, 107 us of a law pass seated."""
+    from machine.body.figure import ANKLE_H
+    from machine.law import modal
+    from machine.senses.observer import TINY
+    from machine.stack.rounds import ROOM
+    t, fn, out = read.kept[0], _leaning(), np.zeros(2)
+    at, got, behind = ctypes.byref(t), wbc.address(out), float(ROOM[1])
+
+    def leans(s, way, weight):
+        # each array held here through the call: a pointer is an address alone
+        way_, sole0, sole1, com, vcom = (np.ascontiguousarray(a, dtype=np.float64) for a in (
+            way, s['feet'][0]['sole'], s['feet'][1]['sole'], s['com'], s['vcom']))
+        n = fn(at, wbc.pointer(way_), wbc.pointer(sole0), wbc.pointer(sole1), wbc.pointer(com), wbc.pointer(vcom),
+               float(weight), behind, TINY, modal.G, ANKLE_H, got)
+        return (np.float64(out[0]) if n else 0.0), float(out[1])
+    leans.kept = (read, out)
+    return leans
