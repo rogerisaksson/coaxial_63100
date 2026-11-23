@@ -29,6 +29,8 @@ HEAD_SHELL = ('shell_head', 'shell_jaw', 'shell_nose', 'shell_lips', 'shell_left
 CLOTH = ('like_torso', 'like_left_upper_arm', 'like_right_upper_arm', 'like_pelvis', 'like_left_thigh',
          'like_right_thigh', 'like_left_shank', 'like_right_shank')
 SHOES = ('shell_left_foot', 'shell_left_toes', 'shell_right_foot', 'shell_right_toes')
+#: Canonical horizontal T-pose abduction roll (deg): adds to the 6-deg rest upper arm for 90-deg horizontal.
+T_POSE_ROLL = 84.0
 #: Hand-clasp poses (Stage-2 shoulder pitch `turn`, Stage-1 pectoral `roll`, elbow `flex`, deg): front & behind.
 CLASP_FRONT = (64.0, -25.75, 0.0)
 CLASP_BACK = (-38.0, -18.0, 8.0)
@@ -171,9 +173,10 @@ def _posed_arm_cad(flex, turn, roll, bare_guards=True):
         ga = _pose_arm_local(aw._guarded()['left_upper_arm'] + gf, turn, roll)
         return [t for part in arm_d.values() for t in part] + ga
     low = [t for k in ('elbow', 'hose', 'forearm tube') for t in arm_d[k]]
-    low += [(t, c) for t, c in arm_d['upper arm tube'] if t[:, 1].max() < -0.05]
+    low += [(t, c) for t, c in arm_d['upper arm tube'] if t[:, 1].min() < 0.165]
+    gu_low = [(t, c) for t, c in aw._guarded()['left_upper_arm'] if t[:, 1].min() < 0.125]
     gf = km._turn(aw._guarded()['left_forearm'], bend_p * flex) if flex else aw._guarded()['left_forearm']
-    return low + _pose_arm_local(gf, turn, roll), [t for part in arm_d.values() for t in part] + _pose_arm_local(
+    return low + _pose_arm_local(gu_low + gf, turn, roll), [t for part in arm_d.values() for t in part] + _pose_arm_local(
         aw._guarded()['left_upper_arm'] + gf, turn, roll)
 
 
@@ -200,8 +203,8 @@ def whole(roll=0.0, dressed=False, turn=0.0, flex=0.0):
     if dressed and likeness.FOUND:
         body_d, names_d, _fd, _pd = _figure(True)
         root = ((0.0, 0.0, 0.0), np.eye(3))
-        angles = {'arms_out': roll, 'left_shoulder': turn, 'right_shoulder': turn,
-                  'left_elbow': flex, 'right_elbow': flex}
+        angles = ({'t_pose': 1.0} if abs(roll - T_POSE_ROLL) < 1e-6 and not turn and not flex else {
+            'arms_out': roll, 'left_shoulder': turn, 'right_shoulder': turn, 'left_elbow': flex, 'right_elbow': flex})
         pos_d, norm_d = body_d.pose(angles, root=root)
         arm_low_l, arm_full_l = _posed_arm_cad(flex, turn, roll, bare_guards=False)
         arm_full_root = _put(arm_full_l, 'left_upper_arm', 'left_forearm')
@@ -289,6 +292,18 @@ def clasped():
         out['crossing'] += (clips.crossed(l_move, body_obs) + clips.crossed(l_arm, pec)
                             + clips.crossed(sh_yoke, pec_still) + clips.crossed(l_move, _mirrored(l_move)))
     return out
+
+
+def t_posed():
+    """{'dy', 'hand_dy', 'hand_x', 'pec_cross'}: verify horizontal collinear T-pose geometry and pectoral clearance."""
+    import numpy as np
+    from tools.render import arm_worn as aw, shoulder_rolled as sr
+    _p, sh, wr = aw.laid(False, ())
+    pts = _put(_pose_arm_local([(np.array([sh, np.zeros(3), wr]), (0, 0, 0))], 0.0, T_POSE_ROLL),
+               'left_upper_arm', 'left_forearm')[0][0]
+    lh = np.vstack([t for t, _c in _head_and_hands(T_POSE_ROLL)['hands'] if t[:, 0].mean() > 0])
+    return {'dy': abs(float(pts[1, 1] - pts[0, 1])), 'hand_dy': abs(float(lh[:, 1].mean() - pts[0, 1])),
+            'hand_x': float(lh[:, 0].max()), 'pec_cross': int(sr.checked()['crossing'])}
 
 
 def sheets(out, px=2400, dressed=False):

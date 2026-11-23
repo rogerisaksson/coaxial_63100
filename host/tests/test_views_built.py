@@ -23,19 +23,16 @@ def _told(code):
 
 
 def test_the_shoulder_holds_turns_and_keeps_its_coil(report):
-    """The coaxial shoulder (`tools.render.shoulder_mount`, `shoulder_laid`): every member holds the shoulder's loads
-    at the margin; what turns keeps a millimetre off what stays through travel and crosses none hanging; its bus coil
-    bends no tighter than the hose's own least radius and crosses nothing; travel spans a human swing back to ahead;
-    its abduction (`shoulder_rolled`) holds at the margin, clears what stays, never crosses across travel, rises past a
-    T and rotates inward after shoulder pitch to clasp hands front and back; its bus (`shoulder_hosed`) holds; and arm
-    guards clear the shoulder's mount."""
+    """The coaxial shoulder (`tools.render.shoulder_mount`, `shoulder_laid`): loads at margin, clearance, bus coil,
+    human pitch travel, pectoral abduction past T (`shoulder_rolled`), front/back clasps, bus and arm guards."""
     from coaxial.graphics import likeness
     got: Any = _told('from coaxial.graphics import likeness; '
                      'from tools.render import arm_worn as a, robot_built as b, shoulder_hosed as h, '
                      'shoulder_mount as s, shoulder_rolled as r; '
                      'print(json.dumps({"mount": s.checked(), "raised": r.checked(), "bus": h.checked(), '
                      '"capped": {"crossing": a.capped()} if likeness.FOUND else None, '
-                     '"clasp": b.clasped() if likeness.FOUND else None}))')
+                     '"clasp": b.clasped() if likeness.FOUND else None, '
+                     '"tpose": b.t_posed() if likeness.FOUND else None}))')
     told: Any = got.get('mount') or got
     report.check("every member holds the shoulder's loads at the margin", (told.get('held') or 0.0) >= 1.0,
                  got.get('failed') or told.get('held'))
@@ -69,6 +66,10 @@ def test_the_shoulder_holds_turns_and_keeps_its_coil(report):
                  bool(clasp.get('in_travel')) and clasp.get('front_gap', 9.0) <= 2.0
                  and clasp.get('back_gap', 9.0) <= 2.0 and clasp.get('front_lap', 9.0) <= 5.0
                  and clasp.get('back_lap', 9.0) <= 5.0 and clasp.get('crossing') == 0, clasp)
+    tpose: Any = got.get('tpose') or {}
+    report.check('T-pose aligns upper arm, elbow and coaxial hand horizontal within 15 mm with zero pectoral crossing',
+                 tpose.get('dy', 9.0) < 0.002 and tpose.get('hand_dy', 9.0) < 0.015
+                 and tpose.get('hand_x', 0.0) > 0.70 and tpose.get('pec_cross') == 0, tpose)
 
 
 def test_the_neck_holds_clears_and_keeps_its_hose(report):

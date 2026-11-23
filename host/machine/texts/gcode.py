@@ -114,7 +114,8 @@ def rig(joints):
         out[s + 'AR'] = _asin(sign * _dot(toe, knee)) * (_angle(d, sh) > BENT)
         a, r = _unit(J[side + 'ForeArm'] - J[side + 'Arm']), _unit(J[side + 'Hand'] - J[side + 'ForeArm'])
         h = _unit(J[side + 'HandMiddle1'] - J[side + 'Hand'])
-        sf = libm.arctan2(_dot(a, f_t), -_dot(a, u_t))
+        sag = libm.hypot(_dot(a, f_t), _dot(a, u_t))
+        sf = libm.arctan2(_dot(a, f_t), -_dot(a, u_t)) * (sag > libm.sin(math.radians(BENT)))
         f_arm = libm.cos(sf)[:, None] * f_t + libm.sin(sf)[:, None] * u_t
         out[s + 'SF'], out[s + 'SA'] = np.degrees(sf), _asin(sign * _dot(a, l_t))
         out[s + 'SR'], out[s + 'EF'] = _bend(r, a, f_arm, l_t, sign), _angle(a, r)
@@ -125,7 +126,7 @@ def rig(joints):
 
 def _held(values):
     """`values` with each rotation word (HR, SR) unwrapped over the frames and held where its bend (KF, EF) is
-    within BENT of straight, the ankle roll held likewise: read only past BENT, they would step otherwise."""
+    within BENT of straight, the ankle roll and sagittal shoulder flexion near +-90 deg abduction held likewise."""
     import numpy as np
     for word, bend in (('HR', 'KF'), ('SR', 'EF'), ('AR', 'KF')):
         for s, _side, _sign in SIDES:
@@ -139,6 +140,15 @@ def _held(values):
                 last = v[i] if readable[i] else last
                 v[i] = last
             values[:, k] = v
+    for s, _side, _sign in SIDES:
+        k, a = WORDS.index(s + 'SF'), WORDS.index(s + 'SA')
+        readable = (90.0 - np.abs(values[:, a])) > BENT
+        v = np.degrees(np.unwrap(np.radians(values[:, k].copy())))
+        last = 0.0
+        for i in range(len(v)):
+            last = v[i] if readable[i] else last
+            v[i] = last
+        values[:, k] = v
     return values
 
 

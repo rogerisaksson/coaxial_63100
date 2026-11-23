@@ -20,7 +20,7 @@ from machine.rig import ansi
 from machine.body import figure
 from machine.body.figure import ANKLE_H, FOREARM, HAIR_AT, HEM_AT, SHANK, THIGH, UPPER_ARM
 
-DISTANCE, CENTRE, REACH = 3.2, (0.0, 0.84, 0.0), 0.92
+DISTANCE, CENTRE, REACH, Z0 = 3.2, (0.0, 0.84, 0.0), 0.92, (0.0, 0.0, 0.0)
 _SIDES = (('left', 1.0), ('right', -1.0))
 _NP = None
 
@@ -48,24 +48,23 @@ CHEEK_AT, CHEEK_R = (0.056, -0.072, -0.078), (0.06, 0.056, 0.045)
 
 def _wear():
     """Tee, sleeves, and jeans shells."""
-    tee, denim, z0, b = paint(TEE, True), paint(DENIM, True), (0.0, 0.0, 0.0), BAGGY_M - 0.012
-    out = [('cloth_tee', 'torso', z0, loft(drape.fine('cloth_tee', _draped()), tee, poles=(HEM_Y - 0.01, 0.378))),
-           ('cloth_seat', 'pelvis', z0, loft(drape.fine('cloth_seat', (
-               [_hung(-0.12, 0.095, 0.05, 0.100), _hung(-0.10, 0.11, 0.06, 0.112)]
-               + [_hung(*r) for r in _SEAT] + [(0.11, 0.118, 0.084)])), denim, poles=(-0.135, 0.118)))]
+    tee, denim, b = paint(TEE, True), paint(DENIM, True), BAGGY_M - 0.012
+    seat = [(-0.12, 0.095, 0.05, 0.1), (-0.1, 0.11, 0.06, 0.112), *_SEAT]
+    out = [('cloth_tee', 'torso', Z0, loft(drape.fine('cloth_tee', _draped()), tee, poles=(HEM_Y - 0.01, 0.378))),
+           ('cloth_seat', 'pelvis', Z0, loft(drape.fine('cloth_seat', (
+               [_hung(*r) for r in seat] + [(0.11, 0.118, 0.084)])), denim, poles=(-0.135, 0.118)))]
     for side, x in _SIDES:
         out += [(f'cloth_{side}_bust', 'torso', (BUST_AT[0] * x, BUST_AT[1], BUST_AT[2] + b),
-                 ellipsoid(z0, tuple(r + LOOSE_M / 2.0 for r in BUST_R), tee, rows=8)),
+                 ellipsoid(Z0, tuple(r + LOOSE_M / 2.0 for r in BUST_R), tee, rows=8)),
                 (f'cloth_{side}_inner', f'{side}_thigh', (INNER_AT[0] * x, INNER_AT[1], INNER_AT[2]),
-                 ellipsoid(z0, tuple(r + FIT_M for r in INNER_R), denim, rows=8))]
-    for side, x in _SIDES:
-        out += [(f'cloth_{side}_sleeve', f'{side}_upper_arm', z0, loft(drape.fine(f'cloth_{side}_sleeve', (
+                 ellipsoid(Z0, tuple(r + FIT_M for r in INNER_R), denim, rows=8)),
+                (f'cloth_{side}_sleeve', f'{side}_upper_arm', Z0, loft(drape.fine(f'cloth_{side}_sleeve', (
                     [(0.022, 0.05, 0.052), (-0.01, 0.066, 0.063), (-0.07, 0.064, 0.06),
                      (-0.13, 0.06, 0.056)])), tee, poles=(0.05, -0.133))),
-                (f'cloth_{side}_thigh', f'{side}_thigh', z0,
+                (f'cloth_{side}_thigh', f'{side}_thigh', Z0,
                  limb(THIGH, THIGH_R[0] + FIT_M, THIGH_R[1] + FIT_M, THIGH_R[2] + LOOSE_M,
                       denim, bulge_at=0.22, out=x * SCULPT_M, ahead=THIGH_AHEAD, behind=THIGH_BEHIND)),
-                (f'cloth_{side}_shin', f'{side}_shank', z0, loft(drape.fine(f'cloth_{side}_shin', (
+                (f'cloth_{side}_shin', f'{side}_shank', Z0, loft(drape.fine(f'cloth_{side}_shin', (
                     [(0.03, 0.068 + PAD_FULL_M, 0.068 + PAD_FULL_M),
                      (0.0, 0.074 + PAD_FULL_M, 0.074 + PAD_FULL_M), (-0.06, 0.073, 0.072),
                      (-HEM_AT, 0.07, 0.074)])), denim, poles=(0.045, -HEM_AT - 0.01))),
@@ -116,15 +115,14 @@ HUNG = (('hair_x', 'x', 1), ('hair_z', 'z', 1))
 
 
 def _features():
-    z0 = (0.0, 0.0, 0.0)
-    out = [('nose', 'head', z0, ellipsoid((0.0, HEAD_Y - 0.004, 0.1), (0.011, 0.022, 0.016), SKIN, rows=6)),
-           ('lips', 'head', z0, ellipsoid((0.0, HEAD_Y - 0.048, 0.094), (0.02, 0.007, 0.01), paint(LIPS), rows=6)),
-           ('hair', 'head', z0, _cap()),
+    out = [('nose', 'head', Z0, ellipsoid((0.0, HEAD_Y - 0.004, 0.1), (0.011, 0.022, 0.016), SKIN, rows=6)),
+           ('lips', 'head', Z0, ellipsoid((0.0, HEAD_Y - 0.048, 0.094), (0.02, 0.007, 0.01), paint(LIPS), rows=6)),
+           ('hair', 'head', Z0, _cap()),
            ('hair_fall', 'head', HUNG, HAIR_AT, _hair(HAIR_FALL, 0.0, 0.03))]
     for side, x in _SIDES:
-        out += [(f'{side}_ear', 'head', z0,
+        out += [(f'{side}_ear', 'head', Z0,
                  ellipsoid((0.071 * x, HEAD_Y - 0.004, 0.006), (0.009, 0.028, 0.018), SKIN, rows=6)),
-                (f'{side}_eye', 'head', z0,
+                (f'{side}_eye', 'head', Z0,
                  ellipsoid((0.029 * x, HEAD_Y + 0.016, 0.092), (0.013, 0.006, 0.006), paint(EYES), rows=6))]
     return out
 
@@ -175,7 +173,6 @@ def _core(corners):
 
 def _meshes():
     """({segment: mesh}, [(name, parent, offset, mesh), ...]) for the figure and extra parts."""
-    z0 = (0.0, 0.0, 0.0)
     pelvis = loft([(-0.10, 0.06, 0.05), (-0.07, 0.135, 0.097, -0.0215),
                    (-0.03, 0.168, 0.115, -0.0275), (0.02, 0.166, 0.117, -0.0295), (0.07, 0.14, 0.092, -0.012),
                    (0.11, 0.114, 0.074), (0.13, 0.098, 0.068)], SHELL, poles=(-0.115, 0.14))
@@ -184,12 +181,12 @@ def _meshes():
               'neck': loft([(0.0, 0.055, 0.052), (0.035, 0.05, 0.048), (0.07, 0.05, 0.048)],
                            SKIN, poles=(-0.01, 0.075)),
               'head': ellipsoid((0.0, HEAD_Y, SKULL_Z), SKULL_R, _face, rows=12)}
-    extra = [('jaw', 'head', z0, ellipsoid((0.0, 0.042, 0.03), (0.047, 0.048, 0.056), SKIN))] + _features()
+    extra = [('jaw', 'head', Z0, ellipsoid((0.0, 0.042, 0.03), (0.047, 0.048, 0.056), SKIN))] + _features()
     for side, x in _SIDES:
         for tag, par, (ax, ay, az), rad, mat in (
                 ('bust', 'torso', BUST_AT, BUST_R, SHELL), ('cheek', 'pelvis', CHEEK_AT, CHEEK_R, SHELL),
                 ('inner', f'{side}_thigh', INNER_AT, INNER_R, SHELL)):
-            extra.append((f'{side}_{tag}', par, (ax * x, ay, az), ellipsoid(z0, rad, mat, rows=8)))
+            extra.append((f'{side}_{tag}', par, (ax * x, ay, az), ellipsoid(Z0, rad, mat, rows=8)))
         meshes.update({
             f'{side}_upper_arm': limb(UPPER_ARM, 0.04, 0.038, 0.040 + PAD_FULL_M, MESH, flat=0.95),
             f'{side}_forearm': limb(FOREARM, 0.040 + PAD_FULL_M, 0.028, 0.02, MESH, flat=0.9),
@@ -253,22 +250,20 @@ class Body:
 
     def _lay(self, like):
         np = _np()
-        cs, ts, us, ms, spans, faces, base = [], [], [], [], [], [], 0
+        cs, ts, us, ms, spans, faces, n = [], [], [], [], [], [], 0
         for i, (*_head, (c, t, u, m)) in enumerate(self.parts):
             cs.append(c)
-            ts.append(t + base)
+            ts.append(t + n)
             us.append(u)
             ms.append(m)
-            spans.append((base, base + len(c)))
+            spans.append((n, n + len(c)))
             faces.append(np.full(len(t), i))
-            base += len(c)
-        self.corners = np.vstack(cs)
-        self.index = np.vstack(ts).astype(np.uint32)
+            n += len(c)
+        self.corners, self.index = np.vstack(cs), np.vstack(ts).astype(np.uint32)
         self.uv, self.materials = np.vstack(us), np.concatenate(ms).astype(np.uint32)
-        self.spans = spans
-        self.normals = smooth(self.corners, self.index)
+        self.spans, self.normals = spans, smooth(self.corners, self.index)
         self.soles = [i for i, p in enumerate(self.parts) if p[0].endswith(('_foot', '_toes'))]
-        self.drums = {p[0][len('drive_'):]: i for i, p in enumerate(self.parts) if p[0].startswith('drive_')}
+        self.drums = {p[0][6:]: i for i, p in enumerate(self.parts) if p[0].startswith('drive_')}
         self.patches = drums.patches(self.parts)
         self.dense, self.dense_spans = sampled(self, np.concatenate(faces))
         self.dense_near = drums.near(self.patches, self.parts, self.drums, self.dense, self.dense_spans)
@@ -279,8 +274,8 @@ class Body:
 
     def _frames(self, angles, root=None):
         np = _np()
-        where, turn = root if root is not None else ((0.0, 0.0, 0.0), np.eye(3))
-        spread = float(angles.get('arms_out', 0.0))
+        where, turn = root if root is not None else (Z0, np.eye(3))
+        spread, level = float(angles.get('arms_out', 0.0)), 't_pose' in angles
         placed, out = {}, []
         for name, parent, joints, offset, rest, _mesh in self.parts:
             if parent == '*':
@@ -289,8 +284,10 @@ class Body:
             if parent:
                 above, at = placed[parent]
                 spot = at + above @ np.asarray(offset, float)
-                if spread and rest and name.endswith('_upper_arm'):
-                    rest = rest + spread * math.copysign(1.0, rest)
+                if rest and name.endswith('_upper_arm') and (level or spread):
+                    rest = (90.0 if level else abs(rest) + spread) * math.copysign(1.0, rest)
+                elif rest and level and name.endswith('_forearm'):
+                    rest = 0.0
                 here = above @ turn_about('z', rest) if rest else above
             else:
                 spot, here = np.asarray(where, float), np.asarray(turn, float)
@@ -300,7 +297,7 @@ class Body:
                 if deg:
                     here = here @ turn_about(axis, deg)
             placed[name] = (here, spot)
-            out.append(placed[name])
+            out.append((here, spot))
         if self.see:
             mechanism.posed(self.parts, placed, angles, out)
         return out

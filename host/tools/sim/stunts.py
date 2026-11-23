@@ -39,7 +39,7 @@ from machine.texts import takes
 from tools import REPO
 
 #: The takes beside the repo; their measures kept here, their modes in `takes.FILE`.
-TAKES = os.path.join(os.path.dirname(REPO), 'stunts')
+TAKES = os.environ.get('COAXIAL_STUNTS') or os.path.join(os.path.dirname(REPO), 'stunts')
 REFERENCE = os.path.join(REPO, 'host', 'tests', 'takes', 'stunts.json')
 
 #: A move's measures, (name, unit, side): lengths in legs (hip to knee to ankle), times in

@@ -185,7 +185,16 @@ def parts(meshes, extra, liked: Any = None):
         joint = placed[name + '_hip_yaw'][1]
         drive = ([(n, c, t) for n, parent, c, t in rested if parent == name + '_hip_yaw'], joint)
         out.append((name + '_seat', name + '_hip_yaw', (), tuple(-joint), 0.0, seat.plate(side, drive, pelvis)))
-    return out +[(name, parent, (), offset, 0.0, mesh) for name, parent, offset, mesh in guards.laid(cleared(out, body, meshes, extra))]
+    for s, side in ((1.0, 'left_'), (-1.0, 'right_')):
+        if not body:
+            break
+        ua = mechanism._tube((0.0, -0.065, 0.0), (-0.014 * s, -0.150, -0.016), 0.0125, paint(mechanism.CARBON))
+        fa = mechanism._tube((0.0, -0.085, 0.0), (0.0, -0.146, -0.015), 0.010, paint(mechanism.CARBON))
+        out.append(('hung_bridge_' + side + 'upper_arm', side + 'upper_arm', (), z0, 0.0,
+                    (*ua[:3], np.full(len(ua[0]), TUBE))))
+        out.append(('hung_bridge_' + side + 'forearm', side + 'forearm', (), z0, 0.0,
+                    (*fa[:3], np.full(len(fa[0]), TUBE))))
+    return out + [(name, parent, (), offset, 0.0, mesh) for name, parent, offset, mesh in guards.laid(cleared(out, body, meshes, extra))]
 
 
 def cleared(parts_, body, meshes, extra):
@@ -339,8 +348,4 @@ def dressed(parts_, liked):
             reach = np.hypot(at[tucked, 0], at[tucked, 2])
             at[tucked] *= np.stack([1.0 - TUCK_M / np.maximum(reach, 2.0 * TUCK_M), np.ones(len(reach))], 1)[:, [0, 1, 0]]
             cloth.append((name, parent, (), rest[0], 0.0, (at, index.reshape(-1, 3), uv[used], worn[used])))
-    full = list(parts_)
-    for s, side in ((1.0, 'left_'), (-1.0, 'right_')):
-        full.append(('hung_bridge_' + side + 'upper_arm', side + 'upper_arm', (), (0.0, 0.0, 0.0), 0.0,
-                     mechanism._tube((0.0, -0.065, 0.0), (-0.014 * s, -0.145, -0.016), 0.0125, paint(mechanism.CARBON))))
-    return _under(full, cloth) + cloth
+    return _under(list(parts_), cloth) + cloth
