@@ -81,9 +81,9 @@ def peak(state, share, dt):
 
 def bar(share, cells, cls=SOA_OK, tip=MARK, colour=True):
     """One row, `cells` wide: a solid level - every dot of every cell to the
-    level, `⣿⣿⣿` in `cls` - ending in a column of `tip`'s ink, `⡇` or `⢸`
+    level, `\u28ff\u28ff\u28ff` in `cls` - ending in a column of `tip`'s ink, `\u2847` or `\u28b8`
     whichever lane the level ends in, and the rest of the scale a track
-    of grey columns the cell's full height, `⡇` a cell.
+    of grey columns the cell's full height, `\u2847` a cell.
     """
     frame = Frame(cells, 1)
     wide = cells * DOTS_X

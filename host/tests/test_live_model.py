@@ -20,49 +20,49 @@ START = 'Swedish'
 # question -> the tool it must call, and the ones it must not.
 TOOL_CHOICE = (
     # question, must call, must not call
-    ('ge mig en lista över alla analoga kanaler', 'board_info',
+    ('ge mig en lista \u00f6ver alla analoga kanaler', 'board_info',
      ('analog_read', 'digital_read')),
-    ('ge mig en lista över alla digitala kanaler', 'board_info',
+    ('ge mig en lista \u00f6ver alla digitala kanaler', 'board_info',
      ('analog_read', 'digital_read')),
     ('list every analog channel', 'board_info',
      ('analog_read', 'digital_read')),
     ('list every digital channel', 'board_info',
      ('analog_read', 'digital_read')),
 
-    ('läs alla analoga kanaler', 'analog_read', ('digital_read',)),
+    ('l\u00e4s alla analoga kanaler', 'analog_read', ('digital_read',)),
     ('read every analog channel', 'analog_read', ('digital_read',)),
-    ('vad läser NTC:n?', 'analog_read', ('digital_read',)),
+    ('vad l\u00e4ser NTC:n?', 'analog_read', ('digital_read',)),
     # Warmth is the thermal observer's, every node of it: asked as an NTC read
     # it answered with one thermistor (docs/TODO.md).
-    ('hur varmt är kortet?', 'thermal', ('analog_read', 'digital_read')),
+    ('hur varmt \u00e4r kortet?', 'thermal', ('analog_read', 'digital_read')),
     ('how hot are the FETs?', 'thermal', ('analog_read', 'digital_read')),
-    ('vad har motorn för temperatur?', 'thermal', ('analog_read', 'digital_read')),
+    ('vad har motorn f\u00f6r temperatur?', 'thermal', ('analog_read', 'digital_read')),
 
     # Every one of these is a phrasing off the bench, kept verbatim rather than
     # paraphrased into one.
-    ('ge mig alla digitala värden', 'digital_read', ('analog_read',)),
-    ('ge mig värdena från de digitala kanalerna', 'digital_read',
+    ('ge mig alla digitala v\u00e4rden', 'digital_read', ('analog_read',)),
+    ('ge mig v\u00e4rdena fr\u00e5n de digitala kanalerna', 'digital_read',
      ('analog_read',)),
-    ('vad har de digitala kanalerna för värden?', 'digital_read',
+    ('vad har de digitala kanalerna f\u00f6r v\u00e4rden?', 'digital_read',
      ('analog_read',)),
-    ('visa digitala värden', 'digital_read', ('analog_read',)),
+    ('visa digitala v\u00e4rden', 'digital_read', ('analog_read',)),
     ('read the digital values', 'digital_read', ('analog_read',)),
     ('give me the values from the digital channels', 'digital_read',
      ('analog_read',)),
     # One named pin.
-    ('vilket värde har PB2 nu?', ('digital_read', 'gpio_pin'),
+    ('vilket v\u00e4rde har PB2 nu?', ('digital_read', 'gpio_pin'),
      ('analog_read',)),
 
     # The mirror, so a fix for one kind cannot quietly break the other.
-    ('ge mig en lista över de analoga värdena', 'analog_read',
+    ('ge mig en lista \u00f6ver de analoga v\u00e4rdena', 'analog_read',
      ('board_info',)),
-    ('ge mig en lista över de digitala värdena', 'digital_read',
+    ('ge mig en lista \u00f6ver de digitala v\u00e4rdena', 'digital_read',
      ('board_info', 'analog_read')),
     ('list the analog values', 'analog_read', ('board_info',)),
     ('list the digital values', 'digital_read', ('board_info', 'analog_read')),
-    ('ge mig värdena från de analoga kanalerna', 'analog_read',
+    ('ge mig v\u00e4rdena fr\u00e5n de analoga kanalerna', 'analog_read',
      ('digital_read',)),
-    ('vad har de analoga kanalerna för värden?', 'analog_read',
+    ('vad har de analoga kanalerna f\u00f6r v\u00e4rden?', 'analog_read',
      ('digital_read',)),
 
     # What the board is made of.
@@ -70,43 +70,43 @@ TOOL_CHOICE = (
      ('analog_read', 'digital_read')),
     ('what subsystems does this board have', 'board_info',
      ('analog_read', 'digital_read')),
-    ('vad består kortet av?', 'board_info',
+    ('vad best\u00e5r kortet av?', 'board_info',
      ('analog_read', 'digital_read')),
 
     # The IMU is a third kind of reading, and the noun that reaches it is its
     # own name.
-    ('lista alla mätvärden från IMU:n', 'imu',
+    ('lista alla m\u00e4tv\u00e4rden fr\u00e5n IMU:n', 'imu',
      ('analog_read', 'digital_read')),
     ('list every measurement from the IMU', 'imu',
      ('analog_read', 'digital_read')),
-    ('vad säger IMU:n?', 'imu', ('analog_read', 'digital_read')),
+    ('vad s\u00e4ger IMU:n?', 'imu', ('analog_read', 'digital_read')),
 
     # Orientation is a picture, not a list of numbers, and it has its own tool.
-    ('visa mig orienteringen på elektroniken', 'orientation',
+    ('visa mig orienteringen p\u00e5 elektroniken', 'orientation',
      ('analog_read', 'digital_read')),
     ('show me how the board is oriented', 'orientation',
      ('analog_read', 'digital_read')),
-    ('hur är kortet vänt?', 'orientation',
+    ('hur \u00e4r kortet v\u00e4nt?', 'orientation',
      ('analog_read', 'digital_read')),
 
     # The bus.
-    ('ge mig en lista på alla enheter du kan kommunicera med', 'devices',
+    ('ge mig en lista p\u00e5 alla enheter du kan kommunicera med', 'devices',
      ('analog_read', 'digital_read')),
     ('list every device you can talk to', 'devices',
      ('analog_read', 'digital_read')),
-    ('kommunicera med höger knä', 'devices',
+    ('kommunicera med h\u00f6ger kn\u00e4', 'devices',
      ('analog_read', 'digital_read')),
 
     # The board is silent.
-    ('kortet svarar inte, varför?', 'link_diagnose',
+    ('kortet svarar inte, varf\u00f6r?', 'link_diagnose',
      ('analog_read', 'digital_read')),
-    ('varför får jag inget svar från kortet?', 'link_diagnose',
+    ('varf\u00f6r f\u00e5r jag inget svar fr\u00e5n kortet?', 'link_diagnose',
      ('analog_read', 'digital_read')),
     ('the board is not answering - why?', 'link_diagnose',
      ('analog_read', 'digital_read')),
 
     # What a thing is.
-    ('beskriv hårdvaran i detta projektet för en novis', None,
+    ('beskriv h\u00e5rdvaran i detta projektet f\u00f6r en novis', None,
      ('analog_read', 'digital_read', 'afe_power', 'link_diagnose')),
     ('what is this project about', None,
      ('analog_read', 'digital_read', 'afe_power', 'link_diagnose')),
@@ -116,39 +116,39 @@ TOOL_CHOICE = (
 # Two questions in one session, history kept - the shape an operator types.
 # Each: question, must call, must not call.
 SEQUENCES = (
-    (('ge mig en lista på alla analoga kanalerna', 'board_info', 'analog_read'),
-     ('ge mig en lista på alla analoga mätvärdena', 'analog_read',
+    (('ge mig en lista p\u00e5 alla analoga kanalerna', 'board_info', 'analog_read'),
+     ('ge mig en lista p\u00e5 alla analoga m\u00e4tv\u00e4rdena', 'analog_read',
       'board_info')),
-    # Verbatim from a transcript, article and all: "den analoga mätvärdena" is
+    # Verbatim from a transcript, article and all: "den analoga m\u00e4tv\u00e4rdena" is
     # not "de", and the wording that was tested is not the wording that was
     # typed.
-    (('ge mig en lista över de analoga kanalerna', 'board_info',
+    (('ge mig en lista \u00f6ver de analoga kanalerna', 'board_info',
       'analog_read'),
-     ('ge mig en lista över den analoga mätvärdena', 'analog_read',
+     ('ge mig en lista \u00f6ver den analoga m\u00e4tv\u00e4rdena', 'analog_read',
       'board_info')),
-    (('ge mig en lista över de analoga kanalerna', 'board_info',
+    (('ge mig en lista \u00f6ver de analoga kanalerna', 'board_info',
       'analog_read'),
-     ('ge mig en lista över de analoga värdena', 'analog_read',
+     ('ge mig en lista \u00f6ver de analoga v\u00e4rdena', 'analog_read',
       'board_info')),
     (('list every analog channel', 'board_info', 'analog_read'),
      ('list the analog values', 'analog_read', 'board_info')),
-    (('ge mig alla analoga mätvärden', 'analog_read', 'board_info'),
-     ('ge mig en lista på alla analoga kanalerna', 'board_info',
+    (('ge mig alla analoga m\u00e4tv\u00e4rden', 'analog_read', 'board_info'),
+     ('ge mig en lista p\u00e5 alla analoga kanalerna', 'board_info',
       'analog_read')),
-    (('ge mig en lista på alla digitala kanalerna', 'board_info',
+    (('ge mig en lista p\u00e5 alla digitala kanalerna', 'board_info',
       'digital_read'),
-     ('ge mig en lista på alla digitala mätvärdena', 'digital_read',
+     ('ge mig en lista p\u00e5 alla digitala m\u00e4tv\u00e4rdena', 'digital_read',
       'board_info')),
 )
 
 # question, must it reach the board, the language of the answer.
 TURNS = (
-    ('läs NTC:n och DC-länken', True, 'Swedish'),
-    ('beskriv hårdvaran i detta projektet för en novis', False, 'Swedish'),
-    ('byt språk till engelska', False, 'English'),
+    ('l\u00e4s NTC:n och DC-l\u00e4nken', True, 'Swedish'),
+    ('beskriv h\u00e5rdvaran i detta projektet f\u00f6r en novis', False, 'Swedish'),
+    ('byt spr\u00e5k till engelska', False, 'English'),
     ('read the NTC', True, 'English'),
     ('what is this project about', False, 'English'),
-    ('byt språk till svenska', False, 'Swedish'),
+    ('byt spr\u00e5k till svenska', False, 'Swedish'),
 )
 
 
@@ -204,7 +204,7 @@ def matching(rows, needle, text):
         return rows
     def flat(s):
         s = s.lower()
-        for a, b in (('å', 'a'), ('ä', 'a'), ('ö', 'o')):
+        for a, b in (('\u00e5', 'a'), ('\u00e4', 'a'), ('\u00f6', 'o')):
             s = s.replace(a, b)
         return s
     want = flat(needle)

@@ -1489,7 +1489,7 @@ def test_thermal_identification(report):
     report.check('two cycles of six minutes at 30 A and fourteen cooling in '
                  'a box: the air scale lands near two',
                  abs(got['scales']['air'] - 2.0) < 0.4,
-                 'air %.2f±%.2f, capacity %.2f, %d updates'
+                 'air %.2f\u00b1%.2f, capacity %.2f, %d updates'
                  % (got['scales']['air'], got['sigma']['air'],
                     got['scales']['capacity'], got['updates']))
     report.check('and the state walked UNCERTAIN, CONVERGING, STABLE',
@@ -1525,7 +1525,7 @@ def test_thermal_identification(report):
                  ' > '.join(states))
     report.check('and two cycles later the air scale has re-landed near a '
                  'half', abs(got['scales']['air'] - 0.5) < 0.2,
-                 'air %.2f±%.2f, capacity %.2f, %s'
+                 'air %.2f\u00b1%.2f, capacity %.2f, %s'
                  % (got['scales']['air'], got['sigma']['air'],
                     got['scales']['capacity'], got['state']))
 
@@ -1592,7 +1592,7 @@ def test_thermal_identification(report):
                  'air path not blamed',
                  'UNCERTAIN' in states and abs(got['ambient'] + 20.0) < 8.0
                  and 0.5 <= got['scales']['air'] <= 1.4,
-                 'room %.1f±%.1f C, air %.2f, %s' % (
+                 'room %.1f\u00b1%.1f C, air %.2f, %s' % (
                      got['ambient'], got['ambient_sigma'], got['scales']['air'],
                      ' > '.join(states)))
     # The margin says so: the innovation is back at the floor after ten
@@ -1611,7 +1611,7 @@ def test_thermal_identification(report):
                  abs(got['ambient'] + 20.0) < 3.0
                  and abs(got['scales']['air'] - 0.8) < 0.3
                  and got['state'] == 'STABLE' and got['margin'] > 0.95,
-                 'room %.1f±%.1f C, air %.2f, %s, margin %.3f' % (
+                 'room %.1f\u00b1%.1f C, air %.2f, %s, margin %.3f' % (
                      got['ambient'], got['ambient_sigma'], got['scales']['air'],
                      got['state'], got['margin']))
     cold.situation('bench')
@@ -1619,7 +1619,7 @@ def test_thermal_identification(report):
     got = cold.identification()
     report.check('and back into the room: found again',
                  abs(got['ambient'] - 25.0) < 6.0,
-                 'room %.1f±%.1f C, air %.2f, %s' % (
+                 'room %.1f\u00b1%.1f C, air %.2f, %s' % (
                      got['ambient'], got['ambient_sigma'], got['scales']['air'],
                      got['state']))
     report.check('the truth tells its room beside the estimate, and a '

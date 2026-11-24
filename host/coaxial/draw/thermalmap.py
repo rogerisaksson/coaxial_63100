@@ -124,7 +124,7 @@ LAYOUT = {
 FRAME_MM = 1.0
 
 #: The picture's marks: a label, the parts the frame goes round, where the
-#: label sits (`bottom` writes it into the frame's bottom line, `⠧⠤MCU⠤⠼`),
+#: label sits (`bottom` writes it into the frame's bottom line, `U+2827 U+2824MCUU+2824 U+283C`),
 #: and the frame's stand-off, mm. REG is the two bucks and two LDOs left of
 #: the MCU, whose frame stands 3 mm off the package; each phase takes its
 #: shunts at the rim; HS runs from the bore's edge to the rim (FETs 14-15 mm,
@@ -301,7 +301,7 @@ def _density(celsius):
 _MASKS = {}
 
 #: A frame's dot rows: the top across row 1, the bottom across row 2, the
-#: sides down a lane - right-angled corners, `⡖⠒⠒⢲` over `⠧⠤⠤⠼`.
+#: sides down a lane - right-angled corners, `U+2856 U+2812 U+2812 U+28B2` over `U+2827 U+2824 U+2824 U+283C`.
 #: Sampled from millimetres the corners came out ragged.
 FRAME_TOP, FRAME_BOTTOM = 1, 2
 

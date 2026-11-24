@@ -1,7 +1,7 @@
 """The robot's livery: its paints - black carbon tubes, gunmetal rims, foam pads, anodised drives.
 
 The robot bare of its clothes is held to the pictures of robots beside the tree
-(`tools/sim/alike.py`): struts and plates in black, grey and white, a gynoid's actuators
+(`tools/sim/alike.py`): struts and plates in black, grey and white, a robot's actuators
 magenta. Half of what is seen of them is dark, a quarter grey, a fifth light, an eighth
 magenta in one of the two, and no other hue.
 
@@ -25,7 +25,7 @@ STEEL, BOARD = paint((72, 76, 86), hard=True), paint((44, 46, 54), hard=True)
 BOLT = paint((226, 230, 236), hard=True)
 #: A pad's backing: black, no dot of it drawn (`lit.braille`) - a groove between two cells is dark.
 VOID = paint((0, 0, 0))
-#: A drive: its motor's can and its board anodised magenta, its gearbox a darker one - a gynoid
+#: A drive: its motor's can and its board anodised magenta, its gearbox a darker one - a robot
 #: of struts' actuators'. In their frames' blues the drives were grey among grey, and with a
 #: gearbox in steel half a servo was.
 SERVO, GEAR = paint((255, 48, 200), hard=True), paint((196, 36, 152), hard=True)

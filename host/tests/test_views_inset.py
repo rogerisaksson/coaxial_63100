@@ -35,14 +35,14 @@ def test_the_robots_eyes_picture_is_framed(report):
     sides = {text[(r, c)] for r in range(top + 1, bottom) for c in (left, right)}
     frame = callouts.packed(callouts.FRAME_INK)
     report.check('the instruments\' frame whole round the picture, in their ink',
-                 corners == callouts.FRAME_CORNERS and sides == {'│'}
+                 corners == callouts.FRAME_CORNERS and sides == {'\u2502'}
                  and bottom - top == rows // 2 + 1 and right - left == wide + 1
                  and all(cells[at][1] == frame for at in ((top, left), (bottom, right),
                                                           (top + 1, left), (top + 1, right))),
                  '%s, %d by %d cells' % (corners, right - left + 1, bottom - top + 1))
     report.check('its title in the top edge, what the robot has told in the bottom one',
                  inset.EYES in edges[0] and '%d told' % len(hulls) in edges[1], ' | '.join(edges))
-    inside = [''.join(text[(r, c)] if text[(r, c)] != '▀' else ' '
+    inside = [''.join(text[(r, c)] if text[(r, c)] != '\u2580' else ' '
                       for c in range(left + 1, right)) for r in range(top + 1, bottom)]
     words = ' '.join(inside).split()
     report.check('each hull\'s kind a label on the picture, none over another',
@@ -240,7 +240,7 @@ def test_balloons_stand_on_what_the_robot_sees(report):
     point, travel, pan = (1.5, 0.45, 0.8), (0.4, 0.3), (0.22, 0.0)
     drawn = gynoid.render({}, 110, 36, yaw=200.0, colour=False, travel=travel, pan=pan,
                           mark=(point, (255, 255, 255)))
-    marked = [(r, line.index('┼')) for r, line in enumerate(drawn) if '┼' in line]
+    marked = [(r, line.index('\u253c')) for r, line in enumerate(drawn) if '\u253c' in line]
     behind = (0.4 + 20.0 * math.sin(math.radians(200.0)), 0.9, 0.3 + 20.0 * math.cos(math.radians(200.0)))
     report.check('a point falls in the cell render marks it in, one behind the eye in none',
                  gynoid.cells([point, behind], 110, 36, yaw=200.0, travel=travel, pan=pan) == marked + [None]
@@ -251,18 +251,18 @@ def test_balloons_stand_on_what_the_robot_sees(report):
     rows = {r: ''.join(text.get((r, c), ' ') for c in range(110)).strip() for r in range(36)}
     key, frame = callouts.packed(inset.NOTE_INK, inset.PLATE), callouts.packed(callouts.FRAME_INK)
     report.check("framed over its thing, its key in the key's ink, its tip on the thing",
-                 rows[18] == '│ F1 sit │' and rows[17] == '╭────────╮' and text[(20, 40)] == balloons.TIP
+                 rows[18] == '\u2502 F1 sit \u2502' and rows[17] == '\u256d\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e' and text[(20, 40)] == balloons.TIP
                  and text[(19, 40)] == balloons.NOTCH and cells[(18, 37)][1] == key and cells[(17, 36)][1] == frame,
                  rows)
     report.check('the second risen over the first, its tail down behind it to its tip; one with no room none',
-                 rows[15] == '│ F2 go out │' and text[(21, 42)] == balloons.TIP and text[(17, 42)] == '─'
+                 rows[15] == '\u2502 F2 go out \u2502' and text[(21, 42)] == balloons.TIP and text[(17, 42)] == '\u2500'
                  and text[(16, 42)] == balloons.NOTCH and 'F3' not in ''.join(rows.values()), rows)
     shut = frozenset((r, c) for r in range(30) for c in range(70, 110))
     out = balloons.laid([((20, 90), 'F1', 'sit'), ((20, 130), 'F2', 'sit')], 110, 36, lit=True, shut=shut)
     tips = sorted((at, chr(code)) for at, (code, _key) in out.items() if chr(code) in balloons.TIPS.values())
     report.check("behind a docked picture or off the drawing, its balloon beside it, its tip pointing on; "
                  "lit, framed in the key's ink",
-                 tips == [((20, 69), '▸')] and not set(out) & shut
+                 tips == [((20, 69), '\u25b8')] and not set(out) & shut
                  and out[(20, 69)][1] == callouts.packed(inset.NOTE_INK), tips)
 
 
@@ -305,7 +305,7 @@ def test_the_atlas_leaves_are_panels(report):
     inks = {ink for _ch, ink in cells.values()}
     report.check('the nearest branch the active panel, its heaviest leaf first; the rest idle, dim; the foot free',
                  title.strip() == scene.short(tree, near) and any(heaviest in row for row in rows.values())
-                 and {scene.FRAME, scene.FRAME_DIM} <= inks and sum(ch == '╭' for ch, _ink in cells.values()) > 1
+                 and {scene.FRAME, scene.FRAME_DIM} <= inks and sum(ch == '\u256d' for ch, _ink in cells.values()) > 1
                  and not any(r >= 36 - leaves.FOOT for _c, r in cells), '%r, %r first' % (title.strip(), heaviest))
     state['cam']['yaw'] += 90.0
     turned = leaves.ranked(scene.picture(placing, state['cam'], 100, 36, keyed, set())[1], keyed, placing['rings'], 100, 36)

@@ -1,6 +1,6 @@
 # Architecture: Kinematics
 
-The gynoid's figure as numbers, laid once: segments, joints and masses; the
+The robot's figure as numbers, laid once: segments, joints and masses; the
 algebra of its chains; what a leg reaches; movements by name; the figure as
 MuJoCo's XML and as the C core's static model. What moves the robot:
 [planners](planners.md); what solves its torques: [solvers](solvers.md).
@@ -9,7 +9,7 @@ Findings: [kinematics](../findings/kinematics.md).
 | Where | Is |
 | --- | --- |
 | `machine/body/compile` | the static meta-compiler: the build's TOML (`humanoids/<robot>.toml`, `library/`) solved for subtree masses, levers, inertias, servos and gait, cached by content hash under `.cache/compiled/`; `peripherals` the bus, thermal SOA, cooling, harness, eyes, world and sysid |
-| `machine/body/figure` | the gynoid's segments, masses and legs' dimensions, the robot's stand and squat, leg IK |
+| `machine/body/figure` | the robot's segments, masses and legs' dimensions, the robot's stand and squat, leg IK |
 | `machine/body/bends` | how each driven joint goes a radian of the robot's modes: its knees' bend, its arms' swing, reach and fold |
 | `machine/body/reach` | a leg's reach over its foot from static arrays (reach_rows, laid by tools/cores/reach.py): margins, the flat place landed, two feet's gap; a limb an index |
 | `machine/body/terms` | the robot's movements by their orthopaedic names from static arrays (term_rows, laid by tools/cores/terms.py): a part and a movement, its joint kind, sign and stops |

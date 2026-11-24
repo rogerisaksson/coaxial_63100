@@ -1,4 +1,4 @@
-"""What the gynoid's suites share: the report, and two rows compared."""
+"""What the robot's suites share: the report, and two rows compared."""
 import math
 
 

@@ -42,7 +42,7 @@ def test_map_retype(report):
     # The package's stand-in, not this file's four-channel double: the names
     # below are the seven the board actually reports, and the check is that all
     # of them being typed out again is what the backstop sees.
-    listed = ('Här är de analoga kanalerna: %s.'
+    listed = ('H\u00e4r \u00e4r de analoga kanalerna: %s.'
               % ', '.join(c['signal'].replace(' ', '')
                           for c in simulated.CHANNELS))
 
@@ -54,7 +54,7 @@ def test_map_retype(report):
             {'role': 'assistant', 'content': reply},
         ]), toolmod.Toolbox(Sim(), scope=Scope()),
             out=io.StringIO(), quiet=quiet)
-        return chat.ask('ge mig en lista på alla analoga kanaler')
+        return chat.ask('ge mig en lista p\u00e5 alla analoga kanaler')
 
     report.check('a map typed out again under its own trace is silenced',
                  turn(listed) == '', repr(turn(listed))[:52])
@@ -67,17 +67,17 @@ def test_map_retype(report):
                  hushed.splitlines()[0][:46] if hushed else '<empty>')
 
     # The bar stays where it was: an answer that says something is untouched.
-    finding = 'Sju analoga kanaler, och NTC är den enda med en temperatur.'
+    finding = 'Sju analoga kanaler, och NTC \u00e4r den enda med en temperatur.'
     report.check('an answer that is not just the list survives',
                  turn(finding) == finding, repr(turn(finding))[:52])
 
     # Length is what tells a list from an explanation.
-    described = ('Kortet är en trefas BLDC-drivare. Framänden matar sju '
-                 'ADC-kanaler: PhaseU, PhaseV och PhaseW mäter de tre '
-                 'faserna differentiellt bakom okänd förstärkning, NTC är '
-                 'termistorn, DCbus är mellanledet genom en spänningsdelare, '
-                 'och Clevel och Cinj är två kanaler vars signaler inte är '
-                 'dokumenterade här.')
+    described = ('Kortet \u00e4r en trefas BLDC-drivare. Fram\u00e4nden matar sju '
+                 'ADC-kanaler: PhaseU, PhaseV och PhaseW m\u00e4ter de tre '
+                 'faserna differentiellt bakom ok\u00e4nd f\u00f6rst\u00e4rkning, NTC \u00e4r '
+                 'termistorn, DCbus \u00e4r mellanledet genom en sp\u00e4nningsdelare, '
+                 'och Clevel och Cinj \u00e4r tv\u00e5 kanaler vars signaler inte \u00e4r '
+                 'dokumenterade h\u00e4r.')
     report.check('a description that names every channel is not a retype',
                  turn(described) == described,
                  '%d words -> %s' % (len(described.split()),
@@ -86,7 +86,7 @@ def test_map_retype(report):
     # Length alone could not tell the two apart, and a bar set on it let a real
     # one through: "here are the analog channels: - PhaseU (channel 0)" seven
     # times over is 26 words and every one of them is a name, a number or glue.
-    per_channel = ('Här är de analoga kanalerna:' + chr(10)
+    per_channel = ('H\u00e4r \u00e4r de analoga kanalerna:' + chr(10)
                    + chr(10).join(
                        '- %s (kanal %d)' % (c['signal'].replace(' ', ''), i)
                        for i, c in enumerate(simulated.CHANNELS)))
@@ -116,7 +116,7 @@ def test_map_retype(report):
             {'role': 'assistant', 'content': reply},
         ]), toolmod.Toolbox(Sim(), scope=Scope()),
             out=io.StringIO(), quiet=quiet)
-        return chat.ask('ge mig en lista på de digitala kanalerna')
+        return chat.ask('ge mig en lista p\u00e5 de digitala kanalerna')
 
     pins = Sim().board.system.channel_map()['digital']
     signals = [row['signal'] for row in pins]
@@ -124,30 +124,30 @@ def test_map_retype(report):
     one_of = signals[0]
     other = signals[1]
 
-    listed_pins = ('De digitala kanalerna är:' + chr(10)
-                   + chr(10).join('%s (%s) för %s'
+    listed_pins = ('De digitala kanalerna \u00e4r:' + chr(10)
+                   + chr(10).join('%s (%s) f\u00f6r %s'
                                   % (row['pin'],
-                                     'utgång' if row['direction'] == 'out'
-                                     else 'ingång', row['signal'])
+                                     'utg\u00e5ng' if row['direction'] == 'out'
+                                     else 'ing\u00e5ng', row['signal'])
                                   for row in pins))
     report.check('a retyped digital map is silenced',
                  digital_turn('board_info', listed_pins, kind='digital') == '',
                  repr(digital_turn('board_info', listed_pins,
                                    kind='digital'))[:46])
-    by_pin = ' och '.join('%s är 1' % row['pin'] for row in pins) + '.'
+    by_pin = ' och '.join('%s \u00e4r 1' % row['pin'] for row in pins) + '.'
     report.check('and so is a retyped digital reading',
                  digital_turn('digital_read', by_pin) == '', repr(by_pin)[:44])
 
     # A row can be named back two ways, and the model picks one.
-    by_signal = ' och '.join('%s är 1' % s for s in signals) + '.'
+    by_signal = ' och '.join('%s \u00e4r 1' % s for s in signals) + '.'
     named_both = ', '.join('%s 1' % b for b in both) + '.'
     for reply, silent, why in (
             (by_signal, True, 'named by signal'),
             (by_pin, True, 'named by pin'),
             (named_both, True, 'named both ways'),
-            ('%s är asserterad medan AFE:n är på.' % other, False,
+            ('%s \u00e4r asserterad medan AFE:n \u00e4r p\u00e5.' % other, False,
              'one signal, and something to say about it'),
-            ('%s är 1.' % one_of, False, 'one of them is not the list')):
+            ('%s \u00e4r 1.' % one_of, False, 'one of them is not the list')):
         got = digital_turn('digital_read', reply)
         report.check('a reading %s -> %s' % (why,
                                              'silent' if silent else 'kept'),
@@ -161,8 +161,8 @@ def test_map_retype(report):
                      % ('silent' if silent else 'kept'),
                      (got == '') is silent, repr(got)[:44])
     report.check('but a finding that does not name them all survives',
-                 digital_turn('board_info', '%s är asserterad.' % other,
-                              kind='digital') == '%s är asserterad.' % other)
+                 digital_turn('board_info', '%s \u00e4r asserterad.' % other,
+                              kind='digital') == '%s \u00e4r asserterad.' % other)
     hushed = digital_turn('digital_read', by_pin, quiet=True)
     report.check('with --quiet the block goes out instead of the retyping',
                  'digital:' in hushed and by_pin not in hushed,
@@ -171,7 +171,7 @@ def test_map_retype(report):
     # The two bars are different on purpose.
     two = {'ntc', 'dcbus'}
     report.check('two channels of a reading are not a restatement',
-                 not repliesmod.is_retype('NTC och DCbus ligger båda lågt.',
+                 not repliesmod.is_retype('NTC och DCbus ligger b\u00e5da l\u00e5gt.',
                                           two))
     report.check('but two of a map are, because a map is the list',
                  repliesmod.is_retype('PB2 och PE15.', {'pb2', 'pe15'},

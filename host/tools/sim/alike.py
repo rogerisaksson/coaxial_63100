@@ -42,7 +42,7 @@ CLASSES = ('dark', 'grey', 'light') + tuple(name for name, _a, _b in HUES)
 #: Air is what closing an outline CLOSE of its height adds to it; edge is told in blocks BLOCK
 #: rows a side, two neighbours STEP of the white apart.
 CLOSE, BLOCK, STEP = 0.02, 4, 0.2
-#: A hue is a picture's where it is HAS of what is seen in one - a gynoid's magenta is an
+#: A hue is a picture's where it is HAS of what is seen in one - a robot's magenta is an
 #: eighth of it; at a fiftieth a highlight's blue was a hue, and a robot with its drives in
 #: cyan passed -; the robot may wear FOREIGN of hues that are none's, and has SHARE of the
 #: pictures' least air, edge and girth at the least: dots on black a third as fine as a

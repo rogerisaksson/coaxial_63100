@@ -46,11 +46,13 @@ function Install-Renode {
         Invoke-WebRequest -UseBasicParsing -OutFile $file `
             "https://github.com/renode/renode/releases/download/v$RenodeVersion/$zip"
         Expand-Archive -Force $file $into
-        Remove-Item $file
     } catch {
         Write-Item 'Renode' 'failed' $_.Exception.Message
         Add-Todo "Renode $RenodeVersion portable under %LOCALAPPDATA%\renode"
         return
+    } finally {
+        # the archive let go however the download or its unpacking ended: a failed one was left beside Renode
+        Remove-Item $file -Force -ErrorAction SilentlyContinue
     }
     $renode = Find-Renode
     if ($null -eq $renode) {

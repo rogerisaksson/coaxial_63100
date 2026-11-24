@@ -197,7 +197,7 @@ def _claimed(lib):
     (pid@node): a pid is one host's alone - a container on this tree starts its python as pid 14
     like the last container's, and waited on the marker that one's death left as if its own -,
     so another host's marker, or one naming no process, is nobody's and goes."""
-    from tools.dev.census import alive
+    from tools.dev.census import alive_since
     os.makedirs(OUT, exist_ok=True)
     marker = lib + '.building'
     node = platform.node()
@@ -208,11 +208,14 @@ def _claimed(lib):
             try:
                 with open(marker, encoding='utf-8') as f:
                     pid, _at, host = f.read().partition('@')
+                written = os.path.getmtime(marker)
             except OSError:
                 pid = host = ''
+                written = 0.0
             if os.path.exists(lib):
                 return False
-            if host != node or not pid.isdigit() or not alive(int(pid)):
+            # its writer, not its pid: a killed builder's pid given again to a later process held its waiters
+            if host != node or not pid.isdigit() or not alive_since(int(pid), written):
                 _unmarked(marker)
             time.sleep(0.2)
             continue

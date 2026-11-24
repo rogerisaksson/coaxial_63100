@@ -1,4 +1,4 @@
-"""The gynoid: a slender body on `machine.body.figure`'s joints, posed, lit, drawn in braille.
+"""The robot: a slender body on `machine.body.figure`'s joints, posed, lit, drawn in braille.
 
 1.69 m tall; each part is a closed loft or ellipsoid hung off its parent at `machine.body.figure`'s
 offset. Without `root`, the lowest foot stands on y = 0.
@@ -436,7 +436,7 @@ def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, tr
            lit=None, root=None, labels=None, heat=None, props=None, legend=None, dressed=True, dents=None,
            mark=None, around=False, see=None, pan=(0.0, 0.0), inset=None, arrows=None, horizon=None, rounds=None,
            like=None, hosed=None):
-    """Render the gynoid at `angles` (`{joint: deg}`) into `width` x `height` braille lines;
+    """Render the robot at `angles` (`{joint: deg}`) into `width` x `height` braille lines;
     `horizon` [(segments, ink)] on it (`coaxial.graphics.horizon`); `props` drawn round where `rounds` says."""
     who = body(dressed, see, like if not see else None, not dressed and not see)
     m, fine, centre = _looked(width, height, yaw, pitch, zoom, pan)

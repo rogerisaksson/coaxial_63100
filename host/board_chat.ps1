@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     One window with the model and the board in it.
 .DESCRIPTION

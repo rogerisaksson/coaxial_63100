@@ -301,7 +301,7 @@ def test_the_panel_never_covers_what_is_lit(report):
                 lines, fell, _v = scene.picture(laid, state['cam'], cols, rows, marks, set(), None)
                 lit = {(c, r) for r, (line, go, inks) in enumerate(lines) for k, (a, ink) in enumerate(zip(go, inks))
                        for c in range(a, go[k + 1] if k + 1 < len(go) else len(line))
-                       if '⠁' <= line[c] <= '⣿' and ink // scene.SHADES not in dim}
+                       if '\u2801' <= line[c] <= '\u28ff' and ink // scene.SHADES not in dim}
                 boxed = leaves.panels(tree, laid['rings'], fell, {n: marks.get(n, '') for n in show_atlas.context(state)},
                                       cols, rows, frozenset(), most=laid.get('panels', leaves.MOST), names=laid.get('names'),
                                       side=laid.get('side'))

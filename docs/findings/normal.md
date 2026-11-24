@@ -76,7 +76,7 @@ digits, the FileId one.
    are identified and priced until the solver's most economical, least-effort
    solution is naturally isomorphic to normative biological motion. Once
    compiled and deployed to the MCU, mocap is completely erased from the
-   equation—leaving only the first-principles physics it demanded.
+   equation-leaving only the first-principles physics it demanded.
 
 ## Words
 

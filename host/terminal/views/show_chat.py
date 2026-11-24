@@ -246,17 +246,22 @@ class _Claude:
                                 stderr=subprocess.PIPE, text=True,
                                 encoding='utf-8', errors='replace')
         self.proc = proc
-        answer = []
+        answer, said = [], []
         if proc.stdout is None or proc.stderr is None:
             return 'claude gave no pipes to read'
+        # its stderr read beside its stdout: read after, a full stderr pipe held claude and the page both
+        err = proc.stderr
+        drained = threading.Thread(target=lambda: said.append(err.read()), daemon=True)
+        drained.start()
         for raw in proc.stdout:
             with suppress(ValueError):
                 self._tell(json.loads(raw), answer)
         proc.wait(timeout=60)
+        drained.join(timeout=5.0)
         self.proc = None
         if proc.returncode != 0 and not any(answer):
             return 'claude exited %d: %s' % (
-                proc.returncode, proc.stderr.read().strip()[:200])
+                proc.returncode, ''.join(said).strip()[:200])
         return '\n'.join(a for a in answer if a) or '(no answer)'
 
 

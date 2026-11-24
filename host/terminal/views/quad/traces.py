@@ -89,9 +89,9 @@ def plot(now, width, rows, left, right, rule=None, spikes=False):
                 row.append(want)
                 ink = want
             row.append(braille.ALL[a | b])
-        lines.append(left[2] + ('%5s ┤' % left[1][r] if r in left[1] else '      │') + RESET
+        lines.append(left[2] + ('%5s \u2524' % left[1][r] if r in left[1] else '      \u2502') + RESET
                      + ''.join(row) + right[2]
-                     + ('├ %s' % right[1][r] if r in right[1] else '│') + RESET)
+                     + ('\u251c %s' % right[1][r] if r in right[1] else '\u2502') + RESET)
     return lines
 
 

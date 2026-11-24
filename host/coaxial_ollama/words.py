@@ -109,7 +109,7 @@ BLANK_LINE = '\n\n'
 BOARD_WORDS = {
     'simulerad': 'simulated', 'simulerat': 'simulated',
     'simulerade': 'simulated', 'simulated': 'simulated', 'sim': 'simulated',
-    'stand': 'simulated', 'låtsaskort': 'simulated',
+    'stand': 'simulated', 'l\u00e5tsaskort': 'simulated',
 
     'debugproben': 'auto', 'debugprobe': 'auto', 'debugprob': 'auto',
     'debugprobben': 'auto', 'proben': 'auto', 'probe': 'auto',
@@ -118,24 +118,24 @@ BOARD_WORDS = {
     'riktig': 'auto', 'riktiga': 'auto', 'riktigt': 'auto', 'real': 'auto',
     'auto': 'auto', 'verkliga': 'auto', 'fysiska': 'auto',
 
-    'rs485': 'rs485', 'rs': 'rs485', '485': 'rs485', 'fältbussen': 'rs485',
+    'rs485': 'rs485', 'rs': 'rs485', '485': 'rs485', 'f\u00e4ltbussen': 'rs485',
     'fieldbus': 'rs485',
 }
 
 # Verbs that order a swap rather than ask about one.
-_BOARD_VERBS = ('byt', 'byta', 'byter', 'växla', 'växlar', 'koppla',
-                'använd', 'ta',
+_BOARD_VERBS = ('byt', 'byta', 'byter', 'v\u00e4xla', 'v\u00e4xlar', 'koppla',
+                'anv\u00e4nd', 'ta',
                 'switch', 'switches', 'change', 'use', 'connect', 'go')
 
 # What stops an order from being one.
-_QUESTION_WORDS = ('vad', 'vilken', 'vilket', 'vilka', 'varför', 'hur',
-                   'när', 'vem',
+_QUESTION_WORDS = ('vad', 'vilken', 'vilket', 'vilka', 'varf\u00f6r', 'hur',
+                   'n\u00e4r', 'vem',
                    'what', 'which', 'why', 'how', 'when', 'whether')
 
 # Another thing to do in the same sentence.
-_OTHER_ACTIONS = ('läs', 'läser', 'mät', 'mäter', 'visa', 'visar', 'lista',
-                  'ge', 'beskriv', 'förklara', 'bygg', 'flasha', 'testa',
-                  'kör', 'skriv', 'sätt', 'slå',
+_OTHER_ACTIONS = ('l\u00e4s', 'l\u00e4ser', 'm\u00e4t', 'm\u00e4ter', 'visa', 'visar', 'lista',
+                  'ge', 'beskriv', 'f\u00f6rklara', 'bygg', 'flasha', 'testa',
+                  'k\u00f6r', 'skriv', 's\u00e4tt', 'sl\u00e5',
                   'read', 'measure', 'show', 'list', 'give', 'describe',
                   'explain', 'build', 'flash', 'test', 'run', 'write',
                   'set', 'turn')

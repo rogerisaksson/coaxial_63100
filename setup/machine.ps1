@@ -217,6 +217,8 @@ function Install-PythonFromOrg {
     try {
         Invoke-WebRequest -Uri $url -OutFile $installer -UseBasicParsing
     } catch {
+        # a download cut short left its part of the installer in TEMP
+        Remove-Item $installer -Force -ErrorAction SilentlyContinue
         Write-Item 'python' 'failed' ('download failed: ' + $_.Exception.Message)
         Add-Todo "download $url by hand and run it with: /quiet InstallAllUsers=0 PrependPath=1"
         return $null

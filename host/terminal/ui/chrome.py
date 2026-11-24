@@ -7,7 +7,7 @@ over SWEEP_S seconds and decaying behind it over DECAY_ROWS as a phosphor does, 
 braille only: BAND_DENSITY of a row's cells a dot at the beam, thinning as the square of
 the decay, its ink stepping down BAND_INK to the snow's. No background: a glow a row at a
 time banded.
-Over a page's drawing (`Chrome`): lock brackets round what the page draws, `ﾛｯｸ ｵﾝ` blinking on them; the page's clock bottom left; its status tag in red
+Over a page's drawing (`Chrome`): lock brackets round what the page draws, `\uff9b\uff6f\uff78 \uff75\uff9d` blinking on them; the page's clock bottom left; its status tag in red
 kana, blinking, over a teal subtag bottom right. Chrome only fills blanks: nothing the
 page draws is covered, and a piece with no room is left out whole. KANA names each page.
 """
@@ -23,25 +23,25 @@ from coaxial.graphics.approach import AMBER, DATA, RED
 
 #: Page title: (its name in kana, the status tag, the subtag).
 KANA = {
-    'COAXIAL 63100': ('ｺｱｷｼｬﾙ', '>> ｼｽﾃﾑ ﾀｲｷ', 'ｼｭﾀｰﾐﾅﾙ 01'),
-    'SESSION': ('ｾｯｼｮﾝ', '>> ｼｽﾃﾑ ｶﾝｼ', 'ﾘｸﾞ ｲﾁﾗﾝ 6'),
-    'BOARD ATTITUDE': ('ｷﾊﾞﾝ ｼｾｲ', '>> ﾁｬｸﾘｸﾁ ﾀﾝｻｸﾁｭｳ', 'ﾁﾊﾞ ｽﾌﾟﾗｳﾙ ﾅﾋﾞ 7G'),
-    'SHAFT ANGLE': ('ｼﾞｸ ｶｸﾄﾞ', '>> ｶｸﾄﾞ ﾂｲｾｷ', 'A1335 ｼﾞｷ ｾﾝｻ'),
-    'METER BRIDGE': ('ｹｲｷ ﾌﾞﾘｯｼﾞ', '>> ｹｲｿｸﾁｭｳ', 'ﾁｬﾝﾈﾙ 10 ｶﾝｼ'),
-    'CAPTURE': ('ｷｬﾌﾟﾁｬ', '>> ｼｭｳﾛｸﾁｭｳ', 'ﾘﾝｸﾞ ﾊﾞｯﾌｧ 2'),
-    'GATE DRIVERS': ('ｹﾞｰﾄ ﾄﾞﾗｲﾊﾞ', '>> ｹﾞｰﾄ ｸﾄﾞｳ', 'TIM1 50kHz ﾁｭｳｼﾝ'),
-    'ROTOR OBSERVER': ('ﾛｰﾀ ｶﾝｿｸ', '>> ﾛｰﾀ ﾂｲｾｷ', 'ﾄﾞﾗｲﾌﾞ 10 ｽｲﾃｲ'),
-    'THERMAL OBSERVER': ('ﾈﾂ ｶﾝｿｸ', '>> ﾈﾂ ｽｲﾃｲﾁｭｳ', 'ｵﾌﾞｻﾞｰﾊﾞ 8 ｺﾞｼﾞｹﾞﾝ'),
-    'MOTOR CONTROLLER': ('ﾓｰﾀ ｾｲｷﾞｮ', '>> ｸﾄﾞｳ ｼﾞｭﾝﾋﾞ', 'ﾄﾞﾗｲﾌﾞ 10'),
-    'BOARD CHAT': ('ﾂｳｼﾝ', '>> ﾂｳｼﾝﾁｭｳ', 'ﾛｰｶﾙ ﾓﾃﾞﾙ ｾﾂｿﾞｸ'),
-    'RENDER': ('ｴﾝｼﾞﾝ', '>> ｴﾝｼﾞﾝ ｼｹﾝ', 'ｷｭｰﾌﾞ ﾃｽﾄﾍﾞｯﾄﾞ'),
-    'HUMANOID': ('ﾋｭｰﾏﾉｲﾄﾞ', '>> ﾎｺｳﾁｭｳ', 'ｼﾞｭｳﾘｮｸ 9.81'),
-    'QUAD ACRO FLYING': ('ｸｱｯﾄﾞ ｱｸﾛ', '>> ﾋｺｳﾁｭｳ', 'ﾛｰﾀ 4 ｾﾞﾝｶｲ'),
-    'HELICOPTER 3D FLYING': ('ﾍﾘｺﾌﾟﾀ 3D', '>> ﾋｺｳﾁｭｳ', 'ﾛｰﾀ 2 3D'),
-    'ORNITHOPTER DUNE FLYING': ('ｵｰﾆｿﾌﾟﾀ', '>> ﾊﾊﾞﾀｷ ﾋｺｳ', 'ﾖｸ 4 ｻﾊﾞｸ'),
-    'AIRCRAFT XE AEROBATICS': ('ｴｱﾛﾊﾞﾃｨｸｽ', '>> ｷｮｸｷﾞ ﾋｺｳ', '3D ﾄﾙｸﾛｰﾙ'),
-    'SYSTEM ATLAS': ('ｼｽﾃﾑ ｱﾄﾗｽ', '>> ﾁｽﾞ ﾃﾝｶｲ', 'ﾀｰﾐﾅﾙ ｶﾗ ｼｬﾝﾄ'),
-    'QUIT': ('ｼｭｳﾘｮｳ', '>> ｼｭｳﾘｮｳ', 'ﾀｰﾐﾅﾙ ﾍｲｻ'),
+    'COAXIAL 63100': ('\uff7a\uff71\uff77\uff7c\uff6c\uff99', '>> \uff7c\uff7d\uff83\uff91 \uff80\uff72\uff77', '\uff7c\uff6d\uff80\uff70\uff90\uff85\uff99 01'),
+    'SESSION': ('\uff7e\uff6f\uff7c\uff6e\uff9d', '>> \uff7c\uff7d\uff83\uff91 \uff76\uff9d\uff7c', '\uff98\uff78\uff9e \uff72\uff81\uff97\uff9d 6'),
+    'BOARD ATTITUDE': ('\uff77\uff8a\uff9e\uff9d \uff7c\uff7e\uff72', '>> \uff81\uff6c\uff78\uff98\uff78\uff81 \uff80\uff9d\uff7b\uff78\uff81\uff6d\uff73', '\uff81\uff8a\uff9e \uff7d\uff8c\uff9f\uff97\uff73\uff99 \uff85\uff8b\uff9e 7G'),
+    'SHAFT ANGLE': ('\uff7c\uff9e\uff78 \uff76\uff78\uff84\uff9e', '>> \uff76\uff78\uff84\uff9e \uff82\uff72\uff7e\uff77', 'A1335 \uff7c\uff9e\uff77 \uff7e\uff9d\uff7b'),
+    'METER BRIDGE': ('\uff79\uff72\uff77 \uff8c\uff9e\uff98\uff6f\uff7c\uff9e', '>> \uff79\uff72\uff7f\uff78\uff81\uff6d\uff73', '\uff81\uff6c\uff9d\uff88\uff99 10 \uff76\uff9d\uff7c'),
+    'CAPTURE': ('\uff77\uff6c\uff8c\uff9f\uff81\uff6c', '>> \uff7c\uff6d\uff73\uff9b\uff78\uff81\uff6d\uff73', '\uff98\uff9d\uff78\uff9e \uff8a\uff9e\uff6f\uff8c\uff67 2'),
+    'GATE DRIVERS': ('\uff79\uff9e\uff70\uff84 \uff84\uff9e\uff97\uff72\uff8a\uff9e', '>> \uff79\uff9e\uff70\uff84 \uff78\uff84\uff9e\uff73', 'TIM1 50kHz \uff81\uff6d\uff73\uff7c\uff9d'),
+    'ROTOR OBSERVER': ('\uff9b\uff70\uff80 \uff76\uff9d\uff7f\uff78', '>> \uff9b\uff70\uff80 \uff82\uff72\uff7e\uff77', '\uff84\uff9e\uff97\uff72\uff8c\uff9e 10 \uff7d\uff72\uff83\uff72'),
+    'THERMAL OBSERVER': ('\uff88\uff82 \uff76\uff9d\uff7f\uff78', '>> \uff88\uff82 \uff7d\uff72\uff83\uff72\uff81\uff6d\uff73', '\uff75\uff8c\uff9e\uff7b\uff9e\uff70\uff8a\uff9e 8 \uff7a\uff9e\uff7c\uff9e\uff79\uff9e\uff9d'),
+    'MOTOR CONTROLLER': ('\uff93\uff70\uff80 \uff7e\uff72\uff77\uff9e\uff6e', '>> \uff78\uff84\uff9e\uff73 \uff7c\uff9e\uff6d\uff9d\uff8b\uff9e', '\uff84\uff9e\uff97\uff72\uff8c\uff9e 10'),
+    'BOARD CHAT': ('\uff82\uff73\uff7c\uff9d', '>> \uff82\uff73\uff7c\uff9d\uff81\uff6d\uff73', '\uff9b\uff70\uff76\uff99 \uff93\uff83\uff9e\uff99 \uff7e\uff82\uff7f\uff9e\uff78'),
+    'RENDER': ('\uff74\uff9d\uff7c\uff9e\uff9d', '>> \uff74\uff9d\uff7c\uff9e\uff9d \uff7c\uff79\uff9d', '\uff77\uff6d\uff70\uff8c\uff9e \uff83\uff7d\uff84\uff8d\uff9e\uff6f\uff84\uff9e'),
+    'HUMANOID': ('\uff8b\uff6d\uff70\uff8f\uff89\uff72\uff84\uff9e', '>> \uff8e\uff7a\uff73\uff81\uff6d\uff73', '\uff7c\uff9e\uff6d\uff73\uff98\uff6e\uff78 9.81'),
+    'QUAD ACRO FLYING': ('\uff78\uff71\uff6f\uff84\uff9e \uff71\uff78\uff9b', '>> \uff8b\uff7a\uff73\uff81\uff6d\uff73', '\uff9b\uff70\uff80 4 \uff7e\uff9e\uff9d\uff76\uff72'),
+    'HELICOPTER 3D FLYING': ('\uff8d\uff98\uff7a\uff8c\uff9f\uff80 3D', '>> \uff8b\uff7a\uff73\uff81\uff6d\uff73', '\uff9b\uff70\uff80 2 3D'),
+    'ORNITHOPTER DUNE FLYING': ('\uff75\uff70\uff86\uff7f\uff8c\uff9f\uff80', '>> \uff8a\uff8a\uff9e\uff80\uff77 \uff8b\uff7a\uff73', '\uff96\uff78 4 \uff7b\uff8a\uff9e\uff78'),
+    'AIRCRAFT XE AEROBATICS': ('\uff74\uff71\uff9b\uff8a\uff9e\uff83\uff68\uff78\uff7d', '>> \uff77\uff6e\uff78\uff77\uff9e \uff8b\uff7a\uff73', '3D \uff84\uff99\uff78\uff9b\uff70\uff99'),
+    'SYSTEM ATLAS': ('\uff7c\uff7d\uff83\uff91 \uff71\uff84\uff97\uff7d', '>> \uff81\uff7d\uff9e \uff83\uff9d\uff76\uff72', '\uff80\uff70\uff90\uff85\uff99 \uff76\uff97 \uff7c\uff6c\uff9d\uff84'),
+    'QUIT': ('\uff7c\uff6d\uff73\uff98\uff6e\uff73', '>> \uff7c\uff6d\uff73\uff98\uff6e\uff73', '\uff80\uff70\uff90\uff85\uff99 \uff8d\uff72\uff7b'),
 }
 
 NOISE = 0.035
@@ -59,7 +59,7 @@ INK = {
     'tag': Style(color=Color.from_rgb(*RED)),
     'sub': Style(color=Color.from_rgb(*DATA)),
 }
-LOCKED = 'ﾛｯｸ ｵﾝ'
+LOCKED = '\uff9b\uff6f\uff78 \uff75\uff9d'
 
 _BORN = time.monotonic()
 
@@ -219,8 +219,8 @@ def _dress(rows, title, lock, t):
         top, bottom = spans[0][0] - 1, spans[-1][0] + 1
         left = min(span[0] for _r, span in spans) - 2
         right = max(span[1] for _r, span in spans) + 1
-        corners = ((top, left, '┌─'), (top, right, '─┐'), (bottom, left, '└─'),
-                   (bottom, right, '─┘'))
+        corners = ((top, left, '\u250c\u2500'), (top, right, '\u2500\u2510'), (bottom, left, '\u2514\u2500'),
+                   (bottom, right, '\u2500\u2518'))
         # All four or none: half a lock read as a broken one.
         if (top >= 0 and bottom < height and left >= 0 and right < width - 1
                 and all(rows[r].blank(c + i) for r, c, text in corners

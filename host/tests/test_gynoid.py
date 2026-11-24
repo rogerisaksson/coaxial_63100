@@ -118,7 +118,7 @@ def test_a_leg_by_its_foot(report):
 
 
 def test_a_body_with_mass_is_fitted(report):
-    """DYNAMIC: each of the gynoid's joints a drive on a body with mass, its pose read beside them."""
+    """DYNAMIC: each of the robot's joints a drive on a body with mass, its pose read beside them."""
     from machine import Machine
     from machine.body import figure
     from machine.rig.modes import DYNAMIC

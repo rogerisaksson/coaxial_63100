@@ -235,7 +235,7 @@ with Coaxial63100(port='native://', execution_mode=EMULATED) as rig:
 | `session` | SESSION | one dash over one port - analog, thermals, bridges, DIO, the IMU, the shaft angle |
 | `thermal` | THERMAL OBSERVER | where the heat sits, drawn on the board itself |
 
-<details><summary>Figures 2-4: the front page, the heat, the gynoid</summary>
+<details><summary>Figures 2-4: the front page, the heat, the robot</summary>
 
 <img src="docs/img/menu.png" width="760" alt="The front page">
 
@@ -248,9 +248,9 @@ with Coaxial63100(port='native://', execution_mode=EMULATED) as rig:
 phase, the drivers at 64-67 C, the hot swap the worst of its headroom.*
 
 <img src="docs/img/humanoid.png" width="760"
-     alt="The humanoid page: a gynoid rising under MuJoCo">
+     alt="The humanoid page: a robot rising under MuJoCo">
 
-*Figure 4. The humanoid: a gynoid rising under gravity in MuJoCo, a drive a
+*Figure 4. The humanoid: a robot rising under gravity in MuJoCo, a drive a
 joint, each joint's torque against its peak.*
 
 Each drawn on the stand-in by `python host/tools/render/page.py <page>
@@ -457,7 +457,7 @@ thermal observer within 0.2 K of the thermistor after 120 s blind at 53.8 V;
   [docs/PROTOCOL_VERSIONS.md](docs/PROTOCOL_VERSIONS.md) - its history
 - [docs/HARDWARE.md](docs/HARDWARE.md) - the board, before a measurement
 - [docs/BOOT.md](docs/BOOT.md) - the bootloader and the flash map
-- [docs/DIMENSIONS.md](docs/DIMENSIONS.md) - the gynoid's axes by drive type
+- [docs/DIMENSIONS.md](docs/DIMENSIONS.md) - the robot's axes by drive type
 - [docs/MODELS.md](docs/MODELS.md) - the local model
 - [docs/RESULTS.md](docs/RESULTS.md) - the last measured run, as
   `host/tools/dev/cover.py` wrote it

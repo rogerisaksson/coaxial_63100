@@ -44,16 +44,16 @@ def test_its_traces_are_drawn(report):
     report.check('a plot\'s left curve and its right in their inks, both plots alike, each '
                  'scale on its own side in its curve\'s',
                  all(ink in text for ink in (traces.LEFT, traces.RIGHT))
-                 and high[0].startswith(traces.LEFT) and traces.RIGHT + '├ 2kW' in high[0]
-                 and low[0].startswith(traces.LEFT + '   63 ┤') and '   57 ┤' in low[-1]
-                 and traces.RIGHT + '├ 105C' in low[0],
+                 and high[0].startswith(traces.LEFT) and traces.RIGHT + '\u251c 2kW' in high[0]
+                 and low[0].startswith(traces.LEFT + '   63 \u2524') and '   57 \u2524' in low[-1]
+                 and traces.RIGHT + '\u251c 105C' in low[0],
                  '%r | %r' % (high[0][-12:], low[0][-12:]))
     spike = [sum(c != chr(0x2800) for c in p) for p in plain[:traces.HEIGHT_ROWS]]
     flat = traces.heights([row[:3] + (150.0 + k,) + row[4:] for k, row in enumerate(trace)],
                           15.0, 36)
     report.check('the pass at 1.9 kW a spike up the plot, none without it',
-                 spike[1] >= 1 and traces.RIGHT + '├ 2kW' in high[0]
-                 and traces.RIGHT + '├ 1kW' in flat[0],
+                 spike[1] >= 1 and traces.RIGHT + '\u251c 2kW' in high[0]
+                 and traces.RIGHT + '\u251c 1kW' in flat[0],
                  'dots a row, top down: %s' % spike)
 
 
@@ -283,7 +283,7 @@ def test_r_records_its_flight(report):
                  and rows[1][len(show_quad.FLIGHT) - 1] == 'rw' and held['recording'] is None
                  and sent == [{'wind': True}, {'reset': True}],
                  (rows[1][len(show_quad.FLIGHT) - 1:], sent))
-    report.check('while it records the drawing carries REC and its rows', corner.strip() == '● REC ⠙ 1', corner)
+    report.check('while it records the drawing carries REC and its rows', corner.strip() == '\u25cf REC \u2819 1', corner)
     from machine.process import commit
     sha = commit.head()
     report.check('the recording\'s file named with the commit it was made at',

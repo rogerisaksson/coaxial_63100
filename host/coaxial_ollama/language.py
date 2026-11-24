@@ -19,9 +19,9 @@ SCRIPTS = (
 
 # Words common enough to appear in one sentence and rare enough elsewhere.
 STOPWORDS = {
-    'Swedish':    ('och', 'är', 'för', 'inte', 'att', 'det', 'som', 'på',
-                   'med', 'vad', 'hur', 'kortet', 'läs', 'jag', 'kan', 'ska',
-                   'över', 'från', 'en', 'de'),
+    'Swedish':    ('och', '\u00e4r', 'f\u00f6r', 'inte', 'att', 'det', 'som', 'p\u00e5',
+                   'med', 'vad', 'hur', 'kortet', 'l\u00e4s', 'jag', 'kan', 'ska',
+                   '\u00f6ver', 'fr\u00e5n', 'en', 'de'),
     # 'a' is in English's list for the same reason 'en' and 'de' are in
     # Swedish's: Portuguese claims it too, and a word both languages own has to
     # sit in both or it decides the score for whichever list happens to have
@@ -29,24 +29,24 @@ STOPWORDS = {
     'English':    ('the', 'and', 'is', 'what', 'how', 'does', 'are', 'of',
                    'to', 'read', 'why', 'can', 'this', 'board', 'a'),
     'German':     ('und', 'ist', 'nicht', 'das', 'der', 'die', 'was', 'wie',
-                   'für', 'mit', 'ich', 'kann', 'auf', 'eine'),
+                   'f\u00fcr', 'mit', 'ich', 'kann', 'auf', 'eine'),
     'Danish':     ('og', 'er', 'ikke', 'det', 'hvad', 'hvordan', 'jeg', 'kan',
-                   'på', 'med', 'til', 'som'),
+                   'p\u00e5', 'med', 'til', 'som'),
     'Norwegian':  ('og', 'er', 'ikke', 'det', 'hva', 'hvordan', 'jeg', 'kan',
-                   'på', 'med', 'til', 'som'),
+                   'p\u00e5', 'med', 'til', 'som'),
     'Dutch':      ('en', 'is', 'niet', 'het', 'wat', 'hoe', 'ik', 'kan',
                    'met', 'voor', 'van', 'de'),
     'French':     ('et', 'est', 'pas', 'le', 'la', 'les', 'que', 'quoi',
                    'comment', 'pour', 'avec', 'je', 'une'),
-    'Spanish':    ('y', 'es', 'no', 'el', 'la', 'los', 'que', 'qué', 'cómo',
+    'Spanish':    ('y', 'es', 'no', 'el', 'la', 'los', 'que', 'qu\u00e9', 'c\u00f3mo',
                    'para', 'con', 'una'),
-    'Italian':    ('e', 'è', 'non', 'il', 'la', 'che', 'cosa', 'come',
+    'Italian':    ('e', '\u00e8', 'non', 'il', 'la', 'che', 'cosa', 'come',
                    'per', 'con', 'una'),
-    'Finnish':    ('ja', 'on', 'ei', 'että', 'mikä', 'miten', 'kuinka',
-                   'voi', 'sen', 'tämä'),
+    'Finnish':    ('ja', 'on', 'ei', 'ett\u00e4', 'mik\u00e4', 'miten', 'kuinka',
+                   'voi', 'sen', 't\u00e4m\u00e4'),
     'Polish':     ('i', 'jest', 'nie', 'co', 'jak', 'to', 'na', 'dla',
-                   'czy', 'się'),
-    'Portuguese': ('e', 'é', 'não', 'o', 'a', 'que', 'como', 'para',
+                   'czy', 'si\u0119'),
+    'Portuguese': ('e', '\u00e9', 'n\u00e3o', 'o', 'a', 'que', 'como', 'para',
                    'com', 'uma', 'qual'),
 }
 
@@ -136,7 +136,7 @@ LANGUAGE_NAMES = {
     'German':     ('german', 'tyska'),
     'Danish':     ('danish', 'danska'),
     'Norwegian':  ('norwegian', 'norska'),
-    'Dutch':      ('dutch', 'nederländska'),
+    'Dutch':      ('dutch', 'nederl\u00e4ndska'),
     'French':     ('french', 'franska'),
     'Spanish':    ('spanish', 'spanska'),
     'Italian':    ('italian', 'italienska'),
@@ -147,7 +147,7 @@ LANGUAGE_NAMES = {
     'Chinese':    ('chinese', 'kinesiska'),
     'Japanese':   ('japanese', 'japanska'),
     'Korean':     ('korean', 'koreanska'),
-    'Thai':       ('thai', 'thailändska'),
+    'Thai':       ('thai', 'thail\u00e4ndska'),
     'Greek':      ('greek', 'grekiska'),
     'Hebrew':     ('hebrew', 'hebreiska'),
     'Arabic':     ('arabic', 'arabiska'),
@@ -189,26 +189,26 @@ def system_language(default='English'):
 # One line, in the operator's own language: who is answering, and where the
 # rest is.
 GREETINGS = {
-    'Swedish': 'Jag är %s och är experten i det här projektet. Skriv /help.',
+    'Swedish': 'Jag \u00e4r %s och \u00e4r experten i det h\u00e4r projektet. Skriv /help.',
     'English': "I'm %s, the expert on this project. Type /help.",
-    'German':  'Ich bin %s, der Experte für dieses Projekt. /help für mehr.',
+    'German':  'Ich bin %s, der Experte f\u00fcr dieses Projekt. /help f\u00fcr mehr.',
     'Danish':  'Jeg er %s og eksperten i dette projekt. Skriv /help.',
     'Norwegian': 'Jeg er %s og eksperten i dette prosjektet. Skriv /help.',
     'Dutch':   'Ik ben %s, de expert in dit project. Typ /help.',
     'French':  "Je suis %s, l'expert de ce projet. Tapez /help.",
     'Spanish': 'Soy %s, el experto de este proyecto. Escribe /help.',
     'Italian': 'Sono %s, l\'esperto di questo progetto. Scrivi /help.',
-    'Finnish': 'Olen %s, tämän projektin asiantuntija. Kirjoita /help.',
+    'Finnish': 'Olen %s, t\u00e4m\u00e4n projektin asiantuntija. Kirjoita /help.',
     'Polish':  'Jestem %s, ekspertem w tym projekcie. Wpisz /help.',
     'Portuguese': 'Sou %s, o especialista deste projeto. Escreva /help.',
-    'Russian': 'Я %s, эксперт по этому проекту. Введите /help.',
-    'Greek': 'Είμαι το %s, ο ειδικός σε αυτό το έργο. Πληκτρολογήστε /help.',
-    'Chinese': '我是 %s，这个项目的专家。输入 /help。',
-    'Japanese': '私は %s、このプロジェクトの専門家です。/help と入力してください。',
-    'Korean': '저는 %s, 이 프로젝트의 전문가입니다. /help 를 입력하세요.',
-    'Thai': 'ผมคือ %s ผู้เชี่ยวชาญของโปรเจกต์นี้ พิมพ์ /help',
-    'Hebrew': 'אני %s, המומחה בפרויקט הזה. הקלד /help.',
-    'Arabic': 'أنا %s، الخبير في هذا المشروع. اكتب /help.',
+    'Russian': '\u042f %s, \u044d\u043a\u0441\u043f\u0435\u0440\u0442 \u043f\u043e \u044d\u0442\u043e\u043c\u0443 \u043f\u0440\u043e\u0435\u043a\u0442\u0443. \u0412\u0432\u0435\u0434\u0438\u0442\u0435 /help.',
+    'Greek': '\u0395\u03af\u03bc\u03b1\u03b9 \u03c4\u03bf %s, \u03bf \u03b5\u03b9\u03b4\u03b9\u03ba\u03cc\u03c2 \u03c3\u03b5 \u03b1\u03c5\u03c4\u03cc \u03c4\u03bf \u03ad\u03c1\u03b3\u03bf. \u03a0\u03bb\u03b7\u03ba\u03c4\u03c1\u03bf\u03bb\u03bf\u03b3\u03ae\u03c3\u03c4\u03b5 /help.',
+    'Chinese': '\u6211\u662f %s\uff0c\u8fd9\u4e2a\u9879\u76ee\u7684\u4e13\u5bb6\u3002\u8f93\u5165 /help\u3002',
+    'Japanese': '\u79c1\u306f %s\u3001\u3053\u306e\u30d7\u30ed\u30b8\u30a7\u30af\u30c8\u306e\u5c02\u9580\u5bb6\u3067\u3059\u3002/help \u3068\u5165\u529b\u3057\u3066\u304f\u3060\u3055\u3044\u3002',
+    'Korean': '\uc800\ub294 %s, \uc774 \ud504\ub85c\uc81d\ud2b8\uc758 \uc804\ubb38\uac00\uc785\ub2c8\ub2e4. /help \ub97c \uc785\ub825\ud558\uc138\uc694.',
+    'Thai': '\u0e1c\u0e21\u0e04\u0e37\u0e2d %s \u0e1c\u0e39\u0e49\u0e40\u0e0a\u0e35\u0e48\u0e22\u0e27\u0e0a\u0e32\u0e0d\u0e02\u0e2d\u0e07\u0e42\u0e1b\u0e23\u0e40\u0e08\u0e01\u0e15\u0e4c\u0e19\u0e35\u0e49 \u0e1e\u0e34\u0e21\u0e1e\u0e4c /help',
+    'Hebrew': '\u05d0\u05e0\u05d9 %s, \u05d4\u05de\u05d5\u05de\u05d7\u05d4 \u05d1\u05e4\u05e8\u05d5\u05d9\u05e7\u05d8 \u05d4\u05d6\u05d4. \u05d4\u05e7\u05dc\u05d3 /help.',
+    'Arabic': '\u0623\u0646\u0627 %s\u060c \u0627\u0644\u062e\u0628\u064a\u0631 \u0641\u064a \u0647\u0630\u0627 \u0627\u0644\u0645\u0634\u0631\u0648\u0639. \u0627\u0643\u062a\u0628 /help.',
 }
 
 
@@ -221,28 +221,28 @@ PHRASES = {
         'near mid-scale, and the degC and volts below are arithmetic on '
         'that - not a temperature, not a bus voltage. Call afe_power on to '
         'measure.':
-            'AFE AV - ADC-referensen är strömlös. Detta är koderna omvandlaren '
-            'returnerade, inte mätvärden: varje kanal ligger nära mittskalan, '
-            'och grader och volt nedan är räknade på den - ingen temperatur, '
-            'ingen busspänning. Slå på afe_power för att mäta.',
+            'AFE AV - ADC-referensen \u00e4r str\u00f6ml\u00f6s. Detta \u00e4r koderna omvandlaren '
+            'returnerade, inte m\u00e4tv\u00e4rden: varje kanal ligger n\u00e4ra mittskalan, '
+            'och grader och volt nedan \u00e4r r\u00e4knade p\u00e5 den - ingen temperatur, '
+            'ingen bussp\u00e4nning. Sl\u00e5 p\u00e5 afe_power f\u00f6r att m\u00e4ta.',
 
         'link is down, not answered: %s':
-            'länken är nere, obesvarad: %s',
+            'l\u00e4nken \u00e4r nere, obesvarad: %s',
         'no reading taken this turn - ask again.':
-            'ingen avläsning gjordes denna tur - fråga igen.',
+            'ingen avl\u00e4sning gjordes denna tur - fr\u00e5ga igen.',
         'the reading above is all that came back - ask again.':
-            'avläsningen ovan är allt som kom tillbaka - fråga igen.',
+            'avl\u00e4sningen ovan \u00e4r allt som kom tillbaka - fr\u00e5ga igen.',
         'the last run_python/run_command call failed, nothing was done: %s':
             'det senaste run_python/run_command-anropet misslyckades, inget '
             'gjordes: %s',
         '[cut off at --words %s. Ask again with more, or ask for fewer '
         'channels.]':
-            '[avklippt vid --words %s. Fråga igen med fler, eller be om färre '
+            '[avklippt vid --words %s. Fr\u00e5ga igen med fler, eller be om f\u00e4rre '
             'kanaler.]',
         'budget of %d tokens is spent; /clear or raise --budget':
-            'budgeten på %d tokens är förbrukad; /clear eller höj --budget',
+            'budgeten p\u00e5 %d tokens \u00e4r f\u00f6rbrukad; /clear eller h\u00f6j --budget',
         'board: nothing answered on %s - still on %s':
-            'kort: inget svarade på %s - kvar på %s',
+            'kort: inget svarade p\u00e5 %s - kvar p\u00e5 %s',
         'board: %s':
             'kort: %s',
         # The block headings, not the column names: the columns stay as the
@@ -260,71 +260,71 @@ PHRASES = {
         '%d samples @%.0fHz':
             '%d sampel @%.0fHz',
         'read as asked, with corrections: %s':
-            'läst som efterfrågat, med rättelser: %s',
+            'l\u00e4st som efterfr\u00e5gat, med r\u00e4ttelser: %s',
         'From %s:':
-            'Från %s:',
+            'Fr\u00e5n %s:',
         'every node on %s':
-            'varje nod på %s',
+            'varje nod p\u00e5 %s',
         'link re-established':
-            'länken återupprättad',
+            'l\u00e4nken \u00e5teruppr\u00e4ttad',
         ' -> check the board is powered, and that a JTAG programmer or '
         'a dedicated serial adapter is connected between it and this PC':
-            ' -> kontrollera att kortet har ström, och att en JTAG-programmerare '
-            'eller en seriell adapter sitter mellan kortet och den här datorn',
+            ' -> kontrollera att kortet har str\u00f6m, och att en JTAG-programmerare '
+            'eller en seriell adapter sitter mellan kortet och den h\u00e4r datorn',
         'unknown channel %r; names are %s':
-            'okänd kanal %r; namnen är %s',
+            'ok\u00e4nd kanal %r; namnen \u00e4r %s',
         'channel %r could be %s - say which':
-            'kanal %r kan vara %s - säg vilken',
+            'kanal %r kan vara %s - s\u00e4g vilken',
 
         'this session is on a simulated board - there is no port to check. '
         '/board auto looks for a real one, debug probe first; /board COM4 '
         'tries one by name.':
-            'den här sessionen kör mot ett simulerat kort - det finns ingen '
+            'den h\u00e4r sessionen k\u00f6r mot ett simulerat kort - det finns ingen '
             'port att kontrollera. /board auto letar upp ett riktigt, '
-            'debugproben först; /board COM4 provar en port vid namn.',
+            'debugproben f\u00f6rst; /board COM4 provar en port vid namn.',
         '--no-board this run: every board tool refuses. /board auto looks '
         'for a real one.':
-            '--no-board denna körning: varje kortverktyg vägrar. /board auto '
+            '--no-board denna k\u00f6rning: varje kortverktyg v\u00e4grar. /board auto '
             'letar upp ett riktigt.',
         '1. Target power (ST-Link/SWD): could not check - %s':
-            '1. Målspänning (ST-Link/SWD): kunde inte kontrolleras - %s',
+            '1. M\u00e5lsp\u00e4nning (ST-Link/SWD): kunde inte kontrolleras - %s',
         '1. Target power (ST-Link/SWD): %.2fV - no power sensed. Check the '
         'ST-Link USB cable is connected, and that the board itself is '
         'powered. Nothing past this point can work without it.':
-            '1. Målspänning (ST-Link/SWD): %.2fV - ingen spänning känns av. '
+            '1. M\u00e5lsp\u00e4nning (ST-Link/SWD): %.2fV - ingen sp\u00e4nning k\u00e4nns av. '
             'Kontrollera att ST-Linkens USB-kabel sitter i och att kortet har '
-            'ström. Inget efter denna punkt kan fungera utan det.',
+            'str\u00f6m. Inget efter denna punkt kan fungera utan det.',
         '1. Target power (ST-Link/SWD): %.2fV - powered, cable seated.':
-            '1. Målspänning (ST-Link/SWD): %.2fV - spänning finns, kabeln '
+            '1. M\u00e5lsp\u00e4nning (ST-Link/SWD): %.2fV - sp\u00e4nning finns, kabeln '
             'sitter.',
         '2. COM ports Windows sees: %s':
             '2. COM-portar Windows ser: %s',
         "   Nothing is enumerating as a serial device - check the ST-Link or "
         "serial adapter's driver.":
-            '   Ingenting räknas upp som seriell enhet - kontrollera '
-            'drivrutinen för ST-Link eller seriell adapter.',
+            '   Ingenting r\u00e4knas upp som seriell enhet - kontrollera '
+            'drivrutinen f\u00f6r ST-Link eller seriell adapter.',
         "3. Configured port %s: not among the ports above - the cable may be "
         "unplugged from this PC's side, or the driver did not enumerate it.":
             '3. Konfigurerad port %s: finns inte bland portarna ovan - kabeln '
-            'kan vara urdragen på PC-sidan, eller så räknade drivrutinen inte '
+            'kan vara urdragen p\u00e5 PC-sidan, eller s\u00e5 r\u00e4knade drivrutinen inte '
             'upp den.',
         '3. Configured port %s: present.':
             '3. Konfigurerad port %s: finns.',
         '4. Board answers on %s right now: yes - the link is up.':
-            '4. Kortet svarar på %s just nu: ja - länken är uppe.',
+            '4. Kortet svarar p\u00e5 %s just nu: ja - l\u00e4nken \u00e4r uppe.',
         '4. Board answers on %s right now: no.':
-            '4. Kortet svarar på %s just nu: nej.',
+            '4. Kortet svarar p\u00e5 %s just nu: nej.',
         '   Powered and the port is right, so check nothing else has %s open, '
         'and that the last programmer run ended with --start, not -hardRst (a '
         'halted core answers nothing).':
-            '   Spänning finns och porten stämmer, så kontrollera att inget '
-            'annat har %s öppen, och att den senaste programmeringen '
-            'avslutades med --start, inte -hardRst (en stoppad kärna svarar '
+            '   Sp\u00e4nning finns och porten st\u00e4mmer, s\u00e5 kontrollera att inget '
+            'annat har %s \u00f6ppen, och att den senaste programmeringen '
+            'avslutades med --start, inte -hardRst (en stoppad k\u00e4rna svarar '
             'inte).',
         '5. Tried every other port: %s answered as this board - it may have '
         'moved there. /reconnect after changing --port to it.':
             '5. Provade varje annan port: %s svarade som detta kort - det kan '
-            'ha flyttat dit. /reconnect efter att ha ändrat --port till den.',
+            'ha flyttat dit. /reconnect efter att ha \u00e4ndrat --port till den.',
         '5. Tried every other port (%s): none answered.':
             '5. Provade varje annan port (%s): ingen svarade.',
     },
@@ -382,12 +382,12 @@ def greeting(model, name=None, encoding=None):
 # One word, in the language just asked for.
 OKAY = {
     'Swedish': 'Okej', 'English': 'Okay', 'German': 'In Ordnung',
-    'Danish': 'Okay', 'Norwegian': 'Greit', 'Dutch': 'Oké',
+    'Danish': 'Okay', 'Norwegian': 'Greit', 'Dutch': 'Ok\u00e9',
     'French': "D'accord", 'Spanish': 'De acuerdo', 'Italian': 'Va bene',
-    'Finnish': 'Selvä', 'Polish': 'Dobrze', 'Portuguese': 'Está bem',
-    'Russian': 'Хорошо', 'Greek': 'Εντάξει', 'Chinese': '好的',
-    'Japanese': 'わかりました', 'Korean': '알겠습니다', 'Thai': 'ตกลง',
-    'Hebrew': 'בסדר', 'Arabic': 'حسنًا',
+    'Finnish': 'Selv\u00e4', 'Polish': 'Dobrze', 'Portuguese': 'Est\u00e1 bem',
+    'Russian': '\u0425\u043e\u0440\u043e\u0448\u043e', 'Greek': '\u0395\u03bd\u03c4\u03ac\u03be\u03b5\u03b9', 'Chinese': '\u597d\u7684',
+    'Japanese': '\u308f\u304b\u308a\u307e\u3057\u305f', 'Korean': '\uc54c\uaca0\uc2b5\ub2c8\ub2e4', 'Thai': '\u0e15\u0e01\u0e25\u0e07',
+    'Hebrew': '\u05d1\u05e1\u05d3\u05e8', 'Arabic': '\u062d\u0633\u0646\u064b\u0627',
 }
 
 
@@ -406,15 +406,15 @@ def okay(name, encoding=None):
 # rather than a mention - "the German firmware bug" is not a request for
 # German, and this is what keeps it from reading as one.
 _REQUEST_VERBS = (
-    'svara', 'svarar', 'förklara', 'skriv', 'skriva', 'beskriv',
-    'berätta', 'översätt', 'sammanfatta', 'säg',
+    'svara', 'svarar', 'f\u00f6rklara', 'skriv', 'skriva', 'beskriv',
+    'ber\u00e4tta', '\u00f6vers\u00e4tt', 'sammanfatta', 's\u00e4g',
     'answer', 'respond', 'reply', 'explain', 'write', 'describe', 'tell',
     'translate', 'summarise', 'summarize', 'say',
-    'antworte', 'antworten', 'erkläre', 'schreibe',
-    'reponds', 'répondre', 'explique', 'écris',
+    'antworte', 'antworten', 'erkl\u00e4re', 'schreibe',
+    'reponds', 'r\u00e9pondre', 'explique', '\u00e9cris',
     'responde', 'explica', 'escribe', 'rispondi', 'spiega',
 
-    'byt', 'byta', 'växla', 'tala', 'prata',
+    'byt', 'byta', 'v\u00e4xla', 'tala', 'prata',
     'switch', 'change', 'speak', 'wechsle', 'changer', 'cambia',
 )
 
@@ -440,10 +440,10 @@ def requested_language(text):
 # What can sit around a language name without the message being about anything
 # else: the switch itself, the word "language", and the politeness.
 _SWITCH_FILLER = (
-    'språk', 'språket', 'language', 'sprache', 'langue', 'idioma', 'lingua',
-    'till', 'to', 'på', 'in', 'auf', 'en', 'a', 'nu', 'now', 'igen',
-    'again', 'tillbaka', 'back', 'tack', 'please', 'snälla', 'bitte',
-    'du', 'you', 'kan', 'can', 'är', 'is', 'det', 'the', 'mitt', 'ditt',
+    'spr\u00e5k', 'spr\u00e5ket', 'language', 'sprache', 'langue', 'idioma', 'lingua',
+    'till', 'to', 'p\u00e5', 'in', 'auf', 'en', 'a', 'nu', 'now', 'igen',
+    'again', 'tillbaka', 'back', 'tack', 'please', 'sn\u00e4lla', 'bitte',
+    'du', 'you', 'kan', 'can', '\u00e4r', 'is', 'det', 'the', 'mitt', 'ditt',
 )
 
 

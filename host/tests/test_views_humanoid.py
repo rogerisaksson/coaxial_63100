@@ -261,8 +261,8 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
     b_txt = buf.getvalue()
     report.check('the badge strip, the tour in the boxes, 40 cells fit',
                  all(w in r1 for w in ('BAL', 'THM', 'STB', 'NOMINAL')) and callable(show_humanoid.boot)
-                 and len(gym.boxes(nom, tour=SN(done=False, current_label=lambda: 'x'))) == 2 and '42°C' in jr and len(jr) == 25
-                 and '…' not in b_txt and ('%+5.2f' % se2.WALK_SPEED) in b_txt and len(show_humanoid.legend('temp', 60)) > 20)
+                 and len(gym.boxes(nom, tour=SN(done=False, current_label=lambda: 'x'))) == 2 and '42\u00b0C' in jr and len(jr) == 25
+                 and '\u2026' not in b_txt and ('%+5.2f' % se2.WALK_SPEED) in b_txt and len(show_humanoid.legend('temp', 60)) > 20)
 
 
 def test_the_robots_clothes_bend_at_the_joints(report):

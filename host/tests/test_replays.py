@@ -48,7 +48,7 @@ def test_r_records_and_saves(report):
         report.check("the epoch's commands from its lay on the first row, a later one on the row after it",
                      said == [humanoid_keys.plain([laid, walk]), [], humanoid_keys.plain([turn])], said)
         report.check('while it records the drawing carries REC, its wheel and its rows',
-                     ''.join(chr(c) for c, _ink in badge.values()).strip() == '● REC ⠹ 2',
+                     ''.join(chr(c) for c, _ink in badge.values()).strip() == '\u25cf REC \u2839 2',
                      ''.join(chr(c) for c, _ink in badge.values()))
         from tools.sim import tabular
         cols = tabular.numeric_columns(path, ('t', 'watts', 'left_knee'))

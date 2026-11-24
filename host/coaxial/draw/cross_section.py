@@ -63,7 +63,7 @@ POINTER_SEAT = (1.0 + F_CAN_INNER) / 2.0
 
 #: The bead, U+0298: Consolas has it, so the terminal draws it in its own
 #: metrics. U+29BF (asked for) is not in Consolas and came out squeezed by the
-#: fallback font, three times. Narrow round marks: `◦` `◌` `∙` `ʘ`.
+#: fallback font, three times. Narrow round marks: `U+25E6` `U+25CC` `U+2219` `U+0298`.
 POINTER_GLYPH = chr(0x0298)
 
 #: The bead takes one cell, the nearest by its centre: colouring every cell

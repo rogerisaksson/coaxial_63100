@@ -1,4 +1,4 @@
-﻿<#
+<#
     Finding which COM port this board is actually on - board_chat.ps1's
     -AutodetectComport path.
     Both functions here call into host/tools/target/find_board.py rather than
@@ -19,17 +19,22 @@ function Test-BoardPort {
 #>
     param([string]$CandidatePort, [string]$HostDir, [int]$TimeoutSec = 6)
 
+    # tools\target\find_board.py: at tools\find_board.py, where it no longer is, every port was refused (exit 2).
+    # The probe's pipes read as it runs - left unread, a probe saying more than a pipe holds waited out its
+    # time - and the process let go after.
+    $proc = $null
     try {
         $psi = New-Object System.Diagnostics.ProcessStartInfo
         $psi.FileName = 'python'
-        $psi.Arguments = 'tools' + [System.IO.Path]::DirectorySeparatorChar +
-                         'find_board.py --probe ' + $CandidatePort
+        $psi.Arguments = (Join-Path 'tools' (Join-Path 'target' 'find_board.py')) + ' --probe ' + $CandidatePort
         $psi.WorkingDirectory = $HostDir
         $psi.UseShellExecute = $false
         $psi.RedirectStandardOutput = $true
         $psi.RedirectStandardError = $true
 
         $proc = [System.Diagnostics.Process]::Start($psi)
+        $null = $proc.StandardOutput.ReadToEndAsync()
+        $null = $proc.StandardError.ReadToEndAsync()
         if (-not $proc.WaitForExit($TimeoutSec * 1000)) {
             try { $proc.Kill() } catch {}
             return $false
@@ -37,6 +42,8 @@ function Test-BoardPort {
         return $proc.ExitCode -eq 0
     } catch {
         return $false
+    } finally {
+        if ($null -ne $proc) { $proc.Dispose() }
     }
 }
 

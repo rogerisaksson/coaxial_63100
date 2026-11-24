@@ -178,7 +178,7 @@ def test_helicopter_boards_and_view(report):
                      len(h_s.splitlines()) == 24 == len(o_f.splitlines()) == len(a_f.splitlines())
                      and h_s != h_f and o_s != o_f and a_s != a_f and arr_ok
                      and heli_gfx.BLADES_RAD_S == orni_gfx.BLADES_RAD_S == aero_gfx.BLADES_RAD_S == 20.0
-                     and '▾' not in (h_txt + o_txt + a_txt + q_txt) and '45.20 m, -22.4 m/s, -11.2 g' in q_txt
+                     and '\u25be' not in (h_txt + o_txt + a_txt + q_txt) and '45.20 m, -22.4 m/s, -11.2 g' in q_txt
                      and all(t in h_txt for t in ('HELICOPTER', 'MAIN', 'TAIL', 'SWASH', 'SINK'))
                      and all(t in o_txt for t in ('ORNITHOPTER', 'FORE', 'AFT', 'WINGS', 'SINK'))
                      and all(t in a_txt for t in ('AEROBAT', 'PROP', 'VECT', 'SURFS', 'SINK')))

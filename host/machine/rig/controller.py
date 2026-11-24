@@ -428,7 +428,7 @@ class Paced:
     def __init__(self, part, hz, feed=None, clock=time.monotonic, sleep=time.sleep):
         self.part, self.pause, self.feed = part, 1.0 / float(hz), feed
         self._clock, self._sleep = clock, sleep
-        self._inputs, self._out, self._thread = {}, {}, None
+        self._inputs, self._out, self._thread, self._fault = {}, {}, None, None
         self._lock, self._part_lock = threading.Lock(), threading.Lock()
         self._ready = threading.Event()
         self._stopping = False
@@ -453,25 +453,34 @@ class Paced:
             self._thread = threading.Thread(target=self._run, daemon=True)
             self._thread.start()
         self._ready.wait()
+        if self._fault is not None:
+            raise MachineError('%s faulted on its own thread: %s' % (type(self.part).__name__, self._fault)) \
+                from self._fault
         with self._lock:
             return dict(self._out)
 
     def _run(self):
+        """The part paced; its fault kept and its loop woken to hear it - a part faulting before its first
+        outputs held the loop's step waiting for good, one faulting later left it the last outputs unsaid."""
         last = self._clock()
-        while not self._stopping:
-            now = self._clock()
-            with self._lock:
-                inputs = dict(self._inputs)
-            if self.feed is not None:
-                inputs.update(self.feed())
-            with self._part_lock:
-                out = self.part.step(max(now - last, 1e-6) if self.steps else 0.0, **inputs)
-            last = now
-            with self._lock:
-                self._out = out
-                self.steps += 1
+        try:
+            while not self._stopping:
+                now = self._clock()
+                with self._lock:
+                    inputs = dict(self._inputs)
+                if self.feed is not None:
+                    inputs.update(self.feed())
+                with self._part_lock:
+                    out = self.part.step(max(now - last, 1e-6) if self.steps else 0.0, **inputs)
+                last = now
+                with self._lock:
+                    self._out = out
+                    self.steps += 1
+                self._ready.set()
+                self._sleep(self.pause)
+        except Exception as e:  # told the loop at its next step
+            self._fault = e
             self._ready.set()
-            self._sleep(self.pause)
 
     def reset(self):
         with self._part_lock:
@@ -481,7 +490,7 @@ class Paced:
         if self._thread is not None:
             self._stopping = True
             self._thread.join()
-            self._thread = None
+            self._thread, self._fault = None, None
             self._ready.clear()
 
 

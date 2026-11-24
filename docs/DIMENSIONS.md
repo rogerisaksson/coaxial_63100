@@ -1,6 +1,6 @@
 # Dimensions (written by host/tools/sim/dimensions.py, not by hand)
 
-The gynoid's axes by drive type: 21 driven on 2 types, 6 without a drive.
+The robot's axes by drive type: 21 driven on 2 types, 6 without a drive.
 The candidate of record, laid in `machine/body/drives.py` and written by
 `tools/sim/dimensions.py --write`; the rationale: docs/findings/stacks.md.
 

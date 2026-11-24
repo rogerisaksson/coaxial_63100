@@ -26,9 +26,9 @@ from machine import libm
 #: centre of mass (m), its feet's gap (mm, nan between its ROW_S), how many contacts the robot had,
 #: when it fell (s, nan standing; its session's).
 HEAD = ('t', 'laid', 'tank', 'watts', 'cx', 'cy', 'cz', 'gap', 'n', 'fell')
-#: A raw contact: whether it is the robot's first geom's, its place, its frame (normal, two tangents), its
+#: A raw contact: whether the first geom is the robot's own (`own1`), its place, its frame (normal, two tangents), its
 #: force in it (N), its friction, its tangential velocity (m/s, the second geom's on the first's).
-CONTACT = ('hers1', 'px', 'py', 'pz', 'nx', 'ny', 'nz', 'ax', 'ay', 'az', 'bx', 'by', 'bz', 'fn', 'fa', 'fb',
+CONTACT = ('own1', 'px', 'py', 'pz', 'nx', 'ny', 'nz', 'ax', 'ay', 'az', 'bx', 'by', 'bz', 'fn', 'fa', 'fb',
            'mu', 'va', 'vb')
 #: The robot's contacts a raw pass holds: more are cut, their count kept in `n`.
 CONTACTS = 16
@@ -36,7 +36,7 @@ RAW = len(HEAD) + CONTACTS * len(CONTACT)
 HE, C = {name: i for i, name in enumerate(HEAD)}, {name: i for i, name in enumerate(CONTACT)}
 #: Where `wbc_pass_tapped` writes a contact's fields: the robot's own first, place, frame, force, friction,
 #: velocity.
-AT = (C['hers1'], C['px'], C['nx'], C['fn'], C['mu'], C['va'])
+AT = (C['own1'], C['px'], C['nx'], C['fn'], C['mu'], C['va'])
 #: A sample's fields: its time and the sequence laid, the world's force on the robot (N), its centre
 #: of mass (m), the pivot's margin (mm, nan unborne), slip (m/s), the cone's use, the tank (J), its
 #: drives' watts, its feet's gap (mm, nan between its ROW_S).
@@ -112,7 +112,7 @@ def cooked(raws):
     held = np.arange(CONTACTS)[None, :] < np.minimum(head[:, HE['n']], CONTACTS)[:, None]
     frame = c[..., C['nx']:C['bz'] + 1].reshape(len(x), CONTACTS, 3, 3)
     f = c[..., C['fn']:C['fb'] + 1] * held[..., None]
-    f_on = np.einsum('nkji,nkj->ni', frame, f * np.where(c[..., C['hers1']] > 0, -1.0, 1.0)[..., None])
+    f_on = np.einsum('nkji,nkj->ni', frame, f * np.where(c[..., C['own1']] > 0, -1.0, 1.0)[..., None])
     normal = np.abs(f[..., 0])
     borne, grip = normal.sum(1), (c[..., C['mu']] * normal).sum(1)
     slip = (normal * libm.hypot(c[..., C['va']], c[..., C['vb']])).sum(1) / np.where(borne > 0.0, borne, 1.0)

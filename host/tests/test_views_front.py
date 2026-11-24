@@ -323,8 +323,8 @@ def test_the_marquee_decodes_the_art_itself(report):
         return sink.getvalue()
 
     art = '\n'.join((
-        ansi.code((10, 20, 30)) + '⣿⣿' + ansi.code((10, 20, 31))
-        + '⣿' + ansi.RESET + ' ab',
+        ansi.code((10, 20, 30)) + '\u28ff\u28ff' + ansi.code((10, 20, 31))
+        + '\u28ff' + ansi.RESET + ' ab',
         ansi.code(214) + 'x' + ansi.back(17) + 'y' + '\x1b[39mz\x1b[49mw'
         + ansi.RESET,
         '\x1b[31mred\x1b[92mbright\x1b[44m on blue\x1b[0m plain',

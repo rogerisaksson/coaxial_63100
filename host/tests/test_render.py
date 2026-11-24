@@ -1352,7 +1352,7 @@ def test_the_alphabet(report):
 
 
 def test_the_gynoid(report):
-    """The gynoid stands on the floor at its height, a stride shows, and its dots are the same
+    """The robot stands on the floor at its height, a stride shows, and its dots are the same
     cells on the GPU as splatted here - where a card answers."""
     from coaxial.graphics import card, gpu, gynoid
     from machine.body import figure
@@ -1386,7 +1386,7 @@ def test_the_gynoid(report):
 
 def main():
     report = Report()
-    print('\n-- the gynoid --')
+    print('\n-- the robot --')
     test_the_gynoid(report)
     print('\n-- the 3D engine, stage by stage --')
     test_pose(report)

@@ -21,15 +21,12 @@ INKS, USES = (scene.TITLE, scene.NOTE, scene.TIE_OUT, scene.HIT), scene.EDGE
 #: A node's sign by the first word of its path naming what it is, its own name first: an estimator or an
 #: observer, the robot's eyes, senses, law and drives, the world, the wire, the board, a process, what
 #: wears; a dot for the rest.
-SIGNS = (('ekf', '◈'), ('estimat', '◈'), ('observ', '◈'), ('kalman', '◈'), ('filter', '◈'),
-         ('eye', '◉'), ('sight', '◉'), ('registry', '◉'), ('vision', '◉'), ('camera', '◉'),
-         ('sens', '◎'), ('edge', '◎'), ('grip', '◎'), ('felt', '◎'), ('imu', '◎'), ('angle', '◎'), ('adc', '◎'),
-         ('thermal', '◎'), ('law', '⎔'), ('modal', '⎔'), ('se2', '⎔'), ('latent', '⎔'), ('impedance', '⎔'),
-         ('stack', '⎔'), ('wrench', '⎔'), ('chain', '⎔'), ('ctrl', '⎔'), ('motion', '⊛'), ('drive', '⊛'),
-         ('motor', '⊛'), ('gate', '⊛'), ('pwm', '⊛'), ('power', '⊛'), ('world', '⊕'), ('twin', '⊕'),
-         ('physics', '⊕'), ('wire', '⌁'), ('comm', '⌁'), ('link', '⌁'), ('uart', '⌁'), ('protocol', '⌁'),
-         ('shtp', '⌁'), ('cmd', '⌁'), ('board', '▣'), ('process', '⟳'), ('worker', '⟳'), ('wear', '⧖'),
-         ('watch', '⧖'), ('identify', '⧖'))
+SIGNS = tuple((word, sign) for sign, words in (
+    ('\u25c8', 'ekf estimat observ kalman filter'), ('\u25c9', 'eye sight registry vision camera'),
+    ('\u25ce', 'sens edge grip felt imu angle adc thermal'),
+    ('\u2394', 'law modal se2 latent impedance stack wrench chain ctrl'), ('\u229b', 'motion drive motor gate pwm power'),
+    ('\u2295', 'world twin physics'), ('\u2301', 'wire comm link uart protocol shtp cmd'), ('\u25a3', 'board'),
+    ('\u27f3', 'process worker'), ('\u29d6', 'wear watch identify')) for word in words.split())
 #: The ports a lane meets an open node by, on its frame's left, right, top and bottom, and the way out of it
 #: from each; the cells kept clear about a frame - a lane outside on its way to a port runs there.
 PORTS, CLEAR = {'L': -1, 'R': -2, 'T': -3, 'B': -4}, 1
@@ -50,12 +47,12 @@ def sign(tree, node):
         for word, glyph in SIGNS:
             if word in part:
                 return glyph
-    return '●'
+    return '\u25cf'
 
 
 def made(tree, node):
     """Where a word is made, as the tree writes it: its file and its function's name."""
-    return '%s › %s' % (scene.short(tree, tree.up[node]), tree.id[node].rpartition('::')[2]) if node >= 0 else ''
+    return '%s \u203a %s' % (scene.short(tree, tree.up[node]), tree.id[node].rpartition('::')[2]) if node >= 0 else ''
 
 
 @functools.lru_cache(maxsize=2)
@@ -196,7 +193,7 @@ def nest(level, node):
                 told.append((kind, [(w, maker[w], detail.took(tree, [t for t in took.get((kind, w), ())
                                                                        if t >= 0 and owner(t) == b]))
                                     if w in maker else (w, None, None) for w in words]))
-                arrows = ('↺', '↺') if kind == len(INKS) - 1 else ('→', '←')
+                arrows = ('\u21ba', '\u21ba') if kind == len(INKS) - 1 else ('\u2192', '\u2190')
                 text, by = ', '.join(words), ', '.join(sorted({maker[w] for w in words if maker.get(w)}))
                 for end, other, arrow in ((a, b, arrows[0]), (b, a, arrows[1])):
                     if end >= 0:
@@ -208,7 +205,7 @@ def nest(level, node):
                           any(kind == 0 for way in (fore, back) for kind, _a, _b in way)))
         else:   # one uses the other: the used one's data into its user
             for d, s in ((u, v), (v, u)):
-                for end, other, arrow in ((s, d, '←'), (d, s, '→')):
+                for end, other, arrow in ((s, d, '\u2190'), (d, s, '\u2192')):
                     if (d, s) in used and end >= 0:
                         rings[end].append((arrow, 'used', shown[other], ''))
             lanes.append((u, v, corners, USES, USES if (u, v) in used else None, USES if (v, u) in used else None,
@@ -362,9 +359,9 @@ def composed(mirror, levels, places, cols, rows):
             continue
         (x0, y0), (x1, y1) = pos[level['frame'][:2]], pos[level['frame'][2:]]
         gates, up, node = {pos[c] for c in level['port'].values()}, level['up'], level['node']
-        frame = [((x0, y0), '╭'), ((x1, y0), '╮'), ((x0, y1), '╰'), ((x1, y1), '╯')] \
-            + [((x, y), '─') for x in range(max(x0 + 1, 0), min(x1, cols)) for y in (y0, y1)] \
-            + [((x, y), '│') for y in range(max(y0 + 1, 0), min(y1, rows)) for x in (x0, x1)]
+        frame = [((x0, y0), '\u256d'), ((x1, y0), '\u256e'), ((x0, y1), '\u2570'), ((x1, y1), '\u256f')] \
+            + [((x, y), '\u2500') for x in range(max(x0 + 1, 0), min(x1, cols)) for y in (y0, y1)] \
+            + [((x, y), '\u2502') for y in range(max(y0 + 1, 0), min(y1, rows)) for x in (x0, x1)]
         texts += [(x, y, ch, scene.NAME_DIM, None) for (x, y), ch in frame if (x, y) not in gates]
         texts += [(x0 + 2, y0, ' ', scene.NAME_DIM, None), (x0 + 3, y0, sign(tree, node), up['inks'][node], node),
                   (x0 + 4, y0, ' ', scene.NAME_DIM, None), (x0 + 5, y0, up['own'][node] + ' ', scene.NAME, node)]

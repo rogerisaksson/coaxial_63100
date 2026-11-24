@@ -335,7 +335,7 @@ def release(state):
 
 
 def open_prompt(state):
-    """The LLM prompt bar for the gynoid opened, held motion keys released, the page's
+    """The LLM prompt bar for the robot opened, held motion keys released, the page's
     model warmed while the prompt is typed."""
     if state.get('model'):
         warm(state)
@@ -514,6 +514,6 @@ def chat_box(state, width=80):
         body.append(entry[:max(1, room - 6)], style='value')
         body.append('_' if (open_p and blink) else ' ', style='value')
     else:
-        body.append('press / to talk to the gynoid (e.g. "lie on the bed", "sit in the chair", "tour")'[:max(1, room - 5)],
+        body.append('press / to talk to the robot (e.g. "lie on the bed", "sit in the chair", "tour")'[:max(1, room - 5)],
                     style='label')
     return hud('GYNOID CHAT  LLM / AGENT', [body])

@@ -221,8 +221,8 @@ WARM = (214, 176, 160)
 #: Decoration, meaning nothing: a kana line under the tag ("Ghost in the
 #: Shell, Nostromo").
 DATA = (60, 190, 140)
-TAG = '>> ﾁｬｸﾘｸﾁ ﾀﾝｻｸﾁｭｳ'
-SUBTAG = 'ﾁﾊﾞ ｽﾌﾟﾗｳﾙ ﾅﾋﾞ 7G'
+TAG = '>> \uff81\uff6c\uff78\uff98\uff78\uff81 \uff80\uff9d\uff7b\uff78\uff81\uff6d\uff73'
+SUBTAG = '\uff81\uff8a\uff9e \uff7d\uff8c\uff9f\uff97\uff73\uff99 \uff85\uff8b\uff9e 7G'
 
 def hashed(*n):
     """A number from integers, the same every run: a star's place, a glyph's pick."""
@@ -376,19 +376,19 @@ def hud(grid, tone, buf, width, height, fl, static, scroll, gates, box, colour):
         top, bottom, first, last = box
         top, bottom = max(5, top - 1), min(height - 3, bottom + 1)
         first, last = max(0, first - 2), min(width - 1, last + 2)
-        for row, col, text in ((top, first, '┌─'), (top, last - 1, '─┐'),
-                               (bottom, first, '└─'), (bottom, last - 1, '─┘')):
+        for row, col, text in ((top, first, '\u250c\u2500'), (top, last - 1, '\u2500\u2510'),
+                               (bottom, first, '\u2514\u2500'), (bottom, last - 1, '\u2500\u2518')):
             put(grid, tone, row, col, text, amber, buf=buf)
         if int(t * 2.0) % 2 == 0:
-            put(grid, tone, top, first + 3, 'ﾛｯｸ ｵﾝ  ', amber, clear=True, buf=buf)
+            put(grid, tone, top, first + 3, '\uff9b\uff6f\uff78 \uff75\uff9d  ', amber, clear=True, buf=buf)
 
     # The view's pitch (its centre against the horizon) and bank; the clock, the gates.
     pitch = -math.degrees(math.atan((height / 2.0 - static['hrow']) / static['rows'])) \
         + fl['bob']
-    put(grid, tone, height - 2, 1, 'ﾋﾟｯﾁ %+05.1f  ﾊﾞﾝｸ %s%04.1f' % (
+    put(grid, tone, height - 2, 1, '\uff8b\uff9f\uff6f\uff81 %+05.1f  \uff8a\uff9e\uff9d\uff78 %s%04.1f' % (
         pitch, 'R' if fl['bank'] >= 0 else 'L', abs(fl['bank'])), dim, buf=buf)
     minutes, seconds = divmod(t, 60.0)
-    put(grid, tone, height - 1, 1, 'T+%02d:%04.1f  ｹﾞｰﾄ %02d' % (minutes, seconds,
+    put(grid, tone, height - 1, 1, 'T+%02d:%04.1f  \uff79\uff9e\uff70\uff84 %02d' % (minutes, seconds,
                                                                 gates % 100), amber,
          buf=buf)
     if int(t * 1.5) % 2 == 0:

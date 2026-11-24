@@ -47,7 +47,7 @@ def meter(value, marks):
     out, lit = Text(marks[0][1] + ' ', style='bar.dim'), start <= dot < start + len(word)
     for i in range(METER):
         in_w = start <= i < start + len(word)
-        out.append(word[i - start] if in_w else ('●' if i == dot else '─'),
+        out.append(word[i - start] if in_w else ('\u25cf' if i == dot else '\u2500'),
                    style='bar' if (lit if in_w else i == dot) else 'bar.dim')
     out.append(' ' + marks[-1][1], style='bar.dim')
     return out
@@ -77,7 +77,7 @@ def marked(state, now, clock):
 
 def _bar4(val):
     n = max(0, min(4, round(max(0.0, min(1.0, float(val))) * 4)))
-    return '▰' * n + '▱' * (4 - n)
+    return '\u25b0' * n + '\u25b1' * (4 - n)
 
 
 _STUNT_BAL = dict.fromkeys(
@@ -124,7 +124,7 @@ def badge(width, height, state):
     if gym.touring(state):
         tr = state['tour']
         th, cm = getattr(tr, 'last_thought', ''), getattr(tr, 'last_cmd', '')
-        line0 = (' [TOUR] %s  LLM ▸ %s (%s) ' % (tr.current_label(), th, cm)) if th else (' [TOUR] %s ' % tr.current_label())
+        line0 = (' [TOUR] %s  LLM \u25b8 %s (%s) ' % (tr.current_label(), th, cm)) if th else (' [TOUR] %s ' % tr.current_label())
         out.update({(0, 1 + i): (ord(ch), ink) for i, ch in enumerate(line0[:width - 2])})
     # a said prompt's thought and command live in the chat pane alone: echoed here too the page
     # wore two prompt lines
@@ -239,13 +239,13 @@ def _joint_row(now, joint, label, shown):
     if shown == 'power':
         cls = cross_section.WATTS if pwr >= 0.0 else cross_section.SOA_WARN
         bar = _gauges.gauge(0.5 + 0.5 * max(-1.0, min(1.0, pwr / (pk * RAD_S))), 6, cls=cls, centre=0.5)
-        tail = '%+4.0fW %3.0f°C' % (p_cl, deg_c)
+        tail = '%+4.0fW %3.0f\u00b0C' % (p_cl, deg_c)
     elif shown == 'temp':
         bar = _gauges.gauge(_gauges.temp_share(deg_c), 6, cls=_gauges.thermometer_class(deg_c))
-        tail = '%3.0f°C %+4.0fW' % (deg_c, p_cl)
+        tail = '%3.0f\u00b0C %+4.0fW' % (deg_c, p_cl)
     else:
-        bar, tail = _screen.gauge(min(1.0, tau / pk), 6), '%3.0fNm %3.0f°C' % (min(999.0, tau), deg_c)
-    return (label.rjust(10), _ansi('%+5.0f° %s %s' % (deg, bar, tail)))
+        bar, tail = _screen.gauge(min(1.0, tau / pk), 6), '%3.0fNm %3.0f\u00b0C' % (min(999.0, tau), deg_c)
+    return (label.rjust(10), _ansi('%+5.0f\u00b0 %s %s' % (deg, bar, tail)))
 
 
 def _bus_row(now, name, joints):
@@ -253,25 +253,25 @@ def _bus_row(now, name, joints):
     here, a seat's and a fall's misread drift was taken for its buses' errors."""
     from machine.body import drives
     get = lambda k, j, d=0.0: float((now.get(k) or {}).get(j, d)) if now else d
-    nodes, pk_share, max_c = ['\x1b[38;5;66m├'], 0.0, 25.0
+    nodes, pk_share, max_c = ['\x1b[38;5;66m\u251c'], 0.0, 25.0
     for u in range(7):
         if u >= len(joints):
-            nodes.append('\x1b[38;5;66m─')
+            nodes.append('\x1b[38;5;66m\u2500')
             continue
         j = joints[u]
         pas, deg_c = drives.passive(j), get('temp', j, 25.0)
         max_c = max(max_c, deg_c)
         if pas:
-            nodes.append('\x1b[38;5;66m▱')
+            nodes.append('\x1b[38;5;66m\u25b1')
         else:
             sh = min(1.0, abs(get('torque', j)) / max(1.0, get('peak', j, float(drives.peak(j)))))
             pk_share = max(pk_share, sh)
             c = 208 if (deg_c > 85.0 or sh > 0.85) else (214 if sh > 0.35 else 44)
-            nodes.append(f'\x1b[38;5;{c}m▰')
+            nodes.append(f'\x1b[38;5;{c}m\u25b0')
     strip = ''.join(nodes) + '\x1b[0m'
     cls = cross_section.SOA_WARN if max_c > 85.0 else (cross_section.WATTS if pk_share > 0.5 else cross_section.SOA_OK)
     bar = _gauges.gauge(pk_share, 6, cls=cls)
-    return (name.replace('_', ' ').rjust(10), _ansi('%s %d/%d %s %3.0f°C' % (strip, len(joints), len(joints), bar, max_c)))
+    return (name.replace('_', ' ').rjust(10), _ansi('%s %d/%d %s %3.0f\u00b0C' % (strip, len(joints), len(joints), bar, max_c)))
 
 
 def _tier_row(state, now, emu):
@@ -308,7 +308,7 @@ def boxes(state, now, name):
         ('     speed', _ansi('%+5.2f m/s %s %+5.2f' % (spd_act, spd_bar, spd_set))),
         ('     twist', 'vx%+5.2f vy%+5.2f wz%+5.2f' % tw_act),
         ('    rhythm', _ansi('%4.2f Hz  phase   %s' % (float(now['cadence']) if now else 0.0, _gauges.gauge(float(now['phase']) if now else 0.0, 8)))),
-        ('     soles', soles_row), ('     power', _ansi('%4.0f W  %s  %4.0f °C' % (watts, _screen.gauge(watts / 800.0, 8), max_c))),
+        ('     soles', soles_row), ('     power', _ansi('%4.0f W  %s  %4.0f \u00b0C' % (watts, _screen.gauge(watts / 800.0, 8), max_c))),
         ('   physics', 'x%.1f real time  T:%s' % (now['ratio'], shown) if now else '-'),
         (' autopilot', state['tour'].current_label()[:25] if state.get('tour') and not state['tour'].done else 'manual'),
         ('    record', rec), ('   horizon', '%s  Z cycles' % (state.get('horizon') or 'off')),
@@ -415,7 +415,7 @@ def main(argv=None):
         parser.add_argument(flag, type=int, default=0)
     parser.add_argument('--keys', default='', help="a key a frame from the first, '.' none")
     parser.add_argument('--tour', action='store_true', help='start the autonomous room tour on launch')
-    parser.add_argument('--prompt', default='', help='send an initial natural-language LLM prompt to the gynoid')
+    parser.add_argument('--prompt', default='', help='send an initial natural-language LLM prompt to the robot')
     parser.add_argument('--telemetry', type=int, default=0,
                         help='serve the robot\'s latent, impedance and wrench live on 127.0.0.1:PORT (machine.process.introspect)')
     args, board_view = parser.parse_args(argv), stage()

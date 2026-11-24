@@ -103,7 +103,7 @@ board's findings: [FINDINGS](../FINDINGS.md).
   mass, and with steel in its own near white a third of the robot was
   light.
 - A drive's motor's can and its board are anodised magenta, its gearbox a
-  darker one (`livery.SERVO`, `GEAR`), as a gynoid of struts' actuators
+  darker one (`livery.SERVO`, `GEAR`), as a robot of struts' actuators
   are: 21 drives, each bolted (`plated._bolts`) - six heads on either
   face of its can, on a circle 0.72 of its radius, 4 mm proud. In their
   frames' blues the drives were grey among grey.

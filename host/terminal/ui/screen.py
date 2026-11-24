@@ -80,7 +80,7 @@ def tint(text, colour):
 #: screens put in every dead corner of a viewport. Stamped, not drawn: it
 #: lands only where the field is empty, so a drawing that reaches a corner
 #: simply keeps it.
-CROSS = ('  │  ', ' ─┼─ ', '  │  ')
+CROSS = ('  \u2502  ', ' \u2500\u253c\u2500 ', '  \u2502  ')
 
 
 def stamp_crosses(lines, width, inset=2):
@@ -104,7 +104,7 @@ def stamp_crosses(lines, width, inset=2):
             for i, bit in enumerate(CROSS):
                 line = out[top + i]
                 out[top + i] = line[:left] + bit + line[left + len(bit):]
-    return [tint(line, NEON) if line.strip() and set(line) <= set(' |-+│─┼')
+    return [tint(line, NEON) if line.strip() and set(line) <= set(' |-+\u2502\u2500\u253c')
             else line for line in out]
 
 

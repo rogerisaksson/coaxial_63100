@@ -41,7 +41,7 @@ DECAY_ROW_S = 0.07
 #: The cursor's blink, cycles a second.
 BLINK_HZ = 2.0
 #: The block the console leaves its cursor on.
-CURSOR = '█'
+CURSOR = '\u2588'
 #: The leader column is the page's: its longest label, a space and at
 #: least one dot - never past half the box. A fixed column either put a
 #: label that filled it a column out or left it with no dot at all, and

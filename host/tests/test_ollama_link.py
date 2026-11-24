@@ -61,7 +61,7 @@ def test_port_state(report):
             # The message Windows produced here, Swedish locale and all.
             raise serial.SerialException(
                 "could not open port 'COM4': PermissionError(13, "
-                "'Åtkomst nekad.', None, 5)")
+                "'\u00c5tkomst nekad.', None, 5)")
 
         serial.Serial = denied
         report.check('a port another process holds is busy, not silent',
@@ -189,7 +189,7 @@ def test_link_recovery(report):
     talk.toolbox = box                      # the fake stands in for both
     # Not a board order: board_switch intercepts that before the model is
     # reached, and this needs a question that runs a turn.
-    answer = talk.ask('vad läser NTC:n?')
+    answer = talk.ask('vad l\u00e4ser NTC:n?')
     whole = screen.getvalue() + chr(10) + answer
     report.check('one screen carries the checklist once, not twice',
                  whole.count(STEP4_UP) == 1, '%d copies' % whole.count(STEP4_UP))
@@ -455,36 +455,36 @@ def test_fallback(report):
             ('byt till debugproben', 'auto'),
             ('byter du till debugproben', 'auto'),
             ('byt till en simulerad enhet', 'simulated'),
-            ('byt till simulerad hårdvara', 'simulated'),
-            ('växla till COM4', 'COM4'),
+            ('byt till simulerad h\u00e5rdvara', 'simulated'),
+            ('v\u00e4xla till COM4', 'COM4'),
             ('switch to the real board', 'auto'),
             ('byt till RS485', 'rs485'),
-            ('byt till fältbussen', 'rs485'),
+            ('byt till f\u00e4ltbussen', 'rs485'),
             # Every one of these lost the order to a single unlisted noun while
             # this required all the words to be known: 'enhet', then
             # 'hardvara', then 'lage'.
-            ('byter du till simulerat läge', 'simulated'),
-            ('byt till simulerat läge', 'simulated'),
-            ('använd det simulerade kortet', 'simulated'),
+            ('byter du till simulerat l\u00e4ge', 'simulated'),
+            ('byt till simulerat l\u00e4ge', 'simulated'),
+            ('anv\u00e4nd det simulerade kortet', 'simulated'),
             ('koppla om till proben', 'auto'),
             ('byt till den simulerade grejen', 'simulated'),
             # An interrogative disqualifies it.
-            ('vad är debugproben?', None),
-            ('vilket läge är du i?', None),
+            ('vad \u00e4r debugproben?', None),
+            ('vilket l\u00e4ge \u00e4r du i?', None),
             ('vet du om kortet svarar?', None),
             # So does a second request the host cannot carry out.
-            ('byt till simulerat läge och läs NTC:n', None),
-            ('byt till proben och mät NTC:n', None),
-            ('byt språk till svenska', None),
-            ('läs NTC:n och DC-länken', None),
-            ('beskriv hårdvaran för en novis', None),
+            ('byt till simulerat l\u00e4ge och l\u00e4s NTC:n', None),
+            ('byt till proben och m\u00e4t NTC:n', None),
+            ('byt spr\u00e5k till svenska', None),
+            ('l\u00e4s NTC:n och DC-l\u00e4nken', None),
+            ('beskriv h\u00e5rdvaran f\u00f6r en novis', None),
             # Names a board, orders nothing.
-            ('debugproben är inte inkopplad', None)):
+            ('debugproben \u00e4r inte inkopplad', None)):
         got = words.board_switch(question)
         report.check('board order: %s' % question[:34], got == want, str(got))
 
     # A pipe is not a console.
-    mangled = 'byter du till simulerat läge'.encode('utf-8').decode('cp1252')
+    mangled = 'byter du till simulerat l\u00e4ge'.encode('utf-8').decode('cp1252')
     report.check('the mangling really does hide the order',
                  words.board_switch(mangled) is None, mangled[-12:])
     report.check('so a pipe is decoded as UTF-8, like the outputs are',

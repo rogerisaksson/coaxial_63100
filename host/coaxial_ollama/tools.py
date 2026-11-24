@@ -213,8 +213,8 @@ class Toolbox:
         self.asked = ''
 
     # Which side a word names, in the two languages this loop is spoken in.
-    SIDES = {'left': 'left', 'vänster': 'left', 'vanster': 'left',
-             'right': 'right', 'höger': 'right', 'hoger': 'right'}
+    SIDES = {'left': 'left', 'v\u00e4nster': 'left', 'vanster': 'left',
+             'right': 'right', 'h\u00f6ger': 'right', 'hoger': 'right'}
 
     def _wrong_side(self, args):
         """A node on the other side of the machine from the one asked for."""

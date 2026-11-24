@@ -101,10 +101,10 @@ def test_the_thermal_map_is_a_halftone_with_its_parts_marked(report):
     # Right angles: the frames are box-drawing in braille -
     # corners, and straight runs between them.
     corners = {pair: sum(marked.count(ch) for ch in pair)
-               for pair in ('⡖⢰', '⢲⡆', '⠧⠸', '⠼⠇')}
-    runs = {ch: marked.count(ch) for ch in '⠒⠤⡇⢸'}
+               for pair in ('\u2856\u28b0', '\u28b2\u2846', '\u2827\u2838', '\u283c\u2807')}
+    runs = {ch: marked.count(ch) for ch in '\u2812\u2824\u2847\u28b8'}
     report.check('the frames have right-angled corners - '
-                 '⡖⠒⠒⢲ over ⠧⠤⠤⠼, or ⢰ ⡆ ⠸ ⠇ where the side is in the '
+                 '\u2856\u2812\u2812\u28b2 over \u2827\u2824\u2824\u283c, or \u28b0 \u2846 \u2838 \u2807 where the side is in the '
                  'inner lane',
                  all(n >= 5 for n in corners.values()), str(corners))
     report.check('and straight sides between them',
@@ -192,9 +192,9 @@ def test_the_thermal_page_shows_its_evidence(report):
                  'red to yellow to green as it fills, and TH OBS in the '
                  'leaders\' grey whatever the bar wears',
                  all(inks.values()) and all(greys.values())
-                 and bar_of(0.8).count('⣿') == 0
-                 and 9 <= bar_of(0.9).count('⣿') <= 10
-                 and bar_of(1.0).count('⣿') == page.GAUGE_CELLS - 1
+                 and bar_of(0.8).count('\u28ff') == 0
+                 and 9 <= bar_of(0.9).count('\u28ff') <= 10
+                 and bar_of(1.0).count('\u28ff') == page.GAUGE_CELLS - 1
                  and page.PAGE_CYCLE_ON_S < SimulatedThermal.CYCLE_ON_S
                  and page.PAGE_CYCLE_OFF_S < SimulatedThermal.CYCLE_OFF_S,
                  '%s %s | %s %s %s' % (inks, greys, bar_of(0.8),
@@ -217,7 +217,7 @@ def test_the_thermal_page_shows_its_evidence(report):
                  and at(34.9) == 'mild' and at(45.0) == 'hot'
                  and at(20.0, 0.3) == 'unsure' and at(-25.0, 2.0) == 'unsure'
                  and boxes.room_hint(None) == '' and boxes.room_hint({}) == ''
-                 and boxes.ROOM_HINTS['unsure'] == '🤒 🤔'
+                 and boxes.ROOM_HINTS['unsure'] == '\U0001f912 \U0001f914'
                  and all(' ' in pair for pair in boxes.ROOM_HINTS.values())
                  # Every glyph wide on its own, no variation selector: a narrow
                  # character made emoji by one ran the row a cell long and
@@ -251,7 +251,7 @@ def test_the_thermal_page_shows_its_evidence(report):
     room = [value for label, value in rows if label == 'room'][0]
     report.check('and the hint sits in SENSE beside the room, the pair '
                  'after the figure',
-                 room.plain.startswith('24.5 ±4.2 C')
+                 room.plain.startswith('24.5 \u00b14.2 C')
                  and room.plain.endswith(boxes.ROOM_HINTS['mild']),
                  room.plain)
 
@@ -312,7 +312,7 @@ def test_the_thermal_page_shows_its_evidence(report):
     report.check('drawn at the column\'s width nothing is cropped: the NTC, the observer\'s '
                  'run, the sample interval and the last sample rows of their own, no error '
                  'of a reading a sample old; HEADROOM\'s margin, floor and innovation',
-                 '…' not in said
+                 '\u2026' not in said
                  and any('NTC 59.8 C' in l for l in lines)
                  and not any(' err ' in l for l in lines)
                  and any('run 240 s' in l for l in lines)
@@ -333,9 +333,9 @@ def test_the_thermal_page_shows_its_evidence(report):
 
 
 def test_the_headroom_box_carries_a_solid_bar_with_a_tip(report):
-    """The thermal observer's spend is HEADROOM, its level one row of `⣿`
-    ending in an orange `⡇` or `⢸`, labelled `soak`: not
-    BUDGET's `[⣿⣿⠒⠒] 42 %`, nor three rows of braille.
+    """The thermal observer's spend is HEADROOM, its level one row of `\u28ff`
+    ending in an orange `\u2847` or `\u28b8`, labelled `soak`: not
+    BUDGET's `[\u28ff\u28ff\u2812\u2812] 42 %`, nor three rows of braille.
     """
     import re
     from rich.console import Console
@@ -349,25 +349,25 @@ def test_the_headroom_box_carries_a_solid_bar_with_a_tip(report):
     line = re.sub('\x1b\\[[0-9;]*m', '', half)
     report.check('a bar is one row of sixteen cells',
                  len(line) == 16, str(len(line)))
-    report.check('solid ⣿ to half way, then the tip in the lane the '
-                 'level ends in - ⡇ - then the track, a grey column the '
+    report.check('solid \u28ff to half way, then the tip in the lane the '
+                 'level ends in - \u2847 - then the track, a grey column the '
                  'cell\'s full height in every cell',
-                 line[:8] == '⣿' * 8 and line[8] == '⡇'
-                 and line[9:] == '⡇' * 7, line)
+                 line[:8] == '\u28ff' * 8 and line[8] == '\u2847'
+                 and line[9:] == '\u2847' * 7, line)
     report.check('the tip is orange and the track is the track\'s grey',
                  '38;5;%dm' % ansi.AMBER in half
                  and '38;5;%dm' % cross_section.INK[cross_section.TRACK] in half,
                  half.replace(chr(27), '^'))
     odd = re.sub('\x1b\\[[0-9;]*m', '', gauges.bar(17.0 / 32.0, 16))
-    report.check('a level ending in the other lane tips with ⢸, the '
+    report.check('a level ending in the other lane tips with \u28b8, the '
                  'tip\'s cell holding the tip alone',
-                 odd[:8] == '⣿' * 8 and odd[8] == '⢸', odd)
+                 odd[:8] == '\u28ff' * 8 and odd[8] == '\u28b8', odd)
     empty = re.sub('\x1b\\[[0-9;]*m', '', gauges.bar(0.0, 16))
     full = re.sub('\x1b\\[[0-9;]*m', '', gauges.bar(1.0, 16))
     report.check('nothing spent is a tip at the start of a full-height '
                  'track; everything, a solid row to a tip at the end',
-                 empty == '⡇' * 16
-                 and full[:15] == '⣿' * 15 and full[15] == '⢸',
+                 empty == '\u2847' * 16
+                 and full[:15] == '\u28ff' * 15 and full[15] == '\u28b8',
                  '%s | %s' % (empty, full))
 
     state = {'nodes': {}, 'ntc': None, 'seconds': 3, 'settled': False,
@@ -387,7 +387,7 @@ def test_the_headroom_box_carries_a_solid_bar_with_a_tip(report):
                     if any(0x2800 <= ord(ch) < 0x2900 for ch in l)]
     report.check('one braille row, no brackets, the figure beside it',
                  len(braille_rows) == 1 and '[' not in said
-                 and '42 %' in said and '⣿' in said, said)
+                 and '42 %' in said and '\u28ff' in said, said)
 
 
 def test_the_thermal_load_heats_the_legs_together(report):

@@ -13,7 +13,7 @@ from .spinner import _vt
 #: the left column alone for the half step, and the bottom row for what is
 #: still to come - the thermometer tube's grey dots. Half-cell resolution,
 #: so WIDTH cells are 2 * WIDTH steps of the layer.
-BRAILLE = ('⣿', '⡇', '⣀')
+BRAILLE = ('\u28ff', '\u2847', '\u28c0')
 #: For a stream that cannot hold braille (--ascii, or a console whose
 #: codec says so): the same three roles.
 ASCII = ('=', '>', '-')

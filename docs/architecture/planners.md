@@ -2,7 +2,7 @@
 
 The loop in a synthesizer's terms, a term a thing: [synth](synth.md).
 
-The gynoid's latent loop, the one way it moves: a text compiled to rows,
+The robot's latent loop, the one way it moves: a text compiled to rows,
 the latent state stepped, the modes on its body and their springs rendered
 into the whole-body loop's ask ([solvers](solvers.md)), then its drives.
 Run by the robot's law ([robotics](robotics.md)). Findings:

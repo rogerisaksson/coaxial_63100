@@ -1,4 +1,4 @@
-"""The gynoid's figure: segments, joints and masses; a leg's six joints from its foot, and back.
+"""The robot's figure: segments, joints and masses; a leg's six joints from its foot, and back.
 
     SEGMENTS                                   # parents first; `machine.world.physics` builds on them
     angles = leg(1.0, pelvis, turn, ankle, foot)   # the left leg's six joints, radians

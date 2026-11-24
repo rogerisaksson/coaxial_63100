@@ -53,11 +53,11 @@ and traced a pass at a time (`tools/sim/trace.py`, `tools/sim/told.py`).
 | Electronics | the board layer a part a file, and what stands in for it: board/fake, board/native, board/emu on Renode, world/, the stand-in | [architecture/electronics.md](architecture/electronics.md) |
 | Drivetrain | motor to joint: the PMSM, the drive's law, the filter and ctrl/ on the board, the drives as bought, gearboxes, linkages, the buses | [architecture/drivetrain.md](architecture/drivetrain.md) |
 | Thermals | a board's heat: the 20-node observer and envelope, its identification, a drive's four nodes, the tools | [architecture/thermals.md](architecture/thermals.md) |
-| Kinematics | the gynoid's figure as numbers: segments and masses, dual quaternions, a leg's reach, movements' terms, MuJoCo's XML, the static model in C | [architecture/kinematics.md](architecture/kinematics.md) |
+| Kinematics | the robot's figure as numbers: segments and masses, dual quaternions, a leg's reach, movements' terms, MuJoCo's XML, the static model in C | [architecture/kinematics.md](architecture/kinematics.md) |
 | Solvers | the dense QP, the whole-body stack and its step without an active set, Python and C row for row | [architecture/solvers.md](architecture/solvers.md) |
 | Planners | the latent loop, the one way the robot moves: text to rows, the latent step, the modes, poise, stride, the leap, the twist | [architecture/planners.md](architecture/planners.md) |
 | Synth | the robot's loop as a synthesizer feeding the control system: sequencer, notes, oscillator, envelopes, gates, sidechains, modulation - the lingo, a term a thing | [architecture/synth.md](architecture/synth.md) |
-| Robotics | the executive any robot runs on, and the gynoid round its loop: build, world, senses, the run, identification | [architecture/robotics.md](architecture/robotics.md) |
+| Robotics | the executive any robot runs on, and the robot round its loop: build, world, senses, the run, identification | [architecture/robotics.md](architecture/robotics.md) |
 | Eyes and way | the robot's eyes and the map it keeps: stereo, gaze, classes, the registry; its way among its things: costs, routes, docks, errands | [architecture/eyes.md](architecture/eyes.md) |
 | Aerodynamics | what flies on the shared flight stack: intent as text, kinematics in a vacuum, routines, grounds; the helicopter, the ornithopter, the aerobat | [architecture/aerodynamics.md](architecture/aerodynamics.md) |
 | Quad | the quad on four boards: its frame, the aero/ core it flies on, its action space, its flights, its race | [architecture/quad.md](architecture/quad.md) |

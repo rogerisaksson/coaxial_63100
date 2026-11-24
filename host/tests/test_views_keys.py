@@ -135,14 +135,14 @@ def test_folded_into_the_page(report):
     finally:
         bindings.UX.update(column=False)
     side = [line[-1 - taskbar.RAIL // 2] for line in folded.splitlines()[1:-1]]
-    mid = side.index('◂') if '◂' in side else -1
+    mid = side.index('\u25c2') if '\u25c2' in side else -1
     key, edge = (taskbar._rgb(con.get_style(name)) for name in ('keys.key', 'frame.hud'))
     lit, dim = (taskbar._rgb(taskbar.breath(con, t)) for t in (0.0, SWEEP_S / 2.0))
     report.check("at first: the band its name alone, the column's edge a line with a tab in its middle - its "
                  "arrow over Tab's keycap, no word -, no boxes; Tab the boxes, no rail",
-                 '≡' not in folded and 'TESTBED' in folded and abs(mid - len(side) // 2) <= 2 and side[0] == '│'
-                 and side[mid + 1] == '↹' and not set('TAB') & set(side) and 'BOXED' not in folded
-                 and 'BOXED' in out and '◂' not in out, (mid, len(side)))
+                 '\u2261' not in folded and 'TESTBED' in folded and abs(mid - len(side) // 2) <= 2 and side[0] == '\u2502'
+                 and side[mid + 1] == '\u21b9' and not set('TAB') & set(side) and 'BOXED' not in folded
+                 and 'BOXED' in out and '\u25c2' not in out, (mid, len(side)))
     report.check("the arrow a key's ink as the sweep starts, BREATH of the way to an edge's half a sweep on",
                  lit == key and all(abs(d - k - taskbar.BREATH * (e - k)) <= 0.5 for d, k, e in zip(dim, key, edge)),
                  (lit, dim))

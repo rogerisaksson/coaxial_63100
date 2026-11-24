@@ -360,7 +360,7 @@ _ROWS = (
     ('ROBOT', 'C', 'crouch, and up', (('C', 'CROUCH'),), _cased('c', _did(gym.crouched))),
     ('ROBOT', '1-0 / >', "the gym's entries, but after F / its other text", (),
      {**dict.fromkeys(gym.DIGITS, _digit), '>': _did(gym.next_text)}),
-    ('VIEW', 'L-DRAG / ← →', 'look round the robot; behind it again as it goes', (),
+    ('VIEW', 'L-DRAG / \u2190 \u2192', 'look round the robot; behind it again as it goes', (),
      {k: lambda state, key, _now: viewpoint.turned(state, _LOOKS[key] / viewpoint.DRAG_DEG[0], 0.0) for k in _LOOKS}),
     ('VIEW', 'X', 'the other shoulder', (('X', 'SHOULDER'),), _cased('x', _did(viewpoint.shouldered))),
     ('VIEW', 'Z', "the robot's horizon: each sole's landing room, its capture point", (), _cased('z', _horizon)),

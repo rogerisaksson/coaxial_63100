@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The gynoid's axes by drive type, as docs/DIMENSIONS.md has them.
+"""The robot's axes by drive type, as docs/DIMENSIONS.md has them.
 
     python tools/sim/dimensions.py            # the page, printed
     python tools/sim/dimensions.py --write    # docs/DIMENSIONS.md written
@@ -70,7 +70,7 @@ def text(lib=None, rows=None):
     rows = types() if rows is None else rows
     driven = [j for j in JOINTS if not drives.passive(j)]
     out = ['# Dimensions (written by host/tools/sim/dimensions.py, not by hand)', '',
-           'The gynoid\'s axes by drive type: %d driven on %d type%s, %d without a drive.'
+           'The robot\'s axes by drive type: %d driven on %d type%s, %d without a drive.'
            % (len(driven), len(rows), '' if len(rows) == 1 else 's', len(JOINTS) - len(driven)),
            'The candidate of record, laid in `machine/body/drives.py` and written by',
            '`tools/sim/dimensions.py --write`; the rationale: docs/findings/stacks.md.', '',

@@ -102,6 +102,23 @@ def alive(pid):
         return code.value == 259
 
 
+def alive_since(pid, at):
+    """Whether process `pid` lives and is the one that lived at `at` (a wall time): a pid the system gave again to a
+    process started after `at` is another's - a build's marker whose writer was killed named a pid Windows had
+    given to msedge.exe, SystemSettings.exe and EpicWebHelper.exe, and every process asking for those libraries
+    waited on it for good."""
+    if not alive(pid):
+        return False
+    try:
+        import psutil
+    except ImportError:
+        return True
+    try:
+        return psutil.Process(pid).create_time() <= at
+    except psutil.Error:
+        return False
+
+
 def _parents():
     """{pid: its parent's} of every process on the machine."""
     if os.name != 'nt':

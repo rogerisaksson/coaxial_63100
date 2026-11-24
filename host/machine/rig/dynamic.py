@@ -109,7 +109,7 @@ def body(type):
     wanted = [j for s in TYPES[type].body for j in s.actuators]
     missing = [j for j in wanted if j not in JOINTS]
     if missing:
-        raise MachineError('%s has no figure for %s: a body with mass is the gynoid\'s'
+        raise MachineError('%s has no figure for %s: a body with mass is the robot\'s'
                            % (type, ', '.join(missing)))
     world = World()
     world.wire([[JOINTS.index(joint) for joint in subsystem.actuators]

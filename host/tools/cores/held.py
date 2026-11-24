@@ -124,12 +124,22 @@ def building(source, name, matmul, solves=False):
     return job
 
 
+def settled(wait_s=None):
+    """Every build queued in this process so far waited for, `wait_s` s each at most: whether all are done."""
+    return all(job['done'].wait(wait_s) for job in list(_BUILDING.values()))
+
+
 def _builds():
     """This process's builds one after another, while any are queued - the glue's extension first
-    (`quick`), so a part held is called through it and no build of it waits in the robot's loop."""
+    (`quick`), so a part held is called through it and no build of it waits in the robot's loop. A build's fault
+    of any kind is its job's `why` and its job told done: a fault this thread did not take (a symbol missing,
+    an AttributeError) ended it, left that build's waiters and every build after it waiting for good."""
     from tools.cores import quick
-    quick.module()
-    heads = build.headers(INCLUDES)
+    try:
+        quick.module()
+        heads, fault = build.headers(INCLUDES), None
+    except Exception as e:  # the builds' own headers unread: each build queued told so, none left waiting
+        heads, fault = None, e
     while True:
         with _LOCK:
             if not _QUEUE:
@@ -137,10 +147,13 @@ def _builds():
                 return
             job, source, name, matmul, solves = _QUEUE.pop(0)
         try:
+            if fault is not None:
+                raise fault
             job['lib'] = loaded(built(source, name, matmul, heads), name, solves=solves)
-        except (RuntimeError, OSError) as e:
+        except Exception as e:  # the build's numpy runs on; its why told
             job['why'] = e
-        job['done'].set()
+        finally:
+            job['done'].set()
 
 
 def matmuls(prog):

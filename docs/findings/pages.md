@@ -121,7 +121,7 @@ The terminal's pages and what they draw. The host's other findings:
 - The front page's model was drawn at inner height - 2 inside a 1-column
   padding: a blank row top and bottom, a column each wall. Now the box's
   full inside (checked at 90x28, 120x36, 200x60).
-- The front page's stand shows the quad after the gynoid, 9 s alone in a
+- The front page's stand shows the quad after the robot, 9 s alone in a
   hover and once over its nose: 10 ms a frame on the card, 69 on the CPU,
   where the stand keeps to the board (`terminal/stand.py`); QUAD's row had no
   kana.
@@ -141,7 +141,7 @@ The terminal's pages and what they draw. The host's other findings:
   up, tilted).
 - A shaded cell keeps 0.4 of its dots at the least (`lit.braille`, 0.40 + 0.60
   of its light against the blue noise): on 0.04 + 0.96 of its light to the
-  1.5 the crafts' mid-grey shells and the gynoid's clothes read as clouds of
+  1.5 the crafts' mid-grey shells and the robot's clothes read as clouds of
   points beside the glTF and FBX models they were judged against. The robot's
   jeans (70, 98, 150), 0.062-0.068 m a thigh where 0.072-0.088, 0.052 m a hem
   where 0.074; its shoulders' rings 0.118 m at 0.344 m where 0.14.

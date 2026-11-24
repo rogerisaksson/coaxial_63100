@@ -116,7 +116,7 @@ BOOT = 'test_boot.py'
 #: The composed controller and its parts, against a toy rotor and the stand-in.
 CONTROLLER = 'test_controller.py'
 
-#: The gynoid's body on fantasy boards, their SOA never binding: its clothes, its look, its
+#: The robot's body on fantasy boards, their SOA never binding: its clothes, its look, its
 #: skeleton, its drives' mounts and gearboxes; the whole-body stack; its eyes; its fake camera; its gaze.
 GYNOID, WBC, SIGHT, CAMERA, GAZE = 'test_gynoid.py', 'test_wbc.py', 'test_sight.py', 'test_camera.py', 'test_gaze.py'
 REACH, TERMS = 'test_reach.py', 'test_terms.py'

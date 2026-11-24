@@ -7,7 +7,7 @@ from views_kit import Report
 
 
 def test_the_level_is_drawn_at_the_dot(report):
-    """The top of a bar's mercury is `⣀`, `⣤`, `⣶` - one dot a step, every LED_PITCH-th
+    """The top of a bar's mercury is `\u28c0`, `\u28e4`, `\u28f6` - one dot a step, every LED_PITCH-th
     dark: LED segments."""
     from coaxial.draw import cross_section
 

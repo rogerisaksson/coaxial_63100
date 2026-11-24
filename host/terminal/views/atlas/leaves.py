@@ -93,9 +93,9 @@ def _laid(out, left, top, wide, lines, title, note, active):
     one."""
     frame, tall = FRAME if active else FRAME_DIM, len(lines)
     for row, (a, b) in ((top, FRAME_CORNERS[:2]), (top + tall + 1, FRAME_CORNERS[2:])):
-        _put(out, left, row, [(a + '─' * wide + b, frame)], left + wide + 2)
+        _put(out, left, row, [(a + '\u2500' * wide + b, frame)], left + wide + 2)
     for r, runs in enumerate(lines):
-        _put(out, left, top + 1 + r, [('│' + ' ' * wide + '│', frame)], left + wide + 2)
+        _put(out, left, top + 1 + r, [('\u2502' + ' ' * wide + '\u2502', frame)], left + wide + 2)
         _put(out, left + 1, top + 1 + r, runs, left + wide + 1)
     _put(out, left + 1, top, title, left + wide + 1)
     _put(out, left + wide + 1 - len(note), top + tall + 1, [(note, NOTE if active else FRAME_DIM)], left + wide + 1)

@@ -11,7 +11,7 @@ FRAME = 23
 TITLE = ansi.TEAL
 LABEL = 66
 BOX = 30
-JOIN = ' ▸ '
+JOIN = ' \u25b8 '
 
 
 def _nodes(loop):
@@ -46,20 +46,20 @@ def _box(node, ink, paint):
     name, kind, inputs, outputs, params = node
     inner = BOX - 4
     head = ('%s %s' % (name, kind))[:inner - 2]
-    rows = [paint('╭─ ', FRAME) + paint(name[:inner - 2], TITLE)
+    rows = [paint('\u256d\u2500 ', FRAME) + paint(name[:inner - 2], TITLE)
             + paint(head[len(name):], ansi.ASH)
-            + paint(' ' + '─' * (inner - len(head) - 1) + '╮', FRAME)]
+            + paint(' ' + '\u2500' * (inner - len(head) - 1) + '\u256e', FRAME)]
     width = max([len(p) for p, _ in inputs + outputs] + [1])
 
     def edge(text):
-        return paint('│ ', FRAME) + text + paint(' │', FRAME)
+        return paint('\u2502 ', FRAME) + text + paint(' \u2502', FRAME)
 
-    for arrow, pairs in (('◂', inputs), ('▸', outputs)):
+    for arrow, pairs in (('\u25c2', inputs), ('\u25b8', outputs)):
         for port, channel in pairs:
             named = channel == port or channel.endswith('.' + port)
             label = '' if named else port.ljust(width) + ' '
             room = inner - 2 - len(label)
-            shown = channel if len(channel) <= room else channel[:room - 1] + '…'
+            shown = channel if len(channel) <= room else channel[:room - 1] + '\u2026'
             text = (paint(arrow + ' ', ansi.ASH) + paint(label, LABEL)
                     + paint(shown, ink(channel) if channel != '-' else ansi.ASH))
             rows.append(edge(text + ' ' * (room - len(shown))))
@@ -71,12 +71,12 @@ def _box(node, ink, paint):
         line += ('  ' if line else '') + item
     if line:
         rows.append(edge(paint(line.ljust(inner), ansi.ASH)))
-    rows.append(paint('╰' + '─' * (BOX - 2) + '╯', FRAME))
+    rows.append(paint('\u2570' + '\u2500' * (BOX - 2) + '\u256f', FRAME))
     return rows
 
 
 def diagram(loop, width=100, colour=True):
-    """The loop's boxes left to right, wrapping at `width`, joined by ▸."""
+    """The loop's boxes left to right, wrapping at `width`, joined by \u25b8."""
     inks = {}
 
     def ink(channel):
@@ -107,19 +107,19 @@ def _block(title, kind, lines, paint, width):
     """A block as rows of `width` visible cells: its title and kind, then its lines."""
     inner = width - 4
     head = (title + (' ' + kind if kind else ''))[:inner - 2]
-    rows = [paint('╭─ ', FRAME) + paint(head[:len(title)], TITLE)
+    rows = [paint('\u256d\u2500 ', FRAME) + paint(head[:len(title)], TITLE)
             + paint(head[len(title):], ansi.ASH)
-            + paint(' ' + '─' * (inner - len(head) - 1) + '╮', FRAME)]
+            + paint(' ' + '\u2500' * (inner - len(head) - 1) + '\u256e', FRAME)]
     for line in lines:
-        shown = line if len(line) <= inner else line[:inner - 1] + '…'
-        rows.append(paint('│ ', FRAME) + paint(shown.ljust(inner), LABEL) + paint(' │', FRAME))
-    rows.append(paint('╰' + '─' * (width - 2) + '╯', FRAME))
+        shown = line if len(line) <= inner else line[:inner - 1] + '\u2026'
+        rows.append(paint('\u2502 ', FRAME) + paint(shown.ljust(inner), LABEL) + paint(' \u2502', FRAME))
+    rows.append(paint('\u2570' + '\u2500' * (width - 2) + '\u256f', FRAME))
     return rows
 
 
 def blocks(rows, width=BLOCK, colour=True):
     """A system as blocks `width` wide, top to bottom: `rows` [(blocks, down)], each block
-    (title, kind, [line]), a row's joined left to right by ▸; `down` the words on the ▾ to the
+    (title, kind, [line]), a row's joined left to right by \u25b8; `down` the words on the \u25be to the
     next row."""
     def paint(text, number):
         return ansi.paint(text, number) if colour else text
@@ -132,7 +132,7 @@ def blocks(rows, width=BLOCK, colour=True):
             join = paint(JOIN, FRAME) if r == 1 else ' ' * len(JOIN)
             out.append(join.join(cells).rstrip())
         if down:
-            out.append(paint(' ' * (width // 2) + '▾ ', FRAME) + paint(down, ansi.ASH))
+            out.append(paint(' ' * (width // 2) + '\u25be ', FRAME) + paint(down, ansi.ASH))
     return '\n'.join(out)
 
 
@@ -172,18 +172,18 @@ def _slot(canvas, x, y, title, kind, lines, ink):
     frame = FRAME if kind else ansi.DIM
     inner = F_BOX - 4
     named = (kind or '-')[:inner - len(title) - 2]
-    canvas.put(x, y, '╭─ ', frame)
+    canvas.put(x, y, '\u256d\u2500 ', frame)
     canvas.put(x + 3, y, title, LABEL)
     canvas.put(x + 4 + len(title), y, named, TITLE if kind else ansi.DIM)
     head = len(title) + 1 + len(named)
-    canvas.put(x + 3 + head, y, ' ' + '─' * (inner - head - 1) + '╮', frame)
+    canvas.put(x + 3 + head, y, ' ' + '\u2500' * (inner - head - 1) + '\u256e', frame)
     for i, (arrow, channel) in enumerate(lines, start=1):
-        shown = channel if len(channel) <= inner - 2 else channel[:inner - 3] + '…'
-        canvas.put(x, y + i, '│', frame)
+        shown = channel if len(channel) <= inner - 2 else channel[:inner - 3] + '\u2026'
+        canvas.put(x, y + i, '\u2502', frame)
         canvas.put(x + 2, y + i, arrow, ansi.ASH)
         canvas.put(x + 4, y + i, shown, ink(channel) if kind and channel != '-' else ansi.DIM)
-        canvas.put(x + F_BOX - 1, y + i, '│', frame)
-    canvas.put(x, y + len(lines) + 1, '╰' + '─' * (F_BOX - 2) + '╯', frame)
+        canvas.put(x + F_BOX - 1, y + i, '\u2502', frame)
+    canvas.put(x, y + len(lines) + 1, '\u2570' + '\u2500' * (F_BOX - 2) + '\u256f', frame)
 
 
 def feedback(loop, name, colour=True):
@@ -206,33 +206,33 @@ def feedback(loop, name, colour=True):
     command = at['regulator']
     c = _Canvas(F_PLANT + F_BOX, F_BOTTOM + 5)
     _slot(c, F_PRE, 0, 'prefilter', kind['prefilter'],
-          [('◂', f.setpoint or '-'), ('▸', ref)], ink)
+          [('\u25c2', f.setpoint or '-'), ('\u25b8', ref)], ink)
     _slot(c, F_REG, 0, 'regulator', kind['regulator'],
-          [('◂', ref), ('◂', estimate), ('▸', command)], ink)
+          [('\u25c2', ref), ('\u25c2', estimate), ('\u25b8', command)], ink)
     _slot(c, F_REG, F_BOTTOM - 2, 'estimator', kind['estimator'],
-          [('◂', value), ('◂', command), ('▸', estimate)], ink)
+          [('\u25c2', value), ('\u25c2', command), ('\u25b8', estimate)], ink)
     _slot(c, F_MEAS, F_BOTTOM - 2, 'measure', kind['measure'],
-          [('◂', f.measured or '-'), ('▸', value)], ink)
+          [('\u25c2', f.measured or '-'), ('\u25b8', value)], ink)
     # the plant: what the command drives and what the measurement comes back from
-    c.put(F_PLANT, 0, '╭─ plant ' + '─' * (F_BOX - 10) + '╮', ansi.ASH)
+    c.put(F_PLANT, 0, '\u256d\u2500 plant ' + '\u2500' * (F_BOX - 10) + '\u256e', ansi.ASH)
     for y in range(1, F_BOTTOM + 3):
-        c.put(F_PLANT, y, '│', ansi.ASH)
-        c.put(F_PLANT + F_BOX - 1, y, '│', ansi.ASH)
-    c.put(F_PLANT + 2, F_TOP, '◂ ' + (f.sink or 'no sink')[:F_BOX - 6],
+        c.put(F_PLANT, y, '\u2502', ansi.ASH)
+        c.put(F_PLANT + F_BOX - 1, y, '\u2502', ansi.ASH)
+    c.put(F_PLANT + 2, F_TOP, '\u25c2 ' + (f.sink or 'no sink')[:F_BOX - 6],
           ink(f.sink) if f.sink else ansi.DIM)
-    c.put(F_PLANT + 2, F_BOTTOM, '▸ ' + (f.measured or 'no source')[:F_BOX - 6],
+    c.put(F_PLANT + 2, F_BOTTOM, '\u25b8 ' + (f.measured or 'no source')[:F_BOX - 6],
           ink(f.measured) if f.measured else ansi.DIM)
-    c.put(F_PLANT, F_BOTTOM + 3, '╰' + '─' * (F_BOX - 2) + '╯', ansi.ASH)
+    c.put(F_PLANT, F_BOTTOM + 3, '\u2570' + '\u2500' * (F_BOX - 2) + '\u256f', ansi.ASH)
     # the wires: in, through the sum, out to the plant, back along the bottom
-    c.put(0, F_TOP, '───▸', FRAME)
-    c.put(F_PRE + F_BOX, F_TOP, '──▸', FRAME)
-    c.put(F_SUM, F_TOP, 'Σ', ansi.AMBER)
-    c.put(F_SUM + 1, F_TOP, '───▸', FRAME)
-    c.put(F_REG + F_BOX, F_TOP, '─' * (F_PLANT - F_REG - F_BOX - 1) + '▸', FRAME)
-    c.put(F_MEAS + F_BOX, F_BOTTOM, '◂' + '─' * (F_PLANT - F_MEAS - F_BOX - 1), FRAME)
-    c.put(F_REG + F_BOX, F_BOTTOM, '◂' + '─' * (F_MEAS - F_REG - F_BOX - 1), FRAME)
-    c.put(F_SUM, F_TOP + 1, '▴', FRAME)
+    c.put(0, F_TOP, '\u2500\u2500\u2500\u25b8', FRAME)
+    c.put(F_PRE + F_BOX, F_TOP, '\u2500\u2500\u25b8', FRAME)
+    c.put(F_SUM, F_TOP, '\u03a3', ansi.AMBER)
+    c.put(F_SUM + 1, F_TOP, '\u2500\u2500\u2500\u25b8', FRAME)
+    c.put(F_REG + F_BOX, F_TOP, '\u2500' * (F_PLANT - F_REG - F_BOX - 1) + '\u25b8', FRAME)
+    c.put(F_MEAS + F_BOX, F_BOTTOM, '\u25c2' + '\u2500' * (F_PLANT - F_MEAS - F_BOX - 1), FRAME)
+    c.put(F_REG + F_BOX, F_BOTTOM, '\u25c2' + '\u2500' * (F_MEAS - F_REG - F_BOX - 1), FRAME)
+    c.put(F_SUM, F_TOP + 1, '\u25b4', FRAME)
     for y in range(F_TOP + 2, F_BOTTOM):
-        c.put(F_SUM, y, '│', FRAME)
-    c.put(F_SUM, F_BOTTOM, '└' + '─' * (F_REG - F_SUM - 1), FRAME)
+        c.put(F_SUM, y, '\u2502', FRAME)
+    c.put(F_SUM, F_BOTTOM, '\u2514' + '\u2500' * (F_REG - F_SUM - 1), FRAME)
     return c.render(colour)

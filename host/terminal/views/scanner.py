@@ -1,4 +1,4 @@
-"""Vision and object affordance scanner for the gynoid's stereo eyes and local Ollama model.
+"""Vision and object affordance scanner for the robot's stereo eyes and local Ollama model.
 
     scanner = VisionScanner()
     detected = scanner.scan(now, look)
@@ -221,8 +221,8 @@ def _one(pieces, scen=''):
 def _render_plate_row(row_idx, top, left, width, text, code, key_frame):
     out = {}
     r = top + row_idx
-    out[(r, left)] = (ord('│'), key_frame)
-    out[(r, left + width - 1)] = (ord('│'), key_frame)
+    out[(r, left)] = (ord('\u2502'), key_frame)
+    out[(r, left + width - 1)] = (ord('\u2502'), key_frame)
     padded = text.ljust(width - 2)[:width - 2]
     for c_idx, ch in enumerate(padded):
         out[(r, left + 1 + c_idx)] = (ord(ch), code)
@@ -245,7 +245,7 @@ def affordance_plate(offered, top, left, width):
     out = {}
 
     title = ' ACTIONS '
-    head_edge = (title + '─' * (width - 2 - len(title)))[:width - 2]
+    head_edge = (title + '\u2500' * (width - 2 - len(title)))[:width - 2]
     out[(top, left)] = (ord(FRAME_CORNERS[0]), key_frame)
     out[(top, left + width - 1)] = (ord(FRAME_CORNERS[1]), key_frame)
     for c, ch in enumerate(head_edge):
@@ -258,19 +258,19 @@ def affordance_plate(offered, top, left, width):
     out[(bottom_r, left)] = (ord(FRAME_CORNERS[2]), key_frame)
     out[(bottom_r, left + width - 1)] = (ord(FRAME_CORNERS[3]), key_frame)
     for c in range(width - 2):
-        out[(bottom_r, left + 1 + c)] = (ord('─'), key_frame)
+        out[(bottom_r, left + 1 + c)] = (ord('\u2500'), key_frame)
 
     return out
 
 
-BUS_TAGS = {'axis': 'AXS  ', 'left_arm': 'L·ARM', 'left_leg': 'L·LEG', 'right_arm': 'R·ARM', 'right_leg': 'R·LEG'}
+BUS_TAGS = {'axis': 'AXS  ', 'left_arm': 'L\u00b7ARM', 'left_leg': 'L\u00b7LEG', 'right_arm': 'R\u00b7ARM', 'right_leg': 'R\u00b7LEG'}
 
 
 def _board_cell(now, joint, alarmed, passive, pk_default):
     if passive:
-        return ord('▱'), packed((80, 145, 160), PLATE_BG)
+        return ord('\u25b1'), packed((80, 145, 160), PLATE_BG)
     if joint in alarmed:
-        return ord('▰'), packed(WEAR_INK, PLATE_BG)
+        return ord('\u25b0'), packed(WEAR_INK, PLATE_BG)
     tau = abs(float((now.get('torque') or {}).get(joint, 0.0))) if now else 0.0
     pk = max(1.0, float((now.get('peak') or {}).get(joint, pk_default))) if now else pk_default
     deg_c = float((now.get('temp') or {}).get(joint, 25.0)) if now else 25.0
@@ -279,13 +279,13 @@ def _board_cell(now, joint, alarmed, passive, pk_default):
     use_h = heat > load and heat > 0.35
     u, target_rgb = (heat, (255, 110, 64)) if use_h else (load, (255, 184, 80))
     ink = tuple(int(a + (b - a) * u) for a, b in zip((64, 214, 200), target_rgb))
-    return ord('▰'), packed(ink, PLATE_BG)
+    return ord('\u25b0'), packed(ink, PLATE_BG)
 
 
 def _limb_bus_row(r, left, width, inner, b_name, joints, now, alarms, key_frame, trunk_code):
     from machine.body import drives
-    out = {(r, left): (ord('│'), key_frame), (r, left + width - 1): (ord('│'), key_frame),
-           (r, left + 6): (ord('├'), packed(FRAME_INK, PLATE_BG))}
+    out = {(r, left): (ord('\u2502'), key_frame), (r, left + width - 1): (ord('\u2502'), key_frame),
+           (r, left + 6): (ord('\u251c'), packed(FRAME_INK, PLATE_BG))}
     tag = BUS_TAGS.get(b_name) or b_name[:5].upper().ljust(5)
     out.update({(r, left + 1 + c): (ord(ch), packed(PLATE_TITLE_INK, PLATE_BG)) for c, ch in enumerate(tag)})
     torques = (now.get('torque') or {}) if now else {}
@@ -296,7 +296,7 @@ def _limb_bus_row(r, left, width, inner, b_name, joints, now, alarms, key_frame,
         pk_share = max(pk_share, (0.0 if pas else min(1.0, abs(float(torques.get(j, 0.0))) / pk)))
         out[(r, left + 7 + u)] = _board_cell(now, j, alarms, pas, pk)
     for u in range(len(joints), 9):
-        out[(r, left + 7 + u)] = (ord('─'), trunk_code)
+        out[(r, left + 7 + u)] = (ord('\u2500'), trunk_code)
     tail = ('%4.0f%%' % (pk_share * 100.0)).rjust(inner - 15)[:inner - 15]
     out.update({(r, left + 16 + c): (ord(ch), packed(PLATE_LABEL_INK, PLATE_BG)) for c, ch in enumerate(tail)})
     return out
@@ -315,7 +315,7 @@ def bus_plate(now, top, left, width):
     out = {(top, left): (ord(FRAME_CORNERS[0]), key_frame), (top, left + width - 1): (ord(FRAME_CORNERS[1]), key_frame)}
     title = ' RS485 10M SIL '
     for c in range(inner):
-        ch = title[c] if c < len(title) else '─'
+        ch = title[c] if c < len(title) else '\u2500'
         out[(top, left + 1 + c)] = (ord(ch), packed(PLATE_TITLE_INK) if c < len(title) else key_frame)
     for idx, (b_name, joints) in enumerate(edge.LIMBS):
         out.update(_limb_bus_row(top + 1 + idx, left, width, inner, b_name, joints, now, alarms, key_frame, trunk_code))
@@ -323,7 +323,7 @@ def bus_plate(now, top, left, width):
     notes = ((' SHUTDOWN ', packed(CRC_INK)),) * bool(now and now.get('shutdown')) + (
         (' WEAR %d ' % len(alarms), packed(WEAR_INK)),) * bool(alarms) + (
         (' CRC %d ' % crc, packed(CRC_INK)) if crc else (' CRC OK ', packed(PLATE_KEY_INK)),)
-    line = [(ord('─'), key_frame)] * inner
+    line = [(ord('\u2500'), key_frame)] * inner
     at = inner - 1
     for note, ink in reversed(notes):
         at = max(1, at - len(note))

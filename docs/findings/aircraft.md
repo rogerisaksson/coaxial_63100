@@ -31,7 +31,7 @@ roll, full tilt, burn, land).
 - `quad.Sky.state` read every craft's height from the quad's rest on its skids,
   0.135 m: the ornithopter's and the aerobat's is 0.150, their hover 1.485 m
   and their burn's stop 85 mm; each sky carries its own `rest`.
-- The HUD's rotor rows at 40 cells: `CONV 93%` was `CONV …` behind `SOA`, the
+- The HUD's rotor rows at 40 cells: `CONV 93%` was `CONV ...` behind `SOA`, the
   title `POWER OF ALL FOUR  last 30 s` cut at `last 3`.
 - Governed: the head at 360 rad/s, 403 boosted in the figures, the pull planned
   on it (`PULL_MAX`, 3.6 g). Full tilt 10.2 m/s and 16.4 m, 2.9 L/W, 1.8 g;

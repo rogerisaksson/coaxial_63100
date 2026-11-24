@@ -96,12 +96,12 @@ def bar_of(keys, now):
 
 
 #: The folded column's tab, a row each: its top on its edge's line, its arrow, the key that
-#: brings the column out (Tab, its keycap's ↹), its bottom on the line again.
-TAB = ('╭─┴─╮', '│ ◂ │', '│ ↹ │', '╰─┬─╯')
+#: brings the column out (Tab, its keycap's U+21B9), its bottom on the line again.
+TAB = ('\u256d\u2500\u2534\u2500\u256e', '\u2502 \u25c2 \u2502', '\u2502 \u21b9 \u2502', '\u2570\u2500\u252c\u2500\u256f')
 #: The instruments' column folded (Tab): a rail its tab's width on the right edge, its edge's
 #: line down the middle.
 RAIL = len(TAB[0])
-EDGE = '│'.center(RAIL)
+EDGE = '\u2502'.center(RAIL)
 #: The rail's arrow breathes with the screen's sweep (`chrome.SWEEP_S`): its ink from a key's
 #: down BREATH of the way to an instrument edge's and back - faint, slow.
 BREATH = 0.3
@@ -149,7 +149,7 @@ class _Rail:
     def __rich_console__(self, console, options):
         rows = options.height or len(TAB)
         top = (rows - len(TAB)) // 2
-        inks = {'◂': breath(console, time.monotonic()), '↹': 'keys.key', ' ': 'keys'}
+        inks = {'\u25c2': breath(console, time.monotonic()), '\u21b9': 'keys.key', ' ': 'keys'}
         rail = Text(no_wrap=True)
         for row in range(rows):
             at = row - top

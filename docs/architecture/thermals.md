@@ -1,7 +1,7 @@
 # Architecture: Thermals
 
 A board's heat: the observer and envelope it runs, its network on the host,
-its identification, and a drive's heat as the gynoid's boards keep it. The
+its identification, and a drive's heat as the robot's boards keep it. The
 board's thermal findings: [thermal](../findings/thermal.md).
 
 | Where | Is |

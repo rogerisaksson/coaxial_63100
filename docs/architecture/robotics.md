@@ -1,6 +1,6 @@
 # Architecture: Robotics
 
-The executive any robot here runs on, and the gynoid round its loop
+The executive any robot here runs on, and the robot round its loop
 ([planners](planners.md)): its build, its world, its senses, the run, its
 identification. The robot's figure: [kinematics](kinematics.md); its drives:
 [drivetrain](drivetrain.md); its eyes and its way among its things:
@@ -31,7 +31,7 @@ identification. The robot's figure: [kinematics](kinematics.md); its drives:
 | rig/streams | the robot's subsystems' streams, each on its own clock: what a gate records of the robot |
 | rig/gate | the robot's streams gated to a file as a scope acquires: a trigger, the windows around it, re-armed |
 
-## The gynoid
+## The robot
 
 | Module | Is |
 | --- | --- |

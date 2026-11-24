@@ -15,7 +15,7 @@ import time
 from coaxial.graphics import engine, gynoid
 from terminal.ui import console
 
-#: Where it starts - straight behind the robot (`yaw` 180°), tipped down a little -, degrees a
+#: Where it starts - straight behind the robot (`yaw` 180 deg), tipped down a little -, degrees a
 #: key turns it, the orbit's degrees a second, a key's zoom step.
 YAW, PITCH, TURN_DEG, ORBIT_DEG_S, STEP = 180.0, 8.0, 10.0, 12.0, 1.1
 HOME = {'yaw': YAW, 'pitch': PITCH, 'zoom': 1.0, 'pan': (0.0, 0.0), 'shoulder': 1.0}

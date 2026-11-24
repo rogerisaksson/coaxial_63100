@@ -14,13 +14,13 @@ from collections import Counter
 #: The ways a line leaves a cell, bits; the glyph each set of them draws, the corners rounded - the loop's
 #: heavy -; a lane's head by the way it points, the loop's filled.
 UP, DOWN, LEFT, RIGHT = 1, 2, 4, 8
-GLYPHS = {UP | DOWN: '│', LEFT | RIGHT: '─', DOWN | RIGHT: '╭', DOWN | LEFT: '╮', UP | RIGHT: '╰',
-          UP | LEFT: '╯', UP | DOWN | RIGHT: '├', UP | DOWN | LEFT: '┤', DOWN | LEFT | RIGHT: '┬',
-          UP | LEFT | RIGHT: '┴', UP | DOWN | LEFT | RIGHT: '┼', UP: '│', DOWN: '│', LEFT: '─', RIGHT: '─'}
-HEAVY = {UP | DOWN: '┃', LEFT | RIGHT: '━', DOWN | RIGHT: '┏', DOWN | LEFT: '┓', UP | RIGHT: '┗',
-         UP | LEFT: '┛', UP | DOWN | RIGHT: '┣', UP | DOWN | LEFT: '┫', DOWN | LEFT | RIGHT: '┳',
-         UP | LEFT | RIGHT: '┻', UP | DOWN | LEFT | RIGHT: '╋', UP: '┃', DOWN: '┃', LEFT: '━', RIGHT: '━'}
-HEADS, FILLED = {RIGHT: '▸', LEFT: '◂', DOWN: '▾', UP: '▴'}, {RIGHT: '▶', LEFT: '◀', DOWN: '▼', UP: '▲'}
+GLYPHS = {UP | DOWN: '\u2502', LEFT | RIGHT: '\u2500', DOWN | RIGHT: '\u256d', DOWN | LEFT: '\u256e', UP | RIGHT: '\u2570',
+          UP | LEFT: '\u256f', UP | DOWN | RIGHT: '\u251c', UP | DOWN | LEFT: '\u2524', DOWN | LEFT | RIGHT: '\u252c',
+          UP | LEFT | RIGHT: '\u2534', UP | DOWN | LEFT | RIGHT: '\u253c', UP: '\u2502', DOWN: '\u2502', LEFT: '\u2500', RIGHT: '\u2500'}
+HEAVY = {UP | DOWN: '\u2503', LEFT | RIGHT: '\u2501', DOWN | RIGHT: '\u250f', DOWN | LEFT: '\u2513', UP | RIGHT: '\u2517',
+         UP | LEFT: '\u251b', UP | DOWN | RIGHT: '\u2523', UP | DOWN | LEFT: '\u252b', DOWN | LEFT | RIGHT: '\u2533',
+         UP | LEFT | RIGHT: '\u253b', UP | DOWN | LEFT | RIGHT: '\u254b', UP: '\u2503', DOWN: '\u2503', LEFT: '\u2501', RIGHT: '\u2501'}
+HEADS, FILLED = {RIGHT: '\u25b8', LEFT: '\u25c2', DOWN: '\u25be', UP: '\u25b4'}, {RIGHT: '\u25b6', LEFT: '\u25c0', DOWN: '\u25bc', UP: '\u25b2'}
 #: The seconds a flow's packet takes along its lane, how far apart the flows' packets start, a share of the
 #: way (the golden one, so no two run together), its cells; a stage hanging off the loop from the one it
 #: hangs from, rows - two line cells between the heads of a lane both ways -; the sweeps that order the
@@ -142,7 +142,7 @@ def ring(loop, hung, chords, said, names):
     left = {s: max([len(said(hung[m][0], m)[0]) + 2 for m in hangs[s]], default=0) for s in loop}
     right = {s: max([len(said(hung[m][0], m)[1]) + 2 for m in hangs[s]] + [len(names[m]) + 2 for m in hangs[s]],
                     default=0) for s in loop}
-    side, lead = [' · '.join(w for w in said(loop[i], loop[(i + 1) % n]) if w) for i in range(n)], 2 * LEAD + 4
+    side, lead = [' \u00b7 '.join(w for w in said(loop[i], loop[(i + 1) % n]) if w) for i in range(n)], 2 * LEAD + 4
     # The dots apart along the top and back along the bottom: the word in the line, the name, the hung words.
     gaps = [max(len(side[i]) + lead, len(names[top[i]]) + 4, right[top[i]] + left[top[i + 1]] + 3) for i in range(t - 1)]
     backs = [max(len(side[t + j]) + lead, len(names[bottom[j + 1]]) + 4, right[bottom[j + 1]] + left[bottom[j]] + 3)
@@ -286,7 +286,7 @@ def laid(lanes, texts, cols, rows):
     for cells in paths:   # a run ends where another lane, a head, a text, a turn or the drawing's edge is
         best, run = [], []
         for cell in cells + [None]:
-            if cell in per and len(per[cell]) == 1 and per[cell][0][0] == LEFT | RIGHT and out[cell][0] in '─━' \
+            if cell in per and len(per[cell]) == 1 and per[cell][0][0] == LEFT | RIGHT and out[cell][0] in '\u2500\u2501' \
                     and 0 <= cell[0] < cols and 0 <= cell[1] < rows:
                 run.append(cell)
             else:

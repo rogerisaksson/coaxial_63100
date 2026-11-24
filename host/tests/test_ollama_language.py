@@ -35,7 +35,7 @@ def test_screen_language(report):
     swedish = language.localise(checklist, 'Swedish')
     report.check('the numbers and port names survive being translated',
                  '3.27V' in swedish and swedish.count('COM4') == 2
-                 and 'Målspänning' in swedish, swedish.splitlines()[0])
+                 and 'M\u00e5lsp\u00e4nning' in swedish, swedish.splitlines()[0])
     report.check('and the step numbering is still the step numbering',
                  [line.split('.')[0] for line in swedish.splitlines()]
                  == ['1', '2', '3'])
@@ -63,8 +63,8 @@ def test_screen_language(report):
     local.trim()
     report.check('a question in another language moves it',
                  local.language == 'English', local.language)
-    local.prompt_history += ('svara på svenska',)
-    local.history = [{'role': 'user', 'content': 'svara på svenska'}]
+    local.prompt_history += ('svara p\u00e5 svenska',)
+    local.history = [{'role': 'user', 'content': 'svara p\u00e5 svenska'}]
     local.trim()
     report.check('and asking for one outright moves it too',
                  local.language == 'Swedish', local.language)

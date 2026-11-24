@@ -33,15 +33,15 @@ def test_afe_trace(report):
     screen = io.StringIO()
     chat = debug.Chat(ScriptedModel([
         call('afe_power', action='on'),
-        {'role': 'assistant', 'content': 'AFE är nu påslagen.'},
+        {'role': 'assistant', 'content': 'AFE \u00e4r nu p\u00e5slagen.'},
     ]), toolmod.Toolbox(SimulatedSession(), scope=Scope()), out=screen)
     chat.toolbox.afe_mentioned = True
-    said = chat.ask('slå på afen')
+    said = chat.ask('sl\u00e5 p\u00e5 afen')
     report.check('a confirmed switch leaves nothing on screen above the '
                  'answer', screen.getvalue().strip() == '',
                  repr(screen.getvalue())[:46])
     report.check('and the answer itself still arrives',
-                 said == 'AFE är nu påslagen.', said)
+                 said == 'AFE \u00e4r nu p\u00e5slagen.', said)
 
 def test_digital_read(report):
     """Listing the channels and reading them are two questions."""

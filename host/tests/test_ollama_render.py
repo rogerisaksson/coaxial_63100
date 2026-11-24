@@ -80,7 +80,7 @@ def test_reading_block(report):
         call('analog_read'), call('digital_read'),
         {'role': 'assistant', 'content': 'Klart.'},
     ]), toolmod.Toolbox(Sim(), scope=Scope()), out=screen)
-    chat.ask('ge mig värdena på de digitala och analoga kanalerna')
+    chat.ask('ge mig v\u00e4rdena p\u00e5 de digitala och analoga kanalerna')
     printed = screen.getvalue().splitlines()
     at = next(i for i, l in enumerate(printed) if 'digital:' in l)
     report.check('a second block is separated from the first',

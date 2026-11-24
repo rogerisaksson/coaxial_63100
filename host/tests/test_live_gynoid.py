@@ -66,14 +66,14 @@ def _model(report, case):
 
 
 def test_lie_down_on_the_floor_said_in_swedish(report):
-    """'lägg dig på golvet' on the flat floor: lie_floor said; the robot's doing through kneel and tip to
+    """'l\u00e4gg dig p\u00e5 golvet' on the flat floor: lie_floor said; the robot's doing through kneel and tip to
     floor_rest, its pelvis under 0.25 m, no fall's epoch, its drives' clamps zero (limp)."""
     import numpy as np
     from machine.process import sprung
     case = 'lie down on the floor, said in Swedish'
     if _model(report, case) is None:
         return
-    s, _st, sent = _said('lägg dig på golvet')
+    s, _st, sent = _said('l\u00e4gg dig p\u00e5 golvet')
     took = _steps(s, 14.0, lambda s: sprung.doing(s['g']) == 'floor_rest' and _where(s)[1] < 0.25)
     _steps(s, 2.0)
     g = s['g']
@@ -83,12 +83,12 @@ def test_lie_down_on_the_floor_said_in_swedish(report):
 
 
 def test_sit_on_the_chair_said_in_swedish(report):
-    """'sätt dig på stolen' in the lodge: the sit errand laid on a chair, seated within 40 s, unfallen."""
+    """'s\u00e4tt dig p\u00e5 stolen' in the lodge: the sit errand laid on a chair, seated within 40 s, unfallen."""
     from machine.process import sprung
     case = 'sit on the chair, said in Swedish'
     if _model(report, case) is None:
         return
-    s, _st, sent = _said('sätt dig på stolen', room=1.0)
+    s, _st, sent = _said('s\u00e4tt dig p\u00e5 stolen', room=1.0)
     kind = (s['g'].get('_errand') or {}).get('kind')
     took = _steps(s, 40.0, lambda s: sprung.doing(s['g']) == 'seated')
     report.check(case, sent == [{'say': 'sit_chair'}] and kind == 'sit_chair' and took is not None and s['fallen_at'] is None,
@@ -109,12 +109,12 @@ def test_lie_on_the_bed_said_in_english(report):
 
 
 def test_out_through_the_door_said_in_swedish(report):
-    """'gå ut genom dörren' in the lodge: the door errand laid, past the door's line within 30 s, unfallen."""
+    """'g\u00e5 ut genom d\u00f6rren' in the lodge: the door errand laid, past the door's line within 30 s, unfallen."""
     from machine.world import room
     case = 'out through the door, said in Swedish'
     if _model(report, case) is None:
         return
-    s, _st, sent = _said('gå ut genom dörren', room=1.0)
+    s, _st, sent = _said('g\u00e5 ut genom d\u00f6rren', room=1.0)
     kind = (s['g'].get('_errand') or {}).get('kind')
     took = _steps(s, 30.0, lambda s: _where(s)[2] > room.TO)
     report.check(case, sent == [{'say': 'exit_door'}] and kind == 'exit_door' and took is not None and s['fallen_at'] is None,
@@ -122,11 +122,11 @@ def test_out_through_the_door_said_in_swedish(report):
 
 
 def test_walk_forward_said_in_swedish(report):
-    """'gå framåt' on the flat floor: the robot's walk's twist, 0.5 m on within 3 s, unfallen."""
+    """'g\u00e5 fram\u00e5t' on the flat floor: the robot's walk's twist, 0.5 m on within 3 s, unfallen."""
     case = 'walk forward, said in Swedish'
     if _model(report, case) is None:
         return
-    s, _st, sent = _said('gå framåt')
+    s, _st, sent = _said('g\u00e5 fram\u00e5t')
     x0, _y, z0 = _where(s)
     took = _steps(s, 3.0, lambda s: math.hypot(_where(s)[0] - x0, _where(s)[2] - z0) > 0.5)
     report.check(case, len(sent) == 1 and 'twist' in sent[0] and took is not None and s['fallen_at'] is None,

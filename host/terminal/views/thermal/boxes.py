@@ -29,8 +29,8 @@ ROOM_SURE_K = 0.2
 #: the snowflake and thermometer asked for are narrow characters with a
 #: variation selector, counted one cell and drawn two, and the SENSE frame
 #: shifted.
-ROOM_HINTS = {'cold': '🧊 🥶', 'mild': '🍃 😌', 'hot': '🔥 🥵',
-              'unsure': '🤒 🤔'}
+ROOM_HINTS = {'cold': '\U0001f9ca \U0001f976', 'mild': '\U0001f343 \U0001f60c', 'hot': '\U0001f525 \U0001f975',
+              'unsure': '\U0001f912 \U0001f914'}
 
 def room_hint(ident, held=None):
     """Which hint the estimate gets - 'unsure' while the innovation is
@@ -92,13 +92,13 @@ def ident_rows(ident, hint=None):
     for name in ident['online']:
         if name in scales:
             rows.append(('cap' if name == 'capacity' else name,
-                         '%.2f ±%.2f' % (scales[name], sigma[name])))
+                         '%.2f \u00b1%.2f' % (scales[name], sigma[name])))
     # The room, identified beside the scales (MINOR 15): the board has no
     # ambient sensor, so its rise is measured against this. The room's hint,
     # the bench's emoji pair, sits here rather than over the board.
     if ident.get('ambient') is not None:
         kind = hint if hint is not None else room_hint(ident)
-        rows.append(('room', Text('%.1f ±%.1f C   %s' % (
+        rows.append(('room', Text('%.1f \u00b1%.1f C   %s' % (
             ident['ambient'], ident.get('ambient_sigma', 0.0),
             ROOM_HINTS.get(kind, '')))))
     # The stand-in only: the situation its board is in and the scales that

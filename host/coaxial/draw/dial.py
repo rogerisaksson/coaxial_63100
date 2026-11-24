@@ -41,7 +41,7 @@ SUB_ARC = 270.0
 SEGMENTS = 24
 SEG_DEPTH, SEG_FILL = 3.0, 0.68
 NOTCH = 1.5
-SUB_NAMES = ('ｼﾞｶｲ', 'ｵﾝﾄﾞ')
+SUB_NAMES = ('\uff7c\uff9e\uff76\uff72', '\uff75\uff9d\uff84\uff9e')
 
 #: How wide a major tick is at the rim, in dots across. A tick one dot
 #: wide is a tick one dot wide wherever it points; two make the difference

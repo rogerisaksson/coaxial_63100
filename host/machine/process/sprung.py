@@ -1,4 +1,4 @@
-"""The gynoid on its latent loop, in a process of its own: the page's gym for orthokinematics.
+"""The robot on its latent loop, in a process of its own: the page's gym for orthokinematics.
 
     body = sprung.Running(); body.send(say=2); now = body.latest(); body.close()
     g = sprung.laid(); s, loads, ask, out = sprung.passed(g)

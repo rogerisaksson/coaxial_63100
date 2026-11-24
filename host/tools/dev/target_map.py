@@ -22,7 +22,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
 DIRS = ('board', 'comms', 'boot', 'modbus', 'daq', 'drive', 'thermal', 'filter', 'shtp',
         'ctrl')
-BRIEF = re.compile(r'\A﻿?\s*/\*\*?\s*(\S+?)\s+-\s+(.*?)\*/', re.S)
+BRIEF = re.compile(r'\A\ufeff?\s*/\*\*?\s*(\S+?)\s+-\s+(.*?)\*/', re.S)
 PROTOTYPE = re.compile(r'^[A-Za-z_][\w \*]*\b\w+\s*\([^;{}]*\)\s*;', re.M)
 INCLUDE = re.compile(r'^\s*#\s*include\s+"([^"]+)"', re.M)
 DEFINITION = re.compile(r'^(?:static\s+)?[A-Za-z_][\w \*]*?\b(\w+)\s*\([^;{}]*\)\s*\{', re.M)

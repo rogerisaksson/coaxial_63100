@@ -25,30 +25,30 @@ def took(tree, nodes):
     files = {}
     for t in nodes:
         files.setdefault(scene.short(tree, tree.up[t]), []).append(tree.id[t].rpartition('::')[2])
-    return ', '.join('%s › %s' % (f, ', '.join(fns)) for f, fns in files.items())
+    return ', '.join('%s \u203a %s' % (f, ', '.join(fns)) for f, fns in files.items())
 
 
 def _chain(mark, word, maker, taken, level, right):
     """An item of a lane's writing, [(text, the level it shows from)]: `word`, `mark` before it, from level 1
-    where it is made (`maker`, 'file › function', the file alone before a function of its name), from 2
+    where it is made (`maker`, 'file \u203a function', the file alone before a function of its name), from 2
     where it is taken (`taken`, `took`), each on its side as it flows (`right`)."""
-    file, _, fn = maker.partition(' › ')
+    file, _, fn = maker.partition(' \u203a ')
     units = [(0, [(mark + word, 0)])]
     if level and maker:
-        units = [(0, [(file + ' › ', 1), (mark + fn, 0)])] if fn == word else [(0, [(maker, 1)]), (1, units[0][1])]
+        units = [(0, [(file + ' \u203a ', 1), (mark + fn, 0)])] if fn == word else [(0, [(maker, 1)]), (1, units[0][1])]
     units += [(2, [(taken, 2)])] if level > 1 and taken else []
     if not right:   # the arrows between the same units, read the other way
         units = [(0, units[-1][1])] + [(units[k + 1][0], units[k][1]) for k in range(len(units) - 2, -1, -1)]
-    return [s for k, (lv, unit) in enumerate(units) for s in [(' → ' if right else ' ← ', lv)] * bool(k) + unit]
+    return [s for k, (lv, unit) in enumerate(units) for s in [(' \u2192 ' if right else ' \u2190 ', lv)] * bool(k) + unit]
 
 
 def _written(flows, level, right):
     """A lane's `flows` one way at `level` as items [[(text, the level it shows from)]]: the pass's words, from
     level 1 each with where it is made, from 2 where it is taken (`_chain`); the wire's counted from 1, the
-    commands it asks from 2; what comes back marked ↺."""
+    commands it asks from 2; what comes back marked \u21ba."""
     items = []
     for kind, words in flows:
-        mark, n = '↺ ' * (kind == atlas_flow.KINDS.index('feedback')), len(words)
+        mark, n = '\u21ba ' * (kind == atlas_flow.KINDS.index('feedback')), len(words)
         if words[0][1] is not None:
             items += [_chain(mark * (k == 0), w, maker, taken, level, right) for k, (w, maker, taken) in enumerate(words)]
         elif level == 1 or level and mark:
@@ -60,7 +60,7 @@ def _written(flows, level, right):
 
 def _cut(parts, room):
     """(segments [(text, level)] `parts` [[item]] (`_written`) are written as in `room` cells - its parts
-    ' · ' apart, a part's items ', ', the longest part cut to as many as fit, '+n' after; none where none
+    ' \u00b7 ' apart, a part's items ', ', the longest part cut to as many as fit, '+n' after; none where none
     fits -, the fewest cells they are written in: that part cut to its first)."""
     if not parts:
         return [], 0
@@ -76,7 +76,7 @@ def _cut(parts, room):
         return out, sized(1)
     for i, part in enumerate(parts):
         shown, low = part[:keep] if i == cut else part, min(lv for item in part for _t, lv in item)
-        out += [(' · ', low)] * bool(out)
+        out += [(' \u00b7 ', low)] * bool(out)
         for j, item in enumerate(shown):
             out += [(', ', low)] * bool(j) + item
         out += [(' +%d' % (len(part) - len(shown)), low)] * (len(shown) < len(part))

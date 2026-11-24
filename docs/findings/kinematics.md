@@ -68,7 +68,7 @@ build/prototypes/skin.py.
   Levenberg-Marquardt for the joints' places, axes and angles at once: 13
   joints, 27 DOF, 1.3-6.4 ms a joint on a 1.4 GHz laptop; a ball joint at the
   hip and the shoulder fits a human twice as badly as two axes at the knee
-  and the elbow. Use here: a take laid on the gynoid's own joints by that
+  and the elbow. Use here: a take laid on the robot's own joints by that
   residual (what its legs cannot express of a woman's walk, a number a
   joint); its rows read off a take where they were searched.
 - Pitt, Hildenbrand, Stelzer, Koch, Inverse kinematics of a humanoid robot

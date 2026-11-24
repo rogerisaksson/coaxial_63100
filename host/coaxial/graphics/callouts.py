@@ -91,7 +91,7 @@ def packed(fg, bg=None):
 
 #: A callout's frame, as the tty's instruments have theirs (`frame.hud`, rounded): its ink and
 #: corners.
-FRAME_INK, FRAME_CORNERS = (95, 135, 135), '╭╮╰╯'
+FRAME_INK, FRAME_CORNERS = (95, 135, 135), '\u256d\u256e\u2570\u256f'
 
 
 def framed(overlay, top, left, rows, ink, title=''):
@@ -101,12 +101,12 @@ def framed(overlay, top, left, rows, ink, title=''):
     for col in range(left, left + wide):
         edge = col in (left, left + wide - 1)
         for row, corner in ((top, 0), (top + len(rows) + 1, 2)):
-            overlay[(row, col)] = (ord(FRAME_CORNERS[corner + (col != left)] if edge else '─'),
+            overlay[(row, col)] = (ord(FRAME_CORNERS[corner + (col != left)] if edge else '\u2500'),
                                    ink)
     for c, char in enumerate(title):
         overlay[(top, left + 1 + c)] = (ord(char), ink)
     for k, cells in enumerate(rows):
-        overlay[(top + 1 + k, left)] = overlay[(top + 1 + k, left + wide - 1)] = (ord('│'), ink)
+        overlay[(top + 1 + k, left)] = overlay[(top + 1 + k, left + wide - 1)] = (ord('\u2502'), ink)
         for c, (char, fg, bg) in enumerate(cells):
             overlay[(top + 1 + k, left + 1 + c)] = (ord(char), packed(fg, bg))
 

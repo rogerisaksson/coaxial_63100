@@ -1,4 +1,4 @@
-"""The gynoid worker process on its latent loop: paced to the clock, commands heard, state said."""
+"""The robot's worker process on its latent loop: paced to the clock, commands heard, state said."""
 import ctypes
 import functools
 import gc

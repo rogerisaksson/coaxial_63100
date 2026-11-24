@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The gynoid as the eye sees it, measured a stage a row: a HUMANOID recording.
+"""The robot as the eye sees it, measured a stage a row: a HUMANOID recording.
 
 A recording (R on the page, recordings/*.csv) - the rows the page hears from the robot's loop
 (`humanoid_keys.row`); its walk simulated is `tools/sim/ortho.py --look`'s, the same rows.

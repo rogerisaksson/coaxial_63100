@@ -3,7 +3,7 @@ import threading
 
 TICK = 0.12
 
-ROBOT = '\U0001F916'                     # "🤖"
+ROBOT = '\U0001F916'                     # "U+1F916"
 ROBOT_FALLBACK = 'o'
 
 # All three need to be full-colour by default, not text glyphs forced into
@@ -11,8 +11,8 @@ ROBOT_FALLBACK = 'o'
 # different advance width than a native one in some fonts, which reads as
 # uneven spacing next to the others even though there is no actual space
 # character anywhere in this string.
-ICON_WAIT = '\U0001F4A4'                 # "💤"
-ICON_ERROR = '❌'                    # "❌"
+ICON_WAIT = '\U0001F4A4'                 # "U+1F4A4"
+ICON_ERROR = '\u274c'                    # "U+274C"
 ICON_WAIT_FALLBACK = 'z'
 ICON_ERROR_FALLBACK = 'X'
 
@@ -24,8 +24,8 @@ SPIN_FALLBACK = ('|', '/', '-', '\\')
 # footprint than an emoji bracket would be, and already inside cp1252 (0x AB /
 # 0xBB), so a legacy console gets them too even though it cannot hold the robot
 # it sits around.
-OPEN = '«'
-CLOSE = '»'
+OPEN = '\u00ab'
+CLOSE = '\u00bb'
 OPEN_FALLBACK = '|'
 CLOSE_FALLBACK = '|'
 

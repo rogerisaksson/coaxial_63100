@@ -250,8 +250,8 @@ rotor's pages and their demos. The board's findings:
   and speed regulator's previous speed are initialized from current velocity to
   prevent step derivative spikes into the feedforward term. Across 400 starts
   from any rest angle, zero faults.
-- Observer chain at extreme spool (81 000 rad/s²): the dual observer's PLL
-  integrator limits maximum tracking acceleration to $K_i = 8000$ rad/s² before
+- Observer chain at extreme spool (81 000 rad/s^2): the dual observer's PLL
+  integrator limits maximum tracking acceleration to $K_i = 8000$ rad/s^2 before
   slipping poles. Once handed over (`o->valid == true`), the observer speed and
   blend transition to `flux_omega` when it exceeds the lagging PLL speed. Blend
   reaches 1.0 and RMS angle error remains < 30 deg electrical through the spool

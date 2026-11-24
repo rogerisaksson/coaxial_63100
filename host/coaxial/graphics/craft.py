@@ -56,7 +56,7 @@ GLASS = (235, 245, 255)
 GRIP = (0.08, 0.38)
 FRAME = 0.75
 CORNER = 1.2
-MARKED = 'ｼｷﾍﾞﾂ'
+MARKED = '\uff7c\uff77\uff8d\uff9e\uff82'
 
 #: The craft from above, nose along +u, in its lengths (v across): the hull a wedge, the fins
 #: swept back from it, the canopy on the nose.
@@ -303,11 +303,11 @@ def marker(width, height, t, board=None):
     mx, my = x + away * ox / norm, y + away * oy / norm / ASPECT
     top, bottom = int(my - half / ASPECT), int(my + half / ASPECT)
     left, right = int(mx - half), int(mx + half)
-    out = [(top, left, '┌─'), (top, right - 1, '─┐'), (bottom, left, '└─'),
-           (bottom, right - 1, '─┘')]
+    out = [(top, left, '\u250c\u2500'), (top, right - 1, '\u2500\u2510'), (bottom, left, '\u2514\u2500'),
+           (bottom, right - 1, '\u2500\u2518')]
     if bottom - top >= 4:
-        out += [(top + 1, left, '│'), (top + 1, right, '│'), (bottom - 1, left, '│'),
-                (bottom - 1, right, '│')]
+        out += [(top + 1, left, '\u2502'), (top + 1, right, '\u2502'), (bottom - 1, left, '\u2502'),
+                (bottom - 1, right, '\u2502')]
     gap = right - left - 3                     # between the corners' arms
     if g >= 1.0 and gap >= len(MARKED) + 2:
         out.append((top, left + 2 + (gap - len(MARKED)) // 2, MARKED))

@@ -2,7 +2,7 @@
 
     rec = recorder.started('humanoid', HEADER)      # R
     recorder.added(rec, rows)                        # a frame's rows
-    recorder.badge(rec)                              # '● REC ⠹ 1 234' while it records
+    recorder.badge(rec)                              # '\u25cf REC \u2839 1 234' while it records
     recorder.corner(rec, width)                      # the same in a drawing's top-right corner
     path = recorder.saved(rec)                       # R again: recordings/humanoid_<time>_<commit>.csv
 """
@@ -16,7 +16,7 @@ from machine.process import commit, introspect
 #: Where a page's recordings go, a CSV from a press to the next (`introspect.RECORDINGS`).
 RECORDINGS = introspect.RECORDINGS
 #: The counter's wheel: a cell on per row written; its inks in a drawing.
-SPIN = '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+SPIN = '\u280b\u2819\u2839\u2838\u283c\u2834\u2826\u2827\u2807\u280f'
 INK, GROUND = (255, 96, 96), (10, 22, 35)
 
 
@@ -35,9 +35,9 @@ def added(rec, rows):
 
 
 def badge(rec):
-    """'● REC', the wheel a cell on per row and the rows written."""
+    """'\u25cf REC', the wheel a cell on per row and the rows written."""
     n = len(rec['rows'])
-    return '● REC %s %s' % (SPIN[n % len(SPIN)], format(n, ',').replace(',', ' '))
+    return '\u25cf REC %s %s' % (SPIN[n % len(SPIN)], format(n, ',').replace(',', ' '))
 
 
 def corner(rec, width):

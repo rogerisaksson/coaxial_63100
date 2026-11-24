@@ -1,7 +1,7 @@
 # Architecture: Solvers
 
 The whole-body solvers, in Python and in C row for row: a dense QP and a
-stack of them, and the step without an active set the gynoid's loop runs.
+stack of them, and the step without an active set the robot's loop runs.
 The chain they solve over: [kinematics](kinematics.md); what asks them:
 [planners](planners.md). Findings: [wbc](../findings/wbc.md),
 [wrench](../findings/wrench.md).

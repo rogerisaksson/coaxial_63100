@@ -203,12 +203,12 @@ def test_balloons_on_what_the_robot_sees(report):
                  text)
     st['now'] = dict(st['now'], docks=[{'at': [(-1.8, 0.47, 0.8), (-1.8, 0.47, 2.8)], 'chosen': 1, 'kind': 'lie_bed'}])
     drawn = gym.ballooned(st, gym.offered(st), 110, 36, (0.0, 0.0))
-    rings = {chr(code): at for at, (code, _ink) in drawn.items() if chr(code) in '○◉'}
+    rings = {chr(code): at for at, (code, _ink) in drawn.items() if chr(code) in '\u25cb\u25c9'}
     mid = tuple(round(sum(c) / len(rings)) for c in zip(*rings.values()))
     tip = chr(drawn.get(mid, (32, 0))[0])
     spoked = sum(0x2800 < code < 0x2900 for _at, (code, _ink) in drawn.items())
     report.check("the robot's errand's docks a ring each on the viewport, the one laid filled, the bed's balloon's "
-                 'tip between them, a line of dots to each', sorted(rings) == sorted('○◉') and tip in '▾◂▸'
+                 'tip between them, a line of dots to each', sorted(rings) == sorted('\u25cb\u25c9') and tip in '\u25be\u25c2\u25b8'
                  and spoked > 0, (rings, mid, tip, spoked))
 
 

@@ -32,8 +32,8 @@ DOTS_X, DOTS_Y = 2, 4
 #: both samples of a row cross it at once - which is exactly where a
 #: circle looks worst, at its top, bottom and sides. The four-rooks
 #: pattern puts one sample in each row and each column of a 4x4 grid, so
-#: those edges get five, and the diagonals of the can come out `⢠⢾⠋`
-#: where the corners drew `⢠⠞⠋`. Same four samples, same cost.
+#: those edges get five, and the diagonals of the can come out `U+28A0 U+28BE U+280B`
+#: where the corners drew `U+28A0 U+281E U+280B`. Same four samples, same cost.
 SUBDOT = ((-0.375, -0.125), (0.125, -0.375),
           (-0.125, 0.375), (0.375, 0.125))
 

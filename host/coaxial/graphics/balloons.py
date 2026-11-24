@@ -14,9 +14,9 @@ from coaxial.graphics.raster import BRAILLE, BRAILLE_BITS, DOTS_X, DOTS_Y
 
 #: A balloon's word's ink (the instruments' label); its tail, the notch it leaves the frame by,
 #: its tip on the thing, and by the side the thing is on where it is out of sight.
-WORD_INK, TAIL, NOTCH, TIP, TIPS = (214, 220, 228), '│', '┬', '▾', {-1: '◂', 1: '▸'}
+WORD_INK, TAIL, NOTCH, TIP, TIPS = (214, 220, 228), '\u2502', '\u252c', '\u25be', {-1: '\u25c2', 1: '\u25b8'}
 #: A dock's ring, one the robot may take and the one taken.
-RING, TAKEN = '○', '◉'
+RING, TAKEN = '\u25cb', '\u25c9'
 
 
 def _dotted(a, b, width, height):
@@ -124,10 +124,10 @@ def laid(tags, width, height, lit=False, shut=frozenset()):
         out.update({(r, col): (ord(TAIL), frame) for r in range(bottom + 1, row)})
         out[(row, col)] = (ord(tip), frame)
     for bottom, left, right, (_row, col), text, key, _tip in placed:
-        edges = ((bottom - 2, FRAME_CORNERS[:2], '─' * len(text)),
-                 (bottom, FRAME_CORNERS[2:], ''.join(NOTCH if left + 1 + c == col else '─' for c in range(len(text)))))
+        edges = ((bottom - 2, FRAME_CORNERS[:2], '\u2500' * len(text)),
+                 (bottom, FRAME_CORNERS[2:], ''.join(NOTCH if left + 1 + c == col else '\u2500' for c in range(len(text)))))
         for r, corners, edge in edges:
             out.update({(r, left + c): (ord(ch), frame) for c, ch in enumerate(corners[0] + edge + corners[1])})
-        out[(bottom - 1, left)] = out[(bottom - 1, right)] = (ord('│'), frame)
+        out[(bottom - 1, left)] = out[(bottom - 1, right)] = (ord('\u2502'), frame)
         out.update({(bottom - 1, left + 1 + c): (ord(ch), inks[not 0 < c <= len(key)]) for c, ch in enumerate(text)})
     return out

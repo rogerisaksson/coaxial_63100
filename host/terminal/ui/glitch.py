@@ -12,7 +12,7 @@ _TOKEN = re.compile(r'(\x1b\[[0-9;]*m)|(.)', re.S)
 RESET = '\x1b[0m'
 
 #: The snow's characters and colours, and the share of rows it takes and slides at the worst.
-SNOW = '⠁⠂⠄⡀⢀⠠⠐⠈⣀⣤⣶⣿⡇⢸'
+SNOW = '\u2801\u2802\u2804\u2840\u2880\u2820\u2810\u2808\u28c0\u28e4\u28f6\u28ff\u2847\u28b8'
 HOT = ((255, 64, 96), (64, 255, 220), (255, 255, 255), (120, 90, 255))
 TEAR, SNOWS, SLIDES = 4, 0.2, 0.35
 

@@ -171,7 +171,7 @@ def _read(path):
         raw = f.read()
     if raw[:2] in (b'\xff\xfe', b'\xfe\xff'):
         return raw.decode('utf-16', errors='replace')
-    return raw.decode('utf-8', errors='replace').lstrip('﻿')
+    return raw.decode('utf-8', errors='replace').lstrip('\ufeff')
 
 
 def _parse(text):

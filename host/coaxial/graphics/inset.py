@@ -24,7 +24,7 @@ EYES, TINT, EDGE = 'VISION', 0.15, 0.7
 def pixels(rgb):
     """A body of the image `rgb` ((2 * rows, wide, 3) uint8): two pixel rows a cell."""
     rows = rgb.tolist()
-    return [[(ord('▀'), packed(tuple(top), tuple(low))) for top, low in zip(rows[r], rows[r + 1])]
+    return [[(ord('\u2580'), packed(tuple(top), tuple(low))) for top, low in zip(rows[r], rows[r + 1])]
             for r in range(0, len(rows) - 1, 2)]
 
 
@@ -55,13 +55,13 @@ def docked(body, width, height, title, note='', labels=()):
                                     (top + rows + 1, FRAME_CORNERS[2:], note, NOTE_INK)):
         text = ' %s ' % text[:wide - 4] if text else ''
         at = 1 if row == top else wide - 1 - len(text)
-        edge = [(ord('─'), frame)] * wide
+        edge = [(ord('\u2500'), frame)] * wide
         edge[at:at + len(text)] = [(ord(ch), packed(ink)) for ch in text]
         for c, cell in enumerate([(ord(corners[0]), frame)] + edge[:wide]
                                  + [(ord(corners[1]), frame)]):
             out[(row, left + c)] = cell
     for r, cells in enumerate(body):
-        out[(top + 1 + r, left)] = out[(top + 1 + r, left + wide + 1)] = (ord('│'), frame)
+        out[(top + 1 + r, left)] = out[(top + 1 + r, left + wide + 1)] = (ord('\u2502'), frame)
         for c, cell in enumerate(cells):
             out[(top + 1 + r, left + 1 + c)] = cell
     for r, c, text, ink in _laid(labels, rows, wide):

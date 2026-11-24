@@ -93,7 +93,7 @@ def mirrored(placed, flow, room, kin=(), keys=None, reach=None):
         flows.append((a, b, kind, text, key, by))
 
     def said(a, b):
-        return tuple(', '.join(('↺ ' if kind == back else '') + s for kind, s, _t in way)
+        return tuple(', '.join(('\u21ba ' if kind == back else '') + s for kind, s, _t in way)
                      for way in links.get((a, b), ((), ())))
     chords = [k for k in links if k[0] in index and k[1] in index and (index[k[1]] - index[k[0]]) % n != 1]
     rmarks, rnamed, rroutes, rslots, (rw, rh) = schematic.ring(loop, hung, chords, said, names) if loop \
@@ -127,7 +127,7 @@ def mirrored(placed, flow, room, kin=(), keys=None, reach=None):
     slots = [(x + ro[0], y + ro[1], dx, dy, which[lane], d, grows) for x, y, dx, dy, lane, d, grows in rslots]
     rings, out, into = {nd: [] for nd in marks}, {}, {}
     for a, b, kind, text, _key, by in flows:
-        arrows = ('↺', '↺') if kind == back else ('→', '←')
+        arrows = ('\u21ba', '\u21ba') if kind == back else ('\u2192', '\u2190')
         rings[a].append((arrows[0], text, names[b], by))
         rings[b].append((arrows[1], text, names[a], by))
         if b in lit and a not in lit:
