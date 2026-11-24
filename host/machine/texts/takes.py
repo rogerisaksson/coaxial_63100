@@ -33,7 +33,8 @@ STREAMED = (modal.AXIAL, modal.SAGITTAL, modal.PITCH)
 #: toes on heels that rise, a dance's where its steps are, and told them the robot's parry stepped
 #: its round the squat till it fell, over at 4.1 s in the dance (sequencer.md).
 VOICES = {**{key: (modal.AXIAL, modal.PITCH)
-             for key in ('crouching_down', 'crouch_up', 'kneeling_down', 'kneeling_up', 'hip_hop', 't_pose')},
+             for key in ('crouching_down', 'crouch_up', 'kneeling_down', 'kneeling_up', 't_pose')},
+          'hip_hop': (modal.AXIAL, modal.PITCH, modal.REACH, modal.ELBOWS),
           'standing_yawn': (modal.AXIAL, modal.SAGITTAL, modal.PITCH, modal.REACH, modal.ELBOWS)}
 #: A take's rows' sequence id, after the texts' streams (200-205).
 TAKE_ID = 300
