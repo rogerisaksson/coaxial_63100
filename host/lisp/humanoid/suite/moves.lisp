@@ -118,19 +118,19 @@
 ;; robot's text's rows wait while it plays (`:holds`): the robot's seat's stage then gives its law where the
 ;; robot sits.
 (defmove chair-mount []
-  (let [;; still under the robot's speed (m/s); a goal reached within tol deg
-        still 0.005 tol 1e-6]
-    (:constants (:still still :tol tol)
+  (let [;; pelvis pulled in from the seat's front edge (m); still under the robot's speed (m/s); a goal reached within tol deg
+        pull-in 0.190 still 0.01 tol 1e-6]
+    (:constants (:pull-in pull-in :still still :tol tol)
      :holds true
      ;; vault draws the robot's pelvis deep onto the seat without tipping a light chair; open lifts
      ;; hands clear and abducts hips; lap rests both hands lightly on mid-thighs
-     :phases [(:name :vault :ends :reached :next :open
-               :goals (:shoulder [29.0 24.0] :elbow [0.0 30.0] :hip [-90.0 15.0] :knee [90.0 15.0]))
+     :phases [(:name :vault :ends :pulled :next :open
+               :goals (:shoulder [32.0 36.0] :elbow [0.0 42.0] :hip [-90.0 30.0] :knee [90.0 30.0]))
               (:name :open :ends :reached :next :lap
-               :goals (:shoulder [-20.0 75.0] :elbow [95.0 95.0] :hip-yaw [12.0 45.0]
-                       :hip [-90.0 15.0] :knee [90.0 15.0]))
+               :goals (:shoulder [-20.0 130.0] :elbow [95.0 175.0] :hip-yaw [12.0 80.0]
+                       :hip [-90.0 30.0] :knee [90.0 30.0]))
               (:name :lap :ends :stilled :next :done
-               :goals (:shoulder [-4.0 30.0] :elbow [59.6 40.0] :hip-yaw [12.0 30.0] :spine [-4.0 25.0]))
+               :goals (:shoulder [-4.0 50.0] :elbow [59.6 70.0] :hip-yaw [12.0 40.0] :spine [-4.0 35.0]))
               (:name :done :ends :reached :next :done)])))
 
 ;; The robot's way down off that seat onto its feet, as its mount came up onto it - the kernel's
@@ -149,7 +149,7 @@
               (:name :vault :ends :feet :next :lean
                :goals (:shoulder [-45.0 20.0] :elbow [-5.0 30.0] :ankle [-5.0 30.0]))
               (:name :lean :ends :reached :next :done
-               :goals (:hip [-118.0 90.0] :ankle [-12.0 40.0] :shoulder [0.0 90.0] :elbow [20.0 90.0]))
+               :goals (:hip [-116.0 65.0] :ankle [-12.0 40.0] :shoulder [0.0 90.0] :elbow [20.0 90.0]))
               (:name :done :ends :reached :next :done)])))
 
 ;; The robot's scoot on the floor as its twist tells it (machine.moves.scoot, wbc_scoot.c): a crab on the

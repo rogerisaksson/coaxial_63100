@@ -199,6 +199,7 @@ def _run_trial(scene, room_on, at, geom_name, wobble=0.0):
         hand_ids = {m.body(n).id for n in ('left_hand', 'left_fingers', 'right_hand', 'right_fingers')}
         torso_id = m.body('torso').id
         pelvis_id = m.body('pelvis').id
+        robot_dofs = [int(m.jnt_dofadr[m.joint(jn).id]) for jn in figure.JOINTS]
         wt = float(g['fr'][modal.WEIGHT])
 
         worker.apply(s, {'say': 'sit_chair', **({'at': at} if at else {})})
@@ -243,7 +244,7 @@ def _run_trial(scene, room_on, at, geom_name, wobble=0.0):
                     trunk_max = max(trunk_max, math.degrees(math.acos(max(-1.0, min(1.0, float(t_up[1]))))))
                     pel_roll_max = max(pel_roll_max, abs(math.degrees(math.asin(max(-1.0, min(1.0, float(p_mat[1, 0])))))))
                     if g['t'] >= t_hold + 0.5:
-                        qvel_hold = max(qvel_hold, float(np.abs(d.qvel[6:]).max()))
+                        qvel_hold = max(qvel_hold, float(np.abs(d.qvel[robot_dofs]).max()))
                     if 'got' in g:
                         scale_min = min(scale_min, float(g['got'].get('scale', 1.0)))
                     hold_samples.append(float(pel[2] + sh[2]))

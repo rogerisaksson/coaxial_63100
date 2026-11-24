@@ -229,18 +229,25 @@ def slotted(g, verb, at=None, things=None):
 
 
 def lain(g, verb='lie_bed'):
-    """(the robot's root from the middle of the thing `verb` goes to nearest it along its length, m -
+    """(the robot's root from the middle of the thing `verb` goes to nearest the robot along its axis, m -
     its sign the box's -, that half length, m; the robot's root's speed, m/s) of its things, (0.0,
-    0.0, speed) with none seen: its root where a look takes it (`_found`), the robot's place in the
-    room as its eyes tell it - not the robot's dead reckoning, whose estimate drifted 0.28 m along a
-    bed as it lay down on it and stroked up it."""
+    0.0, speed) with none seen: for `sit_chair`, the box's axis lies along the robot's heading (`seen`), for
+    `lie_bed`, along its long side. The root sits where a look takes it (`_found`), as the robot's eyes
+    tell it, not the robot's dead reckoning, whose estimate drifted 0.28 m along a bed as it lay."""
     q, data = where(g), g['world'].data
     speed = float(math.sqrt(sum(libm.sq(float(v)) for v in data.qvel[:3])))
     hit = _found(g, verb, edge=False)
     if hit is None:
         return 0.0, 0.0, speed
     _kind, (px, _py, pz), half, turn = hit[2][:4]
-    j = 0 if half[0] > half[2] else 2
+    if verb == 'sit_chair':
+        from machine.senses import edge
+        yaw = edge.yaw(g['sense'])
+        way = (libm.sin(yaw), libm.cos(yaw))
+        dots = [way[0] * turn[0][k] + way[1] * turn[2][k] for k in (0, 2)]
+        j = 2 * int(abs(dots[1]) > abs(dots[0]))
+    else:
+        j = 0 if half[0] > half[2] else 2
     along = (float(q[0]) - px) * turn[0][j] + (float(q[2]) - pz) * turn[2][j]
     return float(along), float(half[j]), speed
 

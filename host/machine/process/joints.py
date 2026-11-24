@@ -181,7 +181,8 @@ class _Felt(dict):
     def __missing__(self, name):
         g, modal = self.g, _modal()
         if name in ('along', 'half', 'speed'):
-            self['along'], self['half'], self['speed'] = _furniture().lain(g)
+            verb = 'sit_chair' if (g.get('played') or {}).get('name', '').startswith('chair_') else 'lie_bed'
+            self['along'], self['half'], self['speed'] = _furniture().lain(g, verb)
         elif name in BODILY:
             if g.get('bodily') is None:
                 from tools.cores import bodied
