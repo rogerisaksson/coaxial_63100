@@ -13,8 +13,10 @@ if __package__ in (None, ''):
 
 from tools.render.face_laid import np_mod as _np  # noqa: E402
 
-NECK_RINGS = ((-0.040, 0.056, 0.056, -0.005), (-0.020, 0.050, 0.054, -0.004), (0.000, 0.046, 0.052, -0.003),
-              (0.025, 0.043, 0.048, -0.002), (0.042, 0.040, 0.036, 0.008), (0.058, 0.036, 0.032, 0.011),
+NECK_RINGS = ((-0.040, 0.074, 0.058, -0.002), (-0.024, 0.065, 0.054, -0.002), (-0.010, 0.055, 0.049, -0.002),
+              (-0.004, 0.049, 0.045, -0.002), (0.004, 0.045, 0.043, -0.001), (0.016, 0.043, 0.041, -0.001),
+              (0.022, 0.046, 0.044, 0.000), (0.028, 0.042, 0.040, 0.001), (0.036, 0.044, 0.041, 0.004),
+              (0.044, 0.040, 0.036, 0.007), (0.052, 0.040, 0.036, 0.009), (0.060, 0.035, 0.031, 0.011),
               (0.074, 0.030, 0.026, 0.012))
 NECK_Y, SKIN_TONED = (0.339, 0.462), (172, 138, 121)
 HEAD_LIKED = ('like_head', 'like_hair', 'like_fall')
@@ -60,9 +62,10 @@ def _skin_colour(like):
 
 
 def neck_skin(nod=0.0, head_yaw=0.0, like=None):
-    """Smooth closed neck and nape skin cover over the neck drive in root frame."""
+    """Smooth closed articulated cervical sheath and clavicle gorget in root frame."""
     from coaxial.graphics import lit
     from coaxial.graphics.shapes import finer, loft
+    from tools.render import face_honeycomb as fh
     np, (_b, nm, fr, _p), rgb = _np(), _body_cached(False, None), _skin_colour(like)
     nat = fr[nm.index('neck')][1]
     hrel = fr[nm.index('head')][1] - nat
@@ -76,7 +79,7 @@ def neck_skin(nod=0.0, head_yaw=0.0, like=None):
         a = np.radians(nod * _step((yn + 0.036) / 0.061))
         ca, sa, cy, cz = np.cos(a), np.sin(a), c[:, 1].copy(), c[:, 2].copy()
         c[:, 1], c[:, 2] = ca * cy - sa * cz, sa * cy + ca * cz
-    return [((c + nat)[t], rgb) for t in tris]
+    return [((c + nat)[t], fh.neck_band(yn, t)) for t in tris]
 
 
 def trim_neck(nm_dict, nod=0.0):
@@ -106,23 +109,9 @@ def _weld_rgb(n_u, inv, tu, m, steps=4):
     return rgb
 
 
-def _smooth_hair(c, t, uv, m):
-    from coaxial.graphics import lit
-    np = _np()
-    c_u, inv = np.unique(np.round(c, 5), axis=0, return_inverse=True)
-    tu = inv[t]
-    _fc, _ft, vn = _smooth_normals(c_u, tu, 180.0)
-    trgb = np.clip(np.rint(_weld_rgb(len(c_u), inv, tu, m, 5)[tu].mean(1)), 0, 255).astype(np.uint32)
-    tmat = np.uint32(lit.PAINTED) | (trgb[:, 0] << 16) | (trgb[:, 1] << 8) | trgb[:, 2]
-    return c[t].reshape(-1, 3), np.arange(3 * len(t)).reshape(-1, 3), uv[t].reshape(-1, 2), np.repeat(tmat, 3), vn
-
-
 def _extract_root(body, names, pos, wanted, norm=None):
-    """Extract parts in root frame."""
-    import numpy as np
-    from coaxial.graphics import panels
     from tools.render import leg_worn as lw
-    out_tris, meshes, idx = [], [], body.index.astype(int)
+    np, out_tris, meshes, idx = _np(), [], [], body.index.astype(int)
     owner = np.repeat(np.arange(len(names)), [len(p[5][1]) for p in body.parts])
     for n in wanted:
         if n not in names:
@@ -130,22 +119,15 @@ def _extract_root(body, names, pos, wanted, norm=None):
         k = names.index(n)
         lo, hi = body.spans[k]
         tl, c, m, uv = idx[owner == k] - lo, pos[lo:hi].copy(), body.materials[lo:hi].copy(), body.uv[lo:hi].copy()
-        vn = None if norm is None else _unit(norm[lo:hi])
-        if n == 'like_head':
-            tl = tl[~(m[tl] == panels.OPEN).any(1)]
-        elif n in ('like_hair', 'like_fall'):
-            c, tl, uv, m, vns = _smooth_hair(c, tl, uv, m)
-            vn = vns if vn is not None else None
         out_tris += lw._tris(c, tl, m)
-        meshes.append((c, tl, uv, m, vn))
+        meshes.append((c, tl, uv, m, None if norm is None else _unit(norm[lo:hi])))
     return out_tris, meshes
 
 
 def symbolic_head(nod=0.0, head_yaw=0.0, like=None, raw=False):
-    """Unified mechanical mecha-gynoid head and cervical carrier (`face_built.posed`) in root frame."""
-    import numpy as np
+    """Mecha-gynoid head and cervical carrier in root frame."""
     from tools.render import face_built as fb
-    _ = like
+    np, _ = _np(), like
     _b, names, fr, _p = _body_cached(False, None)
     torso_at = fr[names.index('torso')][1]
     parts = {k: v for k, v in fb.posed('neutral', nod=nod, head_yaw=head_yaw, plates=True, include_neck=True).items()
@@ -157,8 +139,8 @@ def symbolic_head(nod=0.0, head_yaw=0.0, like=None, raw=False):
 
 
 def _shoulder_xform(pts, shoulder, turn, roll):
-    import numpy as np
     from tools.render import knee_mount as km
+    np = _np()
     if turn:
         pts = (pts - shoulder) @ km._rx(-turn).T + shoulder
     if roll:
@@ -170,11 +152,10 @@ def _shoulder_xform(pts, shoulder, turn, roll):
 
 
 def symbolic_hands(roll=0.0, turn=0.0, flex=0.0, like=None):
-    """Left and right coaxial 5-fingered carbon hands in root frame (`_put`-aligned with `arm_worn`)."""
-    import numpy as np
+    """Left and right 5-fingered carbon hands in root frame."""
     from coaxial.graphics import livery
     from tools.render import arm_worn as aw, knee_mount as km, leg_worn as lw
-    bd, nm, fr, pos = _body_cached(False, like)
+    np, (bd, nm, fr, pos) = _np(), _body_cached(False, like)
     (tfa, sfa), (tp, sp, bp), tua = fr[nm.index('left_forearm')], aw.placing(), fr[nm.index('left_upper_arm')][0]
     off = np.array([float(sp[0] * tp[0, 0]), 0.010, 0.0])
     (_b0, n0, f0, _p0), sh = _body_cached(False, None), aw.laid(False, ())[1]
@@ -188,10 +169,9 @@ def symbolic_hands(roll=0.0, turn=0.0, flex=0.0, like=None):
 
 def symbolic_shoes(dressed=False):
     """Robot 1.0 symbolic shoes in root frame."""
-    import numpy as np
     from coaxial.graphics import livery, sneaker
     from tools.render import leg_worn as lw
-    _b, nm, fr, _p = _body_cached(False, None)
+    np, (_b, nm, fr, _p) = _np(), _body_cached(False, None)
     out, up = [], lw._rgb(livery.TUBE)
     trim, lace, cnt = (sneaker.GUM, sneaker.LACE, sneaker.COUNTER) if dressed else ((44, 46, 52), (54, 56, 62), (50, 52, 58))
     for s in ('left', 'right'):
@@ -214,7 +194,7 @@ def trim_leg(leg_tris, foot_y, dressed=False):
 
 @functools.lru_cache(maxsize=None)
 def seat_nets():
-    """Bilateral buttock honeycomb nets (`seat.plate`) and white rims (`seat.rim`) over `hip_clamped`."""
+    """Bilateral buttock honeycomb nets and white rims over `hip_clamped`."""
     from coaxial.graphics import livery, seat
     from coaxial.graphics.lit import PAINTED
     from machine.body.figure import HIP_DROP, HIP_HALF
@@ -240,21 +220,19 @@ def seat_nets():
 
 
 def arm_parts_dressed(flex=0.0, turn=0.0, roll=0.0):
-    """Left arm CAD in `arm_worn` elbow frame keeping complete forearm and bicep honeycomb guards below the sleeve."""
+    """Left arm CAD in elbow frame keeping complete upper-arm and forearm guards."""
     from tools.render import arm_worn as aw, knee_mount as km
     sh, ad, gd = aw.laid(False, ())[1], aw.arm(flex, roll, turn), aw._guarded()
     low = [t for k in ('elbow', 'hose', 'forearm tube') for t in ad[k]] + [(t, c) for t, c in ad['upper arm tube'] if float(t[:, 1].min()) < 0.245]
-    gul = [(t, c) for t, c in gd['left_upper_arm'] if float(t[:, 1].mean()) < 0.176 and float(t[:, 1].max()) < 0.185]
     gf = km._turn(gd['left_forearm'], aw.placing()[2] * flex) if flex else gd['left_forearm']
-    pose = lambda ts: [(_shoulder_xform(t, sh, turn, roll), col) for t, col in ts] if (turn or roll) else ts
-    return low + pose(gul + gf), [t for p in ad.values() for t in p] + pose(gd['left_upper_arm'] + gf)
+    g_all = gd['left_upper_arm'] + gf
+    ga = [(_shoulder_xform(t, sh, turn, roll), col) for t, col in g_all] if (turn or roll) else g_all
+    return low + ga, [t for p in ad.values() for t in p] + ga
 
 
-def _drape_polar(corners, obs_pts, axis_a, axis_b, gap=0.0040, fall_at=None, max_push=0.026):
-    """Smooth radial outward envelope drape along segment `axis_a..axis_b` preserving cloth folds."""
-    import numpy as np
+def _drape_polar(corners, obs_pts, axis_a, axis_b, gap=0.0032, fall_at=None, max_push=0.020):
     from scipy.ndimage import maximum_filter1d, uniform_filter1d
-    v, span = corners.copy(), axis_b - axis_a
+    np, v, span = _np(), corners.copy(), axis_b - axis_a
     u = span / max(float(np.linalg.norm(span)), 1e-6)
     e1 = _unit(np.cross(u, np.array([0.0, 0.0, 1.0]) if abs(u[2]) < 0.85 else np.array([1.0, 0.0, 0.0])))
     e2 = np.cross(u, e1)
@@ -275,7 +253,7 @@ def _drape_polar(corners, obs_pts, axis_a, axis_b, gap=0.0040, fall_at=None, max
             np.maximum.at(need, (np.clip(((so[keep] - s0) / row_m).astype(int), 0, nr - 1), bo[keep]), ro[keep] + gap)
         want = np.clip(bil(f(need, maximum_filter1d, 3)) - rc, 0.0, max_push)
         np.maximum.at(push, (rowc, bc), want)
-        move = np.maximum(want, bil(f(f(push, maximum_filter1d, 5), uniform_filter1d, 7)))
+        move = np.maximum(want, bil(f(f(push, maximum_filter1d, 3), uniform_filter1d, 11)))
         if fall_at is not None:
             hg, wide = max(0, int((fall_at - s0) / row_m)), np.zeros((nr, 64))
             np.maximum.at(wide, (rowc, bc), rc + move)
@@ -286,8 +264,7 @@ def _drape_polar(corners, obs_pts, axis_a, axis_b, gap=0.0040, fall_at=None, max
 
 
 def _garment_bone(name, fd, nd):
-    """`(axis_a, axis_b, fall_s)` in root frame for cloth part `name`."""
-    import numpy as np
+    np = _np()
     if any(k in name for k in ('torso', 'tee', 'bust', 'pelvis', 'seat')):
         return fd[nd.index('pelvis')][1] - (0.0, 0.14, 0.0), fd[nd.index('neck')][1], None
     side = 'left_' if 'left' in name else 'right_'
@@ -300,13 +277,30 @@ def _garment_bone(name, fd, nd):
 
 
 def _slim_bust(corners, torso_y):
-    """Subtly slim anterior bust protrusion on `like_torso` before polar draping."""
-    import numpy as np
-    v, dy = corners.copy(), corners[:, 1] - torso_y
+    np, v, dy = _np(), corners.copy(), corners[:, 1] - torso_y
     w = _step(1.0 - np.abs(dy - 0.205) / 0.095) * _step(1.0 - np.abs(v[:, 0]) / 0.135)
     band = (dy > 0.11) & (dy < 0.30) & (v[:, 2] > 0.01)
-    cz = float(np.percentile(v[band, 2], 40)) if band.any() else 0.070
-    v[:, 2] -= 0.24 * w * np.maximum(v[:, 2] - cz, 0.0)
+    v[:, 2] -= 0.24 * w * np.maximum(v[:, 2] - (float(np.percentile(v[band, 2], 40)) if band.any() else 0.070), 0.0)
+    return v
+
+
+def _fit_collar(corners, neck_at):
+    np, v = _np(), corners.copy()
+    nx, ny, nz = float(neck_at[0]), float(neck_at[1]), float(neck_at[2])
+    dx, dy, dz = v[:, 0] - nx, v[:, 1] - ny, v[:, 2] - nz
+    r = np.hypot(dx, dz)
+    w = _step((dy + 0.072) / 0.056) * _step((0.114 - r) / 0.032)
+    if not (w > 1e-4).any():
+        return v
+    fr = np.clip(dz / np.maximum(r, 1e-6), 0.0, 1.0)
+    sc = (r + w * (np.minimum(r, 0.049 + 0.004 * fr) - r) * 0.88) / np.maximum(r, 1e-6)
+    v[:, 0], v[:, 2], v[:, 1] = nx + dx * sc, nz + dz * sc, v[:, 1] + w * (0.015 + 0.028 * fr)
+    dy2, r2 = v[:, 1] - ny, np.hypot(v[:, 0] - nx, v[:, 2] - nz)
+    need = np.where(dy2 < 0.004, 0.052 + 0.026 * _step((-0.004 - dy2) / 0.034), 0.049)
+    m = (dy2 > -0.046) & (dy2 < 0.035) & (r2 < need) & (r2 > 1e-5)
+    if m.any():
+        s2 = need[m] / r2[m]
+        v[m, 0], v[m, 2] = nx + (v[m, 0] - nx) * s2, nz + (v[m, 2] - nz) * s2
     return v
 
 
@@ -337,6 +331,7 @@ def draped_clothes(roll=0.0, turn=0.0, flex=0.0, obs_tris=(), like=None, raw=Fal
         'arms_out': roll, 'left_shoulder': turn, 'right_shoulder': turn, 'left_elbow': flex, 'right_elbow': flex}
     fd = bd._frames(ang, root)
     (pd_, norm_d), ty = bd.pose(ang, root=root, _frames=fd), float(fd[nd.index('torso')][1][1])
+    neck_at = fd[nd.index('neck')][1]
     pts = np.vstack([t for t, _c in obs_tris]) if obs_tris else np.zeros((0, 3))
     obs = pts[np.unique(np.floor(pts / 0.005).astype(np.int64), axis=0, return_index=True)[1]] if len(pts) else pts
     tout, mout = [], []
@@ -348,7 +343,11 @@ def draped_clothes(roll=0.0, turn=0.0, flex=0.0, obs_tris=(), like=None, raw=Fal
         if tris is None or not len(tris):
             continue
         a, b, fs = _garment_bone(name, fd, nd)
-        v = _drape_polar(_slim_bust(pd_[lo:hi], ty) if (like and name == 'like_torso') else pd_[lo:hi], obs, a, b, fall_at=fs)
+        is_slv = 'upper_arm' in name or 'sleeve' in name
+        v = _drape_polar(_slim_bust(pd_[lo:hi], ty) if (like and name == 'like_torso') else pd_[lo:hi], obs, a, b,
+                         gap=0.0048 if is_slv else 0.0032, fall_at=fs, max_push=0.024 if is_slv else 0.020)
+        if like and name == 'like_torso':
+            v = _fit_collar(v, neck_at)
         mats = bd.materials[lo:hi]
         if raw:
             tris, vn, vm = _cloth_normals(v, tris, norm_d[lo:hi], mats)
@@ -391,7 +390,7 @@ def lit_mesh(roll=0.0, dressed=False, turn=0.0, flex=0.0, nod=0.0, head_yaw=0.0,
     from coaxial.graphics import lit
     from tools.render import robot_built as rb
     np = _np()
-    u32, whole = np.uint32, rb.whole(roll=roll, dressed=dressed, turn=turn, flex=flex, nod=nod, head_yaw=head_yaw, like=like)
+    u32, whole = np.uint32, rb.whole(roll, dressed, turn, flex, nod=nod, head_yaw=head_yaw, like=like)
     pl, nl, ul, ml, il, base = [], [], [], [], [], [0]
 
     def _push(c, t, u, m, n):
@@ -401,7 +400,7 @@ def lit_mesh(roll=0.0, dressed=False, turn=0.0, flex=0.0, nod=0.0, head_yaw=0.0,
     for mesh in symbolic_head(nod=nod, head_yaw=head_yaw, like=like, raw=True):
         _push(*mesh)
     if dressed:
-        wb = rb.whole(roll=roll, dressed=False, turn=turn, flex=flex, nod=nod, head_yaw=head_yaw, like=like)
+        wb = rb.whole(roll, False, turn, flex, nod=nod, head_yaw=head_yaw, like=like)
         obs = [t for k in ('pectoral', 'seat', 'left leg', 'right leg', 'left arm', 'right arm', 'trunk', 'trunk guards') for t in wb.get(k, ())]
         for mesh in draped_clothes(roll=roll, turn=turn, flex=flex, obs_tris=obs, like=like, raw=True):
             _push(*mesh)
@@ -409,38 +408,34 @@ def lit_mesh(roll=0.0, dressed=False, turn=0.0, flex=0.0, nod=0.0, head_yaw=0.0,
         if not part_tris or key in ('head', 'garments'):
             continue
         raw = np.array([t for t, _c in part_tris], float)
-        idx = np.arange(3 * len(raw)).reshape(-1, 3)
         cu, iu = np.unique(np.round(raw.reshape(-1, 3), 6), axis=0, return_inverse=True)
-        _fc, _ft, vn = _smooth_normals(cu, iu.reshape(-1, 3), 180.0 if key in ('hands', 'shoes', 'neck skin') else (54.0 if key == 'seat' else 38.0))
+        vn = _smooth_normals(cu, iu.reshape(-1, 3), 180.0 if key in ('hands', 'shoes', 'neck skin') else (54.0 if key == 'seat' else 38.0))[2]
         ca = np.asarray([c for _t, c in part_tris], u32)
-        hard_m = u32(0) if key == 'neck skin' else np.where((ca == (24, 24, 26)).all(1), u32(0), u32(lit.HARD))
-        tm = (u32(lit.PAINTED) | hard_m
-              | np.where((ca == (64, 66, 68)).all(1), u32(lit.TWILL), u32(0)) | (ca[:, 0] << 16) | (ca[:, 1] << 8) | ca[:, 2])
-        _push(raw.reshape(-1, 3), idx, np.zeros((3 * len(raw), 2), 'f4'), np.repeat(tm, 3), vn)
-    return (np.vstack(pl).astype('f4'), np.vstack(nl).astype('f4'), np.vstack(ul).astype('f4'),
-            np.concatenate(ml).astype(u32), np.vstack(il).astype(u32))
+        hm = np.where((ca == (240, 243, 248)).all(1), u32(lit.HARD), u32(0)) if key == 'neck skin' else np.where((ca == (24, 24, 26)).all(1), u32(0), u32(lit.HARD))
+        tm = u32(lit.PAINTED) | hm | np.where((ca == (64, 66, 68)).all(1), u32(lit.TWILL), u32(0)) | (ca[:, 0] << 16) | (ca[:, 1] << 8) | ca[:, 2]
+        _push(raw.reshape(-1, 3), np.arange(3 * len(raw)).reshape(-1, 3), np.zeros((3 * len(raw), 2), 'f4'), np.repeat(tm, 3), vn)
+    return np.vstack(pl).astype('f4'), np.vstack(nl).astype('f4'), np.vstack(ul).astype('f4'), np.concatenate(ml).astype(u32), np.vstack(il).astype(u32)
 
 
 def checked():
-    """Verify neck manifold, neck clearance, seat nets, sleeve continuity, and builds."""
+    """Verify neck manifold, clearance, seat nets, sleeve continuity and builds."""
     from coaxial.graphics import gynoid, likeness
     from tools.render import clips, robot_built as rb, solids
-    skin0 = neck_skin(0.0, 0.0, likeness.FOUND)
+    lk = likeness.FOUND
+    skin0 = neck_skin(0.0, 0.0, lk)
     pr_n = solids.printable([1e3 * t for t, _c in skin0])
-    wb = rb.whole(0.0, False, 0.0, 0.0, nod=0.0, head_yaw=0.0, like=likeness.FOUND)
-    nc = sum(clips.crossed(skin0 if nd == 0.0 else neck_skin(nd, 0.0, likeness.FOUND), wb['neck']) for nd in (-45.0, 0.0, 60.0))
+    wb = rb.whole(0.0, False, 0.0, 0.0, nod=0.0, head_yaw=0.0, like=lk)
+    nc = sum(clips.crossed(skin0 if nd == 0.0 else neck_skin(nd, 0.0, lk), wb['neck']) for nd in (-45.0, 0.0, 60.0))
     sc = clips.crossed(wb['seat'], wb['left leg'] + wb['right leg'] + wb['trunk'])
     wsd = rb.whole(0.0, True, 0.0, 0.0, like=None)
-    ns = {p[0]: len(p[5][1]) for p in gynoid.body(False, None, likeness.FOUND, True).parts}
+    ns = {p[0]: len(p[5][1]) for p in gynoid.body(False, None, lk, True).parts}
     gap_mm = 0.0
-    if likeness.FOUND:
-        wld = rb.whole(0.0, True, 0.0, 0.0, like=likeness.FOUND)
+    if lk:
+        wld = rb.whole(0.0, True, 0.0, 0.0, like=lk)
         ay = max(float(t[:, 1].max()) for t, _c in wld['left arm'])
         sy = min(float(t[:, 1].min()) for t, _c in wld['garments'] if float(t[:, 0].mean()) > 0.08 and float(t[:, 1].mean()) > 0.30)
         gap_mm = round(1e3 * max(0.0, sy - ay), 2)
-    ok = (not int(pr_n['open']) and not int(nc) and not int(sc) and len(wb['seat']) >= 1000
-          and gap_mm <= 0.0 and ns.get('skin_neck', 0) > 0 and ns.get('drive_neck', -1) == 0
-          and 'shoes' in wb and {'garments', 'neck skin', 'shoes'} <= set(wsd))
-    return {'ok': ok, 'neck_open': int(pr_n['open']), 'neck_cross': int(nc), 'seat_cross': int(sc),
-            'seat_tris': len(wb['seat']), 'skin': ns.get('skin_neck', 0), 'drive': ns.get('drive_neck', -1),
-            'bare': sorted(wb.keys()), 'sym': sorted(wsd.keys()), 'gap_mm': gap_mm}
+    ok = (not int(pr_n['open']) and not int(nc) and not int(sc) and len(wb['seat']) >= 1000 and gap_mm <= 0.0
+          and ns.get('skin_neck', 0) > 0 and ns.get('drive_neck', -1) == 0 and 'shoes' in wb and {'garments', 'neck skin', 'shoes'} <= set(wsd))
+    return {'ok': ok, 'neck_open': int(pr_n['open']), 'neck_cross': int(nc), 'seat_cross': int(sc), 'seat_tris': len(wb['seat']),
+            'skin': ns.get('skin_neck', 0), 'drive': ns.get('drive_neck', -1), 'bare': sorted(wb.keys()), 'sym': sorted(wsd.keys()), 'gap_mm': gap_mm}

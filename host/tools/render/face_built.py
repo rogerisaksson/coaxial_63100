@@ -38,12 +38,12 @@ def _eyes_posed(gaze):
     gz = (max(-gm.YAW, min(gm.YAW, float(gaze[0]))), max(gm.PITCH[0], min(gm.PITCH[1], float(gaze[1]))),
           max(0.0, min(gm.VERGE, float(gaze[2]) if len(gaze) > 2 else 0.0)))
     cam_l, ring_l, pins_l = fl.camera_and_gimbal_local()
-    sy_b, sy_h, py_l, py_r = fl.micro_servo((0.0, 0.094, 0.045), 'y', gz[0], 0.0215, (1.0, 0.0, 0.0), True)
-    sp_b, sp_h, pp_h, _ = fl.micro_servo((0.0, 0.112, 0.043), 'x', gz[1], 0.0056)
-    ry, rz = 0.108, 0.051
+    sy_b, sy_h, py_l, py_r = fh.micro_servo((0.0, 0.094, 0.043), 'y', gz[0], 0.0215, (1.0, 0.0, 0.0), True)
+    sp_b, sp_h, pp_h, _ = fh.micro_servo((0.0, 0.114, 0.040), 'x', gz[1], 0.0056)
+    ry, rz = 0.111, 0.050
     rock = csg.sweep(csg.circle2d(0.0011, fn=14), [(-0.029, ry, rz), (0.029, ry, rz)],
                      chamfer_ends=0.0003, colour=fl.TITANIUM).tris()
-    links = sy_h + sp_h + rock + fl.rod(pp_h, (0.0063, ry + 0.0044 * math.cos(gz[1]), rz + 0.0044 * math.sin(gz[1])), 0.00080)
+    links = sy_h + sp_h + rock + fh.rod(pp_h, (0.0063, ry + 0.0044 * math.cos(gz[1]), rz + 0.0044 * math.sin(gz[1])), 0.00080)
     out = {'gaze_servos': sy_b + sp_b}
     for side, sgn in (('left', 1.0), ('right', -1.0)):
         at0 = np.array([sgn * 0.5 * stereo.BASELINE_M, float(gimbal.EYES[1]), float(gimbal.EYES[2])])
@@ -57,8 +57,8 @@ def _eyes_posed(gaze):
         out[side + '_camera'] = fh.turn_tris(cam_l, rc, (0.0, 0.0, 0.0), piv)
         out[side + '_gimbal'] = (fh.turn_tris(ring_l + ylug, rr, (0.0, 0.0, 0.0), piv)
                                  + fh.turn_tris(pins_l, rm, (0.0, 0.0, 0.0), piv))
-        links += (fl.rod((py_l if sgn > 0 else py_r) + np.array([0.0, 0.0, 0.0016]), piv + rr @ np.array([lx, 0.0, 0.0]), 0.00080)
-                  + fl.rod(np.array([sgn * 0.028, ry - 0.0044 * math.sin(gz[1]), rz + 0.0044 * math.cos(gz[1])]),
+        links += (fh.rod((py_l if sgn > 0 else py_r) + np.array([0.0, 0.0, 0.0016]), piv + rr @ np.array([lx, 0.0, 0.0]), 0.00080)
+                  + fh.rod(np.array([sgn * 0.028, ry - 0.0044 * math.sin(gz[1]), rz + 0.0044 * math.cos(gz[1])]),
                            piv + rc @ np.array([0.0, 0.0065, 0.0020]), 0.00080))
     out['gaze_linkages'] = links
     return out
@@ -78,35 +78,35 @@ def _expressions_posed(blink, brow_lift, brow_tilt, smile, jaw_open):
     dy = 0.0024 * blf
     ex = float(piv_l[0])
     for side, sgn in (('left', 1.0), ('right', -1.0)):
-        bpiv, rb = np.array([sgn * (ex + 0.001), 0.114, 0.090]), fl.rot('z', -sgn * math.radians(3.0 * btl))
+        bpiv, rb = np.array([sgn * (ex + 0.001), 0.114, 0.090]), fh.rot('z', -sgn * math.radians(3.0 * btl))
         out[side + '_brow'] = fh.turn_tris(brow0 if sgn > 0 else fl.mirror_x(brow0), rb, bpiv, (0.0, dy, 0.0))
-        sb1, hb1, tb1, _ = fl.micro_servo((sgn * (ex - 0.013), 0.136, 0.052), 'x', -0.45 * (blf + 0.5 * btl), 0.0054, sgn=sgn)
-        sb2, hb2, tb2, _ = fl.micro_servo((sgn * (ex - 0.001), 0.134, 0.046), 'x', -0.45 * (blf - 0.5 * btl), 0.0054, sgn=sgn)
+        sb1, hb1, tb1, _ = fh.micro_servo((sgn * (ex - 0.013), 0.136, 0.052), 'x', -0.45 * (blf + 0.5 * btl), 0.0054, sgn=sgn)
+        sb2, hb2, tb2, _ = fh.micro_servo((sgn * (ex - 0.001), 0.134, 0.046), 'x', -0.45 * (blf - 0.5 * btl), 0.0054, sgn=sgn)
         out['brow_servos'] += sb1 + sb2
         out['brow_linkages'] += (hb1 + hb2
-                                 + fl.rod(tb1, bpiv + rb @ np.array([-sgn * 0.012, -0.001, -0.003]) + (0.0, dy, 0.0), 0.00075)
-                                 + fl.rod(tb2, bpiv + rb @ np.array([sgn * 0.006, -0.001, -0.010]) + (0.0, dy, 0.0), 0.00075))
+                                 + fh.rod(tb1, bpiv + rb @ np.array([-sgn * 0.012, -0.001, -0.003]) + (0.0, dy, 0.0), 0.00075)
+                                 + fh.rod(tb2, bpiv + rb @ np.array([sgn * 0.006, -0.001, -0.010]) + (0.0, dy, 0.0), 0.00075))
 
         ps = piv_l * (sgn, 1.0, 1.0)
-        ru, rl = fl.rot('x', math.radians(16.0 * bl)), fl.rot('x', math.radians(-19.5 * bl))
+        ru, rl = fh.rot('x', math.radians(17.5 * bl)), fh.rot('x', math.radians(-13.5 * bl))
         out[side + '_upper_lid'] = fh.turn_tris(ulid0 if sgn > 0 else fl.mirror_x(ulid0), ru, ps)
         out[side + '_lower_lid'] = fh.turn_tris(llid0 if sgn > 0 else fl.mirror_x(llid0), rl, ps)
-        slb, slh, tl, _ = fl.micro_servo((sgn * (ex + 0.005), 0.107, 0.048), 'x', 0.55 * bl, 0.0050, sgn=sgn)
+        slb, slh, tl, _ = fh.micro_servo((sgn * (ex + 0.005), 0.107, 0.048), 'x', 0.55 * bl, 0.0050, sgn=sgn)
         out['lid_servos'] += slb
-        out['lid_linkages'] += slh + fl.rod(tl, ps + ru @ np.array([sgn * 0.0036, 0.0074, 0.0068]), 0.00070)
+        out['lid_linkages'] += slh + fh.rod(tl, ps + ru @ np.array([sgn * 0.0036, 0.0074, 0.0068]), 0.00070)
 
-        cpiv, rc = np.array([sgn * 0.0138, 0.0480, 0.1016]), fl.rot('z', sgn * math.radians(18.5 * sm))
-        out[side + '_lip_corner'] = fh.turn_tris(comm0 if sgn > 0 else fl.mirror_x(comm0), rc, cpiv, (0.0, 0.0012 * sm, 0.0))
-        ssb, ssh, ts, _ = fl.micro_servo((sgn * 0.027, 0.068, 0.050), 'z', sgn * 0.55 * sm, 0.0054, (sgn, 0.0, 0.0))
+        cpiv, rc = np.array([sgn * 0.0145, 0.0442, 0.1025]), fh.rot('z', sgn * math.radians(19.0 * sm))
+        out[side + '_lip_corner'] = fh.turn_tris(comm0 if sgn > 0 else fl.mirror_x(comm0), rc, cpiv, (0.0, 0.0019 * sm, 0.0))
+        ssb, ssh, ts, _ = fh.micro_servo((sgn * 0.027, 0.068, 0.050), 'z', sgn * 0.55 * sm, 0.0054, (sgn, 0.0, 0.0))
         out['smile_servos'] += ssb
-        out['smile_linkages'] += ssh + fl.rod(ts, cpiv + rc @ np.array([sgn * 0.0056, 0.0016, -0.0054]) + (0.0, 0.0012 * sm, 0.0), 0.00075)
+        out['smile_linkages'] += ssh + fh.rod(ts, cpiv + rc @ np.array([sgn * 0.0050, 0.0016, -0.0054]) + (0.0, 0.0019 * sm, 0.0), 0.00075)
 
-    jpiv, rj = np.array([0.0, 0.066, 0.024]), fl.rot('x', math.radians(15.5 * jw))
+    jpiv, rj = np.array([0.0, 0.066, 0.024]), fh.rot('x', math.radians(15.5 * jw))
     out['mandible'] = fh.turn_tris(jaw0, rj, jpiv)
     for sgn in (1.0, -1.0):
-        sjb, sjh, tj, _ = fl.micro_servo((sgn * 0.030, 0.078, 0.038), 'x', 0.58 * jw, 0.0056, sgn=sgn)
+        sjb, sjh, tj, _ = fh.micro_servo((sgn * 0.030, 0.078, 0.038), 'x', 0.58 * jw, 0.0056, sgn=sgn)
         out['jaw_servos'] += sjb
-        out['jaw_linkages'] += sjh + fl.rod(tj, jpiv + rj @ np.array([sgn * 0.0402, -0.024, 0.026]), 0.00080)
+        out['jaw_linkages'] += sjh + fh.rod(tj, jpiv + rj @ np.array([sgn * 0.0402, -0.024, 0.026]), 0.00080)
     return out
 
 
@@ -121,7 +121,7 @@ def head_parts(gaze=(0.0, 0.0, 0.02), blink=0.0, brow_lift=0.0, brow_tilt=0.0, s
 
 
 def neck_skin_tris(nod=0.0, head_yaw=0.0):
-    """Return closed C1 `NECK_RINGS` skin triangles in `torso` frame (m)."""
+    """Return closed C1 `NECK_RINGS` articulated cervical sheath and pearl-white clavicle gorget in `torso` frame."""
     from coaxial.graphics import lit
     from coaxial.graphics.shapes import finer, loft
     np, (nt, hr, *_r) = fl.np_mod(), fl.anchors()
@@ -138,14 +138,14 @@ def neck_skin_tris(nod=0.0, head_yaw=0.0):
         cy, cz = c[:, 1].copy(), c[:, 2].copy()
         c[:, 1], c[:, 2] = np.cos(a) * cy - np.sin(a) * cz, np.sin(a) * cy + np.cos(a) * cz
     pts = c + np.asarray(nt, float)
-    return [(pts[t], fh.NECK_SKIN) for t in tris]
+    return [(pts[t], fh.neck_band(yn, t)) for t in tris]
 
 
 def posed(preset=None, nod=0.0, head_yaw=0.0, plates=True, include_neck=True, **kwargs):
     """Return `{name: [(tri, rgb)]}` in `torso` frame mounted on `neck_mount`'s `carrier`."""
     kw = {**PRESETS[preset or 'neutral'], **kwargs}
     nt, _hr, ht, *_r = fl.anchors()
-    ry, rx = fl.rot('y', math.radians(float(head_yaw))), fl.rot('x', math.radians(float(nod)))
+    ry, rx = fh.rot('y', math.radians(float(head_yaw))), fh.rot('x', math.radians(float(nod)))
     out = {}
     for k, ts in head_parts(plates=plates, **kw).items():
         tr = fh.turn_tris(ts, ry, (0.0, 0.0, 0.0), ht)
@@ -175,8 +175,9 @@ def lit_mesh(parts_dict):
         if not tris:
             continue
         raw, cols = np.array([t for t, _c in tris], np.float64), np.array([c for _t, c in tris], np.uint32)
-        vn, fc = _normals(raw, 175.0 if key == 'neck_skin' else 30.0), raw.reshape(-1, 3)
-        matte = (cols == fh.OPTIC_DARK).all(1) | (cols == fl.BAFFLE_DARK).all(1) | (key == 'neck_skin')
+        vn, fc = _normals(raw, 175.0 if key == 'neck_skin' else 62.0), raw.reshape(-1, 3)
+        matte = (cols == fh.OPTIC_DARK).all(1) | (cols == fl.BAFFLE_DARK).all(1) | (cols == fh.BROW_DARK).all(1) | (
+            (key == 'neck_skin') & ~(cols == fh.SHELL_CF).all(1))
         flags = (np.uint32(lit.PAINTED) | np.where(matte, np.uint32(lit.WOVEN), np.uint32(lit.HARD))
                  | np.where((cols == fl.CHASSIS_CF).all(1), np.uint32(lit.TWILL), np.uint32(0))
                  | (cols[:, 0] << np.uint32(16)) | (cols[:, 1] << np.uint32(8)) | cols[:, 2])
