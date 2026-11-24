@@ -95,11 +95,11 @@ def _expressions_posed(blink, brow_lift, brow_tilt, smile, jaw_open):
         out['lid_servos'] += slb
         out['lid_linkages'] += slh + fl.rod(tl, ps + ru @ np.array([sgn * 0.0036, 0.0074, 0.0068]), 0.00070)
 
-        cpiv, rc = np.array([sgn * 0.0222, 0.0460, 0.0914]), fl.rot('z', sgn * math.radians(18.0 * sm))
+        cpiv, rc = np.array([sgn * 0.0188, 0.0478, 0.0934]), fl.rot('z', sgn * math.radians(18.0 * sm))
         out[side + '_lip_corner'] = fh.turn_tris(comm0 if sgn > 0 else fl.mirror_x(comm0), rc, cpiv, (0.0, 0.0012 * sm, 0.0))
-        ssb, ssh, ts, _ = fl.micro_servo((sgn * 0.029, 0.068, 0.050), 'z', sgn * 0.55 * sm, 0.0054, (sgn, 0.0, 0.0))
+        ssb, ssh, ts, _ = fl.micro_servo((sgn * 0.027, 0.068, 0.050), 'z', sgn * 0.55 * sm, 0.0054, (sgn, 0.0, 0.0))
         out['smile_servos'] += ssb
-        out['smile_linkages'] += ssh + fl.rod(ts, cpiv + rc @ np.array([sgn * 0.0068, 0.0006, -0.0085]) + (0.0, 0.0012 * sm, 0.0), 0.00075)
+        out['smile_linkages'] += ssh + fl.rod(ts, cpiv + rc @ np.array([sgn * 0.0064, 0.0006, -0.0080]) + (0.0, 0.0012 * sm, 0.0), 0.00075)
 
     jpiv, rj = np.array([0.0, 0.066, 0.024]), fl.rot('x', math.radians(15.5 * jw))
     out['mandible'] = fh.turn_tris(jaw0, rj, jpiv)
@@ -174,7 +174,7 @@ def lit_mesh(parts_dict):
         if not tris:
             continue
         raw, cols = np.array([t for t, _c in tris], np.float64), np.array([c for _t, c in tris], np.uint32)
-        vn, fc = _normals(raw, 175.0 if key == 'neck_skin' else 24.0), raw.reshape(-1, 3)
+        vn, fc = _normals(raw, 175.0 if key == 'neck_skin' else 36.0), raw.reshape(-1, 3)
         matte = (cols == fh.OPTIC_DARK).all(1) | (cols == fl.BAFFLE_DARK).all(1) | (key == 'neck_skin')
         flags = (np.uint32(lit.PAINTED) | np.where(matte, np.uint32(lit.WOVEN), np.uint32(lit.HARD))
                  | np.where((cols == fl.CHASSIS_CF).all(1), np.uint32(lit.TWILL), np.uint32(0))

@@ -5,9 +5,9 @@
     parts += [('rim_left_seat', 'left_hip_yaw', (), -joint, 0.0, seat.rim(1.0, drive, pelvis)), ...]
 
 A sculpted anatomical gluteal cheek a side where the robot's buttock stands: an open black honeycomb
-(`plate`, `livery.VOID`) framed by a contoured 3D pearl-white outer bezel (`rim`, `livery.PAD` with
-gunmetal bevel walls and rivets), fixed on the hip's roll drive stack a guard's air (`AIR_M`) off
-the mechanism and clear of the pelvis through the hip yaw's travel.
+(`plate`, `livery.VOID`) clipped flush into a smooth C-infinity contoured 3D pearl-white outer bezel
+(`rim`, `livery.PAD` with curved profile, gunmetal rabbet and rivets), fixed on the hip's roll drive
+stack a guard's air (`AIR_M`) off the mechanism and clear of the pelvis through the hip yaw's travel.
 """
 import math
 
@@ -15,12 +15,12 @@ from coaxial.graphics.livery import BOLT, FRAME, PAD, VOID
 from machine.body import drives
 from machine.body.guards import AIR_M
 
-CELL, FILL, CLEFT = 0.0125, 0.64, 0.022
-RIM_W, RIM_T, BEVEL_M, PROUD_M = 0.013, 0.0036, 0.0022, 0.0004
-RIVET_R, RIVET_H = 0.0028, 0.0009
+CELL, FILL, CLEFT = 0.0115, 0.66, 0.022
+RIM_W, RIM_T = 0.0132, 0.0034
+RIVET_R, RIVET_H = 0.0026, 0.0008
 STACK = ('drive_', 'inv_', 'gear_', 'bolts_')
 BEND: tuple = ()
-AROUND, SWUNG, SPACING = 72, 21, AIR_M
+AROUND, SWUNG, SPACING = 96, 21, AIR_M
 _SCULPT_CACHE: dict = {}
 
 
@@ -72,65 +72,8 @@ def _min_dist_yaw(pts, frame, joint, reach_yaw):
     return np.sqrt(near2), x_min
 
 
-def _drive_req(meshes, r_pad, x0=-0.01, y0=-0.16, step=0.003, nx=72, ny=96):
-    """Smooth 2D clearance ceiling `eval_req(x, y)` spherically `r_pad` clear of `meshes`."""
-    from coaxial.model.blocks import numpy as np
-    gx, gy = x0 + np.arange(nx) * step, y0 + np.arange(ny) * step
-    z_raw = np.full((nx, ny), np.inf)
-    for c, t in meshes:
-        if not len(t):
-            continue
-        vx = np.clip(np.rint((c[:, 0] - x0) / step).astype(int), 0, nx - 1)
-        vy = np.clip(np.rint((c[:, 1] - y0) / step).astype(int), 0, ny - 1)
-        np.minimum.at(z_raw, (vx, vy), c[:, 2])
-        a, b, d = c[t[:, 0]], c[t[:, 1]], c[t[:, 2]]
-        denom = (b[:, 0] - a[:, 0]) * (d[:, 1] - a[:, 1]) - (d[:, 0] - a[:, 0]) * (b[:, 1] - a[:, 1])
-        keep = np.abs(denom) > 1e-11
-        a, b, d, denom = a[keep], b[keep], d[keep], denom[keep]
-        ix0 = np.maximum(0, np.floor((np.minimum(a[:, 0], np.minimum(b[:, 0], d[:, 0])) - x0) / step).astype(int))
-        ix1 = np.minimum(nx - 1, np.ceil((np.maximum(a[:, 0], np.maximum(b[:, 0], d[:, 0])) - x0) / step).astype(int))
-        iy0 = np.maximum(0, np.floor((np.minimum(a[:, 1], np.minimum(b[:, 1], d[:, 1])) - y0) / step).astype(int))
-        iy1 = np.minimum(ny - 1, np.ceil((np.maximum(a[:, 1], np.maximum(b[:, 1], d[:, 1])) - y0) / step).astype(int))
-        for k in np.flatnonzero((ix1 >= ix0) & (iy1 >= iy0)):
-            px, py = gx[ix0[k]:ix1[k] + 1, None], gy[None, iy0[k]:iy1[k] + 1]
-            v0, v1, v2, dn = a[k], b[k], d[k], denom[k]
-            w1 = ((px - v0[0]) * (v2[1] - v0[1]) - (v2[0] - v0[0]) * (py - v0[1])) / dn
-            w2 = ((v1[0] - v0[0]) * (py - v0[1]) - (px - v0[0]) * (v1[1] - v0[1])) / dn
-            w0 = 1.0 - w1 - w2
-            ins = (w0 >= -1e-6) & (w1 >= -1e-6) & (w2 >= -1e-6)
-            if ins.any():
-                sub = z_raw[ix0[k]:ix1[k] + 1, iy0[k]:iy1[k] + 1]
-                sub[ins] = np.minimum(sub[ins], (w0 * v0[2] + w1 * v1[2] + w2 * v2[2])[ins])
-    z_req = np.full((nx, ny), 0.1)
-    m_rad = int(math.ceil(r_pad / step))
-    for dx_i in range(-m_rad, m_rad + 1):
-        for dy_i in range(-m_rad, m_rad + 1):
-            d2 = (dx_i * step) ** 2 + (dy_i * step) ** 2
-            if d2 <= r_pad * r_pad:
-                dz = math.sqrt(r_pad * r_pad - d2)
-                sx0, sx1 = max(0, dx_i), min(nx, nx + dx_i)
-                sy0, sy1 = max(0, dy_i), min(ny, ny + dy_i)
-                z_req[sx0 - dx_i:sx1 - dx_i, sy0 - dy_i:sy1 - dy_i] = np.minimum(
-                    z_req[sx0 - dx_i:sx1 - dx_i, sy0 - dy_i:sy1 - dy_i], z_raw[sx0:sx1, sy0:sy1] - dz)
-    z_sm = np.round(z_req, 8)
-    for _ in range(6):
-        p = np.pad(z_sm, 1, mode='edge')
-        z_sm = np.minimum(z_sm, 0.25 * p[1:-1, 1:-1] + 0.125 * (p[:-2, 1:-1] + p[2:, 1:-1] + p[1:-1, :-2] + p[1:-1, 2:])
-                          + 0.0625 * (p[:-2, :-2] + p[:-2, 2:] + p[2:, :-2] + p[2:, 2:]))
-    z_sm = np.round(z_sm, 8)
-
-    def eval_req(x, y):
-        fx, fy = np.clip((x - x0) / step, 0.0, nx - 1.0001), np.clip((y - y0) / step, 0.0, ny - 1.0001)
-        ix, iy = fx.astype(int), fy.astype(int)
-        tx, ty = fx - ix, fy - iy
-        return ((1.0 - tx) * (1.0 - ty) * z_sm[ix, iy] + tx * (1.0 - ty) * z_sm[ix + 1, iy]
-                + (1.0 - tx) * ty * z_sm[ix, iy + 1] + tx * ty * z_sm[ix + 1, iy + 1])
-
-    return eval_req
-
-
-def _depth_model(rear_core, eval_req):
-    """Build anatomical bounds and smooth 3D dome evaluators `(bounds, depth_z, normal_at)`."""
+def _analytic_dome(rear_core, drv_pts):
+    """Build C-infinity quartic gluteal dome `(bounds, depth_z, normal_at)` clearing `drv_pts` without grid kinks."""
     from coaxial.model.blocks import numpy as np
     sx0, sx1 = float(rear_core[:, 0].min()), float(rear_core[:, 0].max())
     sy0, sy1 = float(rear_core[:, 1].min()), float(rear_core[:, 1].max())
@@ -138,36 +81,49 @@ def _depth_model(rear_core, eval_req):
     cx_s, cy_s, r_s = 0.5 * (sx0 + sx1), 0.5 * (sy0 + sy1), 0.5 * max(sx1 - sx0, sy1 - sy0)
     w_hc = min(1.0, max(0.0, (-0.122 - sz0_core) / 0.014))
     if w_hc > 0.5:
-        y_bot, y_top = min(max(sy0 - 0.058, cy_s - 0.110), -0.082), min(sy1 + 0.004, 0.068)
-        cy = y_apex = 0.46 * y_bot + 0.54 * y_top
+        y_bot, y_top = min(max(sy0 - 0.056, cy_s - 0.106), -0.080), min(sy1 + 0.006, 0.068)
         x_in, x_out = CLEFT + 0.002, min(max(sx1 + 0.014, cx_s + r_s + 0.010), 0.156)
+        cy = y_apex = 0.46 * y_bot + 0.54 * y_top
+        d2, d4, cleft_a = 0.0145, 0.0032, 0.0018
     else:
-        y_bot, y_top = max(sy0 - 0.022, cy_s - 0.105), sy1 + 0.022
-        cy, y_apex = 0.45 * y_bot + 0.55 * y_top, 0.58 * y_bot + 0.42 * y_top
-        x_in, x_out = CLEFT + 0.005, min(max(sx1 + 0.016, cx_s + r_s + 0.012), 0.160)
-    cx = 0.44 * x_in + 0.56 * x_out
-    x_apex = cx - 0.003
-    z_req_c = float(eval_req(np.array([x_apex]), np.array([y_apex]))[0])
-    z_apex = (min(sz0_core - (AIR_M + RIM_T) - 0.024, -0.143) if w_hc <= 0.5
-              else min(z_req_c - 0.015, sz0_core - (AIR_M + RIM_T) - 0.018, -0.168))
+        y_bot, y_top = max(sy0 - 0.020, cy_s - 0.100), sy1 + 0.020
+        x_in, x_out = CLEFT + 0.011, min(max(sx1 + 0.014, cx_s + r_s + 0.010), 0.155)
+        cy, y_apex = 0.46 * y_bot + 0.54 * y_top, 0.54 * y_bot + 0.46 * y_top
+        d2, d4, cleft_a = 0.0155, 0.0036, 0.0032
+    cx = 0.45 * x_in + 0.55 * x_out
+    x_apex = cx - 0.002
+    hx_p, hx_n = max(x_out - x_apex + 0.008, 0.045), max(x_apex - x_in + 0.010, 0.045)
+    hy_p, hy_n = max(y_top - y_apex + 0.010, 0.050), max(y_apex - y_bot + 0.010, 0.050)
+    hx_m, hy_m = 0.5 * (hx_p + hx_n), 0.5 * (hy_p + hy_n)
+    hx_d, hy_d = 0.5 * (hx_p - hx_n), 0.5 * (hy_p - hy_n)
+
+    def _rise(x, y):
+        dx, dy = np.asarray(x, float) - x_apex, np.asarray(y, float) - y_apex
+        hx = hx_m + hx_d * np.tanh(dx / 0.022)
+        hy = hy_m + hy_d * np.tanh(dy / 0.024)
+        r2 = (dx / hx) ** 2 + (dy / hy) ** 2
+        return d2 * r2 + d4 * (r2 ** 2) + cleft_a * np.exp(-((np.asarray(x, float) - x_in) / 0.026) ** 2)
+
+    r_pad = AIR_M + RIM_T + 0.0024
+    near = drv_pts[(drv_pts[:, 0] >= x_in - 0.018) & (drv_pts[:, 0] <= x_out + 0.018)
+                   & (drv_pts[:, 1] >= y_bot - 0.018) & (drv_pts[:, 1] <= y_top + 0.018)
+                   & (drv_pts[:, 2] <= sz0_core + 0.048)]
+    if len(near):
+        vx, vy = near[:, 0] - x_apex, near[:, 1] - y_apex
+        vn = np.maximum(np.hypot(vx, vy), 1e-9)
+        rho = AIR_M + RIM_T + 0.0014
+        rise_worst = _rise(near[:, 0] + rho * vx / vn, near[:, 1] + rho * vy / vn)
+        z_req_ap = float(np.min(near[:, 2] - 1.12 * r_pad - rise_worst))
+    else:
+        z_req_ap = sz0_core - 1.15 * r_pad - 0.016
+    z_apex = (max(min(z_req_ap, sz0_core - r_pad - 0.020, -0.143), -0.1465) if w_hc <= 0.5
+              else min(z_req_ap, sz0_core - r_pad - 0.014, -0.168))
 
     def depth_z(x, y):
-        x, y = np.asarray(x, float), np.asarray(y, float)
-        ux = (x - x_apex) / np.where(x >= x_apex, max(x_out - x_apex, 0.02), max(x_apex - x_in + 0.006, 0.02))
-        vy = (y - y_apex) / np.where(y >= y_apex, max(y_top - y_apex + 0.006, 0.02), max(y_apex - y_bot + 0.006, 0.02))
-        r2 = np.clip(ux * ux + vy * vy, 0.0, 1.8)
-        if w_hc > 0.5:
-            z_anat = z_apex + 0.0152 * (0.72 * r2 + 0.22 * (r2 ** 1.45)) + 0.0024 * np.exp(-((x - x_in) / 0.022) ** 2)
-            k = 0.009
-        else:
-            dome = 0.020 * (0.48 * r2 + 0.24 * (r2 ** 1.7))
-            z_anat = (z_apex + dome + 0.012 * np.exp(-((x - x_in) / 0.022) ** 2)
-                      + 0.014 * np.maximum(0.0, vy) ** 1.85 + 0.011 * np.maximum(0.0, -vy) ** 2.0)
-            k = 0.005
-        return -k * np.log(np.exp(-z_anat / k) + np.exp(-eval_req(x, y) / k))
+        return z_apex + _rise(x, y)
 
     def normal_at(x, y):
-        eps = 0.0018
+        eps = 0.0016
         dz_dx = (depth_z(x + eps, y) - depth_z(x - eps, y)) / (2.0 * eps)
         dz_dy = (depth_z(x, y + eps) - depth_z(x, y - eps)) / (2.0 * eps)
         n = np.stack([dz_dx, dz_dy, -np.ones_like(dz_dx)], -1)
@@ -177,37 +133,37 @@ def _depth_model(rear_core, eval_req):
 
 
 def _contour_xy(bounds):
-    """Smooth gluteal outline `(t, dx_nom, dy_nom)` with waist/sacral taper and fuller cheek."""
+    """Strictly smooth convex ovoid gluteal outline `(t, dx_nom, dy_nom)` free of figure-8 kinks."""
     from coaxial.model.blocks import numpy as np
-    cx, cy, cx_s, cy_s, r_s, _sx0, x_in, x_out, y_bot, y_top, w_hc = bounds
+    cx, cy, cx_s, _cy_s, r_s, _sx0, x_in, x_out, y_bot, y_top, w_hc = bounds
     t = np.arange(AROUND) * (2.0 * math.pi / AROUND)
     ct, st = np.cos(t), np.sin(t)
-    r_drv = min(r_s + 0.002, 0.048) if r_s > 0.048 else r_s + 0.004
+    r_drv = min(r_s + 0.004, 0.050) if r_s > 0.048 else r_s + 0.004
     if w_hc > 0.5:
-        x_out = max(x_out, min(cx_s + r_drv + 0.008, 0.158))
-        x_in = min(x_in, max(cx_s - r_drv - 0.004, CLEFT))
-    rx_g, ry_g = np.where(ct >= 0.0, x_out - cx, cx - x_in), np.where(st >= 0.0, y_top - cy, cy - y_bot)
-    s_top, s_bot, s_out, s_in = 0.5 * (1.0 + st), 0.5 * (1.0 - st), 0.5 * (1.0 + ct), 0.5 * (1.0 - ct)
-    if w_hc > 0.5:
-        x_sc = 1.0 - 0.08 * (s_top ** 2.0) * (s_out ** 1.3) - 0.10 * (s_top ** 2.2) * (s_in ** 1.3) + 0.05 * (s_bot ** 1.5) * (s_out ** 1.4)
-        ks = 0.012
-    else:
-        x_sc = 1.0 - 0.28 * (s_top ** 2.0) * (s_out ** 1.3) - 0.30 * (s_top ** 2.2) * (s_in ** 1.3) + 0.08 * (s_bot ** 1.5) * (s_out ** 1.4)
-        ks = 0.004
-    y_sc = 1.0 - 0.04 * (s_top ** 2.0) * (s_out ** 1.5)
-    r_sup = (np.abs(ct) ** 2.08 + np.abs(st) ** 2.08) ** (-1.0 / 2.08)
-    gx, gy = cx + rx_g * x_sc * r_sup * ct, cy + ry_g * y_sc * r_sup * st
-    dx_d, dy_d = (cx_s + r_drv * ct) - cx, (cy_s + r_drv * st) - cy
-    ang_d, rad_d = np.arctan2(dy_d, dx_d) % (2.0 * math.pi), np.hypot(dx_d, dy_d)
-    ord_d = np.argsort(ang_d)
-    ang_dp = np.r_[ang_d[ord_d][-1] - 2.0 * math.pi, ang_d[ord_d], ang_d[ord_d][0] + 2.0 * math.pi]
-    rad_dp = np.r_[rad_d[ord_d][-1], rad_d[ord_d], rad_d[ord_d][0]]
-    rad_nom = ks * np.log(np.exp(np.hypot(gx - cx, gy - cy) / ks) + np.exp(np.interp(t, ang_dp, rad_dp) / ks))
-    return t, rad_nom * ct, rad_nom * st
+        x_out = max(x_out, min(cx_s + r_drv + 0.010, 0.158))
+        x_in = min(x_in, max(cx_s - r_drv - 0.006, CLEFT))
+    rx_m, rx_d = 0.5 * ((x_out - cx) + (cx - x_in)), 0.5 * ((x_out - cx) - (cx - x_in))
+    ry_m, ry_d = 0.5 * ((y_top - cy) + (cy - y_bot)), 0.5 * ((y_top - cy) - (cy - y_bot))
+    rx = rx_m + rx_d * ct
+    ry = ry_m + ry_d * st
+    s_top, s_bot = 0.5 * (1.0 + st), 0.5 * (1.0 - st)
+    taper = (1.0 - 0.07 * (s_top ** 2.0) + 0.03 * (s_bot ** 1.6)) if w_hc > 0.5 else (
+        1.0 - 0.14 * (s_top ** 2.0) + 0.05 * (s_bot ** 1.6))
+    r_sup = (np.abs(ct) ** 2.06 + np.abs(st) ** 2.06) ** (-1.0 / 2.06)
+    return t, rx * taper * r_sup * ct, ry * r_sup * st
+
+
+def _smooth_periodic(arr, passes=64):
+    """Apply periodic C-infinity Gaussian fairing to 1D ring `arr` without concave `np.minimum` kinks."""
+    from coaxial.model.blocks import numpy as np
+    out = arr.copy()
+    for _ in range(passes):
+        out = 0.25 * np.roll(out, -1) + 0.50 * out + 0.25 * np.roll(out, 1)
+    return out
 
 
 def _sculpt(side, drive, pelvis):
-    """Shared anatomical gluteal surface and C2-smoothed perimeter in canonical left (+x) pelvis rest frame."""
+    """Shared C-infinity anatomical gluteal surface and smooth convex perimeter in left (+x) pelvis rest frame."""
     from coaxial.model.blocks import numpy as np
     key = (float(side), tuple(round(float(v), 6) for v in drive[1]),
            tuple((n, len(c), len(t_), round(float(c[0, 2]), 6) if len(c) else 0.0) for n, c, t_ in drive[0]),
@@ -220,15 +176,15 @@ def _sculpt(side, drive, pelvis):
     roll_pts = [c for n, c, _t in named_drv if 'roll' in n]
     core_pts = np.vstack(roll_pts if roll_pts else [c for c, _t in all_drv])
     rear_core = core_pts[core_pts[:, 2] <= float(core_pts[:, 2].min()) + 0.032]
-    eval_req = _drive_req(all_drv, AIR_M + RIM_T + 0.0020)
+    drv_pts = _dense(all_drv, step=0.003)
     frame = _dense([(np.asarray(c, float) * flip, np.asarray(t_)) for c, t_ in pelvis], step=0.003)
     joint, reach_yaw = np.asarray(drive[1], float) * flip, max(abs(x) for x in drives.TRAVEL['hip_yaw'])
-    bounds, depth_z, normal_at = _depth_model(rear_core, eval_req)
+    bounds, depth_z, normal_at = _analytic_dome(rear_core, drv_pts)
     cx, cy, sx0 = bounds[0], bounds[1], bounds[5]
     t, dx_nom, dy_nom = _contour_xy(bounds)
-    x_contra_lim = -(sx0 + 0.0045) + AIR_M + 0.0005
+    x_contra_lim = -(sx0 + 0.0048) + AIR_M + 0.0006
     scales = np.ones(AROUND)
-    for _ in range(14):
+    for it in range(18):
         ox, oy = cx + scales * dx_nom, cy + scales * dy_nom
         oz, on = depth_z(ox, oy), normal_at(ox, oy)
         p_f, p_b = np.stack([ox, oy, oz], 1), np.stack([ox, oy, oz], 1) - RIM_T * on
@@ -236,23 +192,26 @@ def _sculpt(side, drive, pelvis):
         d_b, x_b = _min_dist_yaw(p_b, frame, joint, reach_yaw)
         bad = (p_f[:, 0] < CLEFT - 0.002) | (p_b[:, 0] < CLEFT - 0.002) | (x_f < x_contra_lim) | (x_b < x_contra_lim)
         if len(frame):
-            bad |= (d_f < AIR_M + 0.002) | (d_b < AIR_M + 0.002)
+            bad |= (d_f < AIR_M + 0.0032) | (d_b < AIR_M + 0.0032)
         if not bad.any():
             break
-        scales = np.where(bad, scales * 0.96, scales)
-    for _ in range(28):
-        scales = np.minimum(scales, 0.25 * np.roll(scales, -1) + 0.5 * scales + 0.25 * np.roll(scales, 1))
+        scales = _smooth_periodic(np.where(bad, scales * 0.94, scales), passes=40 if it < 14 else 16)
+    scales = _smooth_periodic(scales, passes=32)
     ox, oy = cx + scales * dx_nom, cy + scales * dy_nom
     oz, on = depth_z(ox, oy), normal_at(ox, oy)
     p_out = np.stack([ox, oy, oz], 1)
-    in_xy = np.stack([-dx_nom, -dy_nom], 1)
+    tang = np.roll(np.stack([ox, oy], 1), -1, axis=0) - np.roll(np.stack([ox, oy], 1), 1, axis=0)
+    in_xy = np.stack([-tang[:, 1], tang[:, 0]], 1)
     in_xy /= np.maximum(np.linalg.norm(in_xy, axis=1, keepdims=True), 1e-9)
-    eps = 0.0018
+    in_sign = np.sign((in_xy * np.stack([cx - ox, cy - oy], 1)).sum(1, keepdims=True))
+    in_xy *= np.where(in_sign == 0.0, 1.0, in_sign)
+    eps = 0.0016
     dz_din = (depth_z(ox + eps * in_xy[:, 0], oy + eps * in_xy[:, 1]) - oz) / eps
     step_2d = RIM_W / np.sqrt(1.0 + dz_din * dz_din)
-    ix, iy = ox + step_2d * in_xy[:, 0], oy + step_2d * in_xy[:, 1]
+    ix = _smooth_periodic(ox + step_2d * in_xy[:, 0], passes=10)
+    iy = _smooth_periodic(oy + step_2d * in_xy[:, 1], passes=10)
     p_in, i_n = np.stack([ix, iy, depth_z(ix, iy)], 1), normal_at(ix, iy)
-    res = {'flip': flip, 'joint': joint, 'reach_yaw': reach_yaw, 'frame': frame,
+    res = {'flip': flip, 'joint': joint, 'reach_yaw': reach_yaw, 'frame': frame, 'sx0': sx0,
            'cx': cx, 'cy': cy, 't': t, 'ox': ox, 'oy': oy, 'ix': ix, 'iy': iy,
            'p_out': p_out, 'n_out': on, 'p_in': p_in, 'n_in': i_n, 'depth_z': depth_z, 'normal_at': normal_at}
     if len(_SCULPT_CACHE) > 8:
@@ -261,36 +220,90 @@ def _sculpt(side, drive, pelvis):
     return res
 
 
+def _clip_tri_2d(tri_xy, eval_f):
+    """Clip 2D triangle `(3, 2)` to `eval_f(xy) >= 0`, returning a list of `(3, 2)` triangles."""
+    from coaxial.model.blocks import numpy as np
+    f = eval_f(tri_xy)
+    if (f >= 0.0).all():
+        return [tri_xy]
+    if (f <= 0.0).all():
+        return []
+    poly = []
+    for i in range(3):
+        a, b, fa, fb = tri_xy[i], tri_xy[(i + 1) % 3], float(f[i]), float(f[(i + 1) % 3])
+        if fa >= 0.0:
+            poly.append(a)
+        if (fa >= 0.0) != (fb >= 0.0) and abs(fa - fb) > 1e-12:
+            poly.append(a + (fa / (fa - fb)) * (b - a))
+    if len(poly) < 3:
+        return []
+    if len(poly) == 3:
+        return [np.array(poly)]
+    return [np.array([poly[0], poly[1], poly[2]]), np.array([poly[0], poly[2], poly[3]])]
+
+
 def plate(side, drive, pelvis=()):
-    """A side's sculpted black honeycomb net in pelvis rest frame, `side` 1 for left, clear of `drive` and `pelvis`."""
+    """A side's sculpted black honeycomb net clipped flush into `rim`, `side` 1 for left, clear of `drive` and `pelvis`."""
     from coaxial.model.blocks import numpy as np
     g = _sculpt(side, drive, pelvis)
-    cx, cy, ix, iy = g['cx'], g['cy'], g['ix'], g['iy']
-    r_in, ang_in = np.hypot(ix - cx, iy - cy), np.arctan2(iy - cy, ix - cx) % (2.0 * math.pi)
+    cx, cy, ix, iy, ox, oy = g['cx'], g['cy'], g['ix'], g['iy'], g['ox'], g['oy']
+    r_in = np.hypot(ix - cx, iy - cy)
+    r_out = np.hypot(ox - cx, oy - cy)
+    r_seam = np.minimum(r_in + 0.0026, r_out - 0.0036)
+    ang_in = np.arctan2(iy - cy, ix - cx) % (2.0 * math.pi)
     order = np.argsort(ang_in)
-    ang_s, r_s = ang_in[order], r_in[order]
-    ang_pad = np.r_[ang_s[-1] - 2.0 * math.pi, ang_s, ang_s[0] + 2.0 * math.pi]
-    r_pad = np.r_[r_s[-1], r_s, r_s[0]]
-    max_r, rise = float(r_in.max()), CELL * math.sqrt(3.0) / 2.0
+    ang_pad = np.r_[ang_in[order][-1] - 2.0 * math.pi, ang_in[order], ang_in[order][0] + 2.0 * math.pi]
+    seam_pad = np.r_[r_seam[order][-1], r_seam[order], r_seam[order][0]]
+
+    def eval_f(xy):
+        dx, dy = xy[:, 0] - cx, xy[:, 1] - cy
+        return np.interp(np.arctan2(dy, dx) % (2.0 * math.pi), ang_pad, seam_pad) - np.hypot(dx, dy)
+
+    max_r, rise = float(r_seam.max()), CELL * math.sqrt(3.0) / 2.0
     span_x, span_y = int(max_r / CELL) + 2, int(max_r / rise) + 2
     mids = np.array([(i * CELL + (j % 2) * CELL / 2.0, j * rise)
                      for j in range(-span_y, span_y + 1) for i in range(-span_x, span_x + 1)])
     hexa = np.arange(6) * (math.pi / 3.0) + math.pi / 6.0
     unit = np.stack([np.cos(hexa), np.sin(hexa)], 1) * CELL / math.sqrt(3.0)
-    flat = mids[:, None, :] + np.concatenate([unit, FILL * unit])[None]
-    px, py = cx + flat[..., 0], cy + flat[..., 1]
-    reach = np.interp(np.arctan2(flat[..., 1], flat[..., 0]) % (2.0 * math.pi), ang_pad, r_pad)
-    inside = (np.hypot(flat[..., 0], flat[..., 1]) < reach - 0.0005)[:, :6].all(axis=1)
-    pts_3d = np.stack([px[inside].ravel(), py[inside].ravel(), g['depth_z'](px[inside], py[inside]).ravel()], 1)
-    if len(g['frame']) and len(pts_3d):
-        d_pel, _ = _min_dist_yaw(pts_3d, g['frame'], g['joint'], g['reach_yaw'])
-        inside[np.flatnonzero(inside)[~(d_pel.reshape(-1, 12) >= AIR_M).all(axis=1)]] = False
-    fx, fy = px[inside].ravel(), py[inside].ravel()
-    corners, n = np.stack([fx, fy, g['depth_z'](fx, fy)], 1), g['normal_at'](fx, fy)
+    ring_xy = np.concatenate([unit, FILL * unit])
     k = np.arange(6)
     quads = np.concatenate([np.stack([k, (k + 1) % 6, 6 + (k + 1) % 6], 1), np.stack([k, 6 + (k + 1) % 6, 6 + k], 1)])
-    tri = (12 * np.arange(int(inside.sum()))[:, None, None] + quads[None]).reshape(-1, 3)
-    facing = (np.cross(corners[tri[:, 1]] - corners[tri[:, 0]], corners[tri[:, 2]] - corners[tri[:, 0]]) * n[tri[:, 0]]).sum(axis=1)
+    clipped = []
+    for mx, my in mids:
+        cell = np.array([cx + mx, cy + my]) + ring_xy
+        fc = eval_f(cell)
+        if (fc <= -0.002).all():
+            continue
+        if (fc >= 0.0).all():
+            for q in quads:
+                clipped.append(cell[q])
+        else:
+            for q in quads:
+                clipped.extend(_clip_tri_2d(cell[q], eval_f))
+    if not clipped:
+        return np.zeros((0, 3)), np.zeros((0, 3), int), np.zeros((0, 2)), np.zeros(0, int)
+    tri_2d = np.array(clipped)
+    area2 = np.abs((tri_2d[:, 1, 0] - tri_2d[:, 0, 0]) * (tri_2d[:, 2, 1] - tri_2d[:, 0, 1])
+                   - (tri_2d[:, 2, 0] - tri_2d[:, 0, 0]) * (tri_2d[:, 1, 1] - tri_2d[:, 0, 1]))
+    tri_2d = tri_2d[area2 > 1e-10]
+    x_contra_lim = -(g['sx0'] + 0.0055) + AIR_M + 0.0008
+    flat_xy = tri_2d.reshape(-1, 2)
+    z_v, n_v = g['depth_z'](flat_xy[:, 0], flat_xy[:, 1]), g['normal_at'](flat_xy[:, 0], flat_xy[:, 1])
+    pts_3d = np.stack([flat_xy[:, 0], flat_xy[:, 1], z_v], 1) - 0.0006 * n_v
+    if len(pts_3d):
+        d_pel, x_pel = _min_dist_yaw(pts_3d, g['frame'], g['joint'], g['reach_yaw'])
+        keep = ((d_pel >= AIR_M + 0.0006) & (x_pel >= x_contra_lim)).reshape(-1, 3).all(axis=1)
+        pts_3d = pts_3d.reshape(-1, 3, 3)[keep].reshape(-1, 3)
+        n_v = n_v.reshape(-1, 3, 3)[keep].reshape(-1, 3)
+    pts_u, inv = np.unique(np.round(pts_3d, 7), axis=0, return_inverse=True)
+    # Keep exact unrounded coordinates at first occurrence for smooth fidelity
+    _, first = np.unique(inv, return_index=True)
+    corners = pts_3d[first]
+    n_c = n_v[first]
+    tri = inv.reshape(-1, 3)
+    non_deg = (tri[:, 0] != tri[:, 1]) & (tri[:, 1] != tri[:, 2]) & (tri[:, 2] != tri[:, 0])
+    tri = tri[non_deg]
+    facing = (np.cross(corners[tri[:, 1]] - corners[tri[:, 0]], corners[tri[:, 2]] - corners[tri[:, 0]]) * n_c[tri[:, 0]]).sum(axis=1)
     tri[facing < 0.0] = tri[facing < 0.0][:, ::-1]
     laid = corners * g['flip']
     return laid, tri[:, ::int(math.copysign(1.0, side))], np.zeros((len(laid), 2)), np.full(len(laid), VOID)
@@ -320,37 +333,46 @@ def _prism_hex(centre, normal, radius, z0, z1, mat):
 
 
 def rim(side, drive, pelvis=()):
-    """A side's contoured 3D pearl-white outer bezel (`livery.PAD` shell + gunmetal rabbet & rivets) enclosing `plate`."""
+    """A side's smooth curved-section 3D pearl-white bezel (`livery.PAD` + gunmetal rabbet & rivets) enclosing `plate`."""
     from coaxial.model.blocks import numpy as np
     g = _sculpt(side, drive, pelvis)
-    p_out, n_out, p_in, n_in = g['p_out'], g['n_out'], g['p_in'], g['n_in']
-    t_in = p_in - p_out
+    ox, oy, ix, iy = g['ox'], g['oy'], g['ix'], g['iy']
+    depth_z, normal_at = g['depth_z'], g['normal_at']
+
+    def _ring(s_in, h_n):
+        rx, ry = (1.0 - s_in) * ox + s_in * ix, (1.0 - s_in) * oy + s_in * iy
+        rz, rn = depth_z(rx, ry), normal_at(rx, ry)
+        return np.stack([rx, ry, rz], 1) + h_n * rn, rn
+
+    t_in = g['p_in'] - g['p_out']
     t_in /= np.maximum(np.linalg.norm(t_in, axis=1, keepdims=True), 1e-9)
-    r_in_f = p_in + PROUD_M * n_in
-    r_mid_f = p_out + BEVEL_M * t_in + PROUD_M * n_out
-    r_lip_f = p_out - 0.0008 * n_out
-    r_out_b = p_out - RIM_T * n_out
-    r_rab_o = p_in - 0.0020 * n_in
-    r_rab_i = p_in + 0.0022 * t_in - 0.0020 * n_in
-    r_rab_b = p_in + 0.0022 * t_in - RIM_T * n_in
-    bands = [(_strip(r_in_f, r_mid_f, PAD), n_out), (_strip(r_mid_f, r_lip_f, PAD), n_out - 0.5 * t_in),
-             (_strip(r_lip_f, r_out_b, FRAME), -t_in), (_strip(r_out_b, r_rab_b, FRAME), -n_out),
-             (_strip(r_rab_b, r_rab_i, FRAME), t_in), (_strip(r_rab_i, r_rab_o, FRAME), n_in),
-             (_strip(r_rab_o, r_in_f, FRAME), t_in)]
+    # Smooth convex cross-section across the pearl-white bezel + deep inner rabbet enclosing the clipped honeycomb seam!
+    r0, n0 = _ring(1.00, 0.0009)     # inner front lip overlapping clipped honeycomb
+    r1, n1 = _ring(0.76, 0.0018)     # inner convex crown
+    r2, n2 = _ring(0.38, 0.0020)     # outer convex crown
+    r3, n3 = _ring(0.10, 0.0011)     # outer soft shoulder
+    r4, n4 = _ring(0.00, 0.0000)     # outer edge
+    r5, n5 = _ring(0.00, -RIM_T)     # outer back
+    r6, _n6 = _ring(1.24, -RIM_T)    # rabbet back behind clipped honeycomb seam
+    r7, n7 = _ring(1.24, -0.0005)    # rabbet shelf under clipped honeycomb seam
+    r8, _n8 = _ring(1.00, -0.0005)   # inner pocket wall
+    bands = [(_strip(r0, r1, PAD), n0 + 0.25 * t_in), (_strip(r1, r2, PAD), n1),
+             (_strip(r2, r3, PAD), n2 - 0.15 * t_in), (_strip(r3, r4, PAD), n3 - 0.45 * t_in),
+             (_strip(r4, r5, FRAME), -t_in), (_strip(r5, r6, FRAME), -n5),
+             (_strip(r6, r7, FRAME), t_in), (_strip(r7, r8, FRAME), n7),
+             (_strip(r8, r0, FRAME), t_in)]
     fixed = []
     for (c, tri, uv, mat), ref_n in bands:
         n_avg = np.vstack([ref_n, ref_n])
         fn = np.cross(c[tri[:, 1]] - c[tri[:, 0]], c[tri[:, 2]] - c[tri[:, 0]])
-        flip = (fn * n_avg[tri].mean(1)).sum(1) < 0.0
+        flp = (fn * n_avg[tri].mean(1)).sum(1) < 0.0
         tri = tri.copy()
-        tri[flip] = tri[flip][:, ::-1]
+        tri[flp] = tri[flp][:, ::-1]
         fixed.append((c, tri, uv, mat))
-    for idx in (9, 27, 45, 63):
-        mid = 0.54 * r_in_f[idx] + 0.46 * r_mid_f[idx]
-        nrm = 0.5 * (n_in[idx] + n_out[idx])
-        nrm /= np.linalg.norm(nrm)
-        fixed.append(_prism_hex(mid, nrm, RIVET_R * 1.42, 0.00008, 0.00048, FRAME))
-        fixed.append(_prism_hex(mid, nrm, RIVET_R, 0.00049, 0.00049 + RIVET_H, BOLT))
+    for idx in (12, 36, 60, 84):
+        mid, nrm = _ring(0.54, 0.00195)
+        fixed.append(_prism_hex(mid[idx], nrm[idx], RIVET_R * 1.38, 0.00004, 0.00038, FRAME))
+        fixed.append(_prism_hex(mid[idx], nrm[idx], RIVET_R, 0.00039, 0.00039 + RIVET_H, BOLT))
     base, cs, ts, ms = 0, [], [], []
     for c, t, _uv, m in fixed:
         cs.append(c), ts.append(t + base), ms.append(m)

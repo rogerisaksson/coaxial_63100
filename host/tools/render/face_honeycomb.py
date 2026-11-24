@@ -1,4 +1,4 @@
-"""Faceted guard-style armor panels, hexagonal vent windows, heatsink fins and eye optics."""
+"""Fine-mesh framed honeycomb armor panels, bevel shells, heatsink fins and eye optics."""
 import math
 import os
 import sys
@@ -8,9 +8,9 @@ if __package__ in (None, ''):
 
 from tools.render import csg  # noqa: E402
 
-SHELL_CF, PANEL_RIM, CHASSIS_CF, TITANIUM = (226, 230, 237), (92, 98, 110), (32, 36, 44), (174, 180, 190)
-ANODIZED, LIP_ROSE, SERVO_CASE, HORN_BRASS = (226, 48, 178), (226, 230, 237), (28, 32, 40), (206, 168, 84)
-NECK_SKIN, OPTIC_DARK, OPTIC_GLASS, BAFFLE_DARK, MIC_GOLD = (182, 186, 194), (10, 14, 22), (28, 72, 118), (16, 19, 26), (212, 176, 84)
+SHELL_CF, PANEL_RIM, CHASSIS_CF, TITANIUM = (232, 236, 242), (86, 92, 104), (30, 34, 42), (174, 180, 190)
+ANODIZED, SERVO_CASE, HORN_BRASS = (226, 48, 178), (28, 32, 40), (206, 168, 84)
+NECK_SKIN, OPTIC_DARK, OPTIC_GLASS, BAFFLE_DARK, MIC_GOLD = (182, 186, 194), (10, 14, 22), (34, 86, 142), (18, 21, 28), (212, 176, 84)
 
 
 def np_mod():
@@ -63,18 +63,18 @@ def _surface_frame(grid, wall, chamfer, ref):
     return g, du, dv, nrm, min(float(chamfer), 0.38 * float(wall))
 
 
-def shell_patch(grid, wall=0.0028, chamfer=0.00065, col=SHELL_CF, ref=(0.0, 0.115, 0.020), rim_col=PANEL_RIM):
-    """Build a watertight faceted armor panel with a distinct gunmetal bevel rim (`rim_col`)."""
+def shell_patch(grid, wall=0.0026, chamfer=0.00058, col=SHELL_CF, ref=(0.0, 0.115, 0.020), rim_col=PANEL_RIM):
+    """Build a watertight contoured armor panel with a distinct gunmetal bevel rim (`rim_col`)."""
     np = np_mod()
     g, du, dv, nrm, ch = _surface_frame(grid, wall, chamfer, ref)
     nu, nv = g.shape[:2]
     su = np.maximum(np.linalg.norm(du, axis=-1, keepdims=True), 1e-12)
     sv = np.maximum(np.linalg.norm(dv, axis=-1, keepdims=True), 1e-12)
     ins = np.zeros_like(g)
-    ins[0] += np.minimum(ch, 0.30 * su[0]) * (du[0] / su[0])
-    ins[-1] -= np.minimum(ch, 0.30 * su[-1]) * (du[-1] / su[-1])
-    ins[:, 0] += np.minimum(ch, 0.30 * sv[:, 0]) * (dv[:, 0] / sv[:, 0])
-    ins[:, -1] -= np.minimum(ch, 0.30 * sv[:, -1]) * (dv[:, -1] / sv[:, -1])
+    ins[0] += np.minimum(ch, 0.28 * su[0]) * (du[0] / su[0])
+    ins[-1] -= np.minimum(ch, 0.28 * su[-1]) * (du[-1] / su[-1])
+    ins[:, 0] += np.minimum(ch, 0.28 * sv[:, 0]) * (dv[:, 0] / sv[:, 0])
+    ins[:, -1] -= np.minimum(ch, 0.28 * sv[:, -1]) * (dv[:, -1] / sv[:, -1])
     outer, inner = g + ins, g - float(wall) * nrm + ins
     co_g, ci_g = g - ch * nrm, g - (float(wall) - ch) * nrm
     rcol = col if rim_col is None else rim_col
@@ -96,7 +96,7 @@ def shell_patch(grid, wall=0.0028, chamfer=0.00065, col=SHELL_CF, ref=(0.0, 0.11
 
 
 def _eval_patch(g, nrm, ch, wall, u, v):
-    """Evaluate bilinear outer, chamfer and inner 3D coordinates for `(u, v)` in `[0, 1]`."""
+    """Evaluate bilinear outer, recessed lattice, chamfer and inner 3D coordinates for `(u, v)` in `[0, 1]`."""
     np = np_mod()
     nu, nv = g.shape[:2]
     fu, fv = np.clip(u, 0.0, 1.0) * (nu - 1), np.clip(v, 0.0, 1.0) * (nv - 1)
@@ -110,16 +110,16 @@ def _eval_patch(g, nrm, ch, wall, u, v):
     t_v = ((1.0 - tu) * (g[i0, j0 + 1] - g[i0, j0]) + tu * (g[i0 + 1, j0 + 1] - g[i0 + 1, j0])) * (nv - 1)
     lu, lv = np.maximum(np.linalg.norm(t_u, axis=1, keepdims=True), 1e-12), np.maximum(np.linalg.norm(t_v, axis=1, keepdims=True), 1e-12)
     ins = np.zeros_like(base)
-    edge_u, edge_v = np.minimum(ch, 0.020 * lu) * (t_u / lu), np.minimum(ch, 0.020 * lv) * (t_v / lv)
+    edge_u, edge_v = np.minimum(ch, 0.018 * lu) * (t_u / lu), np.minimum(ch, 0.018 * lv) * (t_v / lv)
     ins[u <= 1e-9] += edge_u[u <= 1e-9]
     ins[u >= 1.0 - 1e-9] -= edge_u[u >= 1.0 - 1e-9]
     ins[v <= 1e-9] += edge_v[v <= 1e-9]
     ins[v >= 1.0 - 1e-9] -= edge_v[v >= 1.0 - 1e-9]
-    return base + ins, base - ch * nv_, base - (float(wall) - ch) * nv_, base - float(wall) * nv_ + ins
+    return base, nv_, base + ins, base - ch * nv_, base - (float(wall) - ch) * nv_, base - float(wall) * nv_ + ins
 
 
 def _hex_mesh_2d(nc, nr, mu, mv, fill):
-    """Return `(pts_uv, border_tris, lattice_tris, holes, border_ring)` for a framed guard-style hex window."""
+    """Return `(pts_uv, border_tris, lattice_tris, holes, border_ring, win_ring)` for a fine-mesh framed hex window."""
     nh = 2 * nc + 1
     su, sv = (1.0 - 2.0 * mu) / nh, (1.0 - 2.0 * mv) / nr
     u_all = [0.0] + [mu + k * su for k in range(nh + 1)] + [1.0]
@@ -160,30 +160,42 @@ def _hex_mesh_2d(nc, nr, mu, mv, fill):
             holes.append(q)
     ring = ([grid_id[i][0] for i in range(nu_a)] + [grid_id[nu_a][j] for j in range(nv_a)]
             + [grid_id[i][nv_a] for i in range(nu_a, 0, -1)] + [grid_id[0][j] for j in range(nv_a, 0, -1)])
-    return pts, border, lattice, holes, ring
+    win = ([grid_id[i][1] for i in range(1, nu_a - 1)] + [grid_id[nu_a - 1][j] for j in range(1, nv_a - 1)]
+           + [grid_id[i][nv_a - 1] for i in range(nu_a - 1, 1, -1)] + [grid_id[1][j] for j in range(nv_a - 1, 1, -1)])
+    return pts, border, lattice, holes, ring, win
 
 
-def honeycomb_patch(grid, nc=4, nr=3, wall=0.0028, chamfer=0.00065, margin=(0.24, 0.24), fill=0.68,
-                    col=SHELL_CF, hole_col=CHASSIS_CF, ref=(0.0, 0.115, 0.020), bar_col=CHASSIS_CF):
-    """Build a solid pearl-white armor panel framing a black open honeycomb guard window (`bar_col`)."""
+def honeycomb_patch(grid, nc=7, nr=5, wall=0.0026, chamfer=0.00058, margin=(0.16, 0.17), fill=0.75,
+                    col=SHELL_CF, hole_col=BAFFLE_DARK, ref=(0.0, 0.115, 0.020), bar_col=BAFFLE_DARK):
+    """Build a proud pearl-white armor bezel (`col`) framing a recessed fine-mesh open honeycomb (`bar_col`)."""
     np = np_mod()
     g, _du, _dv, nrm, ch = _surface_frame(grid, wall, chamfer, ref)
-    pts_uv, border, lattice, holes, ring = _hex_mesh_2d(int(nc), int(nr), float(margin[0]), float(margin[1]), float(fill))
+    pts_uv, border, lattice, holes, ring, win = _hex_mesh_2d(int(nc), int(nr), float(margin[0]), float(margin[1]), float(fill))
     uv = np.asarray(pts_uv, float)
-    out, co, ci, inn = _eval_patch(g, nrm, ch, wall, uv[:, 0], uv[:, 1])
-    hcol = PANEL_RIM if hole_col is None else hole_col
+    base, nv_, out, co, ci, inn = _eval_patch(g, nrm, ch, wall, uv[:, 0], uv[:, 1])
+    # Recess the fine-mesh honeycomb lattice cleanly inside the proud pearl-white outer frame (`0` open edges).
+    rec = min(0.00065, 0.26 * float(wall))
+    lat_f, lat_b = base - rec * nv_, base - (float(wall) - rec) * nv_
     tris = []
     for a, b, c in border:
         tris.append((np.stack((out[a], out[b], out[c])), col))
         tris.append((np.stack((inn[a], inn[c], inn[b])), PANEL_RIM))
     for a, b, c in lattice:
-        tris.append((np.stack((out[a], out[b], out[c])), bar_col))
-        tris.append((np.stack((inn[a], inn[c], inn[b])), bar_col))
+        tris.append((np.stack((lat_f[a], lat_f[b], lat_f[c])), bar_col))
+        tris.append((np.stack((lat_b[a], lat_b[c], lat_b[b])), bar_col))
+    # Watertight rabbet walls stepping from proud white frame (`out`/`inn`) down to recessed fine honeycomb (`lat_f`/`lat_b`).
+    nw = len(win)
+    for k in range(nw):
+        a, b = win[k], win[(k + 1) % nw]
+        tris.append((np.stack((out[a], lat_f[a], lat_f[b])), PANEL_RIM))
+        tris.append((np.stack((out[a], lat_f[b], out[b])), PANEL_RIM))
+        tris.append((np.stack((lat_b[a], inn[a], inn[b])), PANEL_RIM))
+        tris.append((np.stack((lat_b[a], inn[b], lat_b[b])), PANEL_RIM))
     for q in holes:
         for k in range(6):
             a, b = q[k], q[(k + 1) % 6]
-            tris.append((np.stack((out[a], out[b], inn[b])), hcol))
-            tris.append((np.stack((out[a], inn[b], inn[a])), hcol))
+            tris.append((np.stack((lat_f[a], lat_f[b], lat_b[b])), hole_col))
+            tris.append((np.stack((lat_f[a], lat_b[b], lat_b[a])), hole_col))
     rings, nb = (out, co, ci, inn), len(ring)
     for ra, rb in zip(rings[:-1], rings[1:]):
         for k in range(nb):
@@ -194,7 +206,7 @@ def honeycomb_patch(grid, nc=4, nr=3, wall=0.0028, chamfer=0.00065, margin=(0.24
 
 
 def compute_heatsink():
-    """Build recessed cranial compute fins and titanium heatpipes visible through the airflow panel gaps."""
+    """Build recessed cranial compute fins and titanium heatpipes visible through the fine honeycomb & air gaps."""
     tris = []
     for th_deg in (8.0, 28.0, 48.0, 68.0, 88.0, 108.0, 128.0, 148.0, 168.0, 188.0):
         th = math.radians(th_deg)
@@ -214,15 +226,14 @@ def compute_heatsink():
 
 
 def modern_optics_local():
-    """Build recessed titanium-ringed ocular camera module, sapphire iris bezel and 2-axis gimbal ring."""
+    """Build recessed titanium-ringed ocular camera module, luminous iris bezel and 2-axis gimbal ring."""
     cam = (rev([(0.0, 0.0034), (0.0058, 0.0034), (0.0068, 0.0022), (0.0068, -0.0016),
                 (0.0056, -0.0025), (0.0044, -0.0016), (0.0, -0.0016)], col=CHASSIS_CF)
-           + rev([(0.0043, -0.0014), (0.0065, -0.0014), (0.0067, -0.0029), (0.0058, -0.0037),
-                  (0.0042, -0.0033), (0.0042, -0.0020)], col=TITANIUM)
-           + rev([(0.0026, -0.0020), (0.0043, -0.0020), (0.0042, -0.0033), (0.0026, -0.0031)], fn=36, col=OPTIC_DARK)
-           + rev([(0.0012, -0.0018), (0.0028, -0.0018), (0.0028, -0.0032), (0.0019, -0.0037), (0.0012, -0.0038)],
-                 fn=36, col=OPTIC_GLASS)
-           + rev([(0.0, -0.0018), (0.0012, -0.0018), (0.0012, -0.0038), (0.0, -0.0039)], fn=24, col=OPTIC_DARK)
+           + rev([(0.0044, -0.0014), (0.0065, -0.0014), (0.0067, -0.0029), (0.0058, -0.0037),
+                  (0.0043, -0.0033), (0.0043, -0.0020)], col=TITANIUM)
+           + rev([(0.0016, -0.0018), (0.0043, -0.0018), (0.0043, -0.0034), (0.0026, -0.0038), (0.0016, -0.0039)],
+                 fn=40, col=OPTIC_GLASS)
+           + rev([(0.0, -0.0018), (0.0016, -0.0018), (0.0016, -0.0039), (0.0, -0.0040)], fn=28, col=OPTIC_DARK)
            + csg.extrude(csg.filleted2d(csg.box2d((-0.0011, 0.0011), (0.0054, 0.0074)), r=0.00038),
                          a=0.0006, b=0.0026, axis=2, colour=TITANIUM, chamfer=0.0003).tris())
     ring = rev(csg.filleted2d([(0.0073, -0.0013), (0.0086, -0.0013), (0.0086, 0.0013), (0.0073, 0.0013)],

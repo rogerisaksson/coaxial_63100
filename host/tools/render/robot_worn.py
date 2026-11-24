@@ -405,9 +405,10 @@ def lit_mesh(roll=0.0, dressed=False, turn=0.0, flex=0.0, nod=0.0, head_yaw=0.0,
         raw = np.array([t for t, _c in part_tris], float)
         idx = np.arange(3 * len(raw)).reshape(-1, 3)
         cu, iu = np.unique(np.round(raw.reshape(-1, 3), 6), axis=0, return_inverse=True)
-        _fc, _ft, vn = _smooth_normals(cu, iu.reshape(-1, 3), 180.0 if key in ('hands', 'shoes', 'neck skin') else 38.0)
+        _fc, _ft, vn = _smooth_normals(cu, iu.reshape(-1, 3), 180.0 if key in ('hands', 'shoes', 'neck skin') else (54.0 if key == 'seat' else 38.0))
         ca = np.asarray([c for _t, c in part_tris], u32)
-        tm = (u32(lit.PAINTED) | (u32(lit.HARD) if key not in ('neck skin', 'seat') else u32(0))
+        hard_m = u32(0) if key == 'neck skin' else np.where((ca == (24, 24, 26)).all(1), u32(0), u32(lit.HARD))
+        tm = (u32(lit.PAINTED) | hard_m
               | np.where((ca == (64, 66, 68)).all(1), u32(lit.TWILL), u32(0)) | (ca[:, 0] << 16) | (ca[:, 1] << 8) | ca[:, 2])
         _push(raw.reshape(-1, 3), idx, np.zeros((3 * len(raw), 2), 'f4'), np.repeat(tm, 3), vn)
     return (np.vstack(pl).astype('f4'), np.vstack(nl).astype('f4'), np.vstack(ul).astype('f4'),
