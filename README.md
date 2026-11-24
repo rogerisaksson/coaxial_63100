@@ -459,6 +459,7 @@ thermal observer within 0.2 K of the thermistor after 120 s blind at 53.8 V;
 - [docs/BOOT.md](docs/BOOT.md) - the bootloader and the flash map
 - [docs/DIMENSIONS.md](docs/DIMENSIONS.md) - the robot's axes by drive type
 - [docs/MODELS.md](docs/MODELS.md) - the local model
+- [docs/ENGRAMS.md](docs/ENGRAMS.md) - hot-swappable motor engrams and stunt similarity
 - [docs/RESULTS.md](docs/RESULTS.md) - the last measured run, as
   `host/tools/dev/cover.py` wrote it
 - [docs/FINDINGS.md](docs/FINDINGS.md) - what was measured and settled on the

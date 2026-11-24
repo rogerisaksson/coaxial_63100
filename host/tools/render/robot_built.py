@@ -112,13 +112,10 @@ def _left_hand_local(flex=0.0, turn=0.0, roll=0.0):
 
 
 def _head_and_hands(roll=0.0, turn=0.0, flex=0.0):
-    """{'head', 'hands': [(tri, rgb)]} in root frame with complete face, hair and coaxial posed hands."""
-    from coaxial.graphics import likeness
+    """{'head', 'hands': [(tri, rgb)]} in root frame with unified mecha-gynoid head and coaxial posed hands."""
     from tools.render import robot_worn as rw
-    body, names, _frames, pos = _figure(False)
-    head = _extract(body, names, pos, rw.HEAD_LIKED if likeness.FOUND else HEAD_SHELL)
     left_hand = _put(_left_hand_local(flex, turn, roll), 'left_upper_arm', 'left_forearm')
-    return {'head': head, 'hands': left_hand + _mirrored(left_hand)}
+    return {'head': rw.symbolic_head(), 'hands': left_hand + _mirrored(left_hand)}
 
 
 def _clip_x_min(tris, x_min):
@@ -196,7 +193,7 @@ def whole(roll=0.0, dressed=False, turn=0.0, flex=0.0, nod=0.0, head_yaw=0.0, li
         arm_low_l, arm_full_l = rw.arm_parts_dressed(flex=flex, turn=turn, roll=roll)
         arm_full_root = _put(arm_full_l, 'left_upper_arm', 'left_forearm')
         obs = (_put(pec, 'torso', 'torso') + _put(trunk + guards_t, 'pelvis', 'pelvis')
-               + leg + _mirrored(leg) + arm_full_root + _mirrored(arm_full_root))
+               + rw.seat_nets() + leg + _mirrored(leg) + arm_full_root + _mirrored(arm_full_root))
         cloth = rw.draped_clothes(roll=roll, turn=turn, flex=flex, obs_tris=obs, like=like)
         leg_low = rw.trim_leg(leg, foot_y, dressed=True)
         arm = _put(arm_low_l, 'left_upper_arm', 'left_forearm')

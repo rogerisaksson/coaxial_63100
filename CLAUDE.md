@@ -164,46 +164,23 @@ Evaluate the prompt and working tree before invoking any tool:
     The fault lies in `git diff GREEN..HEAD`; where the span is long, bisect
     it with the relay (`git bisect run`). Derive a cause from first principles
     only where no green run covers the suite, and say so in the State 2 gate.
-  + Empirical Linux baseline (mandatory when CI is red, or a fault may differ
-    between the operating systems: glibc, GCC, libm, MuJoCo's build, Mesa): the
-    relay's selector runs the same gate here on Windows (default) or in local
-    Linux containers shaped as CI's runner (its Ubuntu and Pythons, 2 cores of
-    2 threads, 16 GB), a Python each, side by side
-    (`python -X utf8 host/tools/dev/run_tests.py` `--linux` `[--python 3.12]`
-    `[--file test_x.py]`, or `.\host\run_tests.ps1` `-Linux` `[-Scope ...]`).
-    The containers' images and engine come with `setup.ps1` (area `linux`).
-    Reproduce a Linux-only fault there, A/B against Windows on the same tree,
-    before a fix.
-    First hold every host to the same modules: `test_depends`
-    (`--file test_depends.py`, here and with `--linux`) checks that this host
-    runs the versions `host/constraints.txt` pins (laid by
-    `host/tools/dev/pinned.py`); a difference between the operating systems
-    is one only where the modules match.
-  + Machine ledger (before running beside other agents): every relay's jobs,
-    an emulator's cores with the job whose suite asked (`RENODE`) and every
-    container of the gate are booked in one ledger a machine and wait for
-    room, the desk's two cores or more kept (`tools.dev.ledger`);
-    `run_tests.py` `--ledger` shows cores kept and taken, each booking with
-    its tree, the queue, and cleans what relays that are gone left; a
-    runner's share of the gate is `--part k/n` (tests/work.json).
-  + Empirical ISA baseline (mandatory when C cores, their target flags, sum
-    orders or streaming kernels are touched, or CI's `arch` jobs are red):
-    the robot's cores' target is `COAXIAL_ISA` (`host/tools/cores/build.py` TARGETS:
-    `avx`, `avx2`, `avx512`, `sve2`, `sme2`). CI's `arch` jobs run the C
-    parity suites on GitHub's arm64 runner (Neoverse N2, `sve2`) and with
-    `avx512` where the x86 runner has it. Arm here is QEMU only, in the
-    Linux containers (binfmt and the arm64 images from `setup.ps1`, area
-    `linux`): `python -X utf8 host/tools/dev/run_tests.py --linux --arch
-    arm64 --isa sme2 --cpu max,sve-default-vector-length=64,`
-    `sme-default-vector-length=64 --python 3.12 --measure --file test_x.py`
-    (`--isa sve2` likewise; x86 targets `--isa avx2` etc. where this
-    processor runs them). Emulation runs 50-100 times slower: `--measure`
-    keeps a red suite from stopping the run, and host-time checks (test_qp's
-    solve, test_wbc_core's tick) and test_mirrors' subprocess timeout fail
-    there only - judge the parity tallies. A fault only a runner shows is
-    probed there (`gh workflow run gate.yml --ref BRANCH -f probe=test_x.py
-    -f runner=... [-f trace=true]`: 16 jobs, six runs each), judged by
-    its count of reds and a red run's tail.
+  + Empirical Linux baseline (mandatory when CI is red or OS differences apply:
+    glibc, GCC, libm, MuJoCo, Mesa): run local CI-shaped Linux containers
+    (`python -X utf8 host/tools/dev/run_tests.py --linux [--python 3.12]`
+    `[--file test_x.py]`, or `.\host\run_tests.ps1 -Linux [-Scope ...]`), from
+    `setup.ps1` area `linux`. Hold hosts to `host/constraints.txt` via
+    `test_depends` (`--file test_depends.py`, host and `--linux`).
+  + Machine ledger (before running beside other agents): relay jobs, emulator
+    cores (`RENODE`), and gate containers book via `tools.dev.ledger`;
+    `run_tests.py --ledger` inspects bookings, and `--part k/n` splits gate
+    shares (`tests/work.json`).
+  + Empirical ISA baseline (mandatory when C cores, target flags, or streaming
+    kernels change, or `arch` jobs fail): `COAXIAL_ISA` targets (`avx`, `avx2`,
+    `avx512`, `sve2`, `sme2` in `host/tools/cores/build.py`); CI runs `sve2`
+    and `avx512`. Emulate arm64 locally in Linux containers (`run_tests.py`
+    `--linux --arch arm64 --isa sme2 --cpu max,sve-default-vector-length=64,`
+    `sme-default-vector-length=64 --python 3.12 --measure --file test_x.py`;
+    judged by parity tallies) or probe runners via `gh workflow run gate.yml`.
   + Empirical real-time performance (mandatory for rigid body simulation):
     Run the benchmarking and profiler tool
     (`python -X utf8 host/tools/sim/pace.py` `stand walk` `--blind`) to establish
@@ -229,6 +206,18 @@ Evaluate the prompt and working tree before invoking any tool:
     `--all`). Compare fidelity between the captured motion and the solver
     solutions captures (`python -X utf8 host/tools/sim/stunts.py` `[stunt]`,
     `--save`, `--against`).
+  + **Hot-swappable motor engrams (`docs/ENGRAMS.md`):** Use `engrams.py` +
+    `checkpoint.py` (`engram_mc.py`) before docking or task switches when
+    testing candidate closed-loop C `sensed`, wire, or pattern cores without
+    tuning global constants. Run 1 stunt with an engram bundle in parallel
+    (`engram_mc.py STUNT --engrams A,B --jobs N`), or multiple stunts at once
+    from pre-dock checkpoints (`engram_mc.py S1 S2 ... --samples N --jobs N` or
+    `--all-stunts`).
+  + **Anatomical stunt similarity (`docs/ENGRAMS.md`):** Run
+    `python -X utf8 host/tools/sim/stunt_similarity.py` `[STUNT ...]`
+    `[--bundle best]` `[--spec FILE.json]` `[--against BASE.json]` `--jobs N`
+    to score 0..100 human-vs-robot fidelity, `far_sig`/`far_all`, torque
+    headroom `scale_min`, hand jerk, and bottlenecks across `stunts/`.
   + AI in the loop, AIL (mandatory with keys, docking, locomotion near things or
     the robot's map's consistency): drive the robot about the lodge on its
     page's own keys (`python -X utf8 host/tools/sim/ail.py drive` `--seeds N
@@ -364,17 +353,10 @@ Evaluate the prompt and working tree before invoking any tool:
      lock anew (`python -X utf8 host/tools/dev/pinned.py`) and run
      `test_depends` here and in the Linux containers: every host held to the
      same modules, both tallies quoted verbatim.
-  **Per-Cycle Ephemeral Artifact Purge:**
-  Immediately after completing each test, introspection, or visual capture
-  cycle, delete all temporary diagnostic artifacts generated during the run
-  (including `*.csv`, `*.png`, `*.log`, `*.bin`, telemetry dumps, and scratch
-  traces) and verify a clean working tree (`git status --short`). Never allow
-  ephemeral run artifacts to persist across test cycles or enter a commit.
-- **Post-Push Teardown (Worktree & Branch Cleanup):**
-  Immediately after committing and pushing the verified changes, remove any
-  temporary git worktrees (`git worktree remove` followed by `git worktree
-  prune`) and delete any ephemeral local and remote branches created for the
-  task. Never leave orphaned worktrees or stale branches behind.
+  **Per-Cycle Purge:** Delete temporary run files (`*.csv`, `*.png`, `*.log`,
+  `*.bin`) immediately after each cycle and keep `git status --short` clean.
+- **Post-Push Teardown:** After committing and pushing verified edits, remove
+  temporary worktrees (`git worktree remove` and `prune`) and ephemeral branches.
 - **Exit Gate (Emit after verification completes):**
   `[STATE 4 GATE: Tally=[exact PASS/FAIL] Parity=[OK/N/A] Lint=[OK]]`
 - **FIVE-STRIKE CIRCUIT BREAKER (Anti-Thrashing Lock):**

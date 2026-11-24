@@ -10,41 +10,63 @@ simulation ticks match an uninterrupted trajectory bit for bit.
 """
 import copy
 import ctypes
+from typing import Any
 
+from machine.errors import MachineError
 from machine.world import loose, steps
 
-#: Static or runtime-service keys in `g` whose identity is invariant across deterministic stepping.
-_STATIC_G = frozenset({
-    'world', 'body', 'beat', 'solves', 'sensed', 'planner', 'vision', 'keep', 'gym', 'waits',
-    'surety_field', 'touch_step', 'twist_step', 'latent', 'couple', 'borne', 'em_supports',
-    'leaned', 'hull', 'upright', 'bodily', 'estimated', 'felt', 'weighed', 'clear', 'gap',
-    'rooms', 'outside', 'sloped', 'readings', 'read', 'modes', 'pitched', 'capped', 'told_on',
-    'settling', 'bounds', 'gripped', 'sured', 'released', 'poses', 'ringed', 'ringed_ahead',
-    'seek', 'kept', 'shield', 'impedance', 'braced', 'inekf_points', 'inekf_step', 'inekf_glue',
+#: Static or explicitly-handled keys on `g`; compiled C/NumPy hooks join via `tools.cores.motion.HOOKS`.
+_BASE_STATIC_G = frozenset({
+    'world', 'body', 'beat', 'planner', 'vision', 'keep', 'gym', 'bodily',
     'schema_at', 'schema_body', '_skin_ids', '_tips', '_cv_sh', '_acv_sh', '_derate', 'grip_at',
     'joints', 'legs', 'leg_joints', 'limbs', 'cervical', 'waist_idx', 'head_idx', 'situations',
     'rng', 'q_lo', 'q_hi', 'clamp', 'wep_lim', 'free_kp', 'rate_hz', 'every', 'texts', 'suite',
     'bend', 'arms', 'reaches', 'folds', 'distal', 'distal_side', '_stand_entry', '_brake_wire',
     'drives', 'bus', 'tick', 'observer', 'heat', 'registry', 'bank', 'played',
 })
+#: Derived caches on `g` (holding raw C mask addresses or identity-keyed memos) rebuilt on restore.
+_DERIVED_G = frozenset({'_falls_by', '_falls_down', '_falls_parts', '_falls_of', '_said_of', '_told_with'})
+#: Mutable fields inside `s['wear']` restored in place (leaving static `body`/`lay`/`D` intact).
+_WEAR_MUTABLE = ('z', 'P', 'hours', 'serviced_at', 'residual', 'read', 'boxes', 'box_n', 'zero', 'torso')
+#: Immutable scalar atom types safe to share by reference across snapshots.
+_IMMUTABLE = (type(None), bool, int, float, str, bytes, frozenset, slice, range, complex)
+_STATIC_CACHE = None
 
 #: Slot array buffers inside each `g['bank']['moves'][k]` restored in place to keep `Played` valid.
 _SLOT_ARRAYS = ('pose', 'cmd', 'state', 'feed', 'target', 'limit')
 _SLOT_SCALARS = ('when', 'at', 'last', 'enter_t0')
 
 
-def _copy_val(val):
-    """Clone mutable values while leaving callable or opaque C handles untouched."""
+def _static_g():
+    """Return full set of static, derived, and explicitly-handled keys on `g`."""
+    global _STATIC_CACHE
+    if _STATIC_CACHE is None:
+        from tools.cores import motion as c_motion
+        _STATIC_CACHE = frozenset(c_motion.HOOKS) | _BASE_STATIC_G | _DERIVED_G
+    return _STATIC_CACHE
+
+
+def _copy_val(val: Any, path: str = 'val') -> Any:
+    """Clone mutable values strictly; reject unknown opaque stateful objects instead of leaking them."""
     import numpy as np
     if isinstance(val, np.ndarray):
         return val.copy()
+    if isinstance(val, np.generic) or isinstance(val, _IMMUTABLE) or callable(val):
+        return val
     if isinstance(val, dict):
-        return {k: _copy_val(v) for k, v in val.items()}
+        return {k: _copy_val(v, '%s.%s' % (path, k)) for k, v in val.items()}
     if isinstance(val, list):
-        return [_copy_val(v) for v in val]
+        copied = [_copy_val(v, '%s[%d]' % (path, i)) for i, v in enumerate(val)]
+        arrays = getattr(val, 'arrays', None)
+        if arrays is not None:
+            out: Any = type(val)(copied)
+            out.arrays = tuple(a.copy() for a in arrays)
+            return out
+        return copied
     if isinstance(val, tuple):
-        return tuple(_copy_val(v) for v in val)
-    return val
+        items = tuple(_copy_val(v, '%s[%d]' % (path, i)) for i, v in enumerate(val))
+        return type(val)(*items) if hasattr(val, '_fields') else items
+    raise TypeError('checkpoint cannot snapshot mutable %s at %s' % (type(val).__name__, path))
 
 
 def _restore_inplace_dict(dst, saved):
@@ -61,10 +83,10 @@ def _restore_inplace_dict(dst, saved):
                 dst[k] = src.copy()
         elif k in dst and isinstance(dst[k], dict) and isinstance(src, dict):
             _restore_inplace_dict(dst[k], src)
-        elif k in dst and isinstance(dst[k], list) and isinstance(src, list):
-            dst[k][:] = _copy_val(src)
+        elif k in dst and isinstance(dst[k], list) and isinstance(src, list) and getattr(src, 'arrays', None) is None:
+            dst[k][:] = _copy_val(src, str(k))
         else:
-            dst[k] = _copy_val(src)
+            dst[k] = _copy_val(src, str(k))
 
 
 def _capture_world(world):
@@ -149,7 +171,7 @@ def _restore_world(world, snap):
 
 
 def _capture_bank(g):
-    """Capture `g['bank']` move slots, handover state, custom programs, and `g['played']`."""
+    """Capture `g['bank']` move slot bindings, active engrams, handover, programs, and `g['played']`."""
     bank = g.get('bank')
     played = g.get('played')
     played_kind, played_val = None, None
@@ -158,32 +180,36 @@ def _capture_bank(g):
         if matched is not None:
             played_kind, played_val = 'slot', matched
         else:
-            played_kind, played_val = 'dict', _copy_val(played)
+            played_kind, played_val = 'dict', _copy_val(played, 'played')
     slots = {}
     if bank is not None:
         for k, sl in bank['moves'].items():
             slots[k] = {
+                'ref': sl,
                 'arrays': {a: sl[a].copy() for a in _SLOT_ARRAYS},
                 'scalars': {a: sl[a] for a in _SLOT_SCALARS},
                 'gains': None if sl['gains'] is None else sl['gains'].copy(),
             }
     return {
         'slots': slots,
-        'handover': _copy_val(bank['handover']) if bank is not None else None,
-        'programs': _copy_val(bank.get('programs', {})) if bank is not None else {},
+        'handover': _copy_val(bank['handover'], 'bank.handover') if bank is not None else None,
+        'programs': _copy_val(bank.get('programs', {}), 'bank.programs') if bank is not None else {},
+        'active': dict(bank.get('active', {})) if bank is not None else {},
+        'stock': dict(bank.get('stock', {})) if bank is not None else {},
         'played': (played_kind, played_val),
     }
 
 
 def _restore_bank(g, snap):
-    """Restore `g['bank']` move slots in place and re-link `g['played']`."""
+    """Restore `g['bank']` slot bindings, active engram metadata, buffers, and `g['played']`."""
     import numpy as np
+    from machine.senses import edge
     bank = g.get('bank')
     if bank is not None:
+        bank['moves'].clear()
         for k, saved in snap['slots'].items():
-            sl = bank['moves'].get(k)
-            if sl is None:
-                continue
+            sl = saved['ref']
+            bank['moves'][k] = sl
             for a, arr in saved['arrays'].items():
                 np.copyto(sl[a], arr)
             for a, val in saved['scalars'].items():
@@ -194,21 +220,101 @@ def _restore_bank(g, snap):
                 np.copyto(sl['gains'], saved['gains'])
             else:
                 sl['gains'] = saved['gains'].copy()
-        bank['handover'] = _copy_val(snap['handover'])
+        bank['handover'] = _copy_val(snap['handover'], 'bank.handover')
         if 'programs' in bank or snap['programs']:
-            bank['programs'] = _copy_val(snap['programs'])
+            bank['programs'] = _copy_val(snap['programs'], 'bank.programs')
+        if 'active' in bank or snap['active']:
+            bank['active'] = dict(snap['active'])
+        if 'stock' in bank or snap['stock']:
+            bank['stock'] = dict(snap['stock'])
     pk, pv = snap['played']
     if pk == 'slot' and bank is not None:
         g['played'] = bank['moves'][pv]
     elif pk == 'dict':
-        g['played'] = _copy_val(pv)
+        restored = _copy_val(pv, 'played')
+        if restored.get('drive') is not None and 'joints' in restored:
+            restored['drive'] = edge.bound(
+                g['world'], restored['joints'], target=restored['target'],
+                feed=restored['feed'], kp=restored['kp'], limit=restored['limit'])
+        g['played'] = restored
     else:
         g['played'] = None
 
 
-def _capture_g(g):
-    """Capture mutable `g` arrays, C structs (`observer`, `bus`, `heat`, `tick`), and scalars."""
+def _chain_struct(g):
+    """Return persistent C `wbc_step_t` struct for closed-chain QP solver `g['solves'][1]`, if present."""
+    solves = g.get('solves')
+    if isinstance(solves, tuple) and len(solves) > 1:
+        args = getattr(solves[1], 'args', ())
+        if args and hasattr(args[0], 'chain_nlet'):
+            return args[0]
+    return None
+
+
+def _capture_chain(g):
+    """Capture closed-chain QP complementarity and active-set warm-start fields on `g['solves'][1]`."""
+    k = _chain_struct(g)
+    if k is None:
+        return None
+    return (
+        ctypes.string_at(ctypes.addressof(k.chain_held), ctypes.sizeof(k.chain_held)),
+        ctypes.string_at(ctypes.addressof(k.chain_nheld), ctypes.sizeof(k.chain_nheld)),
+        ctypes.string_at(ctypes.addressof(k.chain_let), ctypes.sizeof(k.chain_let)),
+        int(k.chain_nlet),
+    )
+
+
+def _restore_chain(g, saved):
+    """Restore closed-chain QP complementarity and active-set fields bit for bit in place."""
+    k = _chain_struct(g)
+    if k is None or saved is None:
+        return
+    held_b, nheld_b, let_b, nlet = saved
+    ctypes.memmove(ctypes.addressof(k.chain_held), held_b, len(held_b))
+    ctypes.memmove(ctypes.addressof(k.chain_nheld), nheld_b, len(nheld_b))
+    ctypes.memmove(ctypes.addressof(k.chain_let), let_b, len(let_b))
+    k.chain_nlet = nlet
+
+
+def _capture_body(body):
+    """Capture wear-mutable link masses, inertias, drive parameters, and load on `body`."""
+    m = body.m
+    return {
+        'body_mass': m.body_mass.copy(), 'body_ipos': m.body_ipos.copy(),
+        'body_inertia': m.body_inertia.copy(), 'body_iquat': m.body_iquat.copy(),
+        'dof_armature': m.dof_armature.copy(), 'dof_damping': m.dof_damping.copy(),
+        'dof_frictionloss': m.dof_frictionloss.copy(), 'mass': float(body.mass),
+        'load': None if getattr(body, 'load', None) is None else body.load.copy(),
+    }
+
+
+def _restore_body(body, saved):
+    """Restore wear-mutable model parameters on `body`, recomputing constants only if modified."""
     import numpy as np
+    m = body.m
+    changed = False
+    for field in ('body_mass', 'body_ipos', 'body_inertia', 'body_iquat',
+                  'dof_armature', 'dof_damping', 'dof_frictionloss'):
+        dst = getattr(m, field)
+        if not np.array_equal(dst, saved[field]):
+            np.copyto(dst, saved[field])
+            changed = True
+    if changed:
+        body.mj.mj_setConst(m, body.d)
+    body.mass = saved['mass']
+    if saved['load'] is None:
+        if hasattr(body, 'load'):
+            body.load = None
+    elif getattr(body, 'load', None) is not None and body.load.shape == saved['load'].shape:
+        np.copyto(body.load, saved['load'])
+    else:
+        body.load = saved['load'].copy()
+
+
+def _capture_g(g):
+    """Capture mutable `g` arrays, C structs (`observer`, `bus`, `heat`, `tick`, `solves`), and scalars."""
+    import numpy as np
+    static_g = _static_g()
     obs = g['observer']
     obs_c = obs['c']
     obs_bytes = ctypes.string_at(ctypes.addressof(obs_c), ctypes.sizeof(obs_c))
@@ -221,7 +327,8 @@ def _capture_g(g):
         'spent', 'worst', 'die', 'cap', 'cap_at', '_peak')}
     reg = g['registry']
     drives_kept = {k: v.copy() for k, v in g['drives'][1].items() if isinstance(v, np.ndarray)}
-    dynamic = {k: _copy_val(v) for k, v in g.items() if k not in _STATIC_G}
+    vis = g['vision']
+    dynamic = {k: _copy_val(v, 'g.%s' % k) for k, v in g.items() if k not in static_g}
     return {
         'obs_bytes': obs_bytes,
         'obs_arrays': obs_arrays,
@@ -235,16 +342,21 @@ def _capture_g(g):
         'reg_kinds': list(reg['kinds']),
         'reg_classed': copy.deepcopy(reg['classed']),
         'drives_kept': drives_kept,
+        'chain': _capture_chain(g),
+        'body': _capture_body(g['body']),
+        'vision': (bool(vis.pending), _copy_val(vis._things, 'vision._things')),
+        'gym': list(g['gym']),
         'bank': _capture_bank(g),
         'dynamic': dynamic,
         '_dynamic_inplace': [k for k, v in g.items()
-                             if k not in _STATIC_G and isinstance(v, np.ndarray)],
+                             if k not in static_g and isinstance(v, np.ndarray)],
     }
 
 
 def _restore_g(g, snap):
     """Restore mutable `g` state bit for bit without reallocating C-pinned buffers."""
     import numpy as np
+    static_g = _static_g()
     obs = g['observer']
     obs_c = obs['c']
     ctypes.memmove(ctypes.addressof(obs_c), snap['obs_bytes'], len(snap['obs_bytes']))
@@ -267,11 +379,19 @@ def _restore_g(g, snap):
     reg['kinds'][:] = snap['reg_kinds']
     reg['classed'] = copy.deepcopy(snap['reg_classed'])
     _restore_inplace_dict(g['drives'][1], snap['drives_kept'])
+    _restore_chain(g, snap['chain'])
+    _restore_body(g['body'], snap['body'])
+    vis = g['vision']
+    vis.pending, vis._things = snap['vision'][0], _copy_val(snap['vision'][1], 'vision._things')
+    vis._boxed.clear()
+    g['gym'] = list(snap['gym'])
     _restore_bank(g, snap['bank'])
+    for k in _DERIVED_G:
+        g.pop(k, None)
     saved = snap['dynamic']
     inplace = set(snap['_dynamic_inplace'])
     for k in list(g):
-        if k not in _STATIC_G and k not in saved:
+        if k not in static_g and k not in saved:
             del g[k]
     for k, src in saved.items():
         if (k in inplace and k in g and isinstance(g[k], np.ndarray)
@@ -279,12 +399,17 @@ def _restore_g(g, snap):
             np.copyto(g[k], src)
         elif k in g and isinstance(g[k], dict) and isinstance(src, dict):
             _restore_inplace_dict(g[k], src)
+        elif k in g and isinstance(g[k], list) and isinstance(src, list) and getattr(src, 'arrays', None) is None:
+            g[k][:] = _copy_val(src, 'g.%s' % k)
         else:
-            g[k] = _copy_val(src)
+            g[k] = _copy_val(src, 'g.%s' % k)
 
 
 def capture(s):
-    """Capture a bit-exact in-memory snapshot of worker session `s`."""
+    """Capture a bit-exact in-memory snapshot of in-process worker session `s`."""
+    g = s['g']
+    if getattr(g.get('vision'), 'apart', False) or g.get('keep') is not None or getattr(s.get('worn'), 'apart', False):
+        raise MachineError('checkpoint requires in-process vision, no camera subprocess, and in-process wear')
     worn = s['worn']
     if worn.due_at is not None and worn.got is None and worn.parts is not None:
         while True:
@@ -294,23 +419,25 @@ def capture(s):
                 worn.got = end.value
                 break
     return {
-        'world': _capture_world(s['g']['world']),
-        'g': _capture_g(s['g']),
+        'world': _capture_world(g['world']),
+        'g': _capture_g(g),
         's': {
             'passes': s['passes'],
             'fallen_at': s['fallen_at'],
             'shutdown': s['shutdown'],
             'refused': s['refused'],
             'epoch': s['epoch'],
+            'gym': list(s['gym']),
+            'says': list(s['says']),
             'torque': s['torque'].copy(),
             'power': s['power'].copy(),
             'watts': s['watts'],
             'ratio': s['ratio'],
             'headroom': s['headroom'],
             'wear_told': copy.deepcopy(s['wear_told']),
-            'wear': _copy_val(s['wear']),
+            'wear': {k: _copy_val(s['wear'][k], 'wear.%s' % k) for k in _WEAR_MUTABLE if k in s['wear']},
             'worn_ring': (worn.ring.rows.copy(), int(worn.ring.start), int(worn.ring.n)),
-            'worn_state': (_copy_val(worn.got), worn.due_at),
+            'worn_state': (_copy_val(worn.got, 'worn.got'), worn.due_at),
         },
     }
 
@@ -323,16 +450,22 @@ def restore(s, snap):
     ss = snap['s']
     for k in ('passes', 'fallen_at', 'shutdown', 'refused', 'epoch', 'watts', 'ratio', 'headroom'):
         s[k] = ss[k]
+    s['gym'] = list(ss['gym'])
+    s['says'] = list(ss['says'])
     np.copyto(s['torque'], ss['torque'])
     np.copyto(s['power'], ss['power'])
     s['wear_told'] = copy.deepcopy(ss['wear_told'])
-    _restore_inplace_dict(s['wear'], ss['wear'])
+    for k, src in ss['wear'].items():
+        if k in s['wear'] and isinstance(s['wear'][k], np.ndarray) and isinstance(src, np.ndarray):
+            np.copyto(s['wear'][k], src)
+        else:
+            s['wear'][k] = _copy_val(src, 'wear.%s' % k)
     worn = s['worn']
     rows, start, n = ss['worn_ring']
     np.copyto(worn.ring.rows, rows)
     worn.ring.start, worn.ring.n = start, n
     worn.w = s['wear']
-    worn.got, worn.due_at = _copy_val(ss['worn_state'][0]), ss['worn_state'][1]
+    worn.got, worn.due_at = _copy_val(ss['worn_state'][0], 'worn.got'), ss['worn_state'][1]
     worn.parts = iter(()) if worn.due_at is not None else None
 
 

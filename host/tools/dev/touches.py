@@ -139,6 +139,8 @@ TOUCHES = (
     ('host/tools/sim/replay.py',               (STRUCTURE, REPLAYS)),
     ('host/tools/sim/scenarios.py',            (STRUCTURE, SCENES)),
     ('host/tools/sim/engram_mc.py',            (STRUCTURE, ENGRAMS)),
+    ('host/tools/sim/engram_scenes.py',        (STRUCTURE, ENGRAMS)),
+    ('host/tools/sim/stunt_similarity.py',     (STRUCTURE, ENGRAMS)),
     ('host/tools/sim/player.py',               (STRUCTURE, SCENES)),
     ('host/tools/sim/stunts.py',               (STRUCTURE, SCENES)),
     ('host/tools/sim/staged.py',               (STRUCTURE, SCENES)),

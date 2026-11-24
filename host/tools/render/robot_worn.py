@@ -54,8 +54,9 @@ def _body_cached(dressed=False, like=None):
 
 
 def _skin_colour(like):
-    from coaxial.graphics import lit
-    return SKIN_TONED if like else tuple(int(round(255.0 * c)) for c in lit.PALETTE[lit.SKIN])
+    from tools.render import face_honeycomb as fh
+    _ = like
+    return fh.NECK_SKIN
 
 
 def neck_skin(nod=0.0, head_yaw=0.0, like=None):
@@ -141,13 +142,18 @@ def _extract_root(body, names, pos, wanted, norm=None):
 
 
 def symbolic_head(nod=0.0, head_yaw=0.0, like=None, raw=False):
-    """Head, face, and hair in root frame."""
+    """Unified mechanical mecha-gynoid head and cervical carrier (`face_built.posed`) in root frame."""
     import numpy as np
-    body, names, _f, _p = _body_cached(not bool(like), like)
-    ang = {'neck': nod, 'head': head_yaw} if (nod or head_yaw) else {}
-    pos, norm = body.pose(ang, root=((0.0, 0.0, 0.0), np.eye(3)))
-    tris, meshes = _extract_root(body, names, pos, HEAD_LIKED if like else HEAD_SYM, norm if raw else None)
-    return meshes if raw else tris
+    from tools.render import face_built as fb
+    _ = like
+    _b, names, fr, _p = _body_cached(False, None)
+    torso_at = fr[names.index('torso')][1]
+    parts = {k: v for k, v in fb.posed('neutral', nod=nod, head_yaw=head_yaw, plates=True, include_neck=True).items()
+             if k != 'neck_skin'}
+    if not raw:
+        return [(t + torso_at, c) for ts in parts.values() for t, c in ts]
+    pos, nrm, uv, mat, idx = fb.lit_mesh(parts)
+    return [(pos + torso_at.astype(np.float32), idx.astype(int), uv, mat, nrm)]
 
 
 def _shoulder_xform(pts, shoulder, turn, roll):
@@ -234,17 +240,17 @@ def seat_nets():
 
 
 def arm_parts_dressed(flex=0.0, turn=0.0, roll=0.0):
-    """Left arm CAD in `arm_worn` elbow frame extended into the sleeve without gaps."""
+    """Left arm CAD in `arm_worn` elbow frame keeping complete forearm and bicep honeycomb guards below the sleeve."""
     from tools.render import arm_worn as aw, knee_mount as km
     sh, ad, gd = aw.laid(False, ())[1], aw.arm(flex, roll, turn), aw._guarded()
     low = [t for k in ('elbow', 'hose', 'forearm tube') for t in ad[k]] + [(t, c) for t, c in ad['upper arm tube'] if float(t[:, 1].min()) < 0.245]
-    gul = [(t, c) for t, c in gd['left_upper_arm'] if float(t[:, 1].max()) < 0.105]
+    gul = [(t, c) for t, c in gd['left_upper_arm'] if float(t[:, 1].mean()) < 0.176 and float(t[:, 1].max()) < 0.185]
     gf = km._turn(gd['left_forearm'], aw.placing()[2] * flex) if flex else gd['left_forearm']
     pose = lambda ts: [(_shoulder_xform(t, sh, turn, roll), col) for t, col in ts] if (turn or roll) else ts
     return low + pose(gul + gf), [t for p in ad.values() for t in p] + pose(gd['left_upper_arm'] + gf)
 
 
-def _drape_polar(corners, obs_pts, axis_a, axis_b, gap=0.0036, fall_at=None, max_push=0.016):
+def _drape_polar(corners, obs_pts, axis_a, axis_b, gap=0.0040, fall_at=None, max_push=0.026):
     """Smooth radial outward envelope drape along segment `axis_a..axis_b` preserving cloth folds."""
     import numpy as np
     from scipy.ndimage import maximum_filter1d, uniform_filter1d
@@ -396,7 +402,7 @@ def lit_mesh(roll=0.0, dressed=False, turn=0.0, flex=0.0, nod=0.0, head_yaw=0.0,
         _push(*mesh)
     if dressed:
         wb = rb.whole(roll=roll, dressed=False, turn=turn, flex=flex, nod=nod, head_yaw=head_yaw, like=like)
-        obs = [t for k in ('pectoral', 'left leg', 'right leg', 'left arm', 'right arm', 'trunk', 'trunk guards') for t in wb.get(k, ())]
+        obs = [t for k in ('pectoral', 'seat', 'left leg', 'right leg', 'left arm', 'right arm', 'trunk', 'trunk guards') for t in wb.get(k, ())]
         for mesh in draped_clothes(roll=roll, turn=turn, flex=flex, obs_tris=obs, like=like, raw=True):
             _push(*mesh)
     for key, part_tris in whole.items():

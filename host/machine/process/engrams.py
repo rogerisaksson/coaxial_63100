@@ -1,19 +1,37 @@
-"""Hot-swappable motor engrams: runtime sensorimotor cores, C move compilation, and stunt catalogs.
+"""Hot-swappable motor engrams: runtime sensorimotor cores, C move compilation, and stunt bundles.
 
 Motor engrams (`engrams`) encapsulate self-contained closed-loop programs -- compiled C sensed move
 tables (`tools.cores.sensed`), latent mode wires (`ortho.ROW`), and beat-paced joint programs -- that
 swap live into a running robot session with C0 pose continuity and lossless unload back to stock.
 """
-import collections
+import json
 import math
+from typing import Any
 
-from machine.moves import anatomy, sensed
+from machine.law import gait
+from machine.moves import sensed
+from machine.process.engram_catalog import CATALOG, STUNT_BUNDLES, SUITES, Engram
 from machine.texts import ortho, takes
 
-#: Runtime hot-swappable sensorimotor module bound to a controller slot (`sensed`, `wire`, or `program`).
-Engram = collections.namedtuple('Engram', 'name slot kind task stunt_ref description spec')
-
 _CACHE = {}
+_CUSTOM = {}
+
+_MODE_INDEX = {
+    'axial': 0, 'lateral': 1, 'drive': 2, 'pitch': 3, 'sagittal': 4, 'lift': 5,
+    'width': 6, 'list': 7, 'turn': 8, 'arms': 9, 'rock': 10, 'reach': 11, 'elbows': 12,
+}
+
+
+def _mode_id(key):
+    """Resolve mode name or integer index to a valid mode column index in `ortho.MODES`."""
+    if isinstance(key, int):
+        return key
+    s = str(key).strip().lower()
+    if s.isdigit():
+        return int(s)
+    if s in _MODE_INDEX:
+        return _MODE_INDEX[s]
+    return [str(m) for m in ortho.MODES].index(s)
 
 
 def _sensed_tables(spec):
@@ -50,28 +68,49 @@ def _sensed_tables(spec):
                          base.done, numbers, holds)
 
 
-def _scale_wire(raw_wire, tempo_scale=1.0):
-    """Time-scale packed `ortho.ROW` bytes by `tempo_scale`."""
-    if abs(float(tempo_scale) - 1.0) < 1e-12:
+def _scale_wire(raw_wire, tempo_scale=1.0, voice_scales=None, voice_offsets=None):
+    """Time-scale and optionally adjust voiced targets on packed `ortho.ROW` bytes."""
+    v_scales = {_mode_id(k): float(v) for k, v in (voice_scales or {}).items()}
+    v_offsets = {_mode_id(k): float(v) for k, v in (voice_offsets or {}).items()}
+    if abs(float(tempo_scale) - 1.0) < 1e-12 and not v_scales and not v_offsets:
         return raw_wire
     rows = []
     for row in ortho.rows(raw_wire):
-        seq, at_ms, ms, flags = int(row[0]), int(round(row[1] * tempo_scale)), max(1, int(round(row[2] * tempo_scale))), int(row[3])
-        rows.append(ortho.ROW.pack(seq, at_ms, ms, flags, *row[4:]))
+        seq = int(row[0])
+        at_ms = int(round(row[1] * float(tempo_scale)))
+        ms = max(1, int(round(row[2] * float(tempo_scale))))
+        flags = int(row[3])
+        params = list(row[4:])
+        for midx, sc in v_scales.items():
+            val = params[ortho.Z + midx]
+            if not math.isnan(val):
+                params[ortho.Z + midx] = val * sc
+        for midx, off in v_offsets.items():
+            val = params[ortho.Z + midx]
+            if not math.isnan(val):
+                params[ortho.Z + midx] = val + off
+        rows.append(ortho.ROW.pack(seq, at_ms, ms, flags, *params))
     return b''.join(rows)
 
 
-def _take_wire(take_key, tempo_scale=1.0, amp_scale=1.0, enter_s=takes.ENTER_S, rest_tail=True):
-    """Build packed `ortho.ROW` wire bytes from mocap take `take_key` with optional tempo and amplitude scaling."""
-    voices = takes.VOICES.get(take_key, takes.STREAMED)
-    t, z = takes.beats(take_key, voices, 0.0)
+def _take_wire(take_key, spec):
+    """Build packed `ortho.ROW` bytes from mocap take `take_key` with voice and tempo controls."""
+    voices = tuple(_mode_id(v) for v in spec['voices']) if 'voices' in spec else takes.VOICES.get(take_key, takes.STREAMED)
+    t, z = takes.beats(take_key, voices, float(spec.get('since_s', 0.0)))
     z = z.copy()
-    if abs(float(amp_scale) - 1.0) > 1e-12 and len(z) > 0:
+    amp_scale = float(spec.get('amp_scale', 1.0))
+    v_scales = {_mode_id(k): float(v) for k, v in spec.get('voice_scales', {}).items()}
+    v_offsets = {_mode_id(k): float(v) for k, v in spec.get('voice_offsets', {}).items()}
+    if len(z) > 0:
         z0 = z[0].copy()
         for i in voices:
-            z[:, i] = z0[i] + float(amp_scale) * (z[:, i] - z0[i])
-    enter_ms = max(20, int(round(1e3 * float(enter_s) * float(tempo_scale))))
-    gaps = [enter_ms] + [max(10, int(round(1e3 * (t[k] - t[k - 1]) * float(tempo_scale)))) for k in range(1, len(t))]
+            sc = amp_scale * v_scales.get(i, 1.0)
+            off = v_offsets.get(i, 0.0)
+            z[:, i] = z0[i] + sc * (z[:, i] - z0[i]) + off
+    tempo = float(spec.get('tempo_scale', 1.0))
+    enter_s = float(spec.get('enter_s', takes.ENTER_S))
+    enter_ms = max(20, int(round(1e3 * enter_s * tempo)))
+    gaps = [enter_ms] + [max(10, int(round(1e3 * (t[k] - t[k - 1]) * tempo))) for k in range(1, len(t))]
     rows, at = [], 0
     for k in range(len(t)):
         p = [math.nan] * ortho.P
@@ -79,24 +118,35 @@ def _take_wire(take_key, tempo_scale=1.0, amp_scale=1.0, enter_s=takes.ENTER_S, 
             p[ortho.Z + i] = float(z[k, i])
         rows.append(ortho.ROW.pack(takes.TAKE_ID, at, gaps[k], ortho.CURVE, *p))
         at += gaps[k]
-    if rest_tail:
+    if spec.get('rest_tail', True):
         rows.append(ortho.ROW.pack(takes.TAKE_ID, at, ortho.REST_MS, ortho.REST, *([math.nan] * ortho.P)))
     return b''.join(rows)
+
+
+def _pattern_wire(spec):
+    """Build a modified gait `ortho.ROW` from `spec['pattern']` and optional modifier overrides."""
+    mods = takes.amounts(spec['pattern'])
+    for k, sc in spec.get('amount_scales', {}).items():
+        if k in mods:
+            mods[k] = float(mods[k]) * float(sc)
+    for k, delta in spec.get('modifiers', {}).items():
+        mods[k] = float(mods.get(k, 0.0)) + float(delta)
+    raw = gait.modified(float(spec.get('blend_s', takes.ENTER_S)), **mods)
+    return _scale_wire(raw, spec.get('tempo_scale', 1.0), spec.get('voice_scales'), spec.get('voice_offsets'))
 
 
 def _compile_wire(engram):
     """Compile a `'wire'` engram into `(slot, wire_bytes_or_none, names)`."""
     spec = engram.spec
     if 'take' in spec:
-        wire = _take_wire(spec['take'], spec.get('tempo_scale', 1.0), spec.get('amp_scale', 1.0),
-                          spec.get('enter_s', takes.ENTER_S), spec.get('rest_tail', True))
+        wire = _take_wire(spec['take'], spec)
         names = tuple(spec.get('names', (engram.slot,)))
     elif 'pattern' in spec:
-        wire = _scale_wire(takes.pattern(spec['pattern'], blend_s=spec.get('blend_s', takes.ENTER_S)),
-                           spec.get('tempo_scale', 1.0))
+        wire = _pattern_wire(spec)
         names = tuple(spec.get('names', (engram.slot,)))
     elif 'base_wire' in spec:
-        wire = _scale_wire(spec['base_wire'], spec.get('tempo_scale', 1.0))
+        wire = _scale_wire(spec['base_wire'], spec.get('tempo_scale', 1.0),
+                           spec.get('voice_scales'), spec.get('voice_offsets'))
         names = tuple(spec.get('names', (engram.slot,)))
     elif 'base_entry' in spec:
         wire = None
@@ -125,6 +175,70 @@ def compile_engram(engram):
     if engram.kind != 'wire' or 'base_entry' not in spec:
         _CACHE[engram.name] = payload
     return payload
+
+
+def register(items):
+    """Register one or more runtime `Engram` objects (bypassing repo catalog mutation)."""
+    seq = [items] if isinstance(items, Engram) else items
+    for eng in seq:
+        _CACHE.pop(eng.name, None)
+        _CUSTOM[eng.name] = eng
+    return _CUSTOM
+
+
+def load_specs(source):
+    """Load `Engram` records from a JSON file path or sequence of spec dicts and register them."""
+    if isinstance(source, str):
+        with open(source, encoding='utf-8') as f:
+            raw = json.load(f)
+    else:
+        raw = source
+    rows = raw.get('engrams', raw) if isinstance(raw, dict) else raw
+    loaded = {}
+    for row in rows:
+        eng = row if isinstance(row, Engram) else Engram(
+            row['name'], row['slot'], row['kind'], row['task'],
+            row.get('stunt_ref'), row.get('description', ''), row['spec'])
+        _CACHE.pop(eng.name, None)
+        _CUSTOM[eng.name] = eng
+        loaded[eng.name] = eng
+    return loaded
+
+
+def get(engram):
+    """Resolve an `Engram` instance or registered name from `CATALOG` or runtime custom registry."""
+    if isinstance(engram, Engram):
+        return engram
+    if engram in _CUSTOM:
+        return _CUSTOM[engram]
+    return CATALOG[engram]
+
+
+def variant(base_name, name, rng):
+    """Synthesize a bounded parametric `Engram` mutation from `base_name` using `rng`."""
+    base = get(base_name)
+    spec: dict[str, Any] = {k: (dict(v) if isinstance(v, dict) else v) for k, v in base.spec.items()}
+    if base.kind == 'sensed':
+        tb = sensed.tables(spec['base'])
+        spec['rate_scale'] = round(float(spec.get('rate_scale', 1.0)) * rng.uniform(0.82, 1.18), 3)
+        prs = dict(spec.get('phase_rate_scales', {}))
+        active_phases = [n for n in tb.names if n != 'done']
+        if active_phases:
+            ph = rng.choice(active_phases)
+            prs[ph] = round(float(prs.get(ph, 1.0)) * rng.uniform(0.78, 1.18), 3)
+            spec['phase_rate_scales'] = prs
+        num_map = dict(zip(sensed.NUMBERS, tb.numbers))
+        consts = dict(spec.get('constants', {}))
+        if num_map.get('pull-in', 0.0) > 0.0:
+            consts['pull-in'] = round(max(0.14, float(consts.get('pull-in', num_map['pull-in'])) + rng.uniform(-0.02, 0.03)), 3)
+        if consts:
+            spec['constants'] = consts
+    elif base.kind == 'wire':
+        spec['tempo_scale'] = round(float(spec.get('tempo_scale', 1.0)) * rng.uniform(0.84, 1.24), 3)
+        if 'take' in spec:
+            spec['amp_scale'] = round(float(spec.get('amp_scale', 1.0)) * rng.uniform(0.86, 1.08), 3)
+    return Engram(name, base.slot, base.kind, base.task, base.stunt_ref,
+                  'Parametric variant of %s' % base.name, spec)
 
 
 def _ensure_bank(g):
@@ -181,71 +295,129 @@ def _resolve_wire_entry(g, engram):
     base_entry = next((e for e in g['gym'] if e[0] == base_name), None)
     if base_entry is None:
         raise KeyError('wire engram %s: missing gym base entry %r' % (engram.name, base_name))
-    wire = _scale_wire(base_entry[1], engram.spec.get('tempo_scale', 1.0))
+    wire = _scale_wire(base_entry[1], engram.spec.get('tempo_scale', 1.0),
+                       engram.spec.get('voice_scales'), engram.spec.get('voice_offsets'))
     names = tuple(engram.spec.get('names', base_entry[2]))
     return (engram.slot, wire, names)
 
 
+def _part_rates(move_obj, phase_idx, cmd):
+    """Signed instantaneous slew rates (deg/s) for active non-HELD joints at `phase_idx`."""
+    import numpy as np
+    from machine.moves import anatomy as an, sensed as py_sensed
+    tb = getattr(move_obj, 'tables', None)
+    if tb is None or not (0 <= phase_idx < len(tb.names)):
+        return None
+    x = cmd[py_sensed.JOINT]
+    how = tb.how[phase_idx, py_sensed.PART]
+    goal = an.aimed(how, tb.goal[phase_idx, py_sensed.PART], x)
+    rates = tb.rates[phase_idx, py_sensed.PART]
+    active = (how == an.RATE) | (how == an.LEAST)
+    diff = goal - x
+    return np.where(active & (np.abs(diff) > tb.numbers[-1]), np.sign(diff) * rates, 0.0)
+
+
 def load(g, engram, keep=''):
     """Pre-warm `engram` in `g['bank']['engrams']` without activating or replacing any running slot."""
-    engram = CATALOG[engram] if isinstance(engram, str) else engram
+    engram = get(engram)
     bk = _ensure_bank(g)
     key = (engram.name, str(keep))
-    if key in bk['engrams']:
-        return bk['engrams'][key]
+    cached = bk['engrams'].get(key)
+    if cached is not None and cached[0] == engram:
+        return cached[1]
     if engram.kind == 'sensed':
         mv = compile_engram(engram)
         built = _build_custom_slot(g, g['world'], engram.slot, mv, keep=keep)
     elif engram.kind == 'wire':
         from machine.process import bank
         entry = _resolve_wire_entry(g, engram)
-        bank._slots_table(g, entry[1], False)
-        bank._slots_table(g, entry[1], True)
+        if entry[1] is not None:
+            bank._slots_table(g, entry[1], False)
+            bank._slots_table(g, entry[1], True)
         built = entry
     elif engram.kind == 'program':
         built = compile_engram(engram)
     else:
         raise ValueError('unsupported engram kind %r' % (engram.kind,))
-    bk['engrams'][key] = built
+    bk['engrams'][key] = (engram, built)
     return built
 
 
 def _handover_live_slot(g, prev_slot, new_slot):
-    """Perform bumpless C0 pose handover when hot-swapping an active move mid-execution."""
+    """Perform bumpless C0 handover with phase preservation and genuine discontinuity telemetry."""
     import numpy as np
     from machine.moves import sensed as py_sensed
-    pose_jump = float(np.max(np.abs(new_slot['cmd'] - prev_slot['cmd'])))
+    from machine.senses import edge
     start = np.asarray(prev_slot['cmd'], float).copy()
+    prev_state = None if prev_slot.get('state') is None else np.asarray(prev_slot['state'], float).copy()
+    prev_tb = getattr(prev_slot.get('move'), 'tables', None)
+    new_tb = getattr(new_slot.get('move'), 'tables', None)
     new_slot['pose'][:] = start
     new_slot['cmd'][:] = start
+    if np.array_equal(prev_slot['joints'], new_slot['joints']):
+        new_slot['target'][:] = prev_slot['target']
+        new_slot['feed'][:] = prev_slot['feed']
+        new_slot['limit'][:] = prev_slot['limit']
+    else:
+        new_slot['target'][:] = np.radians(start[new_slot['joints']])
+        new_slot['feed'][:] = 0.0
+        new_slot['limit'][:] = g['clamp'][new_slot['joints']]
     new_slot['gains'] = None if prev_slot.get('gains') is None else prev_slot['gains'].copy()
     new_slot['enter_t0'] = prev_slot.get('enter_t0')
     new_slot['when'] = prev_slot.get('when')
-    new_slot['at'] = g['t'] if prev_slot.get('at') is not None else None
-    new_slot['last'] = g['t']
+    new_slot['at'] = prev_slot.get('at')
+    new_slot['last'] = prev_slot.get('last', g['t'])
     new_slot['state'][:] = new_slot['move'].laid(start, g['t'])
-    if prev_slot.get('state') is not None and len(prev_slot['state']) > py_sensed.WAY and len(new_slot['state']) > py_sensed.WAY:
-        new_slot['state'][py_sensed.WAY] = prev_slot['state'][py_sensed.WAY]
+    phase_before = phase_after = None
+    phase_preserved = False
+    if prev_state is not None and len(prev_state) > py_sensed.WAY and len(new_slot['state']) > py_sensed.WAY:
+        new_slot['state'][py_sensed.WAY] = prev_state[py_sensed.WAY]
+        new_slot['state'][py_sensed.COUNT] = prev_state[py_sensed.COUNT]
+        if prev_tb is not None and new_tb is not None:
+            p_idx = int(prev_state[py_sensed.PHASE])
+            if 0 <= p_idx < len(prev_tb.names):
+                phase_before = prev_tb.names[p_idx]
+                if phase_before in new_tb.names:
+                    n_idx = new_tb.names.index(phase_before)
+                    phase_preserved = True
+                elif p_idx >= prev_tb.done:
+                    n_idx = new_tb.done
+                else:
+                    n_idx = min(new_tb.done - 1, int(round(p_idx * new_tb.done / max(1, prev_tb.done))))
+                new_slot['state'][py_sensed.PHASE] = float(n_idx)
+                phase_after = new_tb.names[n_idx]
     g['played'] = new_slot
-    return float(np.max(np.abs(new_slot['cmd'] - start))) if pose_jump >= 0.0 else 0.0
+    cmd_jump = float(np.max(np.abs(new_slot['cmd'] - start)))
+    track_err = float(np.max(np.abs(new_slot['cmd'] - np.degrees(g['sense'][edge.Q]))))
+    rate_jump = 0.0
+    if prev_state is not None and prev_tb is not None and new_tb is not None:
+        r0 = _part_rates(prev_slot['move'], int(prev_state[py_sensed.PHASE]), start)
+        r1 = _part_rates(new_slot['move'], int(new_slot['state'][py_sensed.PHASE]), start)
+        if r0 is not None and r1 is not None:
+            rate_jump = float(np.max(np.abs(r1 - r0)))
+    return {
+        'pose_jump_deg': cmd_jump, 'tracking_err_deg': track_err, 'rate_jump_deg_s': rate_jump,
+        'phase_before': phase_before, 'phase_after': phase_after, 'phase_preserved': phase_preserved,
+    }
 
 
 def swap(g, engram, keep='', s=None):
-    """Hot-swap `engram` (instance or `CATALOG` name) into `g` (and session `s` if given) with C0 continuity."""
-    engram = CATALOG[engram] if isinstance(engram, str) else engram
+    """Hot-swap `engram` (instance or registered name) into `g` (and `s` if given) with C0 continuity."""
+    engram = get(engram)
     bk = _ensure_bank(g)
     payload = load(g, engram, keep=keep)
     swapped_live = False
-    pose_jump = 0.0
+    hv = {'pose_jump_deg': 0.0, 'tracking_err_deg': 0.0, 'rate_jump_deg_s': 0.0,
+          'phase_before': None, 'phase_after': None, 'phase_preserved': False}
     if engram.kind == 'sensed':
         skey = ('sensed', engram.slot, str(keep))
         if skey not in bk['stock'] and (engram.slot, str(keep)) in bk['moves']:
             bk['stock'][skey] = bk['moves'][(engram.slot, str(keep))]
         prev = g.get('played')
         bk['moves'][(engram.slot, str(keep))] = payload
-        if isinstance(prev, dict) and prev.get('name') == engram.slot:
+        if isinstance(prev, dict) and prev.get('name') == engram.slot and prev.get('keep', '') == str(keep):
             swapped_live = True
-            pose_jump = _handover_live_slot(g, prev, payload)
+            hv = _handover_live_slot(g, prev, payload)
     elif engram.kind == 'wire':
         skey = ('wire', engram.slot, '')
         gym = list(g['gym'])
@@ -266,7 +438,7 @@ def swap(g, engram, keep='', s=None):
             bk['stock'][skey] = bk['programs'].get(engram.slot)
         bk['programs'][engram.slot] = payload
     bk['active'][(engram.slot, str(keep))] = engram.name
-    return {'engram': engram.name, 'slot': engram.slot, 'swapped_live': swapped_live, 'pose_jump_deg': pose_jump}
+    return {'engram': engram.name, 'slot': engram.slot, 'swapped_live': swapped_live, **hv}
 
 
 def unload(g, slot, keep='', s=None):
@@ -281,7 +453,7 @@ def unload(g, slot, keep='', s=None):
         if kind == 'sensed':
             prev = g.get('played')
             bk['moves'][(slot, keep)] = orig
-            if isinstance(prev, dict) and prev.get('name') == slot:
+            if isinstance(prev, dict) and prev.get('name') == slot and prev.get('keep', '') == keep:
                 _handover_live_slot(g, prev, orig)
         elif kind == 'wire':
             had, entry = orig
@@ -318,169 +490,19 @@ def active(g):
     return {slot: name for (slot, _keep), name in bk.get('active', {}).items()}
 
 
-#: Prepared catalog of motor engrams modeled on natural human mocap takes in `stunts/`.
-CATALOG = {
-    'chair_mount_stock': Engram(
-        'chair_mount_stock', 'chair_mount', 'sensed', 'chair', 'stand_to_sit',
-        'Stock chair-mount sensed move table',
-        {'base': 'chair-mount'},
-    ),
-    'chair_mount_calm': Engram(
-        'chair_mount_calm', 'chair_mount', 'sensed', 'chair', 'stand_to_sit',
-        'Slower vault and lap transition aligned with Stand To Sit cadence',
-        {'base': 'chair-mount', 'rate_scale': 0.82, 'constants': {'pull-in': 0.20}},
-    ),
-    'chair_mount_deep_pull': Engram(
-        'chair_mount_deep_pull', 'chair_mount', 'sensed', 'chair', 'stand_to_sit',
-        'Deeper posterior pull-in before arm opening for secure seat placement',
-        {'base': 'chair-mount', 'rate_scale': 0.90, 'constants': {'pull-in': 0.22}},
-    ),
-    'chair_mount_soft_arms': Engram(
-        'chair_mount_soft_arms', 'chair_mount', 'sensed', 'chair', 'stand_to_sit',
-        'Reduced upper-limb slew during open and lap phases to cut hand jerk',
-        {'base': 'chair-mount', 'phase_rate_scales': {'open': 0.72, 'lap': 0.75},
-         'constants': {'pull-in': 0.20}},
-    ),
-    'chair_mount_brisk': Engram(
-        'chair_mount_brisk', 'chair_mount', 'sensed', 'chair', 'stand_to_sit',
-        'Faster arm vault and pull-in rates for rapid docking',
-        {'base': 'chair-mount', 'rate_scale': 1.15},
-    ),
-    'chair_dismount_stock': Engram(
-        'chair_dismount_stock', 'chair_dismount', 'sensed', 'chair', 'sit_to_stand',
-        'Stock chair-dismount sensed move table',
-        {'base': 'chair-dismount'},
-    ),
-    'chair_dismount_forward': Engram(
-        'chair_dismount_forward', 'chair_dismount', 'sensed', 'chair', 'sit_to_stand',
-        'Enhanced forward trunk lean and dorsiflexion aligned with Sit To Stand',
-        {'base': 'chair-dismount', 'rate_scale': 0.95,
-         'phase_goals': {'lean': {'hip': (-120.0, 72.0, anatomy.RATE),
-                                  'ankle': (-14.0, 44.0, anatomy.RATE)}}},
-    ),
-    'chair_dismount_calm': Engram(
-        'chair_dismount_calm', 'chair_dismount', 'sensed', 'chair', 'sit_to_stand',
-        'Reduced dismount slew to limit chair pitch recoil during weight transfer',
-        {'base': 'chair-dismount', 'rate_scale': 0.82},
-    ),
-    'chair_dismount_brisk': Engram(
-        'chair_dismount_brisk', 'chair_dismount', 'sensed', 'chair', 'sit_to_stand',
-        'Brisk foot plant and press rates matching faster sit-to-stand transfer',
-        {'base': 'chair-dismount', 'rate_scale': 1.15},
-    ),
-    'bed_entry_stock': Engram(
-        'bed_entry_stock', 'bed_entry', 'sensed', 'bed', 'lying_down_from_sitting',
-        'Stock bed-entry sensed move table',
-        {'base': 'bed-entry'},
-    ),
-    'bed_entry_gentle': Engram(
-        'bed_entry_gentle', 'bed_entry', 'sensed', 'bed', 'lying_down_from_sitting',
-        'Smoother recline and leg fold matching Lying Down from Sitting',
-        {'base': 'bed-entry', 'rate_scale': 0.85, 'phase_rate_scales': {'lie': 0.78, 'fold': 0.85}},
-    ),
-    'bed_entry_deep': Engram(
-        'bed_entry_deep', 'bed_entry', 'sensed', 'bed', 'lying_down_from_sitting',
-        'Deeper initial bed pull-in before supine transition',
-        {'base': 'bed-entry', 'rate_scale': 0.92, 'constants': {'pull-in': 0.33}},
-    ),
-    'bed_entry_compact': Engram(
-        'bed_entry_compact', 'bed_entry', 'sensed', 'bed', 'lying_down_from_sitting',
-        'Slightly brisker bridging cadence for compact bed clearance',
-        {'base': 'bed-entry', 'rate_scale': 1.05, 'constants': {'near': 0.04}},
-    ),
-    'crouch_down_mocap': Engram(
-        'crouch_down_mocap', 'crouch_down', 'wire', 'crouch', 'crouching_down',
-        'Mocap-derived crouching-down latent curve from Crouching Down take',
-        {'take': 'crouching_down', 'tempo_scale': 1.0, 'amp_scale': 1.0, 'rest_tail': False},
-    ),
-    'crouch_down_calm': Engram(
-        'crouch_down_calm', 'crouch_down', 'wire', 'crouch', 'crouching_down',
-        'Time-stretched, damped crouch descent from Crouching Down take',
-        {'take': 'crouching_down', 'tempo_scale': 1.25, 'amp_scale': 0.92, 'rest_tail': False},
-    ),
-    'crouch_down_brisk': Engram(
-        'crouch_down_brisk', 'crouch_down', 'wire', 'crouch', 'crouching_down',
-        'Faster crouch descent from Crouching Down take',
-        {'take': 'crouching_down', 'tempo_scale': 0.85, 'amp_scale': 0.95, 'rest_tail': False},
-    ),
-    'crouch_up_mocap': Engram(
-        'crouch_up_mocap', 'crouch_up', 'wire', 'crouch', 'crouch_up',
-        'Mocap-derived crouch recovery curve from Crouch Up take',
-        {'take': 'crouch_up', 'tempo_scale': 1.0, 'amp_scale': 1.0, 'rest_tail': True},
-    ),
-    'crouch_up_calm': Engram(
-        'crouch_up_calm', 'crouch_up', 'wire', 'crouch', 'crouch_up',
-        'Calm crouch recovery curve returning cleanly to rest',
-        {'take': 'crouch_up', 'tempo_scale': 1.25, 'amp_scale': 1.0, 'rest_tail': True},
-    ),
-    'kneel_down_mocap': Engram(
-        'kneel_down_mocap', 'kneel_down', 'wire', 'kneel', 'kneeling_down',
-        'Mocap-derived kneeling descent from Kneeling Down take',
-        {'take': 'kneeling_down', 'tempo_scale': 1.0, 'amp_scale': 0.90, 'rest_tail': False},
-    ),
-    'kneel_down_calm': Engram(
-        'kneel_down_calm', 'kneel_down', 'wire', 'kneel', 'kneeling_down',
-        'Calm kneeling descent scaled from Kneeling Down take',
-        {'take': 'kneeling_down', 'tempo_scale': 1.25, 'amp_scale': 0.85, 'rest_tail': False},
-    ),
-    'turn_left_stock': Engram(
-        'turn_left_stock', 'turn_left', 'wire', 'turn', 'left_turn',
-        'Stock turn_left orthokinematic table',
-        {'base_entry': 'turn_left', 'tempo_scale': 1.0},
-    ),
-    'turn_left_calm': Engram(
-        'turn_left_calm', 'turn_left', 'wire', 'turn', 'left_turn',
-        'Extended blend turn_left matching softer Left Turn yaw onset',
-        {'base_entry': 'turn_left', 'tempo_scale': 1.25},
-    ),
-    'turn_left_brisk': Engram(
-        'turn_left_brisk', 'turn_left', 'wire', 'turn', 'left_turn',
-        'Compressed blend turn_left for snappier Left Turn pivot',
-        {'base_entry': 'turn_left', 'tempo_scale': 0.82},
-    ),
-    'walk_stock': Engram(
-        'walk_stock', 'walk', 'wire', 'gait', 'walking_arc_left',
-        'Stock walk gait row',
-        {'base_entry': 'walk', 'tempo_scale': 1.0},
-    ),
-    'walk_arc_pattern': Engram(
-        'walk_arc_pattern', 'walk', 'wire', 'gait', 'walking_arc_left',
-        'Walk gait modified by Walking Arc Left spectral CPG modifiers',
-        {'pattern': 'walking_arc_left', 'tempo_scale': 1.0},
-    ),
-}
-
-#: Prepared candidate engram lists grouped by controller slot for combinatorial Monte Carlo sweeps.
-SUITES = {
-    'chair': {
-        'mount': ('chair_mount_stock', 'chair_mount_calm', 'chair_mount_deep_pull',
-                  'chair_mount_soft_arms', 'chair_mount_brisk'),
-        'dismount': ('chair_dismount_stock', 'chair_dismount_forward', 'chair_dismount_calm',
-                     'chair_dismount_brisk'),
-    },
-    'bed': {
-        'entry': ('bed_entry_stock', 'bed_entry_gentle', 'bed_entry_deep', 'bed_entry_compact'),
-    },
-    'crouch': {
-        'down': ('crouch_down_mocap', 'crouch_down_calm', 'crouch_down_brisk'),
-        'up': ('crouch_up_mocap', 'crouch_up_calm'),
-    },
-    'kneel': {
-        'down': ('kneel_down_mocap', 'kneel_down_calm'),
-    },
-    'turn': {
-        'turn': ('turn_left_stock', 'turn_left_calm', 'turn_left_brisk'),
-    },
-}
-
-
 def catalog(task=None):
     """Return `Engram` records filtered to `task` (or all when `task` is None)."""
+    merged = {**CATALOG, **_CUSTOM}
     if task is None:
-        return dict(CATALOG)
-    return {k: v for k, v in CATALOG.items() if v.task == task}
+        return merged
+    return {k: v for k, v in merged.items() if v.task == task}
 
 
 def suites():
     """Return prepared combinatorial engram candidate lists by task and slot."""
     return {task: {slot: tuple(items) for slot, items in slots.items()} for task, slots in SUITES.items()}
+
+
+def stunt_bundle(stunt_key):
+    """Return default verified engram bundle for `stunt_key`, or empty tuple when none."""
+    return tuple(STUNT_BUNDLES.get(stunt_key, ()))

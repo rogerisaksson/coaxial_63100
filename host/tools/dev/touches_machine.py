@@ -74,6 +74,7 @@ MACHINE = (
     ('host/machine/senses/momentum.py',               (STRUCTURE, KERNEL, WBC, ERRANDS, SCENES)),
     ('host/machine/process/bank.py',               (STRUCTURE, TICK, MOVE_HANDOVER, CHAIR_SEATED, ERRANDS, ENGRAMS)),
     ('host/machine/process/checkpoint.py',         (STRUCTURE, ENGRAMS)),
+    ('host/machine/process/engram_catalog.py',     (STRUCTURE, ENGRAMS)),
     ('host/machine/process/engrams.py',            (STRUCTURE, ENGRAMS)),
     ('host/machine/process/joints.py',             (STRUCTURE, TICK, MOVE_HANDOVER, CHAIR_SEATED, ERRANDS, ENGRAMS)),
     ('host/machine/',                          (CONTROLLER, GYNOID, SIGHT, CAMERA, REACH, TERMS, WBC, WBC_CORE, COMPILED, PORTED, BORNE, TICK, STICTION,
