@@ -211,7 +211,12 @@ class Feed:
         as it takes a frame's reading has a new one for the next frame."""
         self._kicked.set()
 
-    def stop(self, wait=1.0):
+    @property
+    def stopping(self):
+        """Whether `stop` has asked the feed thread to exit."""
+        return self._stop.is_set()
+
+    def stop(self, wait=5.0):
         """Ask it to stop and wait, so nothing touches the link during teardown."""
         self._stop.set()
         self._kicked.set()

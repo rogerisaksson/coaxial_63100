@@ -73,13 +73,13 @@ TRUNK = tuple((name,) + at[:4] + (kind, shape(at)) for (name, kind), at in zip(
 _FAN = ((0, 1, 2), (0, 2, 3), (0, 3, 5), (3, 4, 5))
 
 
-def _reach(corners, x, hard, behind=0.0):
+def _reach(corners, x, hard, behind=0.0, air=AIR_M, skirt=SKIRT):
     """`at(y, about)`: how far a shell's `corners` (its part's frame, its axis its y) stand from
     that axis at the heights `y` and the ways round `about`, rad from its side `x` (1 its
     left's +x, -1 its right's) toward ahead: its furthest in each row and sector, a cell with
     none its neighbours' round its row, a row with none its neighbours'; no nearer than the
-    mechanism's corners `hard` there and AIR_M, a guard's foam and what stands `behind` it (a
-    hoop) past them; skirted (SKIRT)."""
+    mechanism's corners `hard` there and `air`, a guard's foam and what stands `behind` it (a
+    hoop) past them; skirted (`skirt`)."""
     from coaxial.model.blocks import numpy as np
     low = min(float(corners[:, 1].min()), float(hard[:, 1].min(initial=np.inf)))
     ys = np.arange(low, max(float(corners[:, 1].max()), float(hard[:, 1].max(initial=-np.inf))) + ROW_M, ROW_M)
@@ -96,8 +96,8 @@ def _reach(corners, x, hard, behind=0.0):
         table[r] = np.interp(k, k[table[r] > 0.0], table[r, table[r] > 0.0], period=SECTORS)
     table = np.stack([np.interp(np.arange(len(ys)), rows, table[rows, c]) for c in k], 1)
     by = told(hard)
-    table = np.maximum(table, np.where(by > 0.0, by + AIR_M + THICK_M - SKIN_M + behind, 0.0))
-    for _ in range(SKIRT):
+    table = np.maximum(table, np.where(by > 0.0, by + air + THICK_M - SKIN_M + behind, 0.0))
+    for _ in range(skirt):
         tall = np.pad(table, ((1, 1), (0, 0)), 'edge')
         table = np.maximum(table, (np.roll(table, 1, 1) + np.roll(table, -1, 1) + tall[:-2] + tall[2:]) / 4.0)
 
@@ -295,12 +295,21 @@ def laid(surfaces, runs=None, stands=None):
                 (-a * LIMBS[limb][0], -b * LIMBS[limb][0], mid, half, kind, form)
                 for _name, a, b, mid, half, kind, form in LIMB[limb]]
         elif seg == 'torso':
-            part, body, rows = seg, corners * (SLIM, 1.0, SLIM) if SLIM < 1.0 else corners, [
+            from coaxial.model.blocks import numpy as np
+            body = corners * (SLIM, 1.0, SLIM) if SLIM < 1.0 else corners
+            if SLIM < 1.0:
+                dorsal = body[:, 2] < 0.0
+                svank = 0.028 * np.exp(-((body[:, 1] - 0.145) / 0.065) ** 2)
+                thorax = 0.004 * np.exp(-((body[:, 1] - 0.305) / 0.045) ** 2)
+                body = body.copy()
+                body[dorsal, 2] = np.minimum(body[dorsal, 2] + svank[dorsal] - thorax[dorsal], -0.020)
+            part, rows = seg, [
                 (high, low, mid, half, kind, form) for _name, low, high, mid, half, kind, form in TRUNK]
         else:
             continue
-        plain = _reach(body, x, hard)                    # and, where a hoop stands behind a guard, room for it
-        lifted = _reach(body, x, hard, HOOP_M[0] + CLIP_M) if hoops(part) else plain
+        air, sk = (AIR_M, 2) if (seg == 'torso' and SLIM < 1.0) else (AIR_M, SKIRT)
+        plain = _reach(body, x, hard, air=air, skirt=sk)  # and, where a hoop stands behind a guard, room for it
+        lifted = _reach(body, x, hard, HOOP_M[0] + CLIP_M, air=air, skirt=sk) if hoops(part) else plain
         made[seg] = (x, part, lifted, [(_guard(plain if clip is None else lifted, x, top, foot, mid, half, kind, form,
                                                clip), clip)
                                        for top, foot, mid, half, kind, form in rows for clip in (held(part, top, foot, mid),)])

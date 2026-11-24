@@ -56,10 +56,11 @@ def test_the_mechanical_face_clears_plates_gimbals_and_neck(report):
                  bool(chk.get('ok')) and chk.get('neck_cross') == 0 and chk.get('mount_cross') == 0
                  and chk.get('lid_shut_cross') == 0 and sum((chk.get('preset_cross') or {'x': 1}).values()) == 0,
                  got.get('failed') or chk)
-    report.check('stereo camera gimbals match the 120 mm stereo baseline and open-edge count stays zero',
-                 abs((chk.get('baseline_mm') or 0.0) - (got.get('target_b_mm') or 120.0)) < 1.0
+    report.check('stereo camera gimbals match the 64 mm build stereo baseline and open-edge count stays zero',
+                 abs((chk.get('baseline_mm') or 0.0) - (got.get('target_b_mm') or 64.0)) < 1.0
+                 and abs((got.get('target_b_mm') or 0.0) - 64.0) < 0.5
                  and sum((chk.get('open_edges') or {'x': 1}).values()) == 0,
-                 (chk.get('baseline_mm'), chk.get('open_edges')))
+                 (chk.get('baseline_mm'), got.get('target_b_mm'), chk.get('open_edges')))
     report.check('ovoid cranium crown, narrower facial proportions and flush ear mics match anthropometric targets',
                  225.0 <= (chk.get('crown_mm') or 0.0) <= 232.0
                  and 70.0 <= (got.get('cranium_mm') or 0.0) <= 74.5

@@ -15,7 +15,7 @@ import sys
 if __package__ in (None, ''):
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from tools.render import csg, face_laid as fl, neck_mount as nm  # noqa: E402
+from tools.render import csg, face_honeycomb as fh, face_laid as fl, neck_mount as nm  # noqa: E402
 from tools.render.robot_worn import NECK_RINGS  # noqa: E402
 
 PRESETS = {
@@ -26,8 +26,9 @@ PRESETS = {
     'speaking': {'gaze': (-0.10, -0.03, 0.05), 'blink': 0.06, 'brow_lift': 0.34, 'brow_tilt': 0.20, 'smile': 0.48, 'jaw_open': 0.82},
 }
 
-STATIC_PLATE_KEYS = ('cranium_dome', 'left_temporal', 'right_temporal', 'left_orbital_pillar',
-                     'right_orbital_pillar', 'nasal_bridge', 'left_maxilla', 'right_maxilla', 'philtrum', 'upper_lip')
+STATIC_PLATE_KEYS = ('cranium_frontal', 'cranium_dome', 'cranium_occipital', 'left_temporal', 'right_temporal',
+                     'left_mastoid', 'right_mastoid', 'left_orbital_pillar', 'right_orbital_pillar',
+                     'nasal_bridge', 'left_maxilla', 'right_maxilla', 'philtrum', 'upper_lip')
 
 
 def _eyes_posed(gaze):
@@ -56,11 +57,12 @@ def _eyes_posed(gaze):
         lx = sgn * 0.0098
         lbox = csg.filleted2d(csg.box2d((min(lx, sgn * 0.0076), max(lx, sgn * 0.0076)), (-0.0012, 0.0012)), r=0.00038)
         ylug = csg.extrude(lbox, a=-0.0009, b=0.0009, axis=2, colour=fl.TITANIUM, chamfer=0.0003).tris()
-        out[side + '_camera'] = fl.turn_tris(cam_l, rc, (0.0, 0.0, 0.0), piv)
-        out[side + '_gimbal'] = (fl.turn_tris(ring_l + ylug, rr, (0.0, 0.0, 0.0), piv)
-                                 + fl.turn_tris(pins_l, rm, (0.0, 0.0, 0.0), piv))
+        out[side + '_camera'] = fh.turn_tris(cam_l, rc, (0.0, 0.0, 0.0), piv)
+        out[side + '_gimbal'] = (fh.turn_tris(ring_l + ylug, rr, (0.0, 0.0, 0.0), piv)
+                                 + fh.turn_tris(pins_l, rm, (0.0, 0.0, 0.0), piv))
         links += (fl.rod((pv_l if sgn > 0 else pv_r) + np.array([0.0, 0.0, 0.004]), piv + rr @ np.array([lx, 0.0, 0.0]), 0.00085)
-                  + fl.rod(np.array([sgn * 0.043, ry - 0.0050 * math.sin(gz[1]), rz + 0.0050 * math.cos(gz[1])]),
+                  + fl.rod(np.array([sgn * max(0.022, 0.5 * float(stereo.BASELINE_M) - 0.001),
+                                     ry - 0.0050 * math.sin(gz[1]), rz + 0.0050 * math.cos(gz[1])]),
                            piv + rc @ np.array([0.0, 0.0066, 0.0020]), 0.00085))
     out['gaze_linkages'] = links
     return out
@@ -78,32 +80,33 @@ def _expressions_posed(blink, brow_lift, brow_tilt, smile, jaw_open):
     out = {k: [] for k in ('brow_servos', 'brow_linkages', 'lid_servos', 'lid_linkages',
                            'smile_servos', 'smile_linkages', 'jaw_servos', 'jaw_linkages')}
     dy = 0.0023 * blf
+    ex = float(piv_l[0])
     for side, sgn in (('left', 1.0), ('right', -1.0)):
-        bpiv, rb = np.array([sgn * 0.040, 0.118, 0.089]), fl.rot('z', -sgn * math.radians(3.2 * btl))
-        out[side + '_brow'] = fl.turn_tris(brow0 if sgn > 0 else fl.mirror_x(brow0), rb, bpiv, (0.0, dy, 0.0))
-        sb1, hb1, tb1, _ = fl.micro_servo((sgn * 0.022, 0.138, 0.054), 'x', -0.45 * (blf + 0.5 * btl), 0.0060, sgn=sgn)
-        sb2, hb2, tb2, _ = fl.micro_servo((sgn * 0.040, 0.136, 0.048), 'x', -0.45 * (blf - 0.5 * btl), 0.0060, sgn=sgn)
+        bpiv, rb = np.array([sgn * (ex + 0.003), 0.116, 0.090]), fl.rot('z', -sgn * math.radians(3.2 * btl))
+        out[side + '_brow'] = fh.turn_tris(brow0 if sgn > 0 else fl.mirror_x(brow0), rb, bpiv, (0.0, dy, 0.0))
+        sb1, hb1, tb1, _ = fl.micro_servo((sgn * (ex - 0.011), 0.138, 0.054), 'x', -0.45 * (blf + 0.5 * btl), 0.0060, sgn=sgn)
+        sb2, hb2, tb2, _ = fl.micro_servo((sgn * (ex + 0.006), 0.136, 0.048), 'x', -0.45 * (blf - 0.5 * btl), 0.0060, sgn=sgn)
         out['brow_servos'] += sb1 + sb2
         out['brow_linkages'] += (hb1 + hb2
-                                 + fl.rod(tb1, bpiv + rb @ np.array([-sgn * 0.014, -0.001, -0.003]) + (0.0, dy, 0.0), 0.00080)
+                                 + fl.rod(tb1, bpiv + rb @ np.array([-sgn * 0.012, -0.001, -0.003]) + (0.0, dy, 0.0), 0.00080)
                                  + fl.rod(tb2, bpiv + rb @ np.array([sgn * 0.006, -0.001, -0.012]) + (0.0, dy, 0.0), 0.00080))
 
         ps = piv_l * (sgn, 1.0, 1.0)
         ru, rl = fl.rot('x', math.radians(16.0 * bl)), fl.rot('x', math.radians(-19.5 * bl))
-        out[side + '_upper_lid'] = fl.turn_tris(ulid0 if sgn > 0 else fl.mirror_x(ulid0), ru, ps)
-        out[side + '_lower_lid'] = fl.turn_tris(llid0 if sgn > 0 else fl.mirror_x(llid0), rl, ps)
-        slb, slh, tl, _ = fl.micro_servo((sgn * 0.048, 0.108, 0.048), 'x', 0.55 * bl, 0.0056, sgn=sgn)
+        out[side + '_upper_lid'] = fh.turn_tris(ulid0 if sgn > 0 else fl.mirror_x(ulid0), ru, ps)
+        out[side + '_lower_lid'] = fh.turn_tris(llid0 if sgn > 0 else fl.mirror_x(llid0), rl, ps)
+        slb, slh, tl, _ = fl.micro_servo((sgn * (ex + 0.015), 0.108, 0.048), 'x', 0.55 * bl, 0.0056, sgn=sgn)
         out['lid_servos'] += slb
         out['lid_linkages'] += slh + fl.rod(tl, ps + ru @ np.array([sgn * 0.0036, 0.0074, 0.0068]), 0.00075)
 
         cpiv, rc = np.array([sgn * 0.0206, 0.0458, 0.0932]), fl.rot('z', sgn * math.radians(18.0 * sm))
-        out[side + '_lip_corner'] = fl.turn_tris(comm0 if sgn > 0 else fl.mirror_x(comm0), rc, cpiv, (0.0, 0.0012 * sm, 0.0))
+        out[side + '_lip_corner'] = fh.turn_tris(comm0 if sgn > 0 else fl.mirror_x(comm0), rc, cpiv, (0.0, 0.0012 * sm, 0.0))
         ssb, ssh, ts, _ = fl.micro_servo((sgn * 0.036, 0.068, 0.050), 'z', sgn * 0.55 * sm, 0.0060, (sgn, 0.0, 0.0))
         out['smile_servos'] += ssb
         out['smile_linkages'] += ssh + fl.rod(ts, cpiv + rc @ np.array([sgn * 0.0080, 0.0006, -0.0095]) + (0.0, 0.0012 * sm, 0.0), 0.00080)
 
     jpiv, rj = np.array([0.0, 0.066, 0.024]), fl.rot('x', math.radians(15.5 * jw))
-    out['mandible'] = fl.turn_tris(jaw0, rj, jpiv)
+    out['mandible'] = fh.turn_tris(jaw0, rj, jpiv)
     for sgn in (1.0, -1.0):
         sjb, sjh, tj, _ = fl.micro_servo((sgn * 0.035, 0.078, 0.038), 'x', 0.58 * jw, 0.0062, sgn=sgn)
         out['jaw_servos'] += sjb
@@ -113,7 +116,8 @@ def _expressions_posed(blink, brow_lift, brow_tilt, smile, jaw_open):
 
 def head_parts(gaze=(0.0, 0.0, 0.02), blink=0.0, brow_lift=0.0, brow_tilt=0.0, smile=0.0, jaw_open=0.0, plates=True):
     """Return `{name: [(tri, rgb)]}` of the mechanical head in `head` local frame (m)."""
-    out = {'chassis': fl.chassis_static(), **fl.ear_microphones(), **_eyes_posed(gaze)}
+    out = {'chassis': fl.chassis_static(), 'compute_heatsink': fl.compute_heatsink(),
+           **fl.ear_microphones(), **_eyes_posed(gaze)}
     expr = _expressions_posed(blink, brow_lift, brow_tilt, smile, jaw_open)
     if plates:
         return {**out, **fl.static_plates(), **expr}
@@ -125,7 +129,7 @@ def neck_skin_tris(nod=0.0, head_yaw=0.0):
     from coaxial.graphics import lit
     from coaxial.graphics.shapes import finer, loft
     np, (nt, hr, *_r) = fl.np_mod(), fl.anchors()
-    c, tris, _uv, _m = loft(finer(NECK_RINGS, -0.040, 0.072, 0.004), lit.paint(fl.NECK_SKIN), poles=(-0.044, 0.076))
+    c, tris, _uv, _m = loft(finer(NECK_RINGS, -0.040, 0.072, 0.004), lit.paint(fh.NECK_SKIN), poles=(-0.044, 0.076))
     yn = c[:, 1].copy()
     if head_yaw:
         wy = np.clip((yn - 0.040) / 0.032, 0.0, 1.0)
@@ -138,7 +142,7 @@ def neck_skin_tris(nod=0.0, head_yaw=0.0):
         cy, cz = c[:, 1].copy(), c[:, 2].copy()
         c[:, 1], c[:, 2] = np.cos(a) * cy - np.sin(a) * cz, np.sin(a) * cy + np.cos(a) * cz
     pts = c + np.asarray(nt, float)
-    return [(pts[t], fl.NECK_SKIN) for t in tris]
+    return [(pts[t], fh.NECK_SKIN) for t in tris]
 
 
 def posed(preset=None, nod=0.0, head_yaw=0.0, plates=True, include_neck=True, **kwargs):
@@ -148,8 +152,8 @@ def posed(preset=None, nod=0.0, head_yaw=0.0, plates=True, include_neck=True, **
     ry, rx = fl.rot('y', math.radians(float(head_yaw))), fl.rot('x', math.radians(float(nod)))
     out = {}
     for k, ts in head_parts(plates=plates, **kw).items():
-        tr = fl.turn_tris(ts, ry, (0.0, 0.0, 0.0), ht)
-        out[k] = fl.turn_tris(tr, rx, nt) if nod else tr
+        tr = fh.turn_tris(ts, ry, (0.0, 0.0, 0.0), ht)
+        out[k] = fh.turn_tris(tr, rx, nt) if nod else tr
     if include_neck:
         nmp = nm.posed(nod=nod, turn=head_yaw)
         for k in ('crown', 'head drive', 'head ring', 'carrier'):
@@ -188,7 +192,7 @@ def lit_mesh(parts_dict):
             continue
         raw, cols = np.array([t for t, _c in tris], np.float64), np.array([c for _t, c in tris], np.uint32)
         vn, fc = _normals(raw, 175.0 if key == 'neck_skin' else 52.0), raw.reshape(-1, 3)
-        matte = (cols == fl.OPTIC_DARK).all(1) | (cols == fl.BAFFLE_DARK).all(1) | (key == 'neck_skin')
+        matte = (cols == fh.OPTIC_DARK).all(1) | (cols == fl.BAFFLE_DARK).all(1) | (key == 'neck_skin')
         flags = (np.uint32(lit.PAINTED) | np.where(matte, np.uint32(lit.WOVEN), np.uint32(lit.HARD))
                  | np.where((cols == fl.CHASSIS_CF).all(1), np.uint32(lit.TWILL), np.uint32(0))
                  | (cols[:, 0] << np.uint32(16)) | (cols[:, 1] << np.uint32(8)) | cols[:, 2])
@@ -273,7 +277,9 @@ def checked():
         pl = st + mv
         pc[nm_] = int(clips.crossed(mv, st) + clips.crossed(p['left_upper_lid'] + p['right_upper_lid'], p['left_lower_lid'] + p['right_lower_lid'])
                       + clips.crossed(p['left_lip_corner'] + p['right_lip_corner'], p['mandible'])
-                      + clips.crossed(ey, pl) + clips.crossed(p['left_ear_mic'] + p['right_ear_mic'], pl)
+                      + clips.crossed(ey, pl + p['compute_heatsink'])
+                      + clips.crossed(p['left_ear_mic'] + p['right_ear_mic'], pl)
+                      + clips.crossed(p['compute_heatsink'], pl)
                       + clips.crossed(ey, p['chassis']))
     bf = head_parts(blink=1.0, plates=True)
     lshut = int(clips.crossed(bf['left_upper_lid'] + bf['right_upper_lid'], bf['left_lower_lid'] + bf['right_lower_lid']))
@@ -288,7 +294,9 @@ def checked():
     berr = round(1e3 * abs(float(cl[0] - cr[0]) - float(stereo.BASELINE_M)), 2)
     crown_mm = round(1e3 * float(np.vstack([t for t, _c in neu['cranium_dome']])[:, 1].max()), 2)
     oe = {k: int(solids.printable([1e3 * t for t, _c in neu[k]])['open'])
-          for k in ('cranium_dome', 'left_temporal', 'nasal_bridge', 'left_brow', 'left_maxilla', 'left_orbital_pillar', 'philtrum', 'upper_lip')}
+          for k in ('cranium_frontal', 'cranium_dome', 'cranium_occipital', 'left_temporal', 'left_mastoid',
+                    'nasal_bridge', 'left_brow', 'left_maxilla', 'left_orbital_pillar', 'philtrum', 'upper_lip',
+                    'compute_heatsink')}
     return {'ok': sum(pc.values()) == 0 and lshut == 0 and nc == 0 and mc == 0 and berr < 1.0 and sum(oe.values()) == 0 and abs(float(gimbal.DOWN_DEG) - 15.0) < 1e-6,
             'preset_cross': pc, 'lid_shut_cross': lshut, 'neck_cross': int(nc), 'mount_cross': int(mc),
             'baseline_mm': round(1e3 * float(cl[0] - cr[0]), 2), 'crown_mm': crown_mm, 'open_edges': oe, 'part_count': len(neu)}

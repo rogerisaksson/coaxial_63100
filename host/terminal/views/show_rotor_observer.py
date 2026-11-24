@@ -411,6 +411,29 @@ def _console_for(args):
     return board_view
 
 
+def _restore_view(rig, board, view, was_on, console):
+    """Restore motor stage, drive mode, AFE rail and print the closing summary."""
+    done = []
+    try:
+        if view.get('world_drag'):
+            view['world_drag'](0.0, 0.0)
+            done.append(('world', 'the demo\'s loads off its shaft'))
+        board.drive.off()
+        done.append(('drive', 'off, the compares released'))
+        board.drive.configure(source='adc')
+        rig.gates.off()
+        done.append(('gate stage', 'disarmed, MOE clear, the break back'))
+        board.gate_drivers.configure(sync=False)
+        if board.afe.is_on() != was_on:
+            board.afe.write(was_on)
+        done.append(('AFE_ON', 'back the way it was found'))
+    except RigError as exc:
+        done.append(('putting it back', 'FAILED: %s' % exc))
+    rig.close()
+    sys.stdout.write('\n')
+    closing(done, console, 0)
+
+
 def main(argv=None):
     args = parse_args(argv)
     if args.segment:
@@ -472,6 +495,8 @@ def main(argv=None):
     quick = standing(origin) == 'simulated' or port_mode(args.port) == 'NAT'
     thermal_every = 0.25 if quick else 2.0
 
+    feed = None
+
     def sample():
         """The board's side of a frame, on the feed's thread, the frame not waiting for it: the
         drive's state every pass, the loop's input, and the model's beside it - a frame drawn
@@ -480,24 +505,33 @@ def main(argv=None):
         its identification once a second. A read costs 9-18 ms of native's line: all of them a
         pass, the loop stepped 8.8 times a second of its 20."""
         with suppress(RigError):
+            if feed is not None and feed.stopping:
+                return
             now = time.time()
             state = board.drive.state()
             model = board.drive.model.read() if view['source'] == 'model' else None
+            if feed is not None and feed.stopping:
+                return
             if now - panels_at[0] > PANELS_S:
                 # The chain: a second answer to the angle, no shaft sensor behind it.
                 view.update(gate=board.gate_drivers.state(), chain=board.drive.observers.read())
                 panels_at[0] = now
             travel(view, state)
             view.update(state=state, model=model)
+            if feed is not None and feed.stopping:
+                return
             turn_the_handle(rig, view)
+            if feed is not None and feed.stopping:
+                return
             if now - thermal_at[0] > thermal_every:
                 view['thermal'] = board.thermal.state()
                 view['budget'] = board.thermal.budget()
-                if now - ident_at[0] > IDENT_S:
+                if now - ident_at[0] > IDENT_S and not (feed is not None and feed.stopping):
                     view['ident'] = board.thermal.identification()
                     ident_at[0] = now
                 thermal_at[0] = now
-                rearm_after_trip(rig, origin, view)
+                if not (feed is not None and feed.stopping):
+                    rearm_after_trip(rig, origin, view)
 
     sample()
     feed = Feed(sample, period=1.0 / FEED_HZ).start()
@@ -512,25 +546,7 @@ def main(argv=None):
                            args.frames, draw, mouse=True, pad=PAD, state=view)
     finally:
         feed.stop()
-        done = []
-        try:
-            if view.get('world_drag'):
-                view['world_drag'](0.0, 0.0)
-                done.append(('world', 'the demo\'s loads off its shaft'))
-            board.drive.off()
-            done.append(('drive', 'off, the compares released'))
-            board.drive.configure(source='adc')
-            rig.gates.off()
-            done.append(('gate stage', 'disarmed, MOE clear, the break back'))
-            board.gate_drivers.configure(sync=False)
-            if board.afe.is_on() != was_on:
-                board.afe.write(was_on)
-            done.append(('AFE_ON', 'back the way it was found'))
-        except RigError as exc:
-            done.append(('putting it back', 'FAILED: %s' % exc))
-        rig.close()
-        sys.stdout.write('\n')
-        closing(done, console, 0)
+        _restore_view(rig, board, view, was_on, console)
     return answer(leaving)
 
 
