@@ -237,8 +237,8 @@ ERRANDS = 'test_errands.py'
 #: The robot's docks foreseen on its page: the bed's long side and its foot, on the world's boxes and
 #: on the robot's eyes.
 DOCKS = 'test_docks.py'
-#: The robot's deep sit on chairs and warm move bank hot-swaps.
-CHAIR_SEATED, MOVE_HANDOVER = 'test_chair_seated.py', 'test_move_handover.py'
+#: The robot's deep sit on chairs, warm move bank hot-swaps, and motor engrams.
+CHAIR_SEATED, MOVE_HANDOVER, ENGRAMS = 'test_chair_seated.py', 'test_move_handover.py', 'test_engrams.py'
 #: The robot's motion's measures in a dimensionless frame on SO(3) (tools/sim/gvs.py).
 GVS = 'test_gvs.py'
 #: The robot's recorded runs replayed, each without a fall (tests/replays, tools/sim/replay.py).
@@ -278,7 +278,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, NATIVE_SYSID, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, CAMERA, GAZE, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
-                   WBC_CORE, LEAP, WASD, WRENCH, CHAIN, QP, SYSID, SYSID_LIVE, COMPILED, QUICK, TICK, STICTION, VECTORIZED, LIBM, PLATFORM, PLACED, DEPENDS, CI, WORKFLOW, SMART, PORTED, BORNE, REGISTRY, AFFORD, CLASSES, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, DSP, KERNEL, SHIELD, WAYFINDER, SAYS, INTROSPECT, GATE, TUNE, FLOOR, SITUATION, BUSES, ERRANDS, DOCKS, CHAIR_SEATED, MOVE_HANDOVER,
+                   WBC_CORE, LEAP, WASD, WRENCH, CHAIN, QP, SYSID, SYSID_LIVE, COMPILED, QUICK, TICK, STICTION, VECTORIZED, LIBM, PLATFORM, PLACED, DEPENDS, CI, WORKFLOW, SMART, PORTED, BORNE, REGISTRY, AFFORD, CLASSES, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, DSP, KERNEL, SHIELD, WAYFINDER, SAYS, INTROSPECT, GATE, TUNE, FLOOR, SITUATION, BUSES, ERRANDS, DOCKS, CHAIR_SEATED, MOVE_HANDOVER, ENGRAMS,
                    CYCLIC, QUAD, QUAD_PULL,
                    AERO_CORE, MPPI_CORE, SE3_CORE, SE3_GRIP, STREAMS, QUAD_COURSE, SWEEP, BOOT)
                   + VIEWS
@@ -342,6 +342,7 @@ JOINS = (
     (12, DOCKS),
     (12, CHAIR_SEATED),
     (12, MOVE_HANDOVER),
+    (12, ENGRAMS),
     (12, WRENCH),
     (12, CHAIN),
     (12, CYCLIC),
@@ -440,20 +441,12 @@ PORT = ('test_mcp.py', 'test_parity.py')
 #: Suites that run their tests through tools.dev.focus.chosen: past a slice of the run they go
 #: on as shards side by side.
 SHARDED = (SENSORLESS, CONTROLLER, GYNOID, ORTHO, SYSID, SYSID_LIVE, WEAR, SITUATION, 'test_simulated.py', 'test_views_segments.py',
-           DAQ_API, QUAD_PAGE, REPLAYS, SCENES, ERRANDS, CHAIR_SEATED, MOVE_HANDOVER, WASD, STRUCTURE,
+           DAQ_API, QUAD_PAGE, REPLAYS, SCENES, ERRANDS, CHAIR_SEATED, MOVE_HANDOVER, ENGRAMS, WASD, STRUCTURE,
            PORTED, 'test_mirrors.py', LEAP, TICK, STICTION, VECTORIZED, LIBM, FLOOR, CAMERA, SIGHT, GAZE,
            'test_views_clothes.py', 'test_views_built.py')
 
-#: A suite's seconds where the tree holds no record of its own (tests/.counts.json, not committed) are its work
-#: in tests/work.json over the pace of the host a run is on (tools/dev/machine_detector.py): numbers written
-#: here - 900 s for the keys' suite, a cut on CI's runner told beside it - were this host's guesses of another's.
-
-#: The emulator's groups and each one's time, s, a Renode each: the rig's took 150 of the
-#: suite's 211 one after another here, and CI's runner ran the Release image's past 240.
-#: The blank node's, its image streamed at the emulator's pace, 157 to past 480
-#: on CI's runner against 133 here; the bus's echoes through a limb of three at 475 MIPS
-#: 129 here at 56 wall s a board s, past 480 on CI's runner with the off-rate open (63)
-#: in the same group.
+#: Suite work estimates live in `tests/work.json` (`machine_detector.py`).
+#: Emulator groups and per-Renode budgets, s.
 EMULATOR_GROUPS = {'board': 480, 'blank': 900, 'bus': 900, 'rate': 480, 'conformance': 480,
                    'fallback': 480}
 #: What a suite asks the relay with, a line of its own beside its tests: `RENODE = {word: machines}`.

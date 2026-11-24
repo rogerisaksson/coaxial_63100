@@ -1,6 +1,6 @@
 """What a change to machine/ reaches: its folders' modules, a prefix each, and their suites."""
 from tools.dev.suites import (AERO_CORE, BALLISTIC, BEDSIDE, BUSES, CAMERA, CHAIR_SEATED, COMPILED, CONTROLLER, CRAWL,
-                              CTRL_CORE, CYCLIC, DSP, ERRANDS, FLOOR, FOURS, GATE, GROUNDWORK,
+                              CTRL_CORE, CYCLIC, DSP, ENGRAMS, ERRANDS, FLOOR, FOURS, GATE, GROUNDWORK,
                               GYNOID, INTROSPECT, KERNEL, LEAP, MOVE_HANDOVER, MPPI_CORE, NATIVE_SYSID, ORTHO, PORTED, BORNE, REGISTRY,
                               POSTURES, QUADS, REACH, RENDER, REPLAYS, SAYS, SCENES, SENSORLESS, SHIELD,
                               SIGHT, SITUATION, STREAMS, STRUCTURE, SUBSTRATE, SWEEP, SYSID, SYSID_LIVE,
@@ -72,10 +72,12 @@ MACHINE = (
     ('host/machine/rig/layouts.py',                (STRUCTURE,)),
     ('host/machine/senses/observer.py',               (STRUCTURE, KERNEL, WBC, ERRANDS, SCENES)),
     ('host/machine/senses/momentum.py',               (STRUCTURE, KERNEL, WBC, ERRANDS, SCENES)),
-    ('host/machine/process/bank.py',               (STRUCTURE, TICK, MOVE_HANDOVER, CHAIR_SEATED, ERRANDS)),
-    ('host/machine/process/joints.py',             (STRUCTURE, TICK, MOVE_HANDOVER, CHAIR_SEATED, ERRANDS)),
+    ('host/machine/process/bank.py',               (STRUCTURE, TICK, MOVE_HANDOVER, CHAIR_SEATED, ERRANDS, ENGRAMS)),
+    ('host/machine/process/checkpoint.py',         (STRUCTURE, ENGRAMS)),
+    ('host/machine/process/engrams.py',            (STRUCTURE, ENGRAMS)),
+    ('host/machine/process/joints.py',             (STRUCTURE, TICK, MOVE_HANDOVER, CHAIR_SEATED, ERRANDS, ENGRAMS)),
     ('host/machine/',                          (CONTROLLER, GYNOID, SIGHT, CAMERA, REACH, TERMS, WBC, WBC_CORE, COMPILED, PORTED, BORNE, TICK, STICTION,
-                                                LEAP, WRENCH, SYSID, SYSID_LIVE, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, FLOOR, SITUATION, BUSES, ERRANDS, CHAIR_SEATED, MOVE_HANDOVER, CYCLIC, REPLAYS, SCENES,
+                                                LEAP, WRENCH, SYSID, SYSID_LIVE, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, FLOOR, SITUATION, BUSES, ERRANDS, CHAIR_SEATED, MOVE_HANDOVER, ENGRAMS, CYCLIC, REPLAYS, SCENES,
                                                 TUNE, KERNEL, 'test_simulated.py', 'test_mcp.py',
                                                 'test_views_humanoid.py', 'test_views_floor.py')),
 )

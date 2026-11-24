@@ -45,10 +45,8 @@ def _typed():
     return lib
 
 
-@functools.lru_cache(maxsize=None)
-def _laid(name):
-    """(the library, move `name`'s tables in C) from `machine.moves.sensed`'s, refused past P phases."""
-    t = py.tables(name)
+def _pack_tables(name, t):
+    """(the library, Tables) packed from `machine.moves.sensed.Tables` `t`, refused past P phases."""
     n = len(t.names)
     if n > P:
         raise MachineError('%s: %d phases, the robot\'s C moves take %d at most' % (name, n, P))
@@ -61,6 +59,12 @@ def _laid(name):
                     goal=cells(padded(t.goal)), how=cells(padded(t.how)), rate=cells(padded(t.rates)),
                     **dict(zip(('plant', 'pull_in', 'still', 'lain', 'near', 'strokes', 'tol'), t.numbers)))
     return _typed(), tables
+
+
+@functools.lru_cache(maxsize=None)
+def _laid(name):
+    """(the library, move `name`'s tables in C) from `machine.moves.sensed`'s, refused past P phases."""
+    return _pack_tables(name, py.tables(name))
 
 
 class Move(py.Move):
@@ -83,6 +87,24 @@ class Move(py.Move):
         lib, tables = self._laid()
         return lib.wbh_sensed_step(ctypes.byref(tables), state.ctypes.data, cmd.ctypes.data, dt, soles, along, half,
                                    pitch, speed)
+
+
+class CustomMove(Move):
+
+    """Hot-swappable C move backed by explicit `machine.moves.sensed.Tables` without disk edits."""
+
+    def __init__(self, name, tables):
+        self.name, self.tables = name, tables
+        self.SENSED, self.HOLDS = py.SENSED, tables.holds
+        self._packed = _pack_tables(name, tables)
+
+    def _laid(self):
+        return self._packed
+
+
+def from_tables(name, tables):
+    """Compile runtime `machine.moves.sensed.Tables` `tables` into a C `CustomMove`."""
+    return CustomMove(name, tables)
 
 
 @functools.lru_cache(maxsize=None)

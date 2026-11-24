@@ -124,7 +124,8 @@ def said(g, command):
         bank.activate(g, command)
         return
     kept = {j for group in str(command.get('keep', '')).split() for j in KEPT[group]}
-    beats = program(command['joints'])
+    progs = (g.get('bank') or {}).get('programs', {})
+    beats = progs[command['joints']] if command['joints'] in progs else program(command['joints'])
     first, last = STROKES.get(command['joints'], (None, None))
     if first is not None and 'strokes' in command:
         i = next(k for k, b in enumerate(beats) if b[0] == first)
