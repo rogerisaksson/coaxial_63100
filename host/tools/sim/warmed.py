@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
-"""The robot's control system compiled for its sources before its page lays it: a pull leaves its parts' C behind.
+"""The robot's control system compiled for its sources before its page lays it.
 
-A change under the robot's machine, its cores or its texts restamps every part its law keeps (`tools.cores.kept`); a
-change of what their libraries are built of (the glue's `quick.h`, the cores' headers) rebuilds each. Its page then
-laid the robot on numpy's own while a thread beside its loop traced, built and held a part at a time: after a pull 37
-builds over 16 minutes and many sessions, the robot's world at x0.42-0.56 of real time meanwhile. Here the robot is
-laid as its worker lays it (`pace.Run`), its eyes the world's boxes (`blind`: flat out, the camera's looks held its loop
-93 % of the wall at x0.09, and it never walked), its processes where the system moves them (`placed.FLOAT`), stood and walked
-(ERRANDS): each part its law meets traced, their builds as wide as the host's batch (`held.widened`) and waited for,
-each held bit for bit by the passes after (`bodied.met`) - a shape met once and not again left to hold where it is met,
-its library built. No build left, the stamp is marked (`kept.marked`) and the robot's page's first pass takes them all.
+A pull leaves the robot's parts' C behind. A change under the robot's machine, its cores or its texts restamps every
+part its law keeps (`tools.cores.kept`); a change of what their libraries are built of (the glue's `quick.h`, the
+cores' headers) rebuilds each. The robot's page then laid the robot on numpy's own while a thread beside its loop
+traced, built and held a part at a time: after a pull 37 builds over 16 minutes and many sessions, the robot's world
+at x0.42-0.56 of real time meanwhile. Here the robot is laid as its worker lays it (`pace.Run`), its eyes the world's
+boxes (`blind`: flat out, the camera's looks held the robot's loop 93 % of the wall at x0.09, and the robot never
+walked), its processes where the system moves them (`placed.FLOAT`), stood and walked (ERRANDS): each part its law
+meets traced, their builds as wide as the host's batch (`held.widened`) and waited for, each held bit for bit by the
+passes after (`bodied.met`) - a shape met once and not again left to hold where it is met, its library built. No build
+left, the stamp is marked (`kept.marked`) and the robot's page's first pass takes them all.
 
     python -X utf8 -m tools.sim.warmed        # compiled where behind: a line a step
     warmed.current()                           # whether its parts are its sources' (`kept.current`)

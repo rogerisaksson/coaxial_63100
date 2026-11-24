@@ -10,14 +10,12 @@ import time
 from rich.text import Text
 
 from coaxial.comm.session import Origin
-from coaxial.draw import cross_section, gauges as _gauges
-from coaxial.graphics import arrows, gynoid, horizon, likeness
+from coaxial.draw import gauges as _gauges
+from coaxial.graphics import gynoid, horizon, likeness
 from coaxial.graphics.callouts import packed
 from machine.body import figure
-from machine.law import se2
 from machine.process import sprung
 from machine.body.figure import JOINTS, quat
-from machine.rig.routines import TYPES
 from terminal import boards
 from terminal.loader import answer
 from terminal.views import gym, viewpoint
@@ -28,7 +26,7 @@ from terminal.views.scanner import VisionScanner, docked_vision
 from terminal.ui import bindings, recorder, screen as _screen
 from terminal.ui.ahead import Ahead
 from terminal.ui.screen import PORT, FPS_CAP, closing, run_view, say
-from terminal.ui.stage import boot, frame_of, hud, stage
+from terminal.ui.stage import boot, frame_of, stage
 from terminal.ui.taskbar import footer, help_rows, helped, room
 
 _screen.CHATTER = False

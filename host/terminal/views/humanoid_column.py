@@ -1,4 +1,7 @@
-"""The HUMANOID page's column: the robot's body, buses, drives, service, eyes and agent, each a box, its balance read."""
+"""The HUMANOID page's column: the robot's body, buses, drives, service, eyes and agent.
+
+Each a box of the robot's state as its drawing shows it, and the balance it reads (`telemetry_core`).
+"""
 import math
 import os
 
