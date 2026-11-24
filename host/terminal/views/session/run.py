@@ -168,7 +168,12 @@ def sweep(rig):
 
 
 def leave(port, simulated):
-    """Stop whatever the terminal left running, and say so - or say nothing."""
+    """Stop whatever the terminal left running, and say so - or say nothing. A native board is this process's own
+    (`native.limb_for`): none opened, nothing on it was left running, and it is not built to be swept."""
+    if str(port).startswith('native:'):
+        from tools.cores import native
+        if not native.opened(str(port)):
+            return 0
     try:
         with Coaxial63100(port=port, execution_mode=SIMULATED if simulated else HARDWARE,
                           power_afe=False) as rig:

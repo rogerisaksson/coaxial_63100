@@ -55,10 +55,20 @@ LISTED = ENTRIES + (('Q', 'QUIT', 'leave the terminal'),)
 MACHINES = tuple(getattr(page, 'COMPILED', None) for page in loader.pages())
 
 
+#: The braille spinner in front of an entry whose machine compiles: a dot gone round a full cell, SPIN_HZ a second,
+#: each row a step on from the one above.
+SPIN, SPIN_HZ = '⣾⣽⣻⢿⡿⣟⣯⣷', 10.0
+
+
 def _compiling(at, now=None):
     """What entry `at`'s row says while its machine compiles, None when it may be chosen."""
     machine = MACHINES[at] if at < len(MACHINES) else None
     return compiling.said(machine, now) if machine is not None else None
+
+
+def spun(at, now):
+    """Entry `at`'s spinner at `now` (time.monotonic)."""
+    return SPIN[(int(now * SPIN_HZ) + at) % len(SPIN)]
 
 #: What the masthead knows. `held` is how many sessions have the port,
 #: `board` whether one answers anywhere at all - None until asked, 'emulated' where none does
@@ -179,8 +189,9 @@ def roster(picked):
         kana = '%-12s' % KANA[name][0] if name in KANA else ' ' * 12
         busy = _compiling(i, now)
         if busy is not None:
-            # Greyed while its machine compiles, what it does said as how far its compile has come.
-            row = Text.assemble((' > ' if i == picked else '   ', 'greyed'), (key, 'greyed'), ('  ', ''),
+            # Greyed while its machine compiles, a spinner before it, what it does said as how far its compile has come.
+            row = Text.assemble(('>' if i == picked else ' ', 'greyed'), (spun(i, now), 'value'), ' ',
+                                (key, 'greyed'), ('  ', ''),
                                 (name.ljust(wide), 'greyed'), (kana, 'greyed'), ('  COMPILING ' + busy, 'label'))
         elif i == picked:
             row = Text.assemble((' > ', 'value'), (key, 'value'),

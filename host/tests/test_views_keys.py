@@ -45,9 +45,9 @@ def test_esc_the_front_page(report):
 
 
 def test_a_compiling_machines_entry_waits(report):
-    """The front page while a machine's control system compiles (`terminal.compiling`): its entry greyed, how far its
-    compile has come said on it, chosen by neither the cursor's Enter nor its letter - the cursor left on it -;
-    chosen at once its compile done."""
+    """The front page while a machine's control system compiles (`terminal.compiling`): its entry greyed, a braille
+    spinner turning before it, how far its compile has come said on it, chosen by neither the cursor's Enter nor its
+    letter - the cursor left on it -; chosen at once its compile done."""
     import time
     from rich.text import Text
     from terminal import compiling, loader, menu
@@ -64,11 +64,33 @@ def test_a_compiling_machines_entry_waits(report):
         with compiling._LOCK:
             compiling.STATE.pop('robot', None)
     done = menu._chosen({'picked': 0, 'who': None}, at)
-    report.check('greyed, its compile said on it, chosen by no key, the cursor on it; chosen once done',
+    turns = {menu.spun(at, k / menu.SPIN_HZ) for k in range(len(menu.SPIN))}
+    report.check('greyed, a spinner turning before it, its compile said on it, chosen by no key, the cursor on it; '
+                 'chosen once done',
                  'COMPILING ROBOT: STANDING: 3 OF 34 BUILT ON 6 CORES  1:01' in row.plain
+                 and row.plain[0] == '>' and row.plain[1] in menu.SPIN and turns == set(menu.SPIN)
                  and any(span.style == 'greyed' for span in row.spans) and entered is None and not typed_in
                  and nav['picked'] == at and done == loader.FIRST + at, '%r; %r %r -> %r' % (row.plain.strip(), entered,
                                                                                          typed_in, done))
+
+
+def test_leaving_sweeps_no_board_never_opened(report):
+    """Q's way out (`session.run.leave`) on a native board this process never opened: nothing on it was left
+    running, none laid nor built to be swept - a clean tree's way out stood 33 s on its libraries -; one opened is."""
+    import time
+    from tools.cores import native
+    from terminal.views.session import run
+    url = 'native://?leaving=never-opened'
+    began = time.perf_counter()
+    said = run.leave(url, False)
+    took = time.perf_counter() - began
+    native._LIMBS[url] = None
+    try:
+        laid = native.opened(url)
+    finally:
+        native._LIMBS.pop(url, None)
+    report.check('none opened: left at once, none laid; one laid is opened',
+                 said == 0 and took < 0.5 and not native.opened(url) and laid, '%.3f s' % took)
 
 
 def test_tab_and_help_in_any_mode(report):
@@ -273,7 +295,7 @@ def test_a_chord_rearms_the_terminal(report):
 
 
 ROSTER = (test_a_page_its_keys_the_terminals_after, test_esc_the_front_page, test_a_compiling_machines_entry_waits,
-          test_tab_and_help_in_any_mode,
+          test_leaving_sweeps_no_board_never_opened, test_tab_and_help_in_any_mode,
           test_the_robots_modes_before_its_rows, test_folded_into_the_page, test_the_drawing_takes_the_columns_room,
           test_a_paste_is_never_typed, test_a_chord_rearms_the_terminal)
 
