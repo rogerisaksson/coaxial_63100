@@ -505,12 +505,12 @@ def main(argv=None):
         its identification once a second. A read costs 9-18 ms of native's line: all of them a
         pass, the loop stepped 8.8 times a second of its 20."""
         with suppress(RigError):
-            if feed is not None and feed.stopping:
+            if getattr(feed, 'stopping', False):
                 return
             now = time.time()
             state = board.drive.state()
             model = board.drive.model.read() if view['source'] == 'model' else None
-            if feed is not None and feed.stopping:
+            if getattr(feed, 'stopping', False):
                 return
             if now - panels_at[0] > PANELS_S:
                 # The chain: a second answer to the angle, no shaft sensor behind it.
@@ -518,19 +518,19 @@ def main(argv=None):
                 panels_at[0] = now
             travel(view, state)
             view.update(state=state, model=model)
-            if feed is not None and feed.stopping:
+            if getattr(feed, 'stopping', False):
                 return
             turn_the_handle(rig, view)
-            if feed is not None and feed.stopping:
+            if getattr(feed, 'stopping', False):
                 return
             if now - thermal_at[0] > thermal_every:
                 view['thermal'] = board.thermal.state()
                 view['budget'] = board.thermal.budget()
-                if now - ident_at[0] > IDENT_S and not (feed is not None and feed.stopping):
+                if now - ident_at[0] > IDENT_S and not getattr(feed, 'stopping', False):
                     view['ident'] = board.thermal.identification()
                     ident_at[0] = now
                 thermal_at[0] = now
-                if not (feed is not None and feed.stopping):
+                if not getattr(feed, 'stopping', False):
                     rearm_after_trip(rig, origin, view)
 
     sample()
