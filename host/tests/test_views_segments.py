@@ -36,13 +36,15 @@ def run(segment, extra=2.0):
 
         def __init__(self, read, period=0.0):
             self.read = read
+            self.stopping = False
             feeds.append(self)
 
         def start(self):
             return self
 
         def stop(self):
-            pass
+            self.stopping = True
+            return self
 
     def compose(rig, origin, console, v):
         paced = getattr(rig.board.drive, 'paced', None)
