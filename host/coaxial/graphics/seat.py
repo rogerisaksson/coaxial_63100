@@ -42,16 +42,26 @@ def _dense(meshes, step=SPACING):
             w = np.stack([i[i + j <= m], j[i + j <= m]], 1) / m
             k = n == m
             out.append((a[k, None] + w[None, :, :1] * (b - a)[k, None] + w[None, :, 1:] * (d - a)[k, None]).reshape(-1, 3))
-    return np.vstack(out)
+    pts = np.vstack(out)
+    if not len(pts):
+        return pts
+    _, idx = np.unique(np.rint(pts / step).astype(np.int64), axis=0, return_index=True)
+    return pts[np.sort(idx)]
 
 
 def _min_dist_yaw(pts, frame, joint, reach_yaw):
     """(dist_to_frame, min_x_over_yaw) for `pts` (n, 3) rotated about `joint` across `[-reach_yaw, reach_yaw]`."""
     from coaxial.model.blocks import numpy as np
-    near = np.full(len(pts), np.inf)
+    near2 = np.full(len(pts), np.inf)
     x_min = pts[:, 0].copy()
     if not len(pts):
-        return near, x_min
+        return near2, x_min
+    if len(frame):
+        y_lo, y_hi = float(pts[:, 1].min()) - 0.025, float(pts[:, 1].max()) + 0.025
+        rp = np.hypot(pts[:, 0] - joint[0], pts[:, 2] - joint[2])
+        rf = np.hypot(frame[:, 0] - joint[0], frame[:, 2] - joint[2])
+        frame = frame[(frame[:, 1] >= y_lo) & (frame[:, 1] <= y_hi)
+                      & (rf >= float(rp.min()) - 0.025) & (rf <= float(rp.max()) + 0.025)]
     for turn in np.radians(np.linspace(-reach_yaw, reach_yaw, SWUNG)):
         c_t, s_t = math.cos(turn), math.sin(turn)
         rel = pts[:, [0, 2]] - joint[[0, 2]]
@@ -61,8 +71,9 @@ def _min_dist_yaw(pts, frame, joint, reach_yaw):
         if len(frame):
             box = frame[((frame > p.min(axis=0) - 0.02) & (frame < p.max(axis=0) + 0.02)).all(axis=1)]
             for chunk in (c for c in np.array_split(box, max(1, len(box) // 2000)) if len(c)):
-                near = np.minimum(near, np.linalg.norm(p[:, None, :] - chunk[None, :, :], axis=2).min(axis=1))
-    return near, x_min
+                d = p[:, None, :] - chunk[None, :, :]
+                near2 = np.minimum(near2, (d * d).sum(axis=2).min(axis=1))
+    return np.sqrt(near2), x_min
 
 
 def _drive_req(meshes, r_pad, x0=-0.01, y0=-0.16, step=0.003, nx=72, ny=96):
@@ -144,24 +155,24 @@ def _depth_model(rear_core, eval_req):
     r_s = 0.5 * max(sx1 - sx0, sy1 - sy0)
     w_hc = min(1.0, max(0.0, (-0.122 - sz0_core) / 0.014))
 
-    y_bot = max(sy0 - (0.044 if w_hc > 0.5 else 0.022), cy_s - 0.105)
-    y_top = sy1 + (0.007 if w_hc > 0.5 else 0.022)
+    y_bot = min(max(sy0 - 0.062, cy_s - 0.115), -0.086) if w_hc > 0.5 else max(sy0 - 0.022, cy_s - 0.105)
+    y_top = min(sy1 + 0.002, 0.072) if w_hc > 0.5 else sy1 + 0.022
     cy, y_apex = 0.45 * y_bot + 0.55 * y_top, 0.58 * y_bot + 0.42 * y_top
     x_in = CLEFT + 0.005 * (1.0 - 0.6 * w_hc)
-    x_out = min(max(sx1 + 0.016, cx_s + r_s + 0.012), 0.160 + 0.004 * w_hc)
+    x_out = min(max(sx1 + 0.011, cx_s + r_s + 0.008), 0.155) if w_hc > 0.5 else min(max(sx1 + 0.016, cx_s + r_s + 0.012), 0.160)
     cx = 0.44 * x_in + 0.56 * x_out
     x_apex = cx - 0.003
 
     req_rim = AIR_M + RIM_T
     z_req_c = float(eval_req(np.array([x_apex]), np.array([y_apex]))[0])
-    z_apex = (1.0 - w_hc) * min(sz0_core - req_rim - 0.024, -0.143) + w_hc * min(z_req_c - 0.021, -0.172)
+    z_apex = (1.0 - w_hc) * min(sz0_core - req_rim - 0.024, -0.143) + w_hc * min(z_req_c - 0.012, -0.158)
 
     def depth_z(x, y):
         x, y = np.asarray(x, float), np.asarray(y, float)
         ux = (x - x_apex) / np.where(x >= x_apex, max(x_out - x_apex, 0.02), max(x_apex - x_in + 0.006, 0.02))
         vy = (y - y_apex) / np.where(y >= y_apex, max(y_top - y_apex + 0.006, 0.02), max(y_apex - y_bot + 0.006, 0.02))
         r2 = np.clip(ux * ux + vy * vy, 0.0, 1.8)
-        amp = 0.022 + 0.006 * w_hc
+        amp = 0.020 + 0.002 * w_hc
         dome = amp * (0.48 * r2 + 0.24 * (r2 ** 1.7))
         cleft_tuck = 0.012 * np.exp(-((x - x_in) / 0.022) ** 2)
         lumbar = 0.014 * np.maximum(0.0, vy) ** 1.85
@@ -196,7 +207,7 @@ def _contour_xy(bounds):
     p_shape = 2.08
     r_sup = (np.abs(ct) ** p_shape + np.abs(st) ** p_shape) ** (-1.0 / p_shape)
     gx, gy = cx + rx_g * x_sc * r_sup * ct, cy + ry_g * y_sc * r_sup * st
-    r_drv = r_s + 0.004
+    r_drv = min(r_s + 0.002, 0.048) if r_s > 0.048 else r_s + 0.004
     dx_d, dy_d = (cx_s + r_drv * ct) - cx, (cy_s + r_drv * st) - cy
     ang_d, rad_d = np.arctan2(dy_d, dx_d) % (2.0 * math.pi), np.hypot(dx_d, dy_d)
     ord_d = np.argsort(ang_d)
@@ -207,9 +218,17 @@ def _contour_xy(bounds):
     return t, rad_nom * ct, rad_nom * st
 
 
+_SCULPT_CACHE: dict = {}
+
+
 def _sculpt(side, drive, pelvis):
     """Shared anatomical gluteal surface and C2-smoothed perimeter in canonical left (+x) pelvis rest frame."""
     from coaxial.model.blocks import numpy as np
+    key = (float(side), tuple(round(float(v), 6) for v in drive[1]),
+           tuple((n, len(c), len(t_), round(float(c[0, 2]), 6) if len(c) else 0.0) for n, c, t_ in drive[0]),
+           tuple((len(c), len(t_), round(float(c[0, 2]), 6) if len(c) else 0.0) for c, t_ in pelvis))
+    if key in _SCULPT_CACHE:
+        return _SCULPT_CACHE[key]
     flip = np.array([side, 1.0, 1.0])
     named_drv = [(n, np.asarray(c, float) * flip, np.asarray(t_)) for n, c, t_ in drive[0] if n.startswith(STACK)]
     all_drv = [(c, t_) for _n, c, t_ in named_drv]
@@ -255,12 +274,16 @@ def _sculpt(side, drive, pelvis):
     ix, iy = ox + step_2d * in_xy[:, 0], oy + step_2d * in_xy[:, 1]
     p_in, i_n = np.stack([ix, iy, depth_z(ix, iy)], 1), normal_at(ix, iy)
 
-    return {
+    res = {
         'flip': flip, 'joint': joint, 'reach_yaw': reach_yaw, 'frame': frame,
         'cx': cx, 'cy': cy, 't': t, 'ox': ox, 'oy': oy, 'ix': ix, 'iy': iy,
         'p_out': p_out, 'n_out': on, 'p_in': p_in, 'n_in': i_n,
         'depth_z': depth_z, 'normal_at': normal_at,
     }
+    if len(_SCULPT_CACHE) > 8:
+        _SCULPT_CACHE.clear()
+    _SCULPT_CACHE[key] = res
+    return res
 
 
 def plate(side, drive, pelvis=()):

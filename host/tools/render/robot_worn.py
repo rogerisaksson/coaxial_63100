@@ -14,10 +14,10 @@ import sys
 if __package__ in (None, ''):
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-#: Closed C1 neck skin loft stations in neck local frame: (y, rx, rz, z_centre), m.
+#: Neck skin loft stations (y, rx, rz, z_centre), m.
 NECK_RINGS = ((-0.040, 0.056, 0.056, -0.005), (-0.020, 0.050, 0.054, -0.004), (0.000, 0.046, 0.052, -0.003),
               (0.025, 0.043, 0.048, -0.002), (0.042, 0.040, 0.036, 0.008), (0.058, 0.036, 0.032, 0.011),
-              (0.068, 0.028, 0.024, 0.012))
+              (0.074, 0.030, 0.026, 0.012))
 #: Height band in torso frame covered cleanly by `neck_skin`, head/cloth groups, hip seat stack and skin tint.
 NECK_Y = (0.339, 0.462)
 HEAD_LIKED = ('like_head', 'like_hair', 'like_fall')
@@ -61,7 +61,7 @@ def neck_skin(nod=0.0, head_yaw=0.0, like=None):
     _b, nm, fr, _p = _body_cached(False, None)
     nat, rgb = fr[nm.index('neck')][1], _skin_colour(like)
     hrel = fr[nm.index('head')][1] - nat
-    c, tris, _u, _m = loft(finer(NECK_RINGS, -0.040, 0.068, 0.004), lit.paint(rgb), poles=(-0.044, 0.070))
+    c, tris, _u, _m = loft(finer(NECK_RINGS, -0.040, 0.074, 0.004), lit.paint(rgb), poles=(-0.044, 0.076))
     yn = c[:, 1].copy()
     if head_yaw:
         a = np.radians(head_yaw * _step((yn - 0.040) / 0.028))
@@ -96,7 +96,7 @@ def trim_neck(nm_dict, nod=0.0):
 
 
 def _smooth_hair(c, t, uv, m):
-    """Weld hair vertices for smooth normals and smoothed per-triangle RGB without flat facets."""
+    """Weld hair vertices and smooth normals."""
     import numpy as np
     from coaxial.graphics import lit
     c_u, inv = np.unique(np.round(c, 5), axis=0, return_inverse=True)
@@ -121,7 +121,7 @@ def _smooth_hair(c, t, uv, m):
 
 
 def _extract_root(body, names, pos, wanted, norm=None):
-    """Extract `[(tri, rgb)]` and `[(c, t, u, m, n)]` for parts `wanted` in root frame."""
+    """Extract parts in root frame."""
     import numpy as np
     from coaxial.graphics import panels
     from tools.render import leg_worn as lw
@@ -146,7 +146,7 @@ def _extract_root(body, names, pos, wanted, norm=None):
 
 
 def symbolic_head(nod=0.0, head_yaw=0.0, like=None, raw=False):
-    """Head, face, hair and ponytail in root frame using likeness when given or Robot 1.0 symbolic head."""
+    """Head, face, and hair in root frame."""
     import numpy as np
     body, names, _f, _p = _body_cached(not bool(like), like)
     ang = {'neck': nod, 'head': head_yaw} if (nod or head_yaw) else {}
@@ -267,7 +267,7 @@ def arm_parts_dressed(flex=0.0, turn=0.0, roll=0.0):
     return low + pose(gul + gf), [t for p in ad.values() for t in p] + pose(gd_['left_upper_arm'] + gf)
 
 
-def _drape_polar(corners, obs_pts, axis_a, axis_b, gap=0.006, fall_at=None, max_push=0.028):
+def _drape_polar(corners, obs_pts, axis_a, axis_b, gap=0.0036, fall_at=None, max_push=0.016):
     """Smooth radial outward envelope drape along segment `axis_a..axis_b` preserving cloth folds."""
     import numpy as np
     from scipy.ndimage import maximum_filter1d, uniform_filter1d
@@ -298,7 +298,7 @@ def _drape_polar(corners, obs_pts, axis_a, axis_b, gap=0.006, fall_at=None, max_
             wide = np.zeros((nr, 64))
             np.maximum.at(wide, (rowc, bc), rc + move)
             wide[:hg] = np.maximum.accumulate(wide[:hg][::-1], 0)[::-1]
-            move = np.where(rowc < hg, np.maximum(move, wide[rowc, bc] - rc), move)
+            move = np.where(rowc < hg, np.maximum(move, 0.35 * (wide[rowc, bc] - rc) + 0.65 * move), move)
         v += ((rc + move) / np.maximum(rc, 1e-6) - 1.0)[:, None] * (xc[:, None] * e1 + zc[:, None] * e2)
     return v
 
@@ -324,7 +324,7 @@ def _slim_bust(corners, torso_y):
     w = _step(1.0 - np.abs(dy - 0.205) / 0.095) * _step(1.0 - np.abs(v[:, 0]) / 0.135)
     band = (dy > 0.11) & (dy < 0.30) & (v[:, 2] > 0.01)
     cz = float(np.percentile(v[band, 2], 40)) if band.any() else 0.070
-    v[:, 2] -= 0.36 * w * np.maximum(v[:, 2] - cz, 0.0)
+    v[:, 2] -= 0.24 * w * np.maximum(v[:, 2] - cz, 0.0)
     return v
 
 
@@ -363,10 +363,13 @@ def draped_clothes(roll=0.0, turn=0.0, flex=0.0, obs_tris=(), like=None, raw=Fal
 
 
 def apply_livery(tris):
-    """Recolour anodized drive cans and gearboxes into Robot 1.0 magenta livery."""
+    """Apply livery."""
     from tools.render import elbow_mount as em
-    swap = {em.SERVO: (255, 48, 200), em.GEAR: (196, 36, 152)}
-    return [(t, swap.get(c, c)) for t, c in tris]
+    s, b = (72, 76, 86), (44, 46, 54)
+    m = {em.SERVO: (255, 48, 200), em.GEAR: (196, 36, 152), (154, 154, 154): s,
+         (150, 154, 164): s, (226, 222, 206): s, (206, 208, 212): (118, 124, 134), (255, 217, 102): b}
+    return [(t, m.get(c, b if c[0] + 40 < c[1] > c[2] + 40 else s if c[0] > 220 and c[1] > 190 and c[2] < 130 else c))
+            for t, c in tris]
 
 
 def _smooth_normals(corners, tris, crease_deg=35.0):

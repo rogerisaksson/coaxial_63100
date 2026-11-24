@@ -42,8 +42,9 @@ CEILING = {
     # each its outline's power, taper and slant -, the four carbon hoops they clip on and how far in toward the frame
     # they follow the figure, the elbow's round cap and its hoop (`[guards]`): new construction, no value the solver
     # could derive; 179: the elbow turned, its board and its hose's fittings in toward the body (`[mounts]` elbow);
-    # 184: each shoulder pitch drive's inverter off the shoulder on the upper torso (`[boards]` shoulder)
-    'machine/humanoids/gynoid_mesomorph_medium_coax.toml': 184,
+    # 184: each shoulder pitch drive's inverter off the shoulder on the upper torso (`[boards]` shoulder);
+    # 182: horizontal belly slats without slant angle
+    'machine/humanoids/gynoid_mesomorph_medium_coax.toml': 182,
     'machine/humanoids/gynoid_mesomorph_medium_packs.toml': 2,
     'machine/humanoids/gynoid_mesomorph_medium_performance.toml': 9,
     'machine/humanoids/gynoid_mesomorph_medium_r80.toml': 3,

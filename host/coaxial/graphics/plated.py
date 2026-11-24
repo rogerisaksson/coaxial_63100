@@ -155,9 +155,9 @@ def _skin_neck(figured):
     """Smooth closed neck and nape skin loft (`shapes.loft`), tinted to match `like_head` or `SKIN`."""
     rings = [(-0.040, 0.056, 0.056, -0.005), (-0.020, 0.050, 0.054, -0.004), (0.000, 0.046, 0.052, -0.003),
              (0.025, 0.043, 0.048, -0.002), (0.042, 0.040, 0.036, 0.008), (0.058, 0.036, 0.032, 0.011),
-             (0.068, 0.028, 0.024, 0.012)]
-    return loft(finer(rings, -0.040, 0.068, 0.004), paint((172, 138, 121)) if figured else SKIN,
-                poles=(-0.044, 0.070))
+             (0.068, 0.031, 0.027, 0.012), (0.074, 0.030, 0.026, 0.012)]
+    return loft(finer(rings, -0.040, 0.074, 0.004), paint((172, 138, 121)) if figured else SKIN,
+                poles=(-0.044, 0.076))
 
 
 def parts(meshes, extra, liked: Any = None):
@@ -178,7 +178,8 @@ def parts(meshes, extra, liked: Any = None):
     gone = HANDS if any(part[0].endswith('_hand') for part in worn) else ()
     if coax:
         gone = tuple(gone) + tuple(p[0] for p in mechanism.parts()
-                                   if p[0] != 'board_neck' and p[0].endswith(('_neck', '_neck_frame')))
+                                   if p[0] not in ('head', 'board_neck', 'board_head')
+                                   and p[0].endswith(('_neck', '_neck_frame', '_head')))
     out = framed(gone)
     if coax:
         out.append(('skin_neck', 'neck', (), z0, 0.0, _skin_neck(figured)))

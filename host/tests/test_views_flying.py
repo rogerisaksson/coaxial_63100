@@ -153,8 +153,11 @@ def test_the_frames_leave_on_their_beat(report):
     worst, apart, even = _beat(list(zip(sent, drawn)))
     bare = [_beat(slept) for slept in (before, after)]
     host_worst, host_even = max(b[0] for b in bare), max(b[2] for b in bare)
-    report.check('each frame leaves at the instant it drew, on an even beat',
-                 len(sent) == len(drawn) and worst <= 0.008 + host_worst and even <= 0.005 + host_even,
+    beat = screen.Beat(0.05)
+    beat.took(10.0)
+    report.check('each frame leaves at the instant it drew, on an even beat, and cold spikes cap Beat.lead',
+                 len(sent) == len(drawn) and worst <= 0.008 + host_worst and even <= 0.005 + host_even
+                 and beat.lead() <= screen.LEAD_MAX_S + 1e-9,
                  'left %.1f ms from its instant at most, %.1f ms apart, gap to gap %.1f ms at p90; a bare sleeper '
                  'here %.1f and %.1f' % (1e3 * worst, 1e3 * apart, 1e3 * even, 1e3 * host_worst, 1e3 * host_even))
 

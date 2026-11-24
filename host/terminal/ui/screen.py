@@ -247,7 +247,7 @@ UI_HZ = 15.0
 
 #: A frame reaches the terminal its lead after its start: the LEAD_SHARE-th of the work - its draw
 #: and rich's update - of the last LEAD_FRAMES frames, LEAD_MARGIN_S over it, s.
-LEAD_FRAMES, LEAD_SHARE, LEAD_MARGIN_S = 40, 0.9, 0.002
+LEAD_FRAMES, LEAD_SHARE, LEAD_MARGIN_S, LEAD_MAX_S = 40, 0.9, 0.002, 0.25
 
 #: When the frame being drawn reaches the terminal and when the next will, on time.perf_counter's
 #: clock; None between frames.
@@ -281,7 +281,7 @@ class Beat:
         if not self.works:
             return 0.0
         ordered = sorted(self.works)
-        return ordered[int(LEAD_SHARE * (len(ordered) - 1))] + LEAD_MARGIN_S
+        return min(LEAD_MAX_S, ordered[int(LEAD_SHARE * (len(ordered) - 1))] + LEAD_MARGIN_S)
 
     def slot(self, began):
         """When the frame begun at `began` is to be written."""
@@ -294,7 +294,7 @@ class Beat:
         return slot + max(self.period, self.lead())
 
     def took(self, seconds):
-        self.works = (self.works + [seconds])[-LEAD_FRAMES:]
+        self.works = (self.works + [min(seconds, LEAD_MAX_S)])[-LEAD_FRAMES:]
 
     def wrote(self, at):
         self.last = at

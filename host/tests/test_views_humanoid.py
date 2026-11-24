@@ -50,8 +50,14 @@ def test_the_humanoid_pages_mouse(report):
     keys._grabbed, keys._holding, keys._buttons, keys._held_at = True, True, 1, 0.0
     keys._hold = lambda: setattr(keys, '_held_at', 999.0)
     keys.poll()
-    report.check('a click by key records, a drag and its release no click, a stuck drag reset',
-                 lv_c is None and d_ok and keys._buttons == 0 and not keys._holding and keys._held_at == 999.0)
+    keys._async_keys, keys._hw_seen, keys._is_console_focused = True, False, lambda: False
+    unfoc = keys.held()
+    keys._is_console_focused = lambda: True
+    keys._hw_seen = False
+    vk0_ok = keys._TOK_VK.get('w') == 87 and keys.held() is None
+    report.check('a click by key records, a drag and its release no click, a stuck drag reset, ConPTY vk0/focus safe',
+                 lv_c is None and d_ok and keys._buttons == 0 and not keys._holding and keys._held_at == 999.0
+                 and unfoc is None and vk0_ok)
 
 
 def test_the_humanoid_pages_keys(report):

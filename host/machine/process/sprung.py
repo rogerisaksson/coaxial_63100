@@ -353,10 +353,11 @@ def boot_humanoid(state, boot, say, ahead_cls, limb_cls):
         name = ahead.name or 'a process of its own, dots'
         say('ok', 'drawing', name)
         step(0.90, 'SETTLING STAND')
-        for _ in range(300):
+        for _ in range(1500):
             first = body.latest()
-            if first is not None:
-                state['playback'].push([first])
+            if first is not None or not body.alive():
+                if first is not None:
+                    state['playback'].push([first])
                 break
             time.sleep(0.01)
         step()

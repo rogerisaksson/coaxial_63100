@@ -157,6 +157,7 @@ class Keys:
     CSI_RE = re.compile(r'\033\[[\x30-\x3f]*[\x20-\x2f]*[\x40-\x7e]')
     VK_MAP = {87: 'w', 65: 'a', 83: 's', 68: 'd', 81: 'q', 69: 'e', 32: ' ',
               16: 'shift', 160: 'shift', 161: 'shift'}
+    _TOK_VK = {'w': 87, 'a': 65, 's': 83, 'd': 68, 'q': 81, 'e': 69, ' ': 32, 'shift': 16}
 
     def __init__(self, console, mouse=False, quits=QUIT_KEYS, select=SELECT_KEYS, pan=False, menus=MENU_KEYS):
         self._quits, self._select, self._pan, self._menus = frozenset(quits), frozenset(select), pan, frozenset(menus)
@@ -417,7 +418,7 @@ class Keys:
         if not self._is_console_focused():
             self._latched_wasd = self._hw_seen = False
             self._keys_down.clear()
-            return set() if self._async_keys else None
+            return set() if self._hw_seen else None
         if sys.platform == 'win32' and self.console and (self._latched_wasd or self._keys_down or self._async_keys):
             try:
                 user32 = ctypes.windll.user32
@@ -500,6 +501,7 @@ class Keys:
                 key = record.event.key
                 ch_low = (key.ch or '').lower()
                 tok = self.VK_MAP.get(key.vk) or (ch_low if ch_low in ('w', 'a', 's', 'd', 'q', 'e', ' ') else None)
+                vk = key.vk or self._TOK_VK.get(tok or '', 0)
                 if key.down:
                     if fg:
                         self._term_hwnd = fg
@@ -507,14 +509,13 @@ class Keys:
                     if tok:
                         self._latched_wasd = True
                         self._keys_down.add(tok)
-                        if user32 is not None and (user32.GetAsyncKeyState(key.vk) & 0x8000):
+                        if user32 is not None and vk and (user32.GetAsyncKeyState(vk) & 0x8000):
                             self._hw_seen = True
                     if key.ch in ('W', 'A', 'S', 'D', 'Q', 'E') or (key.state & 0x0010):
                         self._latched_wasd = True
                         self._keys_down.add('shift')
                     keys.append(self._key_of(key))
-                elif tok and (user32 is None or not (user32.GetAsyncKeyState(key.vk) & 0x8000)):
-                    self._hw_seen = True
+                elif tok and (user32 is None or not vk or not (user32.GetAsyncKeyState(vk) & 0x8000)):
                     self._keys_down.discard(tok)
             elif record.type == 2:
                 keys.extend(self._mouse_of(record.event.mouse))
