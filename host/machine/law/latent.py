@@ -148,7 +148,10 @@ def step(st, tab, now, dt, out):
     acceleration -228 to +98 for its -36. A blend begins at the tick that met its row (T0):
     begun at the row's own time, up to a tick earlier, the chair's rise fell in 1 of 2 runs -
     a knife edge, not a law."""
-    hit = ((tab[:, AT] <= now + EDGE_S) & (tab[:, AT] > now - dt + EDGE_S)).astype(float)
+    due = (tab[:, AT] <= now + EDGE_S) & (tab[:, AT] > now - dt + EDGE_S)
+    rank = np.where(due, np.arange(len(tab), dtype=float), -1.0)
+    top = np.max(rank, initial=-1.0)
+    hit = (due & (rank == top)).astype(float)
     came = np.minimum(hit.sum(), 1.0)
     span = np.maximum(st[BLEND], dt)
     leaving = _rate(st, np.clip((now - st[T0]) / span, 0.0, 1.0), span)

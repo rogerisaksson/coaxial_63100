@@ -33,14 +33,9 @@
         :weight-law (:wrench-proportional :max-share max-arm-push-share))))
 
 ;; Up onto a seat too high for the robot's feet, as the kernel's arm vault (`xform-overheight-arm-vault-ingress`): sat
-;; on its front edge, the robot's fists on it beside the robot's hips, its joints play its way up onto
-;; it (`:joint-program`, moves.lisp's `chair-mount`) - the robot's shoulders flexed against its fists vault the
-;; robot's pelvis off the edge and draw it back on the robot's arms, then let it down onto the seat's middle -;
-;; its law then holds it there, the seat and its fists bearing it - its fists
-;; kept where they bore as its hips went back past them (`seated.kept`) -, its knees and ankles asked
-;; the kernel's hang (`specialize-posture-dangling-crural-hang`'s origin). Left to the sit's own targets the robot's
-;; arms drew its back to its front edge (0.05 m behind its middle to 0.16 ahead in 5 s); the robot's arms let
-;; go to their rest, its trunk sank 85 -> 57 deg in 12 s.
+;; on its front edge, the robot's fists briefly steady it, then `chair-mount` draws its pelvis deep onto the
+;; seat's middle, lifts its hands off the seat, abducts its hips, and sets both hands lightly onto mid-thighs
+;; while panning full body weight onto `:ischial-bilateral` (`:palmar-carpal-bilateral` 0.0 so `seated.kept` lets go).
 (defmaneuver specialize-mount-overheight-seat [seated-state]
   (-> seated-state
       (stage-sequential-manifold
@@ -51,7 +46,7 @@
         :axial-yaw-ramp [0.0 -> 0.0]
         :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.5708 -> 1.5708] :limb-lift 0.0)
         :talocrural-rad -0.24
-        :manifold-pan '((:plantar-bilateral 0.0) (:ischial-bilateral 0.80) (:scapular-dorsal 0.0) (:palmar-carpal-bilateral 0.20)))))
+        :manifold-pan '((:plantar-bilateral 0.0) (:ischial-bilateral 1.0) (:scapular-dorsal 0.0) (:palmar-carpal-bilateral 0.0)))))
 
 ;; Down from a seat too high for the robot's feet onto them, as the kernel's egress from it lowers the robot on the
 ;; robot's arms (`specialize-for-overheight-seat` :egress, `xform-overheight-arm-dip-egress`): its joints
@@ -87,6 +82,7 @@
         :source-manifold :plantar-bilateral
         :target-manifold :ischial-bilateral
         :descent-duration-ms 1050.0
+        :source-residual-weight (if (> seat-z-mm popliteal-mm) 0.55 0.15)
         :seat-z-mm seat-z-mm)
       (transfer-carpal-seat-boost)
       (when-modifier (> seat-z-mm popliteal-mm)

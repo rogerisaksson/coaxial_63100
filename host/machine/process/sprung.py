@@ -15,7 +15,7 @@ from machine.moves import leap
 from machine.texts import ortho
 from machine.law import se2, supervisor
 from machine.law.se2 import WEP_S, _dropped, doing, said
-from machine.process import joints, page
+from machine.process import bank, joints, page
 from machine.process.sensed import sensed
 from machine.world import steps
 
@@ -172,6 +172,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
     motion.laid(g)
     g['beat'] = _beat().laid(g)
     world.clock = lambda: g['t']
+    bank.laid(g)
     return g
 
 
@@ -247,6 +248,7 @@ def relaid(g, where=(0.0, 0.0), yaw=0.0):
     _dropped(g)
     g['labels'] = []
     g.pop('_post_stunt', None)
+    bank.reset(g)
 
 
 def looked(g):
@@ -307,6 +309,7 @@ def passed(g, dt=0.001):
         if step is both and g.get('played') is not None:
             steps.ahead(world)
         joints.played(g, world)
+        bank.blend_exit(g, world)
         # a bus refusing the robot's setpoints longer than its balance's horizon 1/omega is no longer sporadic
         edge.held(world, 1.0 / (float(g['fr'][modal.OMEGA]) * dt))
         g['t'], g['n'] = g['t'] + dt, g['n'] + 1

@@ -28,7 +28,7 @@ from machine import libm
 from machine.senses import borne, field, observer, edge
 from machine.texts import kernel, ortho
 from machine.law import composer, latent, modal
-from machine.moves import leap
+from machine.moves import anatomy, leap
 from machine.moves.cascade import (_U, asked, HANG_RATE, LEG_JOINTS, LEGGED, leave, MARGIN_NM, OPEN, opening,
                                    PLANTAR, reached, released, SHED)
 from machine.stack.wbc import turn_error
@@ -242,20 +242,27 @@ def opened(g, s, ask, dt):
 
 def hipped(g, s, ask):
     """Each let-go leg turned at its hip's yaw toward the heading the robot's pelvis is asked (`ask['turns']`, the
-    error about its pelvis's up, within the joint's range): swung up, its legs turn with the robot's
-    trunk's turn to lie along the bed, the pelvis between them following; its right hip's axis is the robot's
-    left's mirrored."""
+    error about its pelvis's up, within the joint's range), and abducted onto `anatomy.on_thighs()[2]` during
+    upright full-seat rest so the robot's hands meet its thighs cleanly."""
     turns, let = ask.get('turns', ()), g['a'][modal.LET_GO]
-    if not len(turns) or not (let > 0.5).any():
+    if not (let > 0.5).any():
         return
-    have = np.asarray(s['turns'][0]['quat'], float)
-    w0, x0, y0, z0 = have
-    up = np.array([2.0 * (x0 * y0 - w0 * z0), 1.0 - 2.0 * (x0 * x0 + z0 * z0), 2.0 * (y0 * z0 + w0 * x0)])
-    yaw = float(turn_error(np.asarray(turns[0], float), have) @ up)
+    told = g['told']
+    lap = ((let > 0.5).all() and float(told[0]) < 0.05 and float(told[SEAT_ROWS[0]]) >= 0.9
+           and float(told[3]) < 0.05 and float(told[4]) < 0.05)
+    if not len(turns) and not lap:
+        return
+    base = anatomy.on_thighs()[2] if lap else 0.0
+    yaw = 0.0
+    if len(turns):
+        have = np.asarray(s['turns'][0]['quat'], float)
+        w0, x0, y0, z0 = have
+        up = np.array([2.0 * (x0 * y0 - w0 * z0), 1.0 - 2.0 * (x0 * x0 + z0 * z0), 2.0 * (y0 * z0 + w0 * x0)])
+        yaw = float(turn_error(np.asarray(turns[0], float), have) @ up)
     for k, sign in ((0, 1.0), (1, -1.0)):
         if let[k] > 0.5:
             j = LEG_JOINTS[k][0]
-            ask['posture'][j] = min(max(sign * yaw, float(g['q_lo'][j])), float(g['q_hi'][j]))
+            ask['posture'][j] = min(max(base + sign * yaw, float(g['q_lo'][j])), float(g['q_hi'][j]))
 
 
 def seated(g, s):

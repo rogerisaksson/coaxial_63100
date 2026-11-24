@@ -10,11 +10,16 @@ its goals and rates. In C: wbc_anatomy.c, bit for bit.
     x = anatomy.driven(how, goal, rate, x, q, start, a, dt)   # each joint's command a pass on, deg
     x = anatomy.held(x, gain, pitch, trunk, dt, lo, hi)        # the robot's hips holding its trunk's pitch
 """
+import functools
+import math
 import os
 
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
+
+#: Target capsule surface gap (m), hip abduction and shoulder flexion (deg) for hands resting on mid-thighs.
+THIGH_LAP_GAP, THIGH_HIP_YAW_DEG, THIGH_SHOULDER_DEG = -0.012, 12.0, -4.0
 
 #: How a part goes: held where it is; blended over its phase from where it began; to its goal at its rate (deg/s);
 #: the robot's sensed angle and its goal past it; drawn toward its goal from the robot's sensed angle by its rate
@@ -50,3 +55,49 @@ def held(x, gain, pitch, trunk, dt, lo, hi):
     """`x` (deg), the robot's hips holding its trunk's `pitch` at `trunk` (deg): moved `gain` deg/s a deg of
     its error, within [`lo`, `hi`]."""
     return np.clip(x + gain * (pitch - trunk) * dt, lo, hi)
+
+
+@functools.cache
+def _on_thighs_rad():
+    from machine.body import figure
+    deg = dict(figure.stand(), left_hip=-90.0, left_knee=90.0,
+               left_hip_yaw=THIGH_HIP_YAW_DEG, left_shoulder=THIGH_SHOULDER_DEG)
+    hands = tuple((seg, r, np.asarray(a, float), np.asarray(c, float))
+                  for seg, r, a, c in figure.BODY if seg in ('hand', 'fingers'))
+    thighs = tuple((r, np.asarray(a, float), np.asarray(c, float))
+                   for seg, r, a, c in figure.BODY if seg == 'thigh')
+
+    def gap(el_deg):
+        deg['left_elbow'] = el_deg
+        fr = figure.frames(deg, (0.0, 0.0, 0.0), figure.IDENT)
+        tp, tR = fr['left_thigh']
+        tp_v, tR_m = np.asarray(tp, float), np.asarray(tR, float)
+        tw = [(tr, tp_v + tR_m @ ta0, tp_v + tR_m @ tb0) for tr, ta0, tb0 in thighs]
+        best = math.inf
+        for seg, hr, ha0, hb0 in hands:
+            sp, sR = fr['left_' + seg]
+            sp_v, sR_m = np.asarray(sp, float), np.asarray(sR, float)
+            for frac in (0.0, 0.5, 1.0):
+                pt = sp_v + sR_m @ (ha0 + frac * (hb0 - ha0))
+                for tr, ta, tb in tw:
+                    u = tb - ta
+                    t = float(np.clip(((pt - ta) @ u) / (u @ u), 0.0, 1.0))
+                    best = min(best, float(np.linalg.norm(pt - (ta + t * u)) - hr - tr))
+        return best
+
+    lo, hi = 50.0, 90.0
+    for _ in range(40):
+        mid = 0.5 * (lo + hi)
+        lo, hi = (mid, hi) if gap(mid) < THIGH_LAP_GAP else (lo, mid)
+    return math.radians(THIGH_SHOULDER_DEG), math.radians(0.5 * (lo + hi)), math.radians(THIGH_HIP_YAW_DEG)
+
+
+def on_thighs(modes=None):
+    """(shoulder, elbow, hip_yaw) in rad, or arm modes with hip_yaw in rad given `modes`, resting the
+    robot's hands lightly on top of its abducted mid-thighs while seated upright (`figure.BODY`)."""
+    shoulder, elbow, hip_yaw = _on_thighs_rad()
+    if modes is None:
+        return shoulder, elbow, hip_yaw
+    from machine.body import figure
+    stand_elbow = math.radians(figure.stand()['left_elbow'])
+    return shoulder / modes['mode_arm_reach'][0], (elbow - stand_elbow) / modes['mode_arm_fold'][0], hip_yaw

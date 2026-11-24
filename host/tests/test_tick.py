@@ -318,7 +318,7 @@ def test_the_robots_step_begun_beside_its_law_as_whole(report, _c):
 CONTROL_ARRAYS = ('y', 'fr', 'a', 'st', 'out', 'posture', 'jeff', 'leg_kp', 'release', 'words', 'twisted', 'tab')
 CONTROL_NUMBERS = ('heading', 'surety', 'surety_probe', 'chained', '_w_back', '_backing_yaw', '_twist_clear')
 CONTROL_SKIP = frozenset({'world', 'body', 'drives', 'bus', 'cmd', 'tick', 'beat', 'gym', 'situations', 'planner',
-                          'vision', 'keep', 'heat', 'schema_body', 'got', 'ask', 'solve_in', 's'})
+                          'vision', 'keep', 'heat', 'schema_body', 'got', 'ask', 'solve_in', 's', 'bank'})
 #: The robot's model's constants its wear corrects (`identified.correct`), laid onto the twin's as they change.
 MODEL = ('body_mass', 'body_ipos', 'body_inertia', 'body_iquat', 'dof_armature', 'dof_damping', 'dof_frictionloss')
 

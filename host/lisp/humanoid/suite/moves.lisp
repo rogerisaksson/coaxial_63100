@@ -119,34 +119,24 @@
 ;; robot sits.
 (defmove chair-mount []
   (let [;; still under the robot's speed (m/s); a goal reached within tol deg
-        still 0.01 tol 1e-6]
+        still 0.005 tol 1e-6]
     (:constants (:still still :tol tol)
      :holds true
-     ;; the vault: the robot's shoulders flexed against its fists, its elbows straight, its
-     ;; hips and knees folded - its pelvis lifted off the edge and drawn back on its arms (0.152 m
-     ;; ahead of the seat's middle to 0.06, 7 cm up); the hang: its shoulders let it down onto the seat
-     ;; (0.05 m behind its middle, the robot's trunk upright, no fall)
-     :phases [(:name :vault :ends :reached :next :hang
-               :goals (:shoulder [30.0 89.0] :elbow [0.0 74.0] :hip [-90.0 11.0] :knee [90.0 15.0]))
-              (:name :hang :ends :stilled :next :done :goals (:shoulder [0.0 10.0] :elbow [5.0 1.7]))
+     ;; vault draws the robot's pelvis deep onto the seat without tipping a light chair; open lifts
+     ;; hands clear and abducts hips; lap rests both hands lightly on mid-thighs
+     :phases [(:name :vault :ends :reached :next :open
+               :goals (:shoulder [29.0 24.0] :elbow [0.0 30.0] :hip [-90.0 15.0] :knee [90.0 15.0]))
+              (:name :open :ends :reached :next :lap
+               :goals (:shoulder [-20.0 75.0] :elbow [95.0 95.0] :hip-yaw [12.0 45.0]
+                       :hip [-90.0 15.0] :knee [90.0 15.0]))
+              (:name :lap :ends :stilled :next :done
+               :goals (:shoulder [-4.0 30.0] :elbow [59.6 40.0] :hip-yaw [12.0 30.0] :spine [-4.0 25.0]))
               (:name :done :ends :reached :next :done)])))
 
 ;; The robot's way down off that seat onto its feet, as its mount came up onto it - the kernel's
 ;; arm-dip egress (`xform-overheight-arm-dip-egress`), a move whose phases end by what the robot senses as its
-;; mount's. The robot's slide on its fists asked of its law alone moved its none (its elbows kept bent, its fists
-;; unloaded 68 -> 22 N in 0.7 s), and vaulted from where its mount left them its arms were already straight (its
-;; elbows 12 deg): its shoulders drew back into its elbows, which folded to 30, and nothing lifted it. So as the
-;; robot's mount starts it: the robot's fists raised 5 cm and set beside its hips, its elbows bent as
-;; its arm's links reach the seat there (`seated.fisted`: shoulder -35.5 elbow 63.9 over it), pressed down
-;; onto it (-23.3 and 41.2 on it, the kernel's dip suspension's -26 and 43); then the robot's elbows braced to their
-;; stop (the scoot's `locked`) lift it and carry its shoulders forward over its fists - at 30
-;; deg/s, the kernel's tangent speed on its arm's reach - and its shoulders drawn back after them at
-;; 20, its hips and knees held as it sits, till its soles bear it
-;; as its rise unlatches its seat (`:feet` at the concentric handover's 0.82): the robot's palms bore up to
-;; 284 N, its pelvis 0.18 m forward, its soles 0.96 of it. The robot's text's rows wait while
-;; it plays. Folded from the vault's start (to -102 deg at 20 deg/s), the robot's hips slid its pelvis along the
-;; seat while the seat still bore 0.87 of it - the kernel's slide bears the seat 0.55 at most -, its fists came
-;; off the seat 0.6 s in, the scoot stalled 11 cm out and the robot stood on one foot and fell.
+;; mount's. First `:place` reaches beside the robot's hips (`-35.5`, `63.9`) while squaring its legs, then `:press`
+;; and `:vault` drive it forward onto its feet (`:feet` at 0.82) while its hips and knees hold until its soles bear the robot.
 (defmove chair-dismount []
   (let [;; the robot's soles' share planted, as its rise unlatches its seat; a goal reached within tol deg; the robot's legs squared
         plant 0.82 tol 1e-6

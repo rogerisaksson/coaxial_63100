@@ -20,6 +20,7 @@
               (target-flexion-profile '((:tibiofemoral 1.52) (:coxofemoral 1.48) (:talocrural 0.32)))
               (com-counter-pitch-rad +0.68)
               (contact-threshold-fz 0.15)
+              (source-residual-weight 0.15)
               (seat-z-mm 450.0)] ; the seat the robot's eyes see
   (-> state
       ;; Stage A: Controlled eccentric descent with sagittal CoM counterweight
@@ -43,7 +44,7 @@
           :transfer-time-ms 320.0
           :curve :equal-power
           :release-source-zmp true
-          :source-residual-weight 0.15 ; the robot's soles' share sat
+          :source-residual-weight source-residual-weight ; the robot's soles' share sat
           :thoracic-settle-rad 0.0)))) ; the spine straightened as the seat takes the robot
 
 ;; -----------------------------------------------------------------------------

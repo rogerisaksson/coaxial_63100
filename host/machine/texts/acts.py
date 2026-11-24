@@ -17,7 +17,7 @@ from machine import libm
 from machine.body import drives, figure
 from machine.law import impedance, somatic
 from machine.texts import kernel, ortho
-from machine.moves import leap, seated
+from machine.moves import anatomy, leap, seated
 from machine.stack import wrench
 from machine.errors import MachineError
 
@@ -201,12 +201,9 @@ def _equilibrium(p, then, at, modes, body):
 
 
 def _recline(p, then, at, modes, body):
-    """A recline: the robot's trunk's ramp to its end, its centre of mass where it lies then (`seated.com`;
-    left where it sat its law slid its hips to the edge; `talocrural-rad` its shin), its pelvis's turn's, its
-    legs' sweep's knee; what bears it panned (`manifold-pan`), its fists on the seat behind it where it pans
-    its hands (`seated.braced`; `seated.planted` to `carpal-ahead-m`), held as a pressing contact's point
-    (`wrench.W_STILL`), hanging where it pans none; its centre of mass on its rest's spring (on the seat's -24
-    dB its trunk came back upright from -13 deg); its slide `slide-speed-mps`."""
+    """A recline: the robot's trunk, centre of mass (`seated.com`), pelvis turn and knee sweep, what bears it
+    panned (`manifold-pan`); its hands planted if palmed (`seated.braced`/`planted`) or resting lightly on
+    mid-thighs (`anatomy.on_thighs`) if upright on a chair (`ischial >= 0.9`, `plantar == 0`, `palmar == 0`)."""
     sweep = p.get('counterweight-limb-sweep', {})
     at['knee'], at['ankle'] = sweep.get('tibiofemoral-flex-rad', (at['knee'],))[-1], p.get('talocrural-rad', at['ankle'])
     trunk, weighs = p['torso-pitch-ramp'][-1], _weighs(p.get('manifold-pan'))
@@ -220,9 +217,12 @@ def _recline(p, then, at, modes, body):
     if 'limb-lift' in sweep:
         targets['mode_limb_lift'] = sweep['limb-lift']
     palmed = weighs is not None and weighs[ortho.PALMAR] > 0.0
-    targets.update({'mode_arm_reach': seated.braced(spine) * palmed / modes['mode_arm_reach'][0],
-                    'mode_arm_fold': 0.2 * palmed,
-                    'mode_arm_swing': 0.0} if weighs is not None else {})
+    lap = (weighs is not None and not palmed and weighs[0] == 0.0
+           and weighs[BUSES[':ischial-bilateral']] >= 0.9 and weighs[BUSES[':scapular-dorsal']] == 0.0)
+    reach, fold = (anatomy.on_thighs(modes)[:2] if lap
+                   else (seated.braced(spine) * palmed / modes['mode_arm_reach'][0], 0.2 * palmed))
+    targets.update({'mode_arm_reach': reach, 'mode_arm_fold': fold, 'mode_arm_swing': 0.0}
+                   if weighs is not None else {})
     targets.update(zip(ARMS, seated.planted(p['carpal-ahead-m'], modes)) if 'carpal-ahead-m' in p else ())
     sag = (0.0, modes['mode_sagittal_shift'][2]) if supine else sprung('mode_sagittal_shift', 1.0, 1.0, modes)
     springs = {'mode_sagittal_shift': sag,
@@ -268,7 +268,7 @@ def _sought(p, then, at, modes, body):
     if faults:
         raise MachineError('refused: %s' % '; '.join(faults))
     deg = dict(figure.stand(), spine=math.degrees(trunk))
-    ahead = figure.frames(deg, (0.0, 0.0, 0.0), figure.IDENT)['left_upper_arm'][0][2]
+    ahead = figure.frames(deg, (0.0, 0.0, 0.0), figure.IDENT)['left_upper_arm'][0][2] - 0.10
     on, over = seated.ON, 2.0 * figure.FIST_R
     reach = max(math.dist(figure.fist(dict(deg, left_shoulder=math.degrees(s)))[1:], (on + over, ahead))
                 for s in (at.get('swung', 0.0), -at.get('swung', 0.0)))
@@ -284,7 +284,7 @@ def _sought(p, then, at, modes, body):
     held = {m: sprung(m, wrench.W_STILL / wrench.W_POSTURE, 1.0, modes) for m in ARMS}
     return [Phase('contact', 'carpal-reach', lift, lift, arms(on + over), rest, None, None),
             Phase('contact', 'carpal-seek', down, down, arms(on - pressed), rest, None, None, weighs=pan),
-            Phase('contact', p['patch-id'], GRAIN_MS, GRAIN_MS, {}, held, None, ('palmar',), weighs=pan)]
+            Phase('contact', p['patch-id'], 20, 20, {}, held, None, ('palmar',), weighs=pan)]
 
 
 def _pendulum(p, then, at, modes, body):

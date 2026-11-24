@@ -100,10 +100,8 @@ def rise_lead(wire):
 def said(g, label, wire, names=(), at=None, reset=False):
     import numpy as np
     from machine.law import latent
-    new = latent.table(wire, g['t'] + 0.001 if at is None else at, g['rest'])
-    if reset and len(new):
-        new[0, latent.VALS] = np.where(new[0, latent.SAID] > 0.5, new[0, latent.VALS], g['rest'])
-        new[0, latent.SAID] = 1.0
+    from machine.process import bank
+    new = bank.table(g, wire, g['t'] + 0.001 if at is None else at, reset)
     t_eat = g['t'] - 0.001 * ((g['n'] - 1) % g['every'] + 1) + 1e-6 if g.get('n', 0) > 0 else -1.0
     g['tab'] = np.concatenate([g['tab'][g['tab'][:, latent.AT] > t_eat], new])
     now = g.get('t_law', g['t']) + 1e-9

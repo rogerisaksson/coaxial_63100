@@ -118,13 +118,12 @@ def program(name):
 
 def said(g, command):
     """`command`'s program ({'joints': name, 'when': phase or None, 'strokes': n}) kept on `g` to play till it ends,
-    its stroke (STROKES) `strokes` times over where said."""
-    kept = {j for group in str(command.get('keep', '')).split() for j in KEPT[group]}
+    its stroke (STROKES) `strokes` times over where said; `MOVES` activate from `g['bank']`."""
     if command['joints'] in MOVES:
-        g['played'] = {'name': command['joints'], 'move': MOVES[command['joints']], 'when': command.get('when'),
-                       'at': None, 'pose': None, 'gains': None,
-                       'mine': [i for i, j in enumerate(figure.JOINTS) if j not in kept]}
+        from machine.process import bank
+        bank.activate(g, command)
         return
+    kept = {j for group in str(command.get('keep', '')).split() for j in KEPT[group]}
     beats = program(command['joints'])
     first, last = STROKES.get(command['joints'], (None, None))
     if first is not None and 'strokes' in command:
@@ -137,26 +136,9 @@ def said(g, command):
 
 
 def ended(g):
-    """The program on `g` over, the gains it set on the robot's boards its own again (cut by a say and
-    kept by the move after it as the robot's own, its law drove at their stiffness: its spine
-    943 deg/s), its text's bindings dropped (`g['programs']`), its way turned to its upright pelvis
-    after a holding move: its law drives again."""
-    import math
-    import numpy as np
-    p = g.get('played') or {}
-    kept = p.get('gains')
-    g['world'].gains[:] = g['world'].gains if kept is None else kept
-    if p.get('holds') and 'y' in g and 'fr' in g:
-        modal = _modal()
-        w, x, j, k = (float(v) for v in g['y'][modal.QUAT][:4])
-        if 1.0 - 2.0 * (x * x + k * k) > 0.5:
-            yaw = libm.arctan2(2.0 * (w * j + x * k), 1.0 - 2.0 * (x * x + j * j))
-            sh, ch = libm.sin(yaw), libm.cos(yaw)
-            g['heading'] = g['target_heading'] = yaw
-            g['has_heading'] = 0.0
-            g['fr'][modal.HEADING], g['fr'][modal.PLANTED] = yaw, 0.0
-            g['fr'][modal.ROT] = np.array([sh, 0.0, ch, ch, 0.0, -sh, 0.0, 1.0, 0.0])
-    g['played'], g['programs'] = None, {}
+    """The program on `g` over: release smoothly back to the robot's law via `bank.release`."""
+    from machine.process import bank
+    bank.release(g)
 
 
 def scooted(g, twist):
@@ -337,30 +319,31 @@ def played(g, world):
     if p['at'] is None:
         if p['when'] is not None and doing(g) != p['when']:
             return
-        p['at'], p['pose'], p['gains'] = g['t'], np.degrees(g['sense'][edge.Q]), world.gains.copy()
-        world.gains[:, 1] = KD
-        # the program's joints, their stiffness and no feed laid once, its joints int32 so the robot's edge's index
-        # cache keeps them
-        p['joints'] = np.array([i for i in g['joints'] if i in p['mine']], np.int32)
-        p['kp'], p['feed'] = np.asarray(KP)[p['joints']], np.zeros(len(p['joints']))
-        # the program's setpoints and clamps written into buffers of its own each pass, its drive bound to them once
-        p['target'], p['limit'] = np.zeros(len(p['joints'])), np.zeros(len(p['joints']))
-        p['drive'] = edge.bound(world, p['joints'], target=p['target'], feed=p['feed'], kp=p['kp'], limit=p['limit'])
-        if 'beats' in p:
-            p['beats'] = paced(p['beats'], p['pose'])
-            p['length'] = sum(seconds for _beat, seconds, _goals in p['beats'])
-            p['score'] = scored(p['beats'], p['pose'])
-        if 'move' in p:
-            import importlib
-            module = importlib.import_module(p['move'])
-            # a module of moves (`move`) plays the table its word names, the `defmove` of that name
-            p['move'] = module.move(p['name'].replace('_', '-')) if hasattr(module, 'move') else module
-            p['state'], p['cmd'], p['last'] = p['move'].laid(p['pose'], g['t']), p['pose'].copy(), g['t']
-            p['sensed'], p['holds'] = getattr(p['move'], 'SENSED', SENSED), getattr(p['move'], 'HOLDS', True)
-            # the move's step and its joints told in one C call where it is one of the robot's C moves
-            # (`tools.cores.played`)
-            p['pass'] = _played().laid(g, world, p)
+        if p.get('warm'):
+            from machine.process import bank
+            bank.begin_move(g, world, p)
+        else:
+            p['at'], p['pose'], p['gains'] = g['t'], np.degrees(g['sense'][edge.Q]), world.gains.copy()
+            world.gains[:, 1] = KD
+            p['joints'] = np.array([i for i in g['joints'] if i in p['mine']], np.int32)
+            p['kp'], p['feed'] = np.asarray(KP)[p['joints']], np.zeros(len(p['joints']))
+            p['target'], p['limit'] = np.zeros(len(p['joints'])), np.zeros(len(p['joints']))
+            p['drive'] = edge.bound(world, p['joints'], target=p['target'], feed=p['feed'], kp=p['kp'], limit=p['limit'])
+            if 'beats' in p:
+                p['beats'] = paced(p['beats'], p['pose'])
+                p['length'] = sum(seconds for _beat, seconds, _goals in p['beats'])
+                p['score'] = scored(p['beats'], p['pose'])
+            if 'move' in p:
+                import importlib
+                module = importlib.import_module(p['move'])
+                p['move'] = module.move(p['name'].replace('_', '-')) if hasattr(module, 'move') else module
+                p['state'], p['cmd'], p['last'] = p['move'].laid(p['pose'], g['t']), p['pose'].copy(), g['t']
+                p['sensed'], p['holds'] = getattr(p['move'], 'SENSED', SENSED), getattr(p['move'], 'HOLDS', True)
+                p['pass'] = _played().laid(g, world, p)
     if 'move' in p:
+        if p.get('warm'):
+            from machine.process import bank
+            bank.ramp_entry_gains(g, world, p)
         dt, felt = g['t'] - p['last'], _felt(g)
         senses, q = [felt[name] for name in p['sensed']], p['pass']
         done = (_played().passed(q, g['t'], dt, senses) if q is not None

@@ -72,11 +72,17 @@ void wbc_law_latent(const wbc_law_t *k, double *st, const double *tab, int ntab,
   int           any = 0, kk = 0;
   const double *row;
 
+  int           top = -1;
   for (int i = 0; i < ntab; i++)
   {
     const double at = tab[i * T + k->at];
+    const int    due = (at <= now + k->edge_s) && (at > (now - dt) + k->edge_s);
 
-    hit[i] = (double)((at <= now + k->edge_s) && (at > (now - dt) + k->edge_s));
+    top = due ? i : top;
+  }
+  for (int i = 0; i < ntab; i++)
+  {
+    hit[i] = (double)(i == top);
   }
   came = npmin(npsum(hit, ntab), 1.0);
   /* the blend under way leaves at the rate it has now; a curve's row begins where the last ended */
