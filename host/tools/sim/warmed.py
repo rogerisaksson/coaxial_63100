@@ -5,10 +5,11 @@ A change under the robot's machine, its cores or its texts restamps every part i
 change of what their libraries are built of (the glue's `quick.h`, the cores' headers) rebuilds each. Its page then
 laid the robot on numpy's own while a thread beside its loop traced, built and held a part at a time: after a pull 37
 builds over 16 minutes and many sessions, the robot's world at x0.42-0.56 of real time meanwhile. Here the robot is
-laid as its worker lays it (`pace.Run`), its processes where the system moves them (`placed.FLOAT`), stood and walked
+laid as its worker lays it (`pace.Run`), its eyes the world's boxes (`blind`: flat out, the camera's looks held its loop
+93 % of the wall at x0.09, and it never walked), its processes where the system moves them (`placed.FLOAT`), stood and walked
 (ERRANDS): each part its law meets traced, their builds as wide as the host's batch (`held.widened`) and waited for,
-each held bit for bit by the passes after (`bodied.met`); none left under way, the stamp is marked (`kept.marked`) and
-the robot's page's first pass takes them all.
+each held bit for bit by the passes after (`bodied.met`) - a shape met once and not again left to hold where it is met,
+its library built. No build left, the stamp is marked (`kept.marked`) and the robot's page's first pass takes them all.
 
     python -X utf8 -m tools.sim.warmed        # compiled where behind: a line a step
     warmed.current()                           # whether its parts are its sources' (`kept.current`)
@@ -49,7 +50,7 @@ def compiled(width=None):
     began = time.perf_counter()
     held.widened(width or background.widths()[0])
     yield 0.02, 'LAYING THE ROBOT'
-    r = pace.Run()
+    r = pace.Run(blind=True)
     try:
         for k, (what, twist, seconds) in enumerate(ERRANDS):
             share = (k + 0.5) / len(ERRANDS)
@@ -64,12 +65,12 @@ def compiled(width=None):
                 r.go(HOLD_S)
                 got, numpy, under = bodied.met()
                 yield share + 0.25 / len(ERRANDS), '%s: HELD %d OF %d' % (what.upper(), got, got + numpy + under)
-                if not under and not held.unbuilt():
+                if not held.unbuilt():
                     break
     finally:
         r.close()
     got, numpy, under = bodied.met()
-    if not under:
+    if not held.unbuilt():
         kept.marked()
     return got, numpy, under, time.perf_counter() - began
 
@@ -121,7 +122,7 @@ def main(argv=None):
     except StopIteration as end:
         got, numpy, under, seconds = end.value
     print('%s %d %d %d %.1f' % (DONE, got, numpy, under, seconds), flush=True)
-    return 0 if not under else 1
+    return 0 if current() else 1
 
 
 if __name__ == '__main__':

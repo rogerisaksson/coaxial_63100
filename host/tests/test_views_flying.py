@@ -198,10 +198,30 @@ def test_the_drawing_is_a_frame_ahead(report):
                  got == [{'k': 0}, {'k': 0}, {'k': 1}, {'k': 2}], str(got))
 
 
+def test_a_live_drawing_is_never_waited_for(report):
+    """`Ahead.waits` False, a live page's: the newest drawing done, never waited for - none before the
+    first -, the next asked only once the one asked is drawn; `behind` the calls since it was asked."""
+    import time
+    from terminal.ui.ahead import Ahead
+    ahead = Ahead('builtins', 'dict', waits=False)
+    try:
+        card, got, began = ahead.name, [], time.monotonic()
+        while (not got or got[-1] is None) and time.monotonic() - began < 30.0:
+            got.append(ahead.drawn(k=len(got)))
+        behind = ahead.behind
+        after = ahead.drawn(k=len(got))
+    finally:
+        ahead.close()
+    report.check('none before the first, then the first asked, as many calls behind as were made since',
+                 got[0] is None and got[-1] == {'k': 0} and behind == len(got) - 1
+                 and after in ({'k': 0}, {'k': len(got) - 1}),
+                 '%d calls, behind %d, then %r (%s)' % (len(got), behind, after, card))
+
+
 
 ROSTER = (test_the_flight_apart_keeps_to_what_is_shown, test_the_page_plays_it_back_never_ahead,
           test_the_frames_leave_on_their_beat, test_a_world_ended_mid_state_is_left_unread,
-          test_the_drawing_is_a_frame_ahead)
+          test_the_drawing_is_a_frame_ahead, test_a_live_drawing_is_never_waited_for)
 
 
 def main(argv=None):
