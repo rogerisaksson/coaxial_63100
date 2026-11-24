@@ -8,6 +8,7 @@ page's own work, its instruments and rich, on one core while the drawing takes a
     ahead.name                                             # its raster's name, once it is up
     lines = ahead.drawn(*args, lit=True, **kwargs)         # the frame before's asked; this one's asked
     ahead.waits = False                                    # a live page's: the newest drawn, never waited for
+    Ahead(module, function, laid=True)                     # its ANSI lines read there (`marquee.laid`), not here
     ahead.behind                                           # the calls since the drawing returned was asked
     ahead.close()
 
@@ -50,10 +51,12 @@ def _lit(held, found):
     return held['lit']
 
 
-def serve(asks, drawn, module, function):
+def serve(asks, drawn, module, function, lay=False):
     """The worker: the render `module.function` on its own raster (`lit=True` asks for it), the
-    module's `warm()` first where it has one, each ask drawn and said; its prints kept off the
-    page's terminal, a fault said as its trace."""
+    module's `warm()` first where it has one, each ask drawn and said - its ANSI lines read into runs
+    here where `lay` (`marquee.laid`: the page's own reading of them was a quarter of its work) -; its
+    prints kept off the page's terminal, a fault said as its trace."""
+    from terminal.ui import marquee
     null = os.open(os.devnull, os.O_WRONLY)
     os.dup2(null, 1)
     os.dup2(null, 2)
@@ -75,7 +78,8 @@ def serve(asks, drawn, module, function):
                       else v for k, v in kwargs.items()}
             if kwargs.get('lit') is True:
                 kwargs['lit'] = _lit(held, found)
-            drawn.put(('drawn', render(*args, **kwargs)))
+            got = render(*args, **kwargs)
+            drawn.put(('drawn', marquee.laid(got) if lay else got))
     except Exception:
         drawn.put(('error', traceback.format_exc()))
 
@@ -92,12 +96,12 @@ class Ahead:
 
     """`module.function` drawing in a process of its own, a frame ahead of the page that asks."""
 
-    def __init__(self, module, function, waits=True):
+    def __init__(self, module, function, waits=True, laid=False):
         self._asks, self._drawn = CONTEXT.Queue(), CONTEXT.Queue()
         for each in (self._asks, self._drawn):
             each.cancel_join_thread()
         self._process = CONTEXT.Process(target=serve, daemon=True,
-                                        args=(self._asks, self._drawn, module, function))
+                                        args=(self._asks, self._drawn, module, function, laid))
         self._process.start()
         self._up = None
         self._asked = False

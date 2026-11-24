@@ -48,7 +48,42 @@ def test_the_tube_switches_off_from_the_last_frame(report):
                  '%d rows folded' % sum(row.startswith('row') for row in folded))
 
 
-ROSTER = (test_the_tube_switches_on_over_the_shell, test_the_tube_switches_off_from_the_last_frame)
+def test_a_frame_is_written_as_the_crt_lays_it(report):
+    """A curtain's frame (`stage._Tube`): its rows as the CRT lays them, written from the screen's top, a row a
+    line, the width each - the cells rich's Live drew through its screen, two splits of the frame fewer."""
+    import re
+    from rich.console import Console
+    from rich.live import Live
+    from rich.text import Text
+    from terminal.ui import chrome, stage
+    frame = Text('\n'.join('row %02d' % r for r in range(HEIGHT)))
+
+    def console(file):
+        return Console(file=file, force_terminal=True, width=WIDTH, height=HEIGHT, color_system='truecolor',
+                       legacy_windows=False)
+
+    def rows(said):
+        # escapes out, the CRT's snow and sweep (braille, by the clock) as the blanks they fell in
+        cells = re.sub('[⠀-⣿]', ' ', re.sub(r'\x1b\[[0-9;?]*[A-Za-z]', '', said))
+        return [row for row in cells.split('\n') if row.startswith('row')]
+    ours, theirs = io.StringIO(), io.StringIO()
+    with stage.curtain(console(ours)) as page:
+        mark = len(ours.getvalue())
+        page.update(frame, refresh=True)
+        written = ours.getvalue()[mark:]
+    with Live(console=console(theirs), screen=True, auto_refresh=False, transient=True) as live:
+        mark = len(theirs.getvalue())
+        live.update(chrome.Crt(frame), refresh=True)
+        drawn = theirs.getvalue()[mark:]
+    got, want = rows(written), rows(drawn)
+    report.check("from the screen's top, a row a line, as rich's Live drew it",
+                 written.startswith('\x1b[H') and len(got) == HEIGHT and all(len(r) == WIDTH for r in got)
+                 and got == want, '%d rows, %d as wide as the screen, %d as rich drew them'
+                 % (len(got), sum(len(r) == WIDTH for r in got), sum(a == b for a, b in zip(got, want))))
+
+
+ROSTER = (test_the_tube_switches_on_over_the_shell, test_the_tube_switches_off_from_the_last_frame,
+          test_a_frame_is_written_as_the_crt_lays_it)
 
 
 def main(argv=None):

@@ -168,12 +168,54 @@ def _cropped(segments, at, width):
     return out
 
 
+def laid(art):
+    """`art` - ANSI lines, or their text - read as `Marquee` reads it into what pickles small, for a process
+    apart to read it and the page to take it (`Marquee.of`): (its colours [(foreground, background)], each line's
+    runs [(text, its colours' place, -1 none)] - the line itself where it carries an escape this does not read -,
+    each line's width in cells, None for such a line)."""
+    palette, places, runs, widths = [], {}, [], []
+    for raw in art.split('\n') if isinstance(art, str) else art:
+        got = _runs_of(raw)
+        if got is None:
+            runs.append(raw)
+            widths.append(None)
+            continue
+        line = []
+        for text, style in got:
+            key = None if style is None else (style.color, style.bgcolor)
+            at = places.get(key, -1) if key is not None else -1
+            if key is not None and at < 0:
+                at = places[key] = len(palette)
+                palette.append(key)
+            line.append((text, at))
+        runs.append(line)
+        widths.append(cell_len(''.join(text for text, _at in got)))
+    return palette, runs, widths
+
+
 class Marquee:
 
     """Art cropped to its frame instead of wrapped, slid back and forth when
     it is wider: the bars shorten, and the hidden end comes past on the
     slide.
     """
+
+    @classmethod
+    def of(cls, art, centred=False):
+        """A Marquee of `art` as `laid` read it: its runs' Segments on the styles kept here, nothing read again."""
+        palette, runs, widths = art
+        styles = [_style_of(fg, bg) for fg, bg in palette] + [None]
+        lines, wides = [], []
+        for line, wide in zip(runs, widths):
+            if isinstance(line, str):
+                text = Text.from_ansi(line)
+                text.no_wrap, text.overflow = True, 'crop'
+                lines.append(text)
+                wides.append(text.cell_len)
+            else:
+                lines.append([Segment(text, styles[at]) for text, at in line])
+                wides.append(wide)
+        return cls(lines, centred, wides)
 
     def __init__(self, art, centred=False, widths=None):
         """`art` ANSI text, read and measured here; or, with its `widths` in cells, its lines cut into

@@ -238,16 +238,21 @@ class Crt:
     def __init__(self, inner):
         self.inner = inner
 
-    def __rich_console__(self, console, options):
+    def lines(self, console, options):
+        """Its rows' Segments, each the region's width and as many as its height (`render_lines` padded them): what
+        a screen shows from its top as they are (`stage._Tube`), nothing to split or measure again."""
         # A screen-mode Live gives no height: the screen's, as a Layout takes it. Passed
         # through on None, there was no CRT at all (42f9432).
         options = options.update(height=options.height or console.height)
         rows = [_Row(line) for line in console.render_lines(self.inner, options, pad=True)]
         if rows and rows[0].text:
             _crt(rows, time.monotonic())
+        return [list(row.segments()) for row in rows]
+
+    def __rich_console__(self, console, options):
         newline = Segment.line()
-        for row in rows:
-            yield from row.segments()
+        for line in self.lines(console, options):
+            yield from line
             yield newline
 
 

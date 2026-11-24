@@ -55,6 +55,11 @@ PLATE_BG = (8, 14, 16)
 CRC_INK, WEAR_INK = (255, 80, 80), (200, 120, 255)
 
 
+#: The states whose scans are kept: the frame's and the one its drawing shows (a frame or more behind, its boxes'):
+#: one kept, the two asked in turn each frame emptied it, and the robot's things were scanned 6 times a frame.
+SNAPS = 2
+
+
 def _snap_key(now):
     src = now.get('things') or now.get('props')
     return (id(now), now.get('t'), now.get('scenario'), now.get('epoch'),
@@ -71,7 +76,7 @@ class VisionScanner:
         self._ollama_checked = False
         self._ollama_model = None
         self._laid, self._last_t, self._known, self._places = None, None, set(), []
-        self._snap, self._scans, self._ident_key, self._ident = None, {}, None, []
+        self._snaps, self._scans, self._ident_key, self._ident = [], {}, None, []
 
     def model_name(self):
         """Return the name of the local Ollama model if connected, else 'local/stereo'."""
@@ -141,9 +146,10 @@ class VisionScanner:
         if not now:
             return []
         snap = _snap_key(now)
-        if snap != self._snap:
-            self._snap, self._scans = snap, {}
-        cached = self._scans.get((look, reach))
+        if snap not in self._snaps:
+            self._snaps = (self._snaps + [snap])[-SNAPS:]
+            self._scans = {key: got for key, got in self._scans.items() if key[0] in self._snaps}
+        cached = self._scans.get((snap, look, reach))
         if cached is not None:
             return list(cached)
         things = list(now.get('things') or ())
@@ -189,7 +195,7 @@ class VisionScanner:
                           'extent': tuple(half), 'label': '%s (%.1fm)' % (kind, dist), 'affordances': []})
 
         found.sort(key=lambda item: (not bool(item['affordances'] and item['dist'] < 3.4), item['dist']))
-        self._scans[(look, reach)] = found
+        self._scans[(snap, look, reach)] = found
         return list(found)
 
 

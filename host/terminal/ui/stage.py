@@ -28,10 +28,12 @@ from rich import box
 from rich.align import Align
 from rich.columns import Columns
 from rich.console import Console, Group
+from rich.control import Control
 from rich.layout import Layout
 from rich.live import Live
 from rich.panel import Panel
 from rich.progress import BarColumn, Progress, TextColumn
+from rich.segment import Segment
 from rich.table import Table
 from rich.text import Text
 from rich.theme import Theme
@@ -144,11 +146,25 @@ class _Tube:
         self._live = live
 
     def update(self, renderable, *, refresh=False):
+        """`renderable` on the CRT, kept as the Live's; drawn where `refresh`: its rows as the CRT lays them, written
+        from the screen's top. The Live's refresh laid them twice more - its live render's lines, then its screen's
+        shape -, each splitting and measuring every segment of the frame anew."""
         from terminal.ui import tube
         LAST[0] = Crt(renderable)
         if tube.OPENING[0] is not None:
             tube.opening(last_rows(self._live.console))
-        self._live.update(LAST[0], refresh=refresh)
+        self._live.update(LAST[0])
+        # What a print through the Live's console redraws under it: its renderable, nothing laid.
+        self._live._live_render.set_renderable(self._live.renderable)
+        if refresh:
+            console, newline = self._live.console, Segment.line()
+            rows = LAST[0].lines(console, console.options)
+            with console:
+                console._buffer.append(Control.home().segment)
+                for k, row in enumerate(rows):
+                    if k:
+                        console._buffer.append(newline)
+                    console._buffer.extend(row)
 
     def __getattr__(self, name):
         return getattr(self._live, name)

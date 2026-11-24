@@ -6,6 +6,7 @@
     python tools/render/page.py menu
     python tools/render/page.py desk --port emulator://      # the image on Renode
     python tools/render/page.py atlas --feed 'CHUNK|CHUNK'   # what a terminal sends, a chunk a poll
+    python tools/render/page.py humanoid --live --frames 300   # its drawing never waited for, as on a terminal
 
 The page runs its own `main` with `--simulated --frames N` - or `--port PORT` - on a
 console of the given size, as a terminal would size it; the last frame it drew is printed to text and,
@@ -92,10 +93,13 @@ class _Nowhere(io.StringIO):
         return len(text)
 
 
-def frame(name, width=150, height=44, frames=12, port=None, keys='', fed=None):
+def frame(name, width=150, height=44, frames=12, port=None, keys='', fed=None, live=False, timed=None):
     """The page's last frame as ANSI text: simulated, or on `port`; `keys` typed a frame each
     where the page takes `--keys`; `fed` what a terminal would send, a chunk a poll, through the
-    console's own decoder (mouse reports among it). Only the last is kept: every frame and the console's whole
+    console's own decoder (mouse reports among it); `live` its drawing never waited for, as on a terminal
+    (HUMANOID's `--live`); `timed` a list each frame's (its update's start, rich's update, the page's own draw before
+    it) is appended to, s - the draw timed by the `draw` the page hands its `run_view`.
+    Only the last is kept: every frame and the console's whole
     output grew 0.5 MB a frame, and two six-minute pages ran this laptop's commit out."""
     drawn = []
 
@@ -104,11 +108,28 @@ def frame(name, width=150, height=44, frames=12, port=None, keys='', fed=None):
                        color_system='truecolor', theme=stage_module.THEME, highlight=False,
                        legacy_windows=False)
 
-    update = Live.update
+    update, tubed, view, drew = Live.update, stage_module._Tube.update, screen_module.run_view, [0.0]
 
     def kept(self, renderable, *, refresh=False):
         drawn[:] = [renderable]
         return update(self, renderable, refresh=refresh)
+
+    def shown(self, renderable, *, refresh=False):
+        began = time.perf_counter()
+        try:
+            return tubed(self, renderable, refresh=refresh)
+        finally:
+            if timed is not None:
+                timed.append((began, time.perf_counter() - began, drew[0]))
+
+    def viewed(board_view, console, period, frames_, draw, *args, **kwargs):
+        def drawing():
+            began = time.perf_counter()
+            try:
+                return draw()
+            finally:
+                drew[0] = time.perf_counter() - began
+        return view(board_view, console, period, frames_, drawing, *args, **kwargs)
 
     # A page that sizes itself off the terminal (the thermal map) is told this size too.
     told = os.terminal_size((width, height))
@@ -116,15 +137,20 @@ def frame(name, width=150, height=44, frames=12, port=None, keys='', fed=None):
            os.get_terminal_size)
     stand_in, _Fed.FED = (_Fed, list(fed)) if fed else (_Still, [])
     stage_module.stage, keys_module.Keys, screen_module.Keys, Live.update = sized, stand_in, stand_in, kept
+    if timed is not None:
+        stage_module._Tube.update = shown
     shutil.get_terminal_size = lambda *_args, **_kwargs: told
     os.get_terminal_size = lambda *_args, **_kwargs: told
+    module = None
     try:
         module = importlib.import_module(PAGES[name])
         setattr(module, 'stage', sized)
         if hasattr(module, 'Keys'):
             setattr(module, 'Keys', stand_in)
+        if timed is not None and getattr(module, 'run_view', None) is view:
+            setattr(module, 'run_view', viewed)
         argv = ((['--port', port] if port else ['--simulated']) + ['--frames', str(frames)]
-                + (['--keys', keys] if keys else []))
+                + (['--keys', keys] if keys else []) + (['--live'] if live else []))
         if inspect.signature(module.main).parameters:
             module.main(argv)
         else:
@@ -136,6 +162,9 @@ def frame(name, width=150, height=44, frames=12, port=None, keys='', fed=None):
     finally:
         (stage_module.stage, keys_module.Keys, screen_module.Keys, Live.update, shutil.get_terminal_size,
          os.get_terminal_size) = was
+        stage_module._Tube.update = tubed
+        if getattr(module, 'run_view', None) is viewed:
+            setattr(module, 'run_view', view)
     if not drawn:
         raise RuntimeError('%s drew no frame' % name)
     out = Console(file=io.StringIO(), record=True, force_terminal=True, width=width,
@@ -143,6 +172,18 @@ def frame(name, width=150, height=44, frames=12, port=None, keys='', fed=None):
                   highlight=False, legacy_windows=False)
     out.print(drawn[-1])
     return out.export_text(styles=True)
+
+
+def paced(timed):
+    """A line of `timed`'s (`frame`'s) hot frames, its first third left out: the frame's period, the page's own
+    draw and rich's update of it at their medians and 90th percentiles, ms - its wait for its beat the rest."""
+    hot = timed[len(timed) // 3:]
+    period = sorted(b[0] - a[0] for a, b in zip(hot, hot[1:]))
+    draw, update = sorted(d for _t, _u, d in hot), sorted(u for _t, u, _d in hot)
+    at = lambda xs, q: 1e3 * xs[min(len(xs) - 1, int(q * len(xs)))] if xs else 0.0
+    return ('timed %d hot frames: period %.1f ms p50 %.1f p90 (%.1f fps), draw %.1f p50 %.1f p90, rich update '
+            '%.1f p50 %.1f p90' % (len(hot), at(period, 0.5), at(period, 0.9), 1e3 / max(1e-9, at(period, 0.5)),
+                                   at(draw, 0.5), at(draw, 0.9), at(update, 0.5), at(update, 0.9)))
 
 
 def main(argv=None):
@@ -154,13 +195,21 @@ def main(argv=None):
     parser.add_argument('--png', help='also the picture as a PNG here')
     parser.add_argument('--port', help='a port, not the stand-in (emulator:// for the image)')
     parser.add_argument('--keys', default='', help="typed a frame each, '.' none (HUMANOID)")
+    parser.add_argument('--live', action='store_true', help='its drawing never waited for, as on a terminal (HUMANOID)')
+    parser.add_argument('--timed', action='store_true',
+                        help="its frames' pace, its own draw's and rich's share of each, its first third left out as "
+                             "cold, said on stderr")
     parser.add_argument('--feed', default='', help="what a terminal would send, a chunk a poll, '|' between: "
                                                   'escapes as in Python, ESC [<0;60;20M a left press reported')
     args = parser.parse_args(argv)
     fed = [chunk.encode('latin-1', 'backslashreplace').decode('unicode_escape')
            for chunk in args.feed.split('|')] if args.feed else None
-    art = frame(args.page, *args.size, frames=args.frames, port=args.port, keys=args.keys, fed=fed)
+    timed = [] if args.timed else None
+    art = frame(args.page, *args.size, frames=args.frames, port=args.port, keys=args.keys, fed=fed, live=args.live,
+                timed=timed)
     print(art)
+    if timed:
+        print(paced(timed), file=sys.stderr)
     if args.png:
         size = ansi.png(art, args.png)
         print('%s: %dx%d' % (args.png, size[0], size[1]), file=sys.stderr)

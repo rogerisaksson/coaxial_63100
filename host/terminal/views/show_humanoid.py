@@ -2,6 +2,7 @@
 """A slender gynoid on its latent loop under gravity: a body with mass, each joint a drive."""
 import argparse
 import collections
+import functools
 import math
 import os
 import sys
@@ -25,6 +26,7 @@ from terminal.views.playback import Playback
 from terminal.views.scanner import VisionScanner, docked_vision
 from terminal.ui import bindings, recorder, screen as _screen
 from terminal.ui.ahead import Ahead
+from terminal.ui.marquee import Marquee
 from terminal.ui.screen import PORT, FPS_CAP, closing, run_view, say
 from terminal.ui.stage import boot, frame_of, stage
 from terminal.ui.taskbar import footer, help_rows, helped, room
@@ -242,11 +244,12 @@ def _draw_viewport(state, now, width, height, terminal):
     asked = state.setdefault('asked', collections.deque(maxlen=ASKED))
     asked.append(now)
     state['drawn'] = asked[max(0, len(asked) - 1 - ahead.behind)]
-    return (_blank(width, height), now) if lines is None else ('\n'.join(lines), state['drawn'])
+    return (_blank(width, height), now) if lines is None else (Marquee.of(lines, centred=True), state['drawn'])
 
 
 def _boot_humanoid(_board_view, state):
-    return sprung.boot_humanoid(state, boot, say, Ahead, boards.EmulatedLimb)
+    """The robot laid, its drawing apart reading its own lines into runs (`Ahead`'s `laid`)."""
+    return sprung.boot_humanoid(state, boot, say, functools.partial(Ahead, laid=True), boards.EmulatedLimb)
 
 
 def _compiled():
@@ -269,6 +272,7 @@ def main(argv=None):
     for flag in ('--frames', '--width', '--height'):
         parser.add_argument(flag, type=int, default=0)
     parser.add_argument('--keys', default='', help="a key a frame from the first, '.' none")
+    parser.add_argument('--live', action='store_true', help='its drawing never waited for, --frames too, as on a terminal')
     parser.add_argument('--tour', action='store_true', help='start the autonomous room tour on launch')
     parser.add_argument('--prompt', default='', help='send an initial natural-language LLM prompt to the robot')
     parser.add_argument('--telemetry', type=int, default=0,
@@ -307,9 +311,11 @@ def main(argv=None):
         gym.drain_plan(state)
         up, below = helped(t_mono), gym.drawer(state, t_mono)
         w_vp, h_vp = size_of(board_view, args, up, below)
-        # Drawn ahead: this frame shows the state its drawing was asked at, its boxes too.
+        # Drawn ahead: this frame shows the state its drawing was asked at, its boxes too - built where the column
+        # shows them (Tab): hidden, the rail stands in its place and they were a quarter of the page's own work.
         art, shown = _draw_viewport(state, now, w_vp, h_vp, terminal)
-        return frame_of(board_view, state['origin'], TITLE, art, boxes(state, shown, name), PAD,
+        column = boxes(state, shown, name) if bindings.UX['column'] else []
+        return frame_of(board_view, state['origin'], TITLE, art, column, PAD,
                         under=chat_box(state, w_vp) if below else None, under_rows=below,
                         gauges=gauges(state))
 
@@ -318,8 +324,8 @@ def main(argv=None):
             gym.warm(state)
             _compiled()
         body, name = _boot_humanoid(board_view, state)
-        # A live page never waits for its drawing; a smoke's frames each its own state's.
-        state['ahead'].waits = bool(args.frames)
+        # A live page never waits for its drawing; a smoke's frames each its own state's, but --live's.
+        state['ahead'].waits = bool(args.frames) and not args.live
         if args.tour:
             gym.toggle_tour(state)
         if args.prompt:
