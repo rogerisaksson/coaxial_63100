@@ -1,32 +1,47 @@
 /** link_report.c - Human-readable link status, for the ASCII console only. */
 #include "link.h"
 #include "cmd.h"
-
-#include <stdio.h>
+#include "say.h"
 
 void Link_ReportStatus(void)
 {
   link_stats_t s;
   link_stats(&s);
 
-  printf("link: proto=%s  unit=%u  state=%s  t1.5=%lu  t3.5=%lu ticks\r\n",
-         link_proto_name(), (unsigned)s.unit_id,
-         link_active() ? "BINARY" : "console",
-         (unsigned long)s.t15_ticks, (unsigned long)s.t35_ticks);
-  printf("  bus_message=%lu  bus_comm_error=%lu  char_overrun=%lu\r\n",
-         (unsigned long)s.bus_message, (unsigned long)s.bus_comm_error,
-         (unsigned long)s.char_overrun);
-  printf("  server_message=%lu  server_exception=%lu  server_no_response=%lu\r\n",
-         (unsigned long)s.server_message, (unsigned long)s.server_exception,
-         (unsigned long)s.server_no_response);
+  say_text("link: proto=");
+  say_text(link_proto_name());
+  say_text("  unit=");
+  say_u32(s.unit_id);
+  say_text("  state=");
+  say_text(link_active() ? "BINARY" : "console");
+  say_text("  t1.5=");
+  say_u32(s.t15_ticks);
+  say_text("  t3.5=");
+  say_u32(s.t35_ticks);
+  say_text(" ticks\r\n  bus_message=");
+  say_u32(s.bus_message);
+  say_text("  bus_comm_error=");
+  say_u32(s.bus_comm_error);
+  say_text("  char_overrun=");
+  say_u32(s.char_overrun);
+  say_text("\r\n  server_message=");
+  say_u32(s.server_message);
+  say_text("  server_exception=");
+  say_u32(s.server_exception);
+  say_text("  server_no_response=");
+  say_u32(s.server_no_response);
+  say_text("\r\n");
 
   const uint16_t n = cmd_count();
 
-  printf("  commands:");
+  say_text("  commands:");
   for (uint16_t i = 0U; i < n; i++)
   {
     const cmd_desc_t *d = cmd_at(i);
-    printf(" 0x%02X=%s", (unsigned)d->code, d->name);
+    say_text(" 0x");
+    say_hex(d->code, 2U);
+    say_text("=");
+    say_text(d->name);
   }
-  printf("\r\n");
+  say_text("\r\n");
 }

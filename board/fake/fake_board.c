@@ -27,11 +27,18 @@
 #include "testrig.h"
 
 #include <stddef.h>
+#include <stdio.h>
 #include <string.h>
 
 /* Weak: board/native replaces the drive's path - the PWM, the injected triple, the phase
    scales - with its own over a plant, and the drive with board/src/board_drive.c. */
 #define FAKE_WEAK __attribute__((weak))
+
+/* The console's words on the host's stdout, where the stand-in's printf wrote them. */
+FAKE_WEAK void Board_ConsoleWrite(const uint8_t *data, uint16_t len)
+{
+  (void)fwrite(data, 1U, len, stdout);
+}
 
 /* Answered by hand, and remembered: the AFE rail - who holds it - and the PWM's enable,
    so a host that switches either reads back what it asked for. 50 kHz centre-aligned at

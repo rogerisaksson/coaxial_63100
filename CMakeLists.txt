@@ -104,6 +104,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     board/src/board_ctrl.c
     board/src/board_boot.c
     board/src/board_mem.c
+    board/src/board_console.c
 
     # Comms stack: cmd (request/response) over proto (Modbus) over dev (USART3).
     comms/src/console.c
@@ -132,6 +133,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     comms/src/testrig.c
     comms/src/link.c
     comms/src/link_report.c
+    comms/src/say.c
 )
 
 # Warnings on our own sources only.
@@ -162,6 +164,7 @@ set(COAXIAL_SOURCES
     board/src/board_thermal.c
     board/src/board_power.c
     board/src/board_drive.c board/src/board_ctrl.c board/src/board_boot.c board/src/board_mem.c
+    board/src/board_console.c
     comms/src/console.c comms/src/wire.c comms/src/dev_uart.c
     comms/src/cmd.c comms/src/cmd_board.c comms/src/cmd_test.c
     comms/src/cmd_imu.c comms/src/cmd_angle.c comms/src/cmd_device.c
@@ -171,7 +174,7 @@ set(COAXIAL_SOURCES
     comms/src/cmd_power.c
     comms/src/cmd_drive.c comms/src/cmd_ctrl.c comms/src/cmd_wbc.c comms/src/cmd_boot.c
     comms/src/cmd_aero.c
-    comms/src/testrig.c comms/src/link.c comms/src/link_report.c
+    comms/src/testrig.c comms/src/link.c comms/src/link_report.c comms/src/say.c
 )
 set_source_files_properties(${COAXIAL_SOURCES} PROPERTIES
                             COMPILE_OPTIONS "-Wextra;-Wshadow")
@@ -200,7 +203,7 @@ set_source_files_properties(
     comms/src/cmd_log.c comms/src/cmd_daq.c comms/src/cmd_time.c
     comms/src/cmd_power.c
     comms/src/cmd_drive.c comms/src/cmd_ctrl.c comms/src/cmd_wbc.c comms/src/cmd_boot.c
-    comms/src/link.c comms/src/link_report.c
+    comms/src/link.c comms/src/link_report.c comms/src/say.c
     PROPERTIES COMPILE_OPTIONS "-Wextra;-Wshadow;-Wconversion")
 
 # The interrupt path the drive runs on, optimised whatever the preset.

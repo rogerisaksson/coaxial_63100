@@ -4,20 +4,7 @@ import sys
 
 from tools.dev.focus import chosen
 from views_kit import Report
-
-
-def _crossed(lanes):
-    """The cells where one of `lanes` (atlas/mirror.py's) only passes across another (schematic.py breaks it)."""
-    from terminal.views.atlas import schematic
-    straight, per = {schematic.LEFT | schematic.RIGHT, schematic.UP | schematic.DOWN}, {}
-    for k, (_a, _b, corners, *_inks) in enumerate(lanes):
-        cells = schematic.walked(corners)
-        for (pc, pr), (qc, qr) in zip(cells, cells[1:]):
-            way = schematic.LEFT | schematic.RIGHT if qr == pr else schematic.UP | schematic.DOWN
-            for cell in ((pc, pr), (qc, qr)):
-                per.setdefault(cell, {}).setdefault(k, set()).add(way)
-    return sum({way for ways in got.values() for way in ways} == straight and all(len(w) == 1 for w in got.values())
-               for got in per.values())
+from atlas_kit import _crossed
 
 
 def test_the_nearest_child_past_the_keys(report):
@@ -55,7 +42,7 @@ def test_the_nearest_child_past_the_keys(report):
 def test_the_mirror_closes_the_robots_loop(report):
     """The mirror's flows come back (tools/dev/atlas_flow.py): what the robot's pass ends with, the world, to what
     its edge reads the next - the loop closed -, and the wire's readings from their handler to the host's end; in
-    the mirror the loop marked (↺) on a key's panel; a dot runs each flow on its lane, on in half a second."""
+    the mirror the loop marked (\u21ba) on a key's panel; a dot runs each flow on its lane, on in half a second."""
     from terminal.ui import bindings
     from terminal.views import show_atlas
     from terminal.views.atlas import mirror, scene
@@ -71,7 +58,7 @@ def test_the_mirror_closes_the_robots_loop(report):
     show_atlas.focused(state, next(i for i, row in enumerate(atlas_tree.LAYERS) if row[0] == 'executive'))
     bindings.act_on(show_atlas.PAD, ['m'], state)
     turned = show_atlas.placed(state)
-    marked = [f for flows in turned['rings'].values() for f in flows if f[0] == '↺']
+    marked = [f for flows in turned['rings'].values() for f in flows if f[0] == '\u21ba']
     target, distance = mirror.framed(turned, 150, 40)
     sight = scene.view(scene.camera(0.0, 0.0, distance, target), 150, 40)
     paths = mirror.laid(turned, sight, 150, 40)[1]
@@ -114,7 +101,7 @@ def test_the_mirror_faces_what_flows(report):
                  'keyed as the tree keys them, faced whole; a word by where it is made',
                  {(0, 'heard'), (0, 'read'), (1, 'CMD')} <= said and min(made.values()) >= 0 and set(over['at']) == joined
                  and set(over['flat']['nodes'].tolist()) == joined and not unkeyed
-                 and ('drives', 'motion.py › drives') in {(s, by) for _a, s, _n, by in over['rings'][law]}
+                 and ('drives', 'motion.py \u203a drives') in {(s, by) for _a, s, _n, by in over['rings'][law]}
                  and state['cam']['yaw'] == state['cam']['pitch'] == 0 and (goal['target'], goal['distance']) == framed,
                  '%d nodes drawn, %d of them keyed, unkeyed %s' % (len(joined), len(set(keys) & joined), unkeyed))
     bindings.act_on(show_atlas.PAD, ['m'], state)
@@ -290,7 +277,7 @@ def test_the_mirror_tells_more_nearer(report):
 
 def test_the_mirror_opens_nearer(report):
     """Nearer still a node opens in place (atlas/nested.py): framed and titled about its parts - senses/'s
-    estimators (◈), law/'s regulators -, lanes outside ending on it; faint as it opens, a key step on not."""
+    estimators (\u25c8), law/'s regulators -, lanes outside ending on it; faint as it opens, a key step on not."""
     from terminal.ui import bindings
     from terminal.views import show_atlas
     from terminal.views.atlas import mirror, nested, scene
@@ -304,7 +291,7 @@ def test_the_mirror_opens_nearer(report):
     mirror.laid(over, scene.view(scene.camera(0.0, 0.0, distance / 2, target), w, h), w, h)
     opens = {scene.short(tree, n): round(inner['scale'], 2) for n, inner in over['nests'].items() if inner}
     seen, within, off, inks = {}, [], [], []
-    for name, parts in (('senses/', ('edge.py', '◈ inekf.py', '◈ observer.py', 'grip.py')),
+    for name, parts in (('senses/', ('edge.py', '\u25c8 inekf.py', '\u25c8 observer.py', 'grip.py')),
                         ('law/', ('modal.py', 'se2.py', 'latent.py', 'impedance.py', 'motion.py'))):
         node = next(n for n in over['nests'] if scene.short(tree, n) == name)
         inner, (ax, ay, az) = over['nests'][node], over['at'][node]
@@ -315,7 +302,7 @@ def test_the_mirror_opens_nearer(report):
             cells, paths, spots, _said = mirror.laid(over, sight, w, h)
             (x0, y0), rows = spots[node][0], [''.join(cells.get((c, r), ' ')[0] for c in range(w)) for r in range(h)]
             x0 -= 3
-            x1, y1 = rows[y0].index('╮', x0), next(r for r in range(y0, h) if rows[r][x0] == '╰')
+            x1, y1 = rows[y0].index('\u256e', x0), next(r for r in range(y0, h) if rows[r][x0] == '\u2570')
             seen[name] = all(any(p in row[x0:x1] for row in rows[y0:y1]) for p in parts)
             for i, (a, b, *_rest) in enumerate(over['lanes']):
                 within += [(name, i) for c in paths[i] if x0 < c[0] < x1 and y0 < c[1] < y1]

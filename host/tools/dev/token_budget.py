@@ -17,8 +17,8 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.a
     __file__)))))
 
 #: Non-English (Swedish / Swenglish) characters and words forbidden in code, docs and commits;
-#: coaxial_ollama's multilingual dictionaries and tests and measure_first's prompt matcher are
-#: exempt by path.
+#: coaxial_ollama's multilingual dictionaries, its tests and their kits, and measure_first's prompt
+#: matcher are exempt by path.
 SWEDISH_RE = re.compile(
     r'[\u00e5\u00e4\u00f6\u00c5\u00c4\u00d6]|\b('
     r'j\u00e4mfota\w*|jamfota\w*|spr\u00e5ng\w*|h\u00f6gt|g\u00e5ng\w*|l\u00f6pning\w*|'
@@ -29,6 +29,7 @@ SWEDISH_RE = re.compile(
 MULTILINGUAL_ALLOW = (
     'host/coaxial_ollama/',
     'host/tests/test_ollama_',
+    'host/tests/ollama_',
     'host/tests/test_live_model.py',
     'host/tests/test_live_gynoid.py',
     'host/tools/dev/measure_first.py',
@@ -66,14 +67,13 @@ BUDGET = 6000
 #: Tokens.
 HEAVY = {
     'host/tests/test_simulated.py': 22300,
-    'host/tests/test_ollama_tools.py': 18600,
     'host/tests/test_render.py': 18100,
     'host/tests/test_thermal_core.py': 17300,
+    'host/tests/test_ollama_tools.py': 14100,
     'host/tests/test_ollama_runner.py': 11400,
-    'host/tests/test_controller.py': 10300,
     'host/tools/notebooks/drive.py': 10000,
     'host/tests/test_ollama_link.py': 9900,
-    'host/tests/test_ollama_prompt.py': 9400,
+    'host/tests/test_controller.py': 9800,
     'host/tests/test_sensorless.py': 9100,
     'host/coaxial/draw/cross_section.py': 8700,
     'thermal/src/thermal.c': 8500,
@@ -93,6 +93,7 @@ HEAVY = {
     'host/coaxial/kalman/thermal_ident.py': 6200,
     'board/src/board_pwm.c': 6100,
     'host/coaxial/model/thermal.py': 6100,
+    'host/tests/test_ollama_prompt.py': 6100,
     'host/tools/sim/gvs.py': 7500,
     'docs/findings/orthokinematics.md': 6500,
 }

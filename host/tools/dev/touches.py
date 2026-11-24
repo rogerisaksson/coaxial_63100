@@ -150,6 +150,10 @@ TOUCHES = (
     ('host/tests/cores_kit.py',                (WBC_CORE, COMPILED)),
     ('host/tests/emulator_kit.py',             (EMULATOR,)),
     ('host/tests/ground_kit.py',               (GROUNDWORK, BEDSIDE)),
+    ('host/tests/atlas_kit.py',                ('test_views_atlas.py',)),
+    ('host/tests/controller_kit.py',           (CONTROLLER,)),
+    ('host/tests/ollama_docs_kit.py',          ('test_ollama_tools.py',)),
+    ('host/tests/ollama_intent_kit.py',        ('test_ollama_prompt.py',)),
     ('host/tests/',                            ()),          # decided by name below
     # Firmware and protocol: the byte-level master is the point of it - but the
     # portable core is also compiled and run on this host, which is the only

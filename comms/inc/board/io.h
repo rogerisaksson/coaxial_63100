@@ -11,6 +11,9 @@ extern "C" {
 
 const char *Board_Name(void);
 
+/** The ASCII console's bytes out: USART3 on the board, the host's stdout on its stand-in (say.c). */
+void Board_ConsoleWrite(const uint8_t *data, uint16_t len);
+
 /** Which way a pin's signal runs, seen from the MCU. */
 #define BOARD_DIR_IN    0U
 #define BOARD_DIR_OUT   1U
