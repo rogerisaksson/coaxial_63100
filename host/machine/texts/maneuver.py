@@ -376,7 +376,7 @@ def said(g, item, at=None, thing=None):
     g['seat'] = math.inf
     if item[0] not in PLAYED:
         return item
-    from machine.law import se2, stride
+    from machine.law import modal, se2, stride
     # on the floor (`se2.GROUNDED`) the floor is the seat, top 0: a rise there is refused by leg reach
     floor = float(sprung.doing(g) in se2.GROUNDED)
     verb = PLAYED[item[0]][1] or item[0]
@@ -389,7 +389,12 @@ def said(g, item, at=None, thing=None):
                            '(a stride and the standoff) - an errand walks there' % (item[0], edge, reach))
     g['sat_thing'] = sat_slot if PLAYED[item[0]][1] is None and not floor else None
     names, ps, bound = _named(item[0], seen, _suite() if g['suite'] is None else g['suite'])
-    g['programs'], g['seat'] = _bound(names, bound), float(seen[0])
+    programs_ = _bound(names, bound)
+    if item[0] == 'rise_chair' and 'y' in g and 'loads' in g and 'fr' in g:
+        wt = float(g['fr'][modal.WEIGHT])
+        if wt > 0.0 and float(g['y'][modal.PROP]) < 0.05 and sum(g['loads']) >= 0.82 * wt:
+            programs_ = {k: v for k, v in programs_.items() if v.get('joints') != 'chair_dismount'}
+    g['programs'], g['seat'] = programs_, float(seen[0])
     return _entry(item[0], _text(item[0], names, ps), g['texts'])
 
 
