@@ -239,8 +239,8 @@ class Crt:
         self.inner = inner
 
     def lines(self, console, options):
-        """Its rows' Segments, each the region's width and as many as its height (`render_lines` padded them): what
-        a screen shows from its top as they are (`stage._Tube`), nothing to split or measure again."""
+        """The CRT's rows' Segments, each the region's width and as many as its height (`render_lines` padded them):
+        what a screen shows from its top as they are (`stage._Tube`), nothing to split or measure again."""
         # A screen-mode Live gives no height: the screen's, as a Layout takes it. Passed
         # through on None, there was no CRT at all (42f9432).
         options = options.update(height=options.height or console.height)
