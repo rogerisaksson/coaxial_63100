@@ -173,23 +173,21 @@ def _bay():
 
 
 def _shoulder_bay():
-    """Relocated `left_shoulder` and `right_shoulder` inverter boards in twin dorsal cups behind the neck/head bay."""
+    """Relocated shoulder inverter boards in twin dorsal cups flanking the neck/head bay."""
     from machine.body import drives
     from tools.render import covered as cv
     b = drives.board('left_shoulder')
     if b is None or b[0] != 'torso':
         return {}
-    _seg, (bx, by, bz), _kg, r_b, _ax = b
-    half = 0.5 * drives.tall('left_shoulder')
-    z0, z1 = bz - half, bz + half
-    discs, wall, lid = [], [], []
+    _seg, (bx, by, bz), _kg, r_b, ax = b
+    h, r_o, discs, wall, lid = 0.5 * drives.tall('left_shoulder'), r_b + cv.WALL_M + 5e-4, [], [], []
     for sgn in (-1.0, 1.0):
-        discs += [(t[:, (1, 2, 0)] + (sgn * bx, by, 0.0), col) for t, col in em._drum(r_b, z0, z1, em.BOARD)]
-        sleeve = cl.turned([(z0, r_b + 0.0005, r_b + cv.WALL_M + 0.0005),
-                            (z1, r_b + 0.0005, r_b + cv.WALL_M + 0.0005)], None)
-        wall += [(t[:, (1, 2, 0)] + (sgn * bx, by, 0.0), cv.BLACK) for t, _c in sleeve]
-        lid += [(t[:, (1, 2, 0)] + (sgn * bx, by, 0.0), col)
-                for t, col in em._drum(r_b + cv.WALL_M + 0.0005, z0 - cv.WALL_M, z0, cv.BLACK)]
+        a0, a1 = (sgn * bx - h, sgn * bx + h) if ax == 'x' else (bz - h, bz + h)
+        l0, l1 = ((a1, a1 + cv.WALL_M) if sgn > 0 else (a0 - cv.WALL_M, a0)) if ax == 'x' else (a0 - cv.WALL_M, a0)
+        mv = (lambda t, s=sgn: t + (0.0, by, bz)) if ax == 'x' else (lambda t, s=sgn: t[:, (1, 2, 0)] + (s * bx, by, 0.0))
+        discs += [(mv(t), c) for t, c in em._drum(r_b, a0, a1, em.BOARD)]
+        wall += [(mv(t), cv.BLACK) for t, _c in cl.turned([(a0, r_b + 5e-4, r_o), (a1, r_b + 5e-4, r_o)], None)]
+        lid += [(mv(t), c) for t, c in em._drum(r_o, l0, l1, cv.BLACK)]
     return {'shoulder bay': discs, 'shoulder bay guard': wall, 'shoulder bay lid': lid}
 
 

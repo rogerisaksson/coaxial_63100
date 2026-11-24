@@ -11,34 +11,33 @@ import sys
 if __package__ in (None, ''):
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+from tools.render.face_laid import np_mod as _np  # noqa: E402
+
 NECK_RINGS = ((-0.040, 0.056, 0.056, -0.005), (-0.020, 0.050, 0.054, -0.004), (0.000, 0.046, 0.052, -0.003),
               (0.025, 0.043, 0.048, -0.002), (0.042, 0.040, 0.036, 0.008), (0.058, 0.036, 0.032, 0.011),
               (0.074, 0.030, 0.026, 0.012))
-NECK_Y = (0.339, 0.462)
+NECK_Y, SKIN_TONED = (0.339, 0.462), (172, 138, 121)
 HEAD_LIKED = ('like_head', 'like_hair', 'like_fall')
 HEAD_SYM = ('head', 'jaw', 'nose', 'lips', 'left_ear', 'right_ear', 'left_eye', 'right_eye', 'hair', 'hair_fall')
-CLOTH_LIKE = ('like_torso', 'like_left_upper_arm', 'like_right_upper_arm', 'like_pelvis', 'like_left_thigh',
-              'like_right_thigh', 'like_left_shank', 'like_right_shank')
-CLOTH_SYM = ('cloth_tee', 'cloth_seat', 'cloth_left_bust', 'cloth_right_bust', 'cloth_left_inner',
-             'cloth_right_inner', 'cloth_left_sleeve', 'cloth_right_sleeve', 'cloth_left_thigh',
-             'cloth_right_thigh', 'cloth_left_shin', 'cloth_right_shin', 'cloth_left_leg', 'cloth_right_leg')
-SEAT_STACK = ('roll still', 'roll guard', 'roll lid', 'roll leads', 'roll ring')
-SKIN_TONED = (172, 138, 121)
+CLOTH_LIKE = tuple('like_' + s for s in ('torso', 'left_upper_arm', 'right_upper_arm', 'pelvis',
+                                         'left_thigh', 'right_thigh', 'left_shank', 'right_shank'))
+CLOTH_SYM = tuple('cloth_' + s for s in ('tee', 'seat') + tuple(
+    a + b for a in ('left_', 'right_') for b in ('bust', 'inner', 'sleeve', 'thigh', 'shin', 'leg')))
+SEAT_STACK = tuple('roll ' + s for s in ('still', 'guard', 'lid', 'leads', 'ring'))
 
 
 def _step(x):
-    import numpy as np
-    u = np.clip(x, 0.0, 1.0)
+    u = _np().clip(x, 0.0, 1.0)
     return u * u * (3.0 - 2.0 * u)
 
 
 def _unit(x):
-    import numpy as np
+    np = _np()
     return x / np.maximum(np.linalg.norm(x, axis=-1, keepdims=True), 1e-12)
 
 
 def _accum(n_v, idx, fn):
-    import numpy as np
+    np = _np()
     out = np.zeros((n_v, 3))
     for j in range(3):
         np.add.at(out, idx[:, j], fn)
@@ -47,11 +46,9 @@ def _accum(n_v, idx, fn):
 
 @functools.lru_cache(maxsize=None)
 def _body_cached(dressed=False, like=None):
-    """Cached `(body, names, frames, pos)` for `gynoid.body` in root pelvis frame."""
-    import numpy as np
     from coaxial.graphics import gynoid
-    body = gynoid.body(dressed, None, like if like else None, bool(like) or (not dressed))
-    names, root = [p[0] for p in body.parts], ((0.0, 0.0, 0.0), np.eye(3))
+    body = gynoid.body(dressed, None, like or None, bool(like) or (not dressed))
+    names, root = [p[0] for p in body.parts], ((0.0, 0.0, 0.0), _np().eye(3))
     frames = body._frames({}, root)
     return body, names, frames, body.pose({}, root=root, _frames=frames)[0]
 
@@ -63,16 +60,15 @@ def _skin_colour(like):
 
 def neck_skin(nod=0.0, head_yaw=0.0, like=None):
     """Smooth closed neck and nape skin cover over the neck drive in root frame."""
-    import numpy as np
     from coaxial.graphics import lit
     from coaxial.graphics.shapes import finer, loft
-    (_b, nm, fr, _p), rgb = _body_cached(False, None), _skin_colour(like)
+    np, (_b, nm, fr, _p), rgb = _np(), _body_cached(False, None), _skin_colour(like)
     nat = fr[nm.index('neck')][1]
     hrel = fr[nm.index('head')][1] - nat
     c, tris, _u, _m = loft(finer(NECK_RINGS, -0.040, 0.074, 0.004), lit.paint(rgb), poles=(-0.044, 0.076))
     yn = c[:, 1].copy()
     if head_yaw:
-        a = np.radians(head_yaw * _step((yn - 0.040) / 0.028))
+        a = np.radians(head_yaw * _step((yn - 0.040) / 0.034))
         ca, sa, dx, dz = np.cos(a), np.sin(a), c[:, 0] - hrel[0], c[:, 2] - hrel[2]
         c[:, 0], c[:, 2] = hrel[0] + ca * dx + sa * dz, hrel[2] - sa * dx + ca * dz
     if nod:
@@ -83,35 +79,39 @@ def neck_skin(nod=0.0, head_yaw=0.0, like=None):
 
 
 def trim_neck(nm_dict, nod=0.0):
-    """Keep torso hardware below `NECK_Y[0]`, dropping the internal neck drive inside `neck_skin`."""
-    import numpy as np
+    """Keep torso hardware below `NECK_Y[0]`, dropping the internal neck drive."""
     from tools.render import knee_mount as km, neck_mount as nm
     drop = {'neck drive', 'neck ring', 'neck plate', 'cheek', 'shoe', 'neck hose', 'floor pipe',
             'neck leads', 'crown', 'head drive', 'head ring', 'carrier'}
     (_b, ns, fr, _p), rx = _body_cached(False, None), km._rx(-nod) if nod else None
-    piv = np.array([0.0, float(fr[ns.index('neck')][1][1] - fr[ns.index('torso')][1][1]), float(fr[ns.index('neck')][1][2])])
+    piv = _np().array([0.0, float(fr[ns.index('neck')][1][1] - fr[ns.index('torso')][1][1]), float(fr[ns.index('neck')][1][2])])
     lim = {'block', 'pipes', 'head hose'}
     return [(t, c) for n, ts in nm_dict.items() if not n.endswith(' shoulder') and n not in drop for t, c in ts
             if n not in lim or float(((t - piv) @ rx.T + piv if (rx is not None and n in nm.NODS) else t)[:, 1].max()) < NECK_Y[0]]
 
 
-def _smooth_hair(c, t, uv, m):
-    """Weld hair vertices and smooth normals."""
-    import numpy as np
-    from coaxial.graphics import lit
-    c_u, inv = np.unique(np.round(c, 5), axis=0, return_inverse=True)
-    tu, rgb, cnt = inv[t], np.zeros_like(c_u), np.zeros((len(c_u), 1))
-    _fc, _ft, vn = _smooth_normals(c_u, tu, 180.0)
+def _weld_rgb(n_u, inv, tu, m, steps=4):
+    np = _np()
+    rgb, cnt = np.zeros((n_u, 3)), np.zeros((n_u, 1))
     np.add.at(rgb, inv, np.stack([(m >> 16) & 255, (m >> 8) & 255, m & 255], 1))
     np.add.at(cnt, inv, 1.0)
     rgb /= np.maximum(cnt, 1.0)
     src, dst = tu[:, [0, 1, 2, 1, 2, 0]].ravel(), tu[:, [1, 2, 0, 0, 1, 2]].ravel()
-    deg = np.maximum(np.bincount(src, minlength=len(c_u)), 1)[:, None]
-    for _ in range(5):
+    deg = np.maximum(np.bincount(src, minlength=n_u), 1)[:, None]
+    for _ in range(steps):
         acc = np.zeros_like(rgb)
         np.add.at(acc, src, rgb[dst])
-        rgb = 0.35 * rgb + 0.65 * (acc / deg)
-    trgb = np.clip(np.rint(rgb[tu].mean(1)), 0, 255).astype(np.uint32)
+        rgb = 0.4 * rgb + 0.6 * (acc / deg)
+    return rgb
+
+
+def _smooth_hair(c, t, uv, m):
+    from coaxial.graphics import lit
+    np = _np()
+    c_u, inv = np.unique(np.round(c, 5), axis=0, return_inverse=True)
+    tu = inv[t]
+    _fc, _ft, vn = _smooth_normals(c_u, tu, 180.0)
+    trgb = np.clip(np.rint(_weld_rgb(len(c_u), inv, tu, m, 5)[tu].mean(1)), 0, 255).astype(np.uint32)
     tmat = np.uint32(lit.PAINTED) | (trgb[:, 0] << 16) | (trgb[:, 1] << 8) | trgb[:, 2]
     return c[t].reshape(-1, 3), np.arange(3 * len(t)).reshape(-1, 3), uv[t].reshape(-1, 2), np.repeat(tmat, 3), vn
 
@@ -208,10 +208,9 @@ def trim_leg(leg_tris, foot_y, dressed=False):
 
 @functools.lru_cache(maxsize=None)
 def seat_nets():
-    """Bilateral buttock honeycomb nets (`seat.plate`) and rims over `hip_clamped`'s rear drive."""
+    """Bilateral buttock honeycomb nets (`seat.plate`) over `hip_clamped`'s rear drive."""
     import numpy as np
     from coaxial.graphics import livery, seat
-    from coaxial.graphics.lit import PAINTED
     from machine.body.figure import HIP_DROP, HIP_HALF
     from tools.render import hip_clamped as hc, leg_worn as lw, trunk_clamped as tc, trunk_laid as tl
     hip_spot, yaw_spot = np.array([HIP_HALF, -HIP_DROP, 0.0]), np.array([HIP_HALF, -HIP_DROP + 0.103, 0.0])
@@ -229,13 +228,7 @@ def seat_nets():
     pelvis = [(p := p3(ts) + off, t3(p)) for ts, off in raw_p if ts]
     c_l, t_l, _u, _m = seat.plate(1.0, (drives, yaw_spot), pelvis)
     c_r, t_r, ink = c_l * (-1.0, 1.0, 1.0), t_l[:, ::-1], lw._rgb(livery.VOID)
-    out = [(c_l[t], ink) for t in t_l] + [(c_r[t], ink) for t in t_r]
-    if (rim_fn := seat.__dict__.get('rim')) is not None:
-        rc_l, rt_l, _ru, rm = rim_fn(1.0, (drives, yaw_spot), pelvis)
-        rc_r, rt_r, pad = rc_l * (-1.0, 1.0, 1.0), rt_l[:, ::-1], (236, 240, 246)
-        cols = [lw._rgb(rm[t[0]]) if int(rm[t[0]]) >= PAINTED else pad for t in rt_l]
-        out += [(rc_l[t], col) for t, col in zip(rt_l, cols)] + [(rc_r[t], col) for t, col in zip(rt_r, cols)]
-    return out
+    return [(c_l[t], ink) for t in t_l] + [(c_r[t], ink) for t in t_r]
 
 
 def arm_parts_dressed(flex=0.0, turn=0.0, roll=0.0):
@@ -243,7 +236,7 @@ def arm_parts_dressed(flex=0.0, turn=0.0, roll=0.0):
     from tools.render import arm_worn as aw, knee_mount as km
     sh, ad, gd = aw.laid(False, ())[1], aw.arm(flex, roll, turn), aw._guarded()
     low = [t for k in ('elbow', 'hose', 'forearm tube') for t in ad[k]] + [(t, c) for t, c in ad['upper arm tube'] if float(t[:, 1].min()) < 0.245]
-    gul = [(t, c) for t, c in gd['left_upper_arm'] if float(t[:, 1].max()) < 0.175]
+    gul = [(t, c) for t, c in gd['left_upper_arm'] if float(t[:, 1].max()) < 0.105]
     gf = km._turn(gd['left_forearm'], aw.placing()[2] * flex) if flex else gd['left_forearm']
     pose = lambda ts: [(_shoulder_xform(t, sh, turn, roll), col) for t, col in ts] if (turn or roll) else ts
     return low + pose(gul + gf), [t for p in ad.values() for t in p] + pose(gd['left_upper_arm'] + gf)
@@ -309,9 +302,9 @@ def _slim_bust(corners, torso_y):
     return v
 
 
-def _cloth_normals(v, tris, vn0):
-    """Orient `tris` outward consistently and compute smooth area-weighted vertex normals."""
-    import numpy as np
+def _cloth_normals(v, tris, vn0, mats):
+    from coaxial.graphics import lit
+    np = _np()
     fn = np.cross(v[tris[:, 1]] - v[tris[:, 0]], v[tris[:, 2]] - v[tris[:, 0]])
     _, inv = np.unique(np.round(v, 5), axis=0, return_inverse=True)
     n_u, ti, vn_u = int(inv.max()) + 1, inv[tris], np.zeros((1, 3))
@@ -323,14 +316,15 @@ def _cloth_normals(v, tris, vn0):
         if not use_vn or flp.any():
             vn_u = _accum(n_u, ti, fn)
     norms = np.linalg.norm(vn_u, axis=1, keepdims=True)
-    return tris, np.where(norms[inv] > 1e-12, vn_u[inv] / np.maximum(norms[inv], 1e-12), _unit(vn0))
+    vr = np.clip(np.rint(_weld_rgb(n_u, inv, ti, mats, 4)[inv]), 0, 255).astype(np.uint32)
+    vm = (mats.astype(np.uint32) & ~np.uint32(0xFFFFFF)) | np.uint32(lit.PAINTED | lit.WOVEN) | (vr[:, 0] << 16) | (vr[:, 1] << 8) | vr[:, 2]
+    return tris, np.where(norms[inv] > 1e-12, vn_u[inv] / np.maximum(norms[inv], 1e-12), _unit(vn0)), vm
 
 
 def draped_clothes(roll=0.0, turn=0.0, flex=0.0, obs_tris=(), like=None, raw=False):
-    """Smoothly draped clothes in root frame using likeness or symbolic `_wear()` meshes."""
-    import numpy as np
     from tools.render import leg_worn as lw, robot_built as rb
-    (bd, nd, _fd, _pd), root = _body_cached(True, like), ((0.0, 0.0, 0.0), np.eye(3))
+    np, (bd, nd, _fd, _pd) = _np(), _body_cached(True, like)
+    root = ((0.0, 0.0, 0.0), np.eye(3))
     ang = {'t_pose': 1.0} if abs(roll - rb.T_POSE_ROLL) < 1e-6 and not turn and not flex else {
         'arms_out': roll, 'left_shoulder': turn, 'right_shoulder': turn, 'left_elbow': flex, 'right_elbow': flex}
     fd = bd._frames(ang, root)
@@ -347,17 +341,16 @@ def draped_clothes(roll=0.0, turn=0.0, flex=0.0, obs_tris=(), like=None, raw=Fal
             continue
         a, b, fs = _garment_bone(name, fd, nd)
         v = _drape_polar(_slim_bust(pd_[lo:hi], ty) if (like and name == 'like_torso') else pd_[lo:hi], obs, a, b, fall_at=fs)
-        tris, vn = _cloth_normals(v, tris, norm_d[lo:hi])
         mats = bd.materials[lo:hi]
         if raw:
-            mout.append((v, tris, bd.uv[lo:hi], mats, vn))
+            tris, vn, vm = _cloth_normals(v, tris, norm_d[lo:hi], mats)
+            mout.append((v, tris, bd.uv[lo:hi], vm, vn))
         else:
             tout += [(v[t], lw._rgb(mats[t[0]])) for t in tris]
     return mout if raw else tout
 
 
 def apply_livery(tris):
-    """Apply livery."""
     from tools.render import elbow_mount as em
     s, b = (72, 76, 86), (44, 46, 54)
     m = {em.SERVO: (255, 48, 200), em.GEAR: (196, 36, 152), (154, 154, 154): s,
@@ -367,31 +360,29 @@ def apply_livery(tris):
 
 
 def _smooth_normals(corners, tris, crease_deg=35.0):
-    """Per-corner vertex normals smoothing curved faces within `crease_deg`."""
-    import numpy as np
+    np = _np()
     v = corners.reshape(-1, 3)
     fn = np.cross(v[tris[:, 1]] - v[tris[:, 0]], v[tris[:, 2]] - v[tris[:, 0]])
     fu, fc, ft = _unit(fn), v[tris].reshape(-1, 3), np.arange(3 * len(tris)).reshape(-1, 3)
     if crease_deg >= 179.0:
         return fc, ft, _unit(_accum(len(v), tris, fn))[tris].reshape(-1, 3)
-    cos_t, v_n, tmap = math.cos(math.radians(crease_deg)), np.repeat(fu, 3, 0).copy(), {}
-    for ti, tri in enumerate(tris):
-        for vi in tri:
-            tmap.setdefault(int(vi), []).append(ti)
-    for ti, tri in enumerate(tris):
-        u0 = fu[ti]
-        for j, vi in enumerate(tri):
-            acc = sum((fn[nb] for nb in tmap[int(vi)] if float(u0 @ fu[nb]) >= cos_t), np.zeros(3))
-            if (nl := float(np.linalg.norm(acc))) > 1e-12:
-                v_n[3 * ti + j] = acc / nl
+    cv = tris.ravel()
+    order = np.argsort(cv, kind='mergesort')
+    counts = np.bincount(cv[order], minlength=len(v))
+    starts, st = np.r_[0, np.cumsum(counts[:-1])], order // 3
+    cos_t, v_n = math.cos(math.radians(crease_deg)), np.repeat(fu, 3, 0).copy()
+    for d in np.unique(counts[counts > 1]):
+        idx = starts[counts == d, None] + np.arange(int(d))
+        ug, fg = fu[st[idx]], fn[st[idx]]
+        acc = np.einsum('mij,mjk->mik', (np.einsum('mik,mjk->mij', ug, ug) >= cos_t).astype(float), fg)
+        v_n[order[idx]] = np.where((nl := np.linalg.norm(acc, axis=-1, keepdims=True)) > 1e-12, acc / np.maximum(nl, 1e-12), ug)
     return fc, ft, v_n
 
 
 def lit_mesh(roll=0.0, dressed=False, turn=0.0, flex=0.0, nod=0.0, head_yaw=0.0, like=None):
-    """Indexed `(positions, normals, uv, materials, index)` for `gpu.LitRaster` of Robot 2.0."""
-    import numpy as np
     from coaxial.graphics import lit
     from tools.render import robot_built as rb
+    np = _np()
     u32, whole = np.uint32, rb.whole(roll=roll, dressed=dressed, turn=turn, flex=flex, nod=nod, head_yaw=head_yaw, like=like)
     pl, nl, ul, ml, il, base = [], [], [], [], [], [0]
 

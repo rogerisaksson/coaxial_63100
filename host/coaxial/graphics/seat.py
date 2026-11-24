@@ -1,422 +1,129 @@
-"""The robot's seat bare: sculpted honeycomb nets and pearl-white rims over the hip roll drives.
+"""The robot's seat bare: a black honeycomb net a side over its hip's roll drive, turning with it.
 
     drive = ([(name, corners, triangles)], joint)   # what a side's hip yaw turns, at rest in the pelvis's frame
-    parts += [('left_seat', 'left_hip_yaw', (), -joint, 0.0, seat.plate(1.0, drive, pelvis)), ...]
-    parts += [('rim_left_seat', 'left_hip_yaw', (), -joint, 0.0, seat.rim(1.0, drive, pelvis)), ...]
+    parts += [('left_seat', 'left_hip_yaw', (), -joint, 0.0, seat.plate(1.0, drive)), ...]
 
-A sculpted anatomical gluteal cheek a side where the robot's buttock stands: an open black honeycomb
-(`plate`, `livery.VOID`) framed by a contoured 3D pearl-white outer bezel (`rim`, `livery.PAD` with
-gunmetal bevel walls and rivets), fixed on the hip's roll drive stack a guard's air (`AIR_M`) off
-the mechanism and clear of the pelvis through the hip yaw's travel. The silhouette forms a defined
-intergluteal cleft with an upper sacral V-taper, a smooth inward iliac/waist taper above, rounded
-fuller lower-outer gluteal volume, and a natural infragluteal crescent below.
+A net a side where the robot's buttock is: the guards' honeycomb alone, open, its bars black, over the hip's roll
+drive's stack - its motor's can (an outrunner, turning), its board, its gearbox and its bolts - a guard's air
+(`machine.body.guards.AIR_M`) off it all round, the motor seen through each cell and nothing worn let in to the
+can. The net is fixed on the drive and turns with it on the hip's yaw, so the drive never swings through it. The
+net's form is a buttock's: a box of the power POWER about a middle SIDE of the way out from the cleft (CLEFT) and
+EGG of the way up from the stack's foot - fuller toward the hip, fullest low down, rounding in toward the waist and
+the cleft -, scaled out until the whole stack lies within it; the net's cells are CELL across their flats, each's
+opening FILL of a cell, laid on a plane over the net's middle and back onto its round, those wholly within its
+outline.
 """
 import math
 
-from coaxial.graphics.livery import BOLT, FRAME, PAD, VOID
+from coaxial.graphics.livery import VOID
 from machine.body import drives
 from machine.body.guards import AIR_M
 
-#: Honeycomb pitch across flats, opening share, cleft offset, and rim bezel width/wall/bevel/rivet sizes, m.
-CELL, FILL, CLEFT = 0.0125, 0.64, 0.022
-RIM_W, RIM_T, BEVEL_M, PROUD_M = 0.013, 0.0036, 0.0022, 0.0004
-RIVET_R, RIVET_H = 0.0028, 0.0009
+#: The user's pick among sixty looks (M5): a white shell over the drive read as a box, as eyes through a window or as a
+#: cup when round and big; the honeycomb alone, black, smaller, its bars thick enough to be seen, a buttock's form.
+POWER, EGG, SIDE, CLEFT, CELL, FILL = 2.75, 0.45, 0.42, 0.016, 0.0125, 0.64
 STACK = ('drive_', 'inv_', 'gear_', 'bolts_')
+A, B = (-90.0, 90.0), (-90.0, 90.0)
 BEND: tuple = ()
-AROUND, SWUNG = 72, 21
-SPACING = AIR_M
+AROUND, SWUNG = 48, 21
+#: The drive's triangles told as points no further apart than SPACING; the outline sought out from the net's middle
+#: in steps of half that, then halved REFINE times.
+SPACING, REFINE = AIR_M, 10
 
 
-def _dense(meshes, step=SPACING):
-    """Points over the triangles of `meshes` [(corners, triangles)], none further than `step` from the next."""
+def _dense(meshes):
+    """Points over the triangles of `meshes` [(corners, triangles)], none further than SPACING from the next."""
     from coaxial.model.blocks import numpy as np
     out = [np.zeros((0, 3))]
     for c, t in meshes:
-        if not len(t):
-            continue
         a, b, d = (c[t[:, k]] for k in range(3))
         longest = np.max([np.linalg.norm(b - a, axis=1), np.linalg.norm(d - b, axis=1), np.linalg.norm(a - d, axis=1)], axis=0)
-        n = np.maximum(1, np.ceil(longest / step)).astype(int)
+        n = np.maximum(1, np.ceil(longest / SPACING)).astype(int)
         for m in np.unique(n):
             i, j = np.meshgrid(np.arange(m + 1), np.arange(m + 1), indexing='ij')
             w = np.stack([i[i + j <= m], j[i + j <= m]], 1) / m
             k = n == m
             out.append((a[k, None] + w[None, :, :1] * (b - a)[k, None] + w[None, :, 1:] * (d - a)[k, None]).reshape(-1, 3))
-    pts = np.vstack(out)
-    if not len(pts):
-        return pts
-    _, idx = np.unique(np.rint(pts / step).astype(np.int64), axis=0, return_index=True)
-    return pts[np.sort(idx)]
-
-
-def _min_dist_yaw(pts, frame, joint, reach_yaw):
-    """(dist_to_frame, min_x_over_yaw) for `pts` (n, 3) rotated about `joint` across `[-reach_yaw, reach_yaw]`."""
-    from coaxial.model.blocks import numpy as np
-    near2 = np.full(len(pts), np.inf)
-    x_min = pts[:, 0].copy()
-    if not len(pts):
-        return near2, x_min
-    if len(frame):
-        y_lo, y_hi = float(pts[:, 1].min()) - 0.025, float(pts[:, 1].max()) + 0.025
-        rp = np.hypot(pts[:, 0] - joint[0], pts[:, 2] - joint[2])
-        rf = np.hypot(frame[:, 0] - joint[0], frame[:, 2] - joint[2])
-        frame = frame[(frame[:, 1] >= y_lo) & (frame[:, 1] <= y_hi)
-                      & (rf >= float(rp.min()) - 0.025) & (rf <= float(rp.max()) + 0.025)]
-    for turn in np.radians(np.linspace(-reach_yaw, reach_yaw, SWUNG)):
-        c_t, s_t = math.cos(turn), math.sin(turn)
-        rel = pts[:, [0, 2]] - joint[[0, 2]]
-        p = np.stack([joint[0] + rel[:, 0] * c_t + rel[:, 1] * s_t, pts[:, 1],
-                      joint[2] + rel[:, 1] * c_t - rel[:, 0] * s_t], 1)
-        x_min = np.minimum(x_min, p[:, 0])
-        if len(frame):
-            box = frame[((frame > p.min(axis=0) - 0.02) & (frame < p.max(axis=0) + 0.02)).all(axis=1)]
-            for chunk in (c for c in np.array_split(box, max(1, len(box) // 2000)) if len(c)):
-                d = p[:, None, :] - chunk[None, :, :]
-                near2 = np.minimum(near2, (d * d).sum(axis=2).min(axis=1))
-    return np.sqrt(near2), x_min
-
-
-def _drive_req(meshes, r_pad, x0=-0.01, y0=-0.16, step=0.003, nx=72, ny=96):
-    """Mirror-invariant 2D clearance ceiling `eval_req(x, y)` spherically `r_pad` clear of `meshes`."""
-    from coaxial.model.blocks import numpy as np
-    gx, gy = x0 + np.arange(nx) * step, y0 + np.arange(ny) * step
-    z_raw = np.full((nx, ny), np.inf)
-    for c, t in meshes:
-        if not len(t):
-            continue
-        vx = np.clip(np.rint((c[:, 0] - x0) / step).astype(int), 0, nx - 1)
-        vy = np.clip(np.rint((c[:, 1] - y0) / step).astype(int), 0, ny - 1)
-        np.minimum.at(z_raw, (vx, vy), c[:, 2])
-        a, b, d = c[t[:, 0]], c[t[:, 1]], c[t[:, 2]]
-        denom = (b[:, 0] - a[:, 0]) * (d[:, 1] - a[:, 1]) - (d[:, 0] - a[:, 0]) * (b[:, 1] - a[:, 1])
-        keep = np.abs(denom) > 1e-11
-        a, b, d, denom = a[keep], b[keep], d[keep], denom[keep]
-        ix0 = np.maximum(0, np.floor((np.minimum(a[:, 0], np.minimum(b[:, 0], d[:, 0])) - x0) / step).astype(int))
-        ix1 = np.minimum(nx - 1, np.ceil((np.maximum(a[:, 0], np.maximum(b[:, 0], d[:, 0])) - x0) / step).astype(int))
-        iy0 = np.maximum(0, np.floor((np.minimum(a[:, 1], np.minimum(b[:, 1], d[:, 1])) - y0) / step).astype(int))
-        iy1 = np.minimum(ny - 1, np.ceil((np.maximum(a[:, 1], np.maximum(b[:, 1], d[:, 1])) - y0) / step).astype(int))
-        small = (ix1 - ix0 < 6) & (iy1 - iy0 < 6) & (ix1 >= ix0) & (iy1 >= iy0)
-        if small.any():
-            ox, oy = np.meshgrid(np.arange(6), np.arange(6), indexing='ij')
-            px, py = x0 + (ix0[small, None, None] + ox[None]) * step, y0 + (iy0[small, None, None] + oy[None]) * step
-            in_box = (ox[None] <= (ix1 - ix0)[small, None, None]) & (oy[None] <= (iy1 - iy0)[small, None, None])
-            v0, v1, v2, dn = a[small, None, None], b[small, None, None], d[small, None, None], denom[small, None, None]
-            w1 = ((px - v0[..., 0]) * (v2[..., 1] - v0[..., 1]) - (v2[..., 0] - v0[..., 0]) * (py - v0[..., 1])) / dn
-            w2 = ((v1[..., 0] - v0[..., 0]) * (py - v0[..., 1]) - (px - v0[..., 0]) * (v1[..., 1] - v0[..., 1])) / dn
-            w0 = 1.0 - w1 - w2
-            mask = in_box & (w0 >= -1e-6) & (w1 >= -1e-6) & (w2 >= -1e-6)
-            np.minimum.at(z_raw, ((ix0[small, None, None] + ox[None])[mask], (iy0[small, None, None] + oy[None])[mask]),
-                          (w0 * v0[..., 2] + w1 * v1[..., 2] + w2 * v2[..., 2])[mask])
-        for k in np.flatnonzero(~small & (ix1 >= ix0) & (iy1 >= iy0)):
-            px, py = gx[ix0[k]:ix1[k] + 1, None], gy[None, iy0[k]:iy1[k] + 1]
-            v0, v1, v2, dn = a[k], b[k], d[k], denom[k]
-            w1 = ((px - v0[0]) * (v2[1] - v0[1]) - (v2[0] - v0[0]) * (py - v0[1])) / dn
-            w2 = ((v1[0] - v0[0]) * (py - v0[1]) - (px - v0[0]) * (v1[1] - v0[1])) / dn
-            w0 = 1.0 - w1 - w2
-            ins = (w0 >= -1e-6) & (w1 >= -1e-6) & (w2 >= -1e-6)
-            if ins.any():
-                sub = z_raw[ix0[k]:ix1[k] + 1, iy0[k]:iy1[k] + 1]
-                sub[ins] = np.minimum(sub[ins], (w0 * v0[2] + w1 * v1[2] + w2 * v2[2])[ins])
-    z_req = np.full((nx, ny), 0.1)
-    m_rad = int(math.ceil(r_pad / step))
-    for dx_i in range(-m_rad, m_rad + 1):
-        for dy_i in range(-m_rad, m_rad + 1):
-            d2 = (dx_i * step) ** 2 + (dy_i * step) ** 2
-            if d2 <= r_pad * r_pad:
-                dz = math.sqrt(r_pad * r_pad - d2)
-                sx0, sx1 = max(0, dx_i), min(nx, nx + dx_i)
-                sy0, sy1 = max(0, dy_i), min(ny, ny + dy_i)
-                z_req[sx0 - dx_i:sx1 - dx_i, sy0 - dy_i:sy1 - dy_i] = np.minimum(
-                    z_req[sx0 - dx_i:sx1 - dx_i, sy0 - dy_i:sy1 - dy_i], z_raw[sx0:sx1, sy0:sy1] - dz)
-    z_sm = np.round(z_req, 8)
-    for _ in range(2):
-        p = np.pad(z_sm, 1, mode='edge')
-        z_sm = np.minimum(z_sm, 0.25 * p[1:-1, 1:-1] + 0.125 * (p[:-2, 1:-1] + p[2:, 1:-1] + p[1:-1, :-2] + p[1:-1, 2:])
-                          + 0.0625 * (p[:-2, :-2] + p[:-2, 2:] + p[2:, :-2] + p[2:, 2:]))
-    z_sm = np.round(z_sm, 8)
-
-    def eval_req(x, y):
-        fx, fy = np.clip((x - x0) / step, 0.0, nx - 1.0001), np.clip((y - y0) / step, 0.0, ny - 1.0001)
-        ix, iy = fx.astype(int), fy.astype(int)
-        tx, ty = fx - ix, fy - iy
-        return ((1.0 - tx) * (1.0 - ty) * z_sm[ix, iy] + tx * (1.0 - ty) * z_sm[ix + 1, iy]
-                + (1.0 - tx) * ty * z_sm[ix, iy + 1] + tx * ty * z_sm[ix + 1, iy + 1])
-
-    return eval_req
-
-
-def _depth_model(rear_core, eval_req):
-    """Build anatomical bounds and smooth 3D dome evaluators `(bounds, depth_z, normal_at)`."""
-    from coaxial.model.blocks import numpy as np
-    sx0, sx1 = float(rear_core[:, 0].min()), float(rear_core[:, 0].max())
-    sy0, sy1 = float(rear_core[:, 1].min()), float(rear_core[:, 1].max())
-    sz0_core = float(rear_core[:, 2].min())
-    cx_s, cy_s = 0.5 * (sx0 + sx1), 0.5 * (sy0 + sy1)
-    r_s = 0.5 * max(sx1 - sx0, sy1 - sy0)
-    w_hc = min(1.0, max(0.0, (-0.122 - sz0_core) / 0.014))
-
-    y_bot = min(max(sy0 - 0.062, cy_s - 0.115), -0.086) if w_hc > 0.5 else max(sy0 - 0.022, cy_s - 0.105)
-    y_top = min(sy1 + 0.002, 0.072) if w_hc > 0.5 else sy1 + 0.022
-    cy, y_apex = 0.45 * y_bot + 0.55 * y_top, 0.58 * y_bot + 0.42 * y_top
-    x_in = CLEFT + 0.005 * (1.0 - 0.6 * w_hc)
-    x_out = min(max(sx1 + 0.011, cx_s + r_s + 0.008), 0.155) if w_hc > 0.5 else min(max(sx1 + 0.016, cx_s + r_s + 0.012), 0.160)
-    cx = 0.44 * x_in + 0.56 * x_out
-    x_apex = cx - 0.003
-
-    req_rim = AIR_M + RIM_T
-    z_req_c = float(eval_req(np.array([x_apex]), np.array([y_apex]))[0])
-    z_apex = (1.0 - w_hc) * min(sz0_core - req_rim - 0.024, -0.143) + w_hc * min(z_req_c - 0.012, -0.158)
-
-    def depth_z(x, y):
-        x, y = np.asarray(x, float), np.asarray(y, float)
-        ux = (x - x_apex) / np.where(x >= x_apex, max(x_out - x_apex, 0.02), max(x_apex - x_in + 0.006, 0.02))
-        vy = (y - y_apex) / np.where(y >= y_apex, max(y_top - y_apex + 0.006, 0.02), max(y_apex - y_bot + 0.006, 0.02))
-        r2 = np.clip(ux * ux + vy * vy, 0.0, 1.8)
-        amp = 0.020 + 0.002 * w_hc
-        dome = amp * (0.48 * r2 + 0.24 * (r2 ** 1.7))
-        cleft_tuck = 0.012 * np.exp(-((x - x_in) / 0.022) ** 2)
-        lumbar = 0.014 * np.maximum(0.0, vy) ** 1.85
-        infra = 0.011 * np.maximum(0.0, -vy) ** 2.0
-        z_anat = z_apex + dome + cleft_tuck + lumbar + infra
-        z_req = eval_req(x, y)
-        k = 0.004
-        return -k * np.log(np.exp(-z_anat / k) + np.exp(-z_req / k))
-
-    def normal_at(x, y):
-        eps = 0.0015
-        dz_dx = (depth_z(x + eps, y) - depth_z(x - eps, y)) / (2.0 * eps)
-        dz_dy = (depth_z(x, y + eps) - depth_z(x, y - eps)) / (2.0 * eps)
-        n = np.stack([dz_dx, dz_dy, -np.ones_like(dz_dx)], -1)
-        return n / np.linalg.norm(n, axis=-1)[..., None]
-
-    return (cx, cy, cx_s, cy_s, r_s, sx0, x_in, x_out, y_bot, y_top), depth_z, normal_at
-
-
-def _contour_xy(bounds):
-    """Smooth C-infinity 2D gluteal outline `(t, dx_nom, dy_nom)` with waist/sacral taper and fuller cheek."""
-    from coaxial.model.blocks import numpy as np
-    cx, cy, cx_s, cy_s, r_s, _sx0, x_in, x_out, y_bot, y_top = bounds
-    t = np.arange(AROUND) * (2.0 * math.pi / AROUND)
-    ct, st = np.cos(t), np.sin(t)
-    rx_g, ry_g = np.where(ct >= 0.0, x_out - cx, cx - x_in), np.where(st >= 0.0, y_top - cy, cy - y_bot)
-    s_top, s_bot, s_out, s_in = 0.5 * (1.0 + st), 0.5 * (1.0 - st), 0.5 * (1.0 + ct), 0.5 * (1.0 - ct)
-    x_sc = (1.0 - 0.28 * (s_top ** 2.0) * (s_out ** 1.3)
-            - 0.30 * (s_top ** 2.2) * (s_in ** 1.3)
-            + 0.08 * (s_bot ** 1.5) * (s_out ** 1.4))
-    y_sc = 1.0 - 0.04 * (s_top ** 2.0) * (s_out ** 1.5)
-    p_shape = 2.08
-    r_sup = (np.abs(ct) ** p_shape + np.abs(st) ** p_shape) ** (-1.0 / p_shape)
-    gx, gy = cx + rx_g * x_sc * r_sup * ct, cy + ry_g * y_sc * r_sup * st
-    r_drv = min(r_s + 0.002, 0.048) if r_s > 0.048 else r_s + 0.004
-    dx_d, dy_d = (cx_s + r_drv * ct) - cx, (cy_s + r_drv * st) - cy
-    ang_d, rad_d = np.arctan2(dy_d, dx_d) % (2.0 * math.pi), np.hypot(dx_d, dy_d)
-    ord_d = np.argsort(ang_d)
-    ang_dp = np.r_[ang_d[ord_d][-1] - 2.0 * math.pi, ang_d[ord_d], ang_d[ord_d][0] + 2.0 * math.pi]
-    rad_dp = np.r_[rad_d[ord_d][-1], rad_d[ord_d], rad_d[ord_d][0]]
-    ks = 0.004
-    rad_nom = ks * np.log(np.exp(np.hypot(gx - cx, gy - cy) / ks) + np.exp(np.interp(t, ang_dp, rad_dp) / ks))
-    return t, rad_nom * ct, rad_nom * st
-
-
-_SCULPT_CACHE: dict = {}
-
-
-def _sculpt(side, drive, pelvis):
-    """Shared anatomical gluteal surface and C2-smoothed perimeter in canonical left (+x) pelvis rest frame."""
-    from coaxial.model.blocks import numpy as np
-    key = (float(side), tuple(round(float(v), 6) for v in drive[1]),
-           tuple((n, len(c), len(t_), round(float(c[0, 2]), 6) if len(c) else 0.0) for n, c, t_ in drive[0]),
-           tuple((len(c), len(t_), round(float(c[0, 2]), 6) if len(c) else 0.0) for c, t_ in pelvis))
-    if key in _SCULPT_CACHE:
-        return _SCULPT_CACHE[key]
-    flip = np.array([side, 1.0, 1.0])
-    named_drv = [(n, np.asarray(c, float) * flip, np.asarray(t_)) for n, c, t_ in drive[0] if n.startswith(STACK)]
-    all_drv = [(c, t_) for _n, c, t_ in named_drv]
-    roll_pts = [c for n, c, _t in named_drv if 'roll' in n]
-    core_pts = np.vstack(roll_pts if roll_pts else [c for c, _t in all_drv])
-    rear_core = core_pts[core_pts[:, 2] <= float(core_pts[:, 2].min()) + 0.032]
-
-    eval_req = _drive_req(all_drv, AIR_M + RIM_T + 0.0012)
-    frame = _dense([(np.asarray(c, float) * flip, np.asarray(t_)) for c, t_ in pelvis], step=0.003)
-    joint, reach_yaw = np.asarray(drive[1], float) * flip, max(abs(x) for x in drives.TRAVEL['hip_yaw'])
-
-    bounds, depth_z, normal_at = _depth_model(rear_core, eval_req)
-    cx, cy, sx0 = bounds[0], bounds[1], bounds[5]
-    t, dx_nom, dy_nom = _contour_xy(bounds)
-    x_contra_lim = -(sx0 + 0.0045) + AIR_M + 0.0005
-
-    scales = np.ones(AROUND)
-    for _ in range(14):
-        ox, oy = cx + scales * dx_nom, cy + scales * dy_nom
-        oz, on = depth_z(ox, oy), normal_at(ox, oy)
-        p_f = np.stack([ox, oy, oz], 1)
-        p_b = p_f - RIM_T * on
-        d_f, x_f = _min_dist_yaw(p_f, frame, joint, reach_yaw)
-        d_b, x_b = _min_dist_yaw(p_b, frame, joint, reach_yaw)
-        bad = (p_f[:, 0] < CLEFT - 0.002) | (p_b[:, 0] < CLEFT - 0.002) | (x_f < x_contra_lim) | (x_b < x_contra_lim)
-        if len(frame):
-            bad |= (d_f < AIR_M + 0.002) | (d_b < AIR_M + 0.002)
-        if not bad.any():
-            break
-        scales = np.where(bad, scales * 0.96, scales)
-
-    for _ in range(28):
-        scales = np.minimum(scales, 0.25 * np.roll(scales, -1) + 0.5 * scales + 0.25 * np.roll(scales, 1))
-
-    ox, oy = cx + scales * dx_nom, cy + scales * dy_nom
-    oz, on = depth_z(ox, oy), normal_at(ox, oy)
-    p_out = np.stack([ox, oy, oz], 1)
-    in_xy = np.stack([-dx_nom, -dy_nom], 1)
-    in_xy /= np.maximum(np.linalg.norm(in_xy, axis=1, keepdims=True), 1e-9)
-    eps = 0.0015
-    dz_din = (depth_z(ox + eps * in_xy[:, 0], oy + eps * in_xy[:, 1]) - oz) / eps
-    step_2d = RIM_W / np.sqrt(1.0 + dz_din * dz_din)
-    ix, iy = ox + step_2d * in_xy[:, 0], oy + step_2d * in_xy[:, 1]
-    p_in, i_n = np.stack([ix, iy, depth_z(ix, iy)], 1), normal_at(ix, iy)
-
-    res = {
-        'flip': flip, 'joint': joint, 'reach_yaw': reach_yaw, 'frame': frame,
-        'cx': cx, 'cy': cy, 't': t, 'ox': ox, 'oy': oy, 'ix': ix, 'iy': iy,
-        'p_out': p_out, 'n_out': on, 'p_in': p_in, 'n_in': i_n,
-        'depth_z': depth_z, 'normal_at': normal_at,
-    }
-    if len(_SCULPT_CACHE) > 8:
-        _SCULPT_CACHE.clear()
-    _SCULPT_CACHE[key] = res
-    return res
+    return np.vstack(out)
 
 
 def plate(side, drive, pelvis=()):
-    """A side's sculpted black honeycomb net in pelvis rest frame, `side` 1 for left, clear of `drive` and `pelvis`."""
+    """A side's net's mesh in the pelvis's frame at rest, `side` 1 the left's, over `drive` ([(name, corners,
+    triangles)] at rest in the pelvis's frame of what the side's hip yaw turns, and that joint's place), clear of
+    `pelvis` (the pelvis's own meshes [(corners, triangles)] at rest) through the yaw's travel: its bars, each
+    triangle facing out."""
     from coaxial.model.blocks import numpy as np
-    g = _sculpt(side, drive, pelvis)
-    cx, cy, ix, iy = g['cx'], g['cy'], g['ix'], g['iy']
-    r_in = np.hypot(ix - cx, iy - cy)
-    ang_in = np.arctan2(iy - cy, ix - cx) % (2.0 * math.pi)
-    order = np.argsort(ang_in)
-    ang_s, r_s = ang_in[order], r_in[order]
-    ang_pad = np.r_[ang_s[-1] - 2.0 * math.pi, ang_s, ang_s[0] + 2.0 * math.pi]
-    r_pad = np.r_[r_s[-1], r_s, r_s[0]]
+    flip = np.array([side, 1.0, 1.0])
+    stack = _dense([(np.asarray(c, float) * flip, np.asarray(t)) for n, c, t in drive[0] if n.startswith(STACK)])
+    low, high = stack.min(axis=0) - AIR_M, stack.max(axis=0) + AIR_M
+    front = float((stack[:, 2].min() + stack[:, 2].max()) / 2.0)          # the net behind the stack's middle
+    centre = np.array([CLEFT + SIDE * (high[0] - CLEFT), low[1] + EGG * (high[1] - low[1]), front])
+    half = np.array([high[0] - centre[0], high[1] - centre[1], centre[2] - low[2], centre[1] - low[1], centre[0] - CLEFT])
 
-    max_r = float(r_in.max())
-    span_x = int(max_r / CELL) + 2
+    def axes_of(p):
+        """Each point's semi-axes: out or in, up or down, back."""
+        return np.stack([np.where(p[..., 0] > 0.0, half[0], half[4]), np.where(p[..., 1] > 0.0, half[1], half[3]),
+                         np.full(p.shape[:-1], half[2])], -1)
+    behind = stack[stack[:, 2] <= centre[2]] - centre
+    grown = float((np.abs(behind / (axes_of(behind) - AIR_M)) ** POWER).sum(axis=1).max()) ** (1.0 / POWER)
+    half = (half - AIR_M) * max(1.0, grown) + AIR_M                     # the whole stack within, a guard's air off
+    r = float(half[2])
+    (am, ah), (bm, bh) = ((math.radians(lo + hi) / 2.0, math.radians(hi - lo) / 2.0) for lo, hi in (A, B))
+
+    def at(a, b):
+        """(the net's face `a` down from straight back and `b` out, its normal out there)."""
+        d = np.stack([np.sin(b), -np.cos(b) * np.sin(a), -np.cos(b) * np.cos(a)], -1)
+        axes = axes_of(d)
+        p = d * ((np.abs(d / axes) ** POWER).sum(axis=-1) ** (-1.0 / POWER))[..., None]
+        n = np.sign(p) * np.abs(p / axes) ** (POWER - 1.0) / axes
+        return centre + p, n / np.linalg.norm(n, axis=-1)[..., None]
+    t = np.arange(AROUND) * (2.0 * math.pi / AROUND)
+    u, v = np.cos(t), np.sin(t)
+
+    def clear(a, b):
+        """Whether the face `a` down and `b` out lies off the cleft."""
+        return at(a, b)[0][:, 0] >= CLEFT
+    steps = np.linspace(0.0, 1.0, int(math.ceil(r * max(ah, bh) / (SPACING / 2.0))) + 1)
+    ok = clear(am + ah * np.outer(v, steps).ravel(), bm + bh * np.outer(u, steps).ravel()).reshape(len(t), len(steps))
+    first = np.where(ok.all(axis=1), len(steps), np.argmin(ok, axis=1))
+    lo, hi = steps[np.maximum(first - 1, 0)], steps[np.minimum(first, len(steps) - 1)]
+    lo, hi = np.where(first >= len(steps), 1.0, lo), np.where(first >= len(steps), 1.0, hi)
+    for _ in range(REFINE):
+        mid = (lo + hi) / 2.0
+        good = clear(am + ah * mid * v, bm + bh * mid * u)
+        lo, hi = np.where(good, mid, lo), np.where(good, hi, mid)
+    edge = lo
+    # The cells on a plane over the net's middle, a row of whole ones, the next half a cell aside, laid back onto its
+    # round: a cell's bars between its hexagon and one FILL of it, the cells wholly within the outline.
+    span = int(r * max(ah, bh) / CELL) + 2
     rise = CELL * math.sqrt(3.0) / 2.0
-    span_y = int(max_r / rise) + 2
-    mids = np.array([(i * CELL + (j % 2) * CELL / 2.0, j * rise)
-                     for j in range(-span_y, span_y + 1) for i in range(-span_x, span_x + 1)])
+    mids = np.array([(i * CELL + (j % 2) * CELL / 2.0, j * rise) for j in range(-span, span + 1) for i in range(-span, span + 1)])
     hexa = np.arange(6) * (math.pi / 3.0) + math.pi / 6.0
     unit = np.stack([np.cos(hexa), np.sin(hexa)], 1) * CELL / math.sqrt(3.0)
     flat = mids[:, None, :] + np.concatenate([unit, FILL * unit])[None]
-
-    px, py = cx + flat[..., 0], cy + flat[..., 1]
-    way = np.arctan2(flat[..., 1], flat[..., 0]) % (2.0 * math.pi)
-    reach = np.interp(way, ang_pad, r_pad)
-    inside = (np.hypot(flat[..., 0], flat[..., 1]) < reach - 0.0005)[:, :6].all(axis=1)
-
-    pts_3d = np.stack([px[inside].ravel(), py[inside].ravel(), g['depth_z'](px[inside], py[inside]).ravel()], 1)
-    if len(g['frame']) and len(pts_3d):
-        d_pel, _ = _min_dist_yaw(pts_3d, g['frame'], g['joint'], g['reach_yaw'])
-        keep_pel = (d_pel.reshape(-1, 12) >= AIR_M).all(axis=1)
-        inside[np.flatnonzero(inside)[~keep_pel]] = False
-
-    fx, fy = px[inside].ravel(), py[inside].ravel()
-    corners = np.stack([fx, fy, g['depth_z'](fx, fy)], 1)
-    n = g['normal_at'](fx, fy)
+    a, b = am + flat[..., 1] / r, bm + flat[..., 0] / r
+    way = np.arctan2((a - am) / ah, (b - bm) / bh) % (2.0 * math.pi)
+    reach = np.interp(way, np.r_[t, 2.0 * math.pi], np.r_[edge, edge[0]])
+    inside = (np.hypot((a - am) / ah, (b - bm) / bh) < reach)[:, :6].all(axis=1)
+    # Turned with the drive through the yaw's travel, no cell comes nearer the pelvis's frame than a guard's air.
+    hexes = at(a[inside].ravel(), b[inside].ravel())[0]
+    frame = _dense([(np.asarray(c, float) * flip, np.asarray(t_)) for c, t_ in pelvis])
+    joint = np.asarray(drive[1], float) * flip
+    reach_yaw = max(abs(x) for x in drives.TRAVEL['hip_yaw'])
+    near = np.full(len(hexes), np.inf)
+    for turn in np.radians(np.linspace(-reach_yaw, reach_yaw, SWUNG)):
+        rel = hexes[:, [0, 2]] - joint[[0, 2]]
+        p = np.stack([joint[0] + rel[:, 0] * math.cos(turn) + rel[:, 1] * math.sin(turn), hexes[:, 1],
+                      joint[2] + rel[:, 1] * math.cos(turn) - rel[:, 0] * math.sin(turn)], 1)
+        box = frame[((frame > p.min(axis=0) - AIR_M) & (frame < p.max(axis=0) + AIR_M)).all(axis=1)]
+        for chunk in (c for c in np.array_split(box, max(1, len(box) // 2000)) if len(c)):
+            near = np.minimum(near, np.linalg.norm(p[:, None, :] - chunk[None, :, :], axis=2).min(axis=1))
+    inside[np.flatnonzero(inside)[~(near.reshape(-1, 12) >= AIR_M).all(axis=1)]] = False
     k = np.arange(6)
     quads = np.concatenate([np.stack([k, (k + 1) % 6, 6 + (k + 1) % 6], 1), np.stack([k, 6 + (k + 1) % 6, 6 + k], 1)])
+    corners, n = at(a[inside].ravel(), b[inside].ravel())
     tri = (12 * np.arange(int(inside.sum()))[:, None, None] + quads[None]).reshape(-1, 3)
     facing = (np.cross(corners[tri[:, 1]] - corners[tri[:, 0]], corners[tri[:, 2]] - corners[tri[:, 0]]) * n[tri[:, 0]]).sum(axis=1)
     tri[facing < 0.0] = tri[facing < 0.0][:, ::-1]
-    laid = corners * g['flip']
+    laid = corners * flip
     return laid, tri[:, ::int(math.copysign(1.0, side))], np.zeros((len(laid), 2)), np.full(len(laid), VOID)
-
-
-def _strip(ring_a, ring_b, mat):
-    """Closed quad-band mesh between two aligned perimeter rings (AROUND, 3)."""
-    from coaxial.model.blocks import numpy as np
-    m = len(ring_a)
-    corners = np.vstack([ring_a, ring_b])
-    k = np.arange(m)
-    nxt = (k + 1) % m
-    tri = np.vstack([np.stack([k, nxt, m + nxt], 1), np.stack([k, m + nxt, m + k], 1)])
-    return corners, tri, np.zeros((len(corners), 2)), np.full(len(corners), mat)
-
-
-def _prism_hex(centre, normal, radius, z0, z1, mat):
-    """Watertight hexagonal prism along `normal` from `z0` to `z1`, tapered `0.88` on top."""
-    from coaxial.model.blocks import numpy as np
-    ref = np.array([1.0, 0.0, 0.0]) if abs(normal[0]) < 0.85 else np.array([0.0, 1.0, 0.0])
-    e1 = np.cross(normal, ref)
-    e1 /= np.linalg.norm(e1)
-    e2 = np.cross(normal, e1)
-    ang = np.arange(6) * (math.pi / 3.0)
-    ring = radius * (np.outer(np.cos(ang), e1) + np.outer(np.sin(ang), e2))
-    base = centre + z0 * normal + ring
-    top = centre + z1 * normal + 0.88 * ring
-    bot_c = centre + z0 * normal
-    top_c = centre + z1 * normal
-    corners = np.vstack([base, top, bot_c[None], top_c[None]])
-    tris = []
-    for i in range(6):
-        j = (i + 1) % 6
-        tris += [(i, j, 6 + j), (i, 6 + j, 6 + i), (12, j, i), (13, 6 + i, 6 + j)]
-    return corners, np.array(tris), np.zeros((len(corners), 2)), np.full(len(corners), mat)
-
-
-def _rivet(centre, normal):
-    """Watertight gunmetal-collared `BOLT` rivet cap seated cleanly on the bezel face."""
-    collar = _prism_hex(centre, normal, RIVET_R * 1.42, 0.00008, 0.00048, FRAME)
-    head = _prism_hex(centre, normal, RIVET_R, 0.00049, 0.00049 + RIVET_H, BOLT)
-    return collar, head
-
-
-def rim(side, drive, pelvis=()):
-    """A side's contoured 3D pearl-white outer bezel (`livery.PAD` shell + gunmetal rabbet & rivets) enclosing `plate`."""
-    from coaxial.model.blocks import numpy as np
-    g = _sculpt(side, drive, pelvis)
-    p_out, n_out, p_in, n_in = g['p_out'], g['n_out'], g['p_in'], g['n_in']
-    t_in = p_in - p_out
-    t_in /= np.maximum(np.linalg.norm(t_in, axis=1, keepdims=True), 1e-9)
-
-    r_in_f = p_in + PROUD_M * n_in
-    r_mid_f = p_out + BEVEL_M * t_in + PROUD_M * n_out
-    r_lip_f = p_out - 0.0008 * n_out
-    r_out_b = p_out - RIM_T * n_out
-    # Recessed gunmetal rabbet ledge behind the honeycomb perimeter (`-2.0 mm` behind `plate` -> zero crossing).
-    r_rab_o = p_in - 0.0020 * n_in
-    r_rab_i = p_in + 0.0022 * t_in - 0.0020 * n_in
-    r_rab_b = p_in + 0.0022 * t_in - RIM_T * n_in
-
-    bands = [
-        _strip(r_in_f, r_mid_f, PAD),
-        _strip(r_mid_f, r_lip_f, PAD),
-        _strip(r_lip_f, r_out_b, FRAME),
-        _strip(r_out_b, r_rab_b, FRAME),
-        _strip(r_rab_b, r_rab_i, FRAME),
-        _strip(r_rab_i, r_rab_o, FRAME),
-        _strip(r_rab_o, r_in_f, FRAME),
-    ]
-    fixed = []
-    band_norms = [n_out, n_out + 0.5 * (-t_in), -t_in, -n_out, t_in, n_in, t_in]
-    for (c, tri, uv, mat), ref_n in zip(bands, band_norms):
-        n_avg = np.vstack([ref_n, ref_n])
-        fn = np.cross(c[tri[:, 1]] - c[tri[:, 0]], c[tri[:, 2]] - c[tri[:, 0]])
-        if (fn * n_avg[tri[:, 0]]).sum() < 0.0:
-            tri = tri[:, ::-1]
-        fixed.append((c, tri, uv, mat))
-
-    for idx in (9, 27, 45, 63):
-        mid = 0.54 * r_in_f[idx] + 0.46 * r_mid_f[idx]
-        nrm = 0.5 * (n_in[idx] + n_out[idx])
-        nrm /= np.linalg.norm(nrm)
-        fixed.extend(_rivet(mid, nrm))
-
-    base, cs, ts, ms = 0, [], [], []
-    for c, t, _uv, m in fixed:
-        cs.append(c)
-        ts.append(t + base)
-        ms.append(m)
-        base += len(c)
-    corners = np.vstack(cs) * g['flip']
-    tri = np.vstack(ts)[:, ::int(math.copysign(1.0, side))]
-    return corners, tri, np.zeros((len(corners), 2)), np.concatenate(ms)

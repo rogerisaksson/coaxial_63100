@@ -110,13 +110,9 @@ def worn(parts, lifts, tubes, swept=None):
         at, corners, moving = pts - up, body[seg], (swept or {}).get(seg)
         near = np.vstack([at, km._points(moving, STEP_M) - up]) if moving else at
         low, high = float(corners[:, 1].min()) - plated.DRUM_M, float(corners[:, 1].max()) + plated.DRUM_M
-        reach = 0.185 if seg == 'torso' else NEAR_M
-        keep = (near[:, 1] > low) & (near[:, 1] < high) & (np.hypot(near[:, 0], near[:, 2]) < reach)
-        if seg == 'torso':
-            keep &= (np.abs(near[:, 0]) <= 0.105)
-            keep &= ~((near[:, 2] > 0.080) & (near[:, 1] >= 0.16) & (np.abs(near[:, 0]) > 0.068))
-            keep &= ~((near[:, 2] < 0.0) & (near[:, 1] >= 0.22) & (np.abs(near[:, 0]) > 0.062))
-        by = near[keep]
+        reach = 0.195 if seg == 'torso' else NEAR_M
+        by = near[(near[:, 1] > low) & (near[:, 1] < high) & (np.hypot(near[:, 0], near[:, 2]) < reach)
+                  & ((np.abs(near[:, 0]) <= 0.098) if seg == 'torso' else True)]
         # Each part told in the half-cells about its own too: a guard's face, read between its cells' middles, keeps its
         # air off a part as thin as a hose wherever between them it stands without smearing inboard clips across ahead.
         by = np.vstack([by @ t.T + (0.0, dy, 0.0) for t in turns for dy in (-0.5 * gd.ROW_M, 0.0, 0.5 * gd.ROW_M)])

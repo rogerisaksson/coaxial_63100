@@ -19,7 +19,7 @@ from typing import Any
 
 from coaxial.graphics import drums, guards, mechanism, seat
 from coaxial.graphics.lit import PAINTED, SKIN, UNDER, WOVEN, paint
-from coaxial.graphics.livery import BOARD, BOLT, FRAME, GEAR, PAD, SERVO, STEEL, TUBE
+from coaxial.graphics.livery import BOARD, BOLT, FRAME, GEAR, SERVO, STEEL, TUBE
 from coaxial.graphics.panels import OPEN, SHELL
 from coaxial.graphics.shapes import finer, loft, turn_about
 from machine.body import figure, mechatronics
@@ -39,7 +39,7 @@ BLENDS = (('like_torso', 'pelvis', 0.03, -0.035), ('like_pelvis', '{side}_thigh'
           ('like_{side}_forearm', '{side}_upper_arm', -0.03, 0.03),
           ('like_{side}_hand', '{side}_forearm', -0.015, 0.015),
           ('like_neck', 'torso', -0.02, 0.02), ('like_head', 'neck', -0.02, 0.02),
-          ('skin_neck', 'torso', 0.025, -0.036), ('skin_neck', 'head', 0.040, 0.068))
+          ('skin_neck', 'torso', 0.025, -0.036), ('skin_neck', 'head', 0.040, 0.074))
 #: What of a likeness is worn in the place of the robot's own - its head, its hands -, the
 #: segments whose bones those hands stand for, and what of the robot's own head is kept where
 #: no figure's is worn: by its name, or its name's end.
@@ -203,16 +203,10 @@ def parts(meshes, extra, liked: Any = None):
     rested = [(part[0], part[1], part[5][0] @ frame[0].T + frame[1], part[5][1]) for part, frame in zip(out, frames)
               if frame is not None and len(part[5][0])]
     pelvis = [(c, t) for _n, parent, c, t in rested if parent == 'pelvis']
-    from typing import Any, Callable, cast
-    rim_fn = getattr(seat, 'rim', None)
     for name, side in (('left', 1.0), ('right', -1.0)):
         joint = placed[name + '_hip_yaw'][1]
         drive = ([(n, c, t) for n, parent, c, t in rested if parent == name + '_hip_yaw'], joint)
         out.append((name + '_seat', name + '_hip_yaw', (), tuple(-joint), 0.0, seat.plate(side, drive, pelvis)))
-        if callable(rim_fn):
-            rc, rt, ru, rm = cast(Callable[..., tuple[Any, Any, Any, Any]], rim_fn)(side, drive, pelvis)
-            rm_pad = rm if (rm >= PAINTED).all() else np.full(len(rc), PAD)
-            out.append(('rim_' + name + '_seat', name + '_hip_yaw', (), tuple(-joint), 0.0, (rc, rt, ru, rm_pad)))
     for s, side in ((1.0, 'left_'), (-1.0, 'right_')):
         if not body:
             break

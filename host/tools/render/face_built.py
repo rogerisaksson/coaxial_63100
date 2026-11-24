@@ -129,10 +129,10 @@ def neck_skin_tris(nod=0.0, head_yaw=0.0):
     from coaxial.graphics import lit
     from coaxial.graphics.shapes import finer, loft
     np, (nt, hr, *_r) = fl.np_mod(), fl.anchors()
-    c, tris, _uv, _m = loft(finer(NECK_RINGS, -0.040, 0.072, 0.004), lit.paint(fh.NECK_SKIN), poles=(-0.044, 0.076))
+    c, tris, _uv, _m = loft(finer(NECK_RINGS, -0.040, 0.074, 0.004), lit.paint(fh.NECK_SKIN), poles=(-0.044, 0.076))
     yn = c[:, 1].copy()
     if head_yaw:
-        wy = np.clip((yn - 0.040) / 0.032, 0.0, 1.0)
+        wy = np.clip((yn - 0.040) / 0.034, 0.0, 1.0)
         a = np.radians(head_yaw * wy * wy * (3.0 - 2.0 * wy))
         dx, dz = c[:, 0] - hr[0], c[:, 2] - hr[2]
         c[:, 0], c[:, 2] = hr[0] + np.cos(a) * dx + np.sin(a) * dz, hr[2] - np.sin(a) * dx + np.cos(a) * dz
@@ -163,23 +163,10 @@ def posed(preset=None, nod=0.0, head_yaw=0.0, plates=True, include_neck=True, **
 
 
 def _normals(raw, crease=52.0):
+    from tools.render import robot_worn as rw
     np = fl.np_mod()
     cu, inv = np.unique(np.round(raw.reshape(-1, 3), 6), axis=0, return_inverse=True)
-    iu = inv.reshape(-1, 3)
-    fn = np.cross(cu[iu[:, 1]] - cu[iu[:, 0]], cu[iu[:, 2]] - cu[iu[:, 0]])
-    fu, ct, vm = fn / np.maximum(np.linalg.norm(fn, axis=1, keepdims=True), 1e-12), math.cos(math.radians(crease)), {}
-    for ti, tri in enumerate(iu):
-        for vi in tri:
-            vm.setdefault(int(vi), []).append(ti)
-    vn = np.repeat(fu, 3, axis=0)
-    for ti, tri in enumerate(iu):
-        u0 = fu[ti]
-        for j, vi in enumerate(tri):
-            acc = sum((fn[nb] for nb in vm[int(vi)] if float(u0 @ fu[nb]) >= ct), np.zeros(3))
-            ln = float(np.linalg.norm(acc))
-            if ln > 1e-12:
-                vn[3 * ti + j] = acc / ln
-    return vn
+    return rw._smooth_normals(cu, inv.reshape(-1, 3), crease)[2]
 
 
 def lit_mesh(parts_dict):
