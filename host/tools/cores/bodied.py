@@ -18,6 +18,7 @@ anew takes one held (`kept`).
 import ctypes
 import sys
 import time
+import weakref
 from typing import Any
 
 import numpy as np
@@ -30,6 +31,8 @@ from tools.cores.wbc import address
 #: held it 47.6 ms.
 SPREAD_S = 0.005
 _LAST = [0.0]
+#: This process's parts while they live: what a warm counts (`met`).
+_MADE: Any = weakref.WeakSet()
 
 
 def on_body(fn, name, inputs=(1, 2), fresh=2, seed=1, body=0):
@@ -41,6 +44,20 @@ def on_args(fn, name, inputs, fresh=2, seed=1, sources=None):
     """`fn(...)` of the arrays, numbers and dicts of arrays at `inputs` (Compiled); `sources` {an
     argument: the Compiled whose last result it is, where it is}."""
     return Compiled(fn, name, inputs, None, fresh, seed, sources)
+
+
+def met():
+    """(held, numpy's, under way) of this process's parts called so far: their C held, staying numpy's (`why`),
+    traced or taken and not yet either - a part never called is none of them."""
+    held_, numpy_, under = 0, 0, 0
+    for part in list(_MADE):
+        if part.c is not None:
+            held_ += 1
+        elif part.why is not None:
+            numpy_ += 1
+        elif part.looked or part.made is not None:
+            under += 1
+    return held_, numpy_, under
 
 
 #: A compiled part's base: its call in C, its runner's result or its `slow` (`quick.based`).
@@ -60,6 +77,7 @@ class Compiled(_PART):
         self.c: Bound | None = None
         self.why: Exception | None = None
         self.looked = False
+        _MADE.add(self)
         kept.warm(self)
 
     @property

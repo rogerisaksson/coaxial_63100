@@ -3,6 +3,7 @@
     kept.warm(part)                                 # a part laid (`bodied.Compiled`): its kind's libraries kept loading
     kept.store(part, prog, info, specs, lib, cfn)   # a part held: its program and its build, here and on disk
     got = kept.taken(part, args, Bound)             # (program, info, specs, its Bound on `args`), None where none fits
+    kept.current(); kept.marked()                   # whether the robot's parts were compiled whole under this stamp
 
 Each laying of the robot's world made its law's parts anew, and each traced and held its program again: 33
 traces and 31 holds, 0.23 s of the first second of every errand after the first, and of each process's first. A
@@ -88,6 +89,31 @@ def _file(part):
     kind = '%s.%s|%s|%s|%s|%s' % (fn.__module__, fn.__qualname__, part.name, tuple(part.inputs), part.body is not None,
                                   mechatronics.ROBOT)
     return os.path.join(KEPT, hashlib.sha1(kind.encode()).hexdigest()[:20] + '.pkl')
+
+
+def _compiled():
+    """The file that tells the stamp the active build's parts were last compiled whole under (`tools.sim.warmed`)."""
+    from machine.body import mechatronics
+    return os.path.join(KEPT, '%s.compiled' % mechatronics.ROBOT)
+
+
+def current():
+    """Whether the robot's parts were compiled whole under this stamp: its page's first pass on their C."""
+    try:
+        with open(_compiled(), encoding='ascii') as f:
+            return f.read().strip() == stamp()
+    except (OSError, ValueError):
+        return False
+
+
+def marked():
+    """This stamp written as the one the robot's parts were compiled whole under - written whole, then put in place."""
+    path = _compiled()
+    whole = '%s.%d' % (path, os.getpid())
+    os.makedirs(KEPT, exist_ok=True)
+    with open(whole, 'w', encoding='ascii') as f:
+        f.write(stamp())
+    os.replace(whole, path)
 
 
 def _kept(path):

@@ -190,7 +190,7 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
     from machine.law import se2
     from machine.way import tour
     from terminal.ui import stage
-    from terminal.views import gym, humanoid_keys, scanner, show_humanoid, viewpoint
+    from terminal.views import gym, humanoid_column, humanoid_keys, scanner, show_humanoid, viewpoint
 
     miss = [s for s in floor.SCENARIOS if s not in gym.SCENARIO_DESC]
     sent, pad = [], humanoid_keys.PAD
@@ -242,21 +242,21 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
     nom = {'fallen': False, 'doing': 'walk', 'watts': 120.0, 'turn': (1, 0, 0, 0), 'loads': (160.0, 160.0),
            'where': (0.0, 0.9, 0.0), 'cadence': 0.9, 'phase': 0.2, 'ratio': 1.2, 'speed': 0.65,
            'velocity': (0.0, 0.65), 'twist': (0.0, 0.0, 0.0), 'angles': {}, 'torque': {}, 'power': {}, 'temp': {}, 'peak': {}}
-    bal, thm, stb, tag = show_humanoid.telemetry_core(nom)
-    eb, _, es, et = show_humanoid.telemetry_core(dict(nom, doing='sit_edge', loads=(0.0, 0.0), where=(0.0, 0.55, 0.0)))
+    bal, thm, stb, tag = humanoid_column.telemetry_core(nom)
+    eb, _, es, et = humanoid_column.telemetry_core(dict(nom, doing='sit_edge', loads=(0.0, 0.0), where=(0.0, 0.55, 0.0)))
     report.check('walking and a stunt read high BAL/THM/STB, NOMINAL',
                  bal > 0.9 and thm > 0.85 and stb > 0.9 and tag == 'NOMINAL' and (eb, es, et) == (0.95, 0.95, 'NOMINAL'))
-    cb, _, cs, ct = show_humanoid.telemetry_core(dict(nom, fallen=True))
-    _, _, _, ft = show_humanoid.telemetry_core(dict(nom, doing='controlled_fall'))
+    cb, _, cs, ct = humanoid_column.telemetry_core(dict(nom, fallen=True))
+    _, _, _, ft = humanoid_column.telemetry_core(dict(nom, doing='controlled_fall'))
     report.check('fallen CRITICAL, a controlled fall ALERT', (cb, cs, ct, ft) == (0.0, 0.0, 'CRITICAL', 'ALERT'))
     st.update(now=nom, recording=None, recorded=None, shown='torque', scanner=sc, tour=None)
     report.check('the header: BAL, THM, STB', all(w in show_humanoid.gauges(st).plain for w in ('BAL', 'THM', 'STB')))
     vpb = show_humanoid.badge(80, 24, st)
     r1 = ''.join(chr(c) for (r, _), (c, _) in sorted(vpb.items()) if r == 1)
-    jr = show_humanoid._joint_row({'temp': {'spine': 42.0}}, 'spine', 'spine', 'temp')[1].plain
+    jr = humanoid_column._joint_row({'temp': {'spine': 42.0}}, 'spine', 'spine', 'temp')[1].plain
     buf = io.StringIO()
     c40 = Console(file=buf, width=40, theme=stage.THEME, legacy_windows=False)
-    for b in show_humanoid.boxes(st, nom, 'dots'):
+    for b in humanoid_column.boxes(st, nom, 'dots'):
         c40.print(b)
     b_txt = buf.getvalue()
     report.check('the badge strip, the tour in the boxes, 40 cells fit',

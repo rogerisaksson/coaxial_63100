@@ -73,7 +73,7 @@ def test_a_load_is_read_and_the_robots_wear_named(report):
     from machine.law import modal
     from machine.process import worker
     from machine.body.figure import JOINTS
-    from terminal.views import show_humanoid
+    from terminal.views import humanoid_column
     s, w = _laid()
     g, world = s['g'], s['g']['world']
     m = world.model
@@ -94,7 +94,7 @@ def test_a_load_is_read_and_the_robots_wear_named(report):
     hand_read = float(loaded['load']['left_hand'][0])
     law_dm = float(g['body'].m.body_mass[hand]) - hand0
     law_dw = (float(g['fr'][modal.WEIGHT]) - weight0) / modal.G
-    boxes = show_humanoid.boxes({'recording': None, 'recorded': None}, now, 'cpu')
+    boxes = humanoid_column.boxes({'recording': None, 'recorded': None}, now, 'cpu')
     shown = '\n'.join('%s\n%s' % (b.title, b.renderable.plain) for b in boxes)
     report.check('%.1f kg in the robot\'s left hand: read %.2f kg in %.0f s, %.2f in the right, nothing named; %.2f kg laid into its law and on the page' % (
         LOAD_KG, hand_read, LOADED_S, loaded['load']['right_hand'][0], law_dm),

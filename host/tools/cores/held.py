@@ -39,11 +39,12 @@ BLAS_C = os.path.join(REPO, 'wbc', 'src', 'wbc_blas.c')
 #: program that calls its sin, cos or tan (FAR); the rest of the libm a program inlines from its header.
 LIBM_C, FAR, FAR_ONLY = os.path.join(REPO, 'wbc', 'src', 'wbc_libm.c'), ('wbc_sin(', 'wbc_cos(', 'wbc_tan('), '-DWBC_LIBM_FAR_ONLY'
 _count = itertools.count()
-#: The builds of this process by their source's digest, one thread building them in turn.
+#: The builds of this process by their source's digest, WIDTH threads building them in turn.
 _BUILDING = {}
 _LOCK = threading.Lock()
 _QUEUE: list = []
-_RUNNING = [False]
+#: The threads building now; at most WIDTH: one beside the robot's loop, a warm's as many as it is given (`widened`).
+_RUNNING, WIDTH = [0], [1]
 
 
 class Parted(AssertionError):
@@ -110,7 +111,7 @@ def loaded(path, name, batch=False, solves=False):
 
 def building(source, name, matmul, solves=False):
     """The build of `source` under way or done, {'done': its Event, 'lib': (the library, its function)
-    or 'why'}: one thread of this process building its sources in turn, the library loaded there - a
+    or 'why'}: WIDTH threads of this process building its sources in turn, the library loaded there - a
     new one's first load 40 ms of the walking process."""
     key = hashlib.sha1(source.encode()).hexdigest()
     with _LOCK:
@@ -118,9 +119,7 @@ def building(source, name, matmul, solves=False):
         if job is None:
             job = _BUILDING[key] = {'done': threading.Event()}
             _QUEUE.append((job, source, name, matmul, solves))
-            if not _RUNNING[0]:
-                _RUNNING[0] = True
-                threading.Thread(target=_builds, name='held builds', daemon=True).start()
+            _started()
     return job
 
 
@@ -129,8 +128,29 @@ def settled(wait_s=None):
     return all(job['done'].wait(wait_s) for job in list(_BUILDING.values()))
 
 
+def widened(width):
+    """This process's builds `width` at once from now, those queued too: a warm's (`tools.sim.warmed`), each
+    gcc's process on a core of the host's - one at a time, the 37 of a pull took the robot 16 minutes."""
+    with _LOCK:
+        WIDTH[0] = max(1, int(width))
+        _started()
+
+
+def _started():
+    """A thread more for the queue while fewer than WIDTH build (under `_LOCK`)."""
+    while _RUNNING[0] < min(WIDTH[0], len(_QUEUE)):
+        _RUNNING[0] += 1
+        threading.Thread(target=_builds, name='held builds', daemon=True).start()
+
+
+def unbuilt():
+    """This process's builds asked and not yet done: each's {'done': ...} to wait on."""
+    with _LOCK:
+        return [job for job in _BUILDING.values() if not job['done'].is_set()]
+
+
 def _builds():
-    """This process's builds one after another, while any are queued - the glue's extension first
+    """This process's builds, a thread's one after another while any are queued - the glue's extension first
     (`quick`), so a part held is called through it and no build of it waits in the robot's loop. A build's fault
     of any kind is its job's `why` and its job told done: a fault this thread did not take (a symbol missing,
     an AttributeError) ended it, left that build's waiters and every build after it waiting for good."""
@@ -143,7 +163,7 @@ def _builds():
     while True:
         with _LOCK:
             if not _QUEUE:
-                _RUNNING[0] = False
+                _RUNNING[0] -= 1
                 return
             job, source, name, matmul, solves = _QUEUE.pop(0)
         try:

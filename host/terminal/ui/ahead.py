@@ -7,7 +7,14 @@ page's own work, its instruments and rich, on one core while the drawing takes a
     ahead = Ahead('coaxial.graphics.gynoid', 'render')     # started; the page starts beside it
     ahead.name                                             # its raster's name, once it is up
     lines = ahead.drawn(*args, lit=True, **kwargs)         # the frame before's asked; this one's asked
+    ahead.waits = False                                    # a live page's: the newest drawn, never waited for
+    ahead.behind                                           # the calls since the drawing returned was asked
     ahead.close()
+
+A page that waits for each drawing (`waits`, a smoke's, its frames each of its own state) stands still while the
+drawing takes longer than a frame: no key read, its first frame's cold render 3 s and more. A live page does not wait:
+it shows the newest drawing done - none before the first - and asks the next once the one asked is drawn, its keys and
+its instruments at the frame's pace whatever the drawing costs.
 
 A drawing can be started before its page opens and kept for it (`keep`, `take`, `let_go`): the
 terminal starts the pages' that say so (their AHEAD) as it opens and after a page closes.
@@ -85,7 +92,7 @@ class Ahead:
 
     """`module.function` drawing in a process of its own, a frame ahead of the page that asks."""
 
-    def __init__(self, module, function):
+    def __init__(self, module, function, waits=True):
         self._asks, self._drawn = CONTEXT.Queue(), CONTEXT.Queue()
         for each in (self._asks, self._drawn):
             each.cancel_join_thread()
@@ -94,6 +101,10 @@ class Ahead:
         self._process.start()
         self._up = None
         self._asked = False
+        # Each drawing waited for, or the newest drawn (`drawn`); the calls since the one returned was asked; the
+        # calls so far, the call whose ask is being drawn and the one whose drawing was returned; that drawing.
+        self.waits, self.behind = waits, 0
+        self._calls, self._at, self._of, self._shown = 0, 0, 0, None
 
     def alive(self):
         """Whether its worker runs."""
@@ -128,16 +139,29 @@ class Ahead:
 
     def drawn(self, *args, **kwargs):
         """What the frame before asked to be drawn - this frame's, drawn while it was shown - and
-        `args`, `kwargs` asked for the next; the first frame waits for its own."""
+        `args`, `kwargs` asked for the next; the first frame waits for its own. Not `waits`: the newest
+        drawing done, never waited for - None before the first -, `args` asked only once the one asked
+        is drawn; `behind` the calls since the one returned was asked."""
         kwargs = {k: (MODULE, v.__name__) if isinstance(v, types.ModuleType) else v
                   for k, v in kwargs.items()}
         self._ready()
-        if not self._asked:
-            self._asks.put((args, kwargs))
-        before = self._take()
+        self._calls += 1
+        if self.waits:
+            if not self._asked:
+                self._asks.put((args, kwargs))
+                self._at = self._calls
+            self._shown, self._of = self._take(), self._at
+        elif self._asked:
+            try:
+                said = self._drawn.get_nowait()
+            except queue.Empty:
+                self.behind = self._calls - self._of
+                return self._shown
+            self._shown, self._of = _word(said), self._at
         self._asks.put((args, kwargs))
-        self._asked = True
-        return before
+        self._asked, self._at = True, self._calls
+        self.behind = self._calls - self._of
+        return self._shown
 
     def close(self, wait=1.0):
         try:
