@@ -44,6 +44,33 @@ def test_esc_the_front_page(report):
                  answers)
 
 
+def test_a_compiling_machines_entry_waits(report):
+    """The front page while a machine's control system compiles (`terminal.compiling`): its entry greyed, how far its
+    compile has come said on it, chosen by neither the cursor's Enter nor its letter - the cursor left on it -;
+    chosen at once its compile done."""
+    import time
+    from rich.text import Text
+    from terminal import compiling, loader, menu
+    at = menu.MACHINES.index('robot')
+    key, name, _what = menu.ENTRIES[at]
+    nav = {'picked': 0, 'who': None}
+    with compiling._LOCK:
+        compiling.STATE['robot'] = [0.5, 'STANDING: 3 OF 34 BUILT ON 6 CORES', time.monotonic() - 61.0]
+    try:
+        row = next(t for t in menu.roster(at).renderables if isinstance(t, Text) and name in t.plain)
+        entered = menu._chosen(nav, at)
+        typed_in = menu.bindings.act_on(menu.FRONT, [key.lower()], nav)[0]
+    finally:
+        with compiling._LOCK:
+            compiling.STATE.pop('robot', None)
+    done = menu._chosen({'picked': 0, 'who': None}, at)
+    report.check('greyed, its compile said on it, chosen by no key, the cursor on it; chosen once done',
+                 'COMPILING ROBOT: STANDING: 3 OF 34 BUILT ON 6 CORES  1:01' in row.plain
+                 and any(span.style == 'greyed' for span in row.spans) and entered is None and not typed_in
+                 and nav['picked'] == at and done == loader.FIRST + at, '%r; %r %r -> %r' % (row.plain.strip(), entered,
+                                                                                         typed_in, done))
+
+
 def test_tab_and_help_in_any_mode(report):
     """Tab shows the instruments' column - folded to its rail at first - and folds it again, the
     page's own mode open too, the front page's board as every page's column; ? the page's keys up and
@@ -245,7 +272,8 @@ def test_a_chord_rearms_the_terminal(report):
                  keys.rearmed == 0 and keys.clicked() == [(30, 23)] and keys.panned() == (2, 1), str(keys.rearmed))
 
 
-ROSTER = (test_a_page_its_keys_the_terminals_after, test_esc_the_front_page, test_tab_and_help_in_any_mode,
+ROSTER = (test_a_page_its_keys_the_terminals_after, test_esc_the_front_page, test_a_compiling_machines_entry_waits,
+          test_tab_and_help_in_any_mode,
           test_the_robots_modes_before_its_rows, test_folded_into_the_page, test_the_drawing_takes_the_columns_room,
           test_a_paste_is_never_typed, test_a_chord_rearms_the_terminal)
 

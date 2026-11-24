@@ -3,6 +3,8 @@ from terminal.loader import call, common
 
 HEADLINE, KEY, WHAT = 'ORNITHOPTER DUNE FLYING', 'O', '4-wing Dune ornithopter, wing-fold dives and gates'
 ORDER, NAME = 68, 'ornithopter'
+#: The control system its page lays, compiled behind the front page while it is behind (`terminal.compiling`).
+COMPILED = 'ornithopter'
 
 
 def run(args, name):

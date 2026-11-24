@@ -3,6 +3,8 @@ from terminal.loader import call, common
 
 HEADLINE, KEY, WHAT = 'QUAD ACRO FLYING', 'D', 'four rotors, full tilt and back'
 ORDER, NAME = 66, 'quad'
+#: The control system its page lays, compiled behind the front page while it is behind (`terminal.compiling`).
+COMPILED = 'quad'
 
 
 def run(args, name):

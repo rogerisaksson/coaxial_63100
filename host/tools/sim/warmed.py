@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The robot's control system compiled for its sources before its page lays it.
+"""The machines' control systems compiled for their sources before their pages lay them.
 
 A pull leaves the robot's parts' C behind. A change under the robot's machine, its cores or its texts restamps every
 part its law keeps (`tools.cores.kept`); a change of what their libraries are built of (the glue's `quick.h`, the
@@ -11,13 +11,16 @@ walked), its processes where the system moves them over every processor it is gi
 (`placed.FLOAT`, `spread`), stood and walked (ERRANDS), each build told as it lands (`built`): each part its law
 meets traced, their builds as wide as the host's batch (`held.widened`) and waited for, each held bit for bit by the
 passes after (`bodied.met`) - a shape met once and not again left to hold where it is met, its library built. No build
-left, the stamp is marked (`kept.marked`) and the robot's page's first pass takes them all.
+left, the stamp is marked (`kept.marked`) and the robot's page's first pass takes them all. A craft (`pace.CRAFTS`) is
+flown FLOWN_S as its page flies it (`pace.Flown`) and its parts compiled the same way, each machine its own mark.
 
-    python -X utf8 -m tools.sim.warmed        # compiled where behind: a line a step
-    warmed.current()                           # whether its parts are its sources' (`kept.current`)
-    warmed.ensure(step)                        # compiled where behind, apart; `step(share, text)` told as it goes
+    python -X utf8 -m tools.sim.warmed [MACHINE ...]   # each named, or every one, compiled where behind: a line a step
+    warmed.current('quad')                              # whether its parts are its sources' (`kept.current`)
+    warmed.ensure(step)                                 # the robot's compiled where behind, apart; `step(share, text)`
+    run = warmed.started(machines); warmed.told(run, step)   # several apart, `step(machine, share, text)` as they go
 """
 import argparse
+import functools
 import os
 import subprocess
 import sys
@@ -34,16 +37,34 @@ ERRANDS = (('standing', (0.0, 0.0, 0.0), 1.0), ('walking', pace.WALK, 3.0))
 HOLD_S, ROUNDS = 0.5, 6
 #: The seconds between the compile's lines while a build is under way: its page's strip told it goes on.
 BEAT_S = 1.0
-#: A line the compile prints for its page: STEP share text, then DONE held numpy under seconds.
+#: The machines whose control systems compile, as their pages name them (`terminal/pages`, COMPILED): the robot,
+#: laid and walked, and each craft, flown.
+ROBOT = 'robot'
+MACHINES = (ROBOT,) + pace.CRAFTS
+#: A craft's flight while its parts are met, s of its time.
+FLOWN_S = 2.0
+#: A line the compile prints for its page: STEP machine share text, then DONE machine held numpy under seconds.
 STEP, DONE = 'step', 'done'
 
 
-def current():
-    """Whether the robot's parts were compiled whole under its sources' stamp (`kept.current`), the stamp read
+def _mark(machine):
+    """`machine`'s mark in the kept store (`kept.current`): the robot's its active build's (None), a craft's its kind."""
+    return None if machine == ROBOT else machine
+
+
+def current(machine=ROBOT):
+    """Whether `machine`'s parts were compiled whole under its sources' stamp (`kept.current`), the stamp read
     anew: the terminal outlives the sources it opened on."""
     from tools.cores import kept
     kept.stamp.cache_clear()
-    return kept.current()
+    return kept.current(_mark(machine))
+
+
+def behind(machines=MACHINES):
+    """Those of `machines` behind their sources' stamp (`current`), the stamp read anew once, in MACHINES' order."""
+    from tools.cores import kept
+    kept.stamp.cache_clear()
+    return [machine for machine in MACHINES if machine in machines and not kept.current(_mark(machine))]
 
 
 def spread():
@@ -69,85 +90,120 @@ def built(what, low, high, jobs, beat=BEAT_S):
         waiting[0]['done'].wait(beat)
 
 
-def compiled(width=None):
-    """The robot laid, stood and walked, each part it meets compiled: (share, text) as it goes; its end
-    (held, numpy's, under way, seconds) - the stamp marked where none is under way."""
+def _errand(r, twist, seconds):
+    r.tell(twist=twist)
+    r.go(seconds)
+
+
+def _flown(r, seconds):
+    r.go(seconds)
+
+
+def _laid(machine):
+    """`machine` laid as its page lays it - the robot blind (`pace.Run`), a craft flown (`pace.Flown`) - and what it
+    does while its parts are met, [(what, fn(laid))]."""
+    if machine == ROBOT:
+        return pace.Run(blind=True), [(what, functools.partial(_errand, twist=twist, seconds=seconds))
+                                      for what, twist, seconds in ERRANDS]
+    return pace.Flown(machine, blind=True), [('flying', functools.partial(_flown, seconds=FLOWN_S))]
+
+
+def compiled(machine=ROBOT, width=None):
+    """`machine` laid, each part it meets doing what it does compiled: (share, text) as it goes; its end (held,
+    numpy's, under way, seconds) - its stamp marked where no build is left."""
     from tools.cores import bodied, held, kept
     from tools.dev import background
-    began = time.perf_counter()
+    began, since = time.perf_counter(), bodied.made()
     held.widened(width or background.widths()[0])
-    yield 0.02, 'LAYING THE ROBOT'
-    r = pace.Run(blind=True)
+    yield 0.02, 'LAYING THE %s' % machine.upper()
+    r, doings = _laid(machine)
     try:
-        for k, (what, twist, seconds) in enumerate(ERRANDS):
-            share = (k + 0.5) / len(ERRANDS)
-            yield share - 0.25 / len(ERRANDS), what.upper()
-            r.tell(twist=twist)
-            r.go(seconds)
+        for k, (what, do) in enumerate(doings):
+            share, half = (k + 0.5) / len(doings), 0.25 / len(doings)
+            yield share - half, what.upper()
+            do(r)
             for _ in range(ROUNDS):
-                yield from built(what, share - 0.25 / len(ERRANDS), share, held.unbuilt())
+                yield from built(what, share - half, share, held.unbuilt())
                 r.go(HOLD_S)
-                got, numpy, under = bodied.met()
-                yield share + 0.25 / len(ERRANDS), '%s: HELD %d OF %d' % (what.upper(), got, got + numpy + under)
+                got, numpy, under = bodied.met(since)
+                yield share + half, '%s: HELD %d OF %d' % (what.upper(), got, got + numpy + under)
                 if not held.unbuilt():
                     break
     finally:
         r.close()
-    got, numpy, under = bodied.met()
+    got, numpy, under = bodied.met(since)
     if not held.unbuilt():
-        kept.marked()
+        kept.marked(_mark(machine))
     return got, numpy, under, time.perf_counter() - began
 
 
-def ensure(step=lambda share, text: None):
-    """Compiled where behind, in a process of its own (its robot's processes unplaced, this tree's modules):
-    `step(share, text)` told as it goes. (whether current now, what it says)."""
+def started(machines):
+    """The compile of `machines` begun in a process of its own (its robot's processes unplaced, this tree's modules):
+    its process, its lines for `told`."""
     from tools import REPO
     from machine.process import placed
-    if current():
-        return True, 'current'
     host = os.path.join(REPO, 'host')
     env = dict(os.environ, **{placed.FLOAT: '1',
                               'PYTHONPATH': os.pathsep.join(p for p in (host, os.environ.get('PYTHONPATH')) if p)})
-    run = subprocess.Popen([sys.executable, '-X', 'utf8', '-m', 'tools.sim.warmed'], cwd=host, env=env,
-                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8',
-                           errors='replace')
-    said = 'ended without a word'
+    return subprocess.Popen([sys.executable, '-X', 'utf8', '-m', 'tools.sim.warmed', *machines], cwd=host, env=env,
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8',
+                            errors='replace')
+
+
+def told(run, step=lambda machine, share, text: None):
+    """`run`'s (`started`'s) lines read till it ends: `step(machine, share, text)` each step; {machine: what its
+    end says}. The process waited for, ended where it still runs."""
+    said = {}
     try:
         for line in run.stdout or ():
-            word, _, rest = line.strip().partition(' ')
+            word, machine, rest = (line.strip().split(' ', 2) + ['', ''])[:3]
             if word == STEP:
                 share, _, text = rest.partition(' ')
-                step(float(share), text)
+                step(machine, float(share), text)
             elif word == DONE:
                 got, numpy, under, seconds = rest.split()
-                said = '%s parts held, %s numpy\'s, %s under way, %.0f s' % (got, numpy, under, float(seconds))
-                break
+                said[machine] = ("%s parts held, %s numpy's, %s under way, %.0f s"
+                                 % (got, numpy, under, float(seconds)))
     finally:
         if run.poll() is None:
             run.kill()
         run.wait()
-    return current(), said
+    return said
+
+
+def ensure(step=lambda share, text: None, machines=(ROBOT,)):
+    """`machines` (the robot) compiled where behind, in a process of its own (`started`): `step(share, text)` told
+    as it goes. (whether each is current now, what they say)."""
+    late = behind(machines)
+    if not late:
+        return True, 'current'
+    said = told(started(late), lambda _machine, share, text: step(share, text))
+    return not behind(late), '; '.join(said.values()) or 'ended without a word'
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
+    parser.add_argument('machines', nargs='*', help='those compiled where behind (%s), every one unless named'
+                        % ', '.join(MACHINES))
     parser.add_argument('--width', type=int, default=0, help="builds at once, the host's batch unless given")
     args = parser.parse_args(argv)
+    unknown = [machine for machine in args.machines if machine not in MACHINES]
+    if unknown:
+        parser.error('no machine %s: %s' % (', '.join(unknown), ', '.join(MACHINES)))
     from machine.process import placed
-    if current():
-        print('%s 0 0 0 0.0' % DONE, flush=True)
-        return 0
+    late = behind(args.machines or MACHINES)
     os.environ.setdefault(placed.FLOAT, '1')
-    spread()
-    steps = compiled(args.width or None)
-    try:
-        while True:
-            print('%s %.3f %s' % ((STEP,) + next(steps)), flush=True)
-    except StopIteration as end:
-        got, numpy, under, seconds = end.value
-    print('%s %d %d %d %.1f' % (DONE, got, numpy, under, seconds), flush=True)
-    return 0 if current() else 1
+    if late:
+        spread()
+    for machine in late:
+        steps = compiled(machine, args.width or None)
+        try:
+            while True:
+                print('%s %s %.3f %s' % ((STEP, machine) + next(steps)), flush=True)
+        except StopIteration as end:
+            got, numpy, under, seconds = end.value
+        print('%s %s %d %d %d %.1f' % (DONE, machine, got, numpy, under, seconds), flush=True)
+    return 0 if not behind(late) else 1
 
 
 if __name__ == '__main__':

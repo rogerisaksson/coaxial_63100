@@ -3,6 +3,8 @@ from terminal.loader import call, common
 
 HEADLINE, KEY, WHAT = 'HUMANOID', 'H', 'gynoid on virtual actuators'
 ORDER, NAME = 65, 'humanoid'
+#: The control system its page lays, compiled behind the front page while it is behind (`terminal.compiling`).
+COMPILED = 'robot'
 
 
 def run(args, name):

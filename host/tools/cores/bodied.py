@@ -31,8 +31,9 @@ from tools.cores.wbc import address
 #: held it 47.6 ms.
 SPREAD_S = 0.005
 _LAST = [0.0]
-#: This process's parts while they live: what a warm counts (`met`).
+#: This process's parts while they live: what a warm counts (`met`); how many were made, each's place among them.
 _MADE: Any = weakref.WeakSet()
+_COUNT = [0]
 
 
 def on_body(fn, name, inputs=(1, 2), fresh=2, seed=1, body=0):
@@ -46,11 +47,18 @@ def on_args(fn, name, inputs, fresh=2, seed=1, sources=None):
     return Compiled(fn, name, inputs, None, fresh, seed, sources)
 
 
-def met():
-    """(held, numpy's, under way) of this process's parts called so far: their C held, staying numpy's (`why`),
-    traced or taken and not yet either - a part never called is none of them."""
+def made():
+    """How many parts this process has made: a `met` from here counts those made after."""
+    return _COUNT[0]
+
+
+def met(since=0):
+    """(held, numpy's, under way) of this process's parts made since the `since`-th (`made`) and called so far: their
+    C held, staying numpy's (`why`), traced or taken and not yet either - a part never called is none of them."""
     held_, numpy_, under = 0, 0, 0
     for part in list(_MADE):
+        if part.order < since:
+            continue
         if part.c is not None:
             held_ += 1
         elif part.why is not None:
@@ -77,6 +85,7 @@ class Compiled(_PART):
         self.c: Bound | None = None
         self.why: Exception | None = None
         self.looked = False
+        self.order, _COUNT[0] = _COUNT[0], _COUNT[0] + 1
         _MADE.add(self)
         kept.warm(self)
 

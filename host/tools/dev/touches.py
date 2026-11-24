@@ -127,8 +127,9 @@ TOUCHES = (
     ('host/terminal/ui/stage.py',              (STRUCTURE, *VIEWS, 'test_simulated.py', 'test_quick.py')),
     ('host/terminal/ui/',                      (STRUCTURE, *VIEWS,
                                                 'test_simulated.py')),
+    ('host/terminal/compiling.py',             (STRUCTURE, 'test_views_keys.py', 'test_quick.py')),
 ) + CORES + (
-    ('host/tools/sim/warmed.py',               (STRUCTURE, 'test_quick.py')),
+    ('host/tools/sim/warmed.py',               (STRUCTURE, 'test_quick.py', 'test_views_keys.py')),
     ('host/tools/sim/streams.py',              QUADS + (STREAMS,)),
     ('host/tools/sim/wbc.py',                  (STRUCTURE, WBC, WBC_CORE, LEAP, WRENCH)),
     ('host/tools/sim/hop.py',                  (STRUCTURE, LEAP, WRENCH)),

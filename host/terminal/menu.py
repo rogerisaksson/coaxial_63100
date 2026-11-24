@@ -27,6 +27,7 @@ from rich.layout import Layout
 from rich.panel import Panel
 from rich.text import Text
 
+from terminal import compiling
 from terminal import loader
 from terminal import readout
 from terminal import stand
@@ -49,6 +50,15 @@ _screen.CHATTER = False     # the boot bar replaced the scroll
 ENTRIES, SUB, OPEN, _PICKS = loader.listing()
 #: The list as drawn: the pages, then QUIT on Q (`bindings`' TERMINAL row).
 LISTED = ENTRIES + (('Q', 'QUIT', 'leave the terminal'),)
+#: Each entry's machine, its page's COMPILED (None for a page that lays none): its row greyed and not chosen while
+#: its control system compiles (`terminal.compiling`).
+MACHINES = tuple(getattr(page, 'COMPILED', None) for page in loader.pages())
+
+
+def _compiling(at, now=None):
+    """What entry `at`'s row says while its machine compiles, None when it may be chosen."""
+    machine = MACHINES[at] if at < len(MACHINES) else None
+    return compiling.said(machine, now) if machine is not None else None
 
 #: What the masthead knows. `held` is how many sessions have the port,
 #: `board` whether one answers anywhere at all - None until asked, 'emulated' where none does
@@ -164,9 +174,15 @@ def roster(picked):
     # Every row is one line, picked or not: a framed highlight changed the
     # list's height and the page jumped on each keypress.
     lines, wide = [Text('')], max(18, *(len(name) + 1 for _key, name, _what in LISTED))
+    now = time.monotonic()
     for i, (key, name, what) in enumerate(LISTED):
         kana = '%-12s' % KANA[name][0] if name in KANA else ' ' * 12
-        if i == picked:
+        busy = _compiling(i, now)
+        if busy is not None:
+            # Greyed while its machine compiles, what it does said as how far its compile has come.
+            row = Text.assemble((' > ' if i == picked else '   ', 'greyed'), (key, 'greyed'), ('  ', ''),
+                                (name.ljust(wide), 'greyed'), (kana, 'greyed'), ('  COMPILING ' + busy, 'label'))
+        elif i == picked:
             row = Text.assemble((' > ', 'value'), (key, 'value'),
                                 ('  ', ''), (name.ljust(wide), 'value'),
                                 (kana, 'name'), ('  ' + what.upper(), 'label'))
@@ -270,9 +286,13 @@ _STEPS = {'up': -1, 'down': 1}
 
 
 def _chosen(nav, at):
-    """The page at `at` chosen: its code, its second question opened (`nav['who']`), or QUIT's 'quit'."""
+    """The page at `at` chosen: its code, its second question opened (`nav['who']`), or QUIT's 'quit'; none while
+    its machine compiles (`_compiling`), the cursor on it."""
     if at == len(ENTRIES):
         return 'quit'
+    if _compiling(at) is not None:
+        nav['picked'] = at
+        return None
     nav['picked'], nav['who'] = at, _second_question(loader.FIRST + at)
     return None if nav['who'] else loader.FIRST + at
 

@@ -75,6 +75,7 @@ THEME = Theme({
     'chip.sto.off': 'color(66) on color(23)',   # the safe state, the band's own
     'alarm':      'bold black on red3',
     'progress.elapsed': 'color(66)',           # a boot strip's clock, a label's
+    'greyed':     'color(239)',                # a choice not to be made yet: its machine compiling
 })
 
 

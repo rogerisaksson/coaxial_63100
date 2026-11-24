@@ -91,24 +91,27 @@ def _file(part):
     return os.path.join(KEPT, hashlib.sha1(kind.encode()).hexdigest()[:20] + '.pkl')
 
 
-def _compiled():
-    """The file that tells the stamp the active build's parts were last compiled whole under (`tools.sim.warmed`)."""
+def _compiled(machine=None):
+    """The file that tells the stamp `machine`'s parts were last compiled whole under (`tools.sim.warmed`): a craft by
+    its kind, the robot (None) by its active build."""
     from machine.body import mechatronics
-    return os.path.join(KEPT, '%s.compiled' % mechatronics.ROBOT)
+    return os.path.join(KEPT, '%s.compiled' % (machine or mechatronics.ROBOT))
 
 
-def current():
-    """Whether the robot's parts were compiled whole under this stamp: its page's first pass on their C."""
+def current(machine=None):
+    """Whether `machine`'s parts (the robot's, None) were compiled whole under this stamp: its page's first pass on
+    their C."""
     try:
-        with open(_compiled(), encoding='ascii') as f:
+        with open(_compiled(machine), encoding='ascii') as f:
             return f.read().strip() == stamp()
     except (OSError, ValueError):
         return False
 
 
-def marked():
-    """This stamp written as the one the robot's parts were compiled whole under - written whole, then put in place."""
-    path = _compiled()
+def marked(machine=None):
+    """This stamp written as the one `machine`'s parts (the robot's, None) were compiled whole under - written whole,
+    then put in place."""
+    path = _compiled(machine)
     whole = '%s.%d' % (path, os.getpid())
     os.makedirs(KEPT, exist_ok=True)
     with open(whole, 'w', encoding='ascii') as f:

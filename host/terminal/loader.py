@@ -266,6 +266,11 @@ def main(argv=None):
             if not preloading:
                 threading.Thread(target=preload, args=(state,), daemon=True).start()
                 preloading = True
+            if sys.stdin.isatty():
+                # The machines' control systems behind their sources compiled behind the front page, their
+                # entries greyed till each is done (`terminal.compiling`); one compile at a time.
+                from terminal import compiling
+                compiling.start([getattr(p, 'COMPILED', None) for p in pages()])
             picked = front_page(args, opened, state)
             if picked < FIRST:
                 break
@@ -280,6 +285,8 @@ def main(argv=None):
     if tubed:
         tube.off(stage.last_rows(stage.stage()))
     from terminal.ui import ahead
+    from terminal import compiling
     ahead.let_go()
+    compiling.stop()
     leave(args)
     return code
