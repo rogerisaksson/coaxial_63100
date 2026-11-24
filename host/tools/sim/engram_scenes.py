@@ -7,7 +7,6 @@ def worker_init():
     """Pin single-threaded BLAS and deterministic kernels in each worker subprocess."""
     from tools.dev import arithmetic
     os.environ['OPENBLAS_NUM_THREADS'] = '1'
-    os.environ['OPENBLAS_CORETYPE'] = 'Nehalem'
     arithmetic.hold()
 
 SCENES = {

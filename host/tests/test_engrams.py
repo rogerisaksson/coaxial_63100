@@ -308,6 +308,69 @@ def test_parallel_mc_combinatorics_runner(report):
                  'rows=%d variant=%s passed=%d' % (len(rows), has_variant, sum(r['passed'] for r in rows)))
 
 
+def test_arm64_arithmetic_and_stunt_sight(report):
+    """Engram tools delegate OpenBLAS pinning to arithmetic.hold() and honor --sight on stunt keys."""
+    from machine.world import physics
+    from tools.dev import arithmetic
+    from tools.sim import engram_mc, engram_scenes, stunt_similarity
+
+    arm_clean = arithmetic.held('aarch64') == {} and arithmetic.held('arm64') == {}
+    hardcoded = []
+    for mod in (engram_mc, engram_scenes, stunt_similarity):
+        path = mod.__file__
+        assert path is not None
+        with open(path, encoding='utf-8') as f:
+            if 'Nehalem' in f.read():
+                hardcoded.append(os.path.basename(path))
+
+    prev_core = os.environ.get('OPENBLAS_CORETYPE')
+    prev_thr = os.environ.get('OPENBLAS_NUM_THREADS')
+    try:
+        os.environ['OPENBLAS_CORETYPE'] = 'CUSTOM_ARCH_TEST'
+        engram_scenes.worker_init()
+        kept_core = os.environ.get('OPENBLAS_CORETYPE') == 'CUSTOM_ARCH_TEST'
+        set_thr = os.environ.get('OPENBLAS_NUM_THREADS') == '1'
+    finally:
+        if prev_core is None:
+            os.environ.pop('OPENBLAS_CORETYPE', None)
+        else:
+            os.environ['OPENBLAS_CORETYPE'] = prev_core
+        if prev_thr is None:
+            os.environ.pop('OPENBLAS_NUM_THREADS', None)
+        else:
+            os.environ['OPENBLAS_NUM_THREADS'] = prev_thr
+
+    report.check('engram sim tools defer OpenBLAS coretype to arithmetic.hold() without ARM64 override',
+                 arm_clean and not hardcoded and kept_core and set_thr,
+                 'arm_clean=%s hardcoded=%s kept_core=%s set_thr=%s' % (
+                     arm_clean, hardcoded, kept_core, set_thr))
+
+    prev_flags = (physics.ROOM, physics.CAMERA, physics.SIGHT)
+    import inspect
+    from machine.process import worker
+    try:
+        s, snap, split_t = engram_mc._setup_stunt_checkpoint('crouching_down', sight=True)
+        try:
+            eyes_on = s['g']['eyes'] == 1 and s['g'].get('keep') is not None
+            flags_on = physics.CAMERA == 1.0 and physics.SIGHT == 1.0
+            for _ in range(10):
+                worker.stepped(s)
+            stepped_ok = s['fallen_at'] is None and split_t > 0.0 and snap is None
+        finally:
+            if s['g'].get('keep') is not None:
+                s['g']['keep'].close()
+    finally:
+        physics.ROOM, physics.CAMERA, physics.SIGHT = prev_flags
+    shard_out = engram_mc._run_shard(('crouching_down', (), (0.0,), [], None, True))
+    restored = (physics.ROOM, physics.CAMERA, physics.SIGHT) == prev_flags
+    shard_allows_stunt = 'if sight and is_scene:' not in inspect.getsource(engram_mc._run_shard)
+    sight_ok = eyes_on and flags_on and stepped_ok and shard_out == [] and restored and shard_allows_stunt
+    report.check('engram_mc honors --sight on stunt keys and restores world camera flags',
+                 sight_ok,
+                 'eyes=%s flags=%s stepped=%s restored=%s shard=%s' % (
+                     eyes_on, flags_on, stepped_ok, restored, shard_allows_stunt))
+
+
 ROSTER = (
     test_checkpoint_bit_exact_across_modes,
     test_predock_branch_and_live_hotswap,
@@ -315,6 +378,7 @@ ROSTER = (
     test_engram_catalog_and_stunt_integrity,
     test_stunt_similarity_and_single_stunt_bundle,
     test_parallel_mc_combinatorics_runner,
+    test_arm64_arithmetic_and_stunt_sight,
 )
 
 

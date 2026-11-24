@@ -21,7 +21,6 @@ import random
 import sys
 
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
-os.environ.setdefault('OPENBLAS_CORETYPE', 'Nehalem')
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -32,15 +31,18 @@ from tools.sim.engram_scenes import (SCENES, apply_wobble, eval_bed, eval_chair,
 arithmetic.hold()
 
 
-def _setup_stunt_checkpoint(stunt_key):
+def _setup_stunt_checkpoint(stunt_key, sight=False):
     """Place `stunt_key`'s scene, advance up to its final maneuver command, and capture checkpoint."""
     from machine.process import checkpoint, worker
     from machine.world import physics
     from tools.sim import scenarios, staged, stunts
 
     _take, scene, plan, _start, _sig = staged.STUNTS[stunt_key]
-    physics.ROOM, physics.SIGHT = float(scene == 'lodge'), 0.0
+    physics.ROOM = float(scene == 'lodge')
+    physics.CAMERA = physics.SIGHT = float(bool(sight))
     s = worker.session()
+    if sight:
+        worker.readied(s)
     scenarios.placed(s, scene)
     ordered = sorted(((float(at), stunts.told(c)) for at, c in plan), key=lambda x: x[0])
     split_t = max(0.0, ordered[-1][0] - 0.01) if ordered else 0.4
@@ -51,7 +53,7 @@ def _setup_stunt_checkpoint(stunt_key):
             worker.apply(s, pre[idx][1])
             idx += 1
         worker.stepped(s)
-    return s, checkpoint.capture(s), split_t
+    return s, (None if sight else checkpoint.capture(s)), split_t
 
 
 def _eval_stunt_trial(s, stunt_key, combo, wobble, split_t):
@@ -152,13 +154,17 @@ def _run_shard(args):
     is_scene = scene_name in SCENES
     task = SCENES[scene_name]['task'] if is_scene else 'stunt'
     out = []
-    if sight and is_scene:
+    if sight:
         try:
             for combo in combos:
                 for wobble in wobbles:
-                    s, _ = setup_checkpoint(scene_name, sight=True)
+                    if is_scene:
+                        s, _ = setup_checkpoint(scene_name, sight=True)
+                        split_t = 0.0
+                    else:
+                        s, _, split_t = _setup_stunt_checkpoint(scene_name, sight=True)
                     try:
-                        res = _dispatch_trial(s, scene_name, task, combo, wobble, 0.0)
+                        res = _dispatch_trial(s, scene_name, task, combo, wobble, split_t)
                         out.append({'scene': scene_name, 'combo': [c for c in combo if c] or ['stock'],
                                     'wobble': wobble, **res})
                     finally:
@@ -172,7 +178,7 @@ def _run_shard(args):
         s, snap = setup_checkpoint(scene_name, sight=False)
         split_t = 0.0
     else:
-        s, snap, split_t = _setup_stunt_checkpoint(scene_name)
+        s, snap, split_t = _setup_stunt_checkpoint(scene_name, sight=False)
     try:
         for combo in combos:
             for wobble in wobbles:

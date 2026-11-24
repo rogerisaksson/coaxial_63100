@@ -18,9 +18,12 @@ import os
 import sys
 
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
-os.environ.setdefault('OPENBLAS_CORETYPE', 'Nehalem')
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from tools.dev import arithmetic
+
+arithmetic.hold()
 
 ALL_MEASURES = None
 
