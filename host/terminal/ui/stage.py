@@ -32,7 +32,7 @@ from rich.control import Control
 from rich.layout import Layout
 from rich.live import Live
 from rich.panel import Panel
-from rich.progress import BarColumn, Progress, TextColumn
+from rich.progress import BarColumn, Progress, TextColumn, TimeElapsedColumn
 from rich.segment import Segment
 from rich.table import Table
 from rich.text import Text
@@ -74,6 +74,7 @@ THEME = Theme({
     'chip.sto':   'black on color(214)',         # the drivers supplied: the light source
     'chip.sto.off': 'color(66) on color(23)',   # the safe state, the band's own
     'alarm':      'bold black on red3',
+    'progress.elapsed': 'color(66)',           # a boot strip's clock, a label's
 })
 
 
@@ -170,9 +171,21 @@ class _Tube:
         return getattr(self._live, name)
 
 
+def strip(court):
+    """A boot's strip on `court`: the bar, its step's text bracketed, the time it has stood - a step a minute
+    long still ticks, not a page taken for hung (the robot's compile stood on [STANDING] 57 s)."""
+    return Progress(
+        BarColumn(bar_width=28, complete_style='value',
+                  finished_style='value', style='frame.hud'),
+        # The text after the bar, bracketed.
+        TextColumn('[{task.description}]', style='label', markup=False),
+        TimeElapsedColumn(),
+        console=court, transient=True)
+
+
 @contextmanager
 def boot(label, console=None):
-    """A brisk amber progress strip over whatever the block actually does."""
+    """A brisk amber progress strip over whatever the block actually does (`strip`)."""
 
 
     court = console or stage()
@@ -180,12 +193,7 @@ def boot(label, console=None):
         yield lambda *args: None
         return
 
-    bar = Progress(
-        BarColumn(bar_width=28, complete_style='value',
-                  finished_style='value', style='frame.hud'),
-        # The text after the bar, bracketed.
-        TextColumn('[{task.description}]', style='label', markup=False),
-        console=court, transient=True)
+    bar = strip(court)
     task = bar.add_task(label, total=100)
     stop = threading.Event()
     closed = []

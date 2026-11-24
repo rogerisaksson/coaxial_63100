@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """The robot's compiled parts called whole in C (`tools.cores.quick`'s runner, quick_run.c) beside their Python glue - each part
 of its law walking given twins of its arguments made alike -, and the robot's step asked in C (quick_step.c)
-beside its Python from the same struct: both ways' results the same trees, types, views and bits at every call."""
+beside its Python from the same struct: both ways' results the same trees, types, views and bits at every call. The
+robot's control system compiled before its page lays it (`tools.sim.warmed`): a line a beat while its builds are under
+way, off its page's core, its strip a clock - none of the three, the page stood on [STANDING] and was taken for hung."""
 import os
 import sys
 
@@ -187,8 +189,85 @@ def test_a_world_laid_anew_lets_those_before_go(report, c):
                  'six' % (held[3], held[6]), held[6] <= held[3], '')
 
 
+def test_the_robots_compile_says_each_build_as_it_lands(report, c):
+    """The robot's compile before its page (`tools.sim.warmed.built`): a line a beat while no build lands, each build
+    counted as it lands in any order, on the cores they are built on, the strip's share crept from its low to its
+    high. Told only as the list's first landed, the page stood on [STANDING] 57 s and was taken for hung."""
+    import threading
+    import time
+    from tools.cores import held
+    from tools.sim import warmed
+    jobs = [{'done': threading.Event()} for _ in range(3)]
+    lines = warmed.built('standing', 0.125, 0.25, jobs, beat=0.05)
+    began = time.perf_counter()
+    said = [next(lines) for _ in range(4)]
+    quiet = time.perf_counter() - began
+    for k in (2, 0, 1):
+        jobs[k]['done'].set()
+        said.append(next(lines))
+    said += list(lines)
+    told = ['STANDING: %d OF 3 BUILT ON %d CORES' % (n, held.WIDTH[0]) for n in (0, 0, 0, 0, 1, 2, 3)]
+    report.check('the robot\'s compile says a line a beat while no build lands (4 in %.2f s), then each build as it '
+                 'lands, in any order, on its cores' % quiet,
+                 [text for _share, text in said] == told and quiet < 2.0, ' | '.join(t for _s, t in said))
+    report.check('its strip\'s share crept from its errand\'s low to its high as the builds land',
+                 [share for share, _text in said] == [0.125] * 4 + [0.125 + 0.125 * n / 3 for n in (1, 2, 3)],
+                 ' '.join('%.4f' % share for share, _text in said))
+
+
+#: The compile's process as its page starts it, on the page's core till it spreads: its processors before and after,
+#: those it is given.
+SPREAD = ('import sys; from machine.process import placed; from tools.sim import warmed; sys.stdin.readline(); '
+          'was = placed.now(); warmed.spread(); print("%x %x %x" % (was, placed.now(), sum(placed.cores())), flush=True)')
+
+
+def test_the_robots_compile_leaves_its_pages_core(report, c):
+    """The compile the robot's page starts (`tools.sim.warmed.spread`), started on a core as the page holds one and
+    told to float as the page tells it: on every processor the robot is given once it spreads - left on the page's
+    core, its builds, world and law shared 2 processors of 64, 123 s for 44."""
+    import subprocess
+    from machine.process import placed
+    mask, holding = placed.claim()
+    if not mask:
+        report.check('the robot\'s compile leaves its page\'s core (this host tells none to bind, or none is free)',
+                     True, '')
+        return
+    env = dict(os.environ, PYTHONPATH=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+               **{placed.FLOAT: '1'})
+    try:
+        child = subprocess.Popen([sys.executable, '-X', 'utf8', '-c', SPREAD], stdin=subprocess.PIPE,
+                                 stdout=subprocess.PIPE, text=True, env=env)
+        bound = placed.bind(child.pid, mask)
+        said = child.communicate('\n', timeout=120)[0].split()
+    finally:
+        placed.free(holding)
+    was, now, given = (int(x, 16) for x in said) if len(said) == 3 else (0, 0, -1)
+    report.check('the robot\'s compile started on its page\'s core spreads over all the robot is given: %d '
+                 'processors of %d, from %d' % (bin(now).count('1'), bin(given).count('1'), bin(was).count('1')),
+                 bound and was == mask and now == given and bool(now & ~mask), '%x -> %x of %x' % (was, now, given))
+
+
+def test_the_compiles_strip_keeps_time(report, c):
+    """The strip over the robot's compile (`terminal.ui.stage.strip`) shows the time its step has stood: a step's
+    text a minute unchanged still ticks, not a page taken for hung."""
+    import io
+    from rich.console import Console
+    from terminal.ui import stage
+    court = Console(file=io.StringIO(), width=100, color_system=None, theme=stage.THEME)
+    bar = stage.strip(court)
+    bar.add_task('STANDING: 0 OF 25 BUILT ON 28 CORES', total=100)
+    bar.tasks[0].start_time = bar.get_time() - 65.0
+    with court.capture() as cap:
+        court.print(bar.get_renderable())
+    shown = cap.get().strip()
+    report.check('the compile\'s strip ticks: a step stood 65 s shows 0:01:05 beside its text',
+                 '0:01:05' in shown and '[STANDING: 0 OF 25 BUILT ON 28 CORES]' in shown, shown[-64:])
+
+
 ROSTER = (test_a_part_called_whole_in_c_as_by_its_glue, test_the_robots_step_asked_in_c_as_by_python,
-          test_a_runner_lets_its_part_go, test_a_world_laid_anew_lets_those_before_go)
+          test_a_runner_lets_its_part_go, test_a_world_laid_anew_lets_those_before_go,
+          test_the_robots_compile_says_each_build_as_it_lands, test_the_robots_compile_leaves_its_pages_core,
+          test_the_compiles_strip_keeps_time)
 
 
 def main(argv=None):

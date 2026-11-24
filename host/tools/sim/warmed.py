@@ -7,7 +7,8 @@ cores' headers) rebuilds each. The robot's page then laid the robot on numpy's o
 traced, built and held a part at a time: after a pull 37 builds over 16 minutes and many sessions, the robot's world
 at x0.42-0.56 of real time meanwhile. Here the robot is laid as its worker lays it (`pace.Run`), its eyes the world's
 boxes (`blind`: flat out, the camera's looks held the robot's loop 93 % of the wall at x0.09, and the robot never
-walked), its processes where the system moves them (`placed.FLOAT`), stood and walked (ERRANDS): each part its law
+walked), its processes where the system moves them over every processor it is given, not its page's core
+(`placed.FLOAT`, `spread`), stood and walked (ERRANDS), each build told as it lands (`built`): each part its law
 meets traced, their builds as wide as the host's batch (`held.widened`) and waited for, each held bit for bit by the
 passes after (`bodied.met`) - a shape met once and not again left to hold where it is met, its library built. No build
 left, the stamp is marked (`kept.marked`) and the robot's page's first pass takes them all.
@@ -31,6 +32,8 @@ from tools.sim import pace  # noqa: E402
 ERRANDS = (('standing', (0.0, 0.0, 0.0), 1.0), ('walking', pace.WALK, 3.0))
 #: The robot's time a round of holds is given once its builds are done, s; the rounds an errand has at the most.
 HOLD_S, ROUNDS = 0.5, 6
+#: The seconds between the compile's lines while a build is under way: its page's strip told it goes on.
+BEAT_S = 1.0
 #: A line the compile prints for its page: STEP share text, then DONE held numpy under seconds.
 STEP, DONE = 'step', 'done'
 
@@ -41,6 +44,29 @@ def current():
     from tools.cores import kept
     kept.stamp.cache_clear()
     return kept.current()
+
+
+def spread():
+    """This process on every processor it is given (`placed.cores`), not on its starter's: started by the robot's
+    page, which holds a core of its own (`terminal.ui.stage`), its builds, the robot's world and its law shared that
+    core's 2 processors of 64 - its first build 57 s, the whole 123 s for 44. Whether it now is."""
+    from machine.process import placed
+    return placed.bind(os.getpid(), sum(placed.cores()))
+
+
+def built(what, low, high, jobs, beat=BEAT_S):
+    """`jobs` waited for: (share, text) as each lands, in any order, and every `beat` s while none does - WHAT: N OF M
+    BUILT ON K CORES, the share from `low` to `high` as they land. Told only as the list's first landed, the page's
+    strip stood on its errand's name 57 s."""
+    from tools.cores import held
+    while jobs:
+        waiting = [job for job in jobs if not job['done'].is_set()]
+        done = len(jobs) - len(waiting)
+        yield (low + (high - low) * done / len(jobs),
+               '%s: %d OF %d BUILT ON %d CORES' % (what.upper(), done, len(jobs), held.WIDTH[0]))
+        if not waiting:
+            return
+        waiting[0]['done'].wait(beat)
 
 
 def compiled(width=None):
@@ -59,10 +85,7 @@ def compiled(width=None):
             r.tell(twist=twist)
             r.go(seconds)
             for _ in range(ROUNDS):
-                waiting = held.unbuilt()
-                for i, job in enumerate(waiting):
-                    job['done'].wait()
-                    yield share, '%s: BUILT %d OF %d' % (what.upper(), i + 1, len(waiting))
+                yield from built(what, share - 0.25 / len(ERRANDS), share, held.unbuilt())
                 r.go(HOLD_S)
                 got, numpy, under = bodied.met()
                 yield share + 0.25 / len(ERRANDS), '%s: HELD %d OF %d' % (what.upper(), got, got + numpy + under)
@@ -116,6 +139,7 @@ def main(argv=None):
         print('%s 0 0 0 0.0' % DONE, flush=True)
         return 0
     os.environ.setdefault(placed.FLOAT, '1')
+    spread()
     steps = compiled(args.width or None)
     try:
         while True:
