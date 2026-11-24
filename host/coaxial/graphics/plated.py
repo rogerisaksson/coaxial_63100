@@ -19,7 +19,7 @@ from typing import Any
 
 from coaxial.graphics import drums, guards, mechanism, seat
 from coaxial.graphics.lit import PAINTED, SKIN, UNDER, WOVEN, paint
-from coaxial.graphics.livery import BOARD, BOLT, FRAME, GEAR, SERVO, STEEL, TUBE
+from coaxial.graphics.livery import BOARD, BOLT, FRAME, GEAR, PAD, SERVO, STEEL, TUBE
 from coaxial.graphics.panels import OPEN, SHELL
 from coaxial.graphics.shapes import finer, loft, turn_about
 from machine.body import figure, mechatronics
@@ -207,6 +207,9 @@ def parts(meshes, extra, liked: Any = None):
         joint = placed[name + '_hip_yaw'][1]
         drive = ([(n, c, t) for n, parent, c, t in rested if parent == name + '_hip_yaw'], joint)
         out.append((name + '_seat', name + '_hip_yaw', (), tuple(-joint), 0.0, seat.plate(side, drive, pelvis)))
+        rc, rt, ru, rm = seat.rim(side, drive, pelvis)
+        out.append(('rim_' + name + '_seat', name + '_hip_yaw', (), tuple(-joint), 0.0,
+                    (rc, rt, ru, rm if (rm >= PAINTED).all() else np.full(len(rc), PAD))))
     for s, side in ((1.0, 'left_'), (-1.0, 'right_')):
         if not body:
             break

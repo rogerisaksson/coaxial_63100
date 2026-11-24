@@ -208,11 +208,12 @@ def trim_leg(leg_tris, foot_y, dressed=False):
 
 @functools.lru_cache(maxsize=None)
 def seat_nets():
-    """Bilateral buttock honeycomb nets (`seat.plate`) over `hip_clamped`'s rear drive."""
-    import numpy as np
+    """Bilateral buttock honeycomb nets (`seat.plate`) and white rims (`seat.rim`) over `hip_clamped`."""
     from coaxial.graphics import livery, seat
+    from coaxial.graphics.lit import PAINTED
     from machine.body.figure import HIP_DROP, HIP_HALF
     from tools.render import hip_clamped as hc, leg_worn as lw, trunk_clamped as tc, trunk_laid as tl
+    np = _np()
     hip_spot, yaw_spot = np.array([HIP_HALF, -HIP_DROP, 0.0]), np.array([HIP_HALF, -HIP_DROP + 0.103, 0.0])
     links, p3, t3 = hc.links(), lambda ts: np.array(ts).reshape(-1, 3), lambda p: np.arange(len(p)).reshape(-1, 3)
     drives = [('drive_' + k.replace(' ', '_'), p := p3(ts) + hip_spot, t3(p))
@@ -220,15 +221,16 @@ def seat_nets():
     at_tr = np.asarray(tl.joint()[0], float)
     raw_p = [
         ([t for ts in links['pelvis'].values() for t, _c in ts], hip_spot),
-        ([t for g, ks in (('yaw', ('yoke', 'block', 'riser', 'trunk', 'trunk clips', 'pinion')),
-                          ('roll', ('kingpin', 'plate', 'saddle', 'cradle band')))
-          for k in ks for t, _c in (links[g].get(k) or ())], hip_spot),
         ([t + at_tr for (lk, _n), ts in tc.posed().items() if lk == 'pelvis' for t, _c in ts], 0.0),
     ]
     pelvis = [(p := p3(ts) + off, t3(p)) for ts, off in raw_p if ts]
     c_l, t_l, _u, _m = seat.plate(1.0, (drives, yaw_spot), pelvis)
-    c_r, t_r, ink = c_l * (-1.0, 1.0, 1.0), t_l[:, ::-1], lw._rgb(livery.VOID)
-    return [(c_l[t], ink) for t in t_l] + [(c_r[t], ink) for t in t_r]
+    rc_l, rt_l, _ru, rm = seat.rim(1.0, (drives, yaw_spot), pelvis)
+    c_r, t_r, rc_r, rt_r = c_l * (-1.0, 1.0, 1.0), t_l[:, ::-1], rc_l * (-1.0, 1.0, 1.0), rt_l[:, ::-1]
+    ink, pad = lw._rgb(livery.VOID), (234, 238, 244)
+    cols = [lw._rgb(rm[t[0]]) if int(rm[t[0]]) >= PAINTED else pad for t in rt_l]
+    return ([(c_l[t], ink) for t in t_l] + [(c_r[t], ink) for t in t_r]
+            + [(rc_l[t], col) for t, col in zip(rt_l, cols)] + [(rc_r[t], col) for t, col in zip(rt_r, cols)])
 
 
 def arm_parts_dressed(flex=0.0, turn=0.0, roll=0.0):
