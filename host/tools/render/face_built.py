@@ -265,7 +265,7 @@ def checked():
                       + clips.crossed(ey, pl + p['compute_heatsink'])
                       + clips.crossed(p['left_ear_mic'] + p['right_ear_mic'], pl)
                       + clips.crossed(p['compute_heatsink'], pl)
-                      + clips.crossed(ey, p['chassis']))
+                      + clips.crossed(ey, p['chassis'] + p['inner_liner']))
     bf = head_parts(blink=1.0, plates=True)
     lshut = int(clips.crossed(bf['left_upper_lid'] + bf['right_upper_lid'], bf['left_lower_lid'] + bf['right_lower_lid']))
     nc = mc = 0
@@ -281,7 +281,7 @@ def checked():
     oe = {k: int(solids.printable([1e3 * t for t, _c in neu[k]])['open'])
           for k in ('cranium_frontal', 'cranium_dome', 'cranium_occipital', 'left_temporal', 'left_mastoid',
                     'nasal_bridge', 'left_brow', 'left_maxilla', 'left_orbital_pillar', 'philtrum', 'upper_lip',
-                    'compute_heatsink')}
+                    'compute_heatsink', 'inner_liner')}
     return {'ok': sum(pc.values()) == 0 and lshut == 0 and nc == 0 and mc == 0 and berr < 1.0 and sum(oe.values()) == 0 and abs(float(gimbal.DOWN_DEG) - 15.0) < 1e-6,
             'preset_cross': pc, 'lid_shut_cross': lshut, 'neck_cross': int(nc), 'mount_cross': int(mc),
             'baseline_mm': round(1e3 * float(cl[0] - cr[0]), 2), 'crown_mm': crown_mm, 'open_edges': oe, 'part_count': len(neu)}

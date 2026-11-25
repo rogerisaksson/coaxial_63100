@@ -386,8 +386,16 @@ def _smooth_normals(corners, tris, crease_deg=35.0):
     return fc, ft, v_n
 
 
-def lit_mesh(roll=0.0, dressed=False, turn=0.0, flex=0.0, nod=0.0, head_yaw=0.0, like=None):
+def _part_mat(key, ca):
     from coaxial.graphics import lit
+    from tools.render import face_honeycomb as fh
+    np = _np()
+    u32 = np.uint32
+    hm = np.where((ca == fh.SHELL_CF).all(1), u32(lit.HARD), u32(0)) if key == 'neck skin' else np.where((ca == (24, 24, 26)).all(1), u32(0), u32(lit.HARD))
+    return u32(lit.PAINTED) | hm | np.where((ca == (64, 66, 68)).all(1), u32(lit.TWILL), u32(0)) | (ca[:, 0] << 16) | (ca[:, 1] << 8) | ca[:, 2]
+
+
+def lit_mesh(roll=0.0, dressed=False, turn=0.0, flex=0.0, nod=0.0, head_yaw=0.0, like=None):
     from tools.render import robot_built as rb
     np = _np()
     u32, whole = np.uint32, rb.whole(roll, dressed, turn, flex, nod=nod, head_yaw=head_yaw, like=like)
@@ -410,9 +418,7 @@ def lit_mesh(roll=0.0, dressed=False, turn=0.0, flex=0.0, nod=0.0, head_yaw=0.0,
         raw = np.array([t for t, _c in part_tris], float)
         cu, iu = np.unique(np.round(raw.reshape(-1, 3), 6), axis=0, return_inverse=True)
         vn = _smooth_normals(cu, iu.reshape(-1, 3), 180.0 if key in ('hands', 'shoes', 'neck skin') else (54.0 if key == 'seat' else 38.0))[2]
-        ca = np.asarray([c for _t, c in part_tris], u32)
-        hm = np.where((ca == (240, 243, 248)).all(1), u32(lit.HARD), u32(0)) if key == 'neck skin' else np.where((ca == (24, 24, 26)).all(1), u32(0), u32(lit.HARD))
-        tm = u32(lit.PAINTED) | hm | np.where((ca == (64, 66, 68)).all(1), u32(lit.TWILL), u32(0)) | (ca[:, 0] << 16) | (ca[:, 1] << 8) | ca[:, 2]
+        tm = _part_mat(key, np.asarray([c for _t, c in part_tris], u32))
         _push(raw.reshape(-1, 3), np.arange(3 * len(raw)).reshape(-1, 3), np.zeros((3 * len(raw), 2), 'f4'), np.repeat(tm, 3), vn)
     return np.vstack(pl).astype('f4'), np.vstack(nl).astype('f4'), np.vstack(ul).astype('f4'), np.concatenate(ml).astype(u32), np.vstack(il).astype(u32)
 

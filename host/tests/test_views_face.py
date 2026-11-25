@@ -45,11 +45,19 @@ def test_the_mechanical_face_clears_plates_gimbals_and_neck(report):
         'cranium_x = float(np.vstack([t for t, _ in neu["left_temporal"]])[:, 0].max()); '
         'face_x = float(np.vstack([t for t, _ in neu["left_maxilla"]])[:, 0].max()); '
         'pos, nrm, uv, mat, idx = f.lit_mesh(f.posed("neutral")); '
+        'from coaxial.graphics import lit; '
+        'from tools.render import face_honeycomb as fh, robot_worn as rw; '
+        'nca = np.asarray([c for _t, c in rw.neck_skin()], np.uint32); '
+        'ntm = rw._part_mat("neck skin", nca); '
+        'smask = (nca == fh.SHELL_CF).all(1); '
+        'ssoft = int((smask & ((ntm & lit.HARD) == 0)).sum()); '
+        'dhard = int((~smask & ((ntm & lit.HARD) != 0)).sum()); '
         'print(json.dumps({"chk": chk, "jaw_mm": round(1e3 * jaw_dy, 2), '
         '"smile_mm": round(1e3 * smile_dy, 2), "brow_mm": round(1e3 * brow_span, 2), '
         '"ear_mm": round(1e3 * ear_x, 2), "cranium_mm": round(1e3 * cranium_x, 2), '
         '"face_mm": round(1e3 * face_x, 2), "bare_keys": sorted(bare.keys()), '
-        '"verts": int(len(pos)), "tris": int(len(idx)), "target_b_mm": round(1e3 * stereo.BASELINE_M, 2)}))'
+        '"verts": int(len(pos)), "tris": int(len(idx)), "target_b_mm": round(1e3 * stereo.BASELINE_M, 2), '
+        '"shell_n": int(smask.sum()), "shell_soft": ssoft, "dark_hard": dhard}))'
     )
     chk: Any = got.get('chk') or {}
     report.check('face_built.checked passes with zero plate, gimbal, mount and C1 neck crossings',
@@ -59,8 +67,12 @@ def test_the_mechanical_face_clears_plates_gimbals_and_neck(report):
     report.check('stereo camera gimbals match the 64 mm build stereo baseline and open-edge count stays zero',
                  abs((chk.get('baseline_mm') or 0.0) - (got.get('target_b_mm') or 64.0)) < 1.0
                  and abs((got.get('target_b_mm') or 0.0) - 64.0) < 0.5
+                 and 'inner_liner' in (chk.get('open_edges') or {})
                  and sum((chk.get('open_edges') or {'x': 1}).values()) == 0,
                  (chk.get('baseline_mm'), got.get('target_b_mm'), chk.get('open_edges')))
+    report.check('robot_worn.lit_mesh applies lit.HARD to every SHELL_CF clavicle gorget triangle only',
+                 (got.get('shell_n') or 0) > 0 and got.get('shell_soft') == 0 and got.get('dark_hard') == 0,
+                 (got.get('shell_n'), got.get('shell_soft'), got.get('dark_hard')))
     report.check('ovoid cranium crown, narrower facial proportions and flush ear mics match anthropometric targets',
                  225.0 <= (chk.get('crown_mm') or 0.0) <= 232.0
                  and 70.0 <= (got.get('cranium_mm') or 0.0) <= 74.5
