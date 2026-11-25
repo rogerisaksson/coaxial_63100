@@ -20,9 +20,9 @@ from tools.render.robot_worn import NECK_RINGS  # noqa: E402
 
 PRESETS = {
     'neutral': {'gaze': (0.0, 0.0, 0.02), 'blink': 0.0, 'brow_lift': 0.0, 'brow_tilt': 0.0, 'smile': 0.0, 'jaw_open': 0.0},
-    'smile': {'gaze': (0.0, -0.04, 0.05), 'blink': 0.20, 'brow_lift': 0.38, 'brow_tilt': 0.28, 'smile': 1.0, 'jaw_open': 0.16},
-    'curious': {'gaze': (0.22, -0.10, 0.06), 'blink': 0.0, 'brow_lift': 0.82, 'brow_tilt': 0.85, 'smile': 0.22, 'jaw_open': 0.08},
-    'focused': {'gaze': (0.0, 0.12, 0.14), 'blink': 0.32, 'brow_lift': -0.75, 'brow_tilt': -0.88, 'smile': -0.18, 'jaw_open': 0.0},
+    'smile': {'gaze': (0.0, -0.04, 0.05), 'blink': 0.34, 'brow_lift': 0.48, 'brow_tilt': 0.42, 'smile': 1.0, 'jaw_open': 0.16},
+    'curious': {'gaze': (0.22, -0.10, 0.06), 'blink': 0.0, 'brow_lift': 0.90, 'brow_tilt': 0.92, 'smile': 0.22, 'jaw_open': 0.08},
+    'focused': {'gaze': (0.0, 0.12, 0.14), 'blink': 0.44, 'brow_lift': -0.84, 'brow_tilt': -0.94, 'smile': -0.18, 'jaw_open': 0.0},
     'speaking': {'gaze': (-0.10, -0.03, 0.05), 'blink': 0.06, 'brow_lift': 0.34, 'brow_tilt': 0.20, 'smile': 0.48, 'jaw_open': 0.82},
 }
 
@@ -75,10 +75,10 @@ def _expressions_posed(blink, brow_lift, brow_tilt, smile, jaw_open):
     brow0, ulid0, llid0, piv_l, comm0, jaw0 = fl.moving_rest()
     out = {k: [] for k in ('brow_servos', 'brow_linkages', 'lid_servos', 'lid_linkages',
                            'smile_servos', 'smile_linkages', 'jaw_servos', 'jaw_linkages')}
-    dy = 0.0024 * blf
+    dy = 0.0022 * blf
     ex = float(piv_l[0])
     for side, sgn in (('left', 1.0), ('right', -1.0)):
-        bpiv, rb = np.array([sgn * (ex + 0.001), 0.114, 0.090]), fh.rot('z', -sgn * math.radians(3.0 * btl))
+        bpiv, rb = np.array([sgn * (ex + 0.001), 0.114, 0.090]), fh.rot('z', -sgn * math.radians(5.5 * btl))
         out[side + '_brow'] = fh.turn_tris(brow0 if sgn > 0 else fl.mirror_x(brow0), rb, bpiv, (0.0, dy, 0.0))
         sb1, hb1, tb1, _ = fh.micro_servo((sgn * (ex - 0.013), 0.136, 0.052), 'x', -0.45 * (blf + 0.5 * btl), 0.0054, sgn=sgn)
         sb2, hb2, tb2, _ = fh.micro_servo((sgn * (ex - 0.001), 0.134, 0.046), 'x', -0.45 * (blf - 0.5 * btl), 0.0054, sgn=sgn)
@@ -175,7 +175,8 @@ def lit_mesh(parts_dict):
         if not tris:
             continue
         raw, cols = np.array([t for t, _c in tris], np.float64), np.array([c for _t, c in tris], np.uint32)
-        vn, fc = _normals(raw, 175.0 if key == 'neck_skin' else 62.0), raw.reshape(-1, 3)
+        crease = 175.0 if key == 'neck_skin' else (62.0 if key.endswith(('_camera', '_gimbal', '_ear_mic')) else 22.0)
+        vn, fc = _normals(raw, crease), raw.reshape(-1, 3)
         matte = (cols == fh.OPTIC_DARK).all(1) | (cols == fl.BAFFLE_DARK).all(1) | (cols == fh.BROW_DARK).all(1) | (
             (key == 'neck_skin') & ~(cols == fh.SHELL_CF).all(1))
         flags = (np.uint32(lit.PAINTED) | np.where(matte, np.uint32(lit.WOVEN), np.uint32(lit.HARD))

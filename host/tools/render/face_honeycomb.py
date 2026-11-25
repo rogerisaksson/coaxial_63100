@@ -1,4 +1,4 @@
-"""Rounded-corner framed fine-mesh honeycomb panels, bevel shells, heatsink fins and eye optics."""
+"""Flat angular faceted honeycomb armor panels, bevel shells, heatsink fins and eye optics."""
 import math
 import os
 import sys
@@ -96,68 +96,33 @@ def shell_patch(grid, wall=0.0024, chamfer=0.00048, col=SHELL_CF, ref=(0.0, 0.11
     return tris
 
 
-def _eval_uv(g, nrm, u, v):
-    """Bilinearly evaluate 3D surface position and unit outward normal for `(u, v)` in `[0, 1]`."""
+def _clip_convex_poly(poly, a_e, n_e, min_area=1e-10):
+    """Clip 2D polygon `poly` against every inward half-plane `(x - a_e[i]) . n_e[i] >= 0`."""
     np = np_mod()
-    nu, nv = g.shape[:2]
-    fu, fv = np.clip(u, 0.0, 1.0) * (nu - 1), np.clip(v, 0.0, 1.0) * (nv - 1)
-    i0, j0 = np.minimum(np.floor(fu).astype(int), nu - 2), np.minimum(np.floor(fv).astype(int), nv - 2)
-    tu, tv = (fu - i0)[:, None], (fv - j0)[:, None]
-    w00, w10, w11, w01 = (1.0 - tu) * (1.0 - tv), tu * (1.0 - tv), tu * tv, (1.0 - tu) * tv
-    p = w00 * g[i0, j0] + w10 * g[i0 + 1, j0] + w11 * g[i0 + 1, j0 + 1] + w01 * g[i0, j0 + 1]
-    n = w00 * nrm[i0, j0] + w10 * nrm[i0 + 1, j0] + w11 * nrm[i0 + 1, j0 + 1] + w01 * nrm[i0, j0 + 1]
-    return p, n / np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-12)
-
-
-def _rrect_ring(hx, hy, rad, n_arc=7, n_su=8, n_sv=6):
-    """Return CCW 2D loop of dense evenly-indexed stations around rounded rectangle `[-hx, hx] x [-hy, hy]`."""
-    np = np_mod()
-    r = min(float(rad), 0.96 * min(hx, hy))
-    ax, ay = max(0.0, hx - r), max(0.0, hy - r)
-    pts = []
-
-    def _seg(p0, p1, n):
-        for k in range(n):
-            t = k / float(n)
-            pts.append((p0[0] + t * (p1[0] - p0[0]), p0[1] + t * (p1[1] - p0[1])))
-
-    def _arc(cx, cy, a0, a1, n):
-        for k in range(n):
-            a = a0 + (a1 - a0) * (k / float(n))
-            pts.append((cx + r * math.cos(a), cy + r * math.sin(a)))
-
-    _seg((-ax, -hy), (ax, -hy), n_su)
-    _arc(ax, -ay, -0.5 * math.pi, 0.0, n_arc)
-    _seg((hx, -ay), (hx, ay), n_sv)
-    _arc(ax, ay, 0.0, 0.5 * math.pi, n_arc)
-    _seg((ax, hy), (-ax, hy), n_su)
-    _arc(-ax, ay, 0.5 * math.pi, math.pi, n_arc)
-    _seg((-hx, ay), (-hx, -ay), n_sv)
-    _arc(-ax, -ay, math.pi, 1.5 * math.pi, n_arc)
-    return np.asarray(pts, float)
-
-
-def _clip_poly_sdf(poly, eval_f):
-    """Clip convex 2D polygon `(m, 2)` against `eval_f(xy) >= 0`, returning `(k, 2)` or `None`."""
-    np = np_mod()
-    f = eval_f(poly)
-    if (f >= 0.0).all():
-        return poly
-    if (f <= 0.0).all():
+    cur = poly
+    for a, n in zip(a_e, n_e):
+        f = (cur - a) @ n
+        if (f >= 0.0).all():
+            continue
+        if (f <= 0.0).all():
+            return None
+        nxt, m = [], len(cur)
+        for i in range(m):
+            j = (i + 1) % m
+            p, q, fp, fq = cur[i], cur[j], float(f[i]), float(f[j])
+            if fp >= 0.0:
+                nxt.append(p)
+            if (fp >= 0.0) != (fq >= 0.0) and abs(fp - fq) > 1e-12:
+                nxt.append(p + (fp / (fp - fq)) * (q - p))
+        if len(nxt) < 3:
+            return None
+        cur = np.asarray(nxt, float)
+    area = 0.5 * abs(float(np.sum(cur[:, 0] * np.roll(cur[:, 1], -1) - np.roll(cur[:, 0], -1) * cur[:, 1])))
+    if area < float(min_area):
         return None
-    out, n = [], len(poly)
-    for i in range(n):
-        j = (i + 1) % n
-        a, b, fa, fb = poly[i], poly[j], float(f[i]), float(f[j])
-        if fa >= 0.0:
-            out.append(a)
-        if (fa >= 0.0) != (fb >= 0.0) and abs(fa - fb) > 1e-12:
-            out.append(a + (fa / (fa - fb)) * (b - a))
-    if len(out) < 3:
+    if min(float(cur[:, 0].max() - cur[:, 0].min()), float(cur[:, 1].max() - cur[:, 1].min())) < 0.00045:
         return None
-    res = np.asarray(out, float)
-    area = 0.5 * abs(float(np.sum(res[:, 0] * np.roll(res[:, 1], -1) - np.roll(res[:, 0], -1) * res[:, 1])))
-    return res if area > 1e-10 else None
+    return cur
 
 
 def _prism_tris(top, bot, top_col, side_col):
@@ -174,44 +139,65 @@ def _prism_tris(top, bot, top_col, side_col):
     return tris
 
 
-def honeycomb_patch(grid, nc=None, nr=None, wall=0.0022, chamfer=0.00044, margin=None, fill=0.64,
-                    col=SHELL_CF, hole_col=BAFFLE_DARK, ref=(0.0, 0.115, 0.020), bar_col=MESH_PEARL,
-                    pitch=0.0046, rim_m=0.0026, rim_col=SEAM_SILVER, corner_r=0.0064):
-    """Build a rounded-corner 3D contoured frame (`col`) enclosing open equilateral honeycomb (`bar_col`)."""
+def _plane_basis(poly_3d, ref):
+    """Fit outward-oriented orthonormal plane basis `(ctr, e1, e2, nrm, p2)` for 3D polygon `poly_3d`."""
     np = np_mod()
-    _ = nc, nr, margin
-    g, _du, _dv, nrm, _ch = _surface_frame(grid, wall, chamfer, ref)
-    w_m = max(0.006, float(np.linalg.norm(g[1:] - g[:-1], axis=-1).sum(axis=0).mean()))
-    h_m = max(0.006, float(np.linalg.norm(g[:, 1:] - g[:, :-1], axis=-1).sum(axis=1).mean()))
-    hw, hh = 0.5 * w_m, 0.5 * h_m
-    rim = min(float(rim_m), 0.25 * min(w_m, h_m))
-    rc = min(float(corner_r), 0.42 * min(w_m, h_m))
-    iw, ih, ri = max(0.001, hw - rim), max(0.001, hh - rim), max(0.0010, rc - rim)
-    rw, rh, rr = max(iw + 0.0003, hw - 0.52 * rim), max(ih + 0.0003, hh - 0.52 * rim), max(0.0010, rc - 0.52 * rim)
+    pts = np.asarray(poly_3d, float)
+    ctr = pts.mean(0)
+    _, _, vt = np.linalg.svd(pts - ctr, full_matrices=False)
+    nrm = vt[2] / max(float(np.linalg.norm(vt[2])), 1e-12)
+    if float(np.dot(nrm, ctr - np.asarray(ref, float))) < 0.0:
+        nrm = -nrm
+    e1 = pts[1] - pts[0]
+    e1 = e1 - float(np.dot(e1, nrm)) * nrm
+    e1 = e1 / max(float(np.linalg.norm(e1)), 1e-12)
+    e2 = np.cross(nrm, e1)
+    p2 = csg.oriented(np.c_[(pts - ctr) @ e1, (pts - ctr) @ e2], ccw=True, clean=True)
+    return ctr, e1, e2, nrm, p2
 
-    def _xy_to_uv(xy):
-        return xy[:, 0] / w_m + 0.5, xy[:, 1] / h_m + 0.5
+
+def planar_backing(poly_3d, wall=0.0012, inset_m=0.0022, corner_c=0.0014, col=BAFFLE_DARK,
+                   ref=(0.0, 0.115, 0.020), shift_n=-0.0036):
+    """Build a watertight flat matte backing slab strictly parallel to `planar_honeycomb_panel(poly_3d)`."""
+    ctr, e1, e2, nrm, p2 = _plane_basis(poly_3d, ref)
+    p_out = csg.oriented(csg.filleted2d(p2, r=float(corner_c), n=1), ccw=True, clean=True) if corner_c > 1e-4 else p2
+    p_in = csg.inset2d(p_out, float(inset_m), outer=True) if inset_m > 1e-4 else p_out
+    orig = ctr + float(shift_n) * nrm
+    top = orig[None, :] + p_in[:, 0:1] * e1[None, :] + p_in[:, 1:2] * e2[None, :]
+    bot = top - float(wall) * nrm[None, :]
+    return _prism_tris(top, bot, col, col)
+
+
+def planar_honeycomb_panel(poly_3d, wall=0.0024, chamfer=0.00068, rim_m=0.0034, pitch=0.0074, fill=0.72,
+                           corner_c=0.0014, col=SHELL_CF, bar_col=MESH_PEARL, hole_col=BAFFLE_DARK,
+                           rim_col=SEAM_SILVER, ref=(0.0, 0.115, 0.020), shift_n=0.0):
+    """Build a 100% flat unsculpted angular polygonal frame (`col`) enclosing flat coarse honeycomb (`bar_col`)."""
+    np = np_mod()
+    ctr, e1, e2, nrm, p2 = _plane_basis(poly_3d, ref)
+    p_out = csg.oriented(csg.filleted2d(p2, r=float(corner_c), n=1), ccw=True, clean=True) if corner_c > 1e-4 else p2
+    # Cap rim width cleanly so narrow facets (e.g. nose) always retain an open central honeycomb bay.
+    span = min(float(p_out[:, 0].max() - p_out[:, 0].min()), float(p_out[:, 1].max() - p_out[:, 1].min()))
+    rim = min(float(rim_m), 0.25 * span)
+    ch = min(float(chamfer), 0.34 * float(wall), 0.35 * rim)
+    p_in = csg.inset2d(p_out, rim, outer=True)
+    p_rab = csg.inset2d(p_out, 0.52 * rim, outer=True)
+    p_ch = csg.inset2d(p_out, ch, outer=True)
+    orig = ctr + float(shift_n) * nrm
 
     def _lift(xy, h_off):
-        u, v = _xy_to_uv(xy)
-        p, n = _eval_uv(g, nrm, u, v)
-        return p + float(h_off) * n
+        return orig[None, :] + float(h_off) * nrm[None, :] + xy[:, 0:1] * e1[None, :] + xy[:, 1:2] * e2[None, :]
 
-    n_su, n_sv = max(8, min(28, int(round(w_m / 0.008)))), max(6, min(20, int(round(h_m / 0.008))))
-    ro = _rrect_ring(hw, hh, rc, 7, n_su, n_sv)
-    ri_ = _rrect_ring(iw, ih, ri, 7, n_su, n_sv)
-    rb_ = _rrect_ring(rw, rh, rr, 7, n_su, n_sv)
+    # Crisp flat angular cross-section: flat front face (`col`), flat 45-deg chamfer (`rim_col`), flat walls (`PANEL_RIM`).
     frame_rings = (
-        _lift(ri_, 0.00018),
-        _lift(0.74 * ri_ + 0.26 * ro, 0.00050),
-        _lift(0.24 * ri_ + 0.76 * ro, 0.00050),
-        _lift(ro, 0.00002),
-        _lift(ro, -float(wall)),
-        _lift(rb_, -float(wall)),
-        _lift(ri_, -float(wall) + 0.00042),
+        _lift(p_in, 0.0),
+        _lift(p_ch, 0.0),
+        _lift(p_out, -ch),
+        _lift(p_out, -float(wall)),
+        _lift(p_rab, -float(wall)),
+        _lift(p_in, -float(wall) + 0.00042),
     )
-    band_cols = (col, col, rim_col, PANEL_RIM, PANEL_RIM, PANEL_RIM, PANEL_RIM)
-    tris, nb = [], len(ro)
+    band_cols = (col, rim_col, PANEL_RIM, PANEL_RIM, PANEL_RIM, PANEL_RIM)
+    tris, nb = [], len(p_out)
     for idx_b, bcol in enumerate(band_cols):
         ra, rb = frame_rings[idx_b], frame_rings[(idx_b + 1) % len(frame_rings)]
         for k in range(nb):
@@ -219,26 +205,30 @@ def honeycomb_patch(grid, nc=None, nr=None, wall=0.0022, chamfer=0.00044, margin
             tris.append((np.stack((ra[k], rb[k], rb[kn])), bcol))
             tris.append((np.stack((ra[k], rb[kn], ra[kn])), bcol))
 
-    bx, by = max(0.0, rw - rr), max(0.0, rh - rr)
+    a_e = p_rab
+    d_e = np.roll(p_rab, -1, axis=0) - p_rab
+    n_e = np.c_[-d_e[:, 1], d_e[:, 0]] / np.maximum(np.linalg.norm(d_e, axis=1, keepdims=True), 1e-12)
+    c_e = np.einsum('ei,ei->e', a_e, n_e)
 
     def _sdf(xy):
-        qx, qy = np.abs(xy[:, 0]) - bx, np.abs(xy[:, 1]) - by
-        return -(np.hypot(np.maximum(qx, 0.0), np.maximum(qy, 0.0)) + np.minimum(np.maximum(qx, qy), 0.0) - rr)
+        return np.min(np.einsum('ki,ei->ke', xy, n_e) - c_e[None, :], axis=1)
 
-    p_m = max(0.0028, float(pitch))
+    p_m = max(0.0030, float(pitch))
     rise = p_m * math.sqrt(3.0) * 0.5
-    nx, ny = int(rw / p_m) + 2, int(rh / rise) + 2
+    x0, x1 = float(p_rab[:, 0].min()), float(p_rab[:, 0].max())
+    y0, y1 = float(p_rab[:, 1].min()), float(p_rab[:, 1].max())
+    mx0, my0 = 0.5 * (x0 + x1), 0.5 * (y0 + y1)
+    nx, ny = int((x1 - x0) / (2.0 * p_m)) + 2, int((y1 - y0) / (2.0 * rise)) + 2
     ang = np.arange(6) * (math.pi / 3.0) + math.pi / 6.0
-    r_out = p_m / math.sqrt(3.0)
-    unit_o = np.stack([np.cos(ang), np.sin(ang)], 1) * r_out
+    unit_o = np.stack([np.cos(ang), np.sin(ang)], 1) * (p_m / math.sqrt(3.0))
     unit_i = unit_o * float(fill)
-    ht, hb = -0.00018, -float(wall) + 0.00038
+    ht, hb = -0.00032, -float(wall) + 0.00038
     whole, partial = {}, []
     for jr in range(-ny, ny + 1):
-        cy, xs = jr * rise, 0.5 * p_m if (jr & 1) else 0.0
+        cy, xs = my0 + jr * rise, 0.5 * p_m if (jr & 1) else 0.0
         for ic in range(-nx, nx + 1):
-            ctr = np.array([ic * p_m + xs, cy])
-            o6, i6 = ctr + unit_o, ctr + unit_i
+            o6 = np.array([mx0 + ic * p_m + xs, cy]) + unit_o
+            i6 = np.array([mx0 + ic * p_m + xs, cy]) + unit_i
             fo = _sdf(o6)
             if (fo <= -0.0004).all():
                 continue
@@ -246,7 +236,6 @@ def honeycomb_patch(grid, nc=None, nr=None, wall=0.0022, chamfer=0.00044, margin
                 whole[(ic, jr)] = (o6, i6)
             else:
                 partial.append((o6, i6))
-    # Shared-edge neighbor offsets for pointy-top hex edges k = 0..5 (angles 30..330 deg -> edge normals 60..360 deg).
     even_nbr = ((0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, 0))
     odd_nbr = ((1, 1), (0, 1), (-1, 0), (0, -1), (1, -1), (1, 0))
     for (ic, jr), (o6, i6) in whole.items():
@@ -262,17 +251,18 @@ def honeycomb_patch(grid, nc=None, nr=None, wall=0.0022, chamfer=0.00044, margin
             di, dj = nbrs[k]
             if (ic + di, jr + dj) not in whole:
                 tris += [(np.stack((ot[k], ob[kn], ot[kn])), hole_col), (np.stack((ot[k], ob[k], ob[kn])), hole_col)]
+    min_bar_a = 0.12 * (1.0 - float(fill) ** 2) * (math.sqrt(3.0) * 0.5 * p_m * p_m / 6.0)
     for o6, i6 in partial:
         for k in range(6):
             kn = (k + 1) % 6
-            clip = _clip_poly_sdf(np.stack((o6[k], o6[kn], i6[kn], i6[k])), _sdf)
+            clip = _clip_convex_poly(np.stack((o6[k], o6[kn], i6[kn], i6[k])), a_e, n_e, min_bar_a)
             if clip is not None:
                 tris += _prism_tris(_lift(clip, ht), _lift(clip, hb), bar_col, hole_col)
     return tris
 
 
 def compute_heatsink():
-    """Build recessed cranial compute fins and titanium heatpipes visible through the fine honeycomb & air gaps."""
+    """Build recessed cranial compute fins and titanium heatpipes inside the cranial bay."""
     tris = []
     for th_deg in (14.0, 34.0, 54.0, 74.0, 94.0, 114.0, 134.0, 154.0, 174.0, 194.0):
         th = math.radians(th_deg)
