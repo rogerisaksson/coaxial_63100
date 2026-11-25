@@ -1,4 +1,4 @@
-"""Fine-mesh framed honeycomb armor panels, bevel shells, heatsink fins and eye optics."""
+"""Rounded-corner framed fine-mesh honeycomb panels, bevel shells, heatsink fins and eye optics."""
 import math
 import os
 import sys
@@ -8,8 +8,8 @@ if __package__ in (None, ''):
 
 from tools.render import csg  # noqa: E402
 
-SHELL_CF, PANEL_RIM, SEAM_SILVER, CHASSIS_CF, TITANIUM = (240, 243, 248), (62, 68, 80), (196, 202, 212), (24, 28, 36), (176, 182, 194)
-ANODIZED, SERVO_CASE, HORN_BRASS = (226, 48, 178), (28, 32, 40), (206, 168, 84)
+SHELL_CF, PANEL_RIM, SEAM_SILVER, CHASSIS_CF, TITANIUM = (242, 245, 250), (62, 68, 80), (196, 202, 212), (24, 28, 36), (176, 182, 194)
+ANODIZED, SERVO_CASE, HORN_BRASS, MESH_PEARL = (226, 48, 178), (28, 32, 40), (206, 168, 84), (224, 229, 238)
 NECK_SKIN, OPTIC_DARK, OPTIC_GLASS, OPTIC_SCLERA = (48, 52, 62), (10, 14, 22), (42, 168, 248), (234, 238, 246)
 BAFFLE_DARK, MIC_GOLD, BROW_DARK = (16, 19, 26), (218, 182, 92), (44, 48, 58)
 
@@ -65,7 +65,7 @@ def _surface_frame(grid, wall, chamfer, ref):
 
 
 def shell_patch(grid, wall=0.0024, chamfer=0.00048, col=SHELL_CF, ref=(0.0, 0.115, 0.020), rim_col=SEAM_SILVER):
-    """Build a watertight contoured armor panel with a distinct gunmetal bevel rim (`rim_col`)."""
+    """Build a watertight contoured armor panel with a distinct bevel rim (`rim_col`)."""
     np = np_mod()
     g, du, dv, nrm, ch = _surface_frame(grid, wall, chamfer, ref)
     nu, nv = g.shape[:2]
@@ -96,120 +96,178 @@ def shell_patch(grid, wall=0.0024, chamfer=0.00048, col=SHELL_CF, ref=(0.0, 0.11
     return tris
 
 
-def _eval_patch(g, nrm, ch, wall, u, v):
-    """Evaluate bilinear outer, recessed lattice, chamfer and inner 3D coordinates for `(u, v)` in `[0, 1]`."""
+def _eval_uv(g, nrm, u, v):
+    """Bilinearly evaluate 3D surface position and unit outward normal for `(u, v)` in `[0, 1]`."""
     np = np_mod()
     nu, nv = g.shape[:2]
     fu, fv = np.clip(u, 0.0, 1.0) * (nu - 1), np.clip(v, 0.0, 1.0) * (nv - 1)
     i0, j0 = np.minimum(np.floor(fu).astype(int), nu - 2), np.minimum(np.floor(fv).astype(int), nv - 2)
     tu, tv = (fu - i0)[:, None], (fv - j0)[:, None]
     w00, w10, w11, w01 = (1.0 - tu) * (1.0 - tv), tu * (1.0 - tv), tu * tv, (1.0 - tu) * tv
-    base = w00 * g[i0, j0] + w10 * g[i0 + 1, j0] + w11 * g[i0 + 1, j0 + 1] + w01 * g[i0, j0 + 1]
-    nv_ = w00 * nrm[i0, j0] + w10 * nrm[i0 + 1, j0] + w11 * nrm[i0 + 1, j0 + 1] + w01 * nrm[i0, j0 + 1]
-    nv_ /= np.maximum(np.linalg.norm(nv_, axis=1, keepdims=True), 1e-12)
-    t_u = ((1.0 - tv) * (g[i0 + 1, j0] - g[i0, j0]) + tv * (g[i0 + 1, j0 + 1] - g[i0, j0 + 1])) * (nu - 1)
-    t_v = ((1.0 - tu) * (g[i0, j0 + 1] - g[i0, j0]) + tu * (g[i0 + 1, j0 + 1] - g[i0 + 1, j0])) * (nv - 1)
-    lu, lv = np.maximum(np.linalg.norm(t_u, axis=1, keepdims=True), 1e-12), np.maximum(np.linalg.norm(t_v, axis=1, keepdims=True), 1e-12)
-    ins = np.zeros_like(base)
-    edge_u, edge_v = np.minimum(ch, 0.018 * lu) * (t_u / lu), np.minimum(ch, 0.018 * lv) * (t_v / lv)
-    ins[u <= 1e-9] += edge_u[u <= 1e-9]
-    ins[u >= 1.0 - 1e-9] -= edge_u[u >= 1.0 - 1e-9]
-    ins[v <= 1e-9] += edge_v[v <= 1e-9]
-    ins[v >= 1.0 - 1e-9] -= edge_v[v >= 1.0 - 1e-9]
-    return base, nv_, base + ins, base - ch * nv_, base - (float(wall) - ch) * nv_, base - float(wall) * nv_ + ins
+    p = w00 * g[i0, j0] + w10 * g[i0 + 1, j0] + w11 * g[i0 + 1, j0 + 1] + w01 * g[i0, j0 + 1]
+    n = w00 * nrm[i0, j0] + w10 * nrm[i0 + 1, j0] + w11 * nrm[i0 + 1, j0 + 1] + w01 * nrm[i0, j0 + 1]
+    return p, n / np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-12)
 
 
-def _hex_mesh_2d(nc, nr, mu, mv, fill):
-    """Return `(pts_uv, border_tris, lattice_tris, holes, border_ring, win_ring)` for a fine-mesh framed hex window."""
-    nh = 2 * nc + 1
-    su, sv = (1.0 - 2.0 * mu) / nh, (1.0 - 2.0 * mv) / nr
-    u_all = [0.0] + [mu + k * su for k in range(nh + 1)] + [1.0]
-    v_all = [0.0] + [mv + r * sv for r in range(nr + 1)] + [1.0]
-    pts, idx_map = [], {}
-
-    def vid(u, v):
-        key = (round(float(u), 9), round(float(v), 9))
-        if key not in idx_map:
-            idx_map[key] = len(pts)
-            pts.append((float(u), float(v)))
-        return idx_map[key]
-
-    grid_id = [[vid(u, v) for v in v_all] for u in u_all]
-    border, lattice, holes = [], [], []
-    nu_a, nv_a = len(u_all) - 1, len(v_all) - 1
-    for i in range(nu_a):
-        border += [(grid_id[i][0], grid_id[i + 1][0], grid_id[i + 1][1]), (grid_id[i][0], grid_id[i + 1][1], grid_id[i][1]),
-                   (grid_id[i][nv_a - 1], grid_id[i + 1][nv_a - 1], grid_id[i + 1][nv_a]), (grid_id[i][nv_a - 1], grid_id[i + 1][nv_a], grid_id[i][nv_a])]
-    for j in range(1, nv_a - 1):
-        border += [(grid_id[0][j], grid_id[1][j], grid_id[1][j + 1]), (grid_id[0][j], grid_id[1][j + 1], grid_id[0][j + 1]),
-                   (grid_id[nu_a - 1][j], grid_id[nu_a][j], grid_id[nu_a][j + 1]), (grid_id[nu_a - 1][j], grid_id[nu_a][j + 1], grid_id[nu_a - 1][j + 1])]
-    rx, ry = fill * su, fill * (0.5 * sv)
-    for r in range(nr):
-        j, odd = r + 1, r % 2
-        i0 = 1 if odd else nu_a - 2
-        lattice += [(grid_id[i0][j], grid_id[i0 + 1][j], grid_id[i0 + 1][j + 1]), (grid_id[i0][j], grid_id[i0 + 1][j + 1], grid_id[i0][j + 1])]
-        for c in range(nc):
-            k0 = 1 + odd + 2 * c
-            cu, cv = u_all[k0 + 1], 0.5 * (v_all[j] + v_all[j + 1])
-            outer = (grid_id[k0][j], grid_id[k0 + 1][j], grid_id[k0 + 2][j],
-                     grid_id[k0 + 2][j + 1], grid_id[k0 + 1][j + 1], grid_id[k0][j + 1])
-            q = [vid(cu + dx, cv + dy) for dx, dy in ((-rx, -0.55 * ry), (0.0, -ry), (rx, -0.55 * ry),
-                                                      (rx, 0.55 * ry), (0.0, ry), (-rx, 0.55 * ry))]
-            for m in range(6):
-                mn = (m + 1) % 6
-                lattice += [(outer[m], outer[mn], q[mn]), (outer[m], q[mn], q[m])]
-            holes.append(q)
-    ring = ([grid_id[i][0] for i in range(nu_a)] + [grid_id[nu_a][j] for j in range(nv_a)]
-            + [grid_id[i][nv_a] for i in range(nu_a, 0, -1)] + [grid_id[0][j] for j in range(nv_a, 0, -1)])
-    win = ([grid_id[i][1] for i in range(1, nu_a - 1)] + [grid_id[nu_a - 1][j] for j in range(1, nv_a - 1)]
-           + [grid_id[i][nv_a - 1] for i in range(nu_a - 1, 1, -1)] + [grid_id[1][j] for j in range(nv_a - 1, 1, -1)])
-    return pts, border, lattice, holes, ring, win
-
-
-def honeycomb_patch(grid, nc=None, nr=None, wall=0.0023, chamfer=0.00046, margin=None, fill=0.74,
-                    col=SHELL_CF, hole_col=BAFFLE_DARK, ref=(0.0, 0.115, 0.020), bar_col=BAFFLE_DARK,
-                    pitch=0.0040, rim_m=0.0025, rim_col=SEAM_SILVER):
-    """Build a slim contoured armor bezel (`col`) framing metric-isotropic equilateral micro-honeycomb (`bar_col`)."""
+def _rrect_ring(hx, hy, rad, n_arc=7, n_su=8, n_sv=6):
+    """Return CCW 2D loop of dense evenly-indexed stations around rounded rectangle `[-hx, hx] x [-hy, hy]`."""
     np = np_mod()
-    g, _du, _dv, nrm, ch = _surface_frame(grid, wall, chamfer, ref)
-    # Compute physical 3D arc lengths (`w_m`, `h_m`) so every hex cell is equilateral and every bezel stays slim (`~2.5 mm`).
-    w_m = float(np.linalg.norm(g[1:] - g[:-1], axis=-1).sum(axis=0).mean())
-    h_m = float(np.linalg.norm(g[:, 1:] - g[:, :-1], axis=-1).sum(axis=1).mean())
-    mu = float(margin[0]) if margin is not None else min(0.22, max(0.06, float(rim_m) / max(w_m, 1e-4)))
-    mv = float(margin[1]) if margin is not None else min(0.24, max(0.07, float(rim_m) / max(h_m, 1e-4)))
-    uw_m, vh_m = max(0.004, w_m * (1.0 - 2.0 * mu)), max(0.004, h_m * (1.0 - 2.0 * mv))
-    nc_i = int(nc) if nc is not None else max(3, min(14, int(round(uw_m / max(float(pitch), 0.0022)))))
-    nr_i = int(nr) if nr is not None else max(2, min(11, int(round(vh_m / max(0.866 * float(pitch), 0.0020)))))
-    pts_uv, border, lattice, holes, ring, win = _hex_mesh_2d(nc_i, nr_i, mu, mv, float(fill))
-    uv = np.asarray(pts_uv, float)
-    base, nv_, out, co, ci, inn = _eval_patch(g, nrm, ch, wall, uv[:, 0], uv[:, 1])
-    rec = min(0.00060, 0.26 * float(wall))
-    lat_f, lat_b = base - rec * nv_, base - (float(wall) - rec) * nv_
-    tris = []
-    for a, b, c in border:
-        tris.append((np.stack((out[a], out[b], out[c])), col))
-        tris.append((np.stack((inn[a], inn[c], inn[b])), PANEL_RIM))
-    for a, b, c in lattice:
-        tris.append((np.stack((lat_f[a], lat_f[b], lat_f[c])), bar_col))
-        tris.append((np.stack((lat_b[a], lat_b[c], lat_b[b])), bar_col))
-    nw = len(win)
-    for k in range(nw):
-        a, b = win[k], win[(k + 1) % nw]
-        tris.append((np.stack((out[a], lat_f[a], lat_f[b])), PANEL_RIM))
-        tris.append((np.stack((out[a], lat_f[b], out[b])), PANEL_RIM))
-        tris.append((np.stack((lat_b[a], inn[a], inn[b])), PANEL_RIM))
-        tris.append((np.stack((lat_b[a], inn[b], lat_b[b])), PANEL_RIM))
-    for q in holes:
-        for k in range(6):
-            a, b = q[k], q[(k + 1) % 6]
-            tris.append((np.stack((lat_f[a], lat_f[b], lat_b[b])), hole_col))
-            tris.append((np.stack((lat_f[a], lat_b[b], lat_b[a])), hole_col))
-    rings, nb = (out, co, ci, inn), len(ring)
-    for ra, rb in zip(rings[:-1], rings[1:]):
+    r = min(float(rad), 0.96 * min(hx, hy))
+    ax, ay = max(0.0, hx - r), max(0.0, hy - r)
+    pts = []
+
+    def _seg(p0, p1, n):
+        for k in range(n):
+            t = k / float(n)
+            pts.append((p0[0] + t * (p1[0] - p0[0]), p0[1] + t * (p1[1] - p0[1])))
+
+    def _arc(cx, cy, a0, a1, n):
+        for k in range(n):
+            a = a0 + (a1 - a0) * (k / float(n))
+            pts.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+
+    _seg((-ax, -hy), (ax, -hy), n_su)
+    _arc(ax, -ay, -0.5 * math.pi, 0.0, n_arc)
+    _seg((hx, -ay), (hx, ay), n_sv)
+    _arc(ax, ay, 0.0, 0.5 * math.pi, n_arc)
+    _seg((ax, hy), (-ax, hy), n_su)
+    _arc(-ax, ay, 0.5 * math.pi, math.pi, n_arc)
+    _seg((-hx, ay), (-hx, -ay), n_sv)
+    _arc(-ax, -ay, math.pi, 1.5 * math.pi, n_arc)
+    return np.asarray(pts, float)
+
+
+def _clip_poly_sdf(poly, eval_f):
+    """Clip convex 2D polygon `(m, 2)` against `eval_f(xy) >= 0`, returning `(k, 2)` or `None`."""
+    np = np_mod()
+    f = eval_f(poly)
+    if (f >= 0.0).all():
+        return poly
+    if (f <= 0.0).all():
+        return None
+    out, n = [], len(poly)
+    for i in range(n):
+        j = (i + 1) % n
+        a, b, fa, fb = poly[i], poly[j], float(f[i]), float(f[j])
+        if fa >= 0.0:
+            out.append(a)
+        if (fa >= 0.0) != (fb >= 0.0) and abs(fa - fb) > 1e-12:
+            out.append(a + (fa / (fa - fb)) * (b - a))
+    if len(out) < 3:
+        return None
+    res = np.asarray(out, float)
+    area = 0.5 * abs(float(np.sum(res[:, 0] * np.roll(res[:, 1], -1) - np.roll(res[:, 0], -1) * res[:, 1])))
+    return res if area > 1e-10 else None
+
+
+def _prism_tris(top, bot, top_col, side_col):
+    """Emit watertight closed 3D prism triangles for CCW `top` and `bot` `(m, 3)` loops."""
+    np = np_mod()
+    m, tris = len(top), []
+    for k in range(1, m - 1):
+        tris.append((np.stack((top[0], top[k], top[k + 1])), top_col))
+        tris.append((np.stack((bot[0], bot[k + 1], bot[k])), top_col))
+    for k in range(m):
+        kn = (k + 1) % m
+        tris.append((np.stack((top[k], bot[k], bot[kn])), side_col))
+        tris.append((np.stack((top[k], bot[kn], top[kn])), side_col))
+    return tris
+
+
+def honeycomb_patch(grid, nc=None, nr=None, wall=0.0022, chamfer=0.00044, margin=None, fill=0.64,
+                    col=SHELL_CF, hole_col=BAFFLE_DARK, ref=(0.0, 0.115, 0.020), bar_col=MESH_PEARL,
+                    pitch=0.0046, rim_m=0.0026, rim_col=SEAM_SILVER, corner_r=0.0064):
+    """Build a rounded-corner 3D contoured frame (`col`) enclosing open equilateral honeycomb (`bar_col`)."""
+    np = np_mod()
+    _ = nc, nr, margin
+    g, _du, _dv, nrm, _ch = _surface_frame(grid, wall, chamfer, ref)
+    w_m = max(0.006, float(np.linalg.norm(g[1:] - g[:-1], axis=-1).sum(axis=0).mean()))
+    h_m = max(0.006, float(np.linalg.norm(g[:, 1:] - g[:, :-1], axis=-1).sum(axis=1).mean()))
+    hw, hh = 0.5 * w_m, 0.5 * h_m
+    rim = min(float(rim_m), 0.25 * min(w_m, h_m))
+    rc = min(float(corner_r), 0.42 * min(w_m, h_m))
+    iw, ih, ri = max(0.001, hw - rim), max(0.001, hh - rim), max(0.0010, rc - rim)
+    rw, rh, rr = max(iw + 0.0003, hw - 0.52 * rim), max(ih + 0.0003, hh - 0.52 * rim), max(0.0010, rc - 0.52 * rim)
+
+    def _xy_to_uv(xy):
+        return xy[:, 0] / w_m + 0.5, xy[:, 1] / h_m + 0.5
+
+    def _lift(xy, h_off):
+        u, v = _xy_to_uv(xy)
+        p, n = _eval_uv(g, nrm, u, v)
+        return p + float(h_off) * n
+
+    n_su, n_sv = max(8, min(28, int(round(w_m / 0.008)))), max(6, min(20, int(round(h_m / 0.008))))
+    ro = _rrect_ring(hw, hh, rc, 7, n_su, n_sv)
+    ri_ = _rrect_ring(iw, ih, ri, 7, n_su, n_sv)
+    rb_ = _rrect_ring(rw, rh, rr, 7, n_su, n_sv)
+    frame_rings = (
+        _lift(ri_, 0.00018),
+        _lift(0.74 * ri_ + 0.26 * ro, 0.00050),
+        _lift(0.24 * ri_ + 0.76 * ro, 0.00050),
+        _lift(ro, 0.00002),
+        _lift(ro, -float(wall)),
+        _lift(rb_, -float(wall)),
+        _lift(ri_, -float(wall) + 0.00042),
+    )
+    band_cols = (col, col, rim_col, PANEL_RIM, PANEL_RIM, PANEL_RIM, PANEL_RIM)
+    tris, nb = [], len(ro)
+    for idx_b, bcol in enumerate(band_cols):
+        ra, rb = frame_rings[idx_b], frame_rings[(idx_b + 1) % len(frame_rings)]
         for k in range(nb):
-            a, b = ring[k], ring[(k + 1) % nb]
-            tris.append((np.stack((ra[a], rb[a], rb[b])), rim_col))
-            tris.append((np.stack((ra[a], rb[b], ra[b])), rim_col))
+            kn = (k + 1) % nb
+            tris.append((np.stack((ra[k], rb[k], rb[kn])), bcol))
+            tris.append((np.stack((ra[k], rb[kn], ra[kn])), bcol))
+
+    bx, by = max(0.0, rw - rr), max(0.0, rh - rr)
+
+    def _sdf(xy):
+        qx, qy = np.abs(xy[:, 0]) - bx, np.abs(xy[:, 1]) - by
+        return -(np.hypot(np.maximum(qx, 0.0), np.maximum(qy, 0.0)) + np.minimum(np.maximum(qx, qy), 0.0) - rr)
+
+    p_m = max(0.0028, float(pitch))
+    rise = p_m * math.sqrt(3.0) * 0.5
+    nx, ny = int(rw / p_m) + 2, int(rh / rise) + 2
+    ang = np.arange(6) * (math.pi / 3.0) + math.pi / 6.0
+    r_out = p_m / math.sqrt(3.0)
+    unit_o = np.stack([np.cos(ang), np.sin(ang)], 1) * r_out
+    unit_i = unit_o * float(fill)
+    ht, hb = -0.00018, -float(wall) + 0.00038
+    whole, partial = {}, []
+    for jr in range(-ny, ny + 1):
+        cy, xs = jr * rise, 0.5 * p_m if (jr & 1) else 0.0
+        for ic in range(-nx, nx + 1):
+            ctr = np.array([ic * p_m + xs, cy])
+            o6, i6 = ctr + unit_o, ctr + unit_i
+            fo = _sdf(o6)
+            if (fo <= -0.0004).all():
+                continue
+            if (fo >= 0.0).all():
+                whole[(ic, jr)] = (o6, i6)
+            else:
+                partial.append((o6, i6))
+    # Shared-edge neighbor offsets for pointy-top hex edges k = 0..5 (angles 30..330 deg -> edge normals 60..360 deg).
+    even_nbr = ((0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, 0))
+    odd_nbr = ((1, 1), (0, 1), (-1, 0), (0, -1), (1, -1), (1, 0))
+    for (ic, jr), (o6, i6) in whole.items():
+        ot, ob, it, ib = _lift(o6, ht), _lift(o6, hb), _lift(i6, ht), _lift(i6, hb)
+        nbrs = odd_nbr if (jr & 1) else even_nbr
+        for k in range(6):
+            kn = (k + 1) % 6
+            tris += [
+                (np.stack((ot[k], ot[kn], it[kn])), bar_col), (np.stack((ot[k], it[kn], it[k])), bar_col),
+                (np.stack((ob[k], ib[kn], ob[kn])), bar_col), (np.stack((ob[k], ib[k], ib[kn])), bar_col),
+                (np.stack((it[k], it[kn], ib[kn])), hole_col), (np.stack((it[k], ib[kn], ib[k])), hole_col),
+            ]
+            di, dj = nbrs[k]
+            if (ic + di, jr + dj) not in whole:
+                tris += [(np.stack((ot[k], ob[kn], ot[kn])), hole_col), (np.stack((ot[k], ob[k], ob[kn])), hole_col)]
+    for o6, i6 in partial:
+        for k in range(6):
+            kn = (k + 1) % 6
+            clip = _clip_poly_sdf(np.stack((o6[k], o6[kn], i6[kn], i6[k])), _sdf)
+            if clip is not None:
+                tris += _prism_tris(_lift(clip, ht), _lift(clip, hb), bar_col, hole_col)
     return tris
 
 

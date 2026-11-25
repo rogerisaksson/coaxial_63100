@@ -101,7 +101,7 @@ def _expressions_posed(blink, brow_lift, brow_tilt, smile, jaw_open):
         out['smile_servos'] += ssb
         out['smile_linkages'] += ssh + fh.rod(ts, cpiv + rc @ np.array([sgn * 0.0050, 0.0016, -0.0054]) + (0.0, 0.0019 * sm, 0.0), 0.00075)
 
-    jpiv, rj = np.array([0.0, 0.066, 0.024]), fh.rot('x', math.radians(15.5 * jw))
+    jpiv, rj = np.array([0.0, 0.066, 0.024]), fh.rot('x', math.radians(10.2 * jw))
     out['mandible'] = fh.turn_tris(jaw0, rj, jpiv)
     for sgn in (1.0, -1.0):
         sjb, sjh, tj, _ = fh.micro_servo((sgn * 0.030, 0.078, 0.038), 'x', 0.58 * jw, 0.0056, sgn=sgn)
@@ -116,7 +116,7 @@ def head_parts(gaze=(0.0, 0.0, 0.02), blink=0.0, brow_lift=0.0, brow_tilt=0.0, s
            **fl.ear_microphones(), **_eyes_posed(gaze)}
     expr = _expressions_posed(blink, brow_lift, brow_tilt, smile, jaw_open)
     if plates:
-        return {**out, **fl.static_plates(), **expr}
+        return {**out, 'inner_liner': fl.inner_liner(), **fl.static_plates(), **expr}
     return {**out, **{k: v for k, v in expr.items() if k.endswith(('_servos', '_linkages')) or k.endswith('_lip_corner')}}
 
 
