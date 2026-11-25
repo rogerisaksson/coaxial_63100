@@ -20,10 +20,10 @@ from tools.render.robot_worn import NECK_RINGS  # noqa: E402
 
 PRESETS = {
     'neutral': {'gaze': (0.0, 0.0, 0.02), 'blink': 0.0, 'brow_lift': 0.0, 'brow_tilt': 0.0, 'smile': 0.0, 'jaw_open': 0.0},
-    'smile': {'gaze': (0.0, -0.04, 0.05), 'blink': 0.34, 'brow_lift': 0.48, 'brow_tilt': 0.42, 'smile': 1.0, 'jaw_open': 0.16},
-    'curious': {'gaze': (0.22, -0.10, 0.06), 'blink': 0.0, 'brow_lift': 0.90, 'brow_tilt': 0.92, 'smile': 0.22, 'jaw_open': 0.08},
-    'focused': {'gaze': (0.0, 0.12, 0.14), 'blink': 0.44, 'brow_lift': -0.84, 'brow_tilt': -0.94, 'smile': -0.18, 'jaw_open': 0.0},
-    'speaking': {'gaze': (-0.10, -0.03, 0.05), 'blink': 0.06, 'brow_lift': 0.34, 'brow_tilt': 0.20, 'smile': 0.48, 'jaw_open': 0.82},
+    'smile': {'gaze': (0.0, -0.03, 0.05), 'blink': 0.22, 'brow_lift': 0.64, 'brow_tilt': 0.56, 'smile': 1.0, 'jaw_open': 0.14},
+    'curious': {'gaze': (0.24, -0.10, 0.06), 'blink': 0.0, 'brow_lift': 1.0, 'brow_tilt': 1.0, 'smile': 0.24, 'jaw_open': 0.06},
+    'focused': {'gaze': (0.0, 0.12, 0.14), 'blink': 0.54, 'brow_lift': -0.95, 'brow_tilt': -1.0, 'smile': -0.20, 'jaw_open': 0.0},
+    'speaking': {'gaze': (-0.10, -0.03, 0.05), 'blink': 0.08, 'brow_lift': 0.42, 'brow_tilt': 0.26, 'smile': 0.48, 'jaw_open': 0.84},
 }
 
 STATIC_PLATE_KEYS = ('cranium_frontal', 'cranium_dome', 'cranium_occipital', 'left_temporal', 'right_temporal',
@@ -75,10 +75,10 @@ def _expressions_posed(blink, brow_lift, brow_tilt, smile, jaw_open):
     brow0, ulid0, llid0, piv_l, comm0, jaw0 = fl.moving_rest()
     out = {k: [] for k in ('brow_servos', 'brow_linkages', 'lid_servos', 'lid_linkages',
                            'smile_servos', 'smile_linkages', 'jaw_servos', 'jaw_linkages')}
-    dy = 0.0022 * blf
+    dy = 0.0029 * blf
     ex = float(piv_l[0])
     for side, sgn in (('left', 1.0), ('right', -1.0)):
-        bpiv, rb = np.array([sgn * (ex + 0.001), 0.114, 0.090]), fh.rot('z', -sgn * math.radians(5.5 * btl))
+        bpiv, rb = np.array([sgn * (ex + 0.001), 0.115, 0.084]), fh.rot('z', -sgn * math.radians(8.5 * btl))
         out[side + '_brow'] = fh.turn_tris(brow0 if sgn > 0 else fl.mirror_x(brow0), rb, bpiv, (0.0, dy, 0.0))
         sb1, hb1, tb1, _ = fh.micro_servo((sgn * (ex - 0.013), 0.136, 0.052), 'x', -0.45 * (blf + 0.5 * btl), 0.0054, sgn=sgn)
         sb2, hb2, tb2, _ = fh.micro_servo((sgn * (ex - 0.001), 0.134, 0.046), 'x', -0.45 * (blf - 0.5 * btl), 0.0054, sgn=sgn)
@@ -88,20 +88,20 @@ def _expressions_posed(blink, brow_lift, brow_tilt, smile, jaw_open):
                                  + fh.rod(tb2, bpiv + rb @ np.array([sgn * 0.006, -0.001, -0.010]) + (0.0, dy, 0.0), 0.00075))
 
         ps = piv_l * (sgn, 1.0, 1.0)
-        ru, rl = fh.rot('x', math.radians(17.5 * bl)), fh.rot('x', math.radians(-13.5 * bl))
+        ru, rl = fh.rot('x', math.radians(22.0 * bl)), fh.rot('x', -math.radians(13.5 * bl + 5.5 * max(0.0, sm)))
         out[side + '_upper_lid'] = fh.turn_tris(ulid0 if sgn > 0 else fl.mirror_x(ulid0), ru, ps)
         out[side + '_lower_lid'] = fh.turn_tris(llid0 if sgn > 0 else fl.mirror_x(llid0), rl, ps)
         slb, slh, tl, _ = fh.micro_servo((sgn * (ex + 0.005), 0.107, 0.048), 'x', 0.55 * bl, 0.0050, sgn=sgn)
         out['lid_servos'] += slb
         out['lid_linkages'] += slh + fh.rod(tl, ps + ru @ np.array([sgn * 0.0036, 0.0074, 0.0068]), 0.00070)
 
-        cpiv, rc = np.array([sgn * 0.0145, 0.0442, 0.1025]), fh.rot('z', sgn * math.radians(19.0 * sm))
-        out[side + '_lip_corner'] = fh.turn_tris(comm0 if sgn > 0 else fl.mirror_x(comm0), rc, cpiv, (0.0, 0.0019 * sm, 0.0))
+        cpiv, rc = np.array([sgn * 0.0100, 0.0450, 0.084]), fh.rot('z', sgn * math.radians(19.0 * sm))
+        out[side + '_lip_corner'] = fh.turn_tris(comm0 if sgn > 0 else fl.mirror_x(comm0), rc, cpiv, (0.0, 0.0022 * sm, 0.0))
         ssb, ssh, ts, _ = fh.micro_servo((sgn * 0.027, 0.068, 0.050), 'z', sgn * 0.55 * sm, 0.0054, (sgn, 0.0, 0.0))
         out['smile_servos'] += ssb
-        out['smile_linkages'] += ssh + fh.rod(ts, cpiv + rc @ np.array([sgn * 0.0050, 0.0016, -0.0054]) + (0.0, 0.0019 * sm, 0.0), 0.00075)
+        out['smile_linkages'] += ssh + fh.rod(ts, cpiv + rc @ np.array([sgn * 0.0070, 0.0016, -0.0044]) + (0.0, 0.0022 * sm, 0.0), 0.00075)
 
-    jpiv, rj = np.array([0.0, 0.066, 0.024]), fh.rot('x', math.radians(10.2 * jw))
+    jpiv, rj = np.array([0.0, 0.066, 0.024]), fh.rot('x', math.radians(11.4 * jw))
     out['mandible'] = fh.turn_tris(jaw0, rj, jpiv)
     for sgn in (1.0, -1.0):
         sjb, sjh, tj, _ = fh.micro_servo((sgn * 0.030, 0.078, 0.038), 'x', 0.58 * jw, 0.0056, sgn=sgn)
@@ -175,7 +175,10 @@ def lit_mesh(parts_dict):
         if not tris:
             continue
         raw, cols = np.array([t for t, _c in tris], np.float64), np.array([c for _t, c in tris], np.uint32)
-        crease = 175.0 if key == 'neck_skin' else (62.0 if key.endswith(('_camera', '_gimbal', '_ear_mic')) else 22.0)
+        crease = 175.0 if key == 'neck_skin' else (
+            58.0 if key in ('cranium_dome', 'cranium_occipital', 'left_temporal', 'right_temporal',
+                            'left_mastoid', 'right_mastoid')
+            or key.endswith(('_camera', '_gimbal', '_ear_mic')) else (68.0 if key == 'inner_liner' else 22.0))
         vn, fc = _normals(raw, crease), raw.reshape(-1, 3)
         matte = (cols == fh.OPTIC_DARK).all(1) | (cols == fl.BAFFLE_DARK).all(1) | (cols == fh.BROW_DARK).all(1) | (
             (key == 'neck_skin') & ~(cols == fh.SHELL_CF).all(1))

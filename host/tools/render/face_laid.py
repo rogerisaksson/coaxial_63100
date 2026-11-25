@@ -1,4 +1,4 @@
-"""Flat unsculpted angular faceted-honeycomb feminine mecha face panels without mouth."""
+"""Mechatronic anime-gynoid head CAD: unified valkyrie helmet, porcelain face, flat wings."""
 import functools
 import math
 import os
@@ -9,14 +9,14 @@ if __package__ in (None, ''):
 
 from tools.render import csg, face_honeycomb as fh, knee_loads as kl, neck_laid as nl  # noqa: E402
 from tools.render.face_honeycomb import (
-    BAFFLE_DARK, CHASSIS_CF, MESH_PEARL, PANEL_RIM, SEAM_SILVER, SHELL_CF, TITANIUM,
-    mirror_x, np_mod, shell_patch,
+    BAFFLE_DARK, BROW_DARK, CHASSIS_CF, HEX_WALL, MESH_PEARL, MIC_GOLD, OPTIC_GLASS, PANEL_RIM,
+    PORCELAIN, SEAM_SILVER, SHELL_CF, TITANIUM, mirror_x, np_mod, piston, rotary_hub, shell_patch,
 )
 
-_PROF_Y = (-0.0088, 0.004, 0.022, 0.042, 0.060, 0.076, 0.090, 0.104, 0.118, 0.138, 0.156)
-_PROF_X = (0.0230, 0.0382, 0.0502, 0.0595, 0.0666, 0.0702, 0.0712, 0.0708, 0.0698, 0.0716, 0.0722)
-_PROF_ZF = (0.0830, 0.0942, 0.1012, 0.1058, 0.1070, 0.1078, 0.1074, 0.1062, 0.1066, 0.1018, 0.0928)
-_PROF_ZB = (-0.040, -0.048, -0.058, -0.066, -0.073, -0.078, -0.082, -0.085, -0.088, -0.092, -0.094)
+_PROF_Y = (0.012, 0.022, 0.038, 0.056, 0.076, 0.096, 0.118, 0.140, 0.158)
+_PROF_X = (0.0170, 0.0250, 0.0432, 0.0565, 0.0660, 0.0692, 0.0694, 0.0706, 0.0714)
+_PROF_ZF = (0.0878, 0.0938, 0.1005, 0.1055, 0.1092, 0.1096, 0.1078, 0.1008, 0.0920)
+_PROF_ZB = (-0.047, -0.053, -0.062, -0.070, -0.077, -0.082, -0.086, -0.090, -0.093)
 
 
 @functools.lru_cache(maxsize=None)
@@ -37,97 +37,170 @@ def _pchip(y, xs, ys):
     lo, hi = 0, len(xs) - 1
     while hi - lo > 1:
         mid = (lo + hi) // 2
-        if xs[mid] <= y:
-            lo = mid
-        else:
-            hi = mid
+        lo, hi = (mid, hi) if xs[mid] <= y else (lo, mid)
     t = (y - xs[lo]) / (xs[hi] - xs[lo])
     s = t * t * (3.0 - 2.0 * t)
     return 0.55 * (ys[lo] + t * (ys[hi] - ys[lo])) + 0.45 * (ys[lo] + s * (ys[hi] - ys[lo]))
 
 
 def _profile_at(y):
-    if y >= 0.156:
-        u = min(1.0, max(0.0, (y - 0.156) / 0.0724))
+    if y >= 0.158:
+        u = min(1.0, max(0.0, (y - 0.158) / 0.0695))
         c = math.sqrt(max(1e-6, 1.0 - u * u))
-        return 0.0722 * c, -0.001 + 0.0938 * c, -0.001 - 0.0930 * c
+        return 0.0714 * c, -0.0005 + 0.0925 * c, -0.0005 - 0.0925 * c
     return _pchip(y, _PROF_Y, _PROF_X), _pchip(y, _PROF_Y, _PROF_ZF), _pchip(y, _PROF_Y, _PROF_ZB)
 
 
 def _head_pt(th_rad, y, radial_off=0.0):
-    """Evaluate unsculpted geometric ovoid anchor point at azimuth `th_rad` and height `y`."""
+    """Evaluate sleek anime-gynoid head anchor point at azimuth `th_rad` and height `y`."""
     xw, zf, zb = _profile_at(y)
     zc, rz = 0.5 * (zf + zb), max(0.004, 0.5 * (zf - zb))
-    x = xw * math.sin(th_rad)
-    z = zc + rz * math.cos(th_rad)
+    x, z = xw * math.sin(th_rad), zc + rz * math.cos(th_rad)
     if radial_off != 0.0:
         r_xz = math.hypot(x, z - zc)
         if r_xz > 1e-6:
-            x += radial_off * (x / r_xz)
-            z += radial_off * ((z - zc) / r_xz)
+            x, z = x + radial_off * (x / r_xz), z + radial_off * ((z - zc) / r_xz)
     return (x, y, z)
 
 
-def _surf_grid(th_fn, y_fn, nu, nv, off=0.0):
+def _clear_mount(pt, r_min=0.0462):
+    """Keep cervical and occipital shells smoothly outside `mount_crown` cylinder."""
+    x, y, z = pt
+    if y >= 0.064:
+        return pt
+    t = max(0.0, min(1.0, (0.064 - y) / 0.011))
+    req = float(r_min) * (t * t * (3.0 - 2.0 * t))
+    r = math.hypot(x, z)
+    return (x * req / r, y, z * req / r) if (r < req and r > 1e-6) else pt
+
+
+def _surf_grid(th_fn, y_fn, nu, nv, off=0.0, mount_r=0.0):
     np = np_mod()
     us, vs = np.linspace(0.0, 1.0, nu), np.linspace(0.0, 1.0, nv)
     g = np.zeros((nu, nv, 3))
     for i, u in enumerate(us):
         fu = float(u)
         for j, v in enumerate(vs):
-            fv = float(v)
-            g[i, j] = _head_pt(float(th_fn(fu, fv)), float(y_fn(fu, fv)), off)
+            pt = _head_pt(float(th_fn(fu, float(v))), float(y_fn(fu, float(v))), off)
+            g[i, j] = _clear_mount(pt, mount_r) if mount_r > 0.0 else pt
     return g
 
 
 def _dome_ab(alpha, beta, off=0.0):
-    """Evaluate upper-cranium ellipsoid anchor point at sagittal angle `alpha` and lateral angle `beta`."""
     sx, sy, sz = math.sin(beta), math.cos(beta) * math.cos(alpha), math.cos(beta) * math.sin(alpha)
-    x, y, z = 0.0722 * sx, 0.156 + 0.0724 * sy, -0.001 + (0.0938 if sz >= 0.0 else 0.0930) * sz
+    x, y, z = 0.0714 * sx, 0.158 + 0.0695 * sy, -0.0005 + 0.0925 * sz
     if off != 0.0:
-        n = math.sqrt((x / 0.0722) ** 2 + (sy ** 2) + ((z + 0.001) / 0.0934) ** 2)
+        n = math.sqrt((x / 0.0714) ** 2 + (sy ** 2) + ((z + 0.0005) / 0.0925) ** 2)
         if n > 1e-6:
-            x += off * sx / n
-            y += off * sy / n
-            z += off * sz / n
-    return (max(0.0030, x), y, z)
+            x, y, z = x + off * sx / n, y + off * sy / n, z + off * sz / n
+    return (max(0.0005, x), y, z)
 
 
-def _dome_b_seam(al, pad=0.0036):
-    """Solve lateral angle `beta` where the cranium dome meets `_crown_seam_y(th) + pad`."""
-    lo, hi = 0.12, 1.50
-    for _ in range(12):
-        mid = 0.5 * (lo + hi)
-        px, py, pz = _dome_ab(al, mid, 0.0)
-        if py > _crown_seam_y(math.atan2(px, pz + 0.001)) + pad:
-            lo = mid
-        else:
-            hi = mid
-    return lo
+def _crown_seam_y(th):
+    """Dynamic swept aerodynamic helmet seam flowing from frontal temple down behind the ear-pod."""
+    t = min(1.0, max(0.0, (abs(th) - 0.72) / 2.42))
+    return 0.1840 - 0.0270 * (t * t * (3.0 - 2.0 * t))
 
 
-def _dome_strip(u0, u1, v0, v1, nu=12, nv=6, off=0.0):
+def _dome_strip(u0, u1, v0, v1, nu=28, nv=10, off=0.0, a_f=1.00, a_b=-1.48, b_min=0.004, pad=0.0016):
     np = np_mod()
     us, vs = np.linspace(u0, u1, nu), np.linspace(v0, v1, nv)
     g = np.zeros((nu, nv, 3))
-    a_f, a_b, b_min = 1.44, -1.20, 0.048
     for i, u in enumerate(us):
-        al = a_f + float(u) * (a_b - a_f)
-        b_max = max(b_min + 0.12, _dome_b_seam(al, 0.0032))
+        al, lo, hi = a_f + float(u) * (a_b - a_f), b_min + 0.06, 1.54
+        for _ in range(12):
+            mid = 0.5 * (lo + hi)
+            px, py, pz = _dome_ab(al, mid, 0.0)
+            lo, hi = (mid, hi) if py > _crown_seam_y(math.atan2(px, pz + 0.0005)) + pad else (lo, mid)
+        b_max = max(b_min + 0.12, lo)
         for j, v in enumerate(vs):
             g[i, j] = _dome_ab(al, b_min + float(v) * (b_max - b_min), off)
     return g
 
 
-def _crown_seam_y(th):
-    return 0.1635 + 0.0085 * (min(1.0, abs(th) / 0.92) ** 1.10)
-
-
-def _flat(pts, wall=0.0024, rim_m=0.0048, pitch=0.0078, fill=0.66, corner_c=0.0014, shift_n=0.0026, bar_col=MESH_PEARL):
-    """Build a 100% flat angular ceramic frame enclosing coarse 6-sided honeycomb shifted outward by `shift_n`."""
-    return fh.planar_honeycomb_panel(pts, wall=wall, chamfer=0.00074, rim_m=rim_m, pitch=pitch, fill=fill,
-                                     corner_c=corner_c, col=SHELL_CF, bar_col=bar_col, hole_col=BAFFLE_DARK,
+def _flat(pts, wall=0.0021, rim_m=0.0048, pitch=0.0078, fill=0.61, corner_c=0.0018, shift_n=0.0008, bar_col=MESH_PEARL):
+    """Build a 100% flat unsculpted angular pearl-ceramic framed coarse-honeycomb armor wing."""
+    return fh.planar_honeycomb_panel(pts, wall=wall, chamfer=0.00072, rim_m=rim_m, pitch=pitch, fill=fill,
+                                     corner_c=corner_c, col=SHELL_CF, bar_col=bar_col, hole_col=HEX_WALL,
                                      rim_col=SEAM_SILVER, shift_n=shift_n)
+
+
+def _porcelain_anime_face():
+    """Build ONE continuous C1-smooth porcelain anime face with deep 3/4 lateral orbit and dark nasal channel."""
+    np = np_mod()
+
+    def _z_face(x, y, z_off=0.0):
+        xw, zf, zb = _profile_at(y)
+        zc, rz = 0.5 * (zf + zb), max(0.004, 0.5 * (zf - zb))
+        ax = abs(x)
+        st = max(-0.96, min(0.96, x / max(xw, 1e-4)))
+        z0 = zc + rz * math.sqrt(max(0.04, 1.0 - st * st))
+        eye_recess = -0.0030 * math.exp(-((ax - 0.032) / 0.011) ** 2) * math.exp(-((y - 0.100) / 0.011) ** 2)
+        lat_rim = 0.0038 * math.exp(-((ax - 0.052) / 0.015) ** 2) * math.exp(-((y - 0.104) / 0.020) ** 2)
+        w_lat = max(0.0, min(1.0, (ax - 0.011) / 0.015))
+        t_y = max(0.0, min(1.0, (0.0945 - y) / 0.010))
+        tuck = -(0.0032 + 0.0068 * w_lat) * (t_y ** 1.10) - 0.0036 * max(0.0, min(1.0, (y - 0.129) / 0.012))
+        return z0 - 0.0014 + eye_recess + lat_rim + tuck + z_off
+
+    def _eye_y(ax, top):
+        if ax <= 0.0216:
+            return 0.0982 + (0.00005 if top else 0.0)
+        if ax >= 0.0410:
+            t_out = min(1.0, (ax - 0.0410) / 0.018)
+            return 0.1016 - 0.0030 * t_out + (0.00005 if top else 0.0)
+        s = (ax - 0.0313) / 0.0097
+        k = max(0.0, 1.0 - s * s)
+        return 0.0998 + 0.0018 * s + (0.0072 * (k ** 0.68) if top else -0.0046 * (k ** 0.74))
+
+    x_pos = np.concatenate([np.linspace(0.0, 0.0216, 7), np.linspace(0.0216, 0.0410, 15)[1:], np.linspace(0.0410, 0.0600, 7)[1:]])
+    xs, vs = np.concatenate([-x_pos[::-1][:-1], x_pos]), np.linspace(0.0, 1.0, 11)
+    g_up, g_lo = np.zeros((len(xs), len(vs), 3)), np.zeros((len(xs), len(vs), 3))
+    for i, xv in enumerate(xs):
+        x, ax = float(xv), abs(float(xv))
+        u_w = min(1.0, ax / 0.0600)
+        y_u0, y_l0 = _eye_y(ax, True), _eye_y(ax, False)
+        y_u1 = 0.1305 + 0.0125 * (u_w ** 1.10)
+        y_l1 = 0.0280 + 0.0590 * (u_w ** 1.28)
+        for j, fv in enumerate(vs):
+            v = float(fv)
+            yu, yl = y_u0 + v * (y_u1 - y_u0), y_l0 + v * (y_l1 - y_l0)
+            zt = -0.0010 * (u_w ** 2) * v
+            g_up[i, j] = (x, yu, _z_face(x, yu, zt))
+            g_lo[i, j] = (x, yl, _z_face(x, yl, -0.00006 + zt))
+    ss_l = np.linspace(-0.96, 1.08, 19)
+    g_lu = np.zeros((len(ss_l), 3, 3))
+    for i, sv in enumerate(ss_l):
+        s, sc = float(sv), max(-1.0, min(1.0, float(sv)))
+        xi = 0.0313 + 0.0097 * sc
+        yi = _eye_y(xi, True)
+        if s > 1.0:
+            t_w = (s - 1.0) / 0.08
+            xi, yi, w_l = xi + 0.0020 * t_w, yi + 0.0016 * t_w, 0.0022 * (1.0 - 0.84 * t_w)
+        else:
+            w_l = 0.0010 + 0.0013 * max(0.0, 0.5 * (s + 1.0)) ** 1.4
+        for j, fv in enumerate((0.0, 0.5, 1.0)):
+            x, y = xi, yi + fv * w_l
+            g_lu[i, j] = (x, y, _z_face(x, y, 0.0008))
+    g_ll = np.zeros((13, 3, 3))
+    for i, sv in enumerate(np.linspace(-0.88, 0.96, 13)):
+        xi = 0.0313 + 0.0097 * float(sv)
+        yi = _eye_y(xi, False)
+        for j, fv in enumerate((0.0, 0.5, 1.0)):
+            x, y = xi, yi - fv * (0.0007 + 0.0005 * max(0.0, float(sv)))
+            g_ll[i, j] = (x, y, _z_face(x, y, 0.0007))
+    g_nc = np.zeros((8, 5, 3))
+    for i, fu in enumerate(np.linspace(0.0, 1.0, 8)):
+        y = 0.0755 + 0.0305 * float(fu)
+        hw = 0.0036 + 0.0022 * math.sin(math.pi * float(fu))
+        for j, fv in enumerate(np.linspace(-1.0, 1.0, 5)):
+            x = hw * float(fv)
+            g_nc[i, j] = (x, y, _z_face(x, y, 0.0009))
+    lashes = (shell_patch(g_lu, 0.0008, 0.00018, BAFFLE_DARK, rim_col=BAFFLE_DARK)
+              + shell_patch(g_ll, 0.0007, 0.00016, PANEL_RIM, rim_col=BAFFLE_DARK))
+    return (shell_patch(g_up, 0.0011, 0.00008, PORCELAIN, rim_col=PORCELAIN)
+            + shell_patch(g_lo, 0.0011, 0.00008, PORCELAIN, rim_col=PORCELAIN)
+            + shell_patch(g_nc, 0.0009, 0.00018, CHASSIS_CF, rim_col=TITANIUM)
+            + lashes + mirror_x(lashes))
 
 
 @functools.lru_cache(maxsize=None)
@@ -154,46 +227,57 @@ def chassis_static():
              for u, v in (((-0.045, -0.017), (0.087, 0.114)), ((0.017, 0.045), (0.087, 0.114)))]
     eye_m = csg.extrude(csg.filleted2d(csg.box2d((-0.048, 0.048), (0.083, 0.118)), r=0.005),
                         holes=ports, a=0.058, b=0.068, axis=2, colour=BAFFLE_DARK, chamfer=0.0005)
-    ear = csg.sweep(csg.circle2d(0.0042, fn=18), [(0.040, 0.093, 0.026), (0.052, 0.093, 0.012), (0.061, 0.093, 0.004)],
+    ear = csg.sweep(csg.circle2d(0.0042, fn=18), [(0.040, 0.095, 0.026), (0.052, 0.095, 0.012), (0.061, 0.095, 0.002)],
                     chamfer_ends=0.0006, colour=CHASSIS_CF).tris()
     return csg.union(flange, bulk, fore, deck, wl, wr, eye_m).tris() + ear + mirror_x(ear)
 
 
 @functools.lru_cache(maxsize=None)
 def inner_liner():
-    """Return recessed matte-dark inner shadow skull, satin ocular housings and machined titanium seam rails."""
-    np = np_mod()
-    glab_b = csg.extrude(csg.filleted2d(csg.box2d((-0.014, 0.014), (0.086, 0.118)), r=0.002),
-                         a=0.072, b=0.086, axis=2, colour=BAFFLE_DARK, chamfer=0.0004).tris()
-    cowl_o = [((0.032 + 0.0176 * math.cos(a)), (0.100 + 0.0168 * math.sin(a))) for a in (2.0 * math.pi * k / 28 for k in range(28))]
-    cowl_i = [((0.032 + 0.0154 * math.cos(a)), (0.100 + 0.0148 * math.sin(a))) for a in (2.0 * math.pi * k / 28 for k in range(28))]
-    cowl_l = csg.extrude(cowl_o, holes=[cowl_i], a=0.066, b=0.075, axis=2, colour=BAFFLE_DARK, chamfer=0.0004).tris()
+    """Return seamless porcelain anime face, titanium brow sub-plate, cyan jewel, throat fairing and mechanics."""
+    np, p = np_mod(), _head_pt
+    face_core = _porcelain_anime_face()
+    brow_sub = shell_patch(_surf_grid(lambda u, v: 0.02 + v * 0.82, lambda u, v: 0.128 + u * 0.062,
+                                      9, 10, off=-0.0086), 0.0012, 0.00024, TITANIUM, rim_col=PANEL_RIM)
+    spine_f = shell_patch(_surf_grid(lambda u, v: (0.034 + 0.030 * math.sin(math.pi * min(1.0, 0.12 + 0.78 * u))) * (2.0 * v - 1.0),
+                                     lambda u, v: 0.130 + u * 0.056, 12, 5, off=-0.0016), 0.0013, 0.00024, CHASSIS_CF, rim_col=TITANIUM)
+    spine_led = shell_patch(_surf_grid(lambda u, v: 0.012 * (2.0 * v - 1.0),
+                                       lambda u, v: 0.140 + u * 0.034, 6, 3, off=-0.0006), 0.0008, 0.00018, OPTIC_GLASS, rim_col=TITANIUM)
+    spine_d = shell_patch(_dome_strip(0.01, 0.98, 0.0, 1.0, nu=18, nv=3, off=-0.0012, b_min=0.0005, pad=0.0016),
+                          0.0011, 0.00020, CHASSIS_CF, rim_col=OPTIC_GLASS)
     liner = []
-    for t0, ts, y0, ys, nu, nv, of in (
-        (0.000, 2.27, 0.116, 0.066, 8, 12, -0.0080),
-        (0.70, 0.62, 0.088, 0.034, 6, 7, -0.0082),
-        (0.00, 1.48, 0.052, 0.036, 6, 10, -0.0102),
-        (1.98, math.pi - 2.00, 0.034, 0.144, 8, 8, -0.0054),
-        (1.18, 0.82, 0.035, 0.083, 8, 7, -0.0056),
+    for t0, ts, y0, ys, nu, nv, of, mr in (
+        (0.00, 2.28, 0.130, 0.056, 8, 12, -0.0102, 0.0),
+        (0.88, 0.50, 0.086, 0.046, 6, 6, -0.0086, 0.0),
+        (0.00, 1.24, 0.052, 0.032, 6, 10, -0.0094, 0.0462),
+        (1.94, math.pi - 1.96, 0.034, 0.132, 9, 8, -0.0044, 0.0462),
+        (1.26, 0.76, 0.042, 0.094, 8, 7, -0.0056, 0.0462),
     ):
         s_p = shell_patch(_surf_grid(lambda u, v, a=t0, b=ts: a + v * b, lambda u, v, c=y0, d=ys: c + u * d,
-                                     nu, nv, off=of), 0.0012, 0.00022, BAFFLE_DARK, rim_col=BAFFLE_DARK)
+                                     nu, nv, off=of, mount_r=mr), 0.0012, 0.00022, CHASSIS_CF, rim_col=PANEL_RIM)
         liner += s_p + mirror_x(s_p)
-    s_d = shell_patch(_dome_strip(0.00, 0.99, 0.00, 0.97, nu=12, nv=6, off=-0.0082), 0.0012, 0.00022, BAFFLE_DARK, rim_col=BAFFLE_DARK)
-    # Machined satin-titanium structural sub-frame rails visible inside the ~7 mm panel channels.
-    rail_m = shell_patch(_surf_grid(lambda u, v: 0.014 * (2.0 * v - 1.0), lambda u, v: 0.117 + u * 0.050,
-                                    8, 4, off=-0.0038), 0.0010, 0.00022, TITANIUM, rim_col=PANEL_RIM)
-    rail_fr = shell_patch(_surf_grid(lambda u, v: 0.04 + u * 0.72, lambda u, v: (0.1332 + 0.0154 * u) + v * 0.0022,
-                                     8, 3, off=-0.0044), 0.0009, 0.00020, TITANIUM, rim_col=PANEL_RIM)
-    rail_c = shell_patch(_surf_grid(lambda u, v: 0.18 + u * 0.96, lambda u, v: (0.0605 + 0.0195 * u) + v * 0.0024,
-                                    8, 3, off=-0.0058), 0.0009, 0.00020, TITANIUM, rim_col=PANEL_RIM)
-    rail_chin = shell_patch(_surf_grid(lambda u, v: 0.012 * (2.0 * v - 1.0), lambda u, v: 0.011 + u * 0.045,
-                                       8, 3, off=-0.0054), 0.0009, 0.00020, TITANIUM, rim_col=PANEL_RIM)
-    oral_g = np.array([[[0.026 * float(u), 0.014 + 0.048 * float(v), 0.068 - 0.014 * float(u * u) - 0.003 * (1.0 - float(v))]
+    s_d = shell_patch(_dome_strip(0.00, 0.99, 0.00, 0.98, nu=12, nv=6, off=-0.0072, b_min=0.003, pad=0.0014),
+                      0.0012, 0.00022, CHASSIS_CF, rim_col=PANEL_RIM)
+    throat_l = shell_patch(_surf_grid(lambda u, v: 0.78 + v * (math.pi - 0.80),
+                                      lambda u, v: (0.018 + 0.010 * v) + u * (0.030 - 0.004 * v),
+                                      7, 12, off=-0.0016, mount_r=0.0464), 0.0013, 0.00024, CHASSIS_CF, rim_col=PANEL_RIM)
+    hub = rotary_hub(0.0626, 0.088, 0.032)
+    pistons = (
+        piston(p(0.96, 0.126, -0.0038), (0.063, 0.096, 0.030), 0.0015, 0.0023)
+        + piston(p(1.42, 0.122, -0.0038), (0.063, 0.094, 0.026), 0.0015, 0.0022)
+        + piston(p(0.68, 0.064, -0.0048), (0.061, 0.082, 0.030), 0.0015, 0.0023)
+        + piston(p(0.90, 0.056, -0.0046), (0.062, 0.080, 0.028), 0.0014, 0.0021)
+    )
+    chin_bar = shell_patch(_surf_grid(lambda u, v: 0.036 * (2.0 * v - 1.0), lambda u, v: 0.024 + u * 0.032,
+                                      8, 4, off=-0.0056), 0.0012, 0.00024, TITANIUM, rim_col=PANEL_RIM)
+    chin_accent = shell_patch(_surf_grid(lambda u, v: 0.014 * (2.0 * v - 1.0), lambda u, v: 0.029 + u * 0.020,
+                                         6, 3, off=-0.0046), 0.0008, 0.00018, MIC_GOLD, rim_col=TITANIUM)
+    oral_g = np.array([[[0.022 * float(u), 0.024 + 0.038 * float(v), 0.072 - 0.012 * float(u * u) - 0.003 * (1.0 - float(v))]
                         for v in np.linspace(0.0, 1.0, 5)] for u in np.linspace(-1.0, 1.0, 9)])
-    oral = shell_patch(oral_g, 0.0018, 0.00030, BAFFLE_DARK, (0.0, 0.042, 0.010), BAFFLE_DARK)
-    return (glab_b + cowl_l + mirror_x(cowl_l) + oral + liner + rail_m + rail_chin
-            + rail_fr + mirror_x(rail_fr) + rail_c + mirror_x(rail_c) + s_d + mirror_x(s_d))
+    oral = shell_patch(oral_g, 0.0015, 0.00026, CHASSIS_CF, (0.0, 0.044, 0.010), PANEL_RIM)
+    return (face_core + brow_sub + mirror_x(brow_sub) + spine_f + spine_led + spine_d + mirror_x(spine_d) + oral
+            + liner + s_d + mirror_x(s_d) + throat_l + mirror_x(throat_l) + chin_bar + chin_accent
+            + hub + mirror_x(hub) + pistons + mirror_x(pistons))
 
 
 @functools.lru_cache(maxsize=None)
@@ -204,66 +288,37 @@ def compute_heatsink():
 
 @functools.lru_cache(maxsize=None)
 def static_plates():
-    """Build completely flat unsculpted feminine ceramic-faceted coarse-honeycomb plates with ~7 mm channels."""
-    p = _head_pt
-    seam = _crown_seam_y
-
-    # Forehead: TWO steeply tapered winged V-tiara flat ceramic plates per side framing an open brow shelf.
-    f_lo = _flat([p(0.026, 0.1178), p(0.73, 0.1220), p(0.76, 0.1460), p(0.026, 0.1306)],
-                 wall=0.0023, rim_m=0.0040, pitch=0.0076, fill=0.65, corner_c=0.0014, shift_n=0.0030)
-    f_hi = _flat([p(0.026, 0.1376), p(0.765, 0.1528), p(0.790, seam(0.790) - 0.0034), p(0.026, seam(0.026) - 0.0034)],
-                 wall=0.0023, rim_m=0.0046, pitch=0.0078, fill=0.66, corner_c=0.0015, shift_n=0.0028)
+    """Build streamlined valkyrie helmet cowls and deep sculpted 2-row flat ceramic-honeycomb face wings."""
+    p, seam = _head_pt, _crown_seam_y
+    f_lo = _flat([p(0.095, 0.1285), p(0.75, 0.1445), p(0.79, 0.1635), p(0.112, 0.1495)],
+                 wall=0.0021, rim_m=0.0046, pitch=0.0076, fill=0.61, corner_c=0.0018, shift_n=0.0003)
+    f_hi = _flat([p(0.112, 0.1605), p(0.79, 0.1730), p(0.81, 0.1855), p(0.095, 0.1795)],
+                 wall=0.0021, rim_m=0.0048, pitch=0.0078, fill=0.61, corner_c=0.0018, shift_n=-0.0002)
     front = f_lo + mirror_x(f_lo) + f_hi + mirror_x(f_hi)
-
-    # Cranium dome: TWO harmonized lateral tiers x THREE sagittal facets seated on `_crown_seam_y + 3.6 mm`.
-    def _d_facet(a0, a1, b_i0, b_o0, b_i1, b_o1, sh):
-        return _flat([_dome_ab(a0, b_i0), _dome_ab(a0, b_o0), _dome_ab(a1, b_o1), _dome_ab(a1, b_i1)],
-                     wall=0.0023, rim_m=0.0048, pitch=0.0084, fill=0.66, corner_c=0.0015, shift_n=sh)
-
-    b_a0, b_a1, b_a2, b_a3 = _dome_b_seam(1.30), _dome_b_seam(0.50), _dome_b_seam(-0.36), _dome_b_seam(-1.12)
-    d_lobe = (
-        _d_facet(1.32, 0.54, 0.040, 0.50, 0.040, 0.52, 0.0028)
-        + _d_facet(0.45, -0.32, 0.040, 0.52, 0.040, 0.52, 0.0028)
-        + _d_facet(-0.41, -1.12, 0.040, 0.52, 0.040, 0.48, 0.0026)
-        + _d_facet(1.30, 0.54, 0.59, b_a0, 0.61, b_a1, 0.0024)
-        + _d_facet(0.45, -0.32, 0.61, b_a1, 0.61, b_a2, 0.0024)
-        + _d_facet(-0.41, -1.12, 0.61, b_a2, 0.59, b_a3, 0.0024)
-    )
-
-    # Occipital: FOUR harmonized flat facets per side aligned to `_crown_seam_y - 3.4 mm`.
-    o_lobe = []
-    for t0, t1 in ((2.30, 2.68), (2.77, math.pi - 0.038)):
-        o_lobe += _flat([p(t0, 0.095), p(t1, 0.095), p(t1, seam(t1) - 0.0034), p(t0, seam(t0) - 0.0034)],
-                        wall=0.0023, rim_m=0.0048, pitch=0.0084, fill=0.66, corner_c=0.0015, shift_n=0.0022)
-        o_lobe += _flat([p(t0, 0.020), p(t1, 0.020), p(t1, 0.087), p(t0, 0.087)],
-                        wall=0.0023, rim_m=0.0048, pitch=0.0084, fill=0.66, corner_c=0.0015, shift_n=0.0022)
-
-    # Temporal: TWO harmonized angled side-temple facets seated cleanly along `_crown_seam_y - 3.4 mm`.
-    l_temp = (
-        _flat([p(0.86, 0.119), p(1.48, 0.121), p(1.48, seam(1.48) - 0.0034), p(0.86, seam(0.86) - 0.0034)],
-              wall=0.0023, rim_m=0.0048, pitch=0.0084, fill=0.66, corner_c=0.0015, shift_n=0.0022)
-        + _flat([p(1.57, 0.121), p(2.21, 0.119), p(2.21, seam(2.21) - 0.0034), p(1.57, seam(1.57) - 0.0034)],
-                wall=0.0023, rim_m=0.0048, pitch=0.0084, fill=0.66, corner_c=0.0015, shift_n=0.0022)
-    )
-    l_mast = _flat([p(1.78, 0.022), p(2.21, 0.022), p(2.21, 0.110), p(1.88, 0.070)],
-                   wall=0.0022, rim_m=0.0044, pitch=0.0080, fill=0.65, corner_c=0.0014, shift_n=0.0020)
-    # Orbital pillar: frames lateral eye corner cleanly (`0.64`) and spans back toward ear-mic (`1.31`).
-    l_pil = _flat([p(0.64, 0.0970), p(1.31, 0.100), p(1.31, 0.114), p(0.66, 0.114)],
-                  wall=0.0021, rim_m=0.0030, pitch=0.0064, fill=0.63, corner_c=0.0012, shift_n=0.0030)
-
-    # Nose: ONE slim delicate flat angular hexagonal ceramic shield (~16 mm max width, coarse 6-sided mesh).
-    l_nose = _flat([(0.0064, 0.1115, 0.1072), (-0.0064, 0.1115, 0.1072), (-0.0082, 0.0765, 0.1140),
-                    (-0.0048, 0.0655, 0.1105), (0.0048, 0.0655, 0.1105), (0.0082, 0.0765, 0.1140)],
-                   wall=0.0022, rim_m=0.0022, pitch=0.0052, fill=0.63, corner_c=0.0010, shift_n=0.0008, bar_col=(234, 238, 246))
-
-    # Cheekbone: ONE flat swept angular feminine cheek wing lifted cleanly under the lower eyelid.
-    l_max = _flat([p(0.125, 0.0630), p(1.15, 0.0835), p(1.17, 0.0965), p(0.600, 0.0932), p(0.138, 0.0916)],
-                  wall=0.0023, rim_m=0.0048, pitch=0.0078, fill=0.66, corner_c=0.0014, shift_n=0.0048)
-
-    # Recessed dark inner baffle plates behind the nose-to-lower-cheek gap (no external mouth).
-    ph_p = shell_patch(_surf_grid(lambda u, v: 0.085 * (2.0 * u - 1.0), lambda u, v: 0.0525 + v * 0.0085,
+    d_lobe = shell_patch(_dome_strip(0.00, 1.00, 0.00, 1.00, nu=28, nv=10, off=0.0014, a_f=1.00, a_b=-1.48, b_min=0.004, pad=0.0016),
+                         wall=0.0023, chamfer=0.00056, col=SHELL_CF, rim_col=SEAM_SILVER)
+    o_lobe = shell_patch(_surf_grid(lambda u, v: 2.24 + v * (math.pi - 2.30),
+                                    lambda u, v: 0.030 + u * (seam(2.24 + v * (math.pi - 2.30)) - 0.0322),
+                                    13, 10, off=0.0014, mount_r=0.0474), wall=0.0023, chamfer=0.00054, col=SHELL_CF, rim_col=SEAM_SILVER)
+    l_temp = shell_patch(_surf_grid(
+        lambda u, v: 0.86 + v * 1.35,
+        lambda u, v: (0.146 - 0.017 * math.sin(math.pi * min(1.0, v * 0.85)) - 0.008 * v) + u * (
+            seam(0.86 + v * 1.35) - 0.0015 - (0.146 - 0.017 * math.sin(math.pi * min(1.0, v * 0.85)) - 0.008 * v)),
+        10, 14, off=0.0012), wall=0.0022, chamfer=0.00052, col=SHELL_CF, rim_col=SEAM_SILVER)
+    l_mast = shell_patch(_surf_grid(
+        lambda u, v: (1.94 + 0.05 * u) + v * (0.24 - 0.05 * u),
+        lambda u, v: (0.048 - 0.008 * v) + u * (0.068 + 0.012 * v),
+        10, 7, off=0.0012, mount_r=0.0474), wall=0.0022, chamfer=0.00050, col=SHELL_CF, rim_col=SEAM_SILVER)
+    l_pil = _flat([p(0.76, 0.1055), p(1.16, 0.1110), p(1.18, 0.1240), p(0.80, 0.1190)],
+                  wall=0.0020, rim_m=0.0042, pitch=0.0076, fill=0.56, corner_c=0.0014, shift_n=0.0028)
+    l_nose = _flat([(0.0038, 0.1050, 0.1080), (-0.0038, 0.1050, 0.1080), (-0.0054, 0.0830, 0.1132),
+                    (-0.0031, 0.0772, 0.1108), (0.0031, 0.0772, 0.1108), (0.0054, 0.0830, 0.1132)],
+                   wall=0.0020, rim_m=0.0028, pitch=0.0062, fill=0.54, corner_c=0.0008, shift_n=0.0006)
+    l_max = _flat([p(0.24, 0.0625), p(1.08, 0.0765), p(1.25, 0.0975), p(0.28, 0.0885)],
+                  wall=0.0021, rim_m=0.0054, pitch=0.0088, fill=0.61, corner_c=0.0018, shift_n=0.0052)
+    ph_p = shell_patch(_surf_grid(lambda u, v: 0.085 * (2.0 * u - 1.0), lambda u, v: 0.056 + v * 0.008,
                                   8, 5, off=-0.0115), 0.0014, 0.00022, BAFFLE_DARK, rim_col=BAFFLE_DARK)
-    lip_p = shell_patch(_surf_grid(lambda u, v: 0.095 * (2.0 * u - 1.0), lambda u, v: 0.0435 + v * 0.0065,
+    lip_p = shell_patch(_surf_grid(lambda u, v: 0.095 * (2.0 * u - 1.0), lambda u, v: 0.047 + v * 0.006,
                                    8, 5, off=-0.0130), 0.0014, 0.00022, BAFFLE_DARK, rim_col=BAFFLE_DARK)
     return {'cranium_frontal': front, 'cranium_dome': d_lobe + mirror_x(d_lobe), 'cranium_occipital': o_lobe + mirror_x(o_lobe),
             'left_temporal': l_temp, 'right_temporal': mirror_x(l_temp), 'left_mastoid': l_mast, 'right_mastoid': mirror_x(l_mast),
@@ -273,62 +328,63 @@ def static_plates():
 
 @functools.lru_cache(maxsize=None)
 def ear_microphones():
-    """Return concentric circular binaural mecha ear-pods flush on the temples."""
+    """Return anime-mecha concentric binaural ear-pods with luminous cyan halo and gold ring."""
     return fh.ear_microphones()
 
 
 @functools.lru_cache(maxsize=None)
 def camera_and_gimbal_local():
-    """Return anime-mecha ocular camera module with porcelain sclera, sapphire iris and catchlights."""
+    """Return flush expressive anime-gynoid eye module with cyan-sapphire iris and glossy catchlights."""
     return fh.modern_optics_local()
 
 
 @functools.lru_cache(maxsize=None)
 def moving_rest():
-    """Build pearl-ceramic arched brows on an open shelf, eyelids, internal smile lug and two sleek lower-cheek plates."""
+    """Build sleek arched anime brows, seamless tucked eyelids, smile lug and dainty flat V-chin wings."""
     from machine.eyes import gimbal, stereo
     np, ex, p = np_mod(), 0.5 * float(stereo.BASELINE_M), _head_pt
     brow_g = _surf_grid(
-        lambda u, v: 0.240 + u * 0.375,
-        lambda u, v: (0.1095 + 0.0030 * math.sin(math.pi * (0.20 + 0.72 * u))) + v * (0.0028 * (1.0 - 0.25 * u)),
-        11, 3, off=0.0068)
+        lambda u, v: 0.17 + u * 0.47,
+        lambda u, v: (0.1155 + 0.0046 * math.sin(math.pi * (0.14 + 0.80 * u))) + v * (0.0023 * (1.0 - 0.66 * u)),
+        15, 3, off=0.0006)
     piv = (np.array([ex, float(gimbal.EYES[1]), float(gimbal.EYES[2])])
            - gimbal.mounted('left') @ np.array([0.0, 0.0, -float(gimbal.LEVER['left'])]))
-    lx_u = np.linspace(float(piv[0]) - 0.0113, float(piv[0]) + 0.0113, 13)
+    lx_u = np.linspace(float(piv[0]) - 0.0108, float(piv[0]) + 0.0108, 15)
 
-    def _lid_grid(a0, a1, tilt_deg=5.0):
+    def _lid_grid(a0, a1, tilt_deg=7.8, wing=0.0):
         angs = np.linspace(math.radians(a0), math.radians(a1), 5)
         g = np.zeros((len(lx_u), len(angs), 3))
         for i, xv in enumerate(lx_u):
             dx = float(xv) - float(piv[0])
-            rc = math.sqrt(max(44e-6, 0.0122 ** 2 - dx * dx))
-            da, z_tuck = math.radians(tilt_deg) * (dx / 0.0113), -0.0004 * (((dx / 0.0113) ** 2) ** 1.15)
+            u_x = dx / 0.0108
+            ry = math.sqrt(max(36e-6, 0.0110 ** 2 - 0.82 * dx * dx))
+            rz = math.sqrt(max(24e-6, 0.0082 ** 2 - 0.55 * dx * dx))
+            da = math.radians(tilt_deg) * u_x + math.radians(wing) * max(0.0, u_x) ** 2
             for j, a in enumerate(angs):
                 af = float(a) + da
-                g[i, j] = (float(xv), float(piv[1]) + rc * math.sin(af), float(piv[2]) + rc * math.cos(af) + z_tuck)
+                g[i, j] = (float(xv), float(piv[1]) + ry * math.sin(af), float(piv[2]) + rz * math.cos(af))
         return g
 
-    # Recessed internal cheek-actuator lug driven by smile linkage (invisible externally, no mouth).
-    comm_g = _surf_grid(lambda u, v: 0.270 + u * 0.055, lambda u, v: 0.0430 + 0.0006 * u + v * 0.0040, 6, 4, off=-0.0148)
-
-    # Lower cheek: TWO compact tucked flat angular ceramic shields meeting across a ~7.5 mm midline gap, NO mouth.
-    lj_pts = [p(0.020, 0.0072), p(1.06, 0.0345), p(1.16, 0.0765), p(0.020, 0.0595)]
-    lj_panel = _flat(lj_pts, wall=0.0023, rim_m=0.0050, pitch=0.0080, fill=0.66, corner_c=0.0022, shift_n=0.0038)
-    lj_back = fh.planar_backing(lj_pts, wall=0.0012, inset_m=0.0026, corner_c=0.0022, col=BAFFLE_DARK, shift_n=0.0004)
-    lj_ribs = [shell_patch(_surf_grid(lambda u, v: 0.14 + 0.80 * u,
-                                      lambda u, v, dy=dy0: (0.0510 + 0.0175 * u) + dy + 0.0012 * v,
-                                      10, 3, off=-0.0068), 0.0009, 0.00018, TITANIUM, rim_col=PANEL_RIM)
-               for dy0 in (0.0000, 0.0028)]
-    sub_ch = np.array([[[(0.014 + 0.011 * float(v)) * float(u), 0.0195 + 0.014 * float(v),
-                         0.067 - 0.015 * float(v) - 0.010 * (float(u) ** 2)]
-                        for v in np.linspace(0.0, 1.0, 4)] for u in np.linspace(-1.0, 1.0, 7)])
-    under_jaw = shell_patch(sub_ch, 0.0018, 0.00032, PANEL_RIM, (0.0, 0.055, 0.055), BAFFLE_DARK)
-    ryz = csg.filleted2d([(0.041, 0.058), (0.050, 0.062), (0.068, 0.028), (0.068, 0.020), (0.060, 0.020), (0.040, 0.050)], r=0.0020)
+    comm_g = _surf_grid(lambda u, v: 0.270 + u * 0.055, lambda u, v: 0.045 + 0.0006 * u + v * 0.0040, 6, 4, off=-0.0165)
+    lj_pts = [p(0.115, 0.0245), p(0.84, 0.0445), p(0.92, 0.0640), p(0.115, 0.0510)]
+    lj_panel = _flat(lj_pts, wall=0.0021, rim_m=0.0056, pitch=0.0090, fill=0.60, corner_c=0.0018, shift_n=0.0020)
+    lj_back = fh.planar_backing(lj_pts, wall=0.0011, inset_m=0.0026, corner_c=0.0018, col=CHASSIS_CF, shift_n=-0.0010)
+    lj_ribs = [shell_patch(_surf_grid(lambda u, v: 0.14 + 0.70 * u,
+                                      lambda u, v, dy=dy0: (0.0495 + 0.0125 * u) + dy + 0.0011 * v,
+                                      10, 3, off=-0.0072), 0.0008, 0.00018, TITANIUM, rim_col=MIC_GOLD)
+               for dy0 in (0.0000, 0.0026)]
+    sub_ch = np.array([[[(0.014 + 0.024 * float(v)) * float(u), 0.020 + 0.008 * float(v),
+                         0.083 - 0.030 * float(v) - 0.008 * (float(u) ** 2)]
+                        for v in np.linspace(0.0, 1.0, 5)] for u in np.linspace(-1.0, 1.0, 9)])
+    under_jaw = shell_patch(sub_ch, 0.0015, 0.00026, CHASSIS_CF, (0.0, 0.055, 0.055), PANEL_RIM)
+    ryz = csg.filleted2d([(0.044, 0.056), (0.052, 0.060), (0.068, 0.028), (0.068, 0.020), (0.060, 0.020), (0.043, 0.048)], r=0.0020)
     ram = (csg.extrude(ryz, a=0.0398, b=0.0434, axis=0, colour=CHASSIS_CF, chamfer=0.0006).tris()
-           + csg.extrude(csg.circle2d(0.0036, fn=20, at=(0.066, 0.024)), a=0.0434, b=0.0468, axis=0, colour=TITANIUM, chamfer=0.0004).tris())
-    yoke = csg.extrude(csg.filleted2d(csg.box2d((-0.024, 0.024), (0.026, 0.032)), r=0.0016), a=0.066, b=0.071, axis=2, colour=CHASSIS_CF, chamfer=0.0004).tris()
+           + csg.extrude(csg.circle2d(0.0036, fn=20, at=(0.066, 0.024)), a=0.0434, b=0.0468, axis=0, colour=MIC_GOLD, chamfer=0.0004).tris())
+    yoke = csg.extrude(csg.filleted2d(csg.box2d((-0.020, 0.020), (0.030, 0.036)), r=0.0016), a=0.062, b=0.067, axis=2, colour=CHASSIS_CF, chamfer=0.0004).tris()
     lj_s = lj_panel + lj_back + lj_ribs[0] + lj_ribs[1]
     jaw_all = under_jaw + lj_s + mirror_x(lj_s) + yoke + ram + mirror_x(ram)
-    ulid = shell_patch(_lid_grid(14.0, 38.0, 5.0), 0.0010, 0.00022, BAFFLE_DARK, piv, BAFFLE_DARK)
-    llid = shell_patch(_lid_grid(-30.5, -18.8, 3.2), 0.0010, 0.00022, SEAM_SILVER, piv, PANEL_RIM)
-    return shell_patch(brow_g, 0.0013, 0.00028, SHELL_CF, rim_col=PANEL_RIM), ulid, llid, piv, shell_patch(comm_g, 0.0014, 0.00028, BAFFLE_DARK, rim_col=BAFFLE_DARK), jaw_all
+    # Tucked seamless upper porcelain lid dome (`34.5..58.0 deg`) eliminates crease crack completely!
+    ulid = (shell_patch(_lid_grid(24.0, 34.0, 7.8, wing=6.0), 0.0010, 0.00022, BAFFLE_DARK, piv, BAFFLE_DARK)
+            + shell_patch(_lid_grid(34.5, 58.0, 6.0, wing=3.0), 0.0008, 0.00016, PORCELAIN, piv, PORCELAIN))
+    llid = shell_patch(_lid_grid(-27.0, -17.5, 3.6, wing=2.0), 0.0008, 0.00018, PANEL_RIM, piv, TITANIUM)
+    return shell_patch(brow_g, 0.0010, 0.00022, BROW_DARK, rim_col=BAFFLE_DARK), ulid, llid, piv, shell_patch(comm_g, 0.0014, 0.00028, BAFFLE_DARK, rim_col=BAFFLE_DARK), jaw_all

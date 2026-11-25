@@ -8,10 +8,11 @@ if __package__ in (None, ''):
 
 from tools.render import csg  # noqa: E402
 
-SHELL_CF, PANEL_RIM, SEAM_SILVER, CHASSIS_CF, TITANIUM = (242, 245, 250), (62, 68, 80), (196, 202, 212), (24, 28, 36), (176, 182, 194)
-ANODIZED, SERVO_CASE, HORN_BRASS, MESH_PEARL = (226, 48, 178), (28, 32, 40), (206, 168, 84), (228, 232, 240)
-NECK_SKIN, OPTIC_DARK, OPTIC_GLASS, OPTIC_SCLERA = (48, 52, 62), (10, 14, 22), (42, 168, 248), (234, 238, 246)
-BAFFLE_DARK, MIC_GOLD, BROW_DARK = (16, 19, 26), (218, 182, 92), (44, 48, 58)
+SHELL_CF, PANEL_RIM, SEAM_SILVER, CHASSIS_CF, TITANIUM = (244, 247, 252), (56, 62, 74), (206, 212, 224), (30, 34, 42), (182, 188, 200)
+ANODIZED, SERVO_CASE, HORN_BRASS, MESH_PEARL = (226, 48, 178), (28, 32, 40), (206, 168, 84), (242, 245, 250)
+NECK_SKIN, OPTIC_DARK, OPTIC_GLASS, OPTIC_SCLERA = (48, 52, 62), (8, 12, 22), (36, 186, 255), (248, 250, 255)
+BAFFLE_DARK, MIC_GOLD, BROW_DARK = (16, 19, 26), (224, 188, 96), (20, 24, 32)
+PORCELAIN, HEX_WALL = (230, 235, 244), (96, 104, 118)
 
 
 def np_mod():
@@ -282,20 +283,20 @@ def compute_heatsink():
 
 
 def modern_optics_local():
-    """Build expressive feminine anime-mecha ocular module with 10.1 mm sclera, 6.2 mm sapphire iris & catchlights."""
-    cam = (rev([(0.0, 0.0034), (0.0058, 0.0034), (0.0068, 0.0022), (0.0068, -0.0014),
-                (0.0058, -0.0020), (0.0050, -0.0016), (0.0, -0.0016)], col=CHASSIS_CF)
-           + rev([(0.0062, -0.0008), (0.0099, -0.0008), (0.0101, -0.0015), (0.0087, -0.0031),
-                  (0.0063, -0.0040), (0.0062, -0.0018)], fn=48, col=OPTIC_SCLERA)
-           + rev([(0.0058, -0.0018), (0.0063, -0.0018), (0.0063, -0.0040), (0.0058, -0.0042)], fn=44, col=(26, 48, 86))
-           + rev([(0.0025, -0.0016), (0.0058, -0.0016), (0.0058, -0.0042), (0.0041, -0.0046), (0.0025, -0.0047)],
+    """Build flush expressive anime-gynoid eye module with 9.4 mm sclera, 7.3 mm sapphire-cyan iris and catchlights."""
+    cam = (rev([(0.0, 0.0030), (0.0056, 0.0030), (0.0066, 0.0018), (0.0066, -0.0012),
+                (0.0056, -0.0018), (0.0048, -0.0014), (0.0, -0.0014)], col=CHASSIS_CF)
+           + rev([(0.0070, -0.0006), (0.0092, -0.0006), (0.0094, -0.0013), (0.0085, -0.0026),
+                  (0.0073, -0.0033), (0.0070, -0.0015)], fn=48, col=OPTIC_SCLERA)
+           + rev([(0.0065, -0.0015), (0.0073, -0.0015), (0.0073, -0.0033), (0.0065, -0.0038)], fn=44, col=(14, 42, 108))
+           + rev([(0.0036, -0.0014), (0.0065, -0.0014), (0.0065, -0.0038), (0.0050, -0.0043), (0.0036, -0.0045)],
                  fn=48, col=OPTIC_GLASS)
-           + rev([(0.0018, -0.0016), (0.0025, -0.0016), (0.0025, -0.0047), (0.0018, -0.0048)], fn=36, col=(164, 234, 255))
-           + rev([(0.0, -0.0016), (0.0018, -0.0016), (0.0018, -0.0048), (0.0, -0.0049)], fn=32, col=OPTIC_DARK)
-           + rev([(0.0, -0.0044), (0.00105, -0.0044), (0.00105, -0.00496), (0.00048, -0.00514), (0.0, -0.00518)],
-                 at=(0.0018, 0.0017), fn=18, col=(252, 254, 255))
-           + rev([(0.0, -0.0044), (0.00052, -0.0044), (0.00052, -0.00493), (0.0, -0.00508)],
-                 at=(-0.0016, -0.0017), fn=14, col=(244, 249, 255))
+           + rev([(0.0022, -0.0014), (0.0036, -0.0014), (0.0036, -0.0045), (0.0022, -0.0047)], fn=40, col=(168, 244, 255))
+           + rev([(0.0, -0.0014), (0.0022, -0.0014), (0.0022, -0.0047), (0.0, -0.0048)], fn=32, col=OPTIC_DARK)
+           + rev([(0.0, -0.0042), (0.00144, -0.0042), (0.00144, -0.00478), (0.00068, -0.00502), (0.0, -0.00506)],
+                 at=(0.0023, 0.0020), fn=20, col=(255, 255, 255))
+           + rev([(0.0, -0.0042), (0.00072, -0.0042), (0.00072, -0.00474), (0.0, -0.00492)],
+                 at=(-0.0020, -0.0020), fn=16, col=(216, 250, 255))
            + csg.extrude(csg.filleted2d(csg.box2d((-0.0011, 0.0011), (0.0054, 0.0074)), r=0.00038),
                          a=0.0006, b=0.0026, axis=2, colour=TITANIUM, chamfer=0.0003).tris())
     ring = rev(csg.filleted2d([(0.0073, -0.0012), (0.0084, -0.0012), (0.0084, 0.0013), (0.0073, 0.0013)],
@@ -346,18 +347,46 @@ def micro_servo(at, axis, ang, hlen=0.0058, hdir=(0.0, 0.0, 1.0), dual=False, sg
 
 
 def ear_microphones():
-    """Build concentric circular binaural mecha ear-pods flush on the temples."""
-    ye, ze = 0.093, 0.004
+    """Build anime-mecha concentric binaural ear-pods with luminous cyan halo and gold ring."""
+    ye, ze = 0.095, 0.002
     outer = rev([(0.0156, 0.0615), (0.0156, 0.0692), (0.0192, 0.0702), (0.0206, 0.0686),
                  (0.0206, 0.0610), (0.0188, 0.0598), (0.0156, 0.0615)], 0, (ye, ze), 48, SHELL_CF)
-    inner_t = rev([(0.0102, 0.0640), (0.0102, 0.0688), (0.0128, 0.0694), (0.0138, 0.0682), (0.0138, 0.0640)], 0, (ye, ze), 40, TITANIUM)
-    accent = rev([(0.0138, 0.0668), (0.0154, 0.0676), (0.0154, 0.0652), (0.0138, 0.0652)], 0, (ye, ze), 44, MIC_GOLD)
-    holes = [csg.circle2d(0.0014, fn=12, at=(ye + 0.0068 * math.cos(math.radians(60.0 * k)), ze + 0.0068 * math.sin(math.radians(60.0 * k))))
+    inner_t = rev([(0.0098, 0.0640), (0.0098, 0.0688), (0.0124, 0.0694), (0.0134, 0.0682), (0.0134, 0.0640)], 0, (ye, ze), 40, TITANIUM)
+    cyan = rev([(0.0134, 0.0666), (0.0146, 0.0676), (0.0146, 0.0652), (0.0134, 0.0652)], 0, (ye, ze), 44, OPTIC_GLASS)
+    accent = rev([(0.0146, 0.0668), (0.0156, 0.0674), (0.0156, 0.0652), (0.0146, 0.0652)], 0, (ye, ze), 44, MIC_GOLD)
+    holes = [csg.circle2d(0.0014, fn=12, at=(ye + 0.0064 * math.cos(math.radians(60.0 * k)), ze + 0.0064 * math.sin(math.radians(60.0 * k))))
              for k in range(6)] + [csg.circle2d(0.0032, fn=20, at=(ye, ze))]
     baffle = csg.extrude(csg.circle2d(0.0155, fn=40, at=(ye, ze)), holes=holes, a=0.0645, b=0.0662, axis=0, colour=BAFFLE_DARK, chamfer=0.0003).tris()
     core = rev([(0.0, 0.0645), (0.0030, 0.0645), (0.0030, 0.0678), (0.0018, 0.0684), (0.0, 0.0684)], 0, (ye, ze), 28, MIC_GOLD)
-    left = outer + inner_t + accent + baffle + core
+    left = outer + inner_t + cyan + accent + baffle + core
     return {'left_ear_mic': left, 'right_ear_mic': mirror_x(left)}
+
+
+def piston(p0, p1, r_rod=0.0015, r_bar=0.0023):
+    """Build straight machined titanium telescoping piston with anodized champagne-gold clevis collars."""
+    np = np_mod()
+    a, b = np.asarray(p0, float), np.asarray(p1, float)
+    d = b - a
+    ln = float(np.linalg.norm(d))
+    if ln < 0.006:
+        return []
+    u, cr, cb, cg = d / ln, csg.circle2d(r_rod, fn=14), csg.circle2d(r_bar, fn=16), csg.circle2d(r_bar + 0.0005, fn=16)
+    return (csg.sweep(cr, [a, b], chamfer_ends=0.0004, colour=TITANIUM).tris()
+            + csg.sweep(cb, [a + 0.14 * ln * u, a + 0.62 * ln * u], chamfer_ends=0.0005, colour=PANEL_RIM).tris()
+            + csg.sweep(cg, [a + 0.10 * ln * u, a + 0.18 * ln * u], chamfer_ends=0.0003, colour=MIC_GOLD).tris()
+            + csg.sweep(cg, [a + 0.58 * ln * u, a + 0.66 * ln * u], chamfer_ends=0.0003, colour=MIC_GOLD).tris()
+            + csg.sweep(cg, [a + 0.86 * ln * u, a + 0.94 * ln * u], chamfer_ends=0.0003, colour=MIC_GOLD).tris())
+
+
+def rotary_hub(at_x, at_y, at_z):
+    """Build gleaming machined titanium and champagne-gold temple rotary actuator hub."""
+    base = rev([(0.0032, at_x - 0.0022), (0.0032, at_x + 0.0028), (0.0092, at_x + 0.0028),
+                (0.0102, at_x + 0.0016), (0.0102, at_x - 0.0016), (0.0086, at_x - 0.0022)], 0, (at_y, at_z), 32, TITANIUM)
+    gold = rev([(0.0052, at_x + 0.0020), (0.0052, at_x + 0.0038), (0.0078, at_x + 0.0038),
+                (0.0082, at_x + 0.0028), (0.0082, at_x + 0.0020)], 0, (at_y, at_z), 28, MIC_GOLD)
+    core = rev([(0.0, at_x - 0.0014), (0.0036, at_x - 0.0014), (0.0036, at_x + 0.0042),
+                (0.0020, at_x + 0.0046), (0.0, at_x + 0.0046)], 0, (at_y, at_z), 24, CHASSIS_CF)
+    return base + gold + core
 
 
 def neck_band(yn, tri):
