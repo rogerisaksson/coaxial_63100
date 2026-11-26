@@ -24,6 +24,11 @@ typedef struct
   const double *feed;
   const double *kp;
   const double *limit;
+  int         (*ahead_fn)(void (*)(const void *, void *), const void *, void *);
+  void        (*stage)(const void *, void *);
+  const void   *model;
+  void         *data;
+  int          *ahead;
   int           quat_at;  /**< y's offsets: the robot's turn, spin, specific force, angles, rates, motors' angles, torques, link */
   int           gyro_at;
   int           accel_at;

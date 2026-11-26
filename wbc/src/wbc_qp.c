@@ -44,11 +44,11 @@ static int argmin(const double *a, int n)
 
   for (int i = 1; i < n; i++)
   {
-    if (isnan(a[best]))
+    if (a[best] != a[best])
     {
       return best;
     }
-    if (isnan(a[i]) || a[i] < a[best])
+    if ((a[i] != a[i]) || (a[i] < a[best]))
     {
       best = i;
     }
@@ -305,12 +305,14 @@ int wbc_qp_solve(const wbc_blas_t *l, const double *H, const double *g, const do
                  const int *warm, int nwarm, int most, double *x, int *act, int *nact, double *u, double *work)
 {
   double *w = work;
-  double *As = carve(&w, m * n), *NA = carve(&w, m * n), *bs = carve(&w, m + 1), *d = carve(&w, m + 1);
-  double *norm = carve(&w, m + 1), *met = carve(&w, m + 1), *sv = carve(&w, m + 1);
+  double *restrict As = carve(&w, m * n), *restrict NA = carve(&w, m * n), *restrict bs = carve(&w, m + 1);
+  double *restrict d = carve(&w, m + 1), *restrict norm = carve(&w, m + 1), *restrict met = carve(&w, m + 1);
+  double *restrict sv = carve(&w, m + 1);
   double *Lc = carve(&w, n * n), *Li = carve(&w, n * n), *Nq = carve(&w, n * n), *X = carve(&w, n * n);
   double *Qb = carve(&w, n * n), *Jb = carve(&w, n * n), *Rf = carve(&w, n * n);
-  double *x0 = carve(&w, n), *dv = carve(&w, n), *z = carve(&w, n), *r = carve(&w, n), *t = carve(&w, n);
-  double *ratio = carve(&w, n), *dg = carve(&w, n), *gw = carve(&w, 4 * n * n + 8), *qw = carve(&w, 2 * n * n + 65 * n + 64);
+  double *restrict x0 = carve(&w, n), *restrict dv = carve(&w, n), *restrict z = carve(&w, n);
+  double *restrict r = carve(&w, n), *restrict t = carve(&w, n), *restrict ratio = carve(&w, n);
+  double *restrict dg = carve(&w, n), *gw = carve(&w, 4 * n * n + 8), *qw = carve(&w, 2 * n * n + 65 * n + 64);
   int     mk = 0, got;
   dual_t  s;
 

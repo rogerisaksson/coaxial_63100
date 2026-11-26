@@ -124,16 +124,18 @@ typedef struct
  * stamped. */
 void wbc_world_rated(wbc_steps_t *s, double span);
 
-/** Before MuJoCo's step's second half `since` s past the stamp, its first half done: the robot's drives' torques into
-    ctrl - on its boxes' rotors asked ahead and their rates past the links where boxes are laid (Boxes.ahead) -,
-    their motors' (wbc_pass.c), ctrl what its boxes pass on to their links (Boxes.step), and the world's contacts
-    stuck on the rows the first half laid (wbc_world_stuck). */
+/** Before MuJoCo's step's second half `since` s past the stamp: the robot's drives' torques, motors and gearboxes
+    alone (wbc_world_drives, reading nothing mj_step1 writes), then the contacts stuck on the rows the first half
+    laid (wbc_world_stuck_step); wbc_world_before runs both. */
+void wbc_world_drives(wbc_steps_t *s, double since);
+void wbc_world_stuck_step(wbc_steps_t *s);
 void wbc_world_before(wbc_steps_t *s, double since);
 
-/** After it: the world's contacts' slips yielded (wbc_world_slipped), the robot's boxes' rotors past their links
-    where they landed (Boxes.moved), its drives' meters on its rotors' speeds (wbc_pass_metered), its DC link a
-    step on (dclink.step), its room's switch toggled where a hand of its own touches it, not twice within its dead
-    time (room.touched). */
+/** After MuJoCo's step: the contacts' slips yielded and the room's switch read off its contacts
+    (wbc_world_contacts_after, before the next step's mj_step1), then the boxes moved, the drives' meters and the
+    DC link stepped (wbc_world_rest_after); wbc_world_after runs both. */
+void wbc_world_contacts_after(wbc_steps_t *s);
+void wbc_world_rest_after(wbc_steps_t *s);
 void wbc_world_after(wbc_steps_t *s);
 
 /** Whether any of MuJoCo's contacts now pairs a geom `a` marks with one `b` marks under `below` m up

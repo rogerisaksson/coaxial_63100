@@ -82,9 +82,11 @@ def typed():
         size.restype = _i
         if size() != ctypes.sizeof(mirror):
             raise ValueError('wbc_%s_t is %d bytes, its mirror %d' % (name, size(), ctypes.sizeof(mirror)))
-    for name, args, back in (('rated', [_vp, _d], None), ('before', [_vp, _d], None), ('after', [_vp], None),
-                             ('paired', [_vp, _vp, _vp, _d], _i), ('ahead', [_vp, _vp, _vp], _i), ('behind', [], _i),
-                             ('held', [_vp, _vp], _i), ('stuck', [_vp, _vp], None), ('slipped', [_vp, _vp], None)):
+    for name, args, back in (('rated', [_vp, _d], None), ('drives', [_vp, _d], None), ('stuck_step', [_vp], None),
+                             ('before', [_vp, _d], None), ('contacts_after', [_vp], None), ('rest_after', [_vp], None),
+                             ('after', [_vp], None), ('paired', [_vp, _vp, _vp, _d], _i), ('ahead', [_vp, _vp, _vp], _i),
+                             ('behind', [], _i), ('held', [_vp, _vp], _i), ('stuck', [_vp, _vp], None),
+                             ('slipped', [_vp, _vp], None)):
         fn = getattr(lib, 'wbh_world_' + name)
         fn.argtypes, fn.restype = args, back
     return lib
@@ -165,6 +167,11 @@ def laid(w):
     at = ctypes.addressof(s)
     rated, before, after, paired = (functools.partial(getattr(lib, 'wbh_world_' + k), at)
                                     for k in ('rated', 'before', 'after', 'paired'))
+    stg = staged()
+    s._split = (functools.partial(lib.wbh_world_drives, at), functools.partial(lib.wbh_world_stuck_step, at),
+                functools.partial(lib.wbh_world_contacts_after, at), functools.partial(lib.wbh_world_rest_after, at),
+                None if stg is None else functools.partial(stg[0], stg[2], w.model._address, w.data._address),
+                None if stg is None else stg[1])
     return at, rated, before, after, paired, s, (link, masks, boxes, held)
 
 

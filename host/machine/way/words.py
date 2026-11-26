@@ -236,14 +236,23 @@ def _refreshed(g, er):
     laid from afar or nudged loose as the robot arrives, its edge and heading update before the robot backs and
     sits - unrefreshed, a low chair glimpsed 0.09 m shallow or a loose chair turned and nudged 0.09 m deeper left
     the robot's hips on its lip."""
-    if not g.get('things') or er['through']:
+    things = g.get('things')
+    if not things or er['through']:
+        return
+    suite = g.get('suite')
+    state = (er['kind'], er['x_dock'], er['z_dock'], er['nx'], er['nz'], er.get('thing'), er.get('top'),
+             er.get('off'), id(suite))
+    kept = er.get('_refreshed_key')
+    if kept is not None and kept[0] == state and len(kept[1]) == len(things) and all(map(operator.is_, kept[1], things)):
         return
     figure, voxels, se2, stride, seated, affordance, dock, furniture, peek = _refreshing()
     box = furniture.nearest(g, er['kind'], (er['x_dock'], er['z_dock']), thing=er.get('thing'))[6]
     if box is None or affordance.distance(box, (er['x_dock'], er['z_dock'])) > stride.STRIDE_M:
+        er['_refreshed_key'] = (state, tuple(things))
         return
     top = peek.level(er['kind'], box)
     if 'top' in er and abs(top - er['top']) > 2.0 * voxels.CELL_M:
+        er['_refreshed_key'] = (state, tuple(things))
         return
     hn0 = libm.arctan2(er['nx'], er['nz'])
     faces = _faces(g, er['kind'], box)
@@ -257,13 +266,14 @@ def _refreshed(g, er):
     mx, mz = float(box[1][0]) + edge * nx, float(box[1][2]) + edge * nz
     was = er['off'] if 'off' in er else (er['x_dock'] - mx) * tx + (er['z_dock'] - mz) * tz
     off = max(-lat, min(lat, was))
-    suite = g.get('suite')
     s_key = (er['kind'], top, id(suite))
     standoff = er['standoff'] if er.get('_standoff_key') == s_key else dock.standoff(er['kind'], top, suite)
     er.update(x_dock=mx + off * tx, z_dock=mz + off * tz, nx=nx, nz=nz, tx=tx, tz=tz,
               hdd=se2.wrap_angle(hn + _FACES.get(er['kind'], 0.0)), lat_tol=max(0.0, lat - abs(off)),
               top=top, standoff=standoff, _standoff_key=s_key,
               thing=box[4] if len(box) > 4 else er.get('thing'))
+    er['_refreshed_key'] = ((er['kind'], er['x_dock'], er['z_dock'], er['nx'], er['nz'], er.get('thing'),
+                             er.get('top'), er.get('off'), id(suite)), tuple(things))
 
 
 def _arrived(g, gym, er, c, heard_fn, _say_fn):

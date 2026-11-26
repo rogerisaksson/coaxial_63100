@@ -32,7 +32,7 @@ static void mv(const wbc_blas_t *l, const double *a, const double *x, double *y,
 }
 
 /** Columns `from` to `to` of `a` (m rows of `cols`) as a C-ordered copy (numpy's ascontiguousarray of a slice). */
-static void sliced(const double *a, int m, int cols, int from, int to, double *out)
+static void sliced(const double *restrict a, int m, int cols, int from, int to, double *restrict out)
 {
   for (int i = 0; i < m; i++)
   {
@@ -44,7 +44,7 @@ static void sliced(const double *a, int m, int cols, int from, int to, double *o
 }
 
 /** machine.stack.chain_qp.framed: `M` (3k rows of `cols`) with each contact's three rows turned into its frame. */
-static void framed(const double *Q, int k, const double *M, int cols, double *out)
+static void framed(const double *restrict Q, int k, const double *restrict M, int cols, double *restrict out)
 {
   for (int i = 0; i < k; i++)
   {
@@ -202,12 +202,14 @@ static void affine(const wbc_step_t *p, wbc_maps_t *m, const double *held, const
 {
   const wbc_blas_t *l = &p->blas;
   const int         np_ = m->np, nd = m->nd, nz = m->nz, k3 = m->k3, m1 = m->m1, nh = ng - nd, k = k3 / 3;
-  double           *TS = carve(w, k3 * nz + 1), *MpgD = carve(w, np_ * nd), *MpgH = carve(w, np_ * nh + 1);
-  double           *JgD = carve(w, k3 * nd + 1), *JgH = carve(w, k3 * nh + 1), *JpT = carve(w, np_ * k3 + 1);
-  double           *t = carve(w, np_), *t2 = carve(w, np_), *JT = carve(w, np_ * nz + 1), *Cx = carve(w, k3 * nd + 1);
-  double           *Cz = carve(w, k3 * nz + 1), *c0 = carve(w, k3 + 1), *c1 = carve(w, k3 + 1), *RGD = carve(w, m1 * nd + 1);
-  double           *RGH = carve(w, m1 * nh + 1), *tm = carve(w, m1 + 1), *MAP = carve(w, nd * np_), *MAD = carve(w, nd * nd);
-  double           *MAH = carve(w, nd * nh + 1), *JAT = carve(w, nd * k3 + 1), *td = carve(w, nd), *tz = carve(w, nd * nz + 1);
+  double *restrict TS = carve(w, k3 * nz + 1), *restrict MpgD = carve(w, np_ * nd), *restrict MpgH = carve(w, np_ * nh + 1);
+  double *restrict JgD = carve(w, k3 * nd + 1), *restrict JgH = carve(w, k3 * nh + 1), *restrict JpT = carve(w, np_ * k3 + 1);
+  double *restrict t = carve(w, np_), *restrict t2 = carve(w, np_), *restrict JT = carve(w, np_ * nz + 1);
+  double *restrict Cx = carve(w, k3 * nd + 1), *restrict Cz = carve(w, k3 * nz + 1), *restrict c0 = carve(w, k3 + 1);
+  double *restrict c1 = carve(w, k3 + 1), *restrict RGD = carve(w, m1 * nd + 1), *restrict RGH = carve(w, m1 * nh + 1);
+  double *restrict tm = carve(w, m1 + 1), *restrict MAP = carve(w, nd * np_), *restrict MAD = carve(w, nd * nd);
+  double *restrict MAH = carve(w, nd * nh + 1), *restrict JAT = carve(w, nd * k3 + 1), *restrict td = carve(w, nd);
+  double *restrict tz = carve(w, nd * nz + 1);
   double            QT[9];
 
   m->p0 = carve(w, np_);

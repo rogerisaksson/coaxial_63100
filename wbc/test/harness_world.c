@@ -8,6 +8,7 @@
 #define API __declspec(dllexport)
 #else
 #include <pthread.h>
+#include <sched.h>
 #define API
 #endif
 
@@ -96,12 +97,19 @@ API int wbh_world_behind(void)
 #else
     if (__atomic_load_n(&beside.state, __ATOMIC_ACQUIRE) != 2)
     {
-      (void)pthread_mutex_lock(&beside.lock);
-      while (__atomic_load_n(&beside.state, __ATOMIC_ACQUIRE) != 2)
+      for (int spin = 0; (spin < 128) && (__atomic_load_n(&beside.state, __ATOMIC_ACQUIRE) != 2); spin++)
       {
-        (void)pthread_cond_wait(&beside.turn, &beside.lock);
+        (void)sched_yield();
       }
-      (void)pthread_mutex_unlock(&beside.lock);
+      if (__atomic_load_n(&beside.state, __ATOMIC_ACQUIRE) != 2)
+      {
+        (void)pthread_mutex_lock(&beside.lock);
+        while (__atomic_load_n(&beside.state, __ATOMIC_ACQUIRE) != 2)
+        {
+          (void)pthread_cond_wait(&beside.turn, &beside.lock);
+        }
+        (void)pthread_mutex_unlock(&beside.lock);
+      }
     }
 #endif
     __atomic_store_n(&beside.state, 0, __ATOMIC_RELAXED);
@@ -195,9 +203,29 @@ API void wbh_world_rated(wbc_steps_t *s, double span)
   wbc_world_rated(s, span);
 }
 
+API void wbh_world_drives(wbc_steps_t *s, double since)
+{
+  wbc_world_drives(s, since);
+}
+
+API void wbh_world_stuck_step(wbc_steps_t *s)
+{
+  wbc_world_stuck_step(s);
+}
+
 API void wbh_world_before(wbc_steps_t *s, double since)
 {
   wbc_world_before(s, since);
+}
+
+API void wbh_world_contacts_after(wbc_steps_t *s)
+{
+  wbc_world_contacts_after(s);
+}
+
+API void wbh_world_rest_after(wbc_steps_t *s)
+{
+  wbc_world_rest_after(s);
 }
 
 API void wbh_world_after(wbc_steps_t *s)

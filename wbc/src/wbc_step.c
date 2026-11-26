@@ -22,18 +22,20 @@ static double pymin(double a, double b)
 /** numpy's clip: nan kept, a bound where the value is outside. */
 static double clipped(double x, double lo, double hi)
 {
-  const double m = isnan(x) ? x : (x > lo ? x : lo);
+  const double m = (x != x) ? x : (x > lo ? x : lo);
 
-  return isnan(m) ? m : (m < hi ? m : hi);
+  return (m != m) ? m : (m < hi ? m : hi);
 }
 
 /** The drives' torques and every acceleration at the unknowns `u` (step's torques). */
-static void torques(const wbc_step_t *p, const double *full, const double *full0, const double stance[2],
-                    const double *u, double alpha, int nu, double *tau, double *qdd, double *work)
+static void torques(const wbc_step_t *p, const double *restrict full, const double *restrict full0,
+                    const double stance[2], const double *restrict u, double alpha, int nu, double *restrict tau,
+                    double *restrict qdd, double *restrict work)
 {
   const wbc_blas_t *l = &p->blas;
   const int         n = p->n, nd = p->nd;
-  double           *q = work, *Mq = q + n, *Ja = Mq + n, *y = Ja + 6 * nd, x6[6];
+  double *restrict  q = work, *restrict Mq = q + n, *restrict Ja = Mq + n, *restrict y = Ja + 6 * nd;
+  double            x6[6];
 
   wbc_matmul(l, VIEW(full, nu, 1), VIEW(u, 1, 0), q, 1, 0, n, nu, 1);
   for (int i = 0; i < n; i++)
@@ -100,14 +102,16 @@ double wbc_step_shrunk(int nd, const double *tau, const double *tau0, const doub
 }
 
 /** One row block laid: `rows` of R (at its strides) weighed, its c, its c0 or none. */
-static int lay(double *R0, double *rhs, double *rhs0, int at, int nu, wbc_view_t R, int rows, const double *c,
-               double weight, const double *c0)
+static int lay(double *restrict R0, double *restrict rhs, double *restrict rhs0, int at, int nu, wbc_view_t R,
+               int rows, const double *restrict c, double weight, const double *restrict c0)
 {
+  const double *restrict r_at = R.at;
+
   for (int i = 0; i < rows; i++)
   {
     for (int j = 0; j < nu; j++)
     {
-      R0[(at + i) * nu + j] = weight * R.at[i * R.s0 + j * R.s1];
+      R0[(at + i) * nu + j] = weight * r_at[i * R.s0 + j * R.s1];
     }
     rhs[at + i] = weight * c[i];
     rhs0[at + i] = c0 ? weight * c0[i] : 0.0;
@@ -121,14 +125,16 @@ static int stepped(wbc_step_t *p)
   const wbc_blas_t *l = &p->blas;
   const int         n = p->n, nd = p->nd, nu0 = p->nu0, nc = p->nc, k3 = 3 * nc, nu = nu0 + k3;
   const double      G = p->g, mass = p->mass;
-  double           *T = p->work, *E = T + 6 * n, *t0 = E + n * nu, *a6 = t0 + n, *Gm = a6 + nu, *P = Gm + 6 * nu;
-  double           *full = P + 6 * nu, *full0 = full + n * nu, *ME = full0 + n, *sumf = ME + 6 * nu;
-  double           *about = sumf + 3 * nu, *R0 = about + 3 * nu, *rhs = R0 + WBC_STEP_R * nu, *rhs0 = rhs + WBC_STEP_R;
-  double           *H0 = rhs0 + WBC_STEP_R, *g0 = H0 + nu * nu, *kin = g0 + nu, *FM = kin + nu * nu;
-  double           *S = FM + n * nu, *r = S + 4 * nu * WBC_STEP_C, *r0 = r + 4 * WBC_STEP_C, *part = r0 + 4 * WBC_STEP_C;
-  double           *spare = part + nu, *swung = spare + nu, *moment = swung + nu, *whole = moment + nu;
-  double           *stood = whole + nu, *u = stood + nu, *tau = u + nu, *tau0 = tau + nd, *carried = tau0 + nd;
-  double           *qdd = carried + nd, *limit = qdd + n, *row = limit + nd, *rest = row + 3 * nu;
+  double *restrict  T = p->work, *restrict E = T + 6 * n, *restrict t0 = E + n * nu, *restrict a6 = t0 + n;
+  double *restrict  Gm = a6 + nu, *restrict P = Gm + 6 * nu, *restrict full = P + 6 * nu, *restrict full0 = full + n * nu;
+  double *restrict  ME = full0 + n, *restrict sumf = ME + 6 * nu, *restrict about = sumf + 3 * nu;
+  double *restrict  R0 = about + 3 * nu, *restrict rhs = R0 + WBC_STEP_R * nu, *restrict rhs0 = rhs + WBC_STEP_R;
+  double *restrict  H0 = rhs0 + WBC_STEP_R, *restrict g0 = H0 + nu * nu, *restrict kin = g0 + nu, *restrict FM = kin + nu * nu;
+  double *restrict  S = FM + n * nu, *restrict r = S + 4 * nu * WBC_STEP_C, *restrict r0 = r + 4 * WBC_STEP_C;
+  double *restrict  part = r0 + 4 * WBC_STEP_C, *restrict spare = part + nu, *restrict swung = spare + nu;
+  double *restrict  moment = swung + nu, *restrict whole = moment + nu, *restrict stood = whole + nu;
+  double *restrict  u = stood + nu, *restrict tau = u + nu, *restrict tau0 = tau + nd, *restrict carried = tau0 + nd;
+  double *restrict  qdd = carried + nd, *restrict limit = qdd + n, *restrict row = limit + nd, *restrict rest = row + 3 * nu;
   double            stance[2], asked[2], want[WBC_STEP_D], MT[36], Ai[36], nAi[36], mt[6], p0[6], c[16], c0[16];
   double            along[WBC_STEP_C], slips[3 * WBC_STEP_C], caps[WBC_STEP_C], borne[3] = {0.0};
   double            lo[WBC_STEP_D], hi[WBC_STEP_D], nlimit[WBC_STEP_D], zeros[WBC_STEP_D] = {0.0};

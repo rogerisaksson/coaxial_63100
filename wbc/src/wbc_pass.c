@@ -141,10 +141,15 @@ void wbc_pass_tick(wbc_tick_t *t, double dt, double now, double wo, double limp)
 
   t->surety = ys;
   wbc_pass_drives(p, dt, wo_s, wbc_cube(wo_s), drv, stood0, stood1, (k > t->hop_k) ? 1 : 0, 1);
-  for (int i = 0; i < n; i++)
   {
-    p->ref_q[i] = npminimum(npmaximum(p->ref_q[i], t->rng[2 * i]), t->rng[2 * i + 1]);
-    t->limit[i] = t->kept[i] * rest;
+    double *restrict       rq = p->ref_q, *restrict lim = t->limit;
+    const double *restrict rng = t->rng, *restrict kept = t->kept;
+
+    for (int i = 0; i < n; i++)
+    {
+      rq[i] = npminimum(npmaximum(rq[i], rng[2 * i]), rng[2 * i + 1]);
+      lim[i] = kept[i] * rest;
+    }
   }
   left = t->left + dt * (t->wep_fill * (1.0 - held) - held);
   left = (left > 0.0) ? left : 0.0;
@@ -158,24 +163,12 @@ void wbc_pass_ctrl(wbc_world_t *w, double span, const double *ahead, const doubl
 
   for (int i = 0; i < n; i++)
   {
-    double ref = w->target[i] + w->rate[i] * span;
-    double seen = (w->qpos[w->qadr[i]] + w->wound * w->delta[i]) + w->zero[i];
-    double seen_d = w->qvel[w->vadr[i]];
-    double t;
+    const double ref = w->target[i] + w->rate[i] * span + (ahead != NULL ? ahead[i] : 0.0);
+    const double seen = (w->qpos[w->qadr[i]] + w->wound * w->delta[i]) + w->zero[i];
+    const double seen_d = w->qvel[w->vadr[i]] + (wrate != NULL ? wrate[i] : 0.0);
+    double       t = (w->gains[2 * i] * (ref - seen) + w->gains[2 * i + 1] * (w->rate[i] - seen_d)) + w->feed[i];
 
-    if (ahead != NULL)
-    {
-      ref = ref + ahead[i];
-    }
-    if (wrate != NULL)
-    {
-      seen_d = seen_d + wrate[i];
-    }
-    t = (w->gains[2 * i] * (ref - seen) + w->gains[2 * i + 1] * (w->rate[i] - seen_d)) + w->feed[i];
-    if (w->shorted[i] || w->cut[i])
-    {
-      t = 0.0;
-    }
+    t = ((w->shorted[i] | w->cut[i]) != 0U) ? 0.0 : t;
     tau[i] = t;
     w->ctrl[i] = npclip(t, -w->limit[i], w->limit[i]);
   }
@@ -194,14 +187,18 @@ void wbc_pass_ctrl(wbc_world_t *w, double span, const double *ahead, const doubl
 
 void wbc_pass_motor(wbc_world_t *w, double step_s)
 {
-  const int n = w->n < WBC_PASS_MAX ? w->n : WBC_PASS_MAX;
-  double    held[WBC_PASS_MAX], squared[WBC_PASS_MAX];
+  const int              n = w->n < WBC_PASS_MAX ? w->n : WBC_PASS_MAX;
+  double *restrict       motor = w->motor;
+  const double *restrict ctrl = w->ctrl;
+  _Alignas(64) double    held[WBC_PASS_MAX], squared[WBC_PASS_MAX];
 
   for (int i = 0; i < n; i++)
   {
-    w->motor[i] = w->ctrl[i];
-    held[i] = fabs(w->motor[i]);
-    squared[i] = w->motor[i] * w->motor[i];
+    const double m = ctrl[i];
+
+    motor[i] = m;
+    held[i] = fabs(m);
+    squared[i] = m * m;
   }
   w->effort += npsum(held, n) * step_s;
   w->heat += wbc_dot(w->blas, w->loss, 1, squared, 1, n) * step_s;
@@ -249,14 +246,16 @@ int wbc_pass_paired(const unsigned char *geom, const unsigned char *pos, ptrdiff
   return paired;
 }
 
-void wbc_pass_averaged(const wbc_world_t *w, double k, double *torque, double *power)
+void wbc_pass_averaged(const wbc_world_t *w, double k, double *restrict torque, double *restrict power)
 {
-  const int n = w->n < WBC_PASS_MAX ? w->n : WBC_PASS_MAX;
+  const int              n = w->n < WBC_PASS_MAX ? w->n : WBC_PASS_MAX;
+  const double *restrict ctrl = w->ctrl, *restrict qvel = w->qvel;
+  const int *restrict    vadr = w->vadr;
 
   for (int i = 0; i < n; i++)
   {
-    torque[i] += k * (w->ctrl[i] - torque[i]);
-    power[i] += k * (w->ctrl[i] * w->qvel[w->vadr[i]] - power[i]);
+    torque[i] += k * (ctrl[i] - torque[i]);
+    power[i] += k * (ctrl[i] * qvel[vadr[i]] - power[i]);
   }
 }
 

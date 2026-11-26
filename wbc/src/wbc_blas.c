@@ -164,9 +164,10 @@ void wbc_matmul(const wbc_blas_t *l, wbc_view_t a, wbc_view_t b, double *o, ptrd
 }
 
 /** dgesv on Fortran-ordered copies of a and b, as umath_linalg's linearize lays them. */
-static int gesv(const wbc_blas_t *l, wbc_view_t a, wbc_view_t b, int n, int nrhs, double *x, double *work)
+static int gesv(const wbc_blas_t *l, wbc_view_t a, wbc_view_t b, int n, int nrhs, double *restrict x, double *work)
 {
-  double *af = work, *bf = work + n * n;
+  double *restrict af = work, *restrict bf = work + n * n;
+  const double *restrict a_at = a.at, *restrict b_at = b.at;
   int64_t nn = n, nr = nrhs, info = 0, ipiv[MOST];
 
   if (n > MOST)
@@ -177,14 +178,14 @@ static int gesv(const wbc_blas_t *l, wbc_view_t a, wbc_view_t b, int n, int nrhs
   {
     for (int i = 0; i < n; i++)
     {
-      af[i + j * n] = a.at[i * a.s0 + j * a.s1];
+      af[i + j * n] = a_at[i * a.s0 + j * a.s1];
     }
   }
   for (int j = 0; j < nrhs; j++)
   {
     for (int i = 0; i < n; i++)
     {
-      bf[i + j * n] = b.at == NULL ? (double)(i == j) : b.at[i * b.s0 + j * b.s1];
+      bf[i + j * n] = b_at == NULL ? (double)(i == j) : b_at[i * b.s0 + j * b.s1];
     }
   }
   l->gesv(&nn, &nr, af, &nn, ipiv, bf, &nn, &info);
@@ -211,13 +212,15 @@ int wbc_inv(const wbc_blas_t *l, wbc_view_t a, int n, double *x, double *work)
 }
 
 /** a (m, q) view into Fortran order at `af`, m rows a column. */
-static void fortran(wbc_view_t a, int m, int q, double *af)
+static void fortran(wbc_view_t a, int m, int q, double *restrict af)
 {
+  const double *restrict a_at = a.at;
+
   for (int j = 0; j < q; j++)
   {
     for (int i = 0; i < m; i++)
     {
-      af[i + j * m] = a.at[i * a.s0 + j * a.s1];
+      af[i + j * m] = a_at[i * a.s0 + j * a.s1];
     }
   }
 }

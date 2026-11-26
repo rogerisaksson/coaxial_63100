@@ -32,7 +32,7 @@ static void mv(const wbc_blas_t *l, const double *a, const double *x, double *y,
 }
 
 /** machine.stack.chain_qp.framed of a vector (3k): each contact's three into its frame. */
-static void framed1(const double *Q, int k, const double *v, double *out)
+static void framed1(const double *restrict Q, int k, const double *restrict v, double *restrict out)
 {
   for (int i = 0; i < k; i++)
   {
@@ -43,18 +43,20 @@ static void framed1(const double *Q, int k, const double *v, double *out)
   }
 }
 
-int wbc_chain_rows(const wbc_step_t *p, const wbc_maps_t *m, const double *S, const int *width, const double *mu,
-                   const int *held, const int *stick, const int *mode, const double *st, const double *Jv, const double *f,
-                   const double *Q, const double *lo, const double *hi, double *H1, double *g1, double *G1, double *A,
-                   double *b, double **w)
+int wbc_chain_rows(const wbc_step_t *p, const wbc_maps_t *m, const double *restrict S, const int *width,
+                   const double *mu, const int *held, const int *stick, const int *mode, const double *st,
+                   const double *Jv, const double *f, const double *Q, const double *restrict lo,
+                   const double *restrict hi, double *restrict H1, double *restrict g1, double *restrict G1,
+                   double *restrict A, double *restrict b, double **w)
 {
   const wbc_blas_t *l = &p->blas;
   const int         nd = m->nd, nz = m->nz, nu = nd + nz, k3 = m->k3, k = k3 / 3, m1 = m->m1, most = m1 + k3 + k;
   const double      bleed = p->chain_bleed, w_stick = p->chain_w_stick, rh = sqrt(0.5), cos8 = sqrt(0.5 + 0.5 * rh);
   const double      w_pin = p->chain_w_pin / p->M[0];
   const double      oct[8][2] = {{1.0, 0.0}, {rh, rh}, {0.0, 1.0}, {-rh, rh}, {-1.0, 0.0}, {-rh, -rh}, {0.0, -1.0}, {rh, -rh}};
-  double           *L = carve(w, most * nu + 1), *e = carve(w, most + 1), *LT = carve(w, nu * most + 1);
-  double           *vl = carve(w, k3 + 1), *fl = carve(w, k3 + 1), *normal = carve(w, nu), *along = carve(w, nu);
+  double *restrict  L = carve(w, most * nu + 1), *restrict e = carve(w, most + 1), *restrict LT = carve(w, nu * most + 1);
+  double *restrict  vl = carve(w, k3 + 1), *restrict fl = carve(w, k3 + 1), *restrict normal = carve(w, nu);
+  double *restrict  along = carve(w, nu);
   int               ml = m1, ma = 0, any_static = 0;
 
   if (13 * k + 2 * nd + 1 > WBC_QP_M)

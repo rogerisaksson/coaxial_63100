@@ -211,9 +211,11 @@ ROWS = {
         },
         'wbc_chain_qp.c': {
             'affine': (1, 1),
+            'framed': (1, 1),
             'unknowns': (1, 1),
         },
         'wbc_chain_rows.c': {
+            'framed1': (1, 1),
             'wbc_chain_levels': (1, 1),
             'wbc_chain_rows': (1, 1),
         },
@@ -320,6 +322,7 @@ ROWS = {
         },
         'wbc_step.c': {
             'stepped': (2, 2),
+            'torques': (2, 2),
         },
         'wbc_stride.c': {
             'wbc_imp_reading': (1, 1),
@@ -387,10 +390,12 @@ ROWS = {
         },
         'wbc_chain_qp.c': {
             'affine': (1, 1, 1),
+            'framed': (1, 1, 1),
             'keyed': (0, 1, 1),
             'unknowns': (1, 1, 1),
         },
         'wbc_chain_rows.c': {
+            'framed1': (1, 1, 1),
             'wbc_chain_levels': (2, 2, 2),
             'wbc_chain_rows': (1, 1, 1),
         },
@@ -419,12 +424,13 @@ ROWS = {
             'columns': (1, 1, 1),
             'expect': (2, 2, 2),
             'lessened': (1, 1, 1),
+            'pushed': (1, 1, 1),
             'pushes': (1, 1, 2),
             'shared': (1, 1, 1),
             'split': (1, 1, 1),
             'stage': (1, 1, 1),
             'touches': (3, 3, 3),
-            'wbc_gmo_felt': (1, 1, 1),
+            'wbc_gmo_felt': (2, 2, 2),
             'wbc_gmo_step': (1, 1, 1),
         },
         'wbc_gmo_factor.c': {
@@ -465,6 +471,7 @@ ROWS = {
             'wbc_step_maps': (2, 2, 4),
         },
         'wbc_pass.c': {
+            'wbc_pass_averaged': (1, 1, 1),
             'wbc_pass_contacts': (1, 1, 1),
         },
         'wbc_patch.c': {
@@ -517,7 +524,9 @@ ROWS = {
             'wbc_stack_step': (3, 3, 3),
         },
         'wbc_step.c': {
+            'lay': (1, 1, 1),
             'stepped': (3, 4, 5),
+            'torques': (2, 3, 3),
         },
         'wbc_stride.c': {
             'wbc_imp_reading': (1, 1, 1),
@@ -592,11 +601,13 @@ ROWS = {
         },
         'wbc_chain_qp.c': {
             'affine': (2, 2, 2),
+            'framed': (1, 1, 1),
             'keyed': (0, 1, 1),
             'unknowns': (1, 1, 1),
             'wbc_chain_qp': (1, 1, 1),
         },
         'wbc_chain_rows.c': {
+            'framed1': (1, 1, 1),
             'wbc_chain_levels': (2, 2, 2),
             'wbc_chain_rows': (1, 1, 1),
         },
@@ -625,12 +636,13 @@ ROWS = {
             'columns': (1, 1, 1),
             'expect': (2, 2, 2),
             'lessened': (1, 1, 1),
+            'pushed': (1, 1, 1),
             'pushes': (1, 1, 2),
             'shared': (1, 1, 1),
             'split': (1, 1, 1),
             'stage': (1, 1, 1),
             'touches': (3, 3, 3),
-            'wbc_gmo_felt': (1, 1, 1),
+            'wbc_gmo_felt': (2, 2, 2),
             'wbc_gmo_step': (1, 1, 1),
         },
         'wbc_gmo_factor.c': {
@@ -672,6 +684,7 @@ ROWS = {
             'wbc_step_maps': (2, 2, 4),
         },
         'wbc_pass.c': {
+            'wbc_pass_averaged': (1, 1, 1),
             'wbc_pass_contacts': (1, 1, 1),
         },
         'wbc_patch.c': {
@@ -724,7 +737,9 @@ ROWS = {
             'wbc_stack_step': (3, 3, 3),
         },
         'wbc_step.c': {
+            'lay': (1, 1, 1),
             'stepped': (3, 4, 5),
+            'torques': (2, 3, 3),
         },
         'wbc_stride.c': {
             'wbc_imp_reading': (1, 1, 1),

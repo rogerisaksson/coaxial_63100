@@ -25,9 +25,9 @@ static double pymin(double a, double b)
 /** numpy's clip (clip.cpp): nan kept, a bound where the value is not inside it. */
 static double clipped(double x, double lo, double hi)
 {
-  const double m = isnan(x) ? x : (x > lo ? x : lo);
+  const double m = (x != x) ? x : (x > lo ? x : lo);
 
-  return isnan(m) ? m : (m < hi ? m : hi);
+  return (m != m) ? m : (m < hi ? m : hi);
 }
 
 /** machine.stack.wrench.faced: each standing sole's wrench in its cone, the faces it was past, each
@@ -98,13 +98,14 @@ static int solved(const wbc_step_t *p, double *K, int nu, wbc_view_t rhs, int m,
 /** machine.stack.wrench._taken: striding, what the floor cannot give the robot's inertia takes - `u0`
     brought to the faces its soles' wrenches are past by the least change in its kinetic energy's
     metric. */
-static int taken(const wbc_step_t *p, const wbc_geo_t *g, const double *u0, double lo, double hi, double *at,
-                 double *work)
+static int taken(const wbc_step_t *p, const wbc_geo_t *g, const double *restrict u0, double lo, double hi,
+                 double *restrict at, double *work)
 {
-  const int nu = g->nu;
-  double   *Gi = work, *F = Gi + nu * nu, *N = F + 13 * nu, *C = N + 13 * nu, *GC = C + 13 * nu, *CG = GC + 13 * nu;
-  double   *A = CG + 13 * nu, *u = A + 169, *cu = u + nu, *x = cu + 13, *t = x + 13, *rest = t + nu;
-  double    met[13] = {0.0}, share[13] = {0.0}, level[13] = {0.0}, out[12], to[12];
+  const int        nu = g->nu;
+  double *restrict Gi = work, *restrict F = Gi + nu * nu, *restrict N = F + 13 * nu, *restrict C = N + 13 * nu;
+  double *restrict GC = C + 13 * nu, *restrict CG = GC + 13 * nu, *restrict A = CG + 13 * nu, *restrict u = A + 169;
+  double *restrict cu = u + nu, *restrict x = cu + 13, *restrict t = x + 13, *restrict rest = t + nu;
+  double           met[13] = {0.0}, share[13] = {0.0}, level[13] = {0.0}, out[12], to[12];
 
   if (wbc_inv(&p->blas, VIEW(g->kinetic, nu, 1), nu, Gi, rest))
   {

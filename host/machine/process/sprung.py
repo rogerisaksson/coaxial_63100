@@ -305,9 +305,14 @@ def passed(g, dt=0.001):
                 g['temp'] = np.asarray(g['heat'].step_joints(world.data.ctrl, world.data.qvel[world.vadr], dt * ev))
         else:
             step = both
-        motion.drives(g, dt, step)
-        if step is both and g.get('played') is not None:
-            steps.ahead(world)
+            if steps.alone(world) and not world._ahead:
+                _kept[-1].value = -1
+        try:
+            motion.drives(g, dt, step)
+        finally:
+            if _kept[-1].value > 0:
+                world._ahead = True
+            _kept[-1].value = 0
         joints.played(g, world)
         bank.blend_exit(g, world)
         # a bus refusing the robot's setpoints longer than its balance's horizon 1/omega is no longer sporadic

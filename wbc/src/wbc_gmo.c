@@ -50,8 +50,8 @@ static double passed(const wbc_gmo_t *o, int i, double d, double rel)
   return fmin(fmax(lm_sel(past != 0.0, wind, 0.0), -o->box_shock[i]), o->box_shock[i]);
 }
 
-void wbc_gmo_felt(wbc_gmo_t *o, const double quat[4], const double accel[3], const double *tau, const double *qm,
-                  const double *q, double dt)
+void wbc_gmo_felt(wbc_gmo_t *restrict o, const double quat[4], const double accel[3], const double *restrict tau,
+                  const double *restrict qm, const double *restrict q, double dt)
 {
   const double w = quat[0], x = quat[1], y = quat[2], z = quat[3];
   const double r[9] = {1.0 - 2.0 * (y * y + z * z), 2.0 * (x * y - w * z), 2.0 * (x * z + w * y),
@@ -117,11 +117,13 @@ static void along(const wbc_gmo_t *o, int p, int e, double n[3])
 }
 
 /** Column c of J' for a push along the world direction n at a point with Jacobian j. */
-static void pushed(wbc_gmo_t *o, int c, double j[6][WBC_N], const double n[3], double sign)
+static void pushed(wbc_gmo_t *restrict o, int c, double j[6][WBC_N], const double n[3], double sign)
 {
+  const double n0 = n[0], n1 = n[1], n2 = n[2];
+
   for (int i = 0; i < WBC_N; i++)
   {
-    o->a[i][c] += sign * (j[3][i] * n[0] + j[4][i] * n[1] + j[5][i] * n[2]);
+    o->a[i][c] += sign * (j[3][i] * n0 + j[4][i] * n1 + j[5][i] * n2);
   }
 }
 

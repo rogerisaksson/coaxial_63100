@@ -5,18 +5,19 @@
 
 void wbc_beat_felt(wbc_beat_t *b, double dt)
 {
-  double *y = b->y;
+  double       *restrict y = b->y, *restrict imu = b->imu;
+  const double *restrict motor = b->motor;
 
   wbc_pass_felt(b->world, y, b->quat_at, b->gyro_at, b->accel_at, b->q_at, b->qd_at, b->qm_at);
   for (int i = 0; i < b->nj; i++)
   {
-    y[b->tau_at + i] = b->motor[i];
+    y[b->tau_at + i] = motor[i];
   }
   y[b->link_at] = b->link[0];
   wbc_gmo_felt(b->gmo, &y[b->quat_at], &y[b->accel_at], &y[b->tau_at], &y[b->qm_at], &y[b->q_at], dt);
   for (int i = 0; i < b->nimu; i++)
   {
-    b->imu[i] += dt * y[b->imu_at + i];
+    imu[i] += dt * y[b->imu_at + i];
   }
   b->span[0] += dt;
 }
@@ -30,5 +31,9 @@ void wbc_beat_drive(wbc_beat_t *b, double dt, double now, double wo, double limp
 void wbc_beat_passed(wbc_beat_t *b, double dt, double now, double wo, double limp)
 {
   wbc_beat_felt(b, dt);
+  if ((b->ahead != NULL) && (*b->ahead < 0) && (b->ahead_fn != NULL))
+  {
+    *b->ahead = b->ahead_fn(b->stage, b->model, b->data);
+  }
   wbc_beat_drive(b, dt, now, wo, limp);
 }

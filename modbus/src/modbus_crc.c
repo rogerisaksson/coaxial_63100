@@ -1,29 +1,23 @@
-/** modbus_crc.c - CRC-16/MODBUS, bit-serial. */
+/** modbus_crc.c - CRC-16/MODBUS, closed-form GF(2) byte reduction. */
 #include "modbus_crc.h"
 
-/* Bit-serial rather than a 512-byte table. */
+/* Table-free, branch-free GF(2) reduction of all 8 bits of `data[i]` at once
+   for reflected polynomial 0xA001: zero flash/RAM table, one pass per byte. */
 uint16_t modbus_crc16(const uint8_t *data, size_t len)
 {
-  uint16_t crc = 0xFFFFU;
+  uint32_t crc = 0xFFFFU;
 
   for (size_t i = 0U; i < len; i++)
   {
-    crc ^= (uint16_t)data[i];
+    const uint32_t x = (crc ^ (uint32_t)data[i]) & 0xFFU;
+    uint32_t       p = x ^ (x >> 4U);
 
-    for (uint8_t bit = 0U; bit < 8U; bit++)
-    {
-      if ((crc & 1U) != 0U)
-      {
-        crc = (uint16_t)((crc >> 1) ^ 0xA001U);
-      }
-      else
-      {
-        crc >>= 1;
-      }
-    }
+    p ^= p >> 2U;
+    p = (p ^ (p >> 1U)) & 1U;
+    crc = (crc >> 8U) ^ (x << 6U) ^ (x << 7U) ^ ((p != 0U) ? 0xC001U : 0U);
   }
 
-  return crc;
+  return (uint16_t)crc;
 }
 
 size_t modbus_crc_append(uint8_t *buf, size_t len)

@@ -46,6 +46,9 @@ typedef struct
   unsigned long long refused;
   int                stale;
   int                burst;
+  int                hit_len;
+  double             hit_ber;
+  double             hit;
   double             wire_s;
   uint32_t           ticks;
 } wbc_sil_bus_t;
@@ -145,8 +148,19 @@ static uint32_t sil_draw(void)
 /* `frame` as the wire carries it into `wire`: a bit flipped in a burst or by the line's noise. */
 static void sil_line(wbc_sil_bus_t *bus, const unsigned char *frame, int len, uint8_t *wire)
 {
-  const double hit = 1.0 - wbc_power(1.0 - sil_state.ber, 10.0 * (double)len);
-  const int    flip = (bus->burst > 0) || ((hit > 0.0) && ((double)sil_draw() < hit * 4294967296.0));
+  double hit = 0.0;
+
+  if (sil_state.ber != 0.0)
+  {
+    if ((bus->hit_len != len) || (bus->hit_ber != sil_state.ber))
+    {
+      bus->hit_len = len;
+      bus->hit_ber = sil_state.ber;
+      bus->hit = 1.0 - wbc_power(1.0 - sil_state.ber, 10.0 * (double)len);
+    }
+    hit = bus->hit;
+  }
+  const int flip = (bus->burst > 0) || ((hit > 0.0) && ((double)sil_draw() < hit * 4294967296.0));
 
   memcpy(wire, frame, (size_t)len);
   bus->burst -= (bus->burst > 0);

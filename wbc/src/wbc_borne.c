@@ -119,9 +119,11 @@ static int largest(const double f[3])
 {
   int at = 0;
 
-  for (int j = 1; j < 3 && !isnan(fabs(f[at])); j++)
+  for (int j = 1; j < 3 && !(fabs(f[at]) != fabs(f[at])); j++)
   {
-    at = (isnan(fabs(f[j])) || fabs(f[j]) > fabs(f[at])) ? j : at;
+    const double fj = fabs(f[j]), fa = fabs(f[at]);
+
+    at = ((fj != fj) || (fj > fa)) ? j : at;
   }
   return at;
 }

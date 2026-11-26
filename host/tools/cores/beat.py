@@ -27,6 +27,7 @@ class Beat(ctypes.Structure):
 
     _fields_ = [('world', _vp), ('gmo', _vp), ('tick', _vp), ('y', _vp), ('motor', _vp), ('link', _vp), ('imu', _vp),
                 ('span', _vp), ('idx', _vp), ('target', _vp), ('feed', _vp), ('kp', _vp), ('limit', _vp),
+                ('ahead_fn', _vp), ('stage', _vp), ('model', _vp), ('data', _vp), ('ahead', _vp),
                 ('quat_at', _i), ('gyro_at', _i), ('accel_at', _i), ('q_at', _i), ('qd_at', _i), ('qm_at', _i),
                 ('tau_at', _i), ('link_at', _i), ('imu_at', _i), ('nimu', _i), ('nj', _i), ('n', _i)]
 
@@ -51,18 +52,26 @@ def laid(g):
     (`g['inekf']`), its drives' tick (`g['tick']`) and its law's joints told as its edge's
     bound drive tells them (`g['joints']`, `g['cmd']`)."""
     from machine.senses import edge, inekf
+    from tools.cores import world as c_world
     lib, world, y, f, cmd = typed(), g['world'], g['sense'], g['inekf'], g['cmd']
     edge.buses(world)
     idx, link, nj = np.ascontiguousarray(g['joints'], dtype=np.int32), world.link['v'], len(world.motor)
     if nj != edge.TAU.stop - edge.TAU.start:
         raise ValueError('its world has %d motors, the robot\'s edge %d torques' % (nj, edge.TAU.stop - edge.TAU.start))
+    stg, ahead = c_world.staged(), ctypes.c_int(0)
     b = Beat(world=ctypes.addressof(world.passing), gmo=ctypes.addressof(g['observer']['c']), tick=g['tick'][0],
              y=wbc.pointer(y), motor=wbc.pointer(world.motor), link=wbc.pointer(link), imu=wbc.pointer(f['imu']),
              span=wbc.pointer(f['span']), idx=wbc.pointer(idx, np.int32),
              **{name: wbc.pointer(a) for name, a in cmd.items()},
+             ahead_fn=None if stg is None else ctypes.cast(stg[0], _vp).value,
+             stage=None if stg is None else stg[2],
+             model=None if stg is None else world.model._address,
+             data=None if stg is None else world.data._address,
+             ahead=ctypes.addressof(ahead),
              quat_at=edge.QUAT.start, gyro_at=edge.GYRO.start, accel_at=edge.ACCEL.start, q_at=edge.Q.start,
              qd_at=edge.QD.start, qm_at=edge.QM.start, tau_at=edge.TAU.start, link_at=edge.LINK.start,
              imu_at=inekf.IMU.start, nimu=inekf.IMU.stop - inekf.IMU.start, nj=nj, n=len(idx))
     at = ctypes.addressof(b)
     return (functools.partial(lib.wbh_beat_felt, at), (at, lib.wbh_beat_drive), (at, lib.wbh_beat_passed), b,
-            (idx, y, world.motor, link, f['imu'], f['span'], world.passing, g['observer']['c'], g['tick'], *cmd.values()))
+            (idx, y, world.motor, link, f['imu'], f['span'], world.passing, g['observer']['c'], g['tick'], *cmd.values(),
+             ahead))
