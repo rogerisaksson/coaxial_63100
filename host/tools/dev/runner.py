@@ -145,14 +145,17 @@ def _lock(name, batons):
 def _jobs(name, args, tags, live_sections, took, share, words=()):
     """The jobs one suite runs as: its words' alone, the emulator's groups where it runs here,
     shards past `share` s, else the suite whole."""
-    argv = ([sys.executable, str(ROOT / 'tests' / name)]
+    pool = getattr(args, 'container_pool', None)
+    argv = ((['python', '-X', 'utf8', '-u', 'tests/' + name] if pool is not None
+             else [sys.executable, str(ROOT / 'tests' / name)])
             + _extra_for(name, args, tags, live_sections))
     gb, lock, timeout = HEAVY_GB.get(name, SUITE_GB), _lock(name, args.jobs), _timeout(name)
     measure = getattr(args, 'measure', False)      # --measure: no limit on any job, the run measures
+    emulated = False if pool is not None else _emulated_here()
     # What the suite asks the relay for, where Renode is here (suites.asked): the tests a word picks start an
     # emulator of so many machines, and their job is sent a core each beside its own (focus.Job.cores).
     needs = asked(ROOT / 'tests' / name)
-    needs = needs if needs and _emulated_here() else {}
+    needs = needs if needs and emulated else {}
     if words:
         # A word the suite asked with, its machines; any other may pick a test that starts an emulator: the most.
         most = 1 + max((needs[w] for w in words if w in needs), default=max(needs.values(), default=0))
@@ -160,7 +163,7 @@ def _jobs(name, args, tags, live_sections, took, share, words=()):
             return [Job('%s %s' % (name, w), argv + [w], gb, None if measure else timeout, lock, most)
                     for w in words]
         return [Job(name, argv + list(words), gb, None if measure else timeout, lock, most)]
-    if name == EMULATOR and _emulated_here():
+    if name == EMULATOR and emulated:
         return [Job('%s %s' % (name, group), argv + [group], WORKER_GB, None if measure else seconds, lock,
                     1 + needs.get(group, 0))
                 for group, seconds in EMULATOR_GROUPS.items()]
@@ -281,7 +284,10 @@ def _results(suites, args, tags, live_sections):
     queue = sorted((job for jobs in plan.values() for job in jobs),
                    key=lambda j: (*_priority(j, prior_failed), -expected(j)))
     got, seconds, dirs, red = {}, {}, _init_run_dirs(), ''
-    for job, out, code, took_s in relay(queue, args.jobs, bench=getattr(args, 'bench', False)):
+    pool = getattr(args, 'container_pool', None)
+    stream = (relay(queue, pool.width, runner=pool) if pool is not None
+              else relay(queue, args.jobs, bench=getattr(args, 'bench', False)))
+    for job, out, code, took_s in stream:
         parsed = _parse(out, code, took_s, job.timeout)
         got[job.name] = parsed
         _write_shard_csv(dirs, job, out, parsed)
@@ -294,7 +300,8 @@ def _results(suites, args, tags, live_sections):
             if not getattr(args, 'measure', False):
                 red = suite
                 break
-    counts.record('jobs', seconds)
+    if pool is None:
+        counts.record('jobs', seconds)
     for name in suites:
         if name not in plan:
             yield name, None, False

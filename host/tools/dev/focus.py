@@ -318,21 +318,13 @@ def run(job, env=None, ledger=None, bench=False, procs=None):
 waiting_ticket = waiting
 
 
-def relay(jobs, batons=None, bench=False, ledger=LEDGER):
-    """`jobs` from a queue in their order, the longest first where the caller knows: `batons` -
-    a physical core each - each taking the first job whose commit fits the free commit less what
-    every relay's running jobs have still to take (the ledger, machine-wide), over RESERVE_GB -
-    an idle host fits anything -, while every relay's jobs with their children, and the cores every container of
-    the gate holds (tools.dev.ledger), stay under the batch's widest (`tally`, `background.widths`), OpenBLAS
-    on one thread in each; a job ending
-    hands its baton to the next at once. `bench` a benchmark's, on a desk: each job above normal priority
-    from its start and `placed.BENCH` set for every process of the robot's own it starts (`placed.raised`),
-    its wall times less at the mercy of the host's other loads - a runner has none, its jobs run as they are.
-    `ledger` the machine's, or a folder of its own for a relay that asks nothing of the machine (a test's).
-    (job, output, exit code - None out of time -, seconds) as each ends. A relay whose console answers no more
-    (`census.console`: who started the relay stopped it) ends as stopped, KeyboardInterrupt, its jobs' trees
-    killed and none told: every job started after ended at once, 110 suites burnt as red in 11 s."""
-    bench, console = bench and not background.runner(), census.console()
+def relay(jobs, batons=None, bench=False, ledger=LEDGER, runner=None):
+    """`jobs` from a queue in their order: `batons` - a physical core each, or a warm container when `runner` is
+    given (`linux_pool.Pool`) - each taking the first job whose commit and cores fit the ledger (`tally`,
+    `background.widths`) over RESERVE_GB, OpenBLAS on one thread, handing its baton to the next job at once;
+    `bench` raises priority on a desk (`placed.BENCH`); `ledger` names a folder for tests. Yields
+    `(job, output, exit_code_or_None, seconds)` as each ends, or raises KeyboardInterrupt if the console closes."""
+    bench, console = bench and not background.runner() and runner is None, census.console()
     waiting = collections.deque(jobs)
     count = len(waiting)
     held = {'running': 0, 'locks': set(), 'n': 0, 'asked': 0.0, 'idle': 0.0, 'since': 0.0}
@@ -365,6 +357,16 @@ def relay(jobs, batons=None, bench=False, ledger=LEDGER):
         other job leaves their cores free."""
         with turn:
             while waiting:
+                if runner is not None:
+                    job = next((j for j in waiting if fits(j, None)), None)
+                    if job is not None:
+                        waiting.remove(job)
+                        held['running'] += 1
+                        if job.lock is not None:
+                            held['locks'].add(job.lock)
+                        return job, None
+                    turn.wait(timeout=POLL_S)
+                    continue
                 if time.monotonic() - held['asked'] >= POLL_S:
                     with _Locked():
                         free = census.free_commit_gb()
@@ -400,20 +402,22 @@ def relay(jobs, batons=None, bench=False, ledger=LEDGER):
                         return job, path
                     held['asked'] = time.monotonic()
                 turn.wait(timeout=POLL_S)
-            for path in tickets:
-                ticket(path, 0)
+            if runner is None:
+                for path in tickets:
+                    ticket(path, 0)
             return None
 
     def baton():
         while (taken := take()) is not None:
             job, path = taken
             try:
-                ended.put((job,) + run(job, env, path, bench, procs))
+                ended.put((job,) + (runner(job) if runner is not None else run(job, env, path, bench, procs)))
             except OSError as exc:
                 ended.put((job, '%s: %s' % (type(exc).__name__, exc), 1, 0.0))
             finally:
-                with suppress(OSError):
-                    os.remove(path)
+                if path is not None:
+                    with suppress(OSError):
+                        os.remove(path)
                 with turn:
                     held['running'] -= 1
                     held['locks'].discard(job.lock)
@@ -436,6 +440,8 @@ def relay(jobs, batons=None, bench=False, ledger=LEDGER):
         with turn:
             waiting.clear()
             turn.notify_all()
+        if runner is not None and hasattr(runner, 'abort'):
+            runner.abort()
         for pid in list(procs):
             kill_tree(pid)
 

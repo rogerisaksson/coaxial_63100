@@ -95,6 +95,23 @@ def test_the_runner_here_is_gate_yml_s(report):
                  and arm['QEMU_CPU'] == 'max,sve-default-vector-length=64' and own == info['env']
                  and linux.tagged(info, '3.12') != linux.tagged(info, '3.12', 'arm64') and '"${ARCH}"' in image,
                  '%s | %s' % (arm, linux.tagged(info, '3.12', 'arm64')))
+    from tools.dev import focus, linux_pool, run_tests
+    presets = [linux_pool.resolved('linux'), linux_pool.resolved('avx512'), linux_pool.resolved('sve2'),
+               linux_pool.resolved('sme2'), linux_pool.resolved(isa='sme2')]
+    opts = run_tests._options(['--container', 'sme2', '--bare', '--jobs', '2', '--file', 'test_se3_core.py'])
+    bare = run_tests._suites(opts)
+    seen = []
+    ran_pool = list(focus.relay([focus.Job('a', ['a'], lock='alone'), focus.Job('b', ['b']), focus.Job('c', ['c'])],
+                                batons=2, runner=lambda j: (seen.append(j.name) or ('1 passed, 0 failed\n', 0, 0.1))))
+    report.check('container relay presets resolve arch, ISA and QEMU CPU; --bare skips prepended suites; focus.relay '
+                 'drives a custom container runner under locks',
+                 presets == [('amd64', None, None), ('amd64', 'avx512', None),
+                             ('arm64', 'sve2', linux_pool.ARM_CPUS['sve2']),
+                             ('arm64', 'sme2', linux_pool.ARM_CPUS['sme2']),
+                             ('arm64', 'sme2', linux_pool.ARM_CPUS['sme2'])]
+                 and opts.container == 'sme2' and bare == ['test_se3_core.py']
+                 and len(ran_pool) == 3 and seen[0] == 'a' and set(seen) == {'a', 'b', 'c'},
+                 '%s | %s | %s' % (presets, bare, seen))
 
 
 def test_the_gate_builds_the_robots_c_for_its_target(report):

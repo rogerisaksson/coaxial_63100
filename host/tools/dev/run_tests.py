@@ -144,16 +144,27 @@ def _options(argv):
                         help="this run on Linux: the offline gate in a container shaped as CI's runner "
                              '(tools/dev/linux.py) - its Ubuntu, its Pythons, two cores of two threads, 16 GB -, '
                              "a container a Python of gate.yml's matrix, side by side")
+    parser.add_argument('--container', nargs='?', const='linux', metavar='TARGET',
+                        help="run this relay's jobs in warm Linux containers (tools/dev/linux.py) instead of host "
+                             'processes; TARGET names linux, amd64, avx, avx2, avx512, arm64, sve2 or sme2')
+    parser.add_argument('--bare', action='store_true',
+                        help='with --file: run only the named suites, without prepending ARITHMETIC and STRUCTURES')
     parser.add_argument('--python', action='append',
-                        help="with --linux: this Python of gate.yml's matrix alone (repeatable)")
-    parser.add_argument('--arch', help="with --linux: the image's architecture - arm64 emulated (linux.py)")
-    parser.add_argument('--isa', help="with --linux: the robot's cores' target there (COAXIAL_ISA), in place of gate.yml's")
-    parser.add_argument('--cpu', help='with --linux --arch arm64: the emulated processor (QEMU_CPU)')
+                        help="with --linux or --container: this Python of gate.yml's matrix alone (repeatable)")
+    parser.add_argument('--arch', help="with --linux or --container: the image's architecture - arm64 emulated (linux.py)")
+    parser.add_argument('--isa', help="with --linux or --container: the robot's cores' target there (COAXIAL_ISA)")
+    parser.add_argument('--cpu', help='with --linux or --container on arm64: the emulated processor (QEMU_CPU)')
     parser.add_argument('--parts', type=int,
                         help='with --linux: runner containers a Python side by side (--part k/n each; 0 fits RAM and cores)')
     args = parser.parse_args(argv)
-    if (args.python or args.arch or args.isa or args.cpu or args.parts is not None) and not args.linux:
-        parser.error('--python, --arch, --isa, --cpu and --parts go with --linux')
+    if args.linux and args.container:
+        parser.error('pass --container (warm relay) or --linux (gate.yml container run), not both')
+    if (args.python or args.arch or args.isa or args.cpu) and not (args.linux or args.container):
+        parser.error('--python, --arch, --isa and --cpu go with --linux or --container')
+    if args.parts is not None and not args.linux:
+        parser.error('--parts goes with --linux (use --jobs with --container)')
+    if args.container and (args.conformance or args.live or args.bench):
+        parser.error('--conformance, --live and --bench ask for this host; --container runs offline suites')
     if args.float:
         from machine.process.placed import FLOAT
         os.environ[FLOAT] = '1'
@@ -178,34 +189,45 @@ def _options(argv):
     return args
 
 
-def _run(args, tags, live_sections):
-    """Run what the plan chose, and report it: on the host as it is measured at the run's start
-    (`machine_detector.host`: its pace at this run's width), a suite's shards and limit by it."""
-    args.host = machine_detector.host(args.jobs)
-    args.jobs = args.host['width']
-    print(machine_detector.said(args.host), flush=True)
-    print('tree: %s' % ROOT.parent, flush=True)
+def _suites(args):
+    """The ordered suites `args` asks to run, before host or container calibration."""
     suites = list(args.file) if args.file else list(BENCHMARKS if args.bench else DEFAULT_SUITES)
     if args.conformance and not args.file:
         suites.append(CONFORMANCE)
     if (args.live and (not args.file or args.smart)
             and LIVE not in suites and not args.match):
         suites.append(LIVE)
-    if args.offline:
+    if args.offline or args.container:
         suites = [name for name in suites if name not in NEEDS_BOARD]
-    if not args.match and not args.only:
+    prepend = not (args.match or args.only or (args.bare and args.file))
+    if prepend:
         suites[:0] = [name for name in STRUCTURES if name not in suites]
     if args.part:
         k, n = args.part
         suites = machine_detector.parts(suites, n)[k - 1]
-    if not args.match and not args.only:
+    if prepend:
         # a part's runner its own processor: each part tells its own arithmetic first
         suites[:0] = [name for name in ARITHMETIC if name not in suites]
+    return suites
+
+
+def _run_once(args, suites, tags, live_sections):
+    """Run `suites` on `args.host` (or `args.container_pool` when set) and print one deterministic tally."""
+    pool = getattr(args, 'container_pool', None)
+    if pool is None:
+        args.host = machine_detector.host(args.jobs)
+        args.jobs = args.host['width']
+    else:
+        args.host = pool.host
+        args.jobs = pool.width
+    print(machine_detector.said(args.host), flush=True)
+    print('tree: %s' % (pool.workdir if pool is not None else ROOT.parent), flush=True)
     if args.part:
+        k, n = args.part
         print('part %d of %d: %d suites - %s' % (k, n, len(suites), ', '.join(suites)), flush=True)
 
     # The model is held here, released in the finally.
-    holding = LIVE in suites
+    holding = LIVE in suites and pool is None
     if holding:
         held = hold_model(args.model)
 
@@ -218,12 +240,12 @@ def _run(args, tags, live_sections):
     try:
         for name, result, ran_whole in _results(suites, args, tags, live_sections):
             if result is None:
-                print('%-20s MISSING %s' % (name, ROOT / 'tests' / name))
+                print('%-20s MISSING %s' % (name, ROOT / 'tests' / name), flush=True)
                 ok = False
                 continue
             if isinstance(result, str):
                 print('%-20s NOT RUN%s' % (name, result and ' - the run stopped at its first red suite, %s '
-                                                             '(--measure runs on)' % result))
+                                                             '(--measure runs on)' % result), flush=True)
                 ok = False
                 continue
             tally, code, failing, elapsed, crash, groups = result
@@ -236,7 +258,7 @@ def _run(args, tags, live_sections):
             if tally is None:
                 print('\n'.join(filter(None, [
                     '%-20s CRASHED exit=%s %.1fs' % (name, code, elapsed),
-                    crash])))
+                    crash])), flush=True)
                 ok = False
                 crashed += 1
                 continue
@@ -244,7 +266,7 @@ def _run(args, tags, live_sections):
             total_skip += skipped
             approx = approx or rough
             if groups:
-                print('%-20s %s' % ('', groups))
+                print('%-20s %s' % ('', groups), flush=True)
             ran += 1
             total_pass += passed
             total_fail += failed
@@ -254,12 +276,13 @@ def _run(args, tags, live_sections):
                 ok = False
             print('%-20s %s, %d failed%s  %.1fs'
                   % (name, '%d passed' % passed, failed,
-                     ', %d skipped' % skipped if skipped else '', elapsed))
+                     ', %d skipped' % skipped if skipped else '', elapsed), flush=True)
 
         sizes = {n: p + f + s for n, (p, f, s) in suite_sizes.items()}
-        counts.record('suites', sizes)
-        counts.record('seconds', seconds)
-        counts.record('paces', dict.fromkeys(seconds, round(args.host['pace'], 3)))
+        if pool is None:
+            counts.record('suites', sizes)
+            counts.record('seconds', seconds)
+            counts.record('paces', dict.fromkeys(seconds, round(args.host['pace'], 3)))
         # Suites that did not run at all, in checks, from what they came to
         # last time.
         missed, never = counts.missing(
@@ -269,16 +292,34 @@ def _run(args, tags, live_sections):
         print('Total: %s%d  Passed: %d, Skipped: %s%d, Failed: %d, Crashed: %d, '
               '(%d of %d suites ran)'
               % (mark, total_pass + total_fail + total_skip, total_pass,
-                 mark, total_skip, total_fail, crashed, ran, len(ALL_SUITES)))
+                 mark, total_skip, total_fail, crashed, ran, len(ALL_SUITES)), flush=True)
         for line in failing_lines:
-            print('  ' + line)
+            print('  ' + line, flush=True)
         if total_fail and any(line.split(':')[0] in NEEDS_BOARD
                               for line in failing_lines):
-            print(board_note())
+            print(board_note(), flush=True)
         return 0 if ok else 1
     finally:
         if holding:
             release_model(held)
+
+
+def _run(args, tags, live_sections):
+    """Run what the plan chose, on this host or in warm containers (`--container`), and report it."""
+    suites = _suites(args)
+    if not args.container:
+        args.container_pool = None
+        return _run_once(args, suites, tags, live_sections)
+    from tools.dev import linux_pool
+    jobs = args.jobs
+    code = 0
+    for minor in (args.python or [None]):
+        with linux_pool.Pool(args.container, python=minor, batons=jobs, arch=args.arch, isa=args.isa,
+                             cpu=args.cpu, suites=suites, float_cpus=args.float) as pool:
+            args.container_pool, args.jobs = pool, jobs
+            code = _run_once(args, suites, tags, live_sections) or code
+    args.container_pool = None
+    return code
 
 
 #: What a run stopped on purpose exits with: the shell's convention, distinct

@@ -165,11 +165,12 @@ Evaluate the prompt and working tree before invoking any tool:
     it with the relay (`git bisect run`). Derive a cause from first principles
     only where no green run covers the suite, and say so in the State 2 gate.
   + Empirical Linux baseline (mandatory when CI is red or OS differences apply:
-    glibc, GCC, libm, MuJoCo, Mesa): run local CI-shaped Linux containers
-    (`python -X utf8 host/tools/dev/run_tests.py --linux [--python 3.12]`
-    `[--file test_x.py]`, or `.\host\run_tests.ps1 -Linux [-Scope ...]`), from
-    `setup.ps1` area `linux`. Hold hosts to `host/constraints.txt` via
-    `test_depends` (`--file test_depends.py`, host and `--linux`).
+    glibc, GCC, libm, MuJoCo, Mesa): drive warm runner containers directly on
+    the relay (`python -X utf8 host/tools/dev/run_tests.py --container`
+    `[--jobs N] [--bare] [--file test_x.py]`) or run whole `gate.yml` containers
+    (`--linux [--python 3.12] [--parts N]`, or `.\host\run_tests.ps1 -Linux`),
+    from `setup.ps1` area `linux`. Hold hosts to `host/constraints.txt` via
+    `test_depends` (`--file test_depends.py`, host and `--container` / `--linux`).
   + Machine ledger (before running beside other agents): relay jobs, emulator
     cores (`RENODE`), and gate containers book via `tools.dev.ledger`;
     `run_tests.py --ledger` inspects bookings, and `--part k/n` splits gate
@@ -177,10 +178,11 @@ Evaluate the prompt and working tree before invoking any tool:
   + Empirical ISA baseline (mandatory when C cores, target flags, or streaming
     kernels change, or `arch` jobs fail): `COAXIAL_ISA` targets (`avx`, `avx2`,
     `avx512`, `sve2`, `sme2` in `host/tools/cores/build.py`); CI runs `sve2`
-    and `avx512`. Emulate arm64 locally in Linux containers (`run_tests.py`
-    `--linux --arch arm64 --isa sme2 --cpu max,sve-default-vector-length=64,`
-    `sme-default-vector-length=64 --python 3.12 --measure --file test_x.py`;
-    judged by parity tallies) or probe runners via `gh workflow run gate.yml`.
+    and `avx512`. Emulate arm64 locally on the warm container relay
+    (`python -X utf8 host/tools/dev/run_tests.py --container sme2 [--jobs N]`
+    `[--bare] --measure --file test_x.py`, or `--container sve2`, or
+    `--container avx512` on x86; judged by parity tallies) or probe runners via
+    `gh workflow run gate.yml`.
   + Empirical real-time performance (mandatory for rigid body simulation):
     Run the benchmarking and profiler tool
     (`python -X utf8 host/tools/sim/pace.py` `stand walk` `--blind`) to establish
@@ -345,10 +347,11 @@ Evaluate the prompt and working tree before invoking any tool:
      No monkeypatching allowed on file or in memory.
   7. If CI is red, or the change touches C builds, numerics, rendering, or what
      the operating system decides (paths, processes, libraries, processors),
-     rerun the same narrow suites in the Linux containers (`--linux`) and quote
-     both tallies, Windows and Linux, verbatim. Where C cores or their ISA
-     flags were touched, also the arm64 targets under QEMU (`--arch arm64
-     --isa sve2`, `--isa sme2`, `--measure`), their parity tallies quoted.
+     rerun the same narrow suites in the Linux containers (`--container` or
+     `--linux`) and quote both tallies, Windows and Linux, verbatim. Where C
+     cores or their ISA flags were touched, also run the arm64 targets on the
+     container relay (`--container sve2`, `--container sme2`, `--bare`,
+     `--measure`), their parity tallies quoted.
   8. If the requirements, their lock or setup's installs were touched, lay the
      lock anew (`python -X utf8 host/tools/dev/pinned.py`) and run
      `test_depends` here and in the Linux containers: every host held to the

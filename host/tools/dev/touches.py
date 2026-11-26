@@ -267,7 +267,7 @@ TOUCHES = (
     # The machine's cores, commit and processes: the relay's and the ledger's asks, the batch's widths.
     ('host/tools/dev/census.py',               (CI, WORKFLOW, PLACED, STRUCTURE)),
     ('host/tools/dev/background.py',           (CI, STRUCTURE)),
-    ('host/tools/dev/linux.py',                (WORKFLOW, STRUCTURE)),
+    ('host/tools/dev/linux',                   (WORKFLOW, STRUCTURE)),
     ('host/tools/dev/workflow.py',             (WORKFLOW, STRUCTURE)),
     # The relay's choice of suites, the path map and the tiers: test_smart holds them.
     ('host/tools/dev/scope.py',                OLLAMA + (SMART,)),

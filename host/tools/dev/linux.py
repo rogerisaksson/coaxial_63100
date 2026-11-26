@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """The offline gate on Linux, here: GitHub's runner as a container on this host's engine.
 
+    python -X utf8 tools/dev/run_tests.py --container [linux|avx512|arm64|sve2|sme2] [--jobs N] [--bare] [--file ...]
     python -X utf8 tools/dev/run_tests.py --linux [--python 3.12] [--parts N] [the relay's arguments]
-    python -X utf8 tools/dev/run_tests.py --linux --arch arm64 --isa sme2 --cpu max,sve-default-vector-length=64
     python -X utf8 tools/dev/linux.py --build [--fresh]   # the runner's images alone; --fresh: from scratch
     python -X utf8 tools/dev/linux.py --kept              # whether each stands: 0 where all do
 
 What .github/workflows/gate.yml's host job runs, run as that job runs on GitHub: an Ubuntu runner image
 (.github/runner.Dockerfile), the tree copied in as a checkout and installed offline, and the gate invoked as
 runner with CI true and --offline. Each container takes the runner's shape (two cores of two threads, 16 GB,
-8 GB /dev/shm) and books two cores and BOOKED_GB in tools.dev.ledger; --parts runs multiple 2-core containers
-side by side (--part k/n each, capped by host and engine memory headroom).
+8 GB /dev/shm) and books two cores and BOOKED_GB in tools.dev.ledger; `--container` feeds the host relay's
+queue across warm persistent containers (`Pool`), while `--linux --parts` runs whole `--part k/n` containers.
 """
 import argparse
 import io
@@ -57,18 +57,16 @@ ONLINE = '/sys/devices/system/cpu/online'
 PLANNED = re.compile(r"'([^']*)'")
 #: The relay's arguments that ask for this host - a board, a model, a benchmark's priority -: not a container's.
 HOSTS = ('--conformance', '--live', '--model', '--sections', '--match', '--tags', '--only', '--bench')
-#: In the container, from its workspace: the tree a commit - a submodule its commit alone, an empty folder, as
-#: the runner's checkout leaves it -, the package installed as the inputs action does (no index), the gate as
-#: gate.yml's host step runs it, the relay's arguments after.
-GATE = ('set -eo pipefail\n'
-        'git init -q\n'
-        'git -c user.name=%s -c user.email=%s@localhost commit --allow-empty -qm parent\n'
-        'git add -A\n'
-        'while read -r sha path; do [ -n "$sha" ] || continue; mkdir -p "$path"\n'
-        '  git update-index --add --cacheinfo "160000,$sha,$path"; done <<< "$GITLINKS"\n'
-        'git -c user.name=%s -c user.email=%s@localhost commit -qm tree\n'
-        'python -m pip install -q --no-deps --no-build-isolation -e "$EDITABLE"\n'
-        'cd "$DIRECTORY" && exec python tools/dev/run_tests.py --offline "$@"\n' % (USER, USER, USER, USER))
+#: In the container, from its workspace: checkout commit and offline editable install.
+SETUP = ('set -eo pipefail\n'
+         'git init -q\n'
+         'git -c user.name=%s -c user.email=%s@localhost commit --allow-empty -qm parent\n'
+         'git add -A\n'
+         'while read -r sha path; do [ -n "$sha" ] || continue; mkdir -p "$path"\n'
+         '  git update-index --add --cacheinfo "160000,$sha,$path"; done <<< "$GITLINKS"\n'
+         'git -c user.name=%s -c user.email=%s@localhost commit -qm tree\n'
+         'python -m pip install -q --no-deps --no-build-isolation -e "$EDITABLE"\n' % (USER, USER, USER, USER))
+GATE = SETUP + 'cd "$DIRECTORY" && exec python tools/dev/run_tests.py --offline "$@"\n'
 #: The containers running now: removed at once where the run is stopped.
 LIVE = []
 
@@ -321,26 +319,41 @@ def repository():
 
 
 def main(argv=None):
-    """The gate on Linux, a container a Python of gate.yml's matrix (or those --python names), side by side: the
-    first exit code not 0 in the matrix's order, else 0; --build and --kept: its images alone."""
+    """The gate on Linux: `--relay` feeds jobs through warm `Pool` batons via `run_tests.py --container`, else a
+    container per Python/part of `gate.yml`'s matrix; `--build` and `--kept` manage the images alone."""
+    from tools.dev.linux_pool import PRESETS, resolved
+    raw = list(sys.argv[1:] if argv is None else argv)
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--python', action='append', help="a Python of gate.yml's matrix, it alone (repeatable)")
     parser.add_argument('--build', action='store_true', help='build the images and stop')
     parser.add_argument('--fresh', action='store_true', help='build them from scratch, the base pulled anew')
     parser.add_argument('--kept', action='store_true', help='whether each image stands: 0 where all do')
-    parser.add_argument('--arch', choices=list(ARCHS), default=next(iter(ARCHS)),
+    parser.add_argument('--target', choices=list(PRESETS), help='preset target (linux, avx, avx2, avx512, arm64, sve2, sme2)')
+    parser.add_argument('--relay', action='store_true', help='run as warm container batons on the host relay')
+    parser.add_argument('--arch', choices=list(ARCHS), default=None,
                         help="the image's architecture: arm64 emulated by the engine's QEMU")
     parser.add_argument('--isa', help="the robot's cores' target there (COAXIAL_ISA), in place of gate.yml's")
     parser.add_argument('--cpu', help="with --arch arm64: the emulated processor (QEMU_CPU)")
     parser.add_argument('--parts', type=int, default=1,
                         help='runner containers a Python side by side (--part k/n each; 0 fits RAM and cores)')
-    args, relayed = parser.parse_known_args(sys.argv[1:] if argv is None else argv)
+    args, relayed = parser.parse_known_args(raw)
+    arch, isa, cpu = resolved(args.target, args.arch, args.isa, args.cpu)
+    if args.relay:
+        from tools.dev import run_tests
+        forwarded = ['--container', args.target or isa or arch]
+        for minor in args.python or ():
+            forwarded += ['--python', minor]
+        if args.arch:
+            forwarded += ['--arch', args.arch]
+        if args.isa:
+            forwarded += ['--isa', args.isa]
+        if args.cpu:
+            forwarded += ['--cpu', args.cpu]
+        return run_tests.main(forwarded + relayed)
     hosts = [arg for arg in relayed if arg.split('=', 1)[0] in HOSTS]
     if hosts:
         raise SystemExit('linux: %s asks for this host - a board, a model, a benchmark -: the container runs the '
                          'offline gate' % ' '.join(hosts))
-    if args.cpu and args.arch == next(iter(ARCHS)):
-        raise SystemExit('linux: --cpu is the emulated processor of an --arch arm64 image')
     if args.parts < 0:
         raise SystemExit('linux: --parts is 0 (fit RAM and cores) or at least 1')
     if args.parts != 1 and any(arg == '--part' or arg.startswith('--part=') for arg in relayed):
@@ -353,11 +366,11 @@ def main(argv=None):
     for line in ledger.clean(client=client):
         print('linux: ' + line, flush=True)
     if args.kept:
-        stands = kept(client, info, pythons, args.arch)
+        stands = kept(client, info, pythons, arch)
         print(', '.join('%s %s' % (minor, ('missing', 'kept')[ok]) for minor in stands if (ok := stands[minor]) is not None))
         return 0 if all(stands.values()) else 1
-    tags = [built(info, minor, args.fresh, args.arch) for minor in pythons]
-    info = dict(info, env=environment(info, args.arch, args.isa, args.cpu))
+    tags = [built(info, minor, args.fresh, arch) for minor in pythons]
+    info = dict(info, env=environment(info, arch, isa, cpu))
     if args.build:
         return 0
     found = cores(client, tags[0])
