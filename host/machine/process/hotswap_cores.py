@@ -138,6 +138,7 @@ class CompiledCCore:
         import numpy as np
         c_vals: list[Any] = []
         keep_alive: list[Any] = []
+        writeback: list[tuple[Any, Any]] = []
         pos = 0
         for token in self.arg_specs:
             if token.startswith('len:'):
@@ -151,11 +152,15 @@ class CompiledCCore:
             if token in ('f64*', 'ptr'):
                 arr = val if (isinstance(val, np.ndarray) and val.dtype == np.float64
                               and val.flags.c_contiguous) else np.ascontiguousarray(val, dtype=np.float64)
+                if arr is not val and isinstance(val, np.ndarray) and val.flags.writeable:
+                    writeback.append((val, arr))
                 keep_alive.append(arr)
                 c_vals.append(arr.ctypes.data)
             elif token == 'i32*':
                 arr = val if (isinstance(val, np.ndarray) and val.dtype == np.int32
                               and val.flags.c_contiguous) else np.ascontiguousarray(val, dtype=np.int32)
+                if arr is not val and isinstance(val, np.ndarray) and val.flags.writeable:
+                    writeback.append((val, arr))
                 keep_alive.append(arr)
                 c_vals.append(arr.ctypes.data)
             elif token in ('f64', 'double'):
@@ -166,6 +171,8 @@ class CompiledCCore:
         for out in outs:
             c_vals.append(out.ctypes.data)
         res = self.cfn(*c_vals)
+        for orig, copy_arr in writeback:
+            np.copyto(orig, copy_arr)
         if self._out_specs:
             return outs[0] if len(outs) == 1 else tuple(outs)
         if isinstance(self.returns, str) and self.returns.startswith(('arg:', 'inplace:')):
@@ -192,10 +199,12 @@ def _compile_c_core(row: dict[str, Any]) -> dict[str, Any]:
     digest = hashlib.sha1(source.encode('utf-8')).hexdigest()[:12]
     src_path = os.path.join(build.OUT, 'hs_%s_%s.c' % (safe, digest))
     if not os.path.exists(src_path):
-        with open(src_path, 'w', encoding='utf-8') as f:
+        tmp_path = '%s.%d.tmp' % (src_path, os.getpid())
+        with open(tmp_path, 'w', encoding='utf-8') as f:
             f.write(source)
+        os.replace(tmp_path, src_path)
     try:
-        lib_path, warnings = build.cached([src_path], wbc_sources.INCLUDES, 'hs_' + safe,
+        lib_path, warnings = build.cached([src_path], wbc_sources.INCLUDES, 'hs_%s_%s' % (safe, digest),
                                           extra=wbc_sources.FLAGS)
     except RuntimeError as exc:
         raise MachineError('C core %s failed compilation: %s' % (name, exc)) from exc

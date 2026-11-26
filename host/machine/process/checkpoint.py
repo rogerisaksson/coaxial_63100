@@ -55,6 +55,8 @@ def _copy_val(val: Any, path: str = 'val') -> Any:
         return val
     if isinstance(val, dict):
         return {k: _copy_val(v, '%s.%s' % (path, k)) for k, v in val.items()}
+    if isinstance(val, set):
+        return {_copy_val(v, '%s{}' % path) for v in val}
     if isinstance(val, list):
         copied = [_copy_val(v, '%s[%d]' % (path, i)) for i, v in enumerate(val)]
         arrays = getattr(val, 'arrays', None)
@@ -83,6 +85,9 @@ def _restore_inplace_dict(dst, saved):
                 dst[k] = src.copy()
         elif k in dst and isinstance(dst[k], dict) and isinstance(src, dict):
             _restore_inplace_dict(dst[k], src)
+        elif k in dst and isinstance(dst[k], set) and isinstance(src, set):
+            dst[k].clear()
+            dst[k].update(_copy_val(src, str(k)))
         elif k in dst and isinstance(dst[k], list) and isinstance(src, list) and getattr(src, 'arrays', None) is None:
             dst[k][:] = _copy_val(src, str(k))
         else:
@@ -409,6 +414,9 @@ def _restore_g(g, snap):
             np.copyto(g[k], src)
         elif k in g and isinstance(g[k], dict) and isinstance(src, dict):
             _restore_inplace_dict(g[k], src)
+        elif k in g and isinstance(g[k], set) and isinstance(src, set):
+            g[k].clear()
+            g[k].update(_copy_val(src, 'g.%s' % k))
         elif k in g and isinstance(g[k], list) and isinstance(src, list) and getattr(src, 'arrays', None) is None:
             g[k][:] = _copy_val(src, 'g.%s' % k)
         else:

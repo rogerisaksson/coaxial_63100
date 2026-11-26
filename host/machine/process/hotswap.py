@@ -161,6 +161,8 @@ def unpack_state(s, packed: dict[str, Any]):
         'hooks': {}, 'played': bank_pack['played'],
     })
     checkpoint.restore(s, {'world': world_snap, 'g': g_snap, 's': packed['s']})
+    if g.get('keep') is None:
+        g['eyes'] = 0
 
 
 def save_state(s, name: str = 'default', *, path: str | None = None, allow_apart: bool = True) -> dict[str, Any]:
@@ -247,6 +249,12 @@ def place_robot(s, *, where=None, yaw: float | None = None, yaw_deg: float | Non
         else:
             arr = np.asarray(qpos, dtype=float)
             d.qpos[:len(arr)] = arr
+            if quat is None and yaw is None and len(arr) >= 7:
+                qn = float(np.linalg.norm(d.qpos[3:7]))
+                if qn > 1e-12:
+                    d.qpos[3:7] /= qn
+                qw, qx, qy, qz = (float(x) for x in d.qpos[3:7])
+                dyaw = libm.arctan2(2.0 * (qw * qy + qx * qz), 1.0 - 2.0 * (qx * qx + qy * qy)) - h0
     if qvel is not None:
         if isinstance(qvel, dict):
             for jname, val in qvel.items():
@@ -274,9 +282,11 @@ def place_robot(s, *, where=None, yaw: float | None = None, yaw_deg: float | Non
                 played['target'][:] = np.radians(played['cmd'][played['joints']])
     edge.read(world, g['sense'])
     edge.contacted(world, g['sense'])
-    g['est']['pos'] = d.qpos[0:3].copy()
+    g['est']['pos'][:] = d.qpos[0:3]
     if zero_vel:
         g['est']['vel'][:] = 0.0
+    elif qvel is not None and not isinstance(qvel, dict) and len(qvel) >= 3:
+        g['est']['vel'][:] = d.qvel[0:3]
     elif abs(dyaw) > 1e-12:
         cd, sd = libm.cos(dyaw), libm.sin(dyaw)
         ev = g['est']['vel']
@@ -292,7 +302,7 @@ def place_robot(s, *, where=None, yaw: float | None = None, yaw_deg: float | Non
     g['fr'][modal.HEADING] = hd
     g['fr'][modal.ROT] = np.array([sh, 0.0, ch, ch, 0.0, -sh, 0.0, 1.0, 0.0])
     g['s'] = proc_sensed(body, g['est'], g['sense'], g['limbs'])
-    g['modal_sensed'](g['s'], g['loads'], g['y'])
+    modal.sensed(g['s'], g['loads'], g['y'])
     g['y'][modal.CELLS] = g['sense'][edge.CELLS]
     if np.any(dp != 0.0) or abs(dyaw) > 1e-12 or qpos is not None:
         g['fr'][modal.FLOOR_AT] = g['y'][modal.SOLE].reshape(2, 3)[:, [0, 2]].mean(axis=0)
@@ -378,6 +388,9 @@ def _mp_init(packed_bytes: bytes):
     meta = blob['meta']
     physics.ROOM, physics.CAMERA, physics.SIGHT = meta['physics']
     s = worker.session(every=meta['every'], walks=meta['walks'])
+    if s['g'].get('keep') is not None:
+        s['g']['keep'].close()
+        s['g']['keep'] = None
     unpack_state(s, blob)
     save_state(s, '_iter_base', allow_apart=True)
     _MP_STATE['s'] = s
@@ -488,12 +501,14 @@ def tcp_command(s, command: dict[str, Any], told):
 def remote(port: int, payload: dict[str, Any], host: str = '127.0.0.1', timeout: float = 15.0) -> dict[str, Any]:
     """Send a live `hotswap` or `checkpoint` payload to an attached telemetry port and return reply."""
     end = time.monotonic() + timeout
-    with socket.create_connection((host, int(port)), timeout=timeout) as sock:
+    with socket.create_connection((host, int(port)), timeout=timeout) as sock, sock.makefile('rb') as f:
         sock.sendall(json.dumps(payload).encode('utf-8') + b'\n')
-        f = sock.makefile('rb')
         while time.monotonic() < end:
             sock.settimeout(max(0.05, end - time.monotonic()))
-            line = f.readline()
+            try:
+                line = f.readline()
+            except TimeoutError:
+                break
             if not line:
                 break
             rec = json.loads(line)

@@ -208,6 +208,36 @@ def test_mujoco_pose_reload_disk_checkpoint_and_parallel_iterate(report):
                          cli_rc == 0 and len(rows) == 2 and all(r.get('ok') for r in rows)
                          and rows[0]['swapped'] == ['iter_sloped_a'] and rows[1]['swapped'] == ['iter_sloped_b'],
                          str(rows))
+
+            # Verify array qpos/qvel sync, compiled modal_sensed retention, non-contiguous C writeback,
+            # same-name C variants without pruning collision, and set-valued live room checkpoint pack/unpack.
+            from machine import libm
+            q_rot = g['world'].data.qpos.copy()
+            qy = np.array([libm.cos(math.radians(15.0)), 0.0, libm.sin(math.radians(15.0)), 0.0])
+            q_rot[3:7] = hotswap._quat_mul(qy, q_rot[3:7])
+            qw2, qx2, qy2, qz2 = (float(v) for v in q_rot[3:7])
+            want_hd = libm.arctan2(2.0 * (qw2 * qy2 + qx2 * qz2), 1.0 - 2.0 * (qx2 * qx2 + qy2 * qy2))
+            hotswap.place_robot(s, qpos=q_rot, qvel=np.array([0.8, 0.0, -0.3]))
+            c_kept = getattr(g['modal_sensed'], 'why', None) is None
+            hd_ok = abs(float(g['heading']) - want_hd) < 1e-6
+            vel_ok = float(np.max(np.abs(g['est']['vel'] - np.array([0.8, 0.0, -0.3])))) < 1e-9
+            c_in = {'type': 'core', 'kind': 'c', 'name': 'hs_slice_inc', 'entry': 'hs_slice_inc',
+                    'args': ['f64*', 'len:0'], 'returns': 'inplace:0',
+                    'source': 'void hs_slice_inc(double *x, int n){for(int i=0;i<n;i++) x[i]+=2.0;}\n'}
+            arr_nc = np.zeros(6, dtype=np.float64)
+            hotswap.compile_unit(c_in)['callable'](arr_nc[::2])
+            nc_ok = np.allclose(arr_nc, [2.0, 0.0, 2.0, 0.0, 2.0, 0.0])
+            same_a = dict(cand_a[0], name='hs_same_variant')
+            same_b = dict(cand_b[0], name='hs_same_variant')
+            r_a, r_b = hotswap.compile_unit(same_a), hotswap.compile_unit(same_b)
+            same_ok = os.path.isfile(r_a['lib_path']) and os.path.isfile(r_b['lib_path']) and r_a['lib_path'] != r_b['lib_path']
+            g['_gaze'] = {'seen': {'bed'}, 'visited': {'chair'}}
+            blob_sets = hotswap.pack_state(s, allow_apart=True)
+            hotswap.unpack_state(s2, blob_sets)
+            sets_ok = s2['g'].get('_gaze', {}).get('seen') == {'bed'} and s2['g'].get('eyes') == 0
+            report.check('place_robot preserves C modal_sensed and syncs array pose/vel; C writeback, variants, and set checkpoints hold',
+                         c_kept and hd_ok and vel_ok and nc_ok and same_ok and sets_ok,
+                         'c_kept=%s hd=%s vel=%s nc=%s same=%s sets=%s' % (c_kept, hd_ok, vel_ok, nc_ok, same_ok, sets_ok))
     finally:
         physics.ROOM, physics.CAMERA, physics.SIGHT = prev
 

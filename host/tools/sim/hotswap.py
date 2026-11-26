@@ -51,8 +51,10 @@ def main(argv=None) -> int:
         payload: dict[str, Any] = {}
         if args.save:
             payload['checkpoint'] = {'action': 'save', 'name': args.save, 'path': args.checkpoint_file}
-        elif args.reload:
-            ck: dict[str, Any] = {'action': 'reload', 'name': args.reload, 'zero_vel': bool(args.zero_vel)}
+        elif args.reload or args.checkpoint_file:
+            ck: dict[str, Any] = {'action': 'reload', 'zero_vel': bool(args.zero_vel)}
+            if args.reload:
+                ck['name'] = args.reload
             if args.checkpoint_file:
                 ck['path'] = args.checkpoint_file
             if args.where:
@@ -74,8 +76,11 @@ def main(argv=None) -> int:
         return 0 if reply.get('ok', True) else 1
 
     if args.iterate:
-        raw = json.loads(args.iterate) if args.iterate.strip().startswith(('[', '{')) else json.load(
-            open(args.iterate, encoding='utf-8'))
+        if args.iterate.strip().startswith(('[', '{')):
+            raw = json.loads(args.iterate)
+        else:
+            with open(args.iterate, encoding='utf-8') as f:
+                raw = json.load(f)
         candidates = raw['candidates'] if isinstance(raw, dict) and 'candidates' in raw else (
             raw if isinstance(raw, list) else [raw])
         prev = (physics.ROOM, physics.CAMERA, physics.SIGHT)
