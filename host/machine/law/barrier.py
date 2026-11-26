@@ -26,10 +26,9 @@ GAMMA = kernel.said('enforce-dcm-barrier-zcbf', 'barrier-gamma')
 MARGIN_M = 1e-3 * kernel.said('enforce-dcm-barrier-zcbf', 'min-capture-margin-mm')
 #: The projections onto the edges' half planes in turn: a hull's corner meets two.
 SWEEPS = 3
-#: The hulls the robot's soles make, by their corners: two soles' eight at most. Each one's part of `ringed`
-#: traced ahead in the robot's first passes (`ahead`), not in the pass such a hull first bears it - 8 ms a
-#: trace.
-HULLS = tuple(range(3, 9))
+#: The hulls the robot's soles and auxiliary supports make, by their corners: three to twelve. Each one's part of
+#: `ringed` is traced or bound ahead so no pass pays an 8 ms trace when such a hull first bears the robot.
+HULLS = tuple(range(3, 13))
 
 
 def hull(points):
@@ -70,16 +69,27 @@ def ringed(acc, com, vcom, om, ring, rest):
 
 def ahead(law, left):
     """`law` (`ringed`, a part a ring's length) on a regular ring of the first length `left`, its result
-    dropped, till that part is traced or stays numpy - then that length off `left`: a trace at a time, as
-    the robot's parts pace them (`tools.cores.bodied`); `left` empty, nothing."""
-    if not left:
-        return
-    k = left[0]
-    angle = np.arange(k) * (2.0 * np.pi / k)
-    law(np.zeros(3), np.zeros(3), np.zeros(3), 3.0, 0.1 * np.stack([libm.cos(angle), libm.sin(angle)], axis=1), 0.0)
-    part = getattr(law, 'part', None)
-    if part is None or part.made is not None or part.why is not None:
-        left.pop(0)
+    dropped, till that part is traced or stays numpy - then that length off `left`: already-kept hulls bind at once,
+    untraced ones pace one at a time (`tools.cores.bodied`); `left` empty, nothing."""
+    from tools.cores import kept
+    while left:
+        k = left[0]
+        key = ((3,), (3,), (3,), (), (k, 2), ())
+        get = getattr(law, 'get', None)
+        found = None if get is None else get(key)
+        warm = found is not None and kept.ready(found)
+        angle = np.arange(k) * (2.0 * np.pi / k)
+        z = np.zeros(3)
+        ring = 0.1 * np.stack([libm.cos(angle), libm.sin(angle)], axis=1)
+        if get is None:
+            law(z, z, z, 3.0, ring, 0.0)
+        else:
+            law(z, z, z, 3.0, ring, 0.0, paced=not warm)
+        part = getattr(law, 'part', None)
+        if part is None or part.made is not None or part.why is not None:
+            left.pop(0)
+        if not warm:
+            return
 
 
 def barred(acc, com, vcom, om, corners, rest, law=ringed, hull_=hull):

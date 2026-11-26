@@ -173,6 +173,12 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
     g['beat'] = _beat().laid(g)
     world.clock = lambda: g['t']
     bank.laid(g)
+    from tools.cores import kept as c_kept
+    c_kept.settle()
+    if c_kept.ready(g['sensed']):
+        g['sensed'](body, world.data.qpos, world.data.qvel, paced=False)
+    barrier_mod = __import__('machine.law.barrier', fromlist=['ahead'])
+    barrier_mod.ahead(g['ringed'], g['ringed_ahead'])
     return g
 
 
@@ -248,6 +254,10 @@ def relaid(g, where=(0.0, 0.0), yaw=0.0):
     _dropped(g)
     g['labels'] = []
     g.pop('_post_stunt', None)
+    g.pop('chained', None)
+    body.chain_warm, body.chain_let = ((), ()), set()
+    from tools.cores import step as c_step
+    c_step.reset_chain(g['solves'][1])
     bank.reset(g)
 
 

@@ -293,8 +293,8 @@ def _solved(w, _prog, st):
 
 def _fill(w, _prog, st):
     b = st.out.buffer
-    place = 'out%d' % w.laid['out'][b.id] if b.id in w.laid['out'] else 'w + %d' % w.laid['at'][b.id]
-    return ['  memset(%s, 0, %d * sizeof(double));' % (place, b.size)]
+    place = 'out%d' % w.laid['out'][b.id] if b.id in w.laid['out'] else '(w + %d)' % w.laid['at'][b.id]
+    return ['  for (long i0 = 0; i0 < %d; i0++) {' % b.size, '    %s[i0] = 0.0;' % place, '  }']
 
 
 def _elementwise(w, _prog, st):
@@ -375,11 +375,11 @@ WRITERS = {'fill': _fill, 'ew': _elementwise, 'einsum': _contracted, 'gather': _
 #: A program's C in SME2's streaming mode where it is built for SME2 (`build.TARGETS`'s sme2) and calls nothing out
 #: (`streamed`): its loops on the streaming vectors, its entry and exit the mode's switch; a call out - libm, numpy's
 #: BLAS, MuJoCo, memset (gcc 15's libgcc has no __arm_sc_memset) - switches out and back at each.
-STREAMING = ['#if defined(__ARM_FEATURE_SME2)', '#define STREAMING __arm_locally_streaming', '#else',
-             '#define STREAMING', '#endif']
+STREAMING = ['#if defined(__ARM_FEATURE_SME2)', '#pragma GCC optimize("no-tree-loop-distribute-patterns")',
+             '#define STREAMING __arm_locally_streaming', '#else', '#define STREAMING', '#endif']
 #: The names a streaming program's C may put before a parenthesis: C's own words, and what gcc 15 lays inline in
-#: a streaming function for SME2 - wbc_np.h's arithmetic, lm_nan, fabs and sqrt (-fno-math-errno); memset leaves a call.
-INLINE = ('for', 'if', 'while', 'sizeof', 'isnan', 'lm_nan', 'fabs', 'sqrt', 'npmaximum', 'npminimum', 'npclip',
+#: a streaming function for SME2 - wbc_np.h's arithmetic, lm_nan, fabs, sqrt and fma (-fno-math-errno); memset leaves a call.
+INLINE = ('for', 'if', 'while', 'sizeof', 'isnan', 'lm_nan', 'fabs', 'sqrt', 'fma', 'npmaximum', 'npminimum', 'npclip',
           'npsum_s', 'npsign', 'npnan_to_num')
 
 
@@ -424,8 +424,9 @@ def c(prog, name, orders=None, batch=False):
     if prog.calls:
         head += ['typedef double mjtNum;', 'typedef struct mjModel_ mjModel;', 'typedef struct mjData_ mjData;']
         head += ['typedef void (*%s_t)(%s);' % call for call in prog.calls] + ['']
-    head += w.tables + ['', 'API %s%s %s(%sconst double *in, double *out, double *w, double *const *ext, '
-                        'const wbc_blas_t *blas, const void *model, void *data, void (*const *call)(void))'
+    head += w.tables + ['', 'API %s%s %s(%sconst double *restrict in, double *restrict out, double *restrict w, '
+                        'double *const *ext, const wbc_blas_t *blas, const void *model, void *data, '
+                        'void (*const *call)(void))'
                         % ('STREAMING ' if stream else '', 'int' if solves else 'void', name,
                            'long n, ' if batch else ''), '{']
     done = ['  return 0;'] if solves else []

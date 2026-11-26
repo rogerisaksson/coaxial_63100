@@ -66,7 +66,7 @@ TOUCHES = (
     ('host/coaxial/graphics/aerobat.py',       ('test_helicopter.py', 'test_aerobat.py', RENDER, STRUCTURE)),
     ('host/lisp/aircraft/helicopter.lisp',     ('test_helicopter.py', STRUCTURE)),
     ('host/lisp/aircraft/ornithopter.lisp',    ('test_helicopter.py', STRUCTURE)),
-    ('host/tools/cores/mppi.py',               (MPPI_CORE, 'test_helicopter.py')),
+    ('host/tools/cores/mppi',                  (MPPI_CORE, 'test_helicopter.py', STRUCTURE)),
     ('mppi/',                                  (MPPI_CORE, 'test_helicopter.py', STRUCTURE)),
     ('host/tools/cores/se3.py',                (SE3_CORE, SE3_GRIP)),
     # A bearing point's friction alone, the world's contacts' too (wbc_world.c: se3_rubs, se3_kept).
@@ -97,7 +97,7 @@ TOUCHES = (
     ('wbc/inc/wbc_world.h',                    (WBC_CORE, TICK, STICTION)),
     ('wbc/test/harness_world.c',               (WBC_CORE, TICK, STICTION)),
     ('wbc/inc/wbc_beat.h',                     (WBC_CORE, TICK)),
-    ('wbc/src/wbc_pass.c',                     (WBC_CORE, LEAP, EMULATOR, PORTED, BORNE, REGISTRY, TICK)),
+    ('wbc/src/wbc_pass',                       (WBC_CORE, LEAP, EMULATOR, PORTED, BORNE, REGISTRY, TICK)),
     ('wbc/inc/wbc_pass.h',                     (WBC_CORE, LEAP, EMULATOR, PORTED, BORNE, REGISTRY, TICK)),
     ('host/tools/sim/observed.py',             (KERNEL,)),
     ('host/lisp/humanoid/runway.lisp',               (DSP,)),

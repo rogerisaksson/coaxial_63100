@@ -242,7 +242,7 @@ ROWS = {
             'columns': (1, 1),
             'expect': (1, 1),
             'lessened': (1, 1),
-            'pushes': (2, 2),
+            'pushes': (1, 1),
             'shared': (1, 1),
             'split': (1, 1),
             'stage': (1, 1),
@@ -286,6 +286,9 @@ ROWS = {
         'wbc_pass.c': {
             'wbc_pass_contacts': (1, 1),
         },
+        'wbc_pass_heat.c': {
+            'wbc_pass_heat_peak': (1, 1),
+        },
         'wbc_poise.c': {
             'spanned_of': (1, 1),
         },
@@ -309,8 +312,8 @@ ROWS = {
             'wbc_wrench_torques': (1, 1),
         },
         'wbc_solve.c': {
-            'reduced': (2, 2),
-            'wbc_level_solve': (13, 13),
+            'reduced': (1, 1),
+            'wbc_level_solve': (12, 12),
         },
         'wbc_stack.c': {
             'lay': (1, 1),
@@ -473,6 +476,9 @@ ROWS = {
         'wbc_pass.c': {
             'wbc_pass_averaged': (1, 1, 1),
             'wbc_pass_contacts': (1, 1, 1),
+        },
+        'wbc_pass_heat.c': {
+            'wbc_pass_heat_peak': (1, 1, 1),
         },
         'wbc_patch.c': {
             'wbc_patch_rows': (3, 3, 3),
@@ -686,6 +692,9 @@ ROWS = {
         'wbc_pass.c': {
             'wbc_pass_averaged': (1, 1, 1),
             'wbc_pass_contacts': (1, 1, 1),
+        },
+        'wbc_pass_heat.c': {
+            'wbc_pass_heat_peak': (1, 1, 1),
         },
         'wbc_patch.c': {
             'wbc_patch_rows': (3, 3, 3),

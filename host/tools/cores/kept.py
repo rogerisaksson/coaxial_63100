@@ -129,6 +129,60 @@ def _kept(path):
     return list(got['programs']) if isinstance(got, dict) and got.get('stamp') == stamp() else []
 
 
+def _shape_file(at):
+    """The kept shape-index file of a `bodied.Shaped` tuple `at`, None for nested functions."""
+    from machine.body import mechatronics
+    fn, name, inputs, body = at[0], at[1], at[2], at[3]
+    if '<' in getattr(fn, '__qualname__', '<'):
+        return None
+    kind = '%s.%s|%s|%s|%s|%s|shapes' % (fn.__module__, fn.__qualname__, name, tuple(inputs), body is not None,
+                                         mechatronics.ROBOT)
+    return os.path.join(KEPT, hashlib.sha1(kind.encode()).hexdigest()[:20] + '.pkl')
+
+
+def shapes(at):
+    """Previously kept input shape keys for `bodied.Shaped` tuple `at` under this stamp."""
+    path = _shape_file(at)
+    if path is None:
+        return ()
+    try:
+        with open(path, 'rb') as f:
+            got = pickle.load(f)
+    except TORN:
+        return ()
+    return tuple(got['keys']) if isinstance(got, dict) and got.get('stamp') == stamp() else ()
+
+
+def keep_shape(at, key):
+    """Record input shape `key` for `bodied.Shaped` tuple `at` under this stamp."""
+    path = _shape_file(at)
+    if path is None:
+        return
+    known = list(shapes(at))
+    if key in known:
+        return
+    known.append(key)
+    whole = '%s.%d' % (path, os.getpid())
+    with contextlib.suppress(OSError, pickle.PicklingError):
+        os.makedirs(KEPT, exist_ok=True)
+        with open(whole, 'wb') as f:
+            pickle.dump({'stamp': stamp(), 'keys': known}, f, protocol=pickle.HIGHEST_PROTOCOL)
+        os.replace(whole, path)
+
+
+def ready(part):
+    """Whether `part` holds at least one kept program whose shared library is already loaded."""
+    warm(part)
+    held_here = _HELD.get(_key(part), [])
+    return bool(held_here) and all(len(entry) != 4 or entry[3]['done'].is_set() for entry in held_here)
+
+
+def settle(wait_s=2.0):
+    """Wait for already-built kept libraries to finish loading into memory before tick 0."""
+    from tools.cores import held
+    return held.settled_cached(wait_s)
+
+
 def warm(part):
     """`part`'s kind's kept programs, not yet read here, read and their libraries loading in the builds' thread
     behind the robot's laying: by its first pass they are in memory."""

@@ -42,10 +42,15 @@ class Core:
     """The aerobat's SO(3) law, its surfaces in the propwash, its wind observer."""
 
     def __init__(self):
+        from machine.aircraft import aerobat
+        self.mpc = se3mpc.Mppi(aerobat)
         self.reset()
 
     def reset(self):
         """Reset observer and trajectory state."""
+        self.mpc_on, self.mpc_wait = False, 0.0
+        if getattr(self, 'mpc', None) is not None:
+            self.mpc.nominal[:] = 0.0
         self.vel_hat, self.push_hat, self.wind = [0.0] * 3, [0.0] * 3, [0.0] * 3
         self.wind_slow, self.gust2, self.push_slow, self.landed = [0.0] * 3, 0.0, [0.0] * 3, False
         self.spin_hat, self.turn_hat = [0.0] * 3, [0.0] * 3

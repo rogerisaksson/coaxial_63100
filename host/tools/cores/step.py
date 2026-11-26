@@ -108,7 +108,17 @@ def _laid(b, sensed):
     k.pointed = slice(first // 8, first // 8 + len(POINTED))
     if [getattr(Step, f).offset + 8 * i for f, i, _p in POINTED] != list(range(first, first + 8 * len(POINTED), 8)):
         k.sensed = None
+    ctypes.memset(ctypes.addressof(k) + getattr(Step, 'work').offset, 0, ctypes.sizeof(k.work))
     return k, views
+
+
+def reset_chain(solve):
+    """Clear warm active-set and let-go state on a `chain_laid` solver across `sprung.relaid`."""
+    if isinstance(solve, functools.partial) and solve.args:
+        k = solve.args[0]
+        if hasattr(k, 'chain_nheld'):
+            k.chain_nheld[0] = k.chain_nheld[1] = 0
+            k.chain_nlet = 0
 
 
 def wrench_laid(b, sensed=None):

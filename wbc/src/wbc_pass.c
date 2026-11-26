@@ -23,9 +23,11 @@ void wbc_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, double y
   const double stood[2] = {stood0, stood1};
   double      *eso0 = p->eso, *eso1 = p->eso + n, *eso2 = p->eso + 2 * n;
 
+  double *restrict sb = p->sb;
+
   for (int i = 0; i < n; i++)
   {
-    p->sb[i] = 0.0;
+    sb[i] = 0.0;
   }
   /* the robot's knees' spring: back from straight, and against folding back past straight (engaged ahead where
      a standing knee's stopping point crosses `under` over a held stride) */
@@ -158,19 +160,64 @@ void wbc_pass_tick(wbc_tick_t *t, double dt, double now, double wo, double limp)
 
 void wbc_pass_ctrl(wbc_world_t *w, double span, const double *ahead, const double *wrate)
 {
-  const int n = w->n < WBC_PASS_MAX ? w->n : WBC_PASS_MAX;
-  double    tau[WBC_PASS_MAX];
+  const int                     n = w->n < WBC_PASS_MAX ? w->n : WBC_PASS_MAX;
+  const double *restrict        target = w->target, *restrict rate = w->rate, *restrict delta = w->delta;
+  const double *restrict        zero = w->zero, *restrict gains = w->gains, *restrict feed = w->feed;
+  const double *restrict        limit = w->limit, *restrict qpos = w->qpos, *restrict qvel = w->qvel;
+  const int *restrict           qadr = w->qadr, *restrict vadr = w->vadr;
+  const unsigned char *restrict shorted = w->shorted, *restrict cut = w->cut;
+  double *restrict              ctrl = w->ctrl;
+  const double                  wound = w->wound;
+  _Alignas(64) double           tau[WBC_PASS_MAX], qp[WBC_PASS_MAX], qv[WBC_PASS_MAX];
+  _Alignas(64) double           ah[WBC_PASS_MAX], wr[WBC_PASS_MAX];
 
   for (int i = 0; i < n; i++)
   {
-    const double ref = w->target[i] + w->rate[i] * span + (ahead != NULL ? ahead[i] : 0.0);
-    const double seen = (w->qpos[w->qadr[i]] + w->wound * w->delta[i]) + w->zero[i];
-    const double seen_d = w->qvel[w->vadr[i]] + (wrate != NULL ? wrate[i] : 0.0);
-    double       t = (w->gains[2 * i] * (ref - seen) + w->gains[2 * i + 1] * (w->rate[i] - seen_d)) + w->feed[i];
+    qp[i] = qpos[qadr[i]];
+    qv[i] = qvel[vadr[i]];
+  }
+  if (ahead != NULL)
+  {
+    const double *restrict src = ahead;
 
-    t = ((w->shorted[i] | w->cut[i]) != 0U) ? 0.0 : t;
+    for (int i = 0; i < n; i++)
+    {
+      ah[i] = src[i];
+    }
+  }
+  else
+  {
+    for (int i = 0; i < n; i++)
+    {
+      ah[i] = 0.0;
+    }
+  }
+  if (wrate != NULL)
+  {
+    const double *restrict src = wrate;
+
+    for (int i = 0; i < n; i++)
+    {
+      wr[i] = src[i];
+    }
+  }
+  else
+  {
+    for (int i = 0; i < n; i++)
+    {
+      wr[i] = 0.0;
+    }
+  }
+  for (int i = 0; i < n; i++)
+  {
+    const double ref = target[i] + rate[i] * span + ah[i];
+    const double seen = (qp[i] + wound * delta[i]) + zero[i];
+    const double seen_d = qv[i] + wr[i];
+    double       t = (gains[2 * i] * (ref - seen) + gains[2 * i + 1] * (rate[i] - seen_d)) + feed[i];
+
+    t = ((shorted[i] | cut[i]) != 0U) ? 0.0 : t;
     tau[i] = t;
-    w->ctrl[i] = npclip(t, -w->limit[i], w->limit[i]);
+    ctrl[i] = npclip(t, -limit[i], limit[i]);
   }
   /* a parallel pair's two drives: each's current the first's share plus or less the second's */
   for (int k = 0; k < w->npairs; k++)
@@ -180,8 +227,8 @@ void wbc_pass_ctrl(wbc_world_t *w, double span, const double *ahead, const doubl
     const double top_p = w->limit[p] / w->kt[p], top_r = w->limit[r] / w->kt[r];
     const double one = npclip(a + b, -top_p, top_p), two = npclip(a - b, -top_r, top_r);
 
-    w->ctrl[p] = w->kt[p] * (one + two) / 2.0;
-    w->ctrl[r] = w->kt[r] * (one - two) / 2.0;
+    ctrl[p] = w->kt[p] * (one + two) / 2.0;
+    ctrl[r] = w->kt[r] * (one - two) / 2.0;
   }
 }
 
@@ -283,58 +330,77 @@ double wbc_pass_drawn(const wbc_world_t *w, const double *tau, const double *spe
 void wbc_pass_felt(const wbc_world_t *w, double *y, int quat_at, int gyro_at, int accel_at, int q_at, int qd_at,
                    int qm_at)
 {
-  static const double g[3] = {0.0, -WBC_GRAVITY, 0.0};
-  const double       *r = w->xmat + 9 * w->pelvis;
-  double              v[3];
+  static const double    g[3] = {0.0, -WBC_GRAVITY, 0.0};
+  const int              n = w->n < WBC_PASS_MAX ? w->n : WBC_PASS_MAX;
+  const double          *r = w->xmat + 9 * w->pelvis;
+  const double *restrict qpos = w->qpos, *restrict qvel = w->qvel, *restrict delta = w->delta, *restrict zero = w->zero;
+  const int *restrict    qadr = w->qadr, *restrict vadr = w->vadr;
+  double *restrict       y_q = y + q_at, *restrict y_qd = y + qd_at, *restrict y_qm = y + qm_at;
+  const double           wound = w->wound;
+  _Alignas(64) double    qp[WBC_PASS_MAX], qv[WBC_PASS_MAX];
+  double                 v[3];
 
   for (int i = 0; i < 4; i++)
   {
-    y[quat_at + i] = w->qpos[3 + i];
+    y[quat_at + i] = qpos[3 + i];
   }
   for (int i = 0; i < 3; i++)
   {
-    y[gyro_at + i] = w->qvel[3 + i];
+    y[gyro_at + i] = qvel[3 + i];
     v[i] = w->qacc[i] - g[i];
   }
   for (int i = 0; i < 3; i++)
   {
     y[accel_at + i] = (r[i] * v[0] + r[3 + i] * v[1]) + r[6 + i] * v[2];
   }
-  for (int i = 0; i < w->n; i++)
+  for (int i = 0; i < n; i++)
   {
-    const double q = w->qpos[w->qadr[i]];
+    qp[i] = qpos[qadr[i]];
+    qv[i] = qvel[vadr[i]];
+  }
+  for (int i = 0; i < n; i++)
+  {
+    const double q = qp[i];
 
-    y[q_at + i] = q;
-    y[qd_at + i] = w->qvel[w->vadr[i]];
-    y[qm_at + i] = (q + w->wound * w->delta[i]) + w->zero[i];
+    y_q[i] = q;
+    y_qd[i] = qv[i];
+    y_qm[i] = (q + wound * delta[i]) + zero[i];
   }
 }
 
 void wbc_pass_contacts(wbc_contacts_t *c, int ncon, const char *pos, const double *efc_force, const double *efc_R)
 {
-  for (int s = 0; s < 2; s++)
   {
-    c->loads[s] = 0.0;
-  }
-  for (int k = 0; k < 3 * c->nskin; k++)
-  {
-    c->touch[k] = c->felt_at[k] = c->felt_nrm[k] = 0.0;
-  }
-  for (int k = 0; k < c->nskin; k++)
-  {
-    c->felt_n[k] = c->felt_give[k] = 0.0;
-  }
-  for (int k = 0; k < 3 * c->ninsoles; k++)
-  {
-    c->at[k] = 0.0;
-  }
-  for (int k = 0; k < c->ninsoles; k++)
-  {
-    c->pressed[k] = 0.0;
-  }
-  for (int k = 0; k < 2 * c->nfeet; k++)
-  {
-    c->cells[k] = 0.0;
+    const int        ns3 = 3 * c->nskin, ns = c->nskin, ni3 = 3 * c->ninsoles, ni = c->ninsoles, nf2 = 2 * c->nfeet;
+    double *restrict touch = c->touch, *restrict felt_at = c->felt_at, *restrict felt_nrm = c->felt_nrm;
+    double *restrict felt_n = c->felt_n, *restrict felt_give = c->felt_give;
+    double *restrict at = c->at, *restrict pressed = c->pressed, *restrict cells = c->cells;
+
+    c->loads[0] = 0.0;
+    c->loads[1] = 0.0;
+    for (int k = 0; k < ns3; k++)
+    {
+      touch[k] = 0.0;
+      felt_at[k] = 0.0;
+      felt_nrm[k] = 0.0;
+    }
+    for (int k = 0; k < ns; k++)
+    {
+      felt_n[k] = 0.0;
+      felt_give[k] = 0.0;
+    }
+    for (int k = 0; k < ni3; k++)
+    {
+      at[k] = 0.0;
+    }
+    for (int k = 0; k < ni; k++)
+    {
+      pressed[k] = 0.0;
+    }
+    for (int k = 0; k < nf2; k++)
+    {
+      cells[k] = 0.0;
+    }
   }
   for (int i = 0; i < ncon; i++)
   {
@@ -451,212 +517,40 @@ int wbc_pass_tapped(const wbc_contacts_t *c, int ncon, const char *pos, const do
 void wbc_pass_sensed(const wbc_contacts_t *c, double *y, int load_at, int touch_at, int press_at, int cop_at,
                      int cells_at, int at_at, int give_at, int nrm_at)
 {
-  for (int s = 0; s < 2; s++)
+  const int              ns = c->nskin, ni = c->ninsoles, nf2 = 2 * c->nfeet;
+  const double *restrict touch = c->touch, *restrict felt_at = c->felt_at, *restrict felt_nrm = c->felt_nrm;
+  const double *restrict felt_n = c->felt_n, *restrict felt_give = c->felt_give;
+  const double *restrict at = c->at, *restrict pressed = c->pressed, *restrict cells = c->cells;
+  double *restrict       y_touch = y + touch_at, *restrict y_at = y + at_at, *restrict y_nrm = y + nrm_at;
+  double *restrict       y_give = y + give_at, *restrict y_press = y + press_at, *restrict y_cop = y + cop_at;
+  double *restrict       y_cells = y + cells_at;
+
+  y[load_at] = c->loads[0];
+  y[load_at + 1] = c->loads[1];
+  for (int k = 0; k < ns; k++)
   {
-    y[load_at + s] = c->loads[s];
-  }
-  for (int k = 0; k < c->nskin; k++)
-  {
+    const double den = npmax(felt_n[k], 1e-9);
+
     for (int j = 0; j < 3; j++)
     {
-      y[touch_at + 3 * k + j] = c->touch[3 * k + j];
-      y[at_at + 3 * k + j] = c->felt_at[3 * k + j] / npmax(c->felt_n[k], 1e-9);
-      y[nrm_at + 3 * k + j] = c->felt_nrm[3 * k + j] / npmax(c->felt_n[k], 1e-9);
+      y_touch[3 * k + j] = touch[3 * k + j];
+      y_at[3 * k + j] = felt_at[3 * k + j] / den;
+      y_nrm[3 * k + j] = felt_nrm[3 * k + j] / den;
     }
-    y[give_at + k] = c->felt_give[k] / npmax(c->felt_n[k], 1e-9);
+    y_give[k] = felt_give[k] / den;
   }
-  for (int k = 0; k < c->ninsoles; k++)
+  for (int k = 0; k < ni; k++)
   {
-    y[press_at + k] = c->pressed[k];
+    const double p = pressed[k], den = npmax(p, 1e-9);
+
+    y_press[k] = p;
     for (int j = 0; j < 3; j++)
     {
-      y[cop_at + 3 * k + j] = c->at[3 * k + j] / npmax(c->pressed[k], 1e-9);
+      y_cop[3 * k + j] = at[3 * k + j] / den;
     }
   }
-  for (int k = 0; k < 2 * c->nfeet; k++)
+  for (int k = 0; k < nf2; k++)
   {
-    y[cells_at + k] = c->cells[k];
+    y_cells[k] = cells[k];
   }
-}
-
-void wbc_pass_heat_load(wbc_heat_t *h, const double *torques, const double *qd)
-{
-  for (int i = 0; i < h->n; i++)
-  {
-    const double amps = h->active[i] ? torques[i] / h->kt[i] : 0.0, w = h->active[i] ? fabs(qd[i]) : 0.0;
-
-    h->sq[i] = amps * amps;
-    h->ticks[i] = h->active[i] ? 1 : 0;
-    h->limb_rad_s[i] = w;
-    h->krpm[i] = w * h->ratio_k[i];
-  }
-}
-
-void wbc_pass_heat(wbc_heat_t *h, double dt, const double *air, const double *rds, int envelope)
-{
-  const double hh = dt * h->haste, amb = h->ambient_c;
-  const int    sub_n = (int)(hh / 0.025) + 1 > 1 ? (int)(hh / 0.025) + 1 : 1;
-  const double sub_h = hh / (double)sub_n;
-
-  h->at += hh;
-  for (int i = 0; i < h->n; i++)
-  {
-    double      *t = h->t + 4 * i;
-    const double ticks = (double)h->ticks[i];
-    const double sq = ticks > 0.0 ? h->sq[i] / npmax(1.0, ticks) : 0.0;
-    const double board = sq * (h->scale[i] * h->scale[i]);
-    const double dt_sw = npmax(0.0, t[0] - amb);
-    const double rds_k = rds != NULL ? rds[i] : (1.0 + h->rds_alpha * dt_sw) + (h->rds_beta * dt_sw) * dt_sw;
-    const double air_k = air != NULL ? air[i] : (1.0 + 0.35 * npmin(4.0, h->limb_rad_s[i])) / h->cloth_air[i];
-    const double rot_for = 1.0 + 0.55 * sqrt(h->krpm[i]);
-    const double fet = (0.5 * board) * h->rds_ohm * rds_k;
-    const double sw_on = (h->gates[i] && !h->shorted[i]) ? 1.0 : 0.0;
-    const double p_sw = 3.0 * fet + h->switching_w * sw_on;
-    const double p_lam = (1.5 * board) * h->shunt_ohm + h->house_w[i];
-    const double p_win = (h->r[i] * sq) * (1.0 + COPPER_TEMPCO_PER_K * npmax(0.0, t[3] - amb));
-    const double g_la = (0.35 * air_k) / h->lam_k_w[i];
-    const double g_sa = ((0.65 * air_k) * (1.0 + 0.25 * (rot_for - 1.0))) / h->lam_k_w[i];
-    const double g_wa = (air_k * rot_for) / h->win_k_w[i];
-    const double *cap4 = h->capacity + 4 * i;
-    double       net[4] = {p_sw, p_sw, p_sw, p_sw}, die, cap, used[4], spent;
-    int          worst = 0;
-
-    h->sq[i] = 0.0;
-    h->ticks[i] = 0;
-    for (int s = 0; s < sub_n; s++)
-    {
-      const double into = (t[0] - t[1]) / h->into_k_w;
-      const double q_ls = (t[1] - t[2]) * h->g_ls[i], q_ws = (t[3] - t[2]) * h->g_ws[i];
-
-      net[0] = p_sw - into;
-      net[1] = ((p_lam + into) - q_ls) - (t[1] - amb) * g_la;
-      net[2] = (q_ls + q_ws) - (t[2] - amb) * g_sa;
-      net[3] = (p_win - q_ws) - (t[3] - amb) * g_wa;
-      for (int k = 0; k < 4; k++)
-      {
-        t[k] += (sub_h * net[k]) / cap4[k];
-      }
-    }
-    die = t[0] + fet * h->rth_jc;
-    h->die[i] = die;
-    /* the envelope: each node's span spent, its hold inside the lookahead counted as spent */
-    cap = npmin(1.0, h->cap[i] + (h->at - h->cap_at[i]) * h->trip_recover_per_s);
-    for (int k = 0; k < 4; k++)
-    {
-      const double limit = amb + cap * (h->ceiling[k] - amb);
-      const int    pos = net[k] > 0.0;
-      const double hold = pos ? npmax(0.0, ((limit - t[k]) * cap4[k]) / net[k]) : h->lookahead_s;
-
-      used[k] = npclip((t[k] - amb) / (limit - amb), 0.0, 1.0);
-      used[k] = npmax(used[k], pos ? npclip(1.0 - hold / h->lookahead_s, 0.0, 1.0) : 0.0);
-      if (used[k] > used[worst])
-      {
-        worst = k;
-      }
-    }
-    spent = used[worst];
-    h->spent[i] = spent;
-    h->worst[i] = worst;
-    if (envelope)
-    {
-      const double want = spent <= h->throttle_at ? 1.0 : npmax(0.0, (1.0 - spent) / (1.0 - h->throttle_at));
-      int          tripped = die >= h->tj_max_c;
-
-      h->derate[i] = npmin(want, h->derate[i] + h->recover_per_s * hh);
-      for (int k = 0; k < 4; k++)
-      {
-        tripped = tripped || t[k] >= h->ceiling[k];
-      }
-      if (tripped && h->gates[i])
-      {
-        h->gates[i] = 0;
-        h->trips[i] += 1;
-        h->cap[i] = h->trip_margin;
-        h->cap_at[i] = h->at;
-      }
-    }
-  }
-}
-
-void wbc_pass_heat_peak(const wbc_heat_t *h, double *out)
-{
-  for (int i = 0; i < h->n; i++)
-  {
-    const double *t = h->t + 4 * i;
-    double        top = t[0];
-
-    for (int k = 1; k < 4; k++)
-    {
-      if (t[k] > top)
-      {
-        top = t[k];
-      }
-    }
-    out[i] = h->die[i] >= top ? h->die[i] : top;
-  }
-}
-
-void wbc_pass_hem(int n, double dt, const double *ap, const double *om, const double *alb, const double *c,
-                  double *state, double *q, double *v, double *a, unsigned char *hit)
-{
-  const double L = c[0], mass = c[1], I0 = c[2], J = c[3], stiff = c[4], damp = c[5], dmin = c[6], dmax = c[7];
-  const double width = c[8], k_imp = c[9], b_imp = c[10], invw[2] = {c[11], c[12]}, lo[2] = {c[13], c[14]};
-  const double hi[2] = {c[15], c[16]};
-  double       qx = state[0], qz = state[1], vx = state[2], vz = state[3];
-
-  for (int t = 0; t < n; t++)
-  {
-    const wbc_sc_t ax = wbc_sc(qx), az = wbc_sc(qz);
-    const double cx = ax.c, sx = ax.s, cz = az.c, sz = az.s;
-    const double p0 = ap[3 * t], p1 = ap[3 * t + 1], p2 = ap[3 * t + 2];
-    const double o0 = om[3 * t], o1 = om[3 * t + 1], o2 = om[3 * t + 2];
-    const double b0 = alb[3 * t], b1 = alb[3 * t + 1], b2 = alb[3 * t + 2];
-    const double r0 = L * sz, r1 = ((-L) * cx) * cz, r2 = ((-L) * sx) * cz;
-    const double x1 = (L * sx) * cz, x2 = ((-L) * cx) * cz;
-    const double z0 = L * cz, z1 = (L * cx) * sz, z2 = (L * sx) * sz;
-    const double d0 = o1 * r2 - o2 * r1, d1 = o2 * r0 - o0 * r2, d2 = o0 * r1 - o1 * r0;
-    const double v0 = 0.0 * vx + z0 * vz, v1 = x1 * vx + z1 * vz, v2 = x2 * vx + z2 * vz;
-    const double af0 = ((p0 + (b1 * r2 - b2 * r1)) + (o1 * d2 - o2 * d1)) + 2.0 * (o1 * v2 - o2 * v1);
-    const double af1 = ((p1 + (b2 * r0 - b0 * r2)) + (o2 * d0 - o0 * d2)) + 2.0 * (o2 * v0 - o0 * v2);
-    const double af2 = ((p2 + (b0 * r1 - b1 * r0)) + (o0 * d1 - o1 * d0)) + 2.0 * (o0 * v1 - o1 * v0);
-    const double tx = (((-mass) * ((0.0 * af0 + x1 * af1) + x2 * af2) - I0 * b0) - stiff * qx) - damp * vx;
-    const double tz = (((-mass) * ((z0 * af0 + z1 * af1) + z2 * af2) - I0 * (b2 * cx - b1 * sx)) - stiff * qz)
-                      - damp * vz;
-    const double was[2] = {qx, qz}, rate[2] = {vx, vz};
-    double       qdd[2] = {tx / J, tz / J};
-
-    hit[t] = 0;
-    for (int i = 0; i < 2; i++)
-    {
-      const double r_pen = was[i] < lo[i] ? lo[i] - was[i] : (was[i] > hi[i] ? was[i] - hi[i] : 0.0);
-      const double sgn = was[i] < lo[i] ? 1.0 : (was[i] > hi[i] ? -1.0 : 0.0);
-
-      if (r_pen > 0.0)
-      {
-        const double share = r_pen / width, x = share < 1.0 ? share : 1.0;
-        const double imp = dmin + (dmax - dmin) * ((x * x) * (3.0 - 2.0 * x));
-        const double aref = sgn * ((k_imp * imp) * r_pen) - b_imp * rate[i];
-
-        hit[t] = 1;
-        if (sgn * (aref - qdd[i]) > 0.0)
-        {
-          qdd[i] += (aref - qdd[i]) / (1.0 + (((1.0 - imp) / imp) * invw[i]) * J);
-        }
-      }
-    }
-    q[2 * t] = qx;
-    q[2 * t + 1] = qz;
-    v[2 * t] = vx;
-    v[2 * t + 1] = vz;
-    a[2 * t] = qdd[0];
-    a[2 * t + 1] = qdd[1];
-    vx += qdd[0] * dt;
-    vz += qdd[1] * dt;
-    qx += vx * dt;
-    qz += vz * dt;
-  }
-  state[0] = qx;
-  state[1] = qz;
-  state[2] = vx;
-  state[3] = vz;
 }

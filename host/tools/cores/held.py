@@ -8,6 +8,7 @@ was traced on, then on fresh ones.
     fn_c = held.batched(fn, args, inputs, 'regressor', made_of=(module, lay))   # found again untraced
     fn_c = bodied.on_body(wbc.sense, 'sense')             # fn(b, *arrays) on the robot's body (`bodied`)
 """
+from concurrent.futures import ThreadPoolExecutor
 import ctypes
 import functools
 import hashlib
@@ -45,6 +46,37 @@ _LOCK = threading.Lock()
 _QUEUE: list = []
 #: The threads building now; at most WIDTH: one beside the robot's loop, a warm's as many as it is given (`widened`).
 _RUNNING, WIDTH = [0], [1]
+_LOADERS = ThreadPoolExecutor(max_workers=4, thread_name_prefix='held-load')
+
+
+@functools.cache
+def _include_bytes():
+    """Header digest bytes for `INCLUDES`, read once per process (`build.headers`)."""
+    return build.headers(INCLUDES)
+
+
+def _cached_path(source, name, matmul):
+    """Existing built library path for `(source, name, matmul)` if already on disk, else `None`."""
+    folder = os.path.join(build.OUT, 'gen')
+    key = hashlib.sha1(source.encode()).hexdigest()[:12]
+    src = os.path.join(folder, '%s_%s.c' % (name, key))
+    if not os.path.exists(src):
+        return None
+    far = any(call in source for call in FAR)
+    sources = [src] + ([BLAS_C] if matmul else []) + ([LIBM_C] if far else [])
+    extra = GENERATED + ((FAR_ONLY,) if far else ())
+    digest = hashlib.sha1(' '.join(build.FLAGS + list(extra)).encode())
+    digest.update(str(bool(os.environ.get('COAXIAL_GCOV'))).encode())
+    digest.update((build._host() if any(flag.endswith('=native') for flag in extra) else '').encode())
+    for path in sources:
+        if not os.path.exists(path):
+            return None
+        with open(path, 'rb') as f:
+            digest.update(f.read())
+    digest.update(_include_bytes())
+    ext = '.dll' if os.name == 'nt' else '.so'
+    lib = os.path.join(build.OUT, '%s_%s_%s%s' % (name, key, digest.hexdigest()[:12], ext))
+    return lib if os.path.exists(lib) else None
 
 
 class Parted(AssertionError):
@@ -111,16 +143,37 @@ def loaded(path, name, batch=False, solves=False):
 
 def building(source, name, matmul, solves=False):
     """The build of `source` under way or done, {'done': its Event, 'lib': (the library, its function)
-    or 'why'}: WIDTH threads of this process building its sources in turn, the library loaded there - a
-    new one's first load 40 ms of the walking process."""
+    or 'why'}: cached libraries on disk load across `_LOADERS`, while new sources compile on `WIDTH` threads."""
     key = hashlib.sha1(source.encode()).hexdigest()
     with _LOCK:
         job = _BUILDING.get(key)
-        if job is None:
-            job = _BUILDING[key] = {'done': threading.Event()}
+        if job is not None:
+            return job
+        job = _BUILDING[key] = {'done': threading.Event(), 'cached': False}
+        ready = _cached_path(source, name, matmul)
+        if ready is None:
             _QUEUE.append((job, source, name, matmul, solves))
             _started()
+            return job
+        job['cached'] = True
+
+    def _load():
+        try:
+            job['lib'] = loaded(ready, name, solves=solves)
+        except Exception as e:
+            job['why'] = e
+        finally:
+            job['done'].set()
+
+    _LOADERS.submit(_load)
     return job
+
+
+def settled_cached(wait_s=2.0):
+    """Wait for already-built cached libraries queued so far without blocking on fresh GCC builds."""
+    with _LOCK:
+        jobs = [job for job in _BUILDING.values() if job.get('cached') and not job['done'].is_set()]
+    return all(job['done'].wait(wait_s) for job in jobs)
 
 
 def settled(wait_s=None):

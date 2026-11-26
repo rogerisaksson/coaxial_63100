@@ -13,7 +13,8 @@ from tools import REPO
 from tools.cores.aero import BUILT
 from tools.cores.build import cached
 
-SOURCES = [os.path.join(REPO, 'mppi', 'src', 'mppi_plane.c')]
+HERE = os.path.dirname(os.path.abspath(__file__))
+SOURCES = [os.path.join(REPO, 'mppi', 'src', 'mppi_plane.c'), os.path.join(HERE, 'mppi_pool.c')]
 INCLUDES = [os.path.join(REPO, 'mppi', 'inc'), os.path.join(REPO, 'comms', 'inc')]
 #: mppi_plane_costs's loop on the card. The source's text goes to NVRTC whole: cupy keys its
 #: cache on the text, so an `#include` of the file would run a stale build after an edit.
@@ -32,11 +33,13 @@ extern "C" __global__ void mppi_plane_grid(const double *x0, const double *u, co
 
 @functools.lru_cache(maxsize=1)
 def library():
-    """mppi_plane.c built for this host's CPU, as the aero core is built."""
+    """mppi_plane.c and its worker pool built for this host's CPU, as the aero core is built."""
     lib = ctypes.CDLL(cached(SOURCES, INCLUDES, 'mppi', list(BUILT))[0])
     d, i, f = ctypes.POINTER(ctypes.c_double), ctypes.c_int, ctypes.c_double
-    lib.mppi_plane_costs.argtypes = [d, d, d, d, d, i, i, d, i, d, d, i, i, f, f, f, d, d]
-    lib.mppi_plane_costs.restype = None
+    args = [d, d, d, d, d, i, i, d, i, d, d, i, i, f, f, f, d, d]
+    lib.mppi_plane_costs.argtypes, lib.mppi_plane_costs.restype = args, None
+    lib.mppi_plane_costs_parallel.argtypes, lib.mppi_plane_costs_parallel.restype = args, None
+    setattr(lib, 'mppi_plane_costs', lib.mppi_plane_costs_parallel)
     return lib
 
 

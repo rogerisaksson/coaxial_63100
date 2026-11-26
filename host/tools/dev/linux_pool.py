@@ -74,10 +74,10 @@ class Pool:
         cap = linux.room(client=client)
         demand = sum(4 if s in SHARDED else 1 for s in self.suites) if self.suites else cap
         wanted = max(1, min(cap, self.batons if self.batons else demand))
-        sets = linux.shaped(found, wanted, held=linux.busy(client)) or [sum(found)]
         name = linux.repository()
         self.workdir = '/home/%s/work/%s/%s' % (linux.USER, name, name)
         tar, links = linux.tree('%s/%s' % (name, name))
+        sets = linux.shaped(found, wanted, held=linux.busy(client)) or [sum(found)]
         self.env = dict(linux.environment(info, self.arch, self.isa, self.cpu), CI='true',
                         EDITABLE=info['editable'], DIRECTORY=info['directory'], GITLINKS=links,
                         PYTHONIOENCODING='utf-8', PYTHONUNBUFFERED='1', PYTHONFAULTHANDLER='1',

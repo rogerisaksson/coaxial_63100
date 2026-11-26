@@ -249,6 +249,8 @@ class Shaped(dict):
     def __init__(self, at):
         super().__init__()
         self.at, self.part = at, None
+        for key in kept.shapes(at):
+            self._ensure(key)
 
     def __call__(self, *args, paced=True):
         part = self.part = self.get(tuple([getattr(args[k], 'shape', ()) for k in self.at[2]])) or self._part(args)
@@ -258,13 +260,18 @@ class Shaped(dict):
         """Built and held at `args`' shapes now: their C (Bound), or why it stays numpy raised."""
         return self._part(args).wait(*args)
 
-    def _part(self, args):
-        fn, name, inputs, body, fresh, seed, sources = self.at
-        key = tuple([getattr(args[k], 'shape', ()) for k in inputs])
+    def _ensure(self, key):
         if key not in self:
+            fn, name, inputs, body, fresh, seed, sources = self.at
             shapes = '_'.join('x'.join(map(str, s)) or 's' for s in key)
             self[key] = Compiled(fn, '%s_%s' % (name, shapes), inputs, body, fresh, seed, sources)
-        self.part = self[key]
+        return self[key]
+
+    def _part(self, args):
+        key = tuple([getattr(args[k], 'shape', ()) for k in self.at[2]])
+        if key not in self:
+            kept.keep_shape(self.at, key)
+        self.part = self._ensure(key)
         return self.part
 
 

@@ -21,6 +21,14 @@ typedef uint64_t se3_word_t;
 #define SE3_SIZE(x) fabs(x)
 #endif
 
+#ifdef __ARM_FEATURE_SME2
+#pragma GCC optimize("no-tree-loop-distribute-patterns")
+#define SE3_STREAMING __arm_locally_streaming
+#endif
+#ifndef __ARM_FEATURE_SME2
+#define SE3_STREAMING
+#endif
+
 #define ZERO  ((se3_real_t)0.0)
 #define HALF  ((se3_real_t)0.5)
 #define ONE   ((se3_real_t)1.0)

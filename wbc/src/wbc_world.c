@@ -43,27 +43,32 @@ static void nptanh(const wbc_boxes_t *b, double *x, double *y, int n)
    past its setpoint by its wind-up and the play its last torque takes up, its rotor's speed past its link's */
 static void ahead(const wbc_steps_t *s, double *restrict at, double *restrict wrate, int n)
 {
-  const wbc_boxes_t         *b = s->boxes;
-  const wbc_world_t         *p = s->pass;
-  const double *restrict     motor = p->motor, *restrict bk = b->k, *restrict gap = b->gap;
-  const double *restrict     bw = b->w, *restrict qvel = p->qvel;
-  const unsigned char *restrict on_arr = b->on;
-  const int *restrict        vadr = p->vadr;
-  const double               play_nm = b->play_nm, aw = b->ahead_wind, ap = b->ahead_play, wound = p->wound;
-  _Alignas(64) double        x[WBC_PASS_MAX], th[WBC_PASS_MAX];
+  const wbc_boxes_t             *b = s->boxes;
+  const wbc_world_t             *p = s->pass;
+  const double *restrict         motor = p->motor, *restrict bk = b->k, *restrict gap = b->gap;
+  const double *restrict         bw = b->w, *restrict qvel = p->qvel;
+  const unsigned char *restrict  on_arr = b->on;
+  const int *restrict            vadr = p->vadr;
+  const double                   play_nm = b->play_nm, aw = b->ahead_wind, ap = b->ahead_play, wound = p->wound;
+  _Alignas(64) double            x[WBC_PASS_MAX], th[WBC_PASS_MAX], qv[WBC_PASS_MAX];
+  double *restrict               xp = x, *restrict thp = th;
 
   for (int i = 0; i < n; i++)
   {
-    x[i] = motor[i] / play_nm;
+    qv[i] = qvel[vadr[i]];
   }
-  nptanh(b, x, th, n);
+  for (int i = 0; i < n; i++)
+  {
+    xp[i] = motor[i] / play_nm;
+  }
+  nptanh(b, xp, thp, n);
   for (int i = 0; i < n; i++)
   {
     const int    on = on_arr[i] != 0U;
     const double k = on ? bk[i] : 1.0;
 
-    at[i] = wound * (on ? (aw * motor[i]) / k + (ap * gap[i]) * th[i] : 0.0);
-    wrate[i] = (wound * (bw[i] - qvel[vadr[i]])) * (double)on_arr[i];
+    at[i] = wound * (on ? (aw * motor[i]) / k + (ap * gap[i]) * thp[i] : 0.0);
+    wrate[i] = (wound * (bw[i] - qv[i])) * (double)on_arr[i];
   }
 }
 
@@ -87,18 +92,28 @@ static void stepped(const wbc_steps_t *s, int n)
   const double *restrict         observe = b->observe, *restrict track = b->track, *restrict peak = b->peak;
   const int *restrict            qadr = p->qadr, *restrict vadr = p->vadr;
   const unsigned char *restrict  shorted = p->shorted, *restrict on_arr = b->on;
+  _Alignas(64) double            qp[WBC_PASS_MAX], qv[WBC_PASS_MAX], qa[WBC_PASS_MAX];
   _Alignas(64) double            qd[WBC_PASS_MAX], ctrl[WBC_PASS_MAX], brake[WBC_PASS_MAX], j[WBC_PASS_MAX], k[WBC_PASS_MAX];
   _Alignas(64) double            lim[WBC_PASS_MAX], mean[WBC_PASS_MAX], rel[WBC_PASS_MAX], x[WBC_PASS_MAX], th[WBC_PASS_MAX];
+  double *restrict               xp = x, *restrict thp = th;
 
   for (int i = 0; i < n; i++)
   {
-    qd[i] = qvel[vadr[i]] + half * qacc[vadr[i]];
+    const int vi = vadr[i];
+
+    qp[i] = qpos[qadr[i]];
+    qv[i] = qvel[vi];
+    qa[i] = qacc[vi];
+  }
+  for (int i = 0; i < n; i++)
+  {
+    qd[i] = qv[i] + half * qa[i];
     ctrl[i] = p_ctrl[i];
     brake[i] = (shorted[i] != 0U) ? damping[i] : 0.0;
     j[i] = (on_arr[i] != 0U) ? bj[i] : 1.0;
     k[i] = npmaximum(bk[i], 1.0);
     mean[i] = 0.0;
-    q_step[i] = qpos[qadr[i]];
+    q_step[i] = qp[i];
     went[i] = dt * qd[i];
     lim[i] = gap[i] + shock[i] / k[i];
     brate[i] = brate[i] + ease * ((p_feed[i] - asked[i]) / dt - brate[i]);
@@ -109,9 +124,9 @@ static void stepped(const wbc_steps_t *s, int n)
     for (int i = 0; i < n; i++)
     {
       rel[i] = bw[i] - qd[i];
-      x[i] = rel[i] / mesh_rs;
+      xp[i] = rel[i] / mesh_rs;
     }
-    nptanh(b, x, th, n);
+    nptanh(b, xp, thp, n);
     for (int i = 0; i < n; i++)
     {
       const int    on = on_arr[i] != 0U;
@@ -119,7 +134,7 @@ static void stepped(const wbc_steps_t *s, int n)
       const double trk = (act != 0) ? track[i] : 0.0;
       const double d0 = delta[i];
       const double past = npsign(d0) * npmaximum(fabs(d0) - gap[i], 0.0);
-      double       passed = (past != 0.0) ? (bk[i] * past + bc[i] * rel[i]) + mesh[i] * th[i] : 0.0;
+      double       passed = (past != 0.0) ? (bk[i] * past + bc[i] * rel[i]) + mesh[i] * thp[i] : 0.0;
       double       pi, ht, cap, drive, wi;
 
       passed = on ? npclip(passed, -shock[i], shock[i]) : passed;
@@ -152,10 +167,15 @@ static void moved(const wbc_steps_t *s, int n)
   const double *restrict         went = b->went, *restrict q_step = b->q_step, *restrict qpos = p->qpos;
   const int *restrict            qadr = p->qadr;
   const unsigned char *restrict  on = b->on;
+  _Alignas(64) double            qp[WBC_PASS_MAX];
 
   for (int i = 0; i < n; i++)
   {
-    delta[i] = delta[i] + (went[i] - (qpos[qadr[i]] - q_step[i])) * (double)on[i];
+    qp[i] = qpos[qadr[i]];
+  }
+  for (int i = 0; i < n; i++)
+  {
+    delta[i] = delta[i] + (went[i] - (qp[i] - q_step[i])) * (double)on[i];
   }
 }
 
@@ -206,13 +226,16 @@ static void linked(wbc_steps_t *s)
 
   for (int i = 0; i < n; i++)
   {
+    speed[i] = qvel[vadr[i]];
+  }
+  for (int i = 0; i < n; i++)
+  {
     const double mi = motor[i];
     const double q = mi / kt[i];
     const double id = sqrt(npmaximum(amps[i] * amps[i] - q * q, 0.0)) * share;
 
     link_id[i] = id;
     bled[i] = id * id;
-    speed[i] = qvel[vadr[i]];
     squared[i] = mi * mi;
   }
   bleed = wbc_dot(s->blas, s->link_ohm, 1, bled, 1, n);
