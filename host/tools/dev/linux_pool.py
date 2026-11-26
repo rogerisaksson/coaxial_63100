@@ -71,13 +71,14 @@ class Pool:
             print('linux: ' + line, flush=True)
         tag = linux.built(info, minor, arch=self.arch)
         found = linux.cores(client, tag)
-        cap = linux.room(client=client)
+        cap = linux.room(client=client, arch=self.arch)
         demand = sum(4 if s in SHARDED else 1 for s in self.suites) if self.suites else cap
         wanted = max(1, min(cap, self.batons if self.batons else demand))
         name = linux.repository()
         self.workdir = '/home/%s/work/%s/%s' % (linux.USER, name, name)
         tar, links = linux.tree('%s/%s' % (name, name))
-        sets = linux.shaped(found, wanted, held=linux.busy(client)) or [sum(found)]
+        sets = linux.shaped(found, wanted, held=linux.busy(client),
+                            cores=linux.ARM_CORES if self.arch == 'arm64' else 0) or [sum(found)]
         self.env = dict(linux.environment(info, self.arch, self.isa, self.cpu), CI='true',
                         EDITABLE=info['editable'], DIRECTORY=info['directory'], GITLINKS=links,
                         PYTHONIOENCODING='utf-8', PYTHONUNBUFFERED='1', PYTHONFAULTHANDLER='1',

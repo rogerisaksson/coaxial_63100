@@ -69,12 +69,17 @@ def test_the_runner_here_is_gate_yml_s(report):
     report.check('two cores of two threads a container, apart; four of one, the first core last; one set of two '
                  'cores; none of one core', took == [[0x3c, 0x3c0], [0x1e, 0xe1], [0xf], []], str(took))
     apart = linux.shaped(smt, 2, held=0x3c)
+    arm_sets = [linux.shaped(smt, 2, cores=linux.ARM_CORES), linux.shaped(single, 2, cores=linux.ARM_CORES),
+                linux.shaped(smt[:3], 1, cores=linux.ARM_CORES)]
     fitted = [linux.room(width=28, free=48.0, engine_gb=32.0),
               linux.room(width=28, free=12.0, engine_gb=32.0),
-              linux.room(width=28, free=48.0, engine_gb=16.0)]
-    report.check('busy container cores deferred behind free ones; parallel container count leaves background RAM and '
-                 'cores free on host and engine', apart == [0x3c0, 0x3c00] and fitted == [9, 1, 4],
-                 '%s | %s' % (apart, fitted))
+              linux.room(width=28, free=48.0, engine_gb=16.0),
+              linux.room(width=20, free=64.0, engine_gb=64.0, arch='arm64')]
+    report.check('busy container cores deferred behind free ones; arm64 takes 4 physical cores; parallel container '
+                 'count leaves background RAM and cores free on host and engine',
+                 apart == [0x3c0, 0x3c00] and linux.ARM_CORES == 4
+                 and arm_sets == [[0x3fc, 0x3fc00], [0x1e, 0xe1], []] and fitted == [9, 1, 4, 5],
+                 '%s | %s | %s' % (apart, arm_sets, fitted))
     told = census.counted()
     report.check("this host's count: its control group's where Linux tells one, the batch sized by the same",
                  told is None or told == (census.physical_cores(), census.threads()), str(told))

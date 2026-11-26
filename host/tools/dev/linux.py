@@ -8,9 +8,10 @@
 
 What .github/workflows/gate.yml's host job runs, run as that job runs on GitHub: an Ubuntu runner image
 (.github/runner.Dockerfile), the tree copied in as a checkout and installed offline, and the gate invoked as
-runner with CI true and --offline. Each container takes the runner's shape (two cores of two threads, 16 GB,
-8 GB /dev/shm) and books two cores and BOOKED_GB in tools.dev.ledger; `--container` feeds the host relay's
-queue across warm persistent containers (`Pool`), while `--linux --parts` runs whole `--part k/n` containers.
+runner with CI true and --offline. Each container takes the runner's shape (two cores of two threads on amd64,
+four physical cores on arm64, 16 GB, 8 GB /dev/shm) and books its cores and BOOKED_GB in tools.dev.ledger;
+`--container` feeds the host relay's queue across warm persistent containers (`Pool`), while `--linux --parts`
+runs whole `--part k/n` containers.
 """
 import argparse
 import io
@@ -34,16 +35,13 @@ from tools.dev.suites import ROOT
 #: The tree's root, the workflow of the gate (its host job the one run here) and the image of its runner.
 REPO = ROOT.parent
 WORKFLOW, DOCKERFILE = REPO / '.github' / 'workflows' / 'gate.yml', REPO / '.github' / 'runner.Dockerfile'
-#: GitHub's standard runner of a public repository: four logical processors - two cores of two threads, its
-#: own detector line says - and 16 GB; its /dev/shm a tmpfs of half of it (8.36 GB of 16.7 on both its
-#: architectures), where the robot's loop's rings are mapped (`machine.process.rcu`) - the engine's 64 MB
-#: faulted test_tune (SIGBUS).
+#: GitHub's standard runner: four logical processors (two cores of two threads), 16 GB, and an 8 GB /dev/shm
+#: tmpfs where the robot's loop's rings are mapped (`machine.process.rcu`; 64 MB faulted test_tune with SIGBUS).
 PROCESSORS, MEMORY, SHM = 4, '16g', '8g'
-#: A container's commit booked in the machine's ledger (tools.dev.ledger): the reserve a relay keeps - the gate
-#: inside books its own jobs in the container's ledger, and the engine's VM takes the host's commit as it goes.
+#: A container's commit booked in tools.dev.ledger: the reserve a relay keeps while the engine's VM grows.
 BOOKED_GB = ledger.RESERVE_GB
-#: Physical cores a runner container takes, and the background memory kept free on host and engine VM.
-RUNNER_CORES, HEADROOM_HOST_GB, HEADROOM_ENGINE_GB, HEADROOM_SHARE = PROCESSORS // 2, 8.0, 6.0, 0.25
+#: Physical cores an amd64 or arm64 container takes, and the background memory kept free on host and engine VM.
+RUNNER_CORES, ARM_CORES, HEADROOM_HOST_GB, HEADROOM_ENGINE_GB, HEADROOM_SHARE = PROCESSORS // 2, 4, 8.0, 6.0, 0.25
 #: The runner's user and its id; the image's name, its tag a release and a Python.
 USER, UID, IMAGE = 'runner', 1001, 'coaxial-runner'
 #: The images' architectures as the engine names them, each as actions/python-versions names its builds: the
@@ -184,16 +182,16 @@ def cores(client, tag):
     return sorted({listed(line) for line in said.decode('ascii').split()})
 
 
-def room(width=None, free=None, engine_gb=None, client=None):
-    """Runner containers of two cores and BOOKED_GB that fit at once while leaving the desk's cores and a quarter
-    of host commit and engine memory (8 GB and 6 GB at least) free for background work; at least one."""
+def room(width=None, free=None, engine_gb=None, client=None, arch='amd64'):
+    """Runner containers (two physical cores on amd64, four on arm64, and BOOKED_GB) that fit at once while leaving
+    the desk's cores and a quarter of host commit and engine memory (8 GB and 6 GB at least) free; at least one."""
     if engine_gb is None and client is not None:
         with suppress(Exception):
             total = int((client.info() or {}).get('MemTotal') or 0)
             engine_gb = total / 1024 ** 3 if total > 0 else None
     width = background.widths()[-1] if width is None else width
     free = census.free_commit_gb() if free is None else free
-    by_cpu = max(1, width // RUNNER_CORES)
+    by_cpu = max(1, width // (ARM_CORES if arch == 'arm64' else RUNNER_CORES))
     by_host = by_cpu if free is None else max(1, int((free - max(HEADROOM_HOST_GB, HEADROOM_SHARE * free)) // BOOKED_GB))
     by_vm = by_cpu if engine_gb is None else max(1, int((engine_gb - max(HEADROOM_ENGINE_GB, HEADROOM_SHARE * engine_gb)) // BOOKED_GB))
     return min(by_cpu, by_host, by_vm)
@@ -211,23 +209,24 @@ def busy(client):
     return mask
 
 
-def shaped(found, count, processors=PROCESSORS, held=0):
-    """Up to `count` sets of whole cores of `found` (each its processors, a mask), each of `processors` logical
-    processors at least - the runner's -, apart from each other, from `held` and from the first core (the system's
-    interrupts') where there are enough; none where `found` holds fewer than `processors`."""
+def shaped(found, count, processors=PROCESSORS, held=0, cores=0):
+    """Up to `count` sets of whole cores of `found` (each its processors, a mask), each of `cores` physical cores
+    when `cores > 0` else `processors` logical processors at least, apart from each other, from `held` and from the
+    first core (the system's interrupts') where there are enough; none where `found` holds fewer."""
     if count <= 0:
         return []
     order = sorted(found)
     rest = order[1:] + order[:1]
     ordered = [c for c in rest if not (c & held)] + [c for c in rest if c & held]
-    sets, mask = [], 0
+    sets, mask, taken = [], 0, 0
     for core in ordered:
         mask |= core
-        if bin(mask).count('1') >= processors:
+        taken += 1
+        if (taken >= cores) if cores > 0 else (bin(mask).count('1') >= processors):
             sets.append(mask)
             if len(sets) == count:
                 break
-            mask = 0
+            mask, taken = 0, 0
     return sets
 
 
@@ -374,11 +373,12 @@ def main(argv=None):
     if args.build:
         return 0
     found = cores(client, tags[0])
-    cap = room(client=client)
+    cap = room(client=client, arch=arch)
     parts = max(1, cap // len(pythons)) if args.parts == 0 else args.parts
     slots = [(minor, tag, part) for minor, tag in zip(pythons, tags)
              for part in (range(1, parts + 1) if parts > 1 else (None,))]
-    sets = shaped(found, min(len(slots), cap), held=busy(client)) or [sum(found)]
+    sets = shaped(found, min(len(slots), cap), held=busy(client),
+                  cores=ARM_CORES if arch == 'arm64' else 0) or [sum(found)]
     name = repository()
     checkout, lock, codes = tree('%s/%s' % (name, name)), threading.Lock(), {}
     todo: queue.SimpleQueue = queue.SimpleQueue()
@@ -403,8 +403,7 @@ def main(argv=None):
             minor, ' part %d/%d' % (part, parts) if part else '', tag,
             ','.join(str(c) for c in range(cpus.bit_length()) if cpus >> c & 1),
             held_cores, bin(cpus).count('1'), MEMORY))
-        # its cores booked in the machine's ledger beside every relay's jobs, waited for while the machine is taken:
-        # what it waits for said as it begins to - silent, it waited for commit as long as none was let go
+        # Book its cores in the machine's ledger beside every relay's jobs, announcing any wait up front.
         with ledger.reserved(held_cores, BOOKED_GB, label, say=lambda what: say('linux: ' + what)) as booking:
             if booking.waited >= ledger.POLL_S:
                 say('linux: waited %.0f s for the machine' % booking.waited)

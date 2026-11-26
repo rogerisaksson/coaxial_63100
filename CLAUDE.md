@@ -178,8 +178,9 @@ Evaluate the prompt and working tree before invoking any tool:
   + Empirical ISA baseline (mandatory when C cores, target flags, or streaming
     kernels change, or `arch` jobs fail): `COAXIAL_ISA` targets (`avx`, `avx2`,
     `avx512`, `sve2`, `sme2` in `host/tools/cores/build.py`); CI runs `sve2`
-    and `avx512`. Emulate arm64 locally on the warm container relay
-    (`python -X utf8 host/tools/dev/run_tests.py --container sme2 [--jobs N]`
+    and `avx512`. Emulate arm64 locally on the warm container relay (4 physical
+    cores per arm64 container, 2 per x86 container:
+    `python -X utf8 host/tools/dev/run_tests.py --container sme2 [--jobs N]`
     `[--bare] --measure --file test_x.py`, or `--container sve2`, or
     `--container avx512` on x86; judged by parity tallies) or probe runners via
     `gh workflow run gate.yml`.
