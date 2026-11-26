@@ -54,7 +54,14 @@ def _mujoco(b, q, v):
 
 
 def test_the_arrays_are_the_figures(report, c, b, rows):
-    """The header and the source hold what the figure compiles to today."""
+    """The header and the source hold what the figure compiles to today, and wbc/ builds warning-free."""
+    from contextlib import suppress
+    lib_path, warnings = build(find_cc(), model.built(core.SOURCES), core.INCLUDES,
+                               'wbccore_%d' % os.getpid(), core.FLAGS)
+    with suppress(OSError):
+        os.remove(lib_path)
+    report.check('wbc/ builds warning-free with the firmware flags', not warnings,
+                 '; '.join(warnings[:3]))
     for path, text in zip((model.HEADER, model.compiled()), model.render(rows, b)):
         with open(path, encoding='utf-8', newline='') as f:
             same = f.read() == text
@@ -420,19 +427,13 @@ ROSTER = (test_the_arrays_are_the_figures, test_the_ortho_row_is_the_wires,
 
 def main(argv=None):
     """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""
-    cc = find_cc()
-    if cc is None:
+    if find_cc() is None:
         print('  SKIP  no host C compiler; setup.ps1 installs one')
         print('\n0 passed, 0 failed')
         return 0
-    from machine.body import mechatronics
     from machine.stack import wbc
     report = Report()
-    name = 'wbccore' if mechatronics.ROBOT == mechatronics.STOCK else 'wbccore_' + mechatronics.ROBOT
-    lib_path, warnings = build(cc, model.built(core.SOURCES), core.INCLUDES, name, core.FLAGS)
-    report.check('wbc/ builds warning-free with the firmware flags', not warnings,
-                 '; '.join(warnings[:3]))
-    c, b = core.Core(core.typed(ctypes.CDLL(lib_path))), wbc.Body()
+    c, b = core.Core(), wbc.Body()
     rows = model.links(b)
     for test in chosen(ROSTER, sys.argv[1:] if argv is None else argv):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))

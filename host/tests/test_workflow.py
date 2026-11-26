@@ -164,6 +164,20 @@ def test_the_gate_s_parts_cover_its_suites(report):
                  'Python, 10 jobs; 3 machines -> one part', fewer['n'] == 8 and fewer['jobs'] == 10
                  and fewer['arch'] == [{'runner': 'ubuntu-24.04-arm', 'isa': 'sve2'}]
                  and workflow.plan(3, '3.12 3.14', 'Debug Release', 'sve2 avx512')['n'] == 1, str(fewer))
+    import ast
+    races = []
+    for name in suites.SHARDED:
+        tree = ast.parse((suites.ROOT / 'tests' / name).read_text(encoding='utf-8'))
+        imports_build = any(isinstance(n, ast.ImportFrom) and n.module == 'tools.cores.build'
+                            and any(a.name == 'build' for a in n.names) for n in ast.walk(tree))
+        if not imports_build:
+            continue
+        for node in tree.body:
+            if isinstance(node, ast.FunctionDef) and node.name == 'main' and any(
+                    isinstance(c, ast.Call) and isinstance(c.func, ast.Name) and c.func.id == 'build'
+                    for c in ast.walk(node)):
+                races.append(name)
+    report.check('no sharded suite calls uncached tools.cores.build.build() in main()', not races, str(races))
 
 
 def test_the_last_green_commit_is_the_reference(report):
