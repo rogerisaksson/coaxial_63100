@@ -153,7 +153,7 @@ def drives_pass(rotors, periods, tick_s, faults):
     n = len(rotors)
     if n == 0:
         return
-    key = tuple(id(r) for r in rotors)
+    key = tuple((id(r), r['slot']) for r in rotors)
     batch = rotors[0].get('_batch')
     if batch is None or batch[0] != key:
         slots = (ctypes.c_int * n)(*(r['slot'] for r in rotors))

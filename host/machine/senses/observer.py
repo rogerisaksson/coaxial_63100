@@ -330,6 +330,7 @@ def behind(obs):
 
 def beside(obs, g, body, limbs, qpos, qvel, dt):
     """Pose and sense `body` on the main thread while `obs` steps in C on a sibling thread."""
+    g.pop('_near', None)
     async_obs = obs.get('ahead') is not None and obs.get('step') is obs.get('_step')
     if async_obs:
         ahead(obs, qpos, qvel, dt)
@@ -337,7 +338,7 @@ def beside(obs, g, body, limbs, qpos, qvel, dt):
         s = g['sensed'](body, qpos, qvel)
         s['hips'], s['arms'], s['elbows'], s['qpos'] = (body.d.xpos[limbs['hips']].copy(), s['q'][limbs['shoulders']],
                                                         s['q'][limbs['elbows']], qpos.copy())
-        if async_obs and 'clear' in g and 'schema_body' in g:
+        if obs.get('_ahead') and 'clear' in g and 'schema_body' in g:
             g['_near'] = g['clear'](g['schema_body'], s, g['schema_at'])
     finally:
         if async_obs:

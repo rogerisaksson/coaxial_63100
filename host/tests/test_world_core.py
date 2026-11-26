@@ -378,6 +378,41 @@ def test_mujoco_s_version_is_a_flag(report, _lib):
                  '-DMUJOCO_HEADER=%d' % mujoco.mj_version() in flags, flags)
 
 
+def test_world_drives_pass_matches_serial(report, _lib):
+    """Batched `world_drives_pass` across four disjoint slots and duplicate slots matches
+    `world_drive_pass` bit for bit."""
+    from tools.cores import stand
+    slib = stand.library()
+    ts, periods = 20e-6, 100
+    speeds = (120.0, 240.0, 360.0, 480.0)
+    par_slots, ser_slots = (40, 41, 42, 43), (44, 45, 46, 47)
+    for slot in par_slots + ser_slots:
+        slib.world_drive_init(slot, ts)
+    c_slots = (ctypes.c_int * 4)(*par_slots)
+    c_moe = (ctypes.c_uint8 * 4)(1, 1, 0, 1)
+    c_sup = (ctypes.c_uint8 * 4)(1, 1, 1, 1)
+    c_spd = (ctypes.c_float * 4)(*speeds)
+    c_out = (ctypes.c_double * 20)()
+    c_tr = (ctypes.c_uint32 * 4)()
+    ser_out = (ctypes.c_double * 5)()
+    apart = 0
+    for _ in range(8):
+        slib.world_drives_pass(4, c_slots, periods, c_moe, c_sup, c_spd, c_out, c_tr)
+        for k, slot in enumerate(ser_slots):
+            tr = slib.world_drive_pass(slot, periods, bool(c_moe[k]), bool(c_sup[k]), speeds[k], ser_out)
+            apart += (tr != c_tr[k]) or any(ser_out[j] != c_out[5 * k + j] for j in range(5))
+    dup_slots = (ctypes.c_int * 2)(48, 48)
+    slib.world_drive_init(48, ts)
+    slib.world_drive_init(49, ts)
+    d_moe, d_sup, d_spd = (ctypes.c_uint8 * 2)(1, 1), (ctypes.c_uint8 * 2)(1, 1), (ctypes.c_float * 2)(200.0, 200.0)
+    d_out, d_tr = (ctypes.c_double * 10)(), (ctypes.c_uint32 * 2)()
+    slib.world_drives_pass(2, dup_slots, periods, d_moe, d_sup, d_spd, d_out, d_tr)
+    for k in range(2):
+        tr = slib.world_drive_pass(49, periods, True, True, 200.0, ser_out)
+        apart += (tr != d_tr[k]) or any(ser_out[j] != d_out[5 * k + j] for j in range(5))
+    report.check('world_drives_pass matches serial world_drive_pass bit for bit', apart == 0, '%d apart' % apart)
+
+
 def main():
     report = Report()
     if find_cc() is None:
@@ -391,7 +426,7 @@ def main():
                  test_the_pilot_window, test_the_sto_chain_holds_settled,
                  test_the_model_parameters_laid_live,
                  test_a_library_outlives_only_its_process, test_a_header_beside_its_source_builds_anew,
-                 test_mujoco_s_version_is_a_flag):
+                 test_mujoco_s_version_is_a_flag, test_world_drives_pass_matches_serial):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report, lib)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

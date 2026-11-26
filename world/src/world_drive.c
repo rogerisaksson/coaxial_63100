@@ -275,6 +275,7 @@ typedef struct
 #else
   pthread_mutex_t lock;
   pthread_cond_t  turn;
+  pthread_cond_t  done;
 #endif
 } drive_worker_t;
 
@@ -309,7 +310,7 @@ static DWORD WINAPI drive_worker_loop(LPVOID arg)
       {
         (void)WaitForSingleObject(w->asked, INFINITE);
       }
-      __atomic_store_n(&w->parked, 0, __ATOMIC_RELAXED);
+      __atomic_store_n(&w->parked, 0, __ATOMIC_RELEASE);
       st = __atomic_load_n(&w->state, __ATOMIC_ACQUIRE);
       if ((st != 1) && (st != 3))
       {
@@ -349,7 +350,7 @@ static DWORD_PTR nth_core_mask(DWORD_PTR rest, int idx)
       rem &= ~hit;
     }
   }
-  return rest;
+  return (DWORD_PTR)0U;
 }
 
 static DWORD_PTR neighbour_mask(int *narrowed)
@@ -363,36 +364,28 @@ static DWORD_PTR neighbour_mask(int *narrowed)
   }
   *narrowed = (proc_mask != sys_mask);
   const DWORD     cpu = GetCurrentProcessorNumber();
-  const DWORD_PTR own = (cpu < (DWORD)(8U * sizeof(DWORD_PTR))) ? ((DWORD_PTR)1U << cpu) : (DWORD_PTR)0U;
   const DWORD_PTR pair = (cpu < (DWORD)(8U * sizeof(DWORD_PTR)))
                              ? ((DWORD_PTR)3U << (cpu & ~(DWORD)1U))
                              : (DWORD_PTR)0U;
 
-  return ((proc_mask & ~pair) != (DWORD_PTR)0U) ? (proc_mask & ~pair) : (proc_mask & ~own);
+  return proc_mask & ~pair;
 }
 #else
-static inline void drive_relax_once(void)
-{
-#if defined(__x86_64__) || defined(__i386__)
-  __builtin_ia32_pause();
-#elif defined(__aarch64__) || defined(__arm__)
-  __asm__ volatile("yield" ::: "memory");
-#else
-  __asm__ volatile("" ::: "memory");
-#endif
-}
-
-static int posix_multi_core(void)
+static int posix_extra_cpus(void)
 {
 #if defined(__linux__)
   cpu_set_t set;
 
   if (sched_getaffinity(0, sizeof(set), &set) == 0)
   {
-    return CPU_COUNT(&set) > 1;
+    const int n = CPU_COUNT(&set);
+
+    return (n > 1) ? (n - 1) : 0;
   }
 #endif
-  return sysconf(_SC_NPROCESSORS_ONLN) > 1;
+  const long n = sysconf(_SC_NPROCESSORS_ONLN);
+
+  return (n > 1L) ? (int)(n - 1L) : 0;
 }
 
 static void *drive_worker_loop(void *arg)
@@ -402,16 +395,24 @@ static void *drive_worker_loop(void *arg)
   while (w->started != 0)
   {
     (void)pthread_mutex_lock(&w->lock);
-    while (__atomic_load_n(&w->state, __ATOMIC_ACQUIRE) != 1)
+    while ((__atomic_load_n(&w->state, __ATOMIC_ACQUIRE) != 1)
+           && (__atomic_load_n(&w->state, __ATOMIC_ACQUIRE) != 3))
     {
       (void)pthread_cond_wait(&w->turn, &w->lock);
     }
     (void)pthread_mutex_unlock(&w->lock);
     w->tripped = world_drive_pass(w->slot, w->periods, w->moe, w->supplied, w->speed, w->out);
-    (void)pthread_mutex_lock(&w->lock);
-    __atomic_store_n(&w->state, 2, __ATOMIC_RELEASE);
-    (void)pthread_cond_broadcast(&w->turn);
-    (void)pthread_mutex_unlock(&w->lock);
+    {
+      int expected = 1;
+
+      if (!__atomic_compare_exchange_n(&w->state, &expected, 2, 0, __ATOMIC_RELEASE, __ATOMIC_ACQUIRE))
+      {
+        (void)pthread_mutex_lock(&w->lock);
+        __atomic_store_n(&w->state, 2, __ATOMIC_RELEASE);
+        (void)pthread_cond_signal(&w->done);
+        (void)pthread_mutex_unlock(&w->lock);
+      }
+    }
   }
   return NULL;
 }
@@ -426,8 +427,9 @@ static int ensure_drive_worker(int idx)
 #ifdef _WIN32
     int             narrowed = 0;
     const DWORD_PTR rest = neighbour_mask(&narrowed);
+    const DWORD_PTR target = (rest != 0U) ? nth_core_mask(rest, idx) : (DWORD_PTR)0U;
 
-    if (rest == 0U)
+    if (target == (DWORD_PTR)0U)
     {
       w->started = -1;
     }
@@ -451,12 +453,12 @@ static int ensure_drive_worker(int idx)
       }
       else
       {
-        (void)SetThreadAffinityMask(thread, narrowed ? nth_core_mask(rest, idx) : rest);
+        (void)SetThreadAffinityMask(thread, narrowed ? target : rest);
         (void)CloseHandle(thread);
       }
     }
 #else
-    if (!posix_multi_core())
+    if (idx >= posix_extra_cpus())
     {
       w->started = -1;
     }
@@ -467,10 +469,15 @@ static int ensure_drive_worker(int idx)
       w->multi = 1;
       (void)pthread_mutex_init(&w->lock, NULL);
       (void)pthread_cond_init(&w->turn, NULL);
+      (void)pthread_cond_init(&w->done, NULL);
       w->started = 1;
       if (pthread_create(&thread, NULL, drive_worker_loop, w) != 0)
       {
         w->started = -1;
+      }
+      else
+      {
+        (void)pthread_detach(thread);
       }
     }
 #endif
@@ -537,7 +544,7 @@ void world_drives_pass(int count, const int *slots, uint32_t periods, const uint
 #else
     (void)pthread_mutex_lock(&w->lock);
     __atomic_store_n(&w->state, 1, __ATOMIC_RELEASE);
-    (void)pthread_cond_broadcast(&w->turn);
+    (void)pthread_cond_signal(&w->turn);
     (void)pthread_mutex_unlock(&w->lock);
 #endif
     launched++;
@@ -584,19 +591,21 @@ void world_drives_pass(int count, const int *slots, uint32_t periods, const uint
 #else
     if (__atomic_load_n(&w->state, __ATOMIC_ACQUIRE) != 2)
     {
-      if (w->multi != 0)
+      for (int spin = 0; (spin < 256) && (__atomic_load_n(&w->state, __ATOMIC_ACQUIRE) != 2); spin++)
       {
-        for (int spin = 0; (spin < 64) && (__atomic_load_n(&w->state, __ATOMIC_ACQUIRE) != 2); spin++)
-        {
-          drive_relax_once();
-        }
+        (void)sched_yield();
       }
       if (__atomic_load_n(&w->state, __ATOMIC_ACQUIRE) != 2)
       {
+        int expected = 1;
+
         (void)pthread_mutex_lock(&w->lock);
-        while (__atomic_load_n(&w->state, __ATOMIC_ACQUIRE) != 2)
+        if (__atomic_compare_exchange_n(&w->state, &expected, 3, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
         {
-          (void)pthread_cond_wait(&w->turn, &w->lock);
+          while (__atomic_load_n(&w->state, __ATOMIC_ACQUIRE) != 2)
+          {
+            (void)pthread_cond_wait(&w->done, &w->lock);
+          }
         }
         (void)pthread_mutex_unlock(&w->lock);
       }
