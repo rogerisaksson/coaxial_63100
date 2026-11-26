@@ -220,6 +220,12 @@ def apply(s, command):
         s['each'].append(hook)
         s['links'].append(link)
     try:
+        if 'checkpoint' in command:
+            from machine.process import hotswap
+            s['hotswap_last'], s['refused'] = hotswap.apply_checkpoint(s, command['checkpoint']), None
+        if 'hotswap' in command:
+            from machine.process import hotswap
+            s['hotswap_last'], s['refused'] = hotswap.apply_hotswap(s, command['hotswap']), None
         if command.get('gym') in sprung.GYMS:
             s['gym_name'], s['gym'] = command['gym'], sprung.entries(name=command['gym'], texts=s['texts'], suite=s['suite'])
             s['says'], s['refused'] = [command['gym']] + [entry[0] for entry in s['gym']], None

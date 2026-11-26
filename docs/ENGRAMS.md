@@ -8,10 +8,15 @@ beat programs) loaded and swapped live without cold restarts or pose jumps.
 
 - `host/machine/process/engrams.py`: `load`, `swap` (C0 handover), `unload`,
   `unload_all`, `load_specs`, `stunt_bundle`.
+- `host/machine/process/hotswap.py`: unified compilation, dry-run validation,
+  live hot-swap, and MuJoCo checkpoint/pose reload for LLM-generated C11 cores,
+  traced Python/NumPy `motion.HOOKS` cores, and JSON/Lisp engrams.
 - `host/machine/process/engram_catalog.py`: prepared `CATALOG`, `SUITES`, and
   `STUNT_BUNDLES` mapped to human mocap takes in `stunts/`.
 - `host/machine/process/checkpoint.py`: `capture`, `restore`, `advance_until`
   for bit-exact MuJoCo (`mj_copyData`) and controller snapshot branching.
+- `host/tools/sim/hotswap.py`: CLI for offline compilation, live TCP hot-swap
+  and checkpoint reload (`--attach PORT`), and parallel candidate iteration.
 - `host/tools/sim/engram_mc.py`: parallel Monte Carlo combinatorics from
   pre-dock or pre-maneuver checkpoints (`engram_scenes.py` evaluators).
 - `host/tools/sim/stunt_similarity.py`: 0..100 anatomical fidelity scoring and
@@ -51,4 +56,18 @@ beat programs) loaded and swapped live without cold restarts or pose jumps.
    python -X utf8 host/tools/sim/stunt_similarity.py --jobs 24 --save baseline.json
    python -X utf8 host/tools/sim/stunt_similarity.py --bundle best --against baseline.json --jobs 24
    python -X utf8 host/tools/sim/stunt_similarity.py running_forward --spec cand.json
+   ```
+
+4. **LLM-generated cores & engrams: compile, live hot-swap, and MuJoCo reload**
+   (`hotswap.py` compiles C11 SIMD kernels, Python/NumPy hooks via `bodied`, and
+   JSON/Lisp engrams, dry-runs candidates for shape and finiteness before live
+   swap, and reloads the robot to saved states or explicit `(where, yaw, qpos)`
+   poses in MuJoCo):
+
+   ```powershell
+   python -X utf8 host/tools/sim/hotswap.py --compile candidate.json
+   python -X utf8 host/tools/sim/hotswap.py --attach 8765 --save pre_dock
+   python -X utf8 host/tools/sim/hotswap.py --attach 8765 --swap candidate.json
+   python -X utf8 host/tools/sim/hotswap.py --attach 8765 --reload pre_dock --where 0.2,-0.4 --yaw-deg 15
+   python -X utf8 host/tools/sim/hotswap.py --iterate candidates.json --scene chair_behind --say sit_chair --jobs 16
    ```

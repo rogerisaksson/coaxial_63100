@@ -237,8 +237,9 @@ ERRANDS = 'test_errands.py'
 #: The robot's docks foreseen on its page: the bed's long side and its foot, on the world's boxes and
 #: on the robot's eyes.
 DOCKS = 'test_docks.py'
-#: The robot's deep sit on chairs, warm move bank hot-swaps, and motor engrams.
-CHAIR_SEATED, MOVE_HANDOVER, ENGRAMS = 'test_chair_seated.py', 'test_move_handover.py', 'test_engrams.py'
+#: The robot's deep sit on chairs, warm move bank hot-swaps, motor engrams, and LLM core/engram live iteration.
+CHAIR_SEATED, MOVE_HANDOVER, ENGRAMS, HOTSWAP = (
+    'test_chair_seated.py', 'test_move_handover.py', 'test_engrams.py', 'test_hotswap.py')
 #: The robot's motion's measures in a dimensionless frame on SO(3) (tools/sim/gvs.py).
 GVS = 'test_gvs.py'
 #: The robot's recorded runs replayed, each without a fall (tests/replays, tools/sim/replay.py).
@@ -278,7 +279,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, NATIVE_SYSID, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, CAMERA, GAZE, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
-                   WBC_CORE, LEAP, WASD, WRENCH, CHAIN, QP, SYSID, SYSID_LIVE, COMPILED, QUICK, TICK, STICTION, VECTORIZED, LIBM, PLATFORM, PLACED, DEPENDS, CI, WORKFLOW, SMART, PORTED, BORNE, REGISTRY, AFFORD, CLASSES, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, DSP, KERNEL, SHIELD, WAYFINDER, SAYS, INTROSPECT, GATE, TUNE, FLOOR, SITUATION, BUSES, ERRANDS, DOCKS, CHAIR_SEATED, MOVE_HANDOVER, ENGRAMS,
+                   WBC_CORE, LEAP, WASD, WRENCH, CHAIN, QP, SYSID, SYSID_LIVE, COMPILED, QUICK, TICK, STICTION, VECTORIZED, LIBM, PLATFORM, PLACED, DEPENDS, CI, WORKFLOW, SMART, PORTED, BORNE, REGISTRY, AFFORD, CLASSES, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, DSP, KERNEL, SHIELD, WAYFINDER, SAYS, INTROSPECT, GATE, TUNE, FLOOR, SITUATION, BUSES, ERRANDS, DOCKS, CHAIR_SEATED, MOVE_HANDOVER, ENGRAMS, HOTSWAP,
                    CYCLIC, QUAD, QUAD_PULL,
                    AERO_CORE, MPPI_CORE, SE3_CORE, SE3_GRIP, STREAMS, QUAD_COURSE, SWEEP, BOOT)
                   + VIEWS
@@ -343,6 +344,7 @@ JOINS = (
     (12, CHAIR_SEATED),
     (12, MOVE_HANDOVER),
     (12, ENGRAMS),
+    (12, HOTSWAP),
     (12, WRENCH),
     (12, CHAIN),
     (12, CYCLIC),
@@ -441,7 +443,7 @@ PORT = ('test_mcp.py', 'test_parity.py')
 #: Suites that run their tests through tools.dev.focus.chosen: past a slice of the run they go
 #: on as shards side by side.
 SHARDED = (SENSORLESS, CONTROLLER, GYNOID, ORTHO, SYSID, SYSID_LIVE, WEAR, SITUATION, 'test_simulated.py', 'test_views_segments.py',
-           DAQ_API, QUAD_PAGE, REPLAYS, SCENES, ERRANDS, CHAIR_SEATED, MOVE_HANDOVER, ENGRAMS, WASD, STRUCTURE,
+           DAQ_API, QUAD_PAGE, REPLAYS, SCENES, ERRANDS, CHAIR_SEATED, MOVE_HANDOVER, ENGRAMS, HOTSWAP, WASD, STRUCTURE,
            PORTED, 'test_mirrors.py', LEAP, TICK, STICTION, LIBM, COMPILED, WBC_CORE, SE3_GRIP,
            'test_qp.py', FLOOR, CAMERA, SIGHT, GAZE, 'test_views_clothes.py', 'test_views_built.py')
 

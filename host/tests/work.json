@@ -42,6 +42,7 @@
  "test_gvs.py": 14.9,
  "test_gynoid.py": 1070.9,
  "test_helicopter.py": 54.4,
+ "test_hotswap.py": 95.0,
  "test_introspect.py": 179.8,
  "test_kernel.py": 489.2,
  "test_layout.py": 67.7,

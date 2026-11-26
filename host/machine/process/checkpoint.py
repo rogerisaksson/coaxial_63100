@@ -171,7 +171,8 @@ def _restore_world(world, snap):
 
 
 def _capture_bank(g):
-    """Capture `g['bank']` move slot bindings, active engrams, handover, programs, and `g['played']`."""
+    """Capture `g['bank']` move slot bindings, active engrams/cores, hooks, and `g['played']`."""
+    from tools.cores import motion as c_motion
     bank = g.get('bank')
     played = g.get('played')
     played_kind, played_val = None, None
@@ -196,14 +197,19 @@ def _capture_bank(g):
         'programs': _copy_val(bank.get('programs', {}), 'bank.programs') if bank is not None else {},
         'active': dict(bank.get('active', {})) if bank is not None else {},
         'stock': dict(bank.get('stock', {})) if bank is not None else {},
+        'active_cores': dict(bank.get('active_cores', {})) if bank is not None else {},
+        'stock_cores': dict(bank.get('stock_cores', {})) if bank is not None else {},
+        'hooks': {h: g[h] for h in c_motion.HOOKS if h in g},
         'played': (played_kind, played_val),
     }
 
 
 def _restore_bank(g, snap):
-    """Restore `g['bank']` slot bindings, active engram metadata, buffers, and `g['played']`."""
+    """Restore `g['bank']` slot bindings, active engram/core metadata, hooks, and `g['played']`."""
     import numpy as np
     from machine.senses import edge
+    for h, fn in snap.get('hooks', {}).items():
+        g[h] = fn
     bank = g.get('bank')
     if bank is not None:
         bank['moves'].clear()
@@ -227,6 +233,10 @@ def _restore_bank(g, snap):
             bank['active'] = dict(snap['active'])
         if 'stock' in bank or snap['stock']:
             bank['stock'] = dict(snap['stock'])
+        if 'active_cores' in bank or snap.get('active_cores'):
+            bank['active_cores'] = dict(snap.get('active_cores', {}))
+        if 'stock_cores' in bank or snap.get('stock_cores'):
+            bank['stock_cores'] = dict(snap.get('stock_cores', {}))
     pk, pv = snap['played']
     if pk == 'slot' and bank is not None:
         g['played'] = bank['moves'][pv]
@@ -405,13 +415,15 @@ def _restore_g(g, snap):
             g[k] = _copy_val(src, 'g.%s' % k)
 
 
-def capture(s):
-    """Capture a bit-exact in-memory snapshot of in-process worker session `s`."""
+def capture(s, allow_apart=False):
+    """Capture a bit-exact in-memory snapshot of worker session `s`."""
     g = s['g']
-    if getattr(g.get('vision'), 'apart', False) or g.get('keep') is not None or getattr(s.get('worn'), 'apart', False):
-        raise MachineError('checkpoint requires in-process vision, no camera subprocess, and in-process wear')
     worn = s['worn']
-    if worn.due_at is not None and worn.got is None and worn.parts is not None:
+    if not allow_apart and (getattr(g.get('vision'), 'apart', False) or g.get('keep') is not None
+                            or getattr(worn, 'apart', False)):
+        raise MachineError('checkpoint requires in-process vision, no camera subprocess, and in-process wear')
+    worn_apart = bool(getattr(worn, 'apart', False))
+    if not worn_apart and worn.due_at is not None and worn.got is None and worn.parts is not None:
         while True:
             try:
                 next(worn.parts)
@@ -436,8 +448,8 @@ def capture(s):
             'headroom': s['headroom'],
             'wear_told': copy.deepcopy(s['wear_told']),
             'wear': {k: _copy_val(s['wear'][k], 'wear.%s' % k) for k in _WEAR_MUTABLE if k in s['wear']},
-            'worn_ring': (worn.ring.rows.copy(), int(worn.ring.start), int(worn.ring.n)),
-            'worn_state': (_copy_val(worn.got, 'worn.got'), worn.due_at),
+            'worn_ring': None if worn_apart else (worn.ring.rows.copy(), int(worn.ring.start), int(worn.ring.n)),
+            'worn_state': (None, None) if worn_apart else (_copy_val(worn.got, 'worn.got'), worn.due_at),
         },
     }
 
@@ -461,12 +473,18 @@ def restore(s, snap):
         else:
             s['wear'][k] = _copy_val(src, 'wear.%s' % k)
     worn = s['worn']
-    rows, start, n = ss['worn_ring']
-    np.copyto(worn.ring.rows, rows)
-    worn.ring.start, worn.ring.n = start, n
-    worn.w = s['wear']
-    worn.got, worn.due_at = _copy_val(ss['worn_state'][0], 'worn.got'), ss['worn_state'][1]
-    worn.parts = iter(()) if worn.due_at is not None else None
+    if ss['worn_ring'] is None or getattr(worn, 'apart', False):
+        worn.emptied()
+        worn.laid(s['wear'])
+    else:
+        rows, start, n = ss['worn_ring']
+        np.copyto(worn.ring.rows, rows)
+        worn.ring.start, worn.ring.n = start, n
+        worn.w = s['wear']
+        worn.got, worn.due_at = _copy_val(ss['worn_state'][0], 'worn.got'), ss['worn_state'][1]
+        worn.parts = iter(()) if worn.due_at is not None else None
+    if getattr(s['g'].get('vision'), 'apart', False):
+        s['g']['vision'].pending = False
 
 
 def advance_until(s, predicate, max_s, commands=()):

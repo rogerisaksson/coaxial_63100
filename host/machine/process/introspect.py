@@ -9,18 +9,11 @@
     python -m machine.process.introspect --attach 8765 --events   # its analyzers' events alone, a line each
     python -m machine.process.introspect --attach 8765 --gate support.fall --tag fall   # a gate's notices
 
-The layers as the robot's loop leaves them each law pass (`motion.control`): latent - its state's rows and its
-latent out (`latent.step`); impedance - the modal ask (`impedance.ask`) and the step's ask it makes; wrench -
-the whole-body step's answer (`wrench.step`: tau, qacc, contact forces, ..); observer - what bears the robot
-as its observer splits it, against its skin (`observer.named`); contacts - the contacts its step was given,
-each named (`borne.named`); traced (`calls.Calls`), a snapshot carries what its law called since the last, a
-count each. Each array's fields are named from the code's own layout, generated (`layout`): the run of
-module-level slice and int constants ending at a vector's size, laid in rising offsets - none listed by hand.
-Attached, a hook on the loop's passes (`worker`'s `s['each']`) publishes a snapshot each law pass to every
-client connected, dropped where a client lags, the loop never waiting; none connected, the hook returns at its
-first line. A line a client sends asks instead for its analyzers' events or arms a gate on them (`Tap`,
-`machine.rig.gate`): the robot's streams on their own clocks, a trigger's windows before and after it written
-to a file. Opt in on the page: `show_humanoid --telemetry PORT`.
+The layers each law pass (`motion.control`) leaves: latent (`latent.step`), impedance (`impedance.ask`),
+wrench (`wrench.step`), observer (`observer.named`), contacts (`borne.named`), and traced `calls.Calls`.
+Fields are generated from each module's slice and int constants (`layout`), none listed by hand. Attached
+(`s['each']`), the hook publishes JSON snapshots without blocking the loop, or serves analyzer events,
+gates (`Tap`, `machine.rig.gate`), and live `hotswap` / `checkpoint` commands (`show_humanoid --telemetry PORT`).
 """
 import ast
 import contextlib
@@ -304,10 +297,12 @@ def _put(q, item):
 
 
 def _commanded(s, scope, c, command):
-    """A client's `command` at a pass of session `s`: its analyzers' events ({'watch': {'folder'}}), a gate
-    armed on them ({'gate': spec}); None - the client gone -, its gate taken off."""
+    """A client's `command` at a pass of session `s`: events, a gate, or live `hotswap` / `checkpoint`."""
     from machine.process import watch
     from machine.errors import MachineError
+    if command is not None and ('hotswap' in command or 'checkpoint' in command):
+        from machine.process import hotswap
+        return hotswap.tcp_command(s, command, lambda n: _put(c['q'], json.dumps(_plain(n)).encode('utf-8')))
     scope.disarm(s, c['gate'])
     c['gate'] = None
     if command is None:
