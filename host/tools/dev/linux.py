@@ -1,35 +1,21 @@
 #!/usr/bin/env python3
 """The offline gate on Linux, here: GitHub's runner as a container on this host's engine.
 
-    python -X utf8 tools/dev/run_tests.py --linux [--python 3.12] [the relay's own arguments]
+    python -X utf8 tools/dev/run_tests.py --linux [--python 3.12] [--parts N] [the relay's arguments]
     python -X utf8 tools/dev/run_tests.py --linux --arch arm64 --isa sme2 --cpu max,sve-default-vector-length=64
     python -X utf8 tools/dev/linux.py --build [--fresh]   # the runner's images alone; --fresh: from scratch
     python -X utf8 tools/dev/linux.py --kept              # whether each stands: 0 where all do
 
---arch arm64: the runner as an arm64 image, its processor emulated by the engine's QEMU (binfmt) - --cpu its
-QEMU_CPU (the vector lengths: sve-default-vector-length, sme-default-vector-length, in bytes); --isa the
-robot's cores' target there (COAXIAL_ISA, tools/cores/build.py's TARGETS) in place of gate.yml's, which an x86
-runner's is.
-
-What .github/workflows/gate.yml's host job runs, run as it runs there. An image of its runner (.github/runner.Dockerfile):
-its Ubuntu release (`runs-on`), the archive's amd64v3 builds where this processor runs them, as the runner's
-image installs them, the apt packages and the Python gate.yml names, the virtual environment its inputs action
-makes. The tree as it stands here - committed or not, nothing ignored - copied in as a checkout with its parent
-and installed as gate.yml installs it; the gate run as the runner runs it: its user, CI true, the step's own
-environment, --offline.
-
-A container takes the runner's shape (PROCESSORS, MEMORY): whole cores of the engine's processors as its sysfs
-pairs their threads - two cores of two threads, as the runner's detector says of itself (host: a runner,
-2 cores, 4 threads) -, held to them by its cpuset and shown them as the processors online, so its processes
-count what they are given as on the runner (glibc, os.cpu_count; `placed.given`); 16 GB, no swap, its /dev/shm
-the runner's 8 GB. Each Python
-of the matrix runs in a container of its own on cores of its own, side by side, as each runs on a VM of its own
-there; in turn where the engine has too few. Not reproduced: the runner's processor model (its rounding), its
-disk, its network.
+What .github/workflows/gate.yml's host job runs, run as that job runs on GitHub: an Ubuntu runner image
+(.github/runner.Dockerfile), the tree copied in as a checkout and installed offline, and the gate invoked as
+runner with CI true and --offline. Each container takes the runner's shape (two cores of two threads, 16 GB,
+8 GB /dev/shm) and books two cores and BOOKED_GB in tools.dev.ledger; --parts runs multiple 2-core containers
+side by side (--part k/n each, capped by host and engine memory headroom).
 """
 import argparse
 import io
 import os
+import queue
 import re
 import shutil
 import subprocess
@@ -42,7 +28,7 @@ from contextlib import suppress
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from tools.dev import ledger
+from tools.dev import background, census, ledger
 from tools.dev.suites import ROOT
 
 #: The tree's root, the workflow of the gate (its host job the one run here) and the image of its runner.
@@ -56,6 +42,8 @@ PROCESSORS, MEMORY, SHM = 4, '16g', '8g'
 #: A container's commit booked in the machine's ledger (tools.dev.ledger): the reserve a relay keeps - the gate
 #: inside books its own jobs in the container's ledger, and the engine's VM takes the host's commit as it goes.
 BOOKED_GB = ledger.RESERVE_GB
+#: Physical cores a runner container takes, and the background memory kept free on host and engine VM.
+RUNNER_CORES, HEADROOM_HOST_GB, HEADROOM_ENGINE_GB, HEADROOM_SHARE = PROCESSORS // 2, 8.0, 6.0, 0.25
 #: The runner's user and its id; the image's name, its tag a release and a Python.
 USER, UID, IMAGE = 'runner', 1001, 'coaxial-runner'
 #: The images' architectures as the engine names them, each as actions/python-versions names its builds: the
@@ -198,13 +186,44 @@ def cores(client, tag):
     return sorted({listed(line) for line in said.decode('ascii').split()})
 
 
-def shaped(found, count, processors=PROCESSORS):
+def room(width=None, free=None, engine_gb=None, client=None):
+    """Runner containers of two cores and BOOKED_GB that fit at once while leaving the desk's cores and a quarter
+    of host commit and engine memory (8 GB and 6 GB at least) free for background work; at least one."""
+    if engine_gb is None and client is not None:
+        with suppress(Exception):
+            total = int((client.info() or {}).get('MemTotal') or 0)
+            engine_gb = total / 1024 ** 3 if total > 0 else None
+    width = background.widths()[-1] if width is None else width
+    free = census.free_commit_gb() if free is None else free
+    by_cpu = max(1, width // RUNNER_CORES)
+    by_host = by_cpu if free is None else max(1, int((free - max(HEADROOM_HOST_GB, HEADROOM_SHARE * free)) // BOOKED_GB))
+    by_vm = by_cpu if engine_gb is None else max(1, int((engine_gb - max(HEADROOM_ENGINE_GB, HEADROOM_SHARE * engine_gb)) // BOOKED_GB))
+    return min(by_cpu, by_host, by_vm)
+
+
+def busy(client):
+    """The processor mask held right now by live gate containers on `client`."""
+    from machine.process.placed import listed
+    mask = 0
+    with suppress(Exception):
+        for container in client.containers.list(filters={'label': 'coaxial.relay'}):
+            cpus = ((container.attrs or {}).get('HostConfig') or {}).get('CpusetCpus') or ''
+            if cpus:
+                mask |= listed(cpus)
+    return mask
+
+
+def shaped(found, count, processors=PROCESSORS, held=0):
     """Up to `count` sets of whole cores of `found` (each its processors, a mask), each of `processors` logical
-    processors at least - the runner's -, apart from each other and from the first core (the system's interrupts')
-    where there are enough; none where `found` holds fewer than `processors`."""
+    processors at least - the runner's -, apart from each other, from `held` and from the first core (the system's
+    interrupts') where there are enough; none where `found` holds fewer than `processors`."""
+    if count <= 0:
+        return []
     order = sorted(found)
+    rest = order[1:] + order[:1]
+    ordered = [c for c in rest if not (c & held)] + [c for c in rest if c & held]
     sets, mask = [], 0
-    for core in order[1:] + order[:1]:
+    for core in ordered:
         mask |= core
         if bin(mask).count('1') >= processors:
             sets.append(mask)
@@ -313,6 +332,8 @@ def main(argv=None):
                         help="the image's architecture: arm64 emulated by the engine's QEMU")
     parser.add_argument('--isa', help="the robot's cores' target there (COAXIAL_ISA), in place of gate.yml's")
     parser.add_argument('--cpu', help="with --arch arm64: the emulated processor (QEMU_CPU)")
+    parser.add_argument('--parts', type=int, default=1,
+                        help='runner containers a Python side by side (--part k/n each; 0 fits RAM and cores)')
     args, relayed = parser.parse_known_args(sys.argv[1:] if argv is None else argv)
     hosts = [arg for arg in relayed if arg.split('=', 1)[0] in HOSTS]
     if hosts:
@@ -320,6 +341,10 @@ def main(argv=None):
                          'offline gate' % ' '.join(hosts))
     if args.cpu and args.arch == next(iter(ARCHS)):
         raise SystemExit('linux: --cpu is the emulated processor of an --arch arm64 image')
+    if args.parts < 0:
+        raise SystemExit('linux: --parts is 0 (fit RAM and cores) or at least 1')
+    if args.parts != 1 and any(arg == '--part' or arg.startswith('--part=') for arg in relayed):
+        raise SystemExit('linux: --parts lays --part k/n; pass one or the other')
     info = workflow()
     pythons = args.python or info['pythons']
     if not set(pythons) <= set(info['pythons']):
@@ -329,53 +354,79 @@ def main(argv=None):
         print('linux: ' + line, flush=True)
     if args.kept:
         stands = kept(client, info, pythons, args.arch)
-        print(', '.join('%s %s' % (minor, ('missing', 'kept')[ok]) for minor, ok in stands.items()))
+        print(', '.join('%s %s' % (minor, ('missing', 'kept')[ok]) for minor in stands if (ok := stands[minor]) is not None))
         return 0 if all(stands.values()) else 1
     tags = [built(info, minor, args.fresh, args.arch) for minor in pythons]
     info = dict(info, env=environment(info, args.arch, args.isa, args.cpu))
     if args.build:
         return 0
     found = cores(client, tags[0])
-    sets = shaped(found, len(pythons)) or [sum(found)]
-    side = len(sets) == len(pythons)
+    cap = room(client=client)
+    parts = max(1, cap // len(pythons)) if args.parts == 0 else args.parts
+    slots = [(minor, tag, part) for minor, tag in zip(pythons, tags)
+             for part in (range(1, parts + 1) if parts > 1 else (None,))]
+    sets = shaped(found, min(len(slots), cap), held=busy(client)) or [sum(found)]
     name = repository()
     checkout, lock, codes = tree('%s/%s' % (name, name)), threading.Lock(), {}
+    todo: queue.SimpleQueue = queue.SimpleQueue()
+    pool: queue.SimpleQueue = queue.SimpleQueue()
+    for slot in slots:
+        todo.put(slot)
+    for cpus in sets:
+        pool.put(cpus)
 
-    def one(minor, tag, cpus):
-        prefix = '%s| ' % minor if len(pythons) > 1 else ''
+    def one(minor, tag, part, cpus):
+        tag_part = '%s %d/%d' % (minor, part, parts) if part and len(pythons) > 1 else (
+            '%d/%d' % (part, parts) if part else (minor if len(pythons) > 1 else ''))
+        prefix = '%s| ' % tag_part if tag_part else ''
 
         def say(line):
             with lock:
                 print(prefix + line, flush=True)
         held_cores = sum(1 for core in found if core & cpus)
-        say('linux: Python %s, %s, processors %s (%d cores, %d threads), %s' % (
-            minor, tag, ','.join(str(c) for c in range(cpus.bit_length()) if cpus >> c & 1),
+        label = 'linux-%s%s' % (minor, '-%d' % part if part else '')
+        extra = ['--part', '%d/%d' % (part, parts)] if part else []
+        say('linux: Python %s%s, %s, processors %s (%d cores, %d threads), %s' % (
+            minor, ' part %d/%d' % (part, parts) if part else '', tag,
+            ','.join(str(c) for c in range(cpus.bit_length()) if cpus >> c & 1),
             held_cores, bin(cpus).count('1'), MEMORY))
         # its cores booked in the machine's ledger beside every relay's jobs, waited for while the machine is taken:
         # what it waits for said as it begins to - silent, it waited for commit as long as none was let go
-        with ledger.reserved(held_cores, BOOKED_GB, 'linux-%s' % minor, say=lambda what: say('linux: ' + what)) as booking:
+        with ledger.reserved(held_cores, BOOKED_GB, label, say=lambda what: say('linux: ' + what)) as booking:
             if booking.waited >= ledger.POLL_S:
                 say('linux: waited %.0f s for the machine' % booking.waited)
-            codes[minor] = ran(client, tag, info, cpus, relayed, say, checkout, name)
+            codes[(minor, part)] = ran(client, tag, info, cpus, relayed + extra, say, checkout, name)
 
-    jobs = [threading.Thread(target=one, args=(minor, tag, sets[k] if side else sets[0]), daemon=True)
-            for k, (minor, tag) in enumerate(zip(pythons, tags))]
+    def worker():
+        while True:
+            try:
+                minor, tag, part = todo.get_nowait()
+            except queue.Empty:
+                return
+            cpus = pool.get()
+            try:
+                one(minor, tag, part, cpus)
+            finally:
+                pool.put(cpus)
+
+    jobs = [threading.Thread(target=worker, daemon=True) for _ in sets]
     try:
-        for batch in ([jobs] if side else [[job] for job in jobs]):
-            for job in batch:
-                job.start()
-            for job in batch:
-                while job.is_alive():
-                    job.join(0.5)
+        for job in jobs:
+            job.start()
+        for job in jobs:
+            while job.is_alive():
+                job.join(0.5)
     except KeyboardInterrupt:
         for container in LIVE:
             with suppress(Exception):
                 container.remove(force=True)
         print('\nlinux: stopped - its containers removed')
         return 130
-    if len(pythons) > 1:
-        print('linux: ' + ', '.join('Python %s exit %s' % (minor, codes.get(minor, 'none')) for minor in pythons))
-    return next((codes.get(minor, 1) for minor in pythons if codes.get(minor, 1)), 0)
+    if len(slots) > 1:
+        print('linux: ' + ', '.join('Python %s%s exit %s' % (
+            minor, ' %d/%d' % (part, parts) if part else '', codes.get((minor, part), 'none'))
+            for minor, _tag, part in slots))
+    return next((codes.get((minor, part), 1) for minor, _tag, part in slots if codes.get((minor, part), 1)), 0)
 
 
 if __name__ == '__main__':

@@ -9,33 +9,36 @@
 #include <math.h>
 
 /** The first where it wins, ties too, or is nan: Python's max and min; numpy's but at a tie of
-    zeros (npmaximum, npminimum). */
+    zeros (npmaximum, npminimum). Pure floating comparisons (a != a in isnan's place: no library
+    call) so vector loops keep to floating registers on every target, AVX1 included. */
 static inline double npmax(double a, double b)
 {
-  return (a >= b || isnan(a)) ? a : b;
+  return (a != a) ? a : ((a >= b) ? a : b);
 }
 
 static inline double npmin(double a, double b)
 {
-  return (a <= b || isnan(a)) ? a : b;
+  return (a != a) ? a : ((a <= b) ? a : b);
 }
 
 /** numpy's maximum and minimum: the first where it wins outright or is nan, else the second -
     at a tie of zeros the second, as maxpd and minpd give it. */
 static inline double npmaximum(double a, double b)
 {
-  return (a > b || isnan(a)) ? a : b;
+  return (a != a) ? a : ((a > b) ? a : b);
 }
 
 static inline double npminimum(double a, double b)
 {
-  return (a < b || isnan(a)) ? a : b;
+  return (a != a) ? a : ((a < b) ? a : b);
 }
 
 /** numpy's nan_to_num: nan 0, an infinity the largest finite of its sign. */
 static inline double npnan_to_num(double x)
 {
-  return isnan(x) ? 0.0 : (isinf(x) ? (x > 0.0 ? DBL_MAX : -DBL_MAX) : x);
+  const double clamped = (x > DBL_MAX) ? DBL_MAX : ((x < -DBL_MAX) ? -DBL_MAX : x);
+
+  return (x != x) ? 0.0 : clamped;
 }
 
 /** numpy's clip: x below lo lo, above hi hi, else x - a zero kept its sign. */
@@ -62,7 +65,7 @@ static inline double nppow(double x, double y)
 /** numpy's sign: 1, -1, 0 at either zero, nan at nan. */
 static inline double npsign(double x)
 {
-  return x > 0.0 ? 1.0 : (x < 0.0 ? -1.0 : (x == 0.0 ? 0.0 : x));
+  return (x != x) ? x : (((x > 0.0) ? 1.0 : 0.0) - ((x < 0.0) ? 1.0 : 0.0));
 }
 
 /** Python's sum of floats from its int zero, as CPython 3.12 sums them: the first added to 0, each after by

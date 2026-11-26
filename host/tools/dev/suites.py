@@ -442,8 +442,8 @@ PORT = ('test_mcp.py', 'test_parity.py')
 #: on as shards side by side.
 SHARDED = (SENSORLESS, CONTROLLER, GYNOID, ORTHO, SYSID, SYSID_LIVE, WEAR, SITUATION, 'test_simulated.py', 'test_views_segments.py',
            DAQ_API, QUAD_PAGE, REPLAYS, SCENES, ERRANDS, CHAIR_SEATED, MOVE_HANDOVER, ENGRAMS, WASD, STRUCTURE,
-           PORTED, 'test_mirrors.py', LEAP, TICK, STICTION, VECTORIZED, LIBM, FLOOR, CAMERA, SIGHT, GAZE,
-           'test_views_clothes.py', 'test_views_built.py')
+           PORTED, 'test_mirrors.py', LEAP, TICK, STICTION, VECTORIZED, LIBM, COMPILED, WBC_CORE, SE3_GRIP,
+           'test_qp.py', FLOOR, CAMERA, SIGHT, GAZE, 'test_views_clothes.py', 'test_views_built.py')
 
 #: Suite work estimates live in `tests/work.json` (`machine_detector.py`).
 #: Emulator groups and per-Renode budgets, s.

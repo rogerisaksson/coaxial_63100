@@ -149,9 +149,11 @@ def _options(argv):
     parser.add_argument('--arch', help="with --linux: the image's architecture - arm64 emulated (linux.py)")
     parser.add_argument('--isa', help="with --linux: the robot's cores' target there (COAXIAL_ISA), in place of gate.yml's")
     parser.add_argument('--cpu', help='with --linux --arch arm64: the emulated processor (QEMU_CPU)')
+    parser.add_argument('--parts', type=int,
+                        help='with --linux: runner containers a Python side by side (--part k/n each; 0 fits RAM and cores)')
     args = parser.parse_args(argv)
-    if (args.python or args.arch or args.isa or args.cpu) and not args.linux:
-        parser.error('--python, --arch, --isa and --cpu go with --linux')
+    if (args.python or args.arch or args.isa or args.cpu or args.parts is not None) and not args.linux:
+        parser.error('--python, --arch, --isa, --cpu and --parts go with --linux')
     if args.float:
         from machine.process.placed import FLOAT
         os.environ[FLOAT] = '1'

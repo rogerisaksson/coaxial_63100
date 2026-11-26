@@ -413,7 +413,7 @@ _Static_assert(WBC_GMO_F + WBC_GMO_LANES - 1 <= WBC_GMO_LD, "a row's last block 
     each row's weight times its x-th column: a block of WBC_GMO_LANES elements along memory at once, their sums
     apart in registers and each stored once - summed a gathered row at a time, each element was loaded and stored
     a row, 1800 short loops a round. The last block reads the row's padding past `m` and stores none of it. */
-static void added(wbc_gmo_t *o, int x, int m, int weighed, const double c[WBC_N])
+static void added(wbc_gmo_t *restrict o, int x, int m, int weighed, const double *restrict c)
 {
   for (int y0 = x; y0 < m; y0 += WBC_GMO_LANES)
   {
@@ -440,7 +440,7 @@ static void added(wbc_gmo_t *o, int x, int m, int weighed, const double c[WBC_N]
 
 /** The gradient to `m` row `c` of `h` times `fc` less: one product and one sum an element, each element apart - its
     lanes independent, along memory, the fields apart in the robot's observer's struct. */
-static void lessened(wbc_gmo_t *o, int m, int c, double fc)
+static void lessened(wbc_gmo_t *restrict o, int m, int c, double fc)
 {
   for (int x = 0; x < m; x++)
   {
@@ -454,7 +454,7 @@ static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[
   static int    set[NF], at[NF], gate[NF], gated[NF], on[NF];
   const int     m = o->lives;
   int           rows[WBC_N], weighed = 0;
-  double        top = 0.0, most = 0.0, scale[WBC_N];
+  double        top = 0.0, most = 0.0, scale[WBC_N], wrow[WBC_N];
 
   /* A row weighed 0, or a push f 0, adds exactly +-0 to a sum that starts at +0: left out, the same bits. */
   for (int i = 0; i < WBC_N; i++)
@@ -475,25 +475,30 @@ static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[
   for (int x = 0; x < m; x++)
   {
     gate[x] = gated[o->live[x]];
+    g[x] = 0.0;
     for (int k = 0; k < weighed; k++)
     {
       o->ag[k][x] = o->a[rows[k]][o->live[x]];
     }
   }
+  for (int k = 0; k < weighed; k++)
+  {
+    const int    i = rows[k];
+    const double wk = weight[i], dr = o->r[i] - shift[i];
+
+    wrow[k] = wk;
+    for (int x = 0; x < m; x++)
+    {
+      g[x] += (wk * o->ag[k][x]) * dr;
+    }
+  }
   for (int x = 0; x < m; x++)
   {
-    g[x] = 0.0;
-    for (int k = 0; k < weighed; k++)
-    {
-      const int i = rows[k];
-
-      g[x] += weight[i] * o->ag[k][x] * (o->r[i] - shift[i]);
-    }
     /* each h[x][y] summed over the weighed rows in their order, blocks of the row along its memory (`added`); a
        weighed row's weight is 1, so (1 a) b is b a bit for bit: h symmetric, its lower half mirrored */
     for (int k = 0; k < weighed; k++)
     {
-      scale[k] = weight[rows[k]] * o->ag[k][x];
+      scale[k] = wrow[k] * o->ag[k][x];
     }
     added(o, x, m, weighed, scale);
     for (int y = 0; y < x; y++)

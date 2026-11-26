@@ -68,6 +68,13 @@ def test_the_runner_here_is_gate_yml_s(report):
     took = [linux.shaped(smt, 2), linux.shaped(single, 2), linux.shaped(smt[:2], 2), linux.shaped(smt[:1], 1)]
     report.check('two cores of two threads a container, apart; four of one, the first core last; one set of two '
                  'cores; none of one core', took == [[0x3c, 0x3c0], [0x1e, 0xe1], [0xf], []], str(took))
+    apart = linux.shaped(smt, 2, held=0x3c)
+    fitted = [linux.room(width=28, free=48.0, engine_gb=32.0),
+              linux.room(width=28, free=12.0, engine_gb=32.0),
+              linux.room(width=28, free=48.0, engine_gb=16.0)]
+    report.check('busy container cores deferred behind free ones; parallel container count leaves background RAM and '
+                 'cores free on host and engine', apart == [0x3c0, 0x3c00] and fitted == [9, 1, 4],
+                 '%s | %s' % (apart, fitted))
     told = census.counted()
     report.check("this host's count: its control group's where Linux tells one, the batch sized by the same",
                  told is None or told == (census.physical_cores(), census.threads()), str(told))

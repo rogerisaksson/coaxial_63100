@@ -55,12 +55,17 @@ static inline bool lm_nan(double x)
 /** c ? a : b by the bits under a mask of all ones or none, c a floating comparison's: no branch for a compiler to
     split, so no select's arms merge into one choice of more than four a vectorizer converts (gcc's limit); no
     integer bit's truth, which a vectorizer takes for a one-bit type it cannot lay; no negated 0 or 1, which a
-    compiler turns into a 64-bit multiplication NEON and AVX lack. A blend on every vector machine. */
+    compiler turns into a 64-bit multiplication NEON and AVX lack. Under SVE the choice stays in floating registers
+    (c ? a : b): gcc 15 lowers a predicated sign-bit mask on uint64_t into integer neg. */
 static inline double lm_sel(bool c, double a, double b)
 {
+#if defined(__ARM_FEATURE_SVE)
+  return c ? a : b;
+#else
   uint64_t m = c ? 0xFFFFFFFFFFFFFFFFU : 0U;
 
   return lm_double((lm_bits(a) & m) | (lm_bits(b) & ~m));
+#endif
 }
 
 /** a's magnitude with b's sign, by the bits: some C libraries' copysign works on halves of a word, no vector's. */
@@ -479,9 +484,9 @@ static inline double wbc_power(double x, double y)
   s = lm_sel(ax == 0.0, lm_sel(y < 0.0, INFINITY, 0.0), s);
   s = lm_sel(ax == INFINITY, lm_sel(y < 0.0, 0.0, INFINITY), s);
   s = lm_sel(odd != 0.0, lm_copysign(s, x), s);
-  s = lm_sel(x < 0.0, lm_sel(ax != INFINITY, lm_sel(whole != 0.0, s, NAN), s), s);
-  s = lm_sel(lm_nan(x), x + y, lm_sel(lm_nan(y), x + y, s));
-  return lm_sel(y == 0.0, 1.0, lm_sel(x == 1.0, 1.0, s));
+  s = lm_sel((x < 0.0) && (ax != INFINITY) && (whole == 0.0), NAN, s);
+  s = lm_sel(lm_nan(x) || lm_nan(y), x + y, s);
+  return lm_sel((y == 0.0) || (x == 1.0), 1.0, s);
 }
 
 /** x^2, x^3 and x^4 as products, a rounding a product ((x x) x, (x x)(x x)): the same on every machine, where the

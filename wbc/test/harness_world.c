@@ -22,13 +22,13 @@ static struct
   void       *data;
   int         pending;
   int         started;
+  int         state;
 #ifdef _WIN32
   HANDLE asked;
   HANDLE done;
 #else
   pthread_mutex_t lock;
   pthread_cond_t  turn;
-  int             state;
 #endif
 } beside;
 
@@ -38,9 +38,15 @@ static DWORD WINAPI besides(LPVOID none)
   (void)none;
   while (beside.started != 0)
   {
+    int expected = 1;
+
     (void)WaitForSingleObject(beside.asked, INFINITE);
     beside.stage(beside.model, beside.data);
-    (void)SetEvent(beside.done);
+    if (!__atomic_compare_exchange_n(&beside.state, &expected, 2, 0, __ATOMIC_RELEASE, __ATOMIC_ACQUIRE))
+    {
+      __atomic_store_n(&beside.state, 2, __ATOMIC_RELEASE);
+      (void)SetEvent(beside.done);
+    }
   }
   return 0;
 }
@@ -50,14 +56,14 @@ static void *besides(void *none)
   while (beside.started != 0)
   {
     (void)pthread_mutex_lock(&beside.lock);
-    while (beside.state != 1)
+    while (__atomic_load_n(&beside.state, __ATOMIC_ACQUIRE) != 1)
     {
       (void)pthread_cond_wait(&beside.turn, &beside.lock);
     }
     (void)pthread_mutex_unlock(&beside.lock);
     beside.stage(beside.model, beside.data);
     (void)pthread_mutex_lock(&beside.lock);
-    beside.state = 2;
+    __atomic_store_n(&beside.state, 2, __ATOMIC_RELEASE);
     (void)pthread_cond_broadcast(&beside.turn);
     (void)pthread_mutex_unlock(&beside.lock);
   }
@@ -73,16 +79,32 @@ API int wbh_world_behind(void)
   if (was != 0)
   {
 #ifdef _WIN32
-    (void)WaitForSingleObject(beside.done, INFINITE);
-#else
-    (void)pthread_mutex_lock(&beside.lock);
-    while (beside.state != 2)
+    if (__atomic_load_n(&beside.state, __ATOMIC_ACQUIRE) != 2)
     {
-      (void)pthread_cond_wait(&beside.turn, &beside.lock);
+      int expected = 1;
+
+      for (int spin = 0; (spin < 128) && (__atomic_load_n(&beside.state, __ATOMIC_ACQUIRE) != 2); spin++)
+      {
+        YieldProcessor();
+      }
+      if ((__atomic_load_n(&beside.state, __ATOMIC_ACQUIRE) != 2)
+          && __atomic_compare_exchange_n(&beside.state, &expected, 3, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
+      {
+        (void)WaitForSingleObject(beside.done, INFINITE);
+      }
     }
-    beside.state = 0;
-    (void)pthread_mutex_unlock(&beside.lock);
+#else
+    if (__atomic_load_n(&beside.state, __ATOMIC_ACQUIRE) != 2)
+    {
+      (void)pthread_mutex_lock(&beside.lock);
+      while (__atomic_load_n(&beside.state, __ATOMIC_ACQUIRE) != 2)
+      {
+        (void)pthread_cond_wait(&beside.turn, &beside.lock);
+      }
+      (void)pthread_mutex_unlock(&beside.lock);
+    }
 #endif
+    __atomic_store_n(&beside.state, 0, __ATOMIC_RELAXED);
     beside.pending = 0;
   }
   return was;
@@ -96,12 +118,36 @@ API int wbh_world_ahead(wbh_stage_t stage, const void *model, void *data)
   if (beside.started == 0)
   {
 #ifdef _WIN32
+    HANDLE thread = NULL;
+
     beside.asked = CreateEventA(NULL, FALSE, FALSE, NULL);
     beside.done = CreateEventA(NULL, FALSE, FALSE, NULL);
     beside.started = 1;     /* before its thread reads it */
-    if ((beside.asked == NULL) || (beside.done == NULL) || (CreateThread(NULL, 0, besides, NULL, 0, NULL) == NULL))
+    if ((beside.asked != NULL) && (beside.done != NULL))
+    {
+      thread = CreateThread(NULL, 0U, besides, NULL, 0U, NULL);
+    }
+    if (thread == NULL)
     {
       beside.started = -1;
+    }
+    else
+    {
+      DWORD_PTR proc_mask = 0U, sys_mask = 0U;
+
+      /* Where `placed` narrowed this process to a cache complex, keep the stage off the caller's core. */
+      if ((GetProcessAffinityMask(GetCurrentProcess(), &proc_mask, &sys_mask) != 0) && (proc_mask != sys_mask))
+      {
+        const DWORD     cpu = GetCurrentProcessorNumber();
+        const DWORD_PTR own = (cpu < (DWORD)(8U * sizeof(DWORD_PTR))) ? ((DWORD_PTR)1U << cpu) : (DWORD_PTR)0U;
+        const DWORD_PTR rest = proc_mask & ~own;
+
+        if (rest != (DWORD_PTR)0U)
+        {
+          (void)SetThreadAffinityMask(thread, rest);
+        }
+      }
+      (void)CloseHandle(thread);
     }
 #else
     pthread_t thread;
@@ -122,10 +168,11 @@ API int wbh_world_ahead(wbh_stage_t stage, const void *model, void *data)
     beside.data = data;
     beside.pending = 1;
 #ifdef _WIN32
+    __atomic_store_n(&beside.state, 1, __ATOMIC_RELEASE);
     (void)SetEvent(beside.asked);
 #else
     (void)pthread_mutex_lock(&beside.lock);
-    beside.state = 1;
+    __atomic_store_n(&beside.state, 1, __ATOMIC_RELEASE);
     (void)pthread_cond_broadcast(&beside.turn);
     (void)pthread_mutex_unlock(&beside.lock);
 #endif

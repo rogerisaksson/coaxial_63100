@@ -54,7 +54,7 @@ int wbc_cholesky(int n, int ld, double *a)
 }
 
 /** x = (L^T)^-1 x in place: each x[i] less l[k][i] x[k] in k's order from i + 1, over l[i][i]. */
-static void backed(int n, int ld, const double *l, double *x)
+static void backed(int n, int ld, const double *restrict l, double *restrict x)
 {
   for (int i = n - 1; i >= 0; i--)
   {
@@ -68,49 +68,37 @@ static void backed(int n, int ld, const double *l, double *x)
   }
 }
 
-void wbc_chol_solve(int n, int ld, const double *l, const double *b, double *x)
+void wbc_chol_solve(int n, int ld, const double *restrict l, const double *b, double *x)
 {
-  /* forward: each b[i] less l[i][k] x[k] in k's order as each x[k] is had - the rows' subtractions independent */
+  /* forward: each b[i] less l[i][k] x[k] along row i in k's order from 0, held in a register */
   for (int i = 0; i < n; i++)
   {
-    x[i] = b[i];
-  }
-  for (int k = 0; k < n; k++)
-  {
-    const double xk = x[k] / l[k * ld + k];
+    const double *row = &l[i * ld];
+    double        s = b[i];
 
-    x[k] = xk;
-    for (int i = k + 1; i < n; i++)
+    for (int k = 0; k < i; k++)
     {
-      x[i] -= l[i * ld + k] * xk;
+      s -= row[k] * x[k];
     }
+    x[i] = s / row[i];
   }
   backed(n, ld, l, x);
 }
 
-void wbc_chol_solve_from(int n, int ld, const double *l, const double *b, int from, double *y, double *x)
+void wbc_chol_solve_from(int n, int ld, const double *restrict l, const double *restrict b, int from,
+                         double *restrict y, double *restrict x)
 {
-  /* the rows from `from` anew, each less l[i][k] y[k] in k's order - those kept first - as wbc_chol_solve's */
+  /* the rows from `from` anew, each less l[i][k] y[k] along row i in k's order from 0, as wbc_chol_solve's */
   for (int i = from; i < n; i++)
   {
-    y[i] = b[i];
-  }
-  for (int k = 0; k < from; k++)
-  {
-    for (int i = from; i < n; i++)
-    {
-      y[i] -= l[i * ld + k] * y[k];
-    }
-  }
-  for (int k = from; k < n; k++)
-  {
-    const double yk = y[k] / l[k * ld + k];
+    const double *row = &l[i * ld];
+    double        s = b[i];
 
-    y[k] = yk;
-    for (int i = k + 1; i < n; i++)
+    for (int k = 0; k < i; k++)
     {
-      y[i] -= l[i * ld + k] * yk;
+      s -= row[k] * y[k];
     }
+    y[i] = s / row[i];
   }
   memcpy(x, y, (size_t)n * sizeof(double));
   backed(n, ld, l, x);

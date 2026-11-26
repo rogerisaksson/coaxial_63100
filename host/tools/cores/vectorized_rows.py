@@ -181,6 +181,13 @@ ROWS = {
         },
     }),
     'gcc 15 aarch64': (('sve2', 'sme2'), {
+        'wbc_afford.c': {
+            'wbc_afford_clear': (2, 2),
+            'wbc_afford_near': (1, 1),
+        },
+        'wbc_blas.c': {
+            'block': (5, 5),
+        },
         'wbc_body.c': {
             'bracket_t': (1, 1),
             'compose': (2, 2),
@@ -196,6 +203,8 @@ ROWS = {
         'wbc_borne.c': {
             'normal_of': (2, 2),
             'room_of': (2, 2),
+            'summed': (1, 1),
+            'wbc_borne_leaned': (3, 3),
             'wbc_borne_read': (2, 2),
             'wbc_borne_seated': (2, 2),
             'wbc_borne_supports': (1, 1),
@@ -215,12 +224,13 @@ ROWS = {
             'laid': (1, 1),
         },
         'wbc_cone.c': {
-            'faced': (1, 1),
+            'faced': (2, 2),
             'kinetic': (5, 5),
             'taken': (2, 2),
             'wbc_cone_bounded': (2, 2),
         },
         'wbc_floor.c': {
+            'floor_area': (1, 1),
             'wbc_imp_floor_at': (1, 1),
         },
         'wbc_gmo.c': {
@@ -230,6 +240,7 @@ ROWS = {
             'columns': (1, 1),
             'expect': (1, 1),
             'lessened': (1, 1),
+            'pushes': (1, 1),
             'shared': (1, 1),
             'split': (1, 1),
             'stage': (1, 1),
@@ -237,8 +248,14 @@ ROWS = {
             'wbc_gmo_felt': (1, 1),
             'wbc_gmo_step': (1, 1),
         },
+        'wbc_hull.c': {
+            'wbc_hull': (2, 2),
+        },
         'wbc_imp.c': {
-            'wbc_imp_ask': (6, 6),
+            'wbc_imp_ask': (8, 8),
+        },
+        'wbc_inekf.c': {
+            'wbc_inekf_laid': (1, 1),
         },
         'wbc_law.c': {
             'wbc_law_couple': (2, 2),
@@ -255,9 +272,11 @@ ROWS = {
             'lm_run_expm1': (1, 1),
             'lm_run_hypot': (1, 1),
             'lm_run_log': (1, 1),
+            'lm_run_power': (1, 1),
             'lm_run_sin': (1, 1),
             'lm_run_sincos': (1, 1),
             'lm_run_tan': (1, 1),
+            'lm_run_tanh': (1, 1),
         },
         'wbc_maps.c': {
             'wbc_step_maps': (3, 3),
@@ -311,7 +330,7 @@ ROWS = {
             'wbc_imp_swings': (2, 2),
         },
         'wbc_touch.c': {
-            'wbc_touch_step': (4, 4),
+            'wbc_touch_step': (5, 5),
         },
         'wbc_wait.c': {
             'wbc_wait_risen': (1, 1),
@@ -333,11 +352,19 @@ ROWS = {
         },
     }),
     'gcc 15 x86_64': (('avx', 'avx2', 'avx512'), {
+        'wbc_afford.c': {
+            'moved_of': (1, 1, 1),
+            'wbc_afford_clear': (2, 2, 2),
+            'wbc_afford_near': (1, 1, 1),
+        },
+        'wbc_blas.c': {
+            'block': (6, 6, 6),
+        },
         'wbc_body.c': {
             'bracket_t': (1, 1, 1),
             'compose': (2, 2, 2),
             'out_of': (1, 1, 1),
-            'twist_exp': (0, 0, 1),
+            'twist_exp': (1, 1, 1),
             'wbc_body_bias': (4, 4, 4),
             'wbc_body_com': (1, 1, 1),
             'wbc_body_drift': (1, 1, 1),
@@ -349,6 +376,8 @@ ROWS = {
         'wbc_borne.c': {
             'normal_of': (2, 2, 2),
             'room_of': (2, 2, 2),
+            'summed': (1, 1, 1),
+            'wbc_borne_leaned': (3, 3, 3),
             'wbc_borne_read': (2, 2, 2),
             'wbc_borne_seated': (2, 2, 3),
             'wbc_borne_supports': (1, 1, 2),
@@ -373,12 +402,13 @@ ROWS = {
             'laid': (1, 1, 1),
         },
         'wbc_cone.c': {
-            'faced': (1, 1, 1),
+            'faced': (2, 2, 2),
             'kinetic': (5, 5, 5),
             'taken': (2, 2, 3),
             'wbc_cone_bounded': (2, 2, 2),
         },
         'wbc_floor.c': {
+            'floor_area': (1, 1, 1),
             'wbc_imp_floor_at': (0, 1, 1),
             'wbc_imp_landings': (2, 2, 2),
         },
@@ -387,9 +417,9 @@ ROWS = {
             'added': (1, 1, 1),
             'closest': (1, 1, 1),
             'columns': (1, 1, 1),
-            'expect': (1, 1, 1),
+            'expect': (2, 2, 2),
             'lessened': (1, 1, 1),
-            'pushes': (0, 0, 1),
+            'pushes': (1, 1, 2),
             'shared': (1, 1, 1),
             'split': (1, 1, 1),
             'stage': (1, 1, 1),
@@ -397,11 +427,20 @@ ROWS = {
             'wbc_gmo_felt': (1, 1, 1),
             'wbc_gmo_step': (1, 1, 1),
         },
+        'wbc_gmo_factor.c': {
+            'wbc_gmo_joined': (1, 1, 1),
+        },
+        'wbc_hull.c': {
+            'wbc_hull': (2, 2, 2),
+        },
         'wbc_imp.c': {
-            'wbc_imp_ask': (7, 7, 12),
+            'wbc_imp_ask': (16, 16, 16),
+        },
+        'wbc_inekf.c': {
+            'wbc_inekf_laid': (1, 1, 1),
         },
         'wbc_law.c': {
-            'wbc_law_couple': (1, 1, 2),
+            'wbc_law_couple': (2, 2, 2),
             'wbc_law_latent': (3, 3, 3),
         },
         'wbc_libm.c': {
@@ -415,18 +454,21 @@ ROWS = {
             'lm_run_expm1': (1, 1, 1),
             'lm_run_hypot': (1, 1, 1),
             'lm_run_log': (1, 1, 1),
+            'lm_run_power': (1, 1, 1),
             'lm_run_sin': (1, 1, 1),
             'lm_run_sincos': (1, 1, 1),
             'lm_run_tan': (1, 1, 1),
+            'lm_run_tanh': (1, 1, 1),
         },
         'wbc_maps.c': {
+            'inv6': (1, 1, 1),
             'wbc_step_maps': (2, 2, 4),
         },
         'wbc_pass.c': {
             'wbc_pass_contacts': (1, 1, 1),
         },
         'wbc_patch.c': {
-            'wbc_patch_rows': (2, 2, 3),
+            'wbc_patch_rows': (3, 3, 3),
         },
         'wbc_poise.c': {
             'spanned_of': (1, 1, 1),
@@ -456,10 +498,13 @@ ROWS = {
             'wbc_sil_drive': (0, 0, 1),
         },
         'wbc_solve.c': {
+            'backed': (0, 0, 1),
             'dot': (1, 1, 1),
             'reduced': (2, 2, 2),
+            'wbc_chol_solve': (1, 1, 1),
+            'wbc_chol_solve_from': (1, 1, 1),
             'wbc_cholesky': (2, 2, 2),
-            'wbc_level_solve': (16, 16, 21),
+            'wbc_level_solve': (16, 17, 21),
         },
         'wbc_stack.c': {
             'bound': (1, 1, 1),
@@ -479,16 +524,19 @@ ROWS = {
             'wbc_imp_under': (1, 1, 1),
             'wbc_imp_vaults': (1, 1, 1),
         },
+        'wbc_surety.c': {
+            'wbc_imp_surety': (1, 1, 1),
+        },
         'wbc_swing.c': {
             'wbc_imp_rested': (1, 1, 1),
-            'wbc_imp_swings': (4, 4, 4),
+            'wbc_imp_swings': (3, 4, 4),
         },
         'wbc_touch.c': {
-            'wbc_touch_step': (4, 4, 4),
+            'wbc_touch_step': (6, 6, 6),
         },
         'wbc_wait.c': {
             'wbc_wait_risen': (1, 1, 1),
-            'wbc_wait_woken': (0, 0, 1),
+            'wbc_wait_woken': (1, 1, 1),
         },
         'wbc_wholes.c': {
             'laid': (1, 1, 1),
@@ -514,13 +562,14 @@ ROWS = {
             'wbc_afford_near': (1, 1, 1),
         },
         'wbc_blas.c': {
+            'block': (6, 6, 6),
             'wbc_qr': (0, 0, 1),
         },
         'wbc_body.c': {
             'bracket_t': (1, 1, 1),
             'compose': (2, 2, 2),
             'out_of': (1, 1, 1),
-            'twist_exp': (0, 0, 1),
+            'twist_exp': (1, 1, 1),
             'wbc_body_bias': (4, 4, 4),
             'wbc_body_com': (1, 1, 1),
             'wbc_body_drift': (1, 1, 1),
@@ -534,7 +583,7 @@ ROWS = {
             'room_of': (2, 2, 2),
             'summed': (1, 1, 1),
             'wbc_borne_leaned': (3, 3, 3),
-            'wbc_borne_read': (1, 1, 1),
+            'wbc_borne_read': (2, 2, 2),
             'wbc_borne_seated': (2, 2, 3),
             'wbc_borne_supports': (1, 1, 2),
         },
@@ -559,12 +608,13 @@ ROWS = {
             'laid': (1, 1, 1),
         },
         'wbc_cone.c': {
-            'faced': (1, 1, 1),
+            'faced': (2, 2, 2),
             'kinetic': (5, 5, 5),
             'taken': (2, 2, 3),
             'wbc_cone_bounded': (2, 2, 2),
         },
         'wbc_floor.c': {
+            'floor_area': (1, 1, 1),
             'wbc_imp_floor_at': (0, 1, 1),
             'wbc_imp_landings': (2, 2, 2),
         },
@@ -575,7 +625,7 @@ ROWS = {
             'columns': (1, 1, 1),
             'expect': (2, 2, 2),
             'lessened': (1, 1, 1),
-            'pushes': (0, 0, 1),
+            'pushes': (1, 1, 2),
             'shared': (1, 1, 1),
             'split': (1, 1, 1),
             'stage': (1, 1, 1),
@@ -584,17 +634,21 @@ ROWS = {
             'wbc_gmo_step': (1, 1, 1),
         },
         'wbc_gmo_factor.c': {
+            'wbc_gmo_joined': (1, 1, 1),
             'wbc_gmo_left': (1, 1, 1),
         },
         'wbc_hull.c': {
             'wbc_hull': (2, 2, 2),
         },
         'wbc_imp.c': {
-            'wbc_imp_ask': (6, 6, 9),
+            'wbc_imp_ask': (16, 16, 16),
+        },
+        'wbc_inekf.c': {
+            'wbc_inekf_laid': (1, 1, 1),
         },
         'wbc_law.c': {
             'wbc_law_couple': (1, 1, 1),
-            'wbc_law_latent': (2, 2, 2),
+            'wbc_law_latent': (3, 3, 4),
         },
         'wbc_libm.c': {
             'lm_reduce_run': (1, 1, 1),
@@ -614,13 +668,17 @@ ROWS = {
             'lm_run_tanh': (1, 1, 1),
         },
         'wbc_maps.c': {
+            'inv6': (1, 1, 1),
             'wbc_step_maps': (2, 2, 4),
         },
         'wbc_pass.c': {
             'wbc_pass_contacts': (1, 1, 1),
         },
         'wbc_patch.c': {
-            'wbc_patch_rows': (2, 2, 3),
+            'wbc_patch_rows': (3, 3, 3),
+        },
+        'wbc_poise.c': {
+            'spanned_of': (1, 1, 1),
         },
         'wbc_poses.c': {
             'wbc_imp_poses': (1, 1, 1),
@@ -635,7 +693,7 @@ ROWS = {
             'wbc_registry_seen': (0, 0, 1),
         },
         'wbc_rounds.c': {
-            'taken': (1, 1, 1),
+            'taken': (2, 2, 2),
             'wbc_within': (2, 2, 2),
         },
         'wbc_shrunk.c': {
@@ -647,10 +705,13 @@ ROWS = {
             'wbc_sil_drive': (0, 0, 1),
         },
         'wbc_solve.c': {
+            'backed': (0, 0, 1),
             'dot': (1, 1, 1),
             'reduced': (2, 2, 2),
+            'wbc_chol_solve': (1, 1, 1),
+            'wbc_chol_solve_from': (1, 1, 1),
             'wbc_cholesky': (2, 2, 2),
-            'wbc_level_solve': (18, 18, 23),
+            'wbc_level_solve': (18, 19, 23),
         },
         'wbc_stack.c': {
             'bound': (1, 1, 1),
@@ -670,15 +731,19 @@ ROWS = {
             'wbc_imp_under': (1, 1, 1),
             'wbc_imp_vaults': (1, 1, 1),
         },
+        'wbc_surety.c': {
+            'wbc_imp_surety': (1, 1, 1),
+        },
         'wbc_swing.c': {
             'wbc_imp_rested': (1, 1, 1),
             'wbc_imp_swings': (4, 4, 4),
         },
         'wbc_touch.c': {
-            'wbc_touch_step': (3, 3, 3),
+            'wbc_touch_step': (5, 5, 5),
         },
         'wbc_wait.c': {
             'wbc_wait_risen': (1, 1, 1),
+            'wbc_wait_woken': (1, 1, 1),
         },
         'wbc_wholes.c': {
             'laid': (1, 1, 1),

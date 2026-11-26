@@ -8,28 +8,29 @@
 
 /* eps top lies on K's diagonal, so no Schur complement of it is smaller than `least`. 53 factorizations of 26 a
  * step from scratch were half the robot's observer's time. */
-int wbc_gmo_joined(wbc_gmo_t *o, int at[WBC_GMO_F], int n, int b, double least)
+int wbc_gmo_joined(wbc_gmo_t *restrict o, int at[WBC_GMO_F], int n, int b, double least)
 {
-  double d = o->h[b][b];
+  double       *kn = o->k[n];
+  const double *hb = o->h[b];
+  double        d = hb[b];
 
-  /* each of the row's entries less its terms in their order, as each before it is had: the rows independent */
-  for (int x = 0; x < n; x++)
+  /* each of the row's entries less its terms along its row of K in their order, held in a register */
+  for (int y = 0; y < n; y++)
   {
-    o->k[n][x] = o->h[b][at[x]];
-  }
-  for (int x = 0; x < n; x++)
-  {
-    const double kx = o->k[n][x] / o->k[x][x];
+    const double *ky = o->k[y];
+    double        s = hb[at[y]];
 
-    o->k[n][x] = kx;
-    d -= kx * kx;
-    for (int y = x + 1; y < n; y++)
+    for (int x = 0; x < y; x++)
     {
-      o->k[n][y] -= kx * o->k[y][x];
+      s -= kn[x] * ky[x];
     }
+    const double ky_n = s / ky[y];
+
+    kn[y] = ky_n;
+    d -= ky_n * ky_n;
   }
   at[n] = b;
-  o->k[n][n] = sqrt(fmax(d, least));
+  kn[n] = sqrt(fmax(d, least));
   return n + 1;
 }
 

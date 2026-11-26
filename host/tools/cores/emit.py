@@ -38,7 +38,7 @@ C_OF = {'add': '(%s + %s)', 'subtract': '(%s - %s)', 'multiply': '(%s * %s)', 'd
         **{'own_' + f: 'wbc_%s(%s)' % (f, ', '.join(['%s'] * n)) for n, fs in (
             (1, 'sin cos tan exp expm1 log arctan arcsin arccos tanh'), (2, 'arctan2 hypot power')) for f in fs.split()},
         'where': '(%s != 0.0 ? %s : %s)', 'clip': 'npclip(%s, %s, %s)', 'nan_to_num': 'npnan_to_num(%s)',
-        'isnan': '(isnan(%s) ? 1.0 : 0.0)', 'greater': '(%s > %s ? 1.0 : 0.0)', 'greater_equal': '(%s >= %s ? 1.0 : 0.0)',
+        'isnan': '(lm_nan(%s) ? 1.0 : 0.0)', 'greater': '(%s > %s ? 1.0 : 0.0)', 'greater_equal': '(%s >= %s ? 1.0 : 0.0)',
         'less': '(%s < %s ? 1.0 : 0.0)', 'less_equal': '(%s <= %s ? 1.0 : 0.0)', 'equal': '(%s == %s ? 1.0 : 0.0)',
         'not_equal': '(%s != %s ? 1.0 : 0.0)', 'logical_and': '(%s != 0.0 && %s != 0.0 ? 1.0 : 0.0)',
         'logical_or': '(%s != 0.0 || %s != 0.0 ? 1.0 : 0.0)', 'logical_not': '(%s == 0.0 ? 1.0 : 0.0)',
@@ -378,10 +378,9 @@ WRITERS = {'fill': _fill, 'ew': _elementwise, 'einsum': _contracted, 'gather': _
 STREAMING = ['#if defined(__ARM_FEATURE_SME2)', '#define STREAMING __arm_locally_streaming', '#else',
              '#define STREAMING', '#endif']
 #: The names a streaming program's C may put before a parenthesis: C's own words, and what gcc 15 lays inline in
-#: a streaming function for SME2 - every one, in all 51 of the robot's programs built so: wbc_np.h's arithmetic,
-#: isnan and fabs. memset and sqrt (its errno's call) left calls in some.
-INLINE = ('for', 'if', 'while', 'sizeof', 'isnan', 'fabs', 'npmaximum', 'npminimum', 'npclip', 'npsum_s', 'npsign',
-          'npnan_to_num')
+#: a streaming function for SME2 - wbc_np.h's arithmetic, lm_nan, fabs and sqrt (-fno-math-errno); memset leaves a call.
+INLINE = ('for', 'if', 'while', 'sizeof', 'isnan', 'lm_nan', 'fabs', 'sqrt', 'npmaximum', 'npminimum', 'npclip',
+          'npsum_s', 'npsign', 'npnan_to_num')
 
 
 def streamed(body):
