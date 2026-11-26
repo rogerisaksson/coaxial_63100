@@ -130,6 +130,7 @@ def laid(body):
     col = lambda seg: cols[next(p for p, (_sh, at, _p, _n) in enumerate(points) if at == seg)]
     base, q, u = np.zeros(12), np.zeros(body.n - 6), np.zeros(body.n)
     return {'c': o, 'at': ctypes.byref(o), 'felt': lib.wbh_gmo_felt, 'step': lib.wbh_gmo_step,
+            'ahead': lib.wbh_gmo_ahead, 'behind': lib.wbh_gmo_behind, '_ahead': False,
             'r': view('r'), 'f': view('f'), 'normal': view('force'), 'points': view('at'), 'cols': np.array(cols),
             'pushes': o.pushes, 'gated': view('gated'), 'slide': view('slide'),
             'latch_of': np.array([[any(m == manifolds[k] for m, *_r in sh) for k in rows] for sh, *_r in points], float),

@@ -76,6 +76,14 @@ int world_drive_loop_read(int i, double *out);
     runs the law and loop, and writes [omega, omega_hat, id, iq, fault] into `out`. */
 uint32_t world_drive_pass(int i, uint32_t periods, bool moe, bool supplied, float speed, double *out);
 
+/** Parallel flight pass across `count` disjoint drive slots (`slots[0..count-1]`):
+    slot 0 runs on the caller's thread while sibling slots run on persistent worker
+    threads off the caller's physical core. Writes 5 doubles per slot into `out` and
+    each slot's trip count into `tripped`. */
+void world_drives_pass(int count, const int *slots, uint32_t periods, const uint8_t *moe,
+                       const uint8_t *supplied, const float *speeds, double *out,
+                       uint32_t *tripped);
+
 #ifdef __cplusplus
 }
 #endif

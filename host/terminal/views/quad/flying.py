@@ -12,7 +12,6 @@ it: the frame, its rotors, the flight's instruments. The page plays them back st
     flying.send(reset=True) | flying.send(wind=True)
     flying.close()
 """
-import copy
 import importlib
 import math
 import os
@@ -40,6 +39,16 @@ AIR = ('kind', 'kept', 'for', 'come', 'blows', 'wind', 'steady')
 #: The most the page waits for the flight's first state, s: a spawned interpreter, MuJoCo and
 #: the boards' libraries or Renode limbs loaded.
 FIRST_S = 120.0
+
+
+def _copy(val):
+    if isinstance(val, dict):
+        return {k: _copy(v) for k, v in val.items()}
+    if isinstance(val, list):
+        return [_copy(v) for v in val]
+    if isinstance(val, tuple):
+        return tuple(_copy(v) for v in val)
+    return val.copy() if hasattr(val, 'copy') else val
 
 
 def arm_emulated(rig, clock=1, warm_s=100.0, room='bench', rotor_m=None):
@@ -135,9 +144,9 @@ class Flight:
         return {'t': self.t, 'epoch': self.epoch, 'frame': self.frame, 'aim': self.aim,
                 'heading': tuple(self.law['heading']), 'lined': qflight.lined(self.route),
                 'origin': self.origin,
-                'rotors': [copy.deepcopy({k: r.get(k) for k in ROTOR}) for r in self.rotors],
-                'flight': copy.deepcopy(dict({k: self.flight.get(k) for k in FLIGHT},
-                                             air={k: air.get(k) for k in AIR}))}
+                'rotors': [_copy({k: r.get(k) for k in ROTOR}) for r in self.rotors],
+                'flight': _copy(dict({k: self.flight.get(k) for k in FLIGHT},
+                                     air={k: air.get(k) for k in AIR}))}
 
     def close(self):
         """The flight's drives off, gates off, its stand-ins and emulated boards closed."""

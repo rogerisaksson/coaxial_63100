@@ -5,6 +5,14 @@
 #include <math.h>
 #include <string.h>
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#else
+#include <pthread.h>
+#include <sched.h>
+#endif
+
 #define TURN_DEG 360.0
 #define COUNTS   4096.0     /* a turn as the A1335 counts it */
 
@@ -237,5 +245,271 @@ uint32_t world_drive_pass(int i, uint32_t periods, bool moe, bool supplied, floa
     out[4] = (double)b->law.fault;
   }
   return tripped;
+}
+
+#define WORLD_DRIVE_WORKERS 3
+
+typedef struct
+{
+  int      slot;
+  uint32_t periods;
+  bool     moe;
+  bool     supplied;
+  float    speed;
+  double  *out;
+  uint32_t tripped;
+  int      started;
+  int      state;
+#ifdef _WIN32
+  HANDLE asked;
+  HANDLE done;
+#else
+  pthread_mutex_t lock;
+  pthread_cond_t  turn;
+#endif
+} drive_worker_t;
+
+static drive_worker_t workers[WORLD_DRIVE_WORKERS];
+
+#ifdef _WIN32
+static DWORD WINAPI drive_worker_loop(LPVOID arg)
+{
+  drive_worker_t *w = (drive_worker_t *)arg;
+
+  while (w->started != 0)
+  {
+    int expected = 1;
+
+    (void)WaitForSingleObject(w->asked, INFINITE);
+    w->tripped = world_drive_pass(w->slot, w->periods, w->moe, w->supplied, w->speed, w->out);
+    if (!__atomic_compare_exchange_n(&w->state, &expected, 2, 0, __ATOMIC_RELEASE, __ATOMIC_ACQUIRE))
+    {
+      __atomic_store_n(&w->state, 2, __ATOMIC_RELEASE);
+      (void)SetEvent(w->done);
+    }
+  }
+  return 0;
+}
+
+static DWORD_PTR nth_core_mask(DWORD_PTR rest, int idx)
+{
+  DWORD_PTR rem = rest;
+
+  for (int c = 0; c < (int)(4U * sizeof(DWORD_PTR)); c++)
+  {
+    const DWORD_PTR pair = (DWORD_PTR)3U << (unsigned int)(2 * c);
+    const DWORD_PTR hit = rem & pair;
+
+    if (hit != (DWORD_PTR)0U)
+    {
+      if (idx == 0)
+      {
+        return hit;
+      }
+      idx--;
+      rem &= ~hit;
+    }
+  }
+  return rest;
+}
+#else
+static void *drive_worker_loop(void *arg)
+{
+  drive_worker_t *w = (drive_worker_t *)arg;
+
+  while (w->started != 0)
+  {
+    (void)pthread_mutex_lock(&w->lock);
+    while (__atomic_load_n(&w->state, __ATOMIC_ACQUIRE) != 1)
+    {
+      (void)pthread_cond_wait(&w->turn, &w->lock);
+    }
+    (void)pthread_mutex_unlock(&w->lock);
+    w->tripped = world_drive_pass(w->slot, w->periods, w->moe, w->supplied, w->speed, w->out);
+    (void)pthread_mutex_lock(&w->lock);
+    __atomic_store_n(&w->state, 2, __ATOMIC_RELEASE);
+    (void)pthread_cond_broadcast(&w->turn);
+    (void)pthread_mutex_unlock(&w->lock);
+  }
+  return NULL;
+}
+#endif
+
+static int ensure_drive_worker(int idx)
+{
+  drive_worker_t *w = &workers[idx];
+
+  if (w->started == 0)
+  {
+#ifdef _WIN32
+    HANDLE thread = NULL;
+
+    w->asked = CreateEventA(NULL, FALSE, FALSE, NULL);
+    w->done = CreateEventA(NULL, FALSE, FALSE, NULL);
+    w->started = 1;
+    if ((w->asked != NULL) && (w->done != NULL))
+    {
+      thread = CreateThread(NULL, 0U, drive_worker_loop, w, 0U, NULL);
+    }
+    if (thread == NULL)
+    {
+      w->started = -1;
+    }
+    else
+    {
+      DWORD_PTR proc_mask = 0U, sys_mask = 0U;
+
+      if ((GetProcessAffinityMask(GetCurrentProcess(), &proc_mask, &sys_mask) != 0) && (proc_mask != sys_mask))
+      {
+        const DWORD     cpu = GetCurrentProcessorNumber();
+        const DWORD_PTR own = (cpu < (DWORD)(8U * sizeof(DWORD_PTR))) ? ((DWORD_PTR)1U << cpu) : (DWORD_PTR)0U;
+        const DWORD_PTR pair = (cpu < (DWORD)(8U * sizeof(DWORD_PTR)))
+                                   ? ((DWORD_PTR)3U << (cpu & ~(DWORD)1U))
+                                   : (DWORD_PTR)0U;
+        const DWORD_PTR rest = ((proc_mask & ~pair) != (DWORD_PTR)0U) ? (proc_mask & ~pair) : (proc_mask & ~own);
+
+        if (rest != (DWORD_PTR)0U)
+        {
+          (void)SetThreadAffinityMask(thread, nth_core_mask(rest, idx));
+        }
+      }
+      (void)CloseHandle(thread);
+    }
+#else
+    pthread_t thread;
+
+    (void)pthread_mutex_init(&w->lock, NULL);
+    (void)pthread_cond_init(&w->turn, NULL);
+    w->started = 1;
+    if (pthread_create(&thread, NULL, drive_worker_loop, w) != 0)
+    {
+      w->started = -1;
+    }
+#endif
+  }
+  return w->started == 1;
+}
+
+void world_drives_pass(int count, const int *slots, uint32_t periods, const uint8_t *moe,
+                       const uint8_t *supplied, const float *speeds, double *out,
+                       uint32_t *tripped)
+{
+  int distinct = (count > 1) && (count <= (WORLD_DRIVE_WORKERS + 1));
+
+  if (count <= 0)
+  {
+    return;
+  }
+  for (int a = 0; distinct && (a < count); a++)
+  {
+    for (int b = a + 1; b < count; b++)
+    {
+      if (slots[a] == slots[b])
+      {
+        distinct = 0;
+      }
+    }
+  }
+  if (!distinct)
+  {
+    for (int r = 0; r < count; r++)
+    {
+      const uint32_t tr = world_drive_pass(slots[r], periods, moe[r] != 0U, supplied[r] != 0U,
+                                           speeds[r], (out != NULL) ? &out[5 * r] : NULL);
+
+      if (tripped != NULL)
+      {
+        tripped[r] = tr;
+      }
+    }
+    return;
+  }
+  int launched = 0;
+
+  for (int r = 1; r < count; r++)
+  {
+    drive_worker_t *w = &workers[r - 1];
+
+    if (!ensure_drive_worker(r - 1))
+    {
+      break;
+    }
+    w->slot = slots[r];
+    w->periods = periods;
+    w->moe = moe[r] != 0U;
+    w->supplied = supplied[r] != 0U;
+    w->speed = speeds[r];
+    w->out = (out != NULL) ? &out[5 * r] : NULL;
+#ifdef _WIN32
+    __atomic_store_n(&w->state, 1, __ATOMIC_RELEASE);
+    (void)SetEvent(w->asked);
+#else
+    (void)pthread_mutex_lock(&w->lock);
+    __atomic_store_n(&w->state, 1, __ATOMIC_RELEASE);
+    (void)pthread_cond_broadcast(&w->turn);
+    (void)pthread_mutex_unlock(&w->lock);
+#endif
+    launched++;
+  }
+  const uint32_t tr0 = world_drive_pass(slots[0], periods, moe[0] != 0U, supplied[0] != 0U,
+                                        speeds[0], out);
+
+  if (tripped != NULL)
+  {
+    tripped[0] = tr0;
+  }
+  for (int r = 1 + launched; r < count; r++)
+  {
+    const uint32_t tr = world_drive_pass(slots[r], periods, moe[r] != 0U, supplied[r] != 0U,
+                                         speeds[r], (out != NULL) ? &out[5 * r] : NULL);
+
+    if (tripped != NULL)
+    {
+      tripped[r] = tr;
+    }
+  }
+  for (int idx = 0; idx < launched; idx++)
+  {
+    drive_worker_t *w = &workers[idx];
+
+#ifdef _WIN32
+    if (__atomic_load_n(&w->state, __ATOMIC_ACQUIRE) != 2)
+    {
+      int expected = 1;
+
+      for (int spin = 0; (spin < 256) && (__atomic_load_n(&w->state, __ATOMIC_ACQUIRE) != 2); spin++)
+      {
+        YieldProcessor();
+      }
+      if ((__atomic_load_n(&w->state, __ATOMIC_ACQUIRE) != 2)
+          && __atomic_compare_exchange_n(&w->state, &expected, 3, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
+      {
+        (void)WaitForSingleObject(w->done, INFINITE);
+      }
+    }
+#else
+    if (__atomic_load_n(&w->state, __ATOMIC_ACQUIRE) != 2)
+    {
+      for (int spin = 0; (spin < 256) && (__atomic_load_n(&w->state, __ATOMIC_ACQUIRE) != 2); spin++)
+      {
+        (void)sched_yield();
+      }
+      if (__atomic_load_n(&w->state, __ATOMIC_ACQUIRE) != 2)
+      {
+        (void)pthread_mutex_lock(&w->lock);
+        while (__atomic_load_n(&w->state, __ATOMIC_ACQUIRE) != 2)
+        {
+          (void)pthread_cond_wait(&w->turn, &w->lock);
+        }
+        (void)pthread_mutex_unlock(&w->lock);
+      }
+    }
+#endif
+    __atomic_store_n(&w->state, 0, __ATOMIC_RELAXED);
+    if (tripped != NULL)
+    {
+      tripped[idx + 1] = w->tripped;
+    }
+  }
 }
 

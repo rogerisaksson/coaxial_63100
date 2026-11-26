@@ -212,10 +212,10 @@ static void stage(wbc_gmo_t *o, double ends[][2][3])
     line between their axes' closest points at the middle of their overlap. Searched among the pairs
     staged (`stage`), restaged once any capsule's end has moved a quarter of the robot's envelope: a pair
     left out stays half of it apart, so the touches are every pair's. */
-static void touches(wbc_gmo_t *o)
+static void touches(wbc_gmo_t *restrict o)
 {
-  static double j[6][WBC_N], ends[WBC_GMO_CAPSULES][2][3];
-  double        depth[WBC_GMO_TOUCH], moved = 0.0;
+  _Alignas(64) double j[6][WBC_N], ends[WBC_GMO_CAPSULES][2][3];
+  double              depth[WBC_GMO_TOUCH], moved = 0.0;
 
   for (int c = 0; c < o->capsules; c++)
   {
@@ -363,9 +363,9 @@ static void scoped(wbc_gmo_t *o)
 
 /** Each unknown's column of J': a point's edges along their directions; a hinge on its stop pushed
     off it; the robot's capsules touching. */
-static void columns(wbc_gmo_t *o, const double q[NH])
+static void columns(wbc_gmo_t *restrict o, const double *restrict q)
 {
-  static double j[6][WBC_N];
+  _Alignas(64) double j[6][WBC_N];
 
   memset(o->a, 0, sizeof o->a);
   for (int p = 0; p < WBC_GMO_POINTS; p++)
@@ -450,10 +450,10 @@ static void lessened(wbc_gmo_t *restrict o, int m, int c, double fc)
   }
 }
 
-static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[WBC_N])
+static void pushes(wbc_gmo_t *restrict o, const double *restrict weight, const double *restrict shift)
 {
-  static double g[NF], z[NF], sub[NF], f[NF], forward[NF];
-  static int    set[NF], at[NF], gate[NF], gated[NF], on[NF];
+  _Alignas(64) double g[NF], z[NF], sub[NF], f[NF], forward[NF];
+  int                 set[NF], at[NF], gate[NF], gated[NF], on[NF];
   const int     m = o->lives;
   int           rows[WBC_N], weighed = 0;
   double        top = 0.0, most = 0.0, scale[WBC_N], wrow[WBC_N];
@@ -611,7 +611,7 @@ static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[
 /** The pushes with each hinge's row in its friction's band - its loss less what its speed spends
     (`slip`) - read as friction: a row within its band left out, one past it held to the band's
     edge; WBC_GMO_ROUNDS rounds from the last pass's, till none crosses. */
-static void split(wbc_gmo_t *o)
+static void split(wbc_gmo_t *restrict o)
 {
   double weight[WBC_N], shift[WBC_N], band[NH];
 
@@ -657,7 +657,7 @@ static void split(wbc_gmo_t *o)
 
 /** Each manifold's normal force: a point's edges summed in the world, along each of its manifolds'
     normals, pushing. */
-static void shared(wbc_gmo_t *o)
+static void shared(wbc_gmo_t *restrict o)
 {
   memset(o->force, 0, sizeof o->force);
   for (int s = 0; s < WBC_GMO_SHARES; s++)
@@ -680,7 +680,7 @@ static void shared(wbc_gmo_t *o)
   }
 }
 
-void wbc_gmo_step(wbc_gmo_t *o, const wbc_frame_t *base, const double q[NH], const double u[WBC_N], double dt)
+void wbc_gmo_step(wbc_gmo_t *restrict o, const wbc_frame_t *base, const double q[NH], const double u[WBC_N], double dt)
 {
   const double span = o->span > dt ? o->span : dt;
   const double k = o->primed * (1.0 - wbc_exp(-o->alpha * dt));

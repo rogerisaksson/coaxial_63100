@@ -297,20 +297,67 @@ def felt(obs, y, dt):
     obs['felt'](obs['at'], at + _QUAT, at + _ACCEL, at + _TAU, at + _QM, at + _Q, dt)
 
 
+def _prepared(obs, qpos, v):
+    latched = obs['latched'].tobytes()
+    if obs['gated_of'][0] != latched:     # the robot's gate of its comparator's latches alone: told anew as they change
+        obs['gated'][:] = ~obs['soled'] & (obs['latch_of'] @ (obs['latched'] > 0.5) == 0.0)
+        obs['gated_of'][0] = latched
+    base, u = obs['base'], obs['u']
+    R = rotation(qpos[3:7])
+    base[:9], base[9:] = R.ravel(), qpos[:3]
+    u[:3], u[3:6], u[6:] = v[3:6], R.T @ v[:3], v[6:len(u)]
+    obs['q'][:] = qpos[7:7 + len(obs['q'])]
+
+
+def ahead(obs, qpos, qvel, dt):
+    """Begin the C momentum observer pass on a sibling thread beside `sensed` (`wbh_gmo_ahead`)."""
+    _prepared(obs, qpos, qvel)
+    if obs.get('ahead') is not None and obs['ahead'](obs['at'], *obs['ins'], dt):
+        obs['_ahead'] = True
+    else:
+        obs['step'](obs['at'], *obs['ins'], dt)
+
+
+def behind(obs):
+    """Join an asynchronous momentum observer pass (`ahead`) and update forefoot shares."""
+    if obs.get('_ahead'):
+        obs['_ahead'] = False
+        obs['behind']()
+    obs['normal'][EQUINUS], obs['soles'] = obs['forefoot'](obs['f'], obs['feet'])
+    return obs
+
+
+def beside(obs, g, body, limbs, qpos, qvel, dt):
+    """Pose and sense `body` on the main thread while `obs` steps in C on a sibling thread."""
+    async_obs = 'ahead' in obs
+    if async_obs:
+        ahead(obs, qpos, qvel, dt)
+    try:
+        s = g['sensed'](body, qpos, qvel)
+        s['hips'], s['arms'], s['elbows'], s['qpos'] = (body.d.xpos[limbs['hips']].copy(), s['q'][limbs['shoulders']],
+                                                        s['q'][limbs['elbows']], qpos.copy())
+        if async_obs and 'clear' in g and 'schema_body' in g:
+            g['_near'] = g['clear'](g['schema_body'], s, g['schema_at'])
+    finally:
+        if async_obs:
+            behind(obs)
+    if not async_obs:
+        step(obs, s, qpos, dt)
+    return s
+
+
+def cleared(g, s):
+    """Return the pre-computed capsule clearances from `beside` or compute them now."""
+    near = g.pop('_near', None)
+    return g['clear'](g['schema_body'], s, g['schema_at']) if near is None else near
+
+
 def step(obs, s, qpos, dt):
     """A law pass on the robot's law's sense `s` (`wbc.sense`) at its estimate `qpos`: r, f and each
     manifold's normal force, a point off its soles not felt - none of its manifolds latched by the
     robot's comparator (`weighed`) - joining the split only where its soles and what it feels
     cannot bear it; its drives' sums emptied."""
-    latched = obs['latched'].tobytes()
-    if obs['gated_of'][0] != latched:     # the robot's gate of its comparator's latches alone: told anew as they change
-        obs['gated'][:] = ~obs['soled'] & (obs['latch_of'] @ (obs['latched'] > 0.5) == 0.0)
-        obs['gated_of'][0] = latched
-    v, base, u = s['v'], obs['base'], obs['u']
-    R = rotation(qpos[3:7])
-    base[:9], base[9:] = R.ravel(), qpos[:3]
-    u[:3], u[3:6], u[6:] = v[3:6], R.T @ v[:3], v[6:]
-    obs['q'][:] = qpos[7:7 + len(obs['q'])]
+    _prepared(obs, qpos, s['v'])
     obs['step'](obs['at'], *obs['ins'], dt)
     obs['normal'][EQUINUS], obs['soles'] = obs['forefoot'](obs['f'], obs['feet'])
     return obs

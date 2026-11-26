@@ -336,25 +336,9 @@ def stated(rotor):
 
 
 def _step_drives(rotors, periods):
-    """Advance each stand-in drive by `periods` 50 kHz ticks in C (`world_drive_pass`), a cut
+    """Advance each stand-in drive by `periods` 50 kHz ticks in C (`world_drives_pass`), a cut
     one's bridge off."""
-    lib = _LIB
-    tau = math.tau
-    for rotor in rotors:
-        buf = rotor['buf']
-        tripped = lib.world_drive_pass(rotor['slot'], periods, not rotor['cut'], True,
-                                       ctypes.c_float(rotor['ask']), buf)
-        if tripped:
-            rotor['rig'].gates.off()
-        w = buf[0] / rotor['pairs']
-        rotor['w'] = w
-        rotor['w_hat'] = buf[1] / rotor['pairs']
-        rotor['angle'] = (rotor['angle'] + w * TICK_S) % tau
-        id_val = buf[2]
-        iq_val = buf[3]
-        rotor['iq'] = iq_val
-        rotor['amps'] = math.hypot(id_val, iq_val)
-        rotor['fault'] = FAULTS.get(int(buf[4]))
+    stand.drives_pass(rotors, periods, TICK_S, FAULTS)
 
 
 def _step_bus_and_heat(rotors, sky, flight, dt, cooling=quad.COOLING):

@@ -53,13 +53,10 @@ def seen(g, dt):
     for bit once built (`g['estimated']`, `laid`; `g['sensed']`, `sprung.laid`)."""
     body, limbs = g['body'], g['limbs']
     qpos, qvel = g['estimated'](g['est'], body, g['sense'], dt)
-    s = g['sensed'](body, qpos, qvel)
-    observer.step(g['observer'], s, qpos, dt)
+    s = observer.beside(g['observer'], g, body, limbs, qpos, qvel, dt)
     shares = np.append(g['observer']['soles'] * g['unanchored'],
                        g['observer']['normal'][observer.ROWS[1:4]].sum()) / float(g['fr'][modal.WEIGHT])
     inekf.stepped(g['inekf'], body, g['sense'], shares, dt, g['inekf_points'], g['inekf_step'], g['inekf_glue'])
-    s['hips'], s['arms'], s['elbows'], s['qpos'] = (body.d.xpos[limbs['hips']].copy(), s['q'][limbs['shoulders']],
-                                                    s['q'][limbs['elbows']], qpos.copy())
     palmar = g['palmar'] = min(float(g['told'][ortho.PALMAR]), float(g['st'][latent.TO][latent.MANIFOLD.start + ortho.PALMAR]))
     # what bears the robot and, sat, its seat's cone in C on its contacts before any is a dict
     # (`emancipation.seated`)
@@ -165,7 +162,7 @@ def control(g, dt):
                                     g['hull'])
     barrier.ahead(g['ringed'], g['ringed_ahead'])
     ask['posture'][g['head_idx']] -= gauge
-    ask['posture'], g['schema'] = schema.shielded(body, g['clear'](g['schema_body'], s, g['schema_at']), s, ask,
+    ask['posture'], g['schema'] = schema.shielded(body, observer.cleared(g, s), s, ask,
                                                   float(y_in[edge.LINK][0]), g['shield'])
     ask['mu'] = g['sloped'](g['grip'], g['situations']['grips'])
     ask['hold'] = hold

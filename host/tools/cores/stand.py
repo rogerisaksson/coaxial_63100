@@ -85,6 +85,12 @@ def library():
     lib.world_drive_pass.argtypes = [i, u, ctypes.c_bool, ctypes.c_bool, f,
                                     ctypes.POINTER(ctypes.c_double)]
     lib.world_drive_pass.restype = u
+    p, u8, u16, i16, i32 = (ctypes.c_void_p, ctypes.c_uint8, ctypes.c_uint16,
+                            ctypes.c_int16, ctypes.c_int32)
+    lib.world_drives_pass.argtypes = [i, ctypes.POINTER(i), u, ctypes.POINTER(u8),
+                                      ctypes.POINTER(u8), fp, ctypes.POINTER(ctypes.c_double),
+                                      ctypes.POINTER(u)]
+    lib.world_drives_pass.restype = None
     lib.world_drive_read.argtypes = [i, ctypes.POINTER(ctypes.c_double)]
     lib.world_drive_read.restype = i
     lib.world_drive_window.argtypes = [i, ctypes.POINTER(ctypes.c_double)]
@@ -93,8 +99,6 @@ def library():
     lib.world_drive_loop.restype = ctypes.c_void_p
     lib.world_drive_loop_read.argtypes = [i, ctypes.POINTER(ctypes.c_double)]
     lib.world_drive_loop_read.restype = i
-    p, u8, u16, i16, i32 = (ctypes.c_void_p, ctypes.c_uint8, ctypes.c_uint16,
-                            ctypes.c_int16, ctypes.c_int32)
     lib.ctrl_loop_slot.argtypes = [p, u8, u8, fp, u8]
     lib.ctrl_loop_wire.argtypes = [p, f, u8, u8, u16]
     lib.ctrl_loop_rows.argtypes = [p, ctypes.POINTER(u16), fp, u8]
@@ -141,6 +145,43 @@ def _biquad_floats(sections):
             for c in ((s['b0'], s['b1'], s['b2'], s['a1'], s['a2'])
                       if isinstance(s, dict) else s)]
     return (ctypes.c_float * len(flat))(*flat) if flat else None
+
+
+def drives_pass(rotors, periods, tick_s, faults):
+    """Advance `rotors` across `periods` 50 kHz ticks in parallel (`world_drives_pass`)."""
+    import math
+    n = len(rotors)
+    if n == 0:
+        return
+    key = tuple(id(r) for r in rotors)
+    batch = rotors[0].get('_batch')
+    if batch is None or batch[0] != key:
+        slots = (ctypes.c_int * n)(*(r['slot'] for r in rotors))
+        moe = (ctypes.c_uint8 * n)()
+        supplied = (ctypes.c_uint8 * n)(*([1] * n))
+        speeds = (ctypes.c_float * n)()
+        out = (ctypes.c_double * (5 * n))()
+        tripped = (ctypes.c_uint32 * n)()
+        batch = (key, library().world_drives_pass, slots, moe, supplied, speeds, out, tripped)
+        rotors[0]['_batch'] = batch
+    _key, fn, slots, moe, supplied, speeds, out, tripped = batch
+    for k, r in enumerate(rotors):
+        moe[k] = 0 if r['cut'] else 1
+        speeds[k] = r['ask']
+    fn(n, slots, periods, moe, supplied, speeds, out, tripped)
+    tau, hypot = math.tau, math.hypot
+    for k, r in enumerate(rotors):
+        if tripped[k]:
+            r['rig'].gates.off()
+        base = 5 * k
+        w = out[base] / r['pairs']
+        r['w'] = w
+        r['w_hat'] = out[base + 1] / r['pairs']
+        r['angle'] = (r['angle'] + w * tick_s) % tau
+        iq_val = out[base + 3]
+        r['iq'] = iq_val
+        r['amps'] = hypot(out[base + 2], iq_val)
+        r['fault'] = faults.get(int(out[base + 4]))
 
 
 class StoCore:

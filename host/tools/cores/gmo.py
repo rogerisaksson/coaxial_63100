@@ -91,3 +91,5 @@ def typed(lib):
         raise ValueError('wbc_gmo_t lays %s elsewhere than its mirror' % ', '.join(apart))
     lib.wbh_gmo_felt.argtypes, lib.wbh_gmo_felt.restype = [ctypes.POINTER(Gmo), _vp, _vp, _vp, _vp, _vp, _d], None
     lib.wbh_gmo_step.argtypes, lib.wbh_gmo_step.restype = [ctypes.POINTER(Gmo), _vp, _vp, _vp, _d], None
+    lib.wbh_gmo_ahead.argtypes, lib.wbh_gmo_ahead.restype = [ctypes.POINTER(Gmo), _vp, _vp, _vp, _d], _i
+    lib.wbh_gmo_behind.argtypes, lib.wbh_gmo_behind.restype = [], _i

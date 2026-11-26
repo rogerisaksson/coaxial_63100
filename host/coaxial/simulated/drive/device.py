@@ -216,8 +216,10 @@ class SimulatedDrive(DrivePlant, DriveCapture, DriveControl):
     def _derate_to(self, factor):
         """Board_DriveDerate: the clamp scaled, 0..1 - never raised."""
         self._advance()
-        self._derate = max(0.0, min(1.0, factor))
-        self._load()
+        derate = max(0.0, min(1.0, factor))
+        if derate != self._derate:
+            self._derate = derate
+            self._load()
 
     # -- modes and setpoints ----------------------------------------------
 

@@ -8,11 +8,11 @@
 
 /* eps top lies on K's diagonal, so no Schur complement of it is smaller than `least`. 53 factorizations of 26 a
  * step from scratch were half the robot's observer's time. */
-int wbc_gmo_joined(wbc_gmo_t *restrict o, int at[WBC_GMO_F], int n, int b, double least)
+int wbc_gmo_joined(wbc_gmo_t *restrict o, int *restrict at, int n, int b, double least)
 {
-  double       *kn = o->k[n];
-  const double *hb = o->h[b];
-  double        d = hb[b];
+  double *restrict       kn = o->k[n];
+  const double *restrict hb = o->h[b];
+  double                 d = hb[b];
 
   /* each of the row's entries less its terms along its row of K in their order, held in a register */
   for (int y = 0; y < n; y++)
@@ -35,7 +35,7 @@ int wbc_gmo_joined(wbc_gmo_t *restrict o, int at[WBC_GMO_F], int n, int b, doubl
 }
 
 /* L L' is K less the push's row and column. */
-int wbc_gmo_left(wbc_gmo_t *o, int at[WBC_GMO_F], int n, int p)
+int wbc_gmo_left(wbc_gmo_t *restrict o, int *restrict at, int n, int p)
 {
   for (int r = p; r < n - 1; r++)
   {

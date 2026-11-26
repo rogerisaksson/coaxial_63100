@@ -1,6 +1,9 @@
 /** harness_world.c - the robot's world's steps (wbc_world.c) through ctypes beside harness.c: tools.cores.world's
     calls; a stage of MuJoCo's step on a thread of the host's beside its law (machine.world.steps.ahead). */
 #include "wbc_world.h"
+#include "wbc_gmo.h"
+
+#include <string.h>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -143,12 +146,15 @@ API int wbh_world_ahead(wbh_stage_t stage, const void *model, void *data)
     {
       DWORD_PTR proc_mask = 0U, sys_mask = 0U;
 
-      /* Where `placed` narrowed this process to a cache complex, keep the stage off the caller's core. */
+      /* Where `placed` narrowed this process to a cache complex, keep the stage off the caller's physical core. */
       if ((GetProcessAffinityMask(GetCurrentProcess(), &proc_mask, &sys_mask) != 0) && (proc_mask != sys_mask))
       {
         const DWORD     cpu = GetCurrentProcessorNumber();
         const DWORD_PTR own = (cpu < (DWORD)(8U * sizeof(DWORD_PTR))) ? ((DWORD_PTR)1U << cpu) : (DWORD_PTR)0U;
-        const DWORD_PTR rest = proc_mask & ~own;
+        const DWORD_PTR pair = (cpu < (DWORD)(8U * sizeof(DWORD_PTR)))
+                                   ? ((DWORD_PTR)3U << (cpu & ~(DWORD)1U))
+                                   : (DWORD_PTR)0U;
+        const DWORD_PTR rest = ((proc_mask & ~pair) != (DWORD_PTR)0U) ? (proc_mask & ~pair) : (proc_mask & ~own);
 
         if (rest != (DWORD_PTR)0U)
         {
@@ -266,4 +272,180 @@ API void wbh_world_stuck(struct mjData_ *d, wbc_stuck_t *k)
 API void wbh_world_slipped(const struct mjData_ *d, wbc_stuck_t *k)
 {
   wbc_world_slipped(d, k);
+}
+
+static struct
+{
+  wbc_gmo_t  *o;
+  wbc_frame_t f;
+  double      q[WBC_N - 6];
+  double      u[WBC_N];
+  double      dt;
+  int         pending;
+  int         started;
+  int         state;
+#ifdef _WIN32
+  HANDLE asked;
+  HANDLE done;
+#else
+  pthread_mutex_t lock;
+  pthread_cond_t  turn;
+#endif
+} gmo_beside;
+
+#ifdef _WIN32
+static DWORD WINAPI gmo_besides(LPVOID none)
+{
+  (void)none;
+  while (gmo_beside.started != 0)
+  {
+    int expected = 1;
+
+    (void)WaitForSingleObject(gmo_beside.asked, INFINITE);
+    wbc_gmo_step(gmo_beside.o, &gmo_beside.f, gmo_beside.q, gmo_beside.u, gmo_beside.dt);
+    if (!__atomic_compare_exchange_n(&gmo_beside.state, &expected, 2, 0, __ATOMIC_RELEASE, __ATOMIC_ACQUIRE))
+    {
+      __atomic_store_n(&gmo_beside.state, 2, __ATOMIC_RELEASE);
+      (void)SetEvent(gmo_beside.done);
+    }
+  }
+  return 0;
+}
+#else
+static void *gmo_besides(void *none)
+{
+  while (gmo_beside.started != 0)
+  {
+    (void)pthread_mutex_lock(&gmo_beside.lock);
+    while (__atomic_load_n(&gmo_beside.state, __ATOMIC_ACQUIRE) != 1)
+    {
+      (void)pthread_cond_wait(&gmo_beside.turn, &gmo_beside.lock);
+    }
+    (void)pthread_mutex_unlock(&gmo_beside.lock);
+    wbc_gmo_step(gmo_beside.o, &gmo_beside.f, gmo_beside.q, gmo_beside.u, gmo_beside.dt);
+    (void)pthread_mutex_lock(&gmo_beside.lock);
+    __atomic_store_n(&gmo_beside.state, 2, __ATOMIC_RELEASE);
+    (void)pthread_cond_broadcast(&gmo_beside.turn);
+    (void)pthread_mutex_unlock(&gmo_beside.lock);
+  }
+  return none;
+}
+#endif
+
+API int wbh_gmo_behind(void)
+{
+  const int was = gmo_beside.pending;
+
+  if (was != 0)
+  {
+#ifdef _WIN32
+    if (__atomic_load_n(&gmo_beside.state, __ATOMIC_ACQUIRE) != 2)
+    {
+      int expected = 1;
+
+      for (int spin = 0; (spin < 256) && (__atomic_load_n(&gmo_beside.state, __ATOMIC_ACQUIRE) != 2); spin++)
+      {
+        YieldProcessor();
+      }
+      if ((__atomic_load_n(&gmo_beside.state, __ATOMIC_ACQUIRE) != 2)
+          && __atomic_compare_exchange_n(&gmo_beside.state, &expected, 3, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
+      {
+        (void)WaitForSingleObject(gmo_beside.done, INFINITE);
+      }
+    }
+#else
+    if (__atomic_load_n(&gmo_beside.state, __ATOMIC_ACQUIRE) != 2)
+    {
+      for (int spin = 0; (spin < 256) && (__atomic_load_n(&gmo_beside.state, __ATOMIC_ACQUIRE) != 2); spin++)
+      {
+        (void)sched_yield();
+      }
+      if (__atomic_load_n(&gmo_beside.state, __ATOMIC_ACQUIRE) != 2)
+      {
+        (void)pthread_mutex_lock(&gmo_beside.lock);
+        while (__atomic_load_n(&gmo_beside.state, __ATOMIC_ACQUIRE) != 2)
+        {
+          (void)pthread_cond_wait(&gmo_beside.turn, &gmo_beside.lock);
+        }
+        (void)pthread_mutex_unlock(&gmo_beside.lock);
+      }
+    }
+#endif
+    __atomic_store_n(&gmo_beside.state, 0, __ATOMIC_RELAXED);
+    gmo_beside.pending = 0;
+  }
+  return was;
+}
+
+API int wbh_gmo_ahead(wbc_gmo_t *o, const double *base, const double *q, const double *u, double dt)
+{
+  (void)wbh_gmo_behind();
+  if (gmo_beside.started == 0)
+  {
+#ifdef _WIN32
+    HANDLE thread = NULL;
+
+    gmo_beside.asked = CreateEventA(NULL, FALSE, FALSE, NULL);
+    gmo_beside.done = CreateEventA(NULL, FALSE, FALSE, NULL);
+    gmo_beside.started = 1;
+    if ((gmo_beside.asked != NULL) && (gmo_beside.done != NULL))
+    {
+      thread = CreateThread(NULL, 0U, gmo_besides, NULL, 0U, NULL);
+    }
+    if (thread == NULL)
+    {
+      gmo_beside.started = -1;
+    }
+    else
+    {
+      DWORD_PTR proc_mask = 0U, sys_mask = 0U;
+
+      if ((GetProcessAffinityMask(GetCurrentProcess(), &proc_mask, &sys_mask) != 0) && (proc_mask != sys_mask))
+      {
+        const DWORD     cpu = GetCurrentProcessorNumber();
+        const DWORD_PTR own = (cpu < (DWORD)(8U * sizeof(DWORD_PTR))) ? ((DWORD_PTR)1U << cpu) : (DWORD_PTR)0U;
+        const DWORD_PTR pair = (cpu < (DWORD)(8U * sizeof(DWORD_PTR)))
+                                   ? ((DWORD_PTR)3U << (cpu & ~(DWORD)1U))
+                                   : (DWORD_PTR)0U;
+        const DWORD_PTR rest = ((proc_mask & ~pair) != (DWORD_PTR)0U) ? (proc_mask & ~pair) : (proc_mask & ~own);
+
+        if (rest != (DWORD_PTR)0U)
+        {
+          (void)SetThreadAffinityMask(thread, rest);
+        }
+      }
+      (void)CloseHandle(thread);
+    }
+#else
+    pthread_t thread;
+
+    (void)pthread_mutex_init(&gmo_beside.lock, NULL);
+    (void)pthread_cond_init(&gmo_beside.turn, NULL);
+    gmo_beside.started = 1;
+    if (pthread_create(&thread, NULL, gmo_besides, NULL) != 0)
+    {
+      gmo_beside.started = -1;
+    }
+#endif
+  }
+  if (gmo_beside.started == 1)
+  {
+    gmo_beside.o = o;
+    memcpy(gmo_beside.f.r, base, 9U * sizeof(double));
+    memcpy(gmo_beside.f.p, base + 9, 3U * sizeof(double));
+    memcpy(gmo_beside.q, q, (size_t)(WBC_N - 6) * sizeof(double));
+    memcpy(gmo_beside.u, u, (size_t)WBC_N * sizeof(double));
+    gmo_beside.dt = dt;
+    gmo_beside.pending = 1;
+#ifdef _WIN32
+    __atomic_store_n(&gmo_beside.state, 1, __ATOMIC_RELEASE);
+    (void)SetEvent(gmo_beside.asked);
+#else
+    (void)pthread_mutex_lock(&gmo_beside.lock);
+    __atomic_store_n(&gmo_beside.state, 1, __ATOMIC_RELEASE);
+    (void)pthread_cond_broadcast(&gmo_beside.turn);
+    (void)pthread_mutex_unlock(&gmo_beside.lock);
+#endif
+  }
+  return gmo_beside.pending;
 }
