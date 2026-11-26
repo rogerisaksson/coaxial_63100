@@ -168,12 +168,12 @@ def _jobs(name, args, tags, live_sections, took, share, words=()):
                     1 + needs.get(group, 0))
                 for group, seconds in EMULATOR_GROUPS.items()]
     expected = took.get(name, 0.0)
-    shards = min(MAX_SHARDS, math.ceil(expected / share)) if name in SHARDED else 1
-    # A job's time its suite's whole expected at least: a shard of one heavy test runs no longer than the suite
-    # would as one job - CI's shards of the errands suite, the viewport's vision 400 s on the runner's
-    # processor, were cut at twice a shard's share, 300 and 398 s; the falls suite's two shards of 443 s at 300
-    # before. None for --measure: the run measures what a limit would guess.
-    timeout = None if measure else max(timeout, expected)
+    cap = share if args.jobs <= 1 else min(share, 0.5 * timeout)
+    shards = min(MAX_SHARDS, math.ceil(expected / cap)) if name in SHARDED else 1
+    # A job's time is at least 1.5 times its suite's expected seconds: a renderer or C compiler can run slower
+    # relative to machine_detector.work() than the host that recorded work.json (test_camera at 307.8 s on a
+    # 306.2 s limit, test_tick on ARM64). None for --measure: the run measures what a limit would guess.
+    timeout = None if measure else max(timeout, 1.5 * expected)
     # The tests that start an emulator a job of their own, sent its cores; the suite's rest without them.
     own = [Job('%s %s' % (name, word), argv + [word], gb, timeout, lock, 1 + machines)
            for word, machines in needs.items()]

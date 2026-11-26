@@ -160,10 +160,15 @@ def building(source, name, matmul, solves=False):
     def _load():
         try:
             job['lib'] = loaded(ready, name, solves=solves)
+        except OSError:
+            with _LOCK:
+                job['cached'] = False
+                _QUEUE.append((job, source, name, matmul, solves))
+                _started()
+            return
         except Exception as e:
             job['why'] = e
-        finally:
-            job['done'].set()
+        job['done'].set()
 
     _LOADERS.submit(_load)
     return job

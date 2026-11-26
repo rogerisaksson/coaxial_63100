@@ -163,11 +163,14 @@ def keep_shape(at, key):
         return
     known.append(key)
     whole = '%s.%d' % (path, os.getpid())
-    with contextlib.suppress(OSError, pickle.PicklingError):
+    try:
         os.makedirs(KEPT, exist_ok=True)
         with open(whole, 'wb') as f:
             pickle.dump({'stamp': stamp(), 'keys': known}, f, protocol=pickle.HIGHEST_PROTOCOL)
         os.replace(whole, path)
+    except (OSError, pickle.PicklingError):
+        with contextlib.suppress(OSError):
+            os.remove(whole)
 
 
 def ready(part):

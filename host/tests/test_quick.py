@@ -264,10 +264,49 @@ def test_the_compiles_strip_keeps_time(report, c):
                  '0:01:05' in shown and '[STANDING: 0 OF 25 BUILT ON 28 CORES]' in shown, shown[-64:])
 
 
+def _cold_probe(x):
+    return x + 1.0
+
+
+def test_warm_only_and_cache_fallbacks(report, c):
+    """`barrier.ahead(..., warm_only=True)` skips cold hulls, `kept.keep_shape` removes its temp file on replace
+    failure, and `held.building` falls back to rebuilding when loading a cached library raises `OSError`."""
+    import hashlib
+    from machine.law import barrier
+    from tools.cores import bodied, held, kept
+    cold_left, cold_part = [11, 12], bodied.on_shapes(_cold_probe, 'cold_probe', (0,))
+    barrier.ahead(cold_part, cold_left, warm_only=True)
+    bad_path, orig_replace = kept._shape_file(cold_part.at), os.replace
+    stale = '%s.%d' % (bad_path, os.getpid())
+    try:
+        os.replace = lambda _a, _b: (_ for _ in ()).throw(PermissionError('busy'))
+        kept.keep_shape(cold_part.at, ((3,),))
+    finally:
+        os.replace = orig_replace
+    src = 'void dummy_fallback(void) {}\n'
+    orig_cached, orig_loaded, orig_built = held._cached_path, held.loaded, held.built
+    rebuilt = []
+    try:
+        held._cached_path = lambda _s, _n, _m: 'missing_cached.so'
+        held.loaded = lambda p, n, batch=False, solves=False: (
+            (_ for _ in ()).throw(OSError('pruned')) if p == 'missing_cached.so'
+            else (rebuilt.append(p) or (None, None)))
+        held.built = lambda _s, _n, _m, _h=None: 'rebuilt.so'
+        job = held.building(src, 'dummy_fallback', False)
+        job['done'].wait(5.0)
+    finally:
+        held._cached_path, held.loaded, held.built = orig_cached, orig_loaded, orig_built
+        held._BUILDING.pop(hashlib.sha1(src.encode()).hexdigest(), None)
+    report.check('warm_only leaves cold hulls untraced, keep_shape removes temp on error, held retries on OSError',
+                 cold_left == [11, 12] and not cold_part and not os.path.exists(stale)
+                 and job['done'].is_set() and 'why' not in job and rebuilt == ['rebuilt.so'],
+                 'left=%s stale=%s rebuilt=%s why=%s' % (cold_left, os.path.exists(stale), rebuilt, job.get('why')))
+
+
 ROSTER = (test_a_part_called_whole_in_c_as_by_its_glue, test_the_robots_step_asked_in_c_as_by_python,
           test_a_runner_lets_its_part_go, test_a_world_laid_anew_lets_those_before_go,
           test_the_robots_compile_says_each_build_as_it_lands, test_the_robots_compile_leaves_its_pages_core,
-          test_the_compiles_strip_keeps_time)
+          test_the_compiles_strip_keeps_time, test_warm_only_and_cache_fallbacks)
 
 
 def main(argv=None):

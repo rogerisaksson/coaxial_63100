@@ -67,10 +67,11 @@ def ringed(acc, com, vcom, om, ring, rest):
     return out
 
 
-def ahead(law, left):
+def ahead(law, left, warm_only=False, paced=True):
     """`law` (`ringed`, a part a ring's length) on a regular ring of the first length `left`, its result
     dropped, till that part is traced or stays numpy - then that length off `left`: already-kept hulls bind at once,
-    untraced ones pace one at a time (`tools.cores.bodied`); `left` empty, nothing."""
+    untraced ones pace one at a time (`tools.cores.bodied`) unless `paced` is False; `warm_only` binds kept hulls
+    without tracing cold ones; `left` empty, nothing."""
     from tools.cores import kept
     while left:
         k = left[0]
@@ -78,17 +79,19 @@ def ahead(law, left):
         get = getattr(law, 'get', None)
         found = None if get is None else get(key)
         warm = found is not None and kept.ready(found)
+        if warm_only and not warm:
+            return
         angle = np.arange(k) * (2.0 * np.pi / k)
         z = np.zeros(3)
         ring = 0.1 * np.stack([libm.cos(angle), libm.sin(angle)], axis=1)
         if get is None:
             law(z, z, z, 3.0, ring, 0.0)
         else:
-            law(z, z, z, 3.0, ring, 0.0, paced=not warm)
+            law(z, z, z, 3.0, ring, 0.0, paced=paced and not warm)
         part = getattr(law, 'part', None)
         if part is None or part.made is not None or part.why is not None:
             left.pop(0)
-        if not warm:
+        if not warm and paced:
             return
 
 

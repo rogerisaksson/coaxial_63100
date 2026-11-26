@@ -93,7 +93,7 @@ def built(what, low, high, jobs, beat=BEAT_S):
 def _errand(r, twist, seconds):
     from machine.law import barrier
     while r.g.get('ringed_ahead'):
-        barrier.ahead(r.g['ringed'], r.g['ringed_ahead'])
+        barrier.ahead(r.g['ringed'], r.g['ringed_ahead'], paced=False)
     r.tell(twist=twist)
     r.go(seconds)
 

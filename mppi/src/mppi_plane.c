@@ -1,6 +1,7 @@
 /** mppi_plane.c - a plane's rollouts and their costs (mppi.h): no branch the data decides */
 #ifndef __CUDACC_RTC__
 #include <math.h>
+#include <stddef.h>
 #include "board_units.h"
 #include "mppi.h"
 #define MPPI_RESTRICT restrict
@@ -172,7 +173,7 @@ void mppi_plane_costs(const double *MPPI_RESTRICT x0, const double *MPPI_RESTRIC
                       double w_v, const double *MPPI_RESTRICT wind, double *MPPI_RESTRICT cost)
 {
     for (int i = 0; i < n; i++)
-        cost[i] = mppi_plane_rollout(x0, u + (long)i * h * 4, ref, k, c, nc, ns, r, nr, weight, u0, h,
+        cost[i] = mppi_plane_rollout(x0, u + (size_t)i * (size_t)h * 4U, ref, k, c, nc, ns, r, nr, weight, u0, h,
                                      dt, w_p, w_v, wind);
 }
 #endif

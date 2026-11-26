@@ -86,10 +86,12 @@ def test_the_c_is_its_twin(report):
     ref = _asked(np, se3mpc, cpu)
     twin = cpu.twin(x, u, ref, 365.0, 345.0, (0.5, 0.0, -0.3))
     worst = lambda c: float(np.max(np.abs(c - twin) / np.maximum(1.0, np.abs(twin))))
+    cpu_got = cpu.costs(x, u, ref, 365.0, 345.0, (0.5, 0.0, -0.3))
+    serial = np.concatenate([cpu.costs(x, u[i:i + 32], ref, 365.0, 345.0, (0.5, 0.0, -0.3)) for i in range(0, 256, 32)])
     report.check('the CPU\'s C costs each rollout as its twin, to 1e-12',
-                 worst(cpu.costs(x, u, ref, 365.0, 345.0, (0.5, 0.0, -0.3))) < 1e-12,
-                 '%.1e, the median cost %.1f' % (worst(cpu.costs(x, u, ref, 365.0, 345.0, (0.5, 0.0, -0.3))),
-                                                 float(np.median(twin))))
+                 worst(cpu_got) < 1e-12 and cpu_got.tobytes() == serial.tobytes(),
+                 '%.1e, serial match %s, the median cost %.1f' % (worst(cpu_got), cpu_got.tobytes() == serial.tobytes(),
+                                                                  float(np.median(twin))))
     xp = se3mpc.backend()
     if xp is np:
         report.check('no card answers here: the CPU\'s C is the one path', True, 'COAXIAL_GPU or no cupy')

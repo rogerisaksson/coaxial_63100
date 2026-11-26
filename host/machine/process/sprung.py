@@ -178,7 +178,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
     if c_kept.ready(g['sensed']):
         g['sensed'](body, world.data.qpos, world.data.qvel, paced=False)
     barrier_mod = __import__('machine.law.barrier', fromlist=['ahead'])
-    barrier_mod.ahead(g['ringed'], g['ringed_ahead'])
+    barrier_mod.ahead(g['ringed'], g['ringed_ahead'], warm_only=True)
     return g
 
 

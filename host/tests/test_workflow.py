@@ -195,6 +195,15 @@ def test_the_gate_s_parts_cover_its_suites(report):
                     for c in ast.walk(node)):
                 races.append(name)
     report.check('no sharded suite calls uncached tools.cores.build.build() in main()', not races, str(races))
+    import types
+    from tools.dev import runner
+    args = types.SimpleNamespace(jobs=2, measure=False, container_pool=None, model='auto', only=None, match=None)
+    cam_jobs = runner._jobs('test_camera.py', args, None, None, {'test_camera.py': 306.0}, 360.0)
+    tick_jobs = runner._jobs('test_tick.py', args, None, None, {'test_tick.py': 270.0}, 280.0)
+    report.check('heavy sharded suites split past half-timeout and carry 1.5x expected headroom',
+                 len(cam_jobs) >= 2 and len(tick_jobs) >= 2 and cam_jobs[0].timeout >= 459.0
+                 and tick_jobs[0].timeout >= 405.0,
+                 'cam=%d(%.1fs) tick=%d(%.1fs)' % (len(cam_jobs), cam_jobs[0].timeout, len(tick_jobs), tick_jobs[0].timeout))
 
 
 def test_the_last_green_commit_is_the_reference(report):
