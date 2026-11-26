@@ -301,13 +301,15 @@ static int answered(wbc_step_t *p, const double *H, const double *ng, const doub
   return (got == 0 && nact > 0) ? -1 : got;
 }
 
-int wbc_within(wbc_step_t *p, const wbc_geo_t *g, const double *H0, const double *g0, const double *S,
-               const double *r, const double *bears, double lo, double hi, double *at, double *first, double *work)
+int wbc_within(wbc_step_t *p, const wbc_geo_t *g, const double *restrict H0, const double *restrict g0,
+               const double *restrict S, const double *restrict r, const double *restrict bears, double lo, double hi,
+               double *restrict at, double *restrict first, double *work)
 {
-  const int nu = g->nu, nc = g->k3 / 3;
-  double   *Hr = work, *gr = Hr + nu * nu, *K = gr + nu, *A = K + nu * nu, *b = A + WBC_QP_M * nu, *ng = b + WBC_QP_M;
-  double   *ones = ng + nu, *mult = ones + nu, *T = mult + (nu + WBC_QP_M + 1), *ht = T + nu * nu, *pS = ht + nu;
-  double   *sumH = pS + 4 * nu, *sumg = sumH + nu * nu, *rest = sumg + nu;
+  const int        nu = g->nu, nc = g->k3 / 3;
+  double *restrict Hr = work, *restrict gr = Hr + nu * nu, *restrict K = gr + nu, *restrict A = K + nu * nu;
+  double *restrict b = A + WBC_QP_M * nu, *restrict ng = b + WBC_QP_M, *restrict ones = ng + nu;
+  double *restrict mult = ones + nu, *restrict T = mult + (nu + WBC_QP_M + 1), *ht = T + nu * nu;
+  double *restrict pS = ht + nu, *sumH = pS + 4 * nu, *sumg = sumH + nu * nu, *rest = sumg + nu;
   double    pressed[WBC_STEP_C];
   int       act[WBC_QP_M], m, got;
 

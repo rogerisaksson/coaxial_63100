@@ -194,8 +194,9 @@ void wbc_law_latent(const wbc_law_t *k, double *st, const double *tab, int ntab,
   out[k->held_to] = to[k->zmp];
 }
 
-void wbc_law_couple(const wbc_law_t *k, const double *q, const double *qd, const double *ref_q, const double *ref_v,
-                    double *eso_z, double *out, double *dq)
+void wbc_law_couple(const wbc_law_t *restrict k, const double *restrict q, const double *restrict qd,
+                    const double *restrict ref_q, const double *restrict ref_v, double *restrict eso_z,
+                    double *restrict out, double *restrict dq)
 {
   const double s2 = k->sigma * k->sigma, z0 = k->eso_s * k->eso_s, s4 = s2 * s2, sz4 = z0 * z0, s8 = s4 * s4;
   double       phi[WBC_LAW_D], shift[WBC_LAW_N];

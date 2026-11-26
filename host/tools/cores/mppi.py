@@ -14,8 +14,9 @@ from tools.cores.aero import BUILT
 from tools.cores.build import cached
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SOURCES = [os.path.join(REPO, 'mppi', 'src', 'mppi_plane.c'), os.path.join(HERE, 'mppi_pool.c')]
-INCLUDES = [os.path.join(REPO, 'mppi', 'inc'), os.path.join(REPO, 'comms', 'inc')]
+SOURCES = [os.path.join(REPO, 'mppi', 'src', 'mppi_plane.c'), os.path.join(HERE, 'mppi_lanes.c'),
+           os.path.join(HERE, 'mppi_pool.c')]
+INCLUDES = [os.path.join(REPO, 'mppi', 'inc'), os.path.join(REPO, 'comms', 'inc'), os.path.join(REPO, 'wbc', 'inc')]
 #: mppi_plane_costs's loop on the card. The source's text goes to NVRTC whole: cupy keys its
 #: cache on the text, so an `#include` of the file would run a stale build after an edit.
 GRID = r'''

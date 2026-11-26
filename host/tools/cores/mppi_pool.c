@@ -18,6 +18,11 @@
 
 enum { MPPI_WORKERS = 7, MPPI_CHUNK = 8, MPPI_MIN_BATCH = 64, MPPI_SPIN = 4096 };
 
+void mppi_plane_costs_lanes(const double *x0, const double *u, const double *ref, const double *k,
+                            const double *c, int nc, int ns, const double *r, int nr,
+                            const double *weight, const double *u0, int n, int h, double dt,
+                            double w_p, double w_v, const double *wind, double *cost);
+
 typedef struct
 {
   const double *x0, *u, *ref, *k, *c, *r, *weight, *u0, *wind;
@@ -76,11 +81,9 @@ static void run_chunks(void)
     {
       break;
     }
-    for (int i = base; i < stop; i++)
-    {
-      j.cost[i] = mppi_plane_rollout(j.x0, j.u + (size_t)i * (size_t)j.h * 4U, j.ref, j.k, j.c, j.nc, j.ns,
-                                     j.r, j.nr, j.weight, j.u0, j.h, j.dt, j.w_p, j.w_v, j.wind);
-    }
+    mppi_plane_costs_lanes(j.x0, j.u + (size_t)base * (size_t)j.h * 4U, j.ref, j.k, j.c, j.nc, j.ns,
+                           j.r, j.nr, j.weight, j.u0, stop - base, j.h, j.dt, j.w_p, j.w_v, j.wind,
+                           j.cost + base);
   }
 }
 
@@ -316,7 +319,7 @@ void mppi_plane_costs_parallel(const double *x0, const double *u, const double *
 {
   if (n < MPPI_MIN_BATCH)
   {
-    mppi_plane_costs(x0, u, ref, k, c, nc, ns, r, nr, weight, u0, n, h, dt, w_p, w_v, wind, cost);
+    mppi_plane_costs_lanes(x0, u, ref, k, c, nc, ns, r, nr, weight, u0, n, h, dt, w_p, w_v, wind, cost);
     return;
   }
 #ifdef _WIN32
@@ -330,7 +333,7 @@ void mppi_plane_costs_parallel(const double *x0, const double *u, const double *
 
   if (total <= 1)
   {
-    mppi_plane_costs(x0, u, ref, k, c, nc, ns, r, nr, weight, u0, n, h, dt, w_p, w_v, wind, cost);
+    mppi_plane_costs_lanes(x0, u, ref, k, c, nc, ns, r, nr, weight, u0, n, h, dt, w_p, w_v, wind, cost);
     return;
   }
 #ifdef _WIN32

@@ -358,8 +358,8 @@ int wbc_chain_qp(wbc_step_t *p, int np_, int ng, int k3, const double *held, con
                  const double *rhs0, const double *Jp, const double *Jg, const double *Jv, const double *dJv,
                  const double *Q, const double *RP, const double *RG, const double *r, int m1, const double *want,
                  const double *slide, const double *MA, const double *hA, const double *JA, const double *lo,
-                 const double *hi, double *x, double *qddP, double *z, double *tau, double *residual, int *met,
-                 double *qddP0, double *tau0, double **w)
+                 const double *hi, double *restrict x, double *restrict qddP, double *restrict z, double *restrict tau,
+                 double *restrict residual, int *restrict met, double *restrict qddP0, double *restrict tau0, double **w)
 {
   const wbc_blas_t *l = &p->blas;
   const int         nd = p->nd, k = k3 / 3;
@@ -368,8 +368,9 @@ int wbc_chain_qp(wbc_step_t *p, int np_, int ng, int k3, const double *held, con
   int               stick[WBC_STEP_C], mode[WBC_STEP_C];
   double            mu[WBC_STEP_C], st[2 * WBC_STEP_C];
   wbc_maps_t        m;
-  double           *S = carve(w, k3 * k3 + 1), *H1, *g1, *G1, *A, *b, *u, *zl = carve(w, k3 + 1), *al = carve(w, k3 + 1);
-  double           *tp = carve(w, np_), *tn = carve(w, nd), *fv = carve(w, k3 + 1), QT[9];
+  double *restrict  S = carve(w, k3 * k3 + 1), *restrict H1, *restrict g1, *restrict G1, *restrict A, *restrict b;
+  double *restrict  u, *restrict zl = carve(w, k3 + 1), *restrict al = carve(w, k3 + 1);
+  double *restrict  tp = carve(w, np_), *restrict tn = carve(w, nd), *restrict fv = carve(w, k3 + 1), QT[9];
 
   m.np = np_;
   m.nd = nd;

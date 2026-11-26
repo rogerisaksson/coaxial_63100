@@ -83,7 +83,8 @@ static void torques(const wbc_step_t *p, const double *restrict full, const doub
 }
 
 /** machine.stack.wrench.shrunk: how far from tau0 toward tau every drive stays within its limit. */
-double wbc_step_shrunk(int nd, const double *tau, const double *tau0, const double *lo, const double *hi)
+double wbc_step_shrunk(int nd, const double *restrict tau, const double *restrict tau0, const double *restrict lo,
+                       const double *restrict hi)
 {
   double least = 0.0;
 

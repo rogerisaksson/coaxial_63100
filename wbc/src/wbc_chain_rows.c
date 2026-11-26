@@ -251,19 +251,22 @@ int wbc_chain_rows(const wbc_step_t *p, const wbc_maps_t *m, const double *restr
   return ma;
 }
 
-int wbc_chain_levels(wbc_step_t *p, const wbc_maps_t *m, const double *H1, const double *g1, const double *G1,
-                     const double *A, const double *b, int ma, const double *Jg, int ng, const int *hands, int nh,
-                     const double *want, double *u, int *met, double **w)
+int wbc_chain_levels(wbc_step_t *p, const wbc_maps_t *m, const double *restrict H1, const double *restrict g1,
+                     const double *restrict G1, const double *restrict A, const double *restrict b, int ma,
+                     const double *restrict Jg, int ng, const int *restrict hands, int nh, const double *restrict want,
+                     double *restrict u, int *restrict met, double **w)
 {
   const wbc_blas_t *l = &p->blas;
   const int         nd = m->nd, nu = nd + m->nz, n3 = 3 * nh;
   const double      lam2 = p->chain_lam * p->chain_lam, wp = p->chain_w_posture;
-  double           *u1 = carve(w, nu), *Y = carve(w, nu * nu), *N = carve(w, nu * nu), *J = carve(w, n3 * nd + 1);
-  double           *JT = carve(w, nd * n3 + 1), *K = carve(w, n3 * n3 + 1), *KS = carve(w, n3 * nd + 1), *P = carve(w, nd * nd);
-  double           *L2 = carve(w, nd * nu), *R2n = carve(w, nd * nu), *R2nT = carve(w, nu * nd), *e2 = carve(w, nd);
-  double           *d = carve(w, nd), *H2 = carve(w, nu * nu), *g2 = carve(w, nu), *AN = carve(w, ma * nu + 1);
-  double           *bN = carve(w, ma + 1), *y = carve(w, nu), *t = carve(w, nu), *mult = carve(w, nu + ma + 1);
-  double           *gw = carve(w, 4 * nu * nu + 8), *qw = carve(w, WBC_QP_WORK(nu, ma));
+  double *restrict  u1 = carve(w, nu), *restrict Y = carve(w, nu * nu), *restrict N = carve(w, nu * nu);
+  double *restrict  J = carve(w, n3 * nd + 1), *restrict JT = carve(w, nd * n3 + 1), *restrict K = carve(w, n3 * n3 + 1);
+  double *restrict  KS = carve(w, n3 * nd + 1), *restrict P = carve(w, nd * nd), *restrict L2 = carve(w, nd * nu);
+  double *restrict  R2n = carve(w, nd * nu), *restrict R2nT = carve(w, nu * nd), *restrict e2 = carve(w, nd);
+  double *restrict  d = carve(w, nd), *restrict H2 = carve(w, nu * nu), *restrict g2 = carve(w, nu);
+  double *restrict  AN = carve(w, ma * nu + 1), *restrict bN = carve(w, ma + 1), *restrict y = carve(w, nu);
+  double *restrict  t = carve(w, nu), *restrict mult = carve(w, nu + ma + 1);
+  double *restrict  gw = carve(w, 4 * nu * nu + 8), *restrict qw = carve(w, WBC_QP_WORK(nu, ma));
   int               warm[WBC_QP_M], got;
 
   memcpy(warm, p->chain_held[0], (size_t)p->chain_nheld[0] * sizeof(int));
