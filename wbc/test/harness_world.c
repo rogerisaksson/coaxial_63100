@@ -1,5 +1,9 @@
 /** harness_world.c - the robot's world's steps (wbc_world.c) through ctypes beside harness.c: tools.cores.world's
     calls; a stage of MuJoCo's step on a thread of the host's beside its law (machine.world.steps.ahead). */
+#ifndef _WIN32
+#define _GNU_SOURCE
+#endif
+
 #include "wbc_world.h"
 #include "wbc_gmo.h"
 
@@ -12,7 +16,78 @@
 #else
 #include <pthread.h>
 #include <sched.h>
+#include <unistd.h>
 #define API
+#endif
+
+#define SPIN_AWAKE 16384
+#define SPIN_JOIN  8192
+
+#ifdef _WIN32
+static DWORD_PTR nth_core_mask(DWORD_PTR rest, int idx)
+{
+  DWORD_PTR rem = rest;
+
+  for (int c = 0; c < (int)(4U * sizeof(DWORD_PTR)); c++)
+  {
+    const DWORD_PTR pair = (DWORD_PTR)3U << (unsigned int)(2 * c);
+    const DWORD_PTR hit = rem & pair;
+
+    if (hit != (DWORD_PTR)0U)
+    {
+      if (idx == 0)
+      {
+        return hit;
+      }
+      idx--;
+      rem &= ~hit;
+    }
+  }
+  return rest;
+}
+
+static DWORD_PTR neighbour_mask(int *narrowed)
+{
+  DWORD_PTR proc_mask = 0U, sys_mask = 0U;
+
+  *narrowed = 0;
+  if (GetProcessAffinityMask(GetCurrentProcess(), &proc_mask, &sys_mask) == 0)
+  {
+    return 0U;
+  }
+  *narrowed = (proc_mask != sys_mask);
+  const DWORD     cpu = GetCurrentProcessorNumber();
+  const DWORD_PTR own = (cpu < (DWORD)(8U * sizeof(DWORD_PTR))) ? ((DWORD_PTR)1U << cpu) : (DWORD_PTR)0U;
+  const DWORD_PTR pair = (cpu < (DWORD)(8U * sizeof(DWORD_PTR)))
+                             ? ((DWORD_PTR)3U << (cpu & ~(DWORD)1U))
+                             : (DWORD_PTR)0U;
+
+  return ((proc_mask & ~pair) != (DWORD_PTR)0U) ? (proc_mask & ~pair) : (proc_mask & ~own);
+}
+#else
+static inline void cpu_relax_once(void)
+{
+#if defined(__x86_64__) || defined(__i386__)
+  __builtin_ia32_pause();
+#elif defined(__aarch64__) || defined(__arm__)
+  __asm__ volatile("yield" ::: "memory");
+#else
+  __asm__ volatile("" ::: "memory");
+#endif
+}
+
+static int posix_multi_core(void)
+{
+#if defined(__linux__)
+  cpu_set_t set;
+
+  if (sched_getaffinity(0, sizeof(set), &set) == 0)
+  {
+    return CPU_COUNT(&set) > 1;
+  }
+#endif
+  return sysconf(_SC_NPROCESSORS_ONLN) > 1;
+}
 #endif
 
 /** A stage of MuJoCo's step (mj_step1): its model, its data. */
@@ -26,6 +101,8 @@ static struct
   void       *data;
   int         pending;
   int         started;
+  int         multi;
+  int         parked;
   int         state;
 #ifdef _WIN32
   HANDLE asked;
@@ -42,14 +119,44 @@ static DWORD WINAPI besides(LPVOID none)
   (void)none;
   while (beside.started != 0)
   {
-    int expected = 1;
+    int st = __atomic_load_n(&beside.state, __ATOMIC_ACQUIRE);
 
-    (void)WaitForSingleObject(beside.asked, INFINITE);
-    beside.stage(beside.model, beside.data);
-    if (!__atomic_compare_exchange_n(&beside.state, &expected, 2, 0, __ATOMIC_RELEASE, __ATOMIC_ACQUIRE))
+    if ((beside.multi != 0) && (st != 1) && (st != 3))
     {
-      __atomic_store_n(&beside.state, 2, __ATOMIC_RELEASE);
-      (void)SetEvent(beside.done);
+      for (int spin = 0; spin < SPIN_AWAKE; spin++)
+      {
+        YieldProcessor();
+        st = __atomic_load_n(&beside.state, __ATOMIC_ACQUIRE);
+        if ((st == 1) || (st == 3))
+        {
+          break;
+        }
+      }
+    }
+    if ((st != 1) && (st != 3))
+    {
+      __atomic_store_n(&beside.parked, 1, __ATOMIC_SEQ_CST);
+      st = __atomic_load_n(&beside.state, __ATOMIC_SEQ_CST);
+      if ((st != 1) && (st != 3))
+      {
+        (void)WaitForSingleObject(beside.asked, INFINITE);
+      }
+      __atomic_store_n(&beside.parked, 0, __ATOMIC_RELAXED);
+      st = __atomic_load_n(&beside.state, __ATOMIC_ACQUIRE);
+      if ((st != 1) && (st != 3))
+      {
+        continue;
+      }
+    }
+    beside.stage(beside.model, beside.data);
+    {
+      int expected = 1;
+
+      if (!__atomic_compare_exchange_n(&beside.state, &expected, 2, 0, __ATOMIC_RELEASE, __ATOMIC_ACQUIRE))
+      {
+        __atomic_store_n(&beside.state, 2, __ATOMIC_RELEASE);
+        (void)SetEvent(beside.done);
+      }
     }
   }
   return 0;
@@ -87,9 +194,12 @@ API int wbh_world_behind(void)
     {
       int expected = 1;
 
-      for (int spin = 0; (spin < 128) && (__atomic_load_n(&beside.state, __ATOMIC_ACQUIRE) != 2); spin++)
+      if (beside.multi != 0)
       {
-        YieldProcessor();
+        for (int spin = 0; (spin < SPIN_JOIN) && (__atomic_load_n(&beside.state, __ATOMIC_ACQUIRE) != 2); spin++)
+        {
+          YieldProcessor();
+        }
       }
       if ((__atomic_load_n(&beside.state, __ATOMIC_ACQUIRE) != 2)
           && __atomic_compare_exchange_n(&beside.state, &expected, 3, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
@@ -100,9 +210,12 @@ API int wbh_world_behind(void)
 #else
     if (__atomic_load_n(&beside.state, __ATOMIC_ACQUIRE) != 2)
     {
-      for (int spin = 0; (spin < 128) && (__atomic_load_n(&beside.state, __ATOMIC_ACQUIRE) != 2); spin++)
+      if (beside.multi != 0)
       {
-        (void)sched_yield();
+        for (int spin = 0; (spin < 64) && (__atomic_load_n(&beside.state, __ATOMIC_ACQUIRE) != 2); spin++)
+        {
+          cpu_relax_once();
+        }
       }
       if (__atomic_load_n(&beside.state, __ATOMIC_ACQUIRE) != 2)
       {
@@ -115,7 +228,7 @@ API int wbh_world_behind(void)
       }
     }
 #endif
-    __atomic_store_n(&beside.state, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&beside.state, 0, __ATOMIC_RELEASE);
     beside.pending = 0;
   }
   return was;
@@ -129,8 +242,13 @@ API int wbh_world_ahead(wbh_stage_t stage, const void *model, void *data)
   if (beside.started == 0)
   {
 #ifdef _WIN32
-    HANDLE thread = NULL;
+    int             narrowed = 0;
+    const DWORD_PTR rest = neighbour_mask(&narrowed);
+    HANDLE          thread = NULL;
 
+    beside.multi = (rest != 0U);
+    beside.parked = 1;
+    beside.state = 0;
     beside.asked = CreateEventA(NULL, FALSE, FALSE, NULL);
     beside.done = CreateEventA(NULL, FALSE, FALSE, NULL);
     beside.started = 1;     /* before its thread reads it */
@@ -144,28 +262,17 @@ API int wbh_world_ahead(wbh_stage_t stage, const void *model, void *data)
     }
     else
     {
-      DWORD_PTR proc_mask = 0U, sys_mask = 0U;
-
-      /* Where `placed` narrowed this process to a cache complex, keep the stage off the caller's physical core. */
-      if ((GetProcessAffinityMask(GetCurrentProcess(), &proc_mask, &sys_mask) != 0) && (proc_mask != sys_mask))
+      /* Where `placed` narrowed this process to a cache complex, hold the stage to its first neighbour core. */
+      if (rest != 0U)
       {
-        const DWORD     cpu = GetCurrentProcessorNumber();
-        const DWORD_PTR own = (cpu < (DWORD)(8U * sizeof(DWORD_PTR))) ? ((DWORD_PTR)1U << cpu) : (DWORD_PTR)0U;
-        const DWORD_PTR pair = (cpu < (DWORD)(8U * sizeof(DWORD_PTR)))
-                                   ? ((DWORD_PTR)3U << (cpu & ~(DWORD)1U))
-                                   : (DWORD_PTR)0U;
-        const DWORD_PTR rest = ((proc_mask & ~pair) != (DWORD_PTR)0U) ? (proc_mask & ~pair) : (proc_mask & ~own);
-
-        if (rest != (DWORD_PTR)0U)
-        {
-          (void)SetThreadAffinityMask(thread, rest);
-        }
+        (void)SetThreadAffinityMask(thread, narrowed ? nth_core_mask(rest, 0) : rest);
       }
       (void)CloseHandle(thread);
     }
 #else
     pthread_t thread;
 
+    beside.multi = posix_multi_core();
     (void)pthread_mutex_init(&beside.lock, NULL);
     (void)pthread_cond_init(&beside.turn, NULL);
     beside.started = 1;     /* before its thread reads it */
@@ -182,8 +289,11 @@ API int wbh_world_ahead(wbh_stage_t stage, const void *model, void *data)
     beside.data = data;
     beside.pending = 1;
 #ifdef _WIN32
-    __atomic_store_n(&beside.state, 1, __ATOMIC_RELEASE);
-    (void)SetEvent(beside.asked);
+    __atomic_store_n(&beside.state, 1, __ATOMIC_SEQ_CST);
+    if (__atomic_load_n(&beside.parked, __ATOMIC_SEQ_CST) != 0)
+    {
+      (void)SetEvent(beside.asked);
+    }
 #else
     (void)pthread_mutex_lock(&beside.lock);
     __atomic_store_n(&beside.state, 1, __ATOMIC_RELEASE);
@@ -283,6 +393,8 @@ static struct
   double      dt;
   int         pending;
   int         started;
+  int         multi;
+  int         parked;
   int         state;
 #ifdef _WIN32
   HANDLE asked;
@@ -299,14 +411,44 @@ static DWORD WINAPI gmo_besides(LPVOID none)
   (void)none;
   while (gmo_beside.started != 0)
   {
-    int expected = 1;
+    int st = __atomic_load_n(&gmo_beside.state, __ATOMIC_ACQUIRE);
 
-    (void)WaitForSingleObject(gmo_beside.asked, INFINITE);
-    wbc_gmo_step(gmo_beside.o, &gmo_beside.f, gmo_beside.q, gmo_beside.u, gmo_beside.dt);
-    if (!__atomic_compare_exchange_n(&gmo_beside.state, &expected, 2, 0, __ATOMIC_RELEASE, __ATOMIC_ACQUIRE))
+    if ((gmo_beside.multi != 0) && (st != 1) && (st != 3))
     {
-      __atomic_store_n(&gmo_beside.state, 2, __ATOMIC_RELEASE);
-      (void)SetEvent(gmo_beside.done);
+      for (int spin = 0; spin < SPIN_AWAKE; spin++)
+      {
+        YieldProcessor();
+        st = __atomic_load_n(&gmo_beside.state, __ATOMIC_ACQUIRE);
+        if ((st == 1) || (st == 3))
+        {
+          break;
+        }
+      }
+    }
+    if ((st != 1) && (st != 3))
+    {
+      __atomic_store_n(&gmo_beside.parked, 1, __ATOMIC_SEQ_CST);
+      st = __atomic_load_n(&gmo_beside.state, __ATOMIC_SEQ_CST);
+      if ((st != 1) && (st != 3))
+      {
+        (void)WaitForSingleObject(gmo_beside.asked, INFINITE);
+      }
+      __atomic_store_n(&gmo_beside.parked, 0, __ATOMIC_RELAXED);
+      st = __atomic_load_n(&gmo_beside.state, __ATOMIC_ACQUIRE);
+      if ((st != 1) && (st != 3))
+      {
+        continue;
+      }
+    }
+    wbc_gmo_step(gmo_beside.o, &gmo_beside.f, gmo_beside.q, gmo_beside.u, gmo_beside.dt);
+    {
+      int expected = 1;
+
+      if (!__atomic_compare_exchange_n(&gmo_beside.state, &expected, 2, 0, __ATOMIC_RELEASE, __ATOMIC_ACQUIRE))
+      {
+        __atomic_store_n(&gmo_beside.state, 2, __ATOMIC_RELEASE);
+        (void)SetEvent(gmo_beside.done);
+      }
     }
   }
   return 0;
@@ -343,9 +485,12 @@ API int wbh_gmo_behind(void)
     {
       int expected = 1;
 
-      for (int spin = 0; (spin < 256) && (__atomic_load_n(&gmo_beside.state, __ATOMIC_ACQUIRE) != 2); spin++)
+      if (gmo_beside.multi != 0)
       {
-        YieldProcessor();
+        for (int spin = 0; (spin < SPIN_JOIN) && (__atomic_load_n(&gmo_beside.state, __ATOMIC_ACQUIRE) != 2); spin++)
+        {
+          YieldProcessor();
+        }
       }
       if ((__atomic_load_n(&gmo_beside.state, __ATOMIC_ACQUIRE) != 2)
           && __atomic_compare_exchange_n(&gmo_beside.state, &expected, 3, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
@@ -356,9 +501,12 @@ API int wbh_gmo_behind(void)
 #else
     if (__atomic_load_n(&gmo_beside.state, __ATOMIC_ACQUIRE) != 2)
     {
-      for (int spin = 0; (spin < 256) && (__atomic_load_n(&gmo_beside.state, __ATOMIC_ACQUIRE) != 2); spin++)
+      if (gmo_beside.multi != 0)
       {
-        (void)sched_yield();
+        for (int spin = 0; (spin < 64) && (__atomic_load_n(&gmo_beside.state, __ATOMIC_ACQUIRE) != 2); spin++)
+        {
+          cpu_relax_once();
+        }
       }
       if (__atomic_load_n(&gmo_beside.state, __ATOMIC_ACQUIRE) != 2)
       {
@@ -371,7 +519,7 @@ API int wbh_gmo_behind(void)
       }
     }
 #endif
-    __atomic_store_n(&gmo_beside.state, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&gmo_beside.state, 0, __ATOMIC_RELEASE);
     gmo_beside.pending = 0;
   }
   return was;
@@ -383,48 +531,54 @@ API int wbh_gmo_ahead(wbc_gmo_t *o, const double *base, const double *q, const d
   if (gmo_beside.started == 0)
   {
 #ifdef _WIN32
-    HANDLE thread = NULL;
+    int             narrowed = 0;
+    const DWORD_PTR rest = neighbour_mask(&narrowed);
 
-    gmo_beside.asked = CreateEventA(NULL, FALSE, FALSE, NULL);
-    gmo_beside.done = CreateEventA(NULL, FALSE, FALSE, NULL);
-    gmo_beside.started = 1;
-    if ((gmo_beside.asked != NULL) && (gmo_beside.done != NULL))
-    {
-      thread = CreateThread(NULL, 0U, gmo_besides, NULL, 0U, NULL);
-    }
-    if (thread == NULL)
+    if (rest == 0U)
     {
       gmo_beside.started = -1;
     }
     else
     {
-      DWORD_PTR proc_mask = 0U, sys_mask = 0U;
+      HANDLE thread = NULL;
 
-      if ((GetProcessAffinityMask(GetCurrentProcess(), &proc_mask, &sys_mask) != 0) && (proc_mask != sys_mask))
+      gmo_beside.multi = 1;
+      gmo_beside.parked = 1;
+      gmo_beside.state = 0;
+      gmo_beside.asked = CreateEventA(NULL, FALSE, FALSE, NULL);
+      gmo_beside.done = CreateEventA(NULL, FALSE, FALSE, NULL);
+      gmo_beside.started = 1;
+      if ((gmo_beside.asked != NULL) && (gmo_beside.done != NULL))
       {
-        const DWORD     cpu = GetCurrentProcessorNumber();
-        const DWORD_PTR own = (cpu < (DWORD)(8U * sizeof(DWORD_PTR))) ? ((DWORD_PTR)1U << cpu) : (DWORD_PTR)0U;
-        const DWORD_PTR pair = (cpu < (DWORD)(8U * sizeof(DWORD_PTR)))
-                                   ? ((DWORD_PTR)3U << (cpu & ~(DWORD)1U))
-                                   : (DWORD_PTR)0U;
-        const DWORD_PTR rest = ((proc_mask & ~pair) != (DWORD_PTR)0U) ? (proc_mask & ~pair) : (proc_mask & ~own);
-
-        if (rest != (DWORD_PTR)0U)
-        {
-          (void)SetThreadAffinityMask(thread, rest);
-        }
+        thread = CreateThread(NULL, 0U, gmo_besides, NULL, 0U, NULL);
       }
-      (void)CloseHandle(thread);
+      if (thread == NULL)
+      {
+        gmo_beside.started = -1;
+      }
+      else
+      {
+        (void)SetThreadAffinityMask(thread, narrowed ? nth_core_mask(rest, 1) : rest);
+        (void)CloseHandle(thread);
+      }
     }
 #else
-    pthread_t thread;
-
-    (void)pthread_mutex_init(&gmo_beside.lock, NULL);
-    (void)pthread_cond_init(&gmo_beside.turn, NULL);
-    gmo_beside.started = 1;
-    if (pthread_create(&thread, NULL, gmo_besides, NULL) != 0)
+    if (!posix_multi_core())
     {
       gmo_beside.started = -1;
+    }
+    else
+    {
+      pthread_t thread;
+
+      gmo_beside.multi = 1;
+      (void)pthread_mutex_init(&gmo_beside.lock, NULL);
+      (void)pthread_cond_init(&gmo_beside.turn, NULL);
+      gmo_beside.started = 1;
+      if (pthread_create(&thread, NULL, gmo_besides, NULL) != 0)
+      {
+        gmo_beside.started = -1;
+      }
     }
 #endif
   }
@@ -438,8 +592,11 @@ API int wbh_gmo_ahead(wbc_gmo_t *o, const double *base, const double *q, const d
     gmo_beside.dt = dt;
     gmo_beside.pending = 1;
 #ifdef _WIN32
-    __atomic_store_n(&gmo_beside.state, 1, __ATOMIC_RELEASE);
-    (void)SetEvent(gmo_beside.asked);
+    __atomic_store_n(&gmo_beside.state, 1, __ATOMIC_SEQ_CST);
+    if (__atomic_load_n(&gmo_beside.parked, __ATOMIC_SEQ_CST) != 0)
+    {
+      (void)SetEvent(gmo_beside.asked);
+    }
 #else
     (void)pthread_mutex_lock(&gmo_beside.lock);
     __atomic_store_n(&gmo_beside.state, 1, __ATOMIC_RELEASE);

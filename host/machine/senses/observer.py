@@ -312,7 +312,8 @@ def _prepared(obs, qpos, v):
 def ahead(obs, qpos, qvel, dt):
     """Begin the C momentum observer pass on a sibling thread beside `sensed` (`wbh_gmo_ahead`)."""
     _prepared(obs, qpos, qvel)
-    if obs.get('ahead') is not None and obs['ahead'](obs['at'], *obs['ins'], dt):
+    if (obs.get('ahead') is not None and obs.get('step') is obs.get('_step')
+            and obs['ahead'](obs['at'], *obs['ins'], dt)):
         obs['_ahead'] = True
     else:
         obs['step'](obs['at'], *obs['ins'], dt)
@@ -329,7 +330,7 @@ def behind(obs):
 
 def beside(obs, g, body, limbs, qpos, qvel, dt):
     """Pose and sense `body` on the main thread while `obs` steps in C on a sibling thread."""
-    async_obs = 'ahead' in obs
+    async_obs = obs.get('ahead') is not None and obs.get('step') is obs.get('_step')
     if async_obs:
         ahead(obs, qpos, qvel, dt)
     try:

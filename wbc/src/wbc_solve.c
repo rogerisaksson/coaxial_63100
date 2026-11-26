@@ -222,7 +222,7 @@ void wbc_turn_error(const double want[4], const double have[4], double out[3])
 /* ---- the active set ----------------------------------------------------------------------- */
 
 /** g . v over the first m coordinates. */
-static double dot(const double *g, const double *v, int m)
+static double dot(const double *restrict g, const double *restrict v, int m)
 {
   double d = 0.0;
 
@@ -236,7 +236,8 @@ static double dot(const double *g, const double *v, int m)
 /** Bound i into the set at place k: v_i = K^-1 g_i, and S's new row. */
 /** Bound i in the reduced coordinates, g y <= h with h what the variables so far (`sum`)
     leave; 0 where this level cannot move it (its reduced row all but zero). */
-static int reduced(const wbc_stack_t *s, int i, int m, const double *sum, double *g, double *h)
+static int reduced(const wbc_stack_t *restrict s, int i, int m, const double *restrict sum, double *restrict g,
+                   double *restrict h)
 {
   double got = 0.0, nrm = 0.0;
 
@@ -323,14 +324,15 @@ static int schur_solve(wbc_stack_t *s, int k, const double *b, double *r)
   return 1;
 }
 
-void wbc_level_solve(wbc_stack_t *s, int level, int last)
+void wbc_level_solve(wbc_stack_t *restrict s, int level, int last)
 {
-  const int ineq = s->ineq, m = s->zm;
-  int       rows;
-  double    sum[WBC_V], y[WBC_V], y0[WBC_V], rhs[WBC_V], q[WBC_V], nv[WBC_V], r[WBC_V];
-  double    vp[WBC_V], z[WBC_V], gp[WBC_V], big = 0.0, mu;
-  double  (*zn)[WBC_V] = s->ab;   /* the next basis, built where the rows were: they are in qq by then */
-  int       pending = -1, feasible = 1;
+  const int           ineq = s->ineq, m = s->zm;
+  int                 rows;
+  _Alignas(64) double sum[WBC_V], y[WBC_V], y0[WBC_V], rhs[WBC_V], q[WBC_V], nv[WBC_V], r[WBC_V];
+  _Alignas(64) double vp[WBC_V], z[WBC_V], gp[WBC_V];
+  double              big = 0.0, mu;
+  double            (*zn)[WBC_V] = s->ab;   /* the next basis, built where the rows were: they are in qq by then */
+  int                 pending = -1, feasible = 1;
 
   for (int v = 0; v < WBC_V; v++)
   {
@@ -385,22 +387,39 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
   /* H = ab^T ab, q = -ab^T rho; K = H + mu I, factored; y0 = -K^-1 q. */
   for (int c = 0; c < m; c++)
   {
+    q[c] = 0.0;
     for (int d = 0; d < m; d++)
     {
-      double v = 0.0;
+      s->kk[c][d] = 0.0;
+    }
+  }
+  for (int i = 0; i < rows; i++)
+  {
+    const double *restrict r_ab = s->ab[i];
+    const double           ri = s->rho[i];
 
-      for (int i = 0; i < rows; i++)
+    for (int c = 0; c < m; c++)
+    {
+      const double     a_ic = r_ab[c];
+      double *restrict kc = s->kk[c];
+
+      for (int d = c; d < m; d++)
       {
-        v += s->ab[i][c] * s->ab[i][d];
+        kc[d] += a_ic * r_ab[d];
       }
-      s->kk[c][d] = v;
+    }
+    for (int c = 0; c < m; c++)
+    {
+      q[c] -= r_ab[c] * ri;
+    }
+  }
+  for (int c = 0; c < m; c++)
+  {
+    for (int d = 0; d < c; d++)
+    {
+      s->kk[c][d] = s->kk[d][c];
     }
     big = (s->kk[c][c] > big) ? s->kk[c][c] : big;
-    q[c] = 0.0;
-    for (int i = 0; i < rows; i++)
-    {
-      q[c] -= s->ab[i][c] * s->rho[i];
-    }
   }
   big = (big > 1e-12) ? big : 1e-12;
   /* The tie-break: the levels below, each row projected once and its curvature summed into

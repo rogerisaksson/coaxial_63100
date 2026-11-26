@@ -264,6 +264,7 @@ def _errand():
     return errand
 
 
+@functools.cache
 def _cocoon():
     """`machine.way.cocoon`, as `_errand`."""
     from machine.way import cocoon

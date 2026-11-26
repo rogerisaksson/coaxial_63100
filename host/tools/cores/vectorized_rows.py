@@ -309,8 +309,8 @@ ROWS = {
             'wbc_wrench_torques': (1, 1),
         },
         'wbc_solve.c': {
-            'reduced': (1, 1),
-            'wbc_level_solve': (12, 12),
+            'reduced': (2, 2),
+            'wbc_level_solve': (13, 13),
         },
         'wbc_stack.c': {
             'lay': (1, 1),
@@ -511,7 +511,7 @@ ROWS = {
             'wbc_chol_solve': (1, 1, 1),
             'wbc_chol_solve_from': (1, 1, 1),
             'wbc_cholesky': (2, 2, 2),
-            'wbc_level_solve': (16, 17, 21),
+            'wbc_level_solve': (17, 18, 21),
         },
         'wbc_stack.c': {
             'bound': (1, 1, 1),
@@ -724,7 +724,7 @@ ROWS = {
             'wbc_chol_solve': (1, 1, 1),
             'wbc_chol_solve_from': (1, 1, 1),
             'wbc_cholesky': (2, 2, 2),
-            'wbc_level_solve': (18, 19, 23),
+            'wbc_level_solve': (19, 20, 23),
         },
         'wbc_stack.c': {
             'bound': (1, 1, 1),
