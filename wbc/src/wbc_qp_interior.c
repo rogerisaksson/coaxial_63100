@@ -15,10 +15,10 @@
     multipliers lam (m), D = lam / s, the Cholesky factor C (n by n); w1 (m), w2 (n), t (n) and gw scratch. */
 typedef struct
 {
-  const wbc_blas_t *l;
-  int               n, m;
-  const double     *A, *rd, *rp, *s, *lam, *D, *C;
-  double           *w1, *w2, *t, *gw;
+  const wbc_blas_t      *l;
+  int                    n, m;
+  const double *restrict A, *restrict rd, *restrict rp, *restrict s, *restrict lam, *restrict D, *restrict C;
+  double *restrict       w1, *restrict w2, *restrict t, *restrict gw;
 } newton_t;
 
 /** `count` doubles from `*at` on, the next carve 64-byte aligned. */
@@ -44,20 +44,23 @@ static double most_of(const double *a, int n)
 
 /** machine.stack.qp.interior's newton: the step dx (n), dl and ds (m) for the complementarity residual rc (m). 0, or
     2 where numpy raises. */
-static int newton(const newton_t *k, const double *rc, double *dx, double *dl, double *ds)
+static int newton(const newton_t *k, const double *restrict rc, double *restrict dx, double *restrict dl,
+                  double *restrict ds)
 {
-  const int n = k->n, m = k->m;
+  const int              n = k->n, m = k->m;
+  const double *restrict rd = k->rd, *restrict rp = k->rp, *restrict s = k->s, *restrict lam = k->lam, *restrict D = k->D;
+  double *restrict       w1 = k->w1, *restrict w2 = k->w2;
 
   for (int i = 0; i < m; i++)
   {
-    k->w1[i] = k->D[i] * k->rp[i] - rc[i] / k->s[i];
+    w1[i] = D[i] * rp[i] - rc[i] / s[i];
   }
-  wbc_matmul(k->l, VIEW(k->A, 1, n), VIEW(k->w1, 1, 0), k->w2, 1, 0, n, m, 1);
+  wbc_matmul(k->l, VIEW(k->A, 1, n), VIEW(w1, 1, 0), w2, 1, 0, n, m, 1);
   for (int i = 0; i < n; i++)
   {
-    k->w2[i] = -k->rd[i] - k->w2[i];
+    w2[i] = -rd[i] - w2[i];
   }
-  if (wbc_solve(k->l, VIEW(k->C, n, 1), VIEW(k->w2, 1, 0), n, 1, k->t, k->gw)
+  if (wbc_solve(k->l, VIEW(k->C, n, 1), VIEW(w2, 1, 0), n, 1, k->t, k->gw)
       || wbc_solve(k->l, VIEW(k->C, 1, n), VIEW(k->t, 1, 0), n, 1, dx, k->gw))
   {
     return 2;
@@ -65,8 +68,8 @@ static int newton(const newton_t *k, const double *rc, double *dx, double *dl, d
   wbc_matmul(k->l, VIEW(k->A, n, 1), VIEW(dx, 1, 0), dl, 1, 0, m, n, 1);
   for (int i = 0; i < m; i++)
   {
-    dl[i] = k->D[i] * (dl[i] + k->rp[i]) - rc[i] / k->s[i];
-    ds[i] = -(rc[i] + k->s[i] * dl[i]) / k->lam[i];
+    dl[i] = D[i] * (dl[i] + rp[i]) - rc[i] / s[i];
+    ds[i] = -(rc[i] + s[i] * dl[i]) / lam[i];
   }
   return 0;
 }
@@ -90,15 +93,17 @@ static double reach(const double *v, const double *dv, int m)
   return any ? (r < 1.0 ? r : 1.0) : 1.0;
 }
 
-int wbc_qp_interior(const wbc_blas_t *l, const double *H, const double *g, const double *A, const double *b, int n,
-                    int m, double *x, int *act, int *nact, double *u, double *work)
+int wbc_qp_interior(const wbc_blas_t *l, const double *restrict H, const double *restrict g, const double *restrict A,
+                    const double *restrict b, int n, int m, double *restrict x, int *restrict act, int *restrict nact,
+                    double *restrict u, double *work)
 {
-  double      *w = work;
-  double      *rd = carve(&w, n), *rp = carve(&w, m + 1), *s = carve(&w, m + 1), *lam = carve(&w, m + 1);
-  double      *D = carve(&w, m + 1), *Ad = carve(&w, m * n + 1), *K = carve(&w, n * n), *Kt = carve(&w, n * n);
-  double      *C = carve(&w, n * n), *dx = carve(&w, n), *dl = carve(&w, m + 1), *ds = carve(&w, m + 1);
-  double      *w1 = carve(&w, m + 1), *w2 = carve(&w, n), *t = carve(&w, n), *rc = carve(&w, m + 1);
-  double      *la = carve(&w, m + 1), *gw = carve(&w, 4 * n * n + 8);
+  double          *w = work;
+  double *restrict rd = carve(&w, n), *restrict rp = carve(&w, m + 1), *restrict s = carve(&w, m + 1);
+  double *restrict lam = carve(&w, m + 1), *restrict D = carve(&w, m + 1), *restrict Ad = carve(&w, m * n + 1);
+  double *restrict K = carve(&w, n * n), *restrict Kt = carve(&w, n * n), *restrict C = carve(&w, n * n);
+  double *restrict dx = carve(&w, n), *restrict dl = carve(&w, m + 1), *restrict ds = carve(&w, m + 1);
+  double *restrict w1 = carve(&w, m + 1), *restrict w2 = carve(&w, n), *restrict t = carve(&w, n);
+  double *restrict rc = carve(&w, m + 1), *restrict la = carve(&w, m + 1), *restrict gw = carve(&w, 4 * n * n + 8);
   const double ties[4] = {0.0, 1e-12, 1e-9, 1e-6};
   const newton_t k = {l, n, m, A, rd, rp, s, lam, D, C, w1, w2, t, gw};
   double       scale, ga, ba;

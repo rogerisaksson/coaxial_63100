@@ -115,7 +115,8 @@ static void drop(dual_t *s, int k)
 
 /** machine.stack.qp._pair: x and u the minimiser on the rows held as equalities, rows dependent on those before
     them and rows whose multipliers come out negative dropped. 0, or 2 where numpy raises; w, t, dg scratch (n). */
-static int pair(dual_t *s, const double *x0, double *x, double *u, double *w, double *t, double *dg, double *gw)
+static int pair(dual_t *s, const double *restrict x0, double *restrict x, double *restrict u, double *restrict w,
+                double *restrict t, double *restrict dg, double *restrict gw)
 {
   const wbc_blas_t *l = s->l;
   const int         n = s->n;
@@ -177,8 +178,9 @@ static int pair(dual_t *s, const double *x0, double *x, double *u, double *w, do
 
 /** machine.stack.qp._dual on the rows kept: 0 with x, the rows held (s->act, s->q) and their multipliers u, 1 where it
     gives up (python's None), 2 where numpy raises; sv (m), met (m) and the rest (n) scratch. */
-static int dual(dual_t *s, const double *x0, int most, double *x, double *u, double *sv, double *dv, double *z, double *r,
-                double *t, double *ratio, double *dg, double *met, double *gw)
+static int dual(dual_t *s, const double *restrict x0, int most, double *restrict x, double *restrict u,
+                double *restrict sv, double *restrict dv, double *restrict z, double *restrict r, double *restrict t,
+                double *restrict ratio, double *restrict dg, double *restrict met, double *restrict gw)
 {
   const wbc_blas_t *l = s->l;
   const int         n = s->n, m = s->m;
@@ -301,8 +303,9 @@ static int dual(dual_t *s, const double *x0, int most, double *x, double *u, dou
   }
 }
 
-int wbc_qp_solve(const wbc_blas_t *l, const double *H, const double *g, const double *A, const double *b, int n, int m,
-                 const int *warm, int nwarm, int most, double *x, int *act, int *nact, double *u, double *work)
+int wbc_qp_solve(const wbc_blas_t *l, const double *restrict H, const double *restrict g, const double *restrict A,
+                 const double *restrict b, int n, int m, const int *restrict warm, int nwarm, int most,
+                 double *restrict x, int *restrict act, int *restrict nact, double *restrict u, double *work)
 {
   double *w = work;
   double *restrict As = carve(&w, m * n), *restrict NA = carve(&w, m * n), *restrict bs = carve(&w, m + 1);

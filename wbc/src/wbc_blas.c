@@ -225,7 +225,7 @@ static void fortran(wbc_view_t a, int m, int q, double *restrict af)
   }
 }
 
-int wbc_potrf(const wbc_blas_t *l, wbc_view_t a, int n, double *x, double *work)
+int wbc_potrf(const wbc_blas_t *l, wbc_view_t a, int n, double *restrict x, double *restrict work)
 {
   /* umath_linalg's cholesky_lo: dpotrf on the Fortran-ordered copy, its upper triangle zeroed */
   const char uplo = 'L';
@@ -249,7 +249,8 @@ int wbc_potrf(const wbc_blas_t *l, wbc_view_t a, int n, double *x, double *work)
 /** Reflector k of `af` (m, q) on `w` (at most BLOCK) columns of `x` from `j` (m, cols), rows along each column's
     row: each column's npsum of its products along the reflector op for op - its eight partial sums from 8 rows on,
     its first rows' running sum under 8 -, its row k beside it, times tau, taken down the reflector. */
-static void block(const double *af, int len, int q, int k, double tau, double *x, int cols, int j, int w)
+static void block(const double *restrict af, int len, int q, int k, double tau, double *restrict x, int cols, int j,
+                  int w)
 {
   const int whole = len - (len % 8);
   double    r[8][BLOCK], c[BLOCK];
@@ -353,13 +354,15 @@ static void reflected(const double *af, int m, int q, int k, double tau, double 
   }
 }
 
-int wbc_qr(const wbc_blas_t *l, wbc_view_t a, int m, int q, double *Q, double *R, double *work, int nwork)
+int wbc_qr(const wbc_blas_t *l, wbc_view_t a, int m, int q, double *restrict Q, double *restrict R,
+           double *restrict work, int nwork)
 {
   /* The robot's own Householder QR in numpy's qr's shapes: LAPACK's dgeqr2 and dorg2r step for step - a reflector as
      dlarfg lays it, beta -sign(alpha) times the column's norm, tau (beta - alpha) / beta, the reflector the column
      times 1 / (alpha - beta) - each sum numpy's pairwise (npsum), so that its numpy twin (machine.stack.qp.householder)
      agrees to the bit; no LAPACK, whose Fortran auxiliaries part dgeqrf's bits between Windows and Linux */
-  double *af = work, *t = af + m * q, *tau = t + m;
+  double *restrict       af = work, *restrict t = af + m * q, *restrict tau = t + m;
+  const double *restrict a_at = a.at;
 
   (void)l;
   if (q > m || (int64_t)nwork < (int64_t)m * q + m + q)
@@ -370,7 +373,7 @@ int wbc_qr(const wbc_blas_t *l, wbc_view_t a, int m, int q, double *Q, double *R
   {
     for (int j = 0; j < q; j++)
     {
-      af[i * q + j] = a.at[i * a.s0 + j * a.s1];
+      af[i * q + j] = a_at[i * a.s0 + j * a.s1];
     }
   }
   for (int k = 0; k < q; k++)

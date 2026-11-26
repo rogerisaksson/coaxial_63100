@@ -5,19 +5,28 @@
 
 void wbc_beat_felt(wbc_beat_t *b, double dt)
 {
-  double       *restrict y = b->y, *restrict imu = b->imu;
+  const int              nj = b->nj, nimu = b->nimu;
+  double *restrict       y = b->y, *restrict imu = b->imu;
   const double *restrict motor = b->motor;
 
   wbc_pass_felt(b->world, y, b->quat_at, b->gyro_at, b->accel_at, b->q_at, b->qd_at, b->qm_at);
-  for (int i = 0; i < b->nj; i++)
   {
-    y[b->tau_at + i] = motor[i];
+    double *restrict y_tau = y + b->tau_at;
+
+    for (int i = 0; i < nj; i++)
+    {
+      y_tau[i] = motor[i];
+    }
   }
   y[b->link_at] = b->link[0];
   wbc_gmo_felt(b->gmo, &y[b->quat_at], &y[b->accel_at], &y[b->tau_at], &y[b->qm_at], &y[b->q_at], dt);
-  for (int i = 0; i < b->nimu; i++)
   {
-    imu[i] += dt * y[b->imu_at + i];
+    const double *restrict y_imu = y + b->imu_at;
+
+    for (int i = 0; i < nimu; i++)
+    {
+      imu[i] += dt * y_imu[i];
+    }
   }
   b->span[0] += dt;
 }

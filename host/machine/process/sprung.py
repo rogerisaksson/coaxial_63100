@@ -176,7 +176,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
     from tools.cores import kept as c_kept
     c_kept.settle()
     if c_kept.ready(g['sensed']):
-        g['sensed'](body, world.data.qpos, world.data.qvel, paced=False)
+        g['sensed'](body, world.data.qpos[:body.m.nq].copy(), world.data.qvel[:body.m.nv].copy(), paced=False)
     barrier_mod = __import__('machine.law.barrier', fromlist=['ahead'])
     barrier_mod.ahead(g['ringed'], g['ringed_ahead'], warm_only=True)
     return g

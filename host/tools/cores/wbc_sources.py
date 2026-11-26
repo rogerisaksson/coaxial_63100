@@ -18,5 +18,5 @@ INCLUDES = [os.path.join(REPO, *folder) for folder in (('wbc', 'inc'), ('modbus'
 #: them: gcc's sincos for the pair is glibc's own path at 0.855 < |x| < 2.43, its sin's last bit not sin's. On this
 #: host's own instruction sets (`build.native`), with no errno branch on sqrt and non-trapping comparisons (no fenv
 #: anywhere): nothing contracted, a loop's elements four or eight at once are the same bits.
-FLAGS = (('-O2', '-fno-math-errno', '-fno-trapping-math') + build.native()
+FLAGS = (('-O2', '-fno-math-errno', '-fno-trapping-math', '-fvect-cost-model=dynamic') + build.native()
          + ('-fno-builtin-sin', '-fno-builtin-cos') + build.mujoco_headers())

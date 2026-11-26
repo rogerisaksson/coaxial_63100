@@ -9,7 +9,7 @@
 
 #include <string.h>
 
-void wbc_brace_scaled(const wbc_brace_t *b, const double *M, const double *w_up, double *Ms)
+void wbc_brace_scaled(const wbc_brace_t *b, const double *restrict M, const double *restrict w_up, double *restrict Ms)
 {
   const int n = b->n;
 
@@ -61,19 +61,23 @@ static void torques(const wbc_blas_t *l, const double *sq, const double *six, in
   }
 }
 
-void wbc_brace_blend(const wbc_brace_t *b, const double *M, const double *Ms, const double *q, const double *v,
-                     const double *h, const double *posture, double *qacc, double *tau, unsigned char *over,
-                     double sw, double bw, double d_ax, double d_lat, double w_hop, const double *w_up,
-                     const double *stance, double *jeff, double *leg_kp)
+void wbc_brace_blend(const wbc_brace_t *b, const double *restrict M, const double *restrict Ms,
+                     const double *restrict q, const double *restrict v, const double *restrict h,
+                     const double *restrict posture, double *restrict qacc, double *restrict tau,
+                     unsigned char *restrict over, double sw, double bw, double d_ax, double d_lat, double w_hop,
+                     const double *restrict w_up, const double *restrict stance, double *restrict jeff,
+                     double *restrict leg_kp)
 {
-  const int         n = b->n, nd = b->nd, ncv = b->ncv;
-  const double      lean[3] = {1.0, d_ax, d_lat};
-  const wbc_view_t  lv = {lean, 0, 1}, bv = {b->brace, nd, 1};
-  double           *q_brace = b->work, *qdd_br = q_brace + nd, *tau_br = qdd_br + nd, *sq = tau_br + nd;
-  double           *six = sq + nd * nd, *scratch = six + nd * 6, *qdd_cv = scratch + 2 * nd, *tau_cv = qdd_cv + ncv;
-  double           *sq4 = tau_cv + ncv, *six4 = sq4 + ncv * ncv, *scratch4 = six4 + ncv * 6;
-  double            kp_cv[4], kd_cv[4];
-  int               at = 0;
+  const int              n = b->n, nd = b->nd, ncv = b->ncv;
+  const double           lean[3] = {1.0, d_ax, d_lat};
+  const wbc_view_t       lv = {lean, 0, 1}, bv = {b->brace, nd, 1};
+  const double *restrict clamp = b->clamp;
+  double *restrict       q_brace = b->work, *restrict qdd_br = q_brace + nd, *restrict tau_br = qdd_br + nd;
+  double *restrict       sq = tau_br + nd, *restrict six = sq + nd * nd, *restrict scratch = six + nd * 6;
+  double *restrict       qdd_cv = scratch + 2 * nd, *restrict tau_cv = qdd_cv + ncv, *restrict sq4 = tau_cv + ncv;
+  double *restrict       six4 = sq4 + ncv * ncv, *restrict scratch4 = six4 + ncv * 6;
+  double                 kp_cv[4], kd_cv[4];
+  int                    at = 0;
 
   /* the tuck's posture by the robot's surety's direction, its torques through the robot's inertia
    * */
@@ -86,7 +90,7 @@ void wbc_brace_blend(const wbc_brace_t *b, const double *M, const double *Ms, co
   torques(&b->blas, sq, six, nd, qdd_br, qacc, h, b->act, tau_br, scratch);
   for (int i = 0; i < nd; i++)
   {
-    tau_br[i] = npclip(tau_br[i], -b->clamp[i], b->clamp[i]);
+    tau_br[i] = npclip(tau_br[i], -clamp[i], clamp[i]);
   }
   for (int i = 0; i < nd; i++)
   {

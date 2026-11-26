@@ -94,14 +94,18 @@ int wbc_chain(wbc_step_t *p)
   {
     given[nd + i] = p->held[i];
   }
-  double *J = carve(&w, k3 * n + 1), *Jp = carve(&w, k3 * np_ + 1), *Jg = carve(&w, k3 * ng + 1), *JA = carve(&w, k3 * nd + 1);
-  double *Jv = carve(&w, k3 + 1), *dJv = carve(&w, k3 + 1), *Q = carve(&w, 9 * nc + 1), *R = carve(&w, PLAN_ROWS * n);
-  double *r = carve(&w, PLAN_ROWS), *want = carve(&w, nd), *RP = carve(&w, PLAN_ROWS * np_), *RG = carve(&w, PLAN_ROWS * ng);
-  double *x = carve(&w, nd), *jv6 = carve(&w, 6), *held = carve(&w, nh + 1), *Mpp = carve(&w, np_ * np_), *Mpg = carve(&w, np_ * ng);
-  double *Minv = carve(&w, np_ * np_), *rhsh = carve(&w, np_), *MA = carve(&w, nd * (np_ + ng)), *hA = carve(&w, nd);
-  double *qddP = carve(&w, np_), *qddP0 = carve(&w, np_), *z = carve(&w, k3 + 1), *qdd1 = carve(&w, n), *qdd0 = carve(&w, n);
-  double *tau1 = carve(&w, nd), *tau0 = carve(&w, nd), *tau = carve(&w, nd), *limit = carve(&w, nd), *nlimit = carve(&w, nd);
-  double *lo = carve(&w, nd), *hi = carve(&w, nd), *zeros = carve(&w, nd), *rest;
+  double *restrict J = carve(&w, k3 * n + 1), *restrict Jp = carve(&w, k3 * np_ + 1);
+  double *restrict Jg = carve(&w, k3 * ng + 1), *restrict JA = carve(&w, k3 * nd + 1);
+  double *restrict Jv = carve(&w, k3 + 1), *restrict dJv = carve(&w, k3 + 1), *restrict Q = carve(&w, 9 * nc + 1);
+  double *restrict R = carve(&w, PLAN_ROWS * n), *restrict r = carve(&w, PLAN_ROWS), *restrict want = carve(&w, nd);
+  double *restrict RP = carve(&w, PLAN_ROWS * np_), *restrict RG = carve(&w, PLAN_ROWS * ng), *restrict x = carve(&w, nd);
+  double *restrict jv6 = carve(&w, 6), *restrict held = carve(&w, nh + 1), *restrict Mpp = carve(&w, np_ * np_);
+  double *restrict Mpg = carve(&w, np_ * ng), *restrict Minv = carve(&w, np_ * np_), *restrict rhsh = carve(&w, np_);
+  double *restrict MA = carve(&w, nd * (np_ + ng)), *restrict hA = carve(&w, nd), *restrict qddP = carve(&w, np_);
+  double *restrict qddP0 = carve(&w, np_), *restrict z = carve(&w, k3 + 1), *restrict qdd1 = carve(&w, n);
+  double *restrict qdd0 = carve(&w, n), *restrict tau1 = carve(&w, nd), *restrict tau0 = carve(&w, nd);
+  double *restrict tau = carve(&w, nd), *restrict limit = carve(&w, nd), *restrict nlimit = carve(&w, nd);
+  double *restrict lo = carve(&w, nd), *restrict hi = carve(&w, nd), *restrict zeros = carve(&w, nd), *rest;
 
   for (int i = 0; i < nd; i++)
   {
