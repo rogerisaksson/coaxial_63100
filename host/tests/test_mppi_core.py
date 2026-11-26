@@ -92,6 +92,18 @@ def test_the_c_is_its_twin(report):
                  worst(cpu_got) < 1e-12 and cpu_got.tobytes() == serial.tobytes(),
                  '%.1e, serial match %s, the median cost %.1f' % (worst(cpu_got), cpu_got.tobytes() == serial.tobytes(),
                                                                   float(np.median(twin))))
+    tail = cpu.costs(x, u[:65], ref, 365.0, 345.0, (0.5, 0.0, -0.3))
+    tail_serial = cpu.costs(x, u[:17], ref, 365.0, 345.0, (0.5, 0.0, -0.3))
+    far_x = (x[0], x[1], x[2], np.array([2.2e8, 0.0, 0.0]))
+    far_c = cpu.costs(far_x, u[:11], ref, 365.0, 345.0, (0.5, 0.0, -0.3))
+    far_t = cpu.twin(far_x, u[:11], ref, 365.0, 345.0, (0.5, 0.0, -0.3))
+    far_err = float(np.max(np.abs(far_c - far_t) / np.maximum(1.0, np.abs(far_t))))
+    report.check('non-multiple-of-8 tails and large-angle LM_FAR fallback match the twin',
+                 tail.tobytes() == cpu_got[:65].tobytes() and tail_serial.tobytes() == cpu_got[:17].tobytes()
+                 and far_err < 1e-12,
+                 'tail65=%s tail17=%s far=%.1e' % (
+                     tail.tobytes() == cpu_got[:65].tobytes(),
+                     tail_serial.tobytes() == cpu_got[:17].tobytes(), far_err))
     xp = se3mpc.backend()
     if xp is np:
         report.check('no card answers here: the CPU\'s C is the one path', True, 'COAXIAL_GPU or no cupy')

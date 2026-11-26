@@ -88,8 +88,8 @@ MPPI_STREAMING static MPPI_FLATTEN void rollout_block(const double *restrict x0,
   }
   const double mass = k[MP_MASS], wp2 = w_p * w_p, ix = k[MP_IX], iy = k[MP_IY], iz = k[MP_IZ];
   const double wind_x = wind[0], wind_y = wind[1], wind_z = wind[2], mg = mass * k[MP_GRAVITY];
-  const double j_den = k[MP_J0] * fmax(1.0, k[MP_PITCH] * fabs(w_p) / TAU_D);
-  const double wake_den = fmax(w_p * k[MP_PROP_R], k[MP_WAKE_FLOOR]);
+  const double j_den = k[MP_J0] * mmax_c(1.0, k[MP_PITCH] * fabs(w_p) / TAU_D);
+  const double wake_den = mmax_c(k[MP_WAKE_FLOOR], w_p * k[MP_PROP_R]);
   const double c_inf = 0.04 * k[MP_CL_ALPHA_A], inf_fl = k[MP_INFLOW_FLOOR];
   const double k_thr_wp2 = k[MP_K_THRUST] * wp2, stall = k[MP_STALL], blend = k[MP_BLEND];
   const double cl_a = k[MP_CL_ALPHA], cd_l = k[MP_CD_LIFT], rho = k[MP_RHO], area = k[MP_AREA];

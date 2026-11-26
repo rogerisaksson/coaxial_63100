@@ -117,6 +117,12 @@ def test_the_runner_here_is_gate_yml_s(report):
                  and opts.container == 'sme2' and bare == ['test_se3_core.py']
                  and len(ran_pool) == 3 and seen[0] == 'a' and set(seen) == {'a', 'b', 'c'},
                  '%s | %s | %s' % (presets, bare, seen))
+    from tools.dev import arithmetic
+    x86_env = linux_pool.environment(info, 'amd64', None, None)
+    arm_env = linux_pool.environment(info, 'arm64', 'sve2', linux_pool.ARM_CPUS['sve2'])
+    report.check('warm container jobs pin OpenBLAS on x86-64 and leave arm64 unpinned',
+                 x86_env.get('OPENBLAS_CORETYPE') == arithmetic.CORE and 'OPENBLAS_CORETYPE' not in arm_env,
+                 '%s | %s' % (x86_env.get('OPENBLAS_CORETYPE'), arm_env.get('OPENBLAS_CORETYPE')))
 
 
 def test_the_gate_builds_the_robots_c_for_its_target(report):

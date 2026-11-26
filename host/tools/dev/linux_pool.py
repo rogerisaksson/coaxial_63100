@@ -7,7 +7,7 @@ import tempfile
 import threading
 import time
 
-from tools.dev import ledger, linux
+from tools.dev import arithmetic, ledger, linux
 
 #: Default QEMU processor flags for arm64 vector and streaming targets when `--cpu` is omitted.
 ARM_CPUS = {'sve2': 'max,sve-default-vector-length=64',
@@ -40,6 +40,20 @@ def resolved(target=None, arch=None, isa=None, cpu=None):
     if arch == 'arm64' and cpu is None and isa in ARM_CPUS:
         cpu = ARM_CPUS[isa]
     return arch, isa, cpu
+
+
+def environment(info, arch, isa, cpu, links='', float_cpus=False):
+    """Warm container job environment: relay defaults and x86-64 OpenBLAS Nehalem pinning."""
+    env = dict(linux.environment(info, arch, isa, cpu), CI='true',
+               EDITABLE=info['editable'], DIRECTORY=info['directory'], GITLINKS=links,
+               PYTHONIOENCODING='utf-8', PYTHONUNBUFFERED='1', PYTHONFAULTHANDLER='1',
+               OPENBLAS_NUM_THREADS='1', COAXIAL_FALLBACK='simulated')
+    if arch == next(iter(linux.ARCHS)):
+        env.setdefault('OPENBLAS_CORETYPE', arithmetic.CORE)
+    if float_cpus:
+        from machine.process.placed import FLOAT
+        env[FLOAT] = '1'
+    return env
 
 
 def _decoded(out):
@@ -79,13 +93,7 @@ class Pool:
         tar, links = linux.tree('%s/%s' % (name, name))
         sets = linux.shaped(found, wanted, held=linux.busy(client),
                             cores=linux.ARM_CORES if self.arch == 'arm64' else 0) or [sum(found)]
-        self.env = dict(linux.environment(info, self.arch, self.isa, self.cpu), CI='true',
-                        EDITABLE=info['editable'], DIRECTORY=info['directory'], GITLINKS=links,
-                        PYTHONIOENCODING='utf-8', PYTHONUNBUFFERED='1', PYTHONFAULTHANDLER='1',
-                        OPENBLAS_NUM_THREADS='1', COAXIAL_FALLBACK='simulated')
-        if self.float_cpus:
-            from machine.process.placed import FLOAT
-            self.env[FLOAT] = '1'
+        self.env = environment(info, self.arch, self.isa, self.cpu, links=links, float_cpus=self.float_cpus)
         lock = threading.Lock()
 
         def start_one(idx, cpus):
