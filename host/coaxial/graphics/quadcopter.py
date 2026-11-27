@@ -15,7 +15,8 @@ import weakref
 
 from coaxial.graphics import engine, scenery, shapes
 from coaxial.graphics.callouts import lines
-from coaxial.graphics.lit import CORE, PLATE, braille, paint, project, splat
+from coaxial.graphics.fsaa import raster_mesh
+from coaxial.graphics.lit import CORE, PLATE, braille, paint, project
 from machine.rig import ansi
 from machine.aircraft import quad
 
@@ -393,13 +394,9 @@ def render_craft(pose, rotors, width, height, yaw, pitch, reach, sight, base_rea
     fine = engine.fine(engine.camera(width, height, reach, distance=sight * reach, zoom=lens))
     at = np.asarray(pose['at'], float)
     centre = at if centre is None else np.asarray(centre, float)
-    if lit is not None:
-        positions, normals, uv, materials, index = posed_fn(pose, rotors, False, see)
-        depth, rgb = lit.raster(positions, normals, uv, materials, index, m, fine,
-                                tuple(centre), float(np.linalg.norm(at - centre)) + base_reach)
-    else:
-        positions, normals, uv, materials, _index = posed_fn(pose, rotors, True, see)
-        depth, rgb = splat((positions, normals, materials, uv), m, fine, centre)
+    positions, normals, uv, materials, index = posed_fn(pose, rotors, False, see)
+    depth, rgb = raster_mesh(positions, normals, uv, materials, index, m, fine,
+                             tuple(centre), float(np.linalg.norm(at - centre)) + base_reach, lit)
     own = ([] if see == 'bare' else discs_fn(pose, rotors, m, fine, centre)) + (
         arrows_fn(pose, thrusts, m, fine, centre) if thrusts is not None else [])
     if not world:

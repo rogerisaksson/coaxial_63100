@@ -129,18 +129,19 @@ def drawn(like=None, see=None, cells=CELLS, yaw=0.0):
     T-posed, as `gynoid.render` draws it from `yaw` in `cells` without a card: a dot a row and
     a column - a lit dot in its cell's ink, one the robot covers and does not light black -,
     the robot's own dots, none of its floor's; its body what of it is not its head (HEAD)."""
-    from coaxial.graphics import gynoid, lit as lights
+    from coaxial.graphics import fsaa, gynoid
     from coaxial.graphics.raster import BRAILLE_BITS, DOTS_X, DOTS_Y
     from machine.rig import ansi
     lines = gynoid.render(t_posed(), cells[0], cells[1], yaw=yaw, pitch=0.0, dressed=False, like=like, see=see)
     who = gynoid.body(False, see, like if not see else None, not see)
-    pos, norm = who.pose(t_posed(), dense=True)
+    pos, norm = who.pose(t_posed())
     looked = gynoid._looked(cells[0], cells[1], yaw, 0.0, 1.0, (0.0, 0.0))
-    whole = lights.splat((pos, norm, who.dense[3], who.dense[2]), *looked)[0]
-    head = np.zeros(len(pos), bool)
-    for (name, parent, *_rest), (lo, hi) in zip(who.parts, who.dense_spans):
-        head[lo:hi] = name.startswith(HEAD) or parent == 'head'
-    body = lights.splat((pos[~head], norm[~head], who.dense[3][~head], who.dense[2][~head]), *looked)[0]
+    whole = fsaa.raster_mesh(pos, norm, who.uv, who.materials, who.index, *looked, gynoid.REACH * 1.4)[0]
+    head_v = np.zeros(len(pos), bool)
+    for (name, parent, *_rest), (lo, hi) in zip(who.parts, who.spans):
+        head_v[lo:hi] = name.startswith(HEAD) or parent == 'head'
+    body_tris = who.index[~head_v[who.index[:, 0]]]
+    body = fsaa.raster_mesh(pos, norm, who.uv, who.materials, body_tris, *looked, gynoid.REACH * 1.4)[0]
     rgb = np.zeros((cells[1] * DOTS_Y, cells[0] * DOTS_X, 3))
     for r, row in enumerate(ansi.parse('\n'.join(lines))):
         for c, (ch, fg, _bg) in enumerate(row[:cells[0]]):

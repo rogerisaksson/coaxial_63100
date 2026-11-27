@@ -157,7 +157,62 @@ def test_wave7_c_kernels_match_python(report):
                  'rgb max diff %d' % rgb_diff)
 
 
-ROSTER = (test_the_floor_is_laid_at_once, test_wave7_c_kernels_match_python)
+def test_fsaa_braille_and_gpu_cpu_parity(report):
+    """4x RGSS (4-rooks) Braille FSAA and GPU/CPU lighting parity hold across materials and crafts."""
+    import numpy as np
+    from coaxial.graphics import card, engine, fsaa, gpu, lit, quadcopter, shapes
+    from tools.cores import raster as c_raster, raster_draw
+    if c_raster.ensure() is None:
+        return
+
+    pose = {'turn': np.eye(3).tolist(), 'at': [0.0, 1.2, 0.0], 'controls': (0.45, 0.1, -0.15, 0.05)}
+    rotors = [(0.3, 12.0, 42.0, 38.0, 35.0)] * 4
+    m_v = shapes.view(30.0, 18.0)
+    fine = engine.fine(engine.camera(80, 28, quadcopter.REACH,
+                                     distance=quadcopter.SIGHT * quadcopter.REACH))
+    pos, nrm, uvs, mats, idx = quadcopter._posed(pose, rotors, False, 'shell')
+
+    d_c4, c_c4 = fsaa.raster_mesh(pos, nrm, uvs, mats, idx, m_v, fine, pose['at'], fsaa=True)
+    d_p4, c_p4 = fsaa.raster_mesh_py(pos, nrm, uvs, mats, idx, m_v, fine, pose['at'], fsaa=True)
+    d_c1, _c1 = fsaa.raster_mesh(pos, nrm, uvs, mats, idx, m_v, fine, pose['at'], fsaa=False)
+    cov_eq = np.array_equal(d_c4 > 0, d_p4 > 0)
+    d_err = float(np.max(np.abs(d_c4 - d_p4)))
+    c_err = int(np.max(np.abs(c_c4.astype(np.int32) - c_p4.astype(np.int32))))
+    report.check('C11 4x RGSS FSAA triangle raster matches NumPy oracle (<=1 LSB RGBA)',
+                 cov_eq and d_err <= 1e-6 and c_err <= 1,
+                 'cov_eq=%s d_err=%.2e c_err=%d' % (cov_eq, d_err, c_err))
+    report.check('4x RGSS FSAA captures thin struts/skids missed by 1x point sampling',
+                 int((d_c4 > 0).sum()) > int((d_c1 > 0).sum()) + 20,
+                 '4x=%d vs 1x=%d dots' % (int((d_c4 > 0).sum()), int((d_c1 > 0).sum())))
+
+    fl = np.zeros_like(d_c4)
+    _np, _k, _f, _h, _pl, _bt, fl_ink, ld_ink = lit._const()
+    bc_c = c_raster.braille_cells(d_c4, c_c4, fl, lit._noise64(), None, None, None,
+                                  fl_ink, ld_ink, 80, 28)
+    bc_p = lit._braille_cells_py(d_c4, c_c4, fl, None, None, None, fl_ink, ld_ink, 80, 28)
+    assert bc_c is not None
+    report.check('C11 coverage-aware Braille fold matches _braille_cells_py on 4x FSAA rasters',
+                 np.array_equal(bc_c[0], bc_p[0]) and np.array_equal(bc_c[1], bc_p[1])
+                 and float(np.max(np.abs(bc_c[2] - bc_p[2]))) <= 1e-12)
+
+    ad = card.adapter()
+    if ad is not None:
+        lr = gpu.LitRaster(found=ad)
+        d_g4, c_g4 = lr.raster(pos, nrm, uvs, mats, idx, m_v, fine, tuple(pose['at']),
+                               quadcopter.REACH)
+        cg, cc = d_g4 > 0, d_c4 > 0
+        jacc = float((cg & cc).sum()) / float(max(1, (cg | cc).sum()))
+        both = cg & cc
+        rgb_mad = float(np.mean(np.abs(c_g4[both, :3].astype(float) - c_c4[both, :3].astype(float))))
+        report.check('GPU LitRaster 4x FSAA agrees with C11 4x FSAA (Jaccard > 0.97, RGB MAD < 2.0)',
+                     jacc > 0.97 and rgb_mad < 2.0,
+                     'jaccard=%.4f rgb_mad=%.2f' % (jacc, rgb_mad))
+    else:
+        _ = raster_draw
+
+
+ROSTER = (test_the_floor_is_laid_at_once, test_wave7_c_kernels_match_python,
+          test_fsaa_braille_and_gpu_cpu_parity)
 
 
 def main(argv=None):

@@ -67,7 +67,7 @@ void rs_fold(const double *restrict depth, const uint8_t *restrict top, const ui
 
 static inline double rs_screen_thresh(int x, int y, uint8_t hand, const double *restrict noise64)
 {
-  if (hand >= 255u)
+  if (hand >= 248u)
   {
     return noise64[(((size_t)y & 63u) << 6u) + ((size_t)x & 63u)];
   }
@@ -104,7 +104,7 @@ static void rs_braille_cell(int cx, int cy, int W, int H, const double *restrict
     }
   }
   uint8_t mask = 0u, hits = 0u;
-  int     inked_n = 0, right_n = 0, left_n = 0, any_lead = 0, mr = 0, mg = 0, mb = 0;
+  int     inked_w = 0, right_n = 0, left_n = 0, any_lead = 0, mr = 0, mg = 0, mb = 0;
   double  shine = floor_b[(size_t)y0 * stride + (size_t)x0];
 
   for (int k = 0; k < 8; k++)
@@ -114,9 +114,11 @@ static void rs_braille_cell(int cx, int cy, int W, int H, const double *restrict
     const double  d = depth[p], fl = floor_b[p];
     const uint8_t cr = rgb[co], cg = rgb[co + 1u], cb = rgb[co + 2u];
     const uint8_t hand = (channels > 3) ? rgb[co + 3u] : 255u;
-    mr += (int)cr;
-    mg += (int)cg;
-    mb += (int)cb;
+    const int     miss = (hand >= 248u) ? (int)(255u - hand) : (int)(hand & 3u);
+    const int     sub_h = (d > 0.0) ? (4 - miss) : 4;
+    mr += sub_h * (int)cr;
+    mg += sub_h * (int)cg;
+    mb += sub_h * (int)cb;
     if (fl > shine)
     {
       shine = fl;
@@ -127,7 +129,7 @@ static void rs_braille_cell(int cx, int cy, int W, int H, const double *restrict
     if (d > 0.0)
     {
       hits++;
-      inked_n += (lum > 0.004) ? 1 : 0;
+      inked_w += (lum > 0.004) ? sub_h : 0;
       if (channels > 3 && hand < 208u)
       {
         right_n += (hand < 96u) ? 1 : 0;
@@ -138,10 +140,11 @@ static void rs_braille_cell(int cx, int cy, int W, int H, const double *restrict
       const double s1 = (x + 1 < W) ? depth[p + 1u] : 0.0;
       const double s2 = (y > 0) ? depth[p - stride] : 0.0;
       const double s3 = (y + 1 < H) ? depth[p + stride] : 0.0;
-      const int    edge = (s0 == 0.0 || fabs(s0 - d) > th || s1 == 0.0 || fabs(s1 - d) > th ||
-                           s2 == 0.0 || fabs(s2 - d) > th || s3 == 0.0 || fabs(s3 - d) > th);
+      const int    e0 = (s0 == 0.0 || (d - s0) > th), e1 = (s1 == 0.0 || (d - s1) > th);
+      const int    e2 = (s2 == 0.0 || (d - s2) > th), e3 = (s3 == 0.0 || (d - s3) > th);
+      const int    edge = (sub_h >= 2) ? (e0 || e1 || e2 || e3) : ((e0 && e1) || (e2 && e3));
       const double lum_c = (lum < 0.0) ? 0.0 : ((lum > 1.0) ? 1.0 : lum);
-      const double keep = (lum > 0.004) ? (0.40 + 0.60 * lum_c) : 0.0;
+      const double keep = ((lum > 0.004) ? (0.40 + 0.60 * lum_c) : 0.0) * ((double)sub_h * 0.25);
       const int    lit_d = (!cell_alone) && (keep > rs_screen_thresh(x, y, hand, noise64));
       on_dot = lit_d || edge || (over != NULL && over[p] != 0u);
     }
@@ -162,7 +165,7 @@ static void rs_braille_cell(int cx, int cy, int W, int H, const double *restrict
     out_rgb[2] = any_lead ? inks6[5] : (inks6[2] * shine);
     return;
   }
-  const double inv_i = 1.0 / (double)((inked_n > 1) ? inked_n : 1);
+  const double inv_i = 1.0 / (double)((inked_w > 4) ? inked_w : 4);
   double       br = ((double)mr * inv_i) * 1.2 + 18.0;
   double       bg = ((double)mg * inv_i) * 1.2 + 18.0;
   double       bb = ((double)mb * inv_i) * 1.2 + 18.0;

@@ -14,7 +14,8 @@ STROKES_SOURCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'raste
 BOARD_SOURCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'raster_board.c')
 DRAW_SOURCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'raster_draw.c')
 INST_SOURCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'raster_inst.c')
-SOURCES = [SOURCE, CELLS_SOURCE, STROKES_SOURCE, BOARD_SOURCE, DRAW_SOURCE, INST_SOURCE]
+FSAA_SOURCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'raster_fsaa.c')
+SOURCES = [SOURCE, CELLS_SOURCE, STROKES_SOURCE, BOARD_SOURCE, DRAW_SOURCE, INST_SOURCE, FSAA_SOURCE]
 FLAGS = ('-O3', '-ffp-contract=off', '-fno-math-errno', '-fno-trapping-math',
          '-fvect-cost-model=dynamic') + build.native()
 _SCRATCH: dict[int, tuple] = {}

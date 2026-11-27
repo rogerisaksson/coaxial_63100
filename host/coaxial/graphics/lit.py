@@ -81,14 +81,17 @@ def _light(normals, materials, uv):
     base = pal[np.minimum(materials, 3)]
     worn = np.stack([(materials >> 16) & 255, (materials >> 8) & 255, materials & 255], 1)
     base = np.where((materials >= PAINTED)[:, None], worn / 255.0, base)
-    g = np.abs(np.modf(uv * (22.0, 30.0))[0] - 0.5).max(axis=1)
-    base = np.where((materials == MESH)[:, None] & (g > 0.4)[:, None], base * 0.5, base)
-    shine = np.where(materials == SKIN, 0.12, np.where(woven, 0.0, np.where(twill, GLOSS, 0.55)))
+    g = np.abs(np.mod(uv * (22.0, 30.0), 1.0) - 0.5).max(axis=1)
+    st = np.clip((g - 0.36) * 10.0, 0.0, 1.0)
+    base = np.where((materials == MESH)[:, None],
+                    base * (1.0 - 0.5 * st * st * (3.0 - 2.0 * st))[:, None], base)
+    base_sh = np.where(materials >= PAINTED, 0.3, 0.55)
+    shine = np.where(materials == SKIN, 0.12, np.where(woven, 0.0, np.where(twill, GLOSS, base_sh)))
     c = (base * (0.10 + 0.85 * lam + fil)[:, None] + (spec * shine)[:, None]
          + np.outer(rim * np.where(woven, 0.15, np.where(hard, HARD_RIM, 0.8)), (0.55, 0.75, 1.0)))
     c = np.where((materials == CORE)[:, None], base * (0.75 + 0.25 * lam)[:, None], c)
     out = np.empty((len(n), 4), np.uint8)
-    out[:, :3] = np.clip(c, 0.0, 1.0) * 255.0
+    out[:, :3] = np.clip(c, 0.0, 1.0) * 255.0 + 0.5
     out[:, 3] = np.where(twill, np.where(n[:, 0] > 0.0, 0, 128) + 64 * hard, np.where(hard, 224, 255))
     return out
 
@@ -225,10 +228,10 @@ def _screened(mask, hand):
     left over that - the weave's two halves meet in a V where a surface faces the eye -, a
     hard shell's twill (HARDS, a quarter over its hand) its rib's one dot in RIB alone, the
     rest through: carbon as a plate, solid, its weave a hatch; and none, every dot through,
-    from there under 255: a hard shell's. The twills are kept whole a raster's size and copied
+    from there under 248: a hard shell's. The twills are kept whole a raster's size and copied
     in where theirs: told a twill's dot at a time it took 2.8 ms at 300 x 300."""
     np = _const()[0]
-    if not (hand < 255).any():
+    if not (hand < 248).any():
         return mask
     got = _CACHED.get(('twill',) + mask.shape)
     if got is None:
@@ -236,7 +239,7 @@ def _screened(mask, hand):
         ribs = [((x + way * y) % RIB + 0.5) / RIB for way in (1, -1)]
         got = _CACHED[('twill',) + mask.shape] = [ribs[0], np.where(ribs[0] > HARDS, ribs[0], 0.0),
                                                   ribs[1], np.where(ribs[1] > HARDS, ribs[1], 0.0), 0.0]
-    kind, out = np.digitize(hand, (32, 96, 160, 208, 255)), mask.copy()
+    kind, out = np.digitize(hand, (32, 96, 160, 208, 248)), mask.copy()
     for k, screen in enumerate(got):
         np.copyto(out, screen, where=kind == k)
     return out
@@ -268,17 +271,19 @@ def _braille_cells_py(depth, rgb, floor, over, alone, leaders, floor_ink, leader
     np = _const()[0]
     covered = depth > 0.0
     tone = np.ascontiguousarray(rgb[..., :3])
+    hand = rgb[..., 3] if rgb.shape[-1] > 3 else np.full(depth.shape, 255, np.uint8)
+    miss = np.where(hand >= 248, 255 - hand.astype(int), hand.astype(int) & 3)
+    sub_h = np.where(covered, 4 - miss, 4)
     lum = tone @ (0.2126 / 255.0, 0.7152 / 255.0, 0.0722 / 255.0)
     pad = np.pad(depth, 1)
     thresh = 0.04 * depth
     s0, s1, s2, s3 = pad[1:-1, :-2], pad[1:-1, 2:], pad[:-2, 1:-1], pad[2:, 1:-1]
-    edge = covered & (((s0 == 0.0) | (np.abs(s0 - depth) > thresh))
-                      | ((s1 == 0.0) | (np.abs(s1 - depth) > thresh))
-                      | ((s2 == 0.0) | (np.abs(s2 - depth) > thresh))
-                      | ((s3 == 0.0) | (np.abs(s3 - depth) > thresh)))
-    keep = (0.40 + 0.60 * np.clip(lum, 0.0, 1.0)) * (lum > 0.004)
+    e0, e1 = (s0 == 0.0) | ((depth - s0) > thresh), (s1 == 0.0) | ((depth - s1) > thresh)
+    e2, e3 = (s2 == 0.0) | ((depth - s2) > thresh), (s3 == 0.0) | ((depth - s3) > thresh)
+    edge = covered & np.where(sub_h >= 2, e0 | e1 | e2 | e3, (e0 & e1) | (e2 & e3))
+    keep = (0.40 + 0.60 * np.clip(lum, 0.0, 1.0)) * (lum > 0.004) * (sub_h * 0.25)
     mask = _mask(*depth.shape)
-    lit = covered & (keep > (_screened(mask, rgb[..., 3]) if rgb.shape[-1] > 3 else mask))
+    lit = covered & (keep > (_screened(mask, hand) if rgb.shape[-1] > 3 else mask))
     if alone is not None:
         a4 = alone[0::4] | alone[1::4] | alone[2::4] | alone[3::4]
         lit.reshape(height, DOTS_Y, width, DOTS_X).transpose(0, 2, 1, 3)[a4[:, 0::2] | a4[:, 1::2]] = False
@@ -296,10 +301,11 @@ def _braille_cells_py(depth, rgb, floor, over, alone, leaders, floor_ink, leader
              | (on_dots[3::4, 1::2] * BRAILLE_BITS[1][3])).astype(np.uint8)
     c4 = covered[0::4].astype(int) + covered[1::4] + covered[2::4] + covered[3::4]
     hits = (c4[:, 0::2] + c4[:, 1::2]).astype(np.uint8)
-    m4 = tone[0::4].astype(int) + tone[1::4] + tone[2::4] + tone[3::4]
-    inked = covered & (lum > 0.004)
-    i4 = inked[0::4].astype(int) + inked[1::4] + inked[2::4] + inked[3::4]
-    body = (m4[:, 0::2] + m4[:, 1::2]) / np.maximum(i4[:, 0::2] + i4[:, 1::2], 1)[..., None]
+    wt = tone.astype(int) * sub_h[..., None]
+    m4 = wt[0::4] + wt[1::4] + wt[2::4] + wt[3::4]
+    inked = np.where(covered & (lum > 0.004), sub_h, 0)
+    i4 = inked[0::4] + inked[1::4] + inked[2::4] + inked[3::4]
+    body = (m4[:, 0::2] + m4[:, 1::2]) / np.maximum(i4[:, 0::2] + i4[:, 1::2], 4)[..., None]
     body = np.clip(body * 1.2 + 18.0, 0.0, 255.0)
     if rgb.shape[-1] > 3 and (rgb[..., 3] < 208).any():
         body = body * _towed(rgb[..., 3], covered, hits, height, width)[..., None]

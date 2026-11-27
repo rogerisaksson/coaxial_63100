@@ -9,8 +9,8 @@ from typing import Any
 from coaxial.graphics import (arrows as _arrows, drape, drums, engine, form, hoses, likeness, marks, mechanism, panels,
                               plated, seat, sneaker, under)
 from coaxial.graphics.callouts import callouts, line, packed
-from coaxial.graphics.lit import (CORE, MESH, PAINTED, PLATE, SKIN, braille, grid, paint,
-                                  project, splat)
+from coaxial.graphics.fsaa import raster_mesh
+from coaxial.graphics.lit import CORE, MESH, PAINTED, PLATE, SKIN, braille, grid, paint, project
 from coaxial.graphics.panels import SHELL
 from coaxial.graphics.props import lines as prop_lines
 from coaxial.graphics.raster import DOTS_X, DOTS_Y
@@ -383,19 +383,16 @@ def _marked(overlay, mark, m, cam, centre, travel, width, height):
 
 def _heated(who, heat):
     if not heat:
-        return who.materials, who.dense[3]
-    mats, dense = who.materials.copy(), who.dense[3].copy()
+        return who.materials
+    mats = who.materials.copy()
     for joint, celsius in heat.items():
         if joint not in who.drums:
             continue
         worn, i = paint(ansi.thermal_rgb(celsius)), who.drums[joint]
         mats[slice(*who.spans[i])] = worn
-        dense[slice(*who.dense_spans[i])] = worn
         for part, corners in who.patches.get(joint, ()):
             mats[who.spans[part][0] + corners] = worn
-            lo, hi = who.dense_spans[part]
-            dense[lo:hi][who.dense_near[joint][part]] = worn
-    return mats, dense
+    return mats
 
 
 def _wired(who, frames, root, m, fine, centre):
@@ -440,16 +437,13 @@ def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, tr
     `horizon` [(segments, ink)] on it (`coaxial.graphics.horizon`); `props` drawn round where `rounds` says."""
     who = body(dressed, see, like if not see else None, not dressed and not see)
     m, fine, centre = _looked(width, height, yaw, pitch, zoom, pan)
-    mats, dense = _heated(who, heat)
+    mats = _heated(who, heat)
     frames, wired, laid = who._frames(angles, root), [], None
     if see == 'actuators':
         depth, rgb, wired = _wired(who, frames, root, m, fine, centre)
-    elif lit is not None:
-        pos, norm = laid = who.pose(angles, root=root, _frames=frames)
-        depth, rgb = lit.raster(pos, norm, who.uv, mats, who.index, m, fine, centre, REACH * 1.4)
     else:
-        pos, norm = who.pose(angles, dense=True, root=root, _frames=frames)
-        depth, rgb = splat((pos, norm, dense, who.dense[2]), m, fine, centre)
+        pos, norm = laid = who.pose(angles, root=root, _frames=frames)
+        depth, rgb = raster_mesh(pos, norm, who.uv, mats, who.index, m, fine, centre, REACH * 1.4, lit)
     overlay = leaders = None
     if labels:
         pivots, rest = who.pivots(angles, root=root, _frames=frames), who._rest_pivots

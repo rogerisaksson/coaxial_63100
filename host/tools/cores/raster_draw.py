@@ -55,6 +55,13 @@ def _lib():
     lib.rs_thermal_braille.restype = None
     lib.rs_lit_shade_win.argtypes = [i32, vp, vp, vp, vp, vp, vp, vp, vp, vp, vp]
     lib.rs_lit_shade_win.restype = None
+    lib.rs_lit_mesh_fsaa.argtypes = [
+        i32, vp, vp, vp, vp, i32, vp, vp, vp, vp,
+        ctypes.c_uint32, i32, i32, i32,
+        vp, vp, vp, vp,
+        vp, vp, vp, vp, vp, vp, vp,
+    ]
+    lib.rs_lit_mesh_fsaa.restype = None
     return lib
 
 
@@ -425,3 +432,64 @@ def splat_lit(arrays, m, cam, centre, under_flag: int, layer_m: float):
         c_lit[3].ctypes.data, rgb.ctypes.data,
     )
     return depth, rgb
+
+
+def _lit_constants():
+    c_lit = _LIT_CONST[0]
+    if c_lit is None:
+        from coaxial.graphics import lit as lit_mod
+        _np, key3, fill3, half3, pal, *_ = lit_mod._const()
+        c_lit = _LIT_CONST[0] = (
+            np.ascontiguousarray(key3, dtype=np.float64),
+            np.ascontiguousarray(fill3, dtype=np.float64),
+            np.ascontiguousarray(half3, dtype=np.float64),
+            np.ascontiguousarray(pal, dtype=np.float64).ravel(),
+        )
+    return c_lit
+
+
+def lit_mesh_fsaa(positions, normals, uv, materials, index, m, cam, centre, under_flag: int,
+                  layer_m: float, fsaa: bool = True):
+    """Rasterize indexed lit mesh with 4x RGSS FSAA in C, or return `None` without C."""
+    lib = _lib()
+    if lib is None:
+        return None
+    pos_c = np.ascontiguousarray(positions, dtype=np.float64)
+    nrm_c = np.ascontiguousarray(normals, dtype=np.float64)
+    uv_c = np.ascontiguousarray(uv, dtype=np.float64)
+    mat_c = np.ascontiguousarray(materials, dtype=np.uint32)
+    idx_c = np.ascontiguousarray(index, dtype=np.int32).reshape(-1, 3)
+    n_verts, n_tris = len(pos_c), len(idx_c)
+    height, width = int(cam['height']), int(cam['width'])
+    ns = 4 if fsaa else 1
+    nsub = max(1, height * width * ns)
+    vcap = max(1, n_verts * 7)
+    sc = getattr(_draw_tls, 'fsaa', None)
+    if sc is None or len(sc[0]) < vcap or len(sc[1]) < nsub:
+        vc = max(vcap, len(sc[0]) if sc is not None else 0)
+        nc = max(nsub, len(sc[1]) if sc is not None else 0)
+        sc = (
+            np.empty(vc, dtype=np.float64),
+            np.empty(nc, dtype=np.float32),
+            np.empty(nc, dtype=np.float32),
+            np.empty(nc, dtype=np.int32),
+            np.empty(nc * 2, dtype=np.float32),
+        )
+        _draw_tls.fsaa = sc
+    m9 = np.ascontiguousarray(m, dtype=np.float64).ravel()
+    c3 = np.ascontiguousarray(centre, dtype=np.float64).ravel()
+    cam7 = np.array([float(cam['distance']), float(cam['scale']), float(cam['cx']),
+                     float(cam['cy']), float(cam.get('aspect', 0.5)), float(layer_m), 0.0],
+                    dtype=np.float64)
+    c_lit = _lit_constants()
+    out_d = np.empty((height, width), dtype=np.float64)
+    out_c = np.empty((height, width, 4), dtype=np.uint8)
+    lib.rs_lit_mesh_fsaa(
+        n_verts, pos_c.ctypes.data, nrm_c.ctypes.data, uv_c.ctypes.data, mat_c.ctypes.data,
+        n_tris, idx_c.ctypes.data, m9.ctypes.data, c3.ctypes.data, cam7.ctypes.data,
+        int(under_flag), width, height, int(bool(fsaa)),
+        c_lit[0].ctypes.data, c_lit[1].ctypes.data, c_lit[2].ctypes.data, c_lit[3].ctypes.data,
+        sc[0].ctypes.data, sc[1].ctypes.data, sc[2].ctypes.data, sc[3].ctypes.data,
+        sc[4].ctypes.data, out_d.ctypes.data, out_c.ctypes.data,
+    )
+    return out_d, out_c

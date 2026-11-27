@@ -509,15 +509,24 @@ void rs_lit_shade_win(int npix, const int32_t *restrict win, const double *restr
     }
     if (mat == 0u)
     {
-      double       ip0, ip1;
-      const double g0 = fabs(modf(uv[u_off] * 22.0, &ip0) - 0.5);
-      const double g1 = fabs(modf(uv[u_off + 1u] * 30.0, &ip1) - 0.5);
-      if (((g0 > g1) ? g0 : g1) > 0.4)
+      double ip0, ip1;
+      double fu = modf(uv[u_off] * 22.0, &ip0), fv = modf(uv[u_off + 1u] * 30.0, &ip1);
+      if (fu < 0.0)
       {
-        b0 *= 0.5;
-        b1 *= 0.5;
-        b2 *= 0.5;
+        fu += 1.0;
       }
+      if (fv < 0.0)
+      {
+        fv += 1.0;
+      }
+      const double g0 = fabs(fu - 0.5), g1 = fabs(fv - 0.5);
+      const double gm = (g0 > g1) ? g0 : g1;
+      double       st = (gm - 0.36) * 10.0;
+      st = (st < 0.0) ? 0.0 : ((st > 1.0) ? 1.0 : st);
+      const double att = 1.0 - 0.5 * (st * st * (3.0 - 2.0 * st));
+      b0 *= att;
+      b1 *= att;
+      b2 *= att;
     }
     double c0, c1, c2;
     if (mat == 3u)
@@ -529,7 +538,8 @@ void rs_lit_shade_win(int npix, const int32_t *restrict win, const double *restr
     }
     else
     {
-      const double shine = (mat == 1u) ? 0.12 : (woven ? 0.0 : (twill ? 0.9 : 0.55));
+      const double base_sh = (mat >= (1u << 24)) ? 0.3 : 0.55;
+      const double shine = (mat == 1u) ? 0.12 : (woven ? 0.0 : (twill ? 0.9 : base_sh));
       const double df = 0.10 + 0.85 * lam + fil, sp = spec * shine;
       const double rf = rim * (woven ? 0.15 : (hard ? 0.3 : 0.8));
       c0 = b0 * df + sp + rf * 0.55;
@@ -539,9 +549,9 @@ void rs_lit_shade_win(int npix, const int32_t *restrict win, const double *restr
     c0 = (c0 < 0.0) ? 0.0 : ((c0 > 1.0) ? 1.0 : c0);
     c1 = (c1 < 0.0) ? 0.0 : ((c1 > 1.0) ? 1.0 : c1);
     c2 = (c2 < 0.0) ? 0.0 : ((c2 > 1.0) ? 1.0 : c2);
-    const uint8_t r8 = (uint8_t)(c0 * 255.0);
-    const uint8_t g8 = (uint8_t)(c1 * 255.0);
-    const uint8_t b8 = (uint8_t)(c2 * 255.0);
+    const uint8_t r8 = (uint8_t)(c0 * 255.0 + 0.5);
+    const uint8_t g8 = (uint8_t)(c1 * 255.0 + 0.5);
+    const uint8_t b8 = (uint8_t)(c2 * 255.0 + 0.5);
     const uint8_t a8 = twill ? (uint8_t)(((nx > 0.0) ? 0 : 128) + (hard ? 64 : 0))
                              : (hard ? 224u : 255u);
     uint8_t       bytes4[4] = {r8, g8, b8, a8};
