@@ -576,6 +576,10 @@ void wbc_world_posed(wbc_kinematics_t kin, const struct mjModel_ *m, struct mjDa
                      const double *qpos, int nb, const int *bodies, int nj, const int *jnt,
                      double *xpos, double *xmat, double *axis, double *anchor)
 {
+  if (n <= 0 || nq <= 0 || nq > m->nq)
+  {
+    return;
+  }
   const size_t qbytes = (size_t)nq * sizeof(double);
 
   for (int k = 0; k < n; k++)
@@ -584,6 +588,10 @@ void wbc_world_posed(wbc_kinematics_t kin, const struct mjModel_ *m, struct mjDa
     kin(m, d);
     for (int b = 0; b < nb; b++)
     {
+      if (bodies[b] < 0 || bodies[b] >= m->nbody)
+      {
+        continue;
+      }
       const size_t       bid = (size_t)bodies[b];
       const size_t       off = (size_t)k * (size_t)nb + (size_t)b;
       const double      *src_p = d->xpos + 3U * bid;
@@ -598,6 +606,10 @@ void wbc_world_posed(wbc_kinematics_t kin, const struct mjModel_ *m, struct mjDa
     }
     for (int j = 0; j < nj; j++)
     {
+      if (jnt[j] < 0 || jnt[j] >= m->njnt)
+      {
+        continue;
+      }
       const size_t  jid = (size_t)jnt[j];
       const size_t  off = (size_t)k * (size_t)nj + (size_t)j;
       const double *src_ax = d->xaxis + 3U * jid;

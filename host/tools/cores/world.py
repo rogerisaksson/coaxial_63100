@@ -136,6 +136,10 @@ def posed(m, d, qpos, bodies, jnt):
     q_c = np.ascontiguousarray(qpos, dtype=np.float64)
     b_c = np.ascontiguousarray(bodies, dtype=np.int32)
     j_c = np.ascontiguousarray(jnt, dtype=np.int32)
+    if (q_c.ndim != 2 or q_c.shape[1] != m.nq or b_c.ndim != 1 or j_c.ndim != 1
+            or (len(b_c) and (int(b_c.min()) < 0 or int(b_c.max()) >= m.nbody))
+            or (len(j_c) and (int(j_c.min()) < 0 or int(j_c.max()) >= m.njnt))):
+        return None
     n, nb, nj = len(q_c), len(b_c), len(j_c)
     xpos = np.empty((n, nb, 3), dtype=np.float64)
     xmat = np.empty((n, nb, 3, 3), dtype=np.float64)

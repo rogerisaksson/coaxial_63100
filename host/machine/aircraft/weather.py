@@ -21,7 +21,7 @@ EDDY_S, EDDY_DISC_S, EDDY_DISC, EDDY_UP = _W['eddy_s'], _W['eddy_disc_s'], _W['e
 REF_M, SHEAR, SHEAR_M, SHEAR_MOST, RISE_M = _W['ref_m'], _W['shear'], _W['shear_m'], _W['shear_most'], _W['rise_m']
 DISCS = _W['discs']
 _SQRT2 = math.sqrt(2.0)
-_DECAY: list = [None, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+_DECAY: tuple = (None, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
 
 
 def air(seed=3, kind=None):
@@ -73,10 +73,13 @@ def blown(air, dt):
         into, of, share, off = air['gust']
         blows = 0.5 * share * gust * (1.0 - math.cos(math.tau * into / of))
         air['gust'] = (into + dt, of, share, off) if into + dt < of else None
-    if _DECAY[0] != dt:
+    global _DECAY
+    dec = _DECAY
+    if dec[0] != dt:
         k0, k1 = math.exp(-dt / EDDY_S), math.exp(-dt / EDDY_DISC_S)
-        _DECAY[:] = [dt, k0, 1.0 - k0, math.sqrt(1.0 - k0 * k0), k1, 1.0 - k1, math.sqrt(1.0 - k1 * k1)]
-    _dt, k0, om0, s0, k1, om1, s1 = _DECAY
+        dec = (dt, k0, 1.0 - k0, math.sqrt(1.0 - k0 * k0), k1, 1.0 - k1, math.sqrt(1.0 - k1 * k1))
+        _DECAY = dec
+    _dt, k0, om0, s0, k1, om1, s1 = dec
     gauss = dice.gauss
     eddy, stirs = air['eddy'], air['stirs']
     st0 = stirs[0]

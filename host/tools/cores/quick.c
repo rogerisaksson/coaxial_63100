@@ -277,21 +277,21 @@ static PyObject *row_put(PyObject *self, PyObject *const *args, Py_ssize_t n)
   const PyArrayObject_fields *t = (const PyArrayObject_fields *)args[3];
   if (Py_TYPE(args[0]) != ndarray || Py_TYPE(args[2]) != ndarray || Py_TYPE(args[3]) != ndarray)
     Py_RETURN_FALSE;
-  if (!(r->flags & NPY_ARRAY_C_CONTIGUOUS) || !(y->flags & NPY_ARRAY_C_CONTIGUOUS)
-      || !(t->flags & NPY_ARRAY_C_CONTIGUOUS))
+  if (!(r->flags & NPY_ARRAY_C_CONTIGUOUS) || !(r->flags & NPY_ARRAY_WRITEABLE)
+      || !(y->flags & NPY_ARRAY_C_CONTIGUOUS) || !(t->flags & NPY_ARRAY_C_CONTIGUOUS))
     Py_RETURN_FALSE;
   if (r->descr->type_num != NPY_DOUBLE || y->descr->type_num != NPY_DOUBLE || t->descr->type_num != NPY_DOUBLE
       || !PyArray_ISNBO(r->descr->byteorder) || !PyArray_ISNBO(y->descr->byteorder)
       || !PyArray_ISNBO(t->descr->byteorder))
     Py_RETURN_FALSE;
-  if (r->nd != 2 || idx >= r->dimensions[0] || r->dimensions[1] != ny + ntau
+  if (r->nd != 2 || idx >= r->dimensions[0] || ny > r->dimensions[1] || ntau != r->dimensions[1] - ny
       || y->nd != 1 || y->dimensions[0] != ny || t->nd != 1 || t->dimensions[0] != ntau)
     Py_RETURN_FALSE;
-  double *dst = (double *)r->data + (size_t)idx * (size_t)(ny + ntau);
+  double *dst = (double *)r->data + (size_t)idx * (size_t)r->dimensions[1];
   if (ny > 0)
-    memcpy(dst, y->data, (size_t)ny * sizeof(double));
+    memmove(dst, y->data, (size_t)ny * sizeof(double));
   if (ntau > 0)
-    memcpy(dst + ny, t->data, (size_t)ntau * sizeof(double));
+    memmove(dst + ny, t->data, (size_t)ntau * sizeof(double));
   Py_RETURN_TRUE;
 }
 

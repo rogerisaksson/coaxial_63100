@@ -302,11 +302,13 @@ def _prepared(obs, qpos, v):
         obs['gated'][:] = ~obs['soled'] & (obs['latch_of'] @ (obs['latched'] > 0.5) == 0.0)
         obs['gated_of'][0] = latched
     prep = obs.get('prepare')
+    nu = len(obs['u'])
     if (prep is not None and type(qpos) is np.ndarray and type(v) is np.ndarray
+            and qpos.ndim == 1 and v.ndim == 1 and len(qpos) >= nu + 1 and len(v) >= nu
             and qpos.flags.c_contiguous and v.flags.c_contiguous
             and qpos.dtype == np.float64 and v.dtype == np.float64):
         b_ptr, q_ptr, u_ptr = obs['ins']
-        prep(b_ptr, q_ptr, u_ptr, len(obs['u']), address(qpos), address(v))
+        prep(b_ptr, q_ptr, u_ptr, nu, address(qpos), address(v))
         return
     base, u = obs['base'], obs['u']
     qw, qx, qy, qz = float(qpos[3]), float(qpos[4]), float(qpos[5]), float(qpos[6])

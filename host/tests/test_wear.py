@@ -289,6 +289,32 @@ def test_the_campaign_kernels_in_c_are_python_s(report):
                   and all(isinstance(v, dict) for v in identify._HEMS.values()))
         report.check('identify caches key by topology digest without pinning MjModel or duplicating entries',
                      no_pin, 'caps=%d hems=%d' % (len(identify._CAPS), len(identify._HEMS)))
+    from machine.aircraft import weather
+    from tools.cores import quick, world as c_world
+    rp = quick.row_putter()
+    if rp is not None:
+        ro = np.zeros((3, 5), dtype=np.float64)
+        ro.flags.writeable = False
+        refused = (not rp(ro, 1, np.ones(3), np.ones(2), 3, 2)) and float(ro.sum()) == 0.0
+        rw = np.arange(15, dtype=np.float64).reshape(3, 5)
+        wrote = bool(rp(rw, 1, rw[1, 1:4], np.array([10.0, 11.0]), 3, 2))
+        aliased_ok = wrote and rw[1].tolist() == [6.0, 7.0, 8.0, 10.0, 11.0]
+        report.check('quick.row_put refuses read-only arrays and handles aliased views via memmove',
+                     refused and aliased_ok, 'refused=%s rw1=%s' % (refused, rw[1].tolist()))
+    bad_q = c_world.posed(body.m, body.d, np.zeros((1, 2)), [0], [0])
+    bad_b = c_world.posed(body.m, body.d, np.zeros((1, body.m.nq)), [body.m.nbody], [0])
+    bad_j = c_world.posed(body.m, body.d, np.zeros((1, body.m.nq)), [0], [-1])
+    report.check('world.posed rejects malformed qpos width and out-of-range body/joint indices',
+                 bad_q is None and bad_b is None and bad_j is None,
+                 'q=%s b=%s j=%s' % (bad_q is None, bad_b is None, bad_j is None))
+    a_w = weather.air(seed=5)
+    weather.blown(a_w, 0.01)
+    d1 = weather._DECAY
+    weather.blown(a_w, 0.02)
+    d2 = weather._DECAY
+    report.check('weather._DECAY is an immutable tuple snapshot per dt',
+                 isinstance(d1, tuple) and isinstance(d2, tuple) and d1[0] == 0.01 and d2[0] == 0.02,
+                 '%s %s' % (type(d1).__name__, type(d2).__name__))
 
 
 ROSTER = (test_the_campaign_kernels_in_c_are_python_s,
