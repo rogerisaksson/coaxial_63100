@@ -34,6 +34,10 @@ CGROUPS = ('sys', 'fs', 'cgroup')
 #: Windows' ABOVE_NORMAL class - over the host's other loads, short of HIGH, which a baton a core could starve
 #: the desktop with.
 BENCH = 'COAXIAL_BENCH'
+#: Set by an interactive desk UX (`interactive` / `placed(ui=True)`) so `Ahead` and loop children re-apply
+#: `ABOVE_NORMAL` across Windows `CreateProcess` (which resets `ABOVE_NORMAL` to `NORMAL`).
+INTERACTIVE = 'COAXIAL_INTERACTIVE'
+_IDLE_CLASS, _BELOW_CLASS, _ABOVE_CLASS, _THREAD_ABOVE_NORMAL = 0x0040, 0x4000, 0x8000, 1
 #: Set by who starts the robot's processes (a desk's batch, `tools.dev.background.lower`): the processors they are
 #: given, a hex mask, placed within as a container's cpuset (`given`); unset, all.
 GIVEN = 'COAXIAL_GIVEN'
@@ -64,7 +68,11 @@ def _kernel():
     kernel.CreateMutexW.argtypes = [ctypes.c_void_p, wintypes.BOOL, wintypes.LPCWSTR]
     kernel.OpenMutexW.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.LPCWSTR]
     kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel.GetPriorityClass.argtypes = [wintypes.HANDLE]
+    kernel.GetPriorityClass.restype = wintypes.DWORD
     kernel.SetPriorityClass.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+    kernel.SetThreadPriority.argtypes = [wintypes.HANDLE, ctypes.c_int]
+    kernel.SetThreadPriority.restype = wintypes.BOOL
     kernel.SetProcessAffinityMask.argtypes = [wintypes.HANDLE, ctypes.c_size_t]
     kernel.OpenProcess.restype = wintypes.HANDLE
     kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
@@ -379,21 +387,51 @@ def _keen():
         return False
 
 
-def raised():
-    """This process above normal priority where BENCH is set (a benchmark's relay): measurements less at the
-    mercy of the host's other loads. False where unset or on another system; results untouched - only how
-    soon."""
-    if not os.environ.get(BENCH) or sys.platform != 'win32':
+def interactive_allowed(priority_class: int, environ=None) -> bool:
+    """Whether a desk UX at `priority_class` may elevate to `ABOVE_NORMAL` (never on CI or batch jobs)."""
+    env = os.environ if environ is None else environ
+    return env.get('CI', '').lower() not in ('1', 'true') and priority_class not in (_BELOW_CLASS, _IDLE_CLASS)
+
+
+def raised(ui: bool = False, loop: bool = False) -> bool:
+    """Raise this process above `NORMAL` priority when `BENCH`, `INTERACTIVE`, or desk `ui` applies."""
+    want_bench = bool(os.environ.get(BENCH))
+    want_ux = ui or bool(os.environ.get(INTERACTIVE))
+    if not (want_bench or want_ux):
         return False
+    if sys.platform != 'win32':
+        if not want_bench and not interactive_allowed(0):
+            return False
+        if ui:
+            os.environ[INTERACTIVE] = '1'
+        if want_ux and hasattr(os, 'nice'):
+            try:
+                os.nice(-5)
+            except OSError:
+                pass
+        return bool(ui)
     kernel = _kernel()
-    return bool(kernel.SetPriorityClass(kernel.GetCurrentProcess(), getattr(subprocess, 'ABOVE_NORMAL_PRIORITY_CLASS')))
+    proc = kernel.GetCurrentProcess()
+    if not want_bench and not interactive_allowed(int(kernel.GetPriorityClass(proc))):
+        return False
+    if ui:
+        os.environ[INTERACTIVE] = '1'
+    ok = bool(kernel.SetPriorityClass(proc, getattr(subprocess, 'ABOVE_NORMAL_PRIORITY_CLASS', _ABOVE_CLASS)))
+    if ok and want_ux and (ui or loop):
+        kernel.SetThreadPriority(kernel.GetCurrentThread(), _THREAD_ABOVE_NORMAL)
+    return ok
+
+
+def interactive() -> bool:
+    """Mark this interactive terminal tree `INTERACTIVE` and elevate its priority above `NORMAL` desk loads."""
+    return raised(ui=True)
 
 
 def placed(loop=False, host=None, cache=False, ui=False):
     """Place this process on its host's topology (`loop` for a real-time loop's LLC group, `cache` for camera/vision,
     `ui` for a terminal UX whose Windows render thread takes a dedicated core while child/loader threads span `rest`)."""
     if host is None:
-        raised()
+        raised(ui=ui, loop=loop)
         if sys.platform == 'darwin':
             return (loop or ui) and _keen()
     found, caches = topology() if host is None else host

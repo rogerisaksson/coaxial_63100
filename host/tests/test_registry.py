@@ -189,8 +189,51 @@ def test_a_looks_rows_patched_as_laid_whole(report, c):
                  '%d apart: %s; %s' % (len(worst), worst[:2], others))
 
 
-ROSTER = (test_the_robots_map_looks_in_c_as_in_numpy, test_the_robots_lodge_looks_in_c_as_in_numpy,
-          test_a_looks_rows_patched_as_laid_whole)
+def test_c11_vision_and_way_bit_exact_parity(report, _c):
+    """C11 `vision.c` epipolar warp, stereo SGM disparity, 3D voxel raycast/scatter, and `way.c` 8-way A* match twins."""
+    from machine.eyes import epipolar, gimbal, grids, stereo, voxels
+    from tools.cores import vision as vision_core, way as way_core
+    rng = np.random.default_rng(77)
+    fine_l = rng.integers(0, 256, (epipolar.FINE * stereo.H, epipolar.FINE * stereo.W, 3), dtype=np.uint8)
+    fine_r = np.roll(fine_l, -28, axis=1)
+    laid = epipolar.Laid(gimbal.eye('left', (0.12, -0.08)), gimbal.eye('right', (0.10, -0.08)), xp=np)
+    a_c, b_c = laid._warped(fine_l, 0, in_c=True), laid._warped(fine_r, 1, in_c=True)
+    a_py, b_py = laid._warped(fine_l, 0, in_c=False), laid._warped(fine_r, 1, in_c=False)
+    warp_same = np.array_equal(a_c, a_py) and np.array_equal(b_c, b_py)
+    got_d, got_k = stereo.cpu_disparity(a_c, b_c)
+    twin_d, twin_k = stereo.cpu_disparity_twin(a_py, b_py)
+    disp_same = np.array_equal(got_d.view(np.uint64), twin_d.view(np.uint64)) and np.array_equal(got_k, twin_k)
+
+    pal = {'wood': (180, 140, 90), 'wall': (210, 210, 210)}
+    m_c, m_py = voxels.Map(pal), voxels.Map(pal)
+    vox_same = True
+    for _ in range(4):
+        xyz = rng.uniform([-2.5, 0.05, -1.5], [2.5, 2.2, 4.0], (6000, 3))
+        rgb = rng.integers(0, 256, (6000, 3), dtype=np.uint8)
+        eye = rng.uniform([-0.5, 1.3, -0.5], [0.5, 1.6, 0.5], 3)
+        f_c, f_py = m_c.add(xyz, rgb, eye), m_py.add_twin(xyz, rgb, eye)
+        vox_same = (vox_same and np.array_equal(f_c, f_py)
+                    and np.array_equal(m_c.hits, m_py.hits)
+                    and np.array_equal(m_c.told, m_py.told)
+                    and np.array_equal(m_c.free, m_py.free)
+                    and np.array_equal(m_c.top.view(np.uint64), m_py.top.view(np.uint64))
+                    and np.array_equal(m_c.moments.view(np.uint64), m_py.moments.view(np.uint64))
+                    and np.array_equal(m_c.colour.view(np.uint32), m_py.colour.view(np.uint32)))
+    astar_off = 0
+    for _ in range(40):
+        grid = rng.uniform(1.0, 5.0, (32, 32))
+        grid[rng.random((32, 32)) < 0.25] = np.inf
+        s_pt, g_pt = (int(rng.integers(0, 32)), int(rng.integers(0, 32))), (int(rng.integers(0, 32)), int(rng.integers(0, 32)))
+        grid[s_pt], grid[g_pt] = 1.0, 1.0
+        astar_off += grids.astar(grid, s_pt, g_pt) != grids.astar_twin(grid, s_pt, g_pt)
+    report.check('C11 vision.c warp, SGM, voxel raycast/scatter, and way.c A* match twins bit-for-bit',
+                 vision_core.ensure() is not None and way_core.ensure() is not None
+                 and warp_same and disp_same and vox_same and astar_off == 0,
+                 'warp=%s disp=%s vox=%s astar_off=%d' % (warp_same, disp_same, vox_same, astar_off))
+
+
+ROSTER = (test_c11_vision_and_way_bit_exact_parity, test_the_robots_map_looks_in_c_as_in_numpy,
+          test_the_robots_lodge_looks_in_c_as_in_numpy, test_a_looks_rows_patched_as_laid_whole)
 
 
 def main(argv=None):

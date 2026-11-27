@@ -20,7 +20,7 @@ baseline over their tangents' gap, along it that times the left's (`points`).
 import math
 
 from machine import libm
-from machine.eyes.stereo import BASELINE_M, FOVY_DEG, H, W, WINDOW, _array_disparity, _boxed, _np, card, indices
+from machine.eyes.stereo import BASELINE_M, FOVY_DEG, H, W, WINDOW, _array_disparity, _boxed, _np, card, cpu_disparity, indices
 
 #: The robot's eyes' focal length, px (`sight.focal`).
 F = (H / 2.0) / libm.tan(math.radians(FOVY_DEG) / 2.0)
@@ -138,10 +138,15 @@ class Laid:
         its type kept, on the CPU."""
         return host(self._warped(img, k))
 
-    def _warped(self, img, k):
+    def _warped(self, img, k, in_c=True):
         """`warped` on its array module."""
         xp = self.xp
         (at, wt), a = self._four[k], xp.asarray(img)
+        if in_c and xp is _np() and a.dtype == xp.uint8 and a.shape == (FINE * H, FINE * W, 3) and FINE == 2:
+            from tools.cores import vision
+            got = vision.warp_u8(a, at, wt, self._on[k], H, W, BITS)
+            if got is not None:
+                return got
         flat, whole = _areas(a, xp).reshape(_AREAS[0] * _AREAS[1], -1), (1 << (2 * BITS)) * FINE * FINE
         out = (sum((flat[at[i]] * wt[i][:, None] for i in range(4)), xp.zeros((H * W, flat.shape[1]), xp.int64))
                + whole // 2) // whole
@@ -184,5 +189,5 @@ def matched(left, right, left_R, right_R, line=None):
     xp = card() or _np()
     laid = Laid(left_R, right_R, line, xp)
     a, b = laid._warped(left, 0), laid._warped(right, 1)
-    disp, kept = _array_disparity(a, b, xp, card=xp is not _np())
+    disp, kept = cpu_disparity(a, b) if xp is _np() else _array_disparity(a, b, xp, card=True)
     return host(a), host(b), host(disp), host(kept & laid._kept(disp)), laid

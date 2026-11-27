@@ -178,8 +178,9 @@ def started(machines):
     from tools import REPO
     from machine.process import placed
     host = os.path.join(REPO, 'host')
-    env = dict(os.environ, **{placed.FLOAT: '1',
-                              'PYTHONPATH': os.pathsep.join(p for p in (host, os.environ.get('PYTHONPATH')) if p)})
+    base_env = {k: v for k, v in os.environ.items() if k != placed.INTERACTIVE}
+    env = dict(base_env, **{placed.FLOAT: '1',
+                            'PYTHONPATH': os.pathsep.join(p for p in (host, os.environ.get('PYTHONPATH')) if p)})
     return subprocess.Popen([sys.executable, '-X', 'utf8', '-m', 'tools.sim.warmed', *machines], cwd=host, env=env,
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8',
                             errors='replace')
@@ -233,9 +234,10 @@ def main(argv=None):
     if unknown:
         parser.error('no machine %s: %s' % (', '.join(unknown), ', '.join(MACHINES)))
     from machine.process import placed
-    from tools.cores import raster
-    if not raster.current():
-        raster.ensure()
+    from tools.cores import raster, vision, way
+    for mod in (raster, vision, way):
+        if not mod.current():
+            mod.ensure()
     late = behind(args.machines or MACHINES)
     os.environ.setdefault(placed.FLOAT, '1')
     if late:

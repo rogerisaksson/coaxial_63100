@@ -110,9 +110,14 @@ class Map:
         return i, j, k, inside
 
     def add(self, xyz, rgb, eye):
-        """One look into the map: the points `xyz` (n, 3, the estimate's frame) with their colours `rgb` (n, 3)
-        standing between FLOOR_M and CEIL_M, NEAR_M to FAR_M from `eye`; the voxels their rays crossed, free. (n,)
-        each point's voxel in the map's flat order, -1 off it."""
+        """One look into the map: points `xyz` (n, 3) and colours `rgb` (n, 3) between FLOOR_M and CEIL_M, NEAR_M to
+        FAR_M from `eye`; crossed voxels marked free. Returns (n,) flat voxel index per point, -1 off the map."""
+        from tools.cores import vision
+        got = vision.voxel_add(self, xyz, rgb, eye, X_M[0], FLOOR_M, Z_M[0], CEIL_M, NEAR_M, FAR_M, HITS, TOLD)
+        return self.add_twin(xyz, rgb, eye) if got is None else got
+
+    def add_twin(self, xyz, rgb, eye):
+        """`add` in NumPy alone, bit-for-bit identical to `vision.voxel_add`."""
         away = np.linalg.norm(xyz - eye, axis=1)
         ok = (xyz[:, 1] > FLOOR_M) & (xyz[:, 1] < CEIL_M) & (away > NEAR_M) & (away < FAR_M)
         self._seen_through(eye, xyz[ok])
@@ -131,10 +136,8 @@ class Map:
 
     def _seen_through(self, eye, xyz, step=0.8):
         """The voxels each ray from `eye` crossed short of its point by a voxel, `step` voxels a sample, up to the
-        first the map holds occupied - a ray grazing along a wall the robot has seen stops at it -, counted free
-        once a look; a sample over the highest point a voxel was told (`top`) not through it: a ray over a seat's
-        top in its voxel's air passes what the seat is - a chair's seat 4 cm thick low in its 0.1 m layer, seen
-        from 2.7 m, read as seen through and its seat gone from the map."""
+        first occupied voxel, counted free once a look; a sample over a voxel's `top` does not clear what lies low in
+        that layer."""
         step, d = step * self.voxel, xyz - eye
         far = np.linalg.norm(d, axis=1)
         n = int(np.ceil(far.max() / step)) if len(far) else 0

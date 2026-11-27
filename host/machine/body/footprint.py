@@ -121,6 +121,10 @@ def gaps(poses, h, things, floor):
         return np.full((len(poses), 0), np.inf)
     meets, toward = met(things, floor, h)
     (_lo, _hi, c, axes, half), _meetings = _laid_things(things)
+    from tools.cores import way
+    got = way.gaps(poses, phi, K, meets, toward, c, axes, half)
+    if got is not None:
+        return got
     yaw, at = poses[:, 2], poses[:, :2]
     ahead, left = np.stack([np.sin(yaw), np.cos(yaw)], -1), np.stack([np.cos(yaw), -np.sin(yaw)], -1)
     dirs = np.cos(phi)[None, :, None] * ahead[:, None, :] + np.sin(phi)[None, :, None] * left[:, None, :]

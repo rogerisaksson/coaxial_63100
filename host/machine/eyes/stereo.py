@@ -182,6 +182,11 @@ def _grey(rgb, xp):
 def _boxed(a, r, xp=None):
     """`a` summed over (2r+1)^2 windows, edges clipped."""
     xp = xp or _np()
+    if xp.__name__ == 'numpy' and getattr(a, 'dtype', None) == xp.int64 and getattr(a, 'ndim', 0) == 2:
+        from tools.cores import vision
+        got = vision.box_i64(a, r)
+        if got is not None:
+            return got
     p = xp.pad(a, r, mode='edge')
     c = xp.cumsum(xp.cumsum(p, axis=0), axis=1)
     c = xp.pad(c, ((1, 0), (1, 0)))
@@ -337,9 +342,20 @@ def _array_disparity(left, right, xp, card=False):
     return disp, kept
 
 
-def cpu_disparity(left, right):
-    """(disparity px, kept) computed on the CPU."""
+def cpu_disparity_twin(left, right):
+    """(disparity px, kept) computed on the CPU in NumPy alone."""
     return _array_disparity(left, right, _np())
+
+
+def cpu_disparity(left, right):
+    """(disparity px, kept) computed on the CPU (C11 `vision.c` when built, else NumPy)."""
+    if getattr(left, 'shape', ())[:2] == (H, W) and getattr(right, 'shape', ())[:2] == (H, W):
+        from tools.cores import vision
+        got = vision.disparity(left, right, DISPARITIES, CENSUS, QUANTUM, WINDOW, P1, P2,
+                               TEXTURE, UNIQUE, _grey)
+        if got is not None:
+            return got
+    return cpu_disparity_twin(left, right)
 
 
 _SOLVER = {}

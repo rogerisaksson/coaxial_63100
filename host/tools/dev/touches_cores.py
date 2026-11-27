@@ -1,8 +1,9 @@
 """What a change to tools/cores/ reaches: its modules, a prefix each, and their suites."""
-from tools.dev.suites import (AERO_CORE, BOOT_CLIENT, BOOT_CORE, COMPILED, ENGRAMS, HOTSWAP, PAINT, QUICK, RENDER,
-                              TICK, VECTORIZED, LIBM, PORTED, BORNE, REGISTRY, CLASSES, CORE, CTRL_CORE, DAQ_CORE,
-                              DRIVE, DRIVE_OBSERVER, FILTER, LEAP, ORTHO, QUADS, REACH, SENSORLESS, SHTP, STREAMS,
-                              STRUCTURE, SYSID, THERMAL, THERMAL_APP, VIEWS, WBC_CORE, WEAR, WORLD_CORE)
+from tools.dev.suites import (AERO_CORE, BOOT_CLIENT, BOOT_CORE, COMPILED, DOCKS, ENGRAMS, GAZE, HOTSWAP, PAINT,
+                              QUICK, RENDER, SIGHT, TICK, VECTORIZED, LIBM, PORTED, BORNE, REGISTRY, CLASSES, CORE,
+                              CTRL_CORE, DAQ_CORE, DRIVE, DRIVE_OBSERVER, FILTER, LEAP, ORTHO, QUADS, REACH,
+                              SENSORLESS, SHTP, STREAMS, STRUCTURE, SYSID, THERMAL, THERMAL_APP, VIEWS, WAYFINDER,
+                              WBC_CORE, WEAR, WORLD_CORE)
 
 #: tools/cores/'s rows of the path map (`touches.TOUCHES`) in its order: a module's before the folder's own.
 CORES = (
@@ -54,5 +55,9 @@ CORES = (
     ('host/tools/cores/raster.py',             (STRUCTURE, RENDER, PAINT, *VIEWS)),
     ('host/tools/cores/raster.c',              (STRUCTURE, RENDER, PAINT, *VIEWS)),
     ('host/tools/cores/raster_cells.c',        (STRUCTURE, RENDER, PAINT, *VIEWS)),
+    ('host/tools/cores/vision.py',             (STRUCTURE, REGISTRY, SIGHT, GAZE)),
+    ('host/tools/cores/vision.c',              (STRUCTURE, REGISTRY, SIGHT, GAZE)),
+    ('host/tools/cores/way.py',                (STRUCTURE, REGISTRY, WAYFINDER, REACH, DOCKS, SIGHT)),
+    ('host/tools/cores/way.c',                 (STRUCTURE, REGISTRY, WAYFINDER, REACH, DOCKS, SIGHT)),
     ('host/tools/cores/aero.py',               QUADS + (AERO_CORE, STREAMS)),
 )

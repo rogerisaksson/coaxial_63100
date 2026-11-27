@@ -60,10 +60,14 @@ def apart(points, things):
     """(N, M) m from each floor point (N, 2) x, z to each of `things`' footprints, 0 within one: each point's offset
     turned into a footprint's axes numpy's einsum's sum written out - its two products added into a zero, the same
     bits (`apart_twin` the einsum) -, its loop 11 ms of a plan's 33."""
-    prints = [affordance.footprint(t) for t in things]
-    c = np.array([p[0] for p in prints], float).reshape(-1, 2)
-    axes = np.array([p[1] for p in prints], float).reshape(-1, 2, 2)
-    half = np.array([p[2] for p in prints], float).reshape(-1, 2)
+    (_lo, _hi, c, axes, half), _meetings = footprint._laid_things(things)
+    from tools.cores import way
+    got = way.apart(points, c, axes, half)
+    if got is not None:
+        return got
+    c = c.reshape(-1, 2)
+    axes = axes.reshape(-1, 2, 2)
+    half = half.reshape(-1, 2)
     off = np.asarray(points, float)[:, None, :] - c[None]
     turned = (0.0 + axes[None, :, :, 0] * off[:, :, None, 0]) + axes[None, :, :, 1] * off[:, :, None, 1]
     out = np.maximum(np.abs(turned) - half[None], 0.0)

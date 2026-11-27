@@ -269,9 +269,12 @@ def main(argv=None):
     parser.add_argument('--frames', type=int, default=0,
                         help='draw this many and exit - the smoke')
     args = parser.parse_args(argv)
+    interactive = sys.stdin.isatty() and not args.frames
+    if interactive:
+        from machine.process import placed
+        placed.interactive()
     kept(args, [by_name(args.name)[0]] if args.name else pages())
     state = fresh()
-    interactive = sys.stdin.isatty() and not args.frames
     tubed = sys.stdout.isatty() and not args.frames
     if interactive and not tubed:
         from tools.target import current

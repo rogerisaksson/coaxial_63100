@@ -160,6 +160,15 @@ def astar(cost, start, goal):
     """The cells from `start` to `goal` of least cost, `cost` (nx, nz) a metre's through each, inf blocked:
     eight ways, a step its length times its two cells' mean cost, no diagonal past a blocked cell; []
     where none. Each cell costs 1 at least: the straight distance is its heuristic."""
+    from tools.cores import way
+    got = way.astar(cost, start, goal)
+    if got is not None:
+        return got
+    return astar_twin(cost, start, goal)
+
+
+def astar_twin(cost, start, goal):
+    """`astar` in pure Python `heapq`, bit-exact oracle for `way.astar`."""
     nx, nz = cost.shape
     c_ = cost.tolist()
     root2 = math.sqrt(2.0)

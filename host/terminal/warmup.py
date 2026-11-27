@@ -98,7 +98,7 @@ def cold_tasks(port: str, simulated: bool, state: dict, include_preload: bool = 
     from coaxial.draw import orientation
     from coaxial.graphics import preload as pickled
     from terminal import loader
-    from tools.cores import identify, native, prefetch, raster
+    from tools.cores import identify, native, prefetch, raster, vision, way
     from tools.target import current
 
     tasks = []
@@ -114,15 +114,17 @@ def cold_tasks(port: str, simulated: bool, state: dict, include_preload: bool = 
         tasks.append(('board', 'STM32H753 BOARD & WORLD C11',
                       lambda step: (step(0.1, 'FIRMWARE & WORLD SIL'),
                                     native.ensure())))
-    if not prefetch.current() or not identify.current():
+    host_cores = ((prefetch, 'L1/L2/L3 CACHE LOADER C11'),
+                  (identify, 'SYSID & KINEMATICS C11'),
+                  (vision, 'STEREO SGM & VOXELS C11'),
+                  (way, 'WAYFINDER & GAPS C11'))
+    if any(not mod.current() for mod, _lbl in host_cores):
         def _warm_host_cores(step):
-            if not prefetch.current():
-                step(0.1, 'L1/L2/L3 CACHE LOADER C11')
-                prefetch.ensure()
-            if not identify.current():
-                step(0.55, 'SYSID & KINEMATICS C11')
-                identify.ensure()
-        tasks.append(('cores', 'CACHE & KINEMATICS C11', _warm_host_cores))
+            cold = [(mod, lbl) for mod, lbl in host_cores if not mod.current()]
+            for k, (mod, lbl) in enumerate(cold):
+                step((k + 0.1) / max(1, len(cold)), lbl)
+                mod.ensure()
+        tasks.append(('cores', 'VISION, WAY & CACHE C11', _warm_host_cores))
     if include_preload and not pickled.whole(pickled.load(orientation.MODEL)):
         def _warm_mesh(step):
             seen = [0]

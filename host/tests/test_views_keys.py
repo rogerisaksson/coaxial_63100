@@ -353,10 +353,22 @@ def test_pre_menu_braille_warmup_bar(report):
                  'rows=%s updates=%d' % (box_rows, len(ran)))
 
 
+def test_interactive_ux_priority_guards_batch_and_ci(report):
+    """`placed.interactive_allowed` elevates interactive desk UX above `NORMAL` while leaving `BELOW_NORMAL` batch
+    jobs, `IDLE` jobs, and `CI=1` runners untouched."""
+    from machine.process import placed
+    report.check('interactive UX priority allowed at NORMAL, blocked on BELOW_NORMAL, IDLE, and CI=1',
+                 placed.interactive_allowed(0x0020, {})
+                 and not placed.interactive_allowed(placed._BELOW_CLASS, {})
+                 and not placed.interactive_allowed(placed._IDLE_CLASS, {})
+                 and not placed.interactive_allowed(0x0020, {'CI': '1'}), '')
+
+
 ROSTER = (test_a_page_its_keys_the_terminals_after, test_esc_the_front_page, test_a_compiling_machines_entry_waits,
           test_leaving_sweeps_no_board_never_opened, test_tab_and_help_in_any_mode,
           test_the_robots_modes_before_its_rows, test_folded_into_the_page, test_the_drawing_takes_the_columns_room,
-          test_a_paste_is_never_typed, test_a_chord_rearms_the_terminal, test_pre_menu_braille_warmup_bar)
+          test_a_paste_is_never_typed, test_a_chord_rearms_the_terminal, test_pre_menu_braille_warmup_bar,
+          test_interactive_ux_priority_guards_batch_and_ci)
 
 
 def main(argv=None):
