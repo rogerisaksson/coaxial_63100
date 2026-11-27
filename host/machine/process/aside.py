@@ -79,8 +79,9 @@ class Aside:
             self.process.wait(timeout=wait)
         except (OSError, subprocess.TimeoutExpired):
             self.process.kill()
-            self.process.wait(timeout=wait)
-        self.process = None
+            self.process.wait()
+        finally:
+            self.process = None
 
 
 def _heard(out, answers):

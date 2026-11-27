@@ -127,21 +127,29 @@ class SimulatedDrive(DrivePlant, DriveCapture, DriveControl):
         supplied = bool(self._switching()) if self._switching else True
         return (bool(self._moe()) if self._moe else supplied), supplied
 
-    def _advance(self):
-        """The law brought to now, in whole periods: the wall's seconds since it last was,
-        CATCH_UP_S at most, or what its world told; a trip drops the stage."""
+    def _advance(self, least=0.0):
+        """The law brought to now, in whole periods: the wall's seconds since the law last ran,
+        CATCH_UP_S at most - at least `least` when a TIM1 window clocks the drive -, or what
+        the drive's world told; a trip drops the stage."""
         now = time.time()
         if self._pace is None:
-            dt = max(0.0, min(now - self._at, CATCH_UP_S))
+            base = max(self._at, now - CATCH_UP_S)
+            until = max(now, base + least)
+            dt, self._at = until - base, until
         else:
-            dt, self._pace = self._pace, 0.0
-        self._at = now
+            dt, self._pace = self._pace + least, 0.0
+            self._at = now
         whole = self._owed + dt * self.FS
         periods = int(whole)
         self._owed = whole - periods
         if periods and self._lib.world_drive_run(self._slot, periods, *self._stage()):
             if self._drop is not None:
                 self._drop()
+
+    @_rotor_locked
+    def _step_window(self, seconds):
+        """Step the law across a TIM1 window of `seconds`."""
+        self._advance(seconds)
 
     def _now(self):
         """(the law's state, its slot's row) at this moment."""
@@ -255,6 +263,8 @@ class SimulatedDrive(DrivePlant, DriveCapture, DriveControl):
         if name not in MODES:
             raise ValueError('%r is not a mode; they are %s' % (name, ', '.join(MODES)))
         self._advance()
+        if self._pace is None:
+            self._at = time.time()
         # Board_DriveSetMode: the triple armed for any mode but off, the record taken again.
         if name != 'off' and self._arm_sync is not None:
             self._arm_sync()

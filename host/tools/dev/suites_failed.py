@@ -4,7 +4,7 @@ Then those that regressed before: a regression stops a run at once."""
 
 #: Suites with prior CI or local regressions, scheduled right after structural checks so a regression stops the run at once:
 #: what GitHub's last host run left red is laid at its head at every commit (tools/dev/ci.py, the pre-commit).
-FAILED_FIRST = ('test_daq_api.py', 'test_views_quad.py', 'test_quick.py', 'test_camera.py',
+FAILED_FIRST = ('test_camera.py', 'test_daq_api.py', 'test_views_quad.py', 'test_quick.py',
                 'test_tick.py', 'test_kernel.py', 'test_engrams.py', 'test_docks.py',
                 'test_errands.py', 'test_move_handover.py', 'test_chair_seated.py',
                 'test_native_heat.py', 'test_ci.py', 'test_smart.py', 'test_world_core.py',

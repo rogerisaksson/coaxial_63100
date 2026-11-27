@@ -193,7 +193,7 @@ class Camera:
     def view(self):
         return self.seen
 
-    def close(self, wait=1.0):
+    def close(self, wait=5.0):
         """The robot's map apart ended (`aside.Aside.close`), its warm ask written first."""
         self._warmed()
         self._aside.close(wait)

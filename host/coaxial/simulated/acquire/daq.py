@@ -76,6 +76,8 @@ class SimulatedDaq(Acquisition):
         drive = self.drive
         if drive is None:
             return 0.0, 0.0, 0.0, 0.0
+        if (self._cfg or {}).get('clock') == 'tim1':
+            drive._step_window(seconds)
         omega = drive._omega()
         self._theta = (self._theta + omega * seconds) % (2.0 * math.pi)
         iid, iq, vd, vq = drive._dq()
