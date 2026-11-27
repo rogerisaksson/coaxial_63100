@@ -82,7 +82,7 @@ def ask(out, y, fr, a):
     phi_w, lat0 = stride.swings(sway[DRIVE], turns, a[GOING]), ref[LATERAL] - sway[LATERAL] * libm.sin(psi[LATERAL])
     stepping, way, sweep, phi, on, off, u, flying, swung = stride.beat(
         sway[DRIVE], psi[DRIVE], sway[LATERAL], psi[LATERAL], turns,
-        a[SWINGS], a[NEED], a[LEAD], a[SPLIT], begun, stood, phi_w, thrown)
+        a[SWINGS], a[NEED], a[LEAD], a[SPLIT], begun, stood, phi_w, thrown, lat0)
     a[SWINGS], a[SPLIT] = off, stride.split(a[SPLIT], out[latent.HELD], turns, fr[DT], stride.first(a[NEED], still, out[latent.RATE], a[SWINGS], stood, sway[DRIVE], out[latent.ASKED][DRIVE], lat0, beyond, y[LOAD], phi, phi_w))
     kp, kd, swung = out[latent.KS] / fr[MASS], out[latent.DS] / fr[MASS], swung / (1.0 - begun)
     # a swing goes ahead of its rhythm as far as lands it before the robot's capture point is a reach across
@@ -103,9 +103,9 @@ def ask(out, y, fr, a):
     dv2 = libm.sq(v[ALONG] - cruise - HALF_M * rate[SAGITTAL]) + libm.sq(v[LEFT] - across - fr[W0] * rate[LATERAL])
     dvh = np.array([vh[ALONG] - v[ALONG] - HALF_M * PITCH_RAD * rate[PITCH], vh[LEFT] - v[LEFT], vh[UP] - v[UP]])
     dvh4 = libm.sq(dvh * dvh)
-    # the robot's head's lag on its trunk's asked pitch is no speed of its centre's while something bears it:
-    # read so, a rise's preload asked its centre 5.9 m/s^2 ahead off the floor's grip and pitched its back
-    dvh = 0.5 * still * (1.0 - propped) * dvh * dvh4 / (dvh4 + 0.02)
+    # the robot's head's lag on its trunk's asked pitch is no speed of its centre's while something bears it;
+    # thrown into a leap, horizontal head lag is gated while vertical head lift remains active.
+    dvh = 0.5 * still * (1.0 - propped) * np.array([1.0 - thrown, 1.0 - thrown, 1.0]) * dvh * dvh4 / (dvh4 + 0.02)
     ref = ref + HOT[AXIAL] * stood.max() * still * poise.clip(0.5 * dv2 * (dv2 * dv2 / (dv2 * dv2 + 0.02)) / (G * AXIAL_M), 0.0, 0.25)
     z = z - propped * HOT[LATERAL] * z[LATERAL]
     zd = (zd + HOT[SAGITTAL] * ((v[ALONG] - cruise + dvh[0]) / HALF_M - zd[SAGITTAL])
@@ -166,11 +166,11 @@ def ask(out, y, fr, a):
     # it met, sat with one sole lifted as the seat struck, that sole rose 16 cm and the robot fell
     a[RAISE] -= fr[DT] * turns / (2.0 * np.pi) * a[RAISE]
     lift2 = np.maximum(CLEAR_M * (1.0 + np.abs(out[latent.SWAY][LIFT])) + a[RAISE], top + 2.0 * CLEAR_M) * (1.0 - propped) + CLEAR_M * propped
-    clear = aloft * (stride.clears(u, np.maximum(flying, off), swung * hurry, lift2, tip, tipping, tilt, late, land)
+    clear = aloft * (stride.clears(u, np.maximum(flying, off), swung, lift2, tip, tipping, tilt, late, land, hurry)
                      + HOT3[ALONG][:, None] * short_h)
     free, frame = swing.free(y, fr, (rot, v, om, shod, floors, rise), (ref, rate, acc, kp, kd, hands), clear, stance, cruise,
                              grounded, propped)
-    (free, went, strides, level), fell = swing.hung(free, (stride.goes(a[AIM].reshape(2, 2), flat, shod, v, u, off, turns * hurry / (1.0 - begun), kp[FREE_BY][:2], kd[FREE_BY][:2], phi_w), a[AIM].reshape(2, 2), flat, v, stride.eased(u, off)),
+    (free, went, strides, level), fell = swing.hung(free, (stride.goes(a[AIM].reshape(2, 2), flat, shod, v, u, off, turns * np.sqrt(hurry) / (1.0 - begun), kp[FREE_BY][:2], kd[FREE_BY][:2], phi_w), a[AIM].reshape(2, 2), flat, v, stride.eased(u, off)),
                                                     limbs * np.maximum(grounded, stride.flown(a[STRODE], off, stood, u, thrown, 1.0 * (v[UP] > 0.0))), flew, (lift2, y[LOWEST] - floors, shod), (kp, kd)), ((1.0 - grounded) * com) @ rot
     a[SOLE_ACC] = ((1.0 - strides) * (free @ frame + ((1.0 - grounded * BETWEEN) * com) @ rot) + strides * (fell + went @ rot)).ravel()
     a[SOLE_ACC], a[RESTS] = swing.rested(a[SOLE_ACC], out, (grounded, aloft, strides), (kp, kd), (floors, y, shod, rot))

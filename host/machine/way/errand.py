@@ -94,9 +94,9 @@ def _on_rows():
                    (lambda c, er: c['idle'] and c['off'] and c['away'], 'done', _stunt),
                    (lambda c, er: c['idle'] and c['off'] and c['facing'] and er['retreats'] < 1, 'clear', _retreat),
                    (lambda c, er: c['idle'] and c['off'], 'turn', _nothing),
-                   (lambda c, er: c['idle'] and c['still'] and abs(c['s_perp']) > er['lat_tol'], 'side', _nothing),
+                   (lambda c, er: c['idle'] and c['still'] and c['even'] and abs(c['s_perp']) > er['lat_tol'], 'side', _nothing),
                    (lambda c, er: c['idle'] and c['still'] and c['even'] and er['through'], 'out', _out),
-                   (lambda c, er: c['idle'] and c['still'] and not er['through']
+                   (lambda c, er: c['idle'] and c['still'] and c['even'] and not er['through']
                     and c['s_par'] > poise.HALF_M + er['standoff'] + se2.BACK_STOP_M, 'back', _told(back)),
                    (lambda c, er: c['idle'] and c['still'] and c['even'] and not er['through'], 'done', _stunt)), _halted),
         'clear': (((lambda c, er: c['turns'] != 0.0 or c['s_par'] > er['d_stage'] + stride.STRIDE_M, 'settle', _stood),), _nothing),

@@ -95,7 +95,7 @@ def swings(drive, turns, going):
     return np.pi * (SWING + (SWING_FAST - SWING) * clip((pace - PACE_M_S) / (PACE_FAST_M_S - PACE_M_S), 0.0, 1.0))
 
 
-def beat(drive, psi, sway, lateral, turns, was, need, lead, split, begun, stood, phi_w, thrown=0.0):
+def beat(drive, psi, sway, lateral, turns, was, need, lead, split, begun, stood, phi_w, thrown=0.0, lat=0.0):
     """The robot's stride of its drive and its sway: (whether it strides, 0 to 1, as far as its drive or
     `need` has it; its way, 1 or -1; each limb's place in its sweep, 1 its furthest on its way; its turn of
     it, 0 under the robot's going on; whether its rhythm has it off, from where the other's swing ended - or
@@ -113,7 +113,7 @@ def beat(drive, psi, sway, lateral, turns, was, need, lead, split, begun, stood,
     sweep, phi = side * s, libm.arctan2(side * s, side * c)
     u = clip((0.5 * (phi / phi_w + 1.0) - begun) / (1.0 - begun) + lead, 0.0, 1.0)
     window = (phi > phi_w - np.pi) * (phi < phi_w) * (1.0 - (stood > 0.5) * (was <= 0.5) * (need <= TINY) * (sweep > EARLY))
-    side_hold = SEA_ROLL * (np.abs(drive) < 10.0 * STIRS) * stood * stood[::-1] * was * (phi > phi_w - np.pi - 0.5 * phi_w) * (phi <= phi_w - np.pi)
+    side_hold = SEA_ROLL * (np.abs(drive) < 10.0 * STIRS) * (np.abs(lat) > 0.1 * STIRS) * stood * stood[::-1] * was * (phi > phi_w - np.pi - 0.5 * phi_w) * (phi <= phi_w - np.pi)
     came = np.maximum((stood * was * (u > 1.0 - FALL_U) * (u < 1.0))[::-1], side_hold) * (u <= 0.0)
     waits = was * (1.0 - stood) * stood[::-1]
     on = np.maximum(np.maximum(window * np.maximum(stood[::-1], 1.0 - stood), came), waits)
@@ -218,7 +218,7 @@ def ducked(duck, held, stance, stood, dt):
     return np.array([latch, env]), -depth * np.array([env, (env - env0) / dt])
 
 
-def clears(u, flying, swung, high, tip, tipping, tilt, late, land):
+def clears(u, flying, swung, high, tip, tipping, tilt, late, land, hurry=1.0):
     """A swinging sole's middle over the floor the standing soles touch, m, its rate and its acceleration (3,
     2): its lowest point `high` clear. Up over the first RISE_U of its swing, down over the last FALL_U, held
     between, on a quintic - its acceleration naught as it leaves and as it lands: on a cubic a sole let go was
@@ -243,14 +243,14 @@ def clears(u, flying, swung, high, tip, tipping, tilt, late, land):
                        -30.0 * by * by * (1.0 - by) * (1.0 - by) / FALL_U],
                       [60.0 * on * (1.0 - on) * (1.0 - 2.0 * on) / (RISE_U * RISE_U),
                        60.0 * by * (1.0 - by) * (1.0 - 2.0 * by) / (FALL_U * FALL_U)]])
-    down, toes = np.maximum(tip, tilt), TOE_M * eased[0, 0]
+    rate, down, toes = swung * hurry, np.maximum(tip, tilt), TOE_M * eased[0, 0]
     return np.array([
         high * flying * eased[0, 0] * eased[0, 1] - REACH_M_S * late + land * flying * (1.0 - eased[0, 1])
         + flying * (HALF_M * np.maximum(-libm.sin(tip), 0.0) + (HALF_M + toes) * np.maximum(libm.sin(down), 0.0)),
-        high * flying * (eased[1, 0] * eased[0, 1] + eased[0, 0] * eased[1, 1]) * swung - REACH_M_S * (late > 0.0)
-        - land * flying * eased[1, 1] * swung
+        high * flying * (eased[1, 0] * eased[0, 1] + eased[0, 0] * eased[1, 1]) * rate - REACH_M_S * (late > 0.0)
+        - land * flying * eased[1, 1] * rate
         + flying * (-HALF_M * (tip < 0.0) + (HALF_M + toes) * (tip > 0.0)) * libm.cos(tip) * tipping
-        + flying * TOE_M * eased[1, 0] * swung * np.maximum(libm.sin(down), 0.0),
+        + flying * TOE_M * eased[1, 0] * rate * np.maximum(libm.sin(down), 0.0),
         high * flying * (eased[2, 0] * eased[0, 1] + eased[0, 0] * eased[2, 1]) * (swung * swung)
         - land * flying * eased[2, 1] * (swung * swung) + flying * TOE_M * eased[2, 0] * (swung * swung) * np.maximum(libm.sin(down), 0.0)])
 

@@ -56,8 +56,10 @@ void wbc_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, double y
     }
     asked = qa;
     qa = wbc_bus_ask(p->bus, i, dt, qa);
-    /* the observer on the motor's encoder: angle, rate, what else moves it */
-    e = qm - eso0[i];
+    /* the observer on the motor's encoder (link encoder on active SEAs): angle, rate, what else moves it */
+    const double q_obs = (p->sea != NULL && p->sea[i] != 0U) ? qpos : qm;
+
+    e = q_obs - eso0[i];
     eso0[i] += dt * (eso1[i] + c3 * e);
     eso1[i] += dt * (((qa + (p->sb[i] + p->bus->given[i]) / p->jeff[i]) + eso2[i]) + c33 * e);
     eso2[i] += dt * (wo3 * e);
@@ -65,7 +67,7 @@ void wbc_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, double y
     {
       const double z_lim = (0.35 * p->clamp[i]) / npmax(0.05, p->jeff[i]);
 
-      eso0[i] = npclip(eso0[i], qm - 0.08, qm + 0.08);
+      eso0[i] = npclip(eso0[i], q_obs - 0.08, q_obs + 0.08);
       eso2[i] = npclip(eso2[i], -z_lim, z_lim);
     }
     eso1[i] *= 1.0 - bleed;
@@ -219,13 +221,15 @@ void wbc_pass_ctrl(wbc_world_t *w, double span, const double *ahead, const doubl
     tau[i] = t;
     ctrl[i] = npclip(t, -limit[i], limit[i]);
   }
-  /* a parallel pair's two drives: each's current the first's share plus or less the second's */
+  /* a parallel pair's two identical drives: each's current the first's share plus or less the second's,
+     clamped to each joint's limit and to the pair's symmetric per-motor current ceiling */
   for (int k = 0; k < w->npairs; k++)
   {
     const int    p = w->pairs[2 * k], r = w->pairs[2 * k + 1];
-    const double a = tau[p] / w->kt[p], b = tau[r] / w->kt[r];
     const double top_p = w->limit[p] / w->kt[p], top_r = w->limit[r] / w->kt[r];
-    const double one = npclip(a + b, -top_p, top_p), two = npclip(a - b, -top_r, top_r);
+    const double top = (top_p > 0.0 && top_r > 0.0) ? npmax(top_p, top_r) : 0.0;
+    const double a = npclip(tau[p] / w->kt[p], -top_p, top_p), b = npclip(tau[r] / w->kt[r], -top_r, top_r);
+    const double one = npclip(a + b, -top, top), two = npclip(a - b, -top, top);
 
     ctrl[p] = w->kt[p] * (one + two) / 2.0;
     ctrl[r] = w->kt[r] * (one - two) / 2.0;

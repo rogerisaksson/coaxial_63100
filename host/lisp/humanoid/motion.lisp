@@ -34,7 +34,7 @@
                                          (palmar 0.6))))
   (phase floor_rest (use tip)
     (duration 60s) (blend_duration 800ms)
-    (latent_targets (mode_axial_compression 0.0) (mode_pitch_attitude -2.4) (mode_arm_reach -0.8))
+    (latent_targets (mode_axial_compression 0.0) (mode_pitch_attitude -2.4))
     (impedance (stiffness mode_axial_compression 5) (damping mode_axial_compression 120)
                (stiffness mode_pitch_attitude 5) (damping mode_pitch_attitude 60)
                (stiffness mode_sagittal_shift 5) (damping mode_sagittal_shift 60)

@@ -158,6 +158,14 @@ class World:
         self.link = dclink.laid()
         if self.sprung:
             m.dof_armature[self.vadr[self.boxes.sprung]] = np.array(_mj['servo_armature'])[self.boxes.sprung]
+            link_m = m.dof_M0[self.vadr] - self.armature + m.dof_armature[self.vadr]
+            inv_m = np.where(self.unhinged, 1.0 / np.maximum(link_m, 1e-6), 0.0)
+            inv_red = inv_m + np.where(self.unhinged, 1.0 / np.maximum(self.boxes.j, 1e-6), 0.0)
+            b_crit = np.maximum(1.0 / np.maximum(STEP_S * inv_red, 1e-9) - self.boxes.c, 1e-9)
+            self.boxes.inv_m[:] = inv_m
+            self.boxes.v_mesh[:] = np.where(self.unhinged & (self.boxes.track > 0.0),
+                                            np.maximum(gearbox.MESH_RAD_S, self.boxes.mesh / b_crit),
+                                            gearbox.MESH_RAD_S)
             self.armature = m.dof_armature[self.vadr].copy()
         #: Each sole's load as last read (`pose`, LOAD_S), and when; None since the reset.
         self.borne, self.borne_at = [0.0, 0.0], None
@@ -308,10 +316,16 @@ class World:
                 self._ctrl(ctypes.byref(p), d.time - start, None, None)
             self._motor(ctypes.byref(p), STEP_S)
             if self.sprung:
-                d.ctrl[:] = self.boxes.step(np, d.ctrl, d.qpos[self.qadr],
-                                            d.qvel[self.vadr] + 0.5 * STEP_S * d.qacc[self.vadr],
+                qvel, qacc = d.qvel[self.vadr], d.qacc[self.vadr]
+                th0 = np.tanh((self.boxes.w - qvel) / self.boxes.v_mesh)
+                b0 = self.boxes.c + (self.boxes.mesh / self.boxes.v_mesh) * (1.0 - th0 * th0)
+                half, third = 0.5 * STEP_S, STEP_S / 3.0
+                h_mid = np.where(self.boxes.inv_m > 0.0, half / (1.0 + (third * b0) * self.boxes.inv_m), half)
+                lim_live = np.where(self.shorted | self.cut, 0.0, self.limit)
+                d.ctrl[:] = self.boxes.step(np, d.ctrl, d.qpos[self.qadr], qvel + h_mid * qacc,
                                             np.where(self.shorted, self.damping, 0.0), STEP_S,
-                                            d.ctrl if self.buses is not None else self.feed)
+                                            d.ctrl if self.buses is not None else self.feed,
+                                            lim_live, self.gains[:, 0])
                 p.delta = self.boxes.delta.ctypes.data
             pushing = d.time < self.push_until
             if pushing or self.pushed:

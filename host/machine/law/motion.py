@@ -220,6 +220,7 @@ def laid(g):
     borne read in C bit for bit (`tools.cores.motion`, `step`, `surety`, `touch`, `twist`, `wait`, `brace`,
     `borne`), and the robot's estimate, grip, situation, poses, EKF, barrier, field, weighed shares,
     clearances, wayfinder gap and cocoon's rooms compiled from numpy (`tools.cores.bodied`)."""
+    from machine.body import drives as body_drives
     from machine.body.figure import JOINTS
     from tools.cores import bodied, motion as c_motion, surety as c_surety, touch as c_touch, twist as c_twist
     from tools.cores import brace as c_brace, wait as c_wait, wbc as cores
@@ -289,6 +290,7 @@ def laid(g):
             'limit': np.zeros(n), 'clamp_j': np.ascontiguousarray(g['clamp'][joints], dtype=np.float64),
             'qacc': np.zeros(body.n, dtype=np.float64), 'tau': np.zeros(n, dtype=np.float64),
             'jeff': np.ascontiguousarray(g['jeff'], dtype=np.float64), 'over': np.zeros(n, dtype=np.bool_),
+            'sea': np.ascontiguousarray([body_drives.track(nm) > 0.0 for nm in names], dtype=np.bool_),
             'release': np.ones(n)}
     g['release'], g['distal'] = kept['release'], np.array([float(nm.endswith(DISTAL)) for nm in names])
     g['distal_side'] = np.array([int(nm.startswith('right_')) for nm in names])
@@ -310,6 +312,7 @@ def laid(g):
                       ('tau', kept['tau']), ('jeff', kept['jeff']), ('release', kept['release'])):
         setattr(p, name, cores.pointer(arr))
     p.over = cores.address(kept['over'])
+    p.sea = cores.address(kept['sea'])
     g['cmd'] = {'target': g['ref_q'], 'feed': kept['feed'], 'limit': kept['limit'].copy()}
     g['drives'] = (p, kept, cores.library().wbh_pass_drives)
     from tools.cores import tick

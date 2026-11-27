@@ -101,6 +101,7 @@ typedef struct
                                                   unbounded, and in the last (machine.stack.wrench.step) */
   double        lean; /**< the robot's rise's centre of mass task's weight where its rise's gate holds its closed chains, 0 else
                            (machine.stack.chain.leaned, closed-chain-regime's com-weight) */
+  double        kt[WBC_STEP_D]; /**< each drive's torque constant, N m/A (machine.stack.wbc.Body's kt) */
 } wbc_step_t;
 
 /** The step on `p`'s laid, sensed and asked: 0, or 1 where numpy would raise LinAlgError. */
@@ -154,6 +155,12 @@ int wbc_chain_qp(wbc_step_t *p, int np_, int ng, int k3, const double *held, con
 
 /** machine.stack.shrunk.shrunk (wbc_step.c): how far from tau0 toward tau every drive stays within [lo, hi]. */
 double wbc_step_shrunk(int nd, const double *tau, const double *tau0, const double *lo, const double *hi);
+
+/** machine.stack.shrunk.paired / paired_limit (wbc_step.c): a parallel pair's two motor currents and symmetric
+    current ceiling, A; single drives stay in N m. */
+void wbc_step_paired(int nd, int npairs, const int pairs[][2], const double *kt, const double *tau, double *out);
+void wbc_step_paired_limit(int nd, int npairs, const int pairs[][2], const double *kt, const double *limit,
+                           double *out);
 
 /** machine.stack.wbc.turn_error: the world-frame rotation vector taking `have` to `want`, rad (wbc_maps.c). */
 void wbc_step_turn_error(const wbc_blas_t *l, const double want[4], const double have[4], double out[3]);

@@ -31,6 +31,8 @@ typedef struct
   const double        *gap;
   const double        *shock;
   const double        *mesh;
+  const double        *v_mesh;      /**< per-joint mesh smoothing speed (rad/s) and unhinged inverse link inertia */
+  const double        *inv_m;
   const double        *observe;     /**< its board's observer's rate, its torque loop's gain and its peak */
   const double        *track;
   const double        *peak;

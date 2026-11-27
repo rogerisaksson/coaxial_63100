@@ -82,6 +82,32 @@ static void torques(const wbc_step_t *p, const double *restrict full, const doub
   }
 }
 
+void wbc_step_paired(int nd, int npairs, const int pairs[][2], const double *kt, const double *tau, double *out)
+{
+  memcpy(out, tau, (size_t)nd * sizeof(double));
+  for (int q = 0; q < npairs; q++)
+  {
+    const int    p = pairs[q][0], r = pairs[q][1];
+    const double a = tau[p] / kt[p], c = tau[r] / kt[r];
+
+    out[p] = a + c;
+    out[r] = a - c;
+  }
+}
+
+void wbc_step_paired_limit(int nd, int npairs, const int pairs[][2], const double *kt, const double *limit, double *out)
+{
+  memcpy(out, limit, (size_t)nd * sizeof(double));
+  for (int q = 0; q < npairs; q++)
+  {
+    const int    p = pairs[q][0], r = pairs[q][1];
+    const double tp = limit[p] / kt[p], tr = limit[r] / kt[r];
+    const double top = (tp > 0.0 && tr > 0.0) ? npmax(tp, tr) : 0.0;
+
+    out[p] = out[r] = top;
+  }
+}
+
 /** machine.stack.wrench.shrunk: how far from tau0 toward tau every drive stays within its limit. */
 double wbc_step_shrunk(int nd, const double *restrict tau, const double *restrict tau0, const double *restrict lo,
                        const double *restrict hi)
@@ -138,7 +164,8 @@ static int stepped(wbc_step_t *p)
   double *restrict  qdd = carried + nd, *restrict limit = qdd + n, *restrict row = limit + nd, *restrict rest = row + 3 * nu;
   double            stance[2], asked[2], want[WBC_STEP_D], MT[36], Ai[36], nAi[36], mt[6], p0[6], c[16], c0[16];
   double            along[WBC_STEP_C], slips[3 * WBC_STEP_C], caps[WBC_STEP_C], borne[3] = {0.0};
-  double            lo[WBC_STEP_D], hi[WBC_STEP_D], nlimit[WBC_STEP_D], zeros[WBC_STEP_D] = {0.0};
+  double            lo[WBC_STEP_D], hi[WBC_STEP_D], nlimit[WBC_STEP_D], nplim[WBC_STEP_D], zeros[WBC_STEP_D] = {0.0};
+  double            plim[WBC_STEP_D], ptau[WBC_STEP_D], ptau0[WBC_STEP_D], pcarried[WBC_STEP_D], pclamp[WBC_STEP_D];
   double            grounded, turned, felt[WBC_STEP_C], strides = p->strides, scale = 1.0;
   wbc_geo_t         geo;
   int               at = 0, any_over = 0, mark[WBC_STEP_GROUPS + 1];
@@ -467,14 +494,20 @@ static int stepped(wbc_step_t *p)
     lo[i] = npmax(-limit[i], p->lo[i]);
     hi[i] = npmin(limit[i], p->hi[i]);
   }
-  torques(p, full, full0, stance, whole, 1.0, nu, tau, qdd, rest);
+  wbc_step_paired_limit(nd, p->npairs, p->pairs, p->kt, limit, plim);
   for (int i = 0; i < nd; i++)
   {
-    any_over = any_over || (fabs(tau[i]) > limit[i]);
+    nplim[i] = -plim[i];
+  }
+  torques(p, full, full0, stance, whole, 1.0, nu, tau, qdd, rest);
+  wbc_step_paired(nd, p->npairs, p->pairs, p->kt, tau, ptau);
+  for (int i = 0; i < nd; i++)
+  {
+    any_over = any_over || (fabs(tau[i]) > limit[i]) || (fabs(ptau[i]) > plim[i]);
   }
   if (any_over)
   {
-    double s0 = 1.0;
+    double s0 = 1.0, s_j, s_m;
     int    over0 = 0;
 
     wbc_matmul(l, VIEW(R0, 1, nu), VIEW(rhs0, 1, 0), g0, 1, 0, nu, at, 1);
@@ -483,19 +516,26 @@ static int stepped(wbc_step_t *p)
       return 1;
     }
     torques(p, full, full0, stance, stood, 1.0, nu, tau0, qdd, rest);
-    scale = wbc_step_shrunk(nd, tau, tau0, nlimit, limit);
+    wbc_step_paired(nd, p->npairs, p->pairs, p->kt, tau0, ptau0);
+    s_j = wbc_step_shrunk(nd, tau, tau0, nlimit, limit);
+    s_m = wbc_step_shrunk(nd, ptau, ptau0, nplim, plim);
+    scale = (s_m < s_j) ? s_m : s_j;
     for (int j = 0; j < nu; j++)
     {
       u[j] = whole[j] + (scale - 1.0) * (whole[j] - stood[j]);
     }
     for (int i = 0; i < nd; i++)
     {
-      over0 = over0 || (fabs(tau0[i]) > limit[i]);
+      over0 = over0 || (fabs(tau0[i]) > limit[i]) || (fabs(ptau0[i]) > plim[i]);
       carried[i] = tau[i] + (scale - 1.0) * (tau[i] - tau0[i]);
+      pcarried[i] = ptau[i] + (scale - 1.0) * (ptau[i] - ptau0[i]);
     }
     if (over0)
     {
-      s0 = wbc_step_shrunk(nd, carried, zeros, nlimit, limit);
+      const double s0_j = wbc_step_shrunk(nd, carried, zeros, nlimit, limit);
+      const double s0_m = wbc_step_shrunk(nd, pcarried, zeros, nplim, plim);
+
+      s0 = (s0_m < s0_j) ? s0_m : s0_j;
     }
     if (s0 < 1.0)
     {
@@ -534,10 +574,11 @@ static int stepped(wbc_step_t *p)
       p->cop[at_][1] = (-ml[0]) / wk[4];
     }
   }
+  wbc_step_paired_limit(nd, p->npairs, p->pairs, p->kt, p->clamp, pclamp);
   for (int i = 0; i < nd; i++)
   {
-    p->over[i] = fabs(tau[i]) > p->clamp[i] * (1.0 + 1e-6);
-    p->load[i] = fabs(tau[i]) / p->clamp[i];
+    p->over[i] = (fabs(tau[i]) > p->clamp[i] * (1.0 + 1e-6)) || (fabs(ptau[i]) > pclamp[i] * (1.0 + 1e-6));
+    p->load[i] = npmax(fabs(tau[i]) / p->clamp[i], fabs(ptau[i]) / pclamp[i]);
     p->tau[i] = clipped(carried[i], lo[i], hi[i]);
   }
   for (int q = 0; q < p->npairs; q++)

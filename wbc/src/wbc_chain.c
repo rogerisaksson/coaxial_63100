@@ -233,51 +233,67 @@ int wbc_chain(wbc_step_t *p)
     qdd0[P[a]] = qddP0[a];
   }
   /* 2. torques: the QP's where its laws were met, else shrunk as the upright step's */
-  for (int i = 0; i < nd; i++)
   {
-    any_over = any_over || fabs(tau1[i]) > limit[i];
-  }
-  if (!met && any_over)
-  {
-    int    over0 = 0;
-    double s0 = 1.0;
+    double plim[WBC_STEP_D], nplim[WBC_STEP_D], ptau1[WBC_STEP_D], ptau0[WBC_STEP_D], ptau[WBC_STEP_D];
+    double pclamp[WBC_STEP_D];
 
-    scale = wbc_step_shrunk(nd, tau1, tau0, nlimit, limit);
+    wbc_step_paired_limit(nd, p->npairs, p->pairs, p->kt, limit, plim);
+    wbc_step_paired(nd, p->npairs, p->pairs, p->kt, tau1, ptau1);
     for (int i = 0; i < nd; i++)
     {
-      tau[i] = tau0[i] + scale * (tau1[i] - tau0[i]);
-      over0 = over0 || fabs(tau0[i]) > limit[i];
+      nplim[i] = -plim[i];
+      any_over = any_over || (fabs(tau1[i]) > limit[i]) || (fabs(ptau1[i]) > plim[i]);
     }
-    for (int i = 0; i < n; i++)
+    if (!met && any_over)
     {
-      qdd1[i] = qdd0[i] + scale * (qdd1[i] - qdd0[i]);
-    }
-    if (over0)
-    {
-      s0 = wbc_step_shrunk(nd, tau, zeros, nlimit, limit);
-    }
-    if (s0 < 1.0)
-    {
+      int    over0 = 0;
+      double s0 = 1.0, s_j, s_m;
+
+      wbc_step_paired(nd, p->npairs, p->pairs, p->kt, tau0, ptau0);
+      s_j = wbc_step_shrunk(nd, tau1, tau0, nlimit, limit);
+      s_m = wbc_step_shrunk(nd, ptau1, ptau0, nplim, plim);
+      scale = (s_m < s_j) ? s_m : s_j;
       for (int i = 0; i < nd; i++)
       {
-        tau[i] = s0 * tau[i];
+        tau[i] = tau0[i] + scale * (tau1[i] - tau0[i]);
+        ptau[i] = ptau0[i] + scale * (ptau1[i] - ptau0[i]);
+        over0 = over0 || (fabs(tau0[i]) > limit[i]) || (fabs(ptau0[i]) > plim[i]);
       }
       for (int i = 0; i < n; i++)
       {
-        qdd1[i] = s0 * qdd1[i];
+        qdd1[i] = qdd0[i] + scale * (qdd1[i] - qdd0[i]);
       }
+      if (over0)
+      {
+        const double s0_j = wbc_step_shrunk(nd, tau, zeros, nlimit, limit);
+        const double s0_m = wbc_step_shrunk(nd, ptau, zeros, nplim, plim);
+
+        s0 = (s0_m < s0_j) ? s0_m : s0_j;
+      }
+      if (s0 < 1.0)
+      {
+        for (int i = 0; i < nd; i++)
+        {
+          tau[i] = s0 * tau[i];
+        }
+        for (int i = 0; i < n; i++)
+        {
+          qdd1[i] = s0 * qdd1[i];
+        }
+      }
+      scale = s0 * scale;
     }
-    scale = s0 * scale;
-  }
-  else
-  {
-    memcpy(tau, tau1, (size_t)nd * sizeof(double));
-  }
-  for (int i = 0; i < nd; i++)
-  {
-    p->over[i] = fabs(tau1[i]) > p->clamp[i] * (1.0 + 1e-6);
-    p->load[i] = fabs(tau1[i]) / p->clamp[i];
-    p->tau[i] = npclip(tau[i], lo[i], hi[i]);
+    else
+    {
+      memcpy(tau, tau1, (size_t)nd * sizeof(double));
+    }
+    wbc_step_paired_limit(nd, p->npairs, p->pairs, p->kt, p->clamp, pclamp);
+    for (int i = 0; i < nd; i++)
+    {
+      p->over[i] = (fabs(tau1[i]) > p->clamp[i] * (1.0 + 1e-6)) || (fabs(ptau1[i]) > pclamp[i] * (1.0 + 1e-6));
+      p->load[i] = npmax(fabs(tau1[i]) / p->clamp[i], fabs(ptau1[i]) / pclamp[i]);
+      p->tau[i] = npclip(tau[i], lo[i], hi[i]);
+    }
   }
   for (int q = 0; q < p->npairs; q++)
   {

@@ -36,6 +36,7 @@ typedef struct
   const double        *qacc;       /**< the loop's accelerations, its torques, which drives it asked over */
   const double        *tau;
   const unsigned char *over;
+  const unsigned char *sea;        /**< active SEA torque-looped joints: observer reads link encoder */
   const double        *jeff;       /**< the inertia each drive's torque meets alone */
   const double        *clamp;      /**< each drive's clamp, its WEP, its WEP's limit, the world's clamp */
   const double        *wep;

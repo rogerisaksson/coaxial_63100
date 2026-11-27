@@ -83,6 +83,7 @@ class Boxes:
         self.q_step, self.went = np.zeros(len(JOINTS)), np.zeros(len(JOINTS))
         self.hat, self.p_int, self.drive = np.zeros(len(JOINTS)), np.zeros(len(JOINTS)), np.zeros(len(JOINTS))
         self.asked, self.rate = np.zeros(len(JOINTS)), np.zeros(len(JOINTS))
+        self.v_mesh, self.inv_m = np.full(len(JOINTS), MESH_RAD_S), np.zeros(len(JOINTS))
 
     def reset(self, q):
         """Every rotor on its joint at `q`, still, its board's observer at rest: a board's encoder
@@ -106,7 +107,7 @@ class Boxes:
         return np.where(self.sprung, drives.AHEAD_WIND * torque / k
                         + drives.AHEAD_PLAY * self.gap * np.tanh(torque / PLAY_NM), 0.0)
 
-    def step(self, np, ctrl, q, qd, brake, dt, feed=None):
+    def step(self, np, ctrl, q, qd, brake, dt, feed=None, limit=None, kp=None):
         """The links' torques from the motors' `ctrl` with the links at `q` rad and `qd` rad/s
         through the step - the step's middle's, the start's and half a step of the last
         acceleration: against the start's the mesh's slope and the damping on a stale speed
@@ -122,7 +123,8 @@ class Boxes:
         command's rest, the pass's PD on the motor's angle, goes on the rotor as it is. `moved` sets
         each rotor's angle past its link right after. The boxes' state stepped in place: the robot's world's steps in
         C step the same arrays (wbc_world.c, `tools.cores.world.boxed`)."""
-        feed = ctrl if feed is None else feed
+        top = self.peak if limit is None else np.minimum(self.shock, limit)
+        feed = ctrl if feed is None else np.clip(feed, -top, top)
         on = self.sprung
         j = np.where(on, self.j, 1.0)
         k = np.maximum(self.k, 1.0)
@@ -132,18 +134,19 @@ class Boxes:
         lim = self.gap + self.shock / k
         self.rate += (dt / RATE_S) * ((feed - self.asked) / dt - self.rate)
         self.asked[:] = feed
-        trk = np.where((feed != 0.0) | (self.rate != 0.0), self.track, 0.0)
+        pd_on = np.zeros(len(ctrl), bool) if kp is None else (kp > 0.0)
+        trk = np.where((top > 0.0) & (~pd_on) & ((feed != 0.0) | (self.rate != 0.0)), self.track, 0.0)
         for _ in range(SUBSTEPS):
             rel = self.w - qd
             past = np.sign(self.delta) * np.maximum(np.abs(self.delta) - self.gap, 0.0)
             passed = np.where(past != 0.0, self.k * past + self.c * rel
-                              + self.mesh * np.tanh(rel / MESH_RAD_S), 0.0)
+                              + self.mesh * np.tanh(rel / self.v_mesh), 0.0)
             passed = np.where(on, np.clip(passed, -self.shock, self.shock), passed)
             self.p_int[:] = np.where(on, self.p_int + h * (self.drive - brake * self.w - self.hat), 0.0)
             self.hat[:] = self.observe * (self.p_int - j * self.w)
-            cap = np.abs(self.hat) + PLAY_NM
+            cap = np.minimum(top, np.maximum(np.abs(self.hat), np.abs(feed)) + PLAY_NM)
             drive = ctrl + trk * (np.clip(feed - self.hat, -cap, cap) + self.c * (self.rate / k - rel))
-            self.drive[:] = np.where(on, np.clip(drive, -self.peak, self.peak), ctrl)
+            self.drive[:] = np.where(on, np.clip(drive, -top, top), ctrl)
             self.w[:] = np.where(on, (self.w + h * (self.drive - passed) / j) / (1.0 + h * brake / j), qd)
             self.delta[:] = np.where(on, np.clip(self.delta + h * (self.w - qd), -lim, lim), self.delta)
             mean += passed / SUBSTEPS

@@ -41,7 +41,7 @@ from machine.moves import anatomy, clocked, seated
 SENSED = ('pitch', 'hands', 'left_foot', 'right_foot', 'back', 'turn', 'heading')
 #: The parts it moves, a side each (left, right) - the robot's hips, knees, shoulders, elbows, its legs' rolls
 #: and yaws and its ankles -, then its trunk's roll and twist.
-PAIRED, SINGLE = ('hip', 'knee', 'shoulder', 'elbow', 'hip_roll', 'hip_yaw', 'ankle_roll', 'ankle'), ('spine_roll', 'waist')
+PAIRED, SINGLE = ('hip', 'knee', 'shoulder', 'elbow', 'hip_roll', 'hip_yaw', 'ankle_roll', 'ankle'), ('spine_roll', 'waist', 'spine')
 PARTS = PAIRED + SINGLE
 JOINT = np.array([JOINTS.index(side + p) for p in PAIRED for side in ('left_', 'right_')] + [JOINTS.index(p) for p in SINGLE])
 PART = np.array([k for k in range(len(PAIRED)) for _side in range(2)] + [len(PAIRED) + k for k in range(len(SINGLE))])

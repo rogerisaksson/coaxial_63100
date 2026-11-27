@@ -315,7 +315,8 @@ def kept(name, made_of, rest):
     if not os.path.exists(note):
         return None
     with open(note, encoding='utf-8') as f:
-        return json.load(f)
+        info = json.load(f)
+    return info if info.get('lib') is None or os.path.exists(info['lib']) else None
 
 
 def refused(name, made_of, rest, why):

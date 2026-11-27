@@ -119,7 +119,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   }
   lat0 = s.ref[k->lateral] - sway[k->lateral] * wbc_sin(psi[k->lateral]);
   wbc_imp_beat(k, sway[k->drive], psi[k->drive], sway[k->lateral], psi[k->lateral], turns, a + k->a_swings,
-               a[k->a_need], a + k->a_lead, a + k->a_split, begun, stood, phi_w, gone, &stepping, &way, &swung, sweep, phi, on, off, u, flying);
+               a[k->a_need], a + k->a_lead, a + k->a_split, begun, stood, phi_w, gone, lat0, &stepping, &way, &swung, sweep, phi, on, off, u, flying);
   {
     const double gap = a[k->a_split] - a[k->a_split + 1], pi2 = TAU_D, ad = fabs(asked[k->drive]), st = k->stirs;
     const double half = 0.5 * (gap - pi2 * rint(gap / pi2)), relax = npmin(1.0, (turns * fr[k->f_dt]) / pi2);
@@ -190,6 +190,8 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
                        + wbc_sq((v[1] - across) - fr[k->f_w0] * s.rate[k->lateral]);
     const double lift = npclip(((0.5 * dv2) * ((dv2 * dv2) / ((dv2 * dv2) + 0.02))) / (k->g * k->axial_m), 0.0, 0.25);
 
+    const double hold[3] = {1.0 - gone, 1.0 - gone, 1.0};
+
     dvh[0] = (vh[0] - v[0]) - (k->half_m * k->pitch_rad) * s.rate[k->pitch];
     dvh[1] = vh[1] - v[1];
     dvh[2] = vh[2] - v[2];
@@ -197,7 +199,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     {
       const double sq = dvh[i] * dvh[i], dvh4 = sq * sq;
 
-      dvh[i] = ((((0.5 * still) * (1.0 - propped)) * dvh[i]) * dvh4) / (dvh4 + 0.02);
+      dvh[i] = (((((0.5 * still) * (1.0 - propped)) * hold[i]) * dvh[i]) * dvh4) / (dvh4 + 0.02);
     }
     for (int m = 0; m < n; m++)
     {
@@ -356,11 +358,9 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     lift2[b] = npmax(k->clear_m * (1.0 + fabs(sway[k->lift])) + a[k->a_raise], top[b] + 2.0 * k->clear_m) * (1.0 - propped)
                + k->clear_m * propped;
   }
-  th[0] = rate[0] * hurry[0];
-  th[1] = rate[1] * hurry[1];
   fl2[0] = npmax(flying[0], off[0]);
   fl2[1] = npmax(flying[1], off[1]);
-  wbc_imp_clears(k, u, fl2, th, lift2, tip, tipping, tilt, late, land, clr);
+  wbc_imp_clears(k, u, fl2, rate, hurry, lift2, tip, tipping, tilt, late, land, clr);
   for (int r = 0; r < 3; r++)
   {
     for (int b = 0; b < 2; b++)
@@ -405,8 +405,8 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     wbc_matmul(&k->blas, cv, rv, gc, 3, 1, 1, 3, 3);
     wbc_matmul(&k->blas, fv, rv, fc, 3, 1, 1, 3, 3);
   }
-  th[0] = (turns * hurry[0]) / (1.0 - begun[0]);
-  th[1] = (turns * hurry[1]) / (1.0 - begun[1]);
+  th[0] = (turns * sqrt(hurry[0])) / (1.0 - begun[0]);
+  th[1] = (turns * sqrt(hurry[1])) / (1.0 - begun[1]);
   wbc_imp_guarded(k, meet, over, flat, apart, fr + k->f_planted, held2);
   /* each sole's landing and its aim this pass, told in the ask (modal.MEET, modal.AIM) */
   for (int b = 0; b < 2; b++)

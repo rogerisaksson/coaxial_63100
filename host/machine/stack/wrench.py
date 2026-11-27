@@ -22,7 +22,7 @@ import numpy as np
 from machine import libm
 from machine.stack.pressed import W_STILL, patches
 from machine.stack.rounds import DRIVEN, KNEES, LEGS, MOMENT, NU, ROOM, UPPER
-from machine.stack.shrunk import box, shrunk
+from machine.stack.shrunk import box, overloaded, paired, paired_limit, paired_shrunk
 from machine.stack.within import W_KEEP, within
 from machine.stack.wbc import CONTACT_K, HEIGHT_BAND, HELD_K, MOMENTUM_K, MU, POSTURE_KD, SWING_KD, TURN_KD, G, turn_error
 
@@ -240,14 +240,18 @@ def step(b, s, ask, solve=None):
                          a[1] - HEIGHT_BAND, a[1] + HEIGHT_BAND, geo, stride)
     limit, lo, hi = box(b, ask)
     tau, qdd = torques(whole)
-    if (np.abs(tau) > limit).any():
+    plim, ptau = paired_limit(limit, b.pairs, b.kt), paired(tau, b.pairs, b.kt)
+    if (np.abs(tau) > limit).any() or (np.abs(ptau) > plim).any():
         stood, _first = solve(H0, R0.T @ np.concatenate(rhs0), [(S, r0) for S, _r, r0 in still], felt,
                               -HEIGHT_BAND, HEIGHT_BAND, geo, stride)
         tau0 = torques(stood)[0]
-        scale = shrunk(tau, tau0, -limit, limit)
+        ptau0 = paired(tau0, b.pairs, b.kt)
+        scale = paired_shrunk(tau, tau0, ptau, ptau0, limit, plim)
         u = whole + (scale - 1.0) * (whole - stood)
-        s0 = (shrunk(tau + (scale - 1.0) * (tau - tau0), np.zeros(len(limit)), -limit, limit)
-              if (np.abs(tau0) > limit).any() else 1.0)
+        zeros = np.zeros(len(limit))
+        s0 = (paired_shrunk(tau + (scale - 1.0) * (tau - tau0), zeros, ptau + (scale - 1.0) * (ptau - ptau0), zeros,
+                            limit, plim)
+              if ((np.abs(tau0) > limit).any() or (np.abs(ptau0) > plim).any()) else 1.0)
         scale, u = s0 * scale, (s0 * u if s0 < 1.0 else u)
         carried, qdd = torques(u, s0)
     else:
@@ -260,11 +264,7 @@ def step(b, s, ask, solve=None):
             ml = f['R'].T @ wk[:3]
             cop.append(np.array([ml[2], -ml[0]]) / wk[4] if wk[4] > 1e-6 else None)
     # the drives asked past their clamps and their loads: the ask's, before it was shrunk
-    past = np.abs(tau) > b.clamp * (1.0 + 1e-6)
-    over = past.copy()
-    for p, r in b.pairs:
-        over[p] = over[r] = past[p] or past[r]
-    b.load = np.abs(tau) / b.clamp
+    over, b.load = overloaded(tau, ptau, b.clamp, b.pairs, b.kt)
     return {'tau': np.clip(carried, lo, hi), 'qacc': qdd, 'bears': bears, 'cop': cop, 'over': over,
             'slack': [], 'held': (), 'borne': u[NU:].reshape(-1, 3), 'scale': scale,
             'soles_free': first[:12].reshape(2, 6), 'soles': u[:12].reshape(2, 6), 'rows_free': _residual(R0, rhs, first, grouped)}

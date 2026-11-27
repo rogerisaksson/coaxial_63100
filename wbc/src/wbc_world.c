@@ -81,19 +81,22 @@ static void stepped(const wbc_steps_t *s, int n)
   const wbc_boxes_t             *b = s->boxes;
   wbc_world_t                   *p = s->pass;
   const int                      subs = b->substeps;
-  const double                   dt = s->step_s, h = dt / (double)subs, ease = dt / b->rate_s, half = 0.5 * dt;
-  const double                   mesh_rs = b->mesh_rad_s, play_nm = b->play_nm, inv_subs = (double)subs;
+  const double                   dt = s->step_s, h = dt / (double)subs, ease = dt / b->rate_s;
+  const double                   half = 0.5 * dt, third = dt / 3.0, play_nm = b->play_nm, inv_subs = (double)subs;
   double *restrict               p_ctrl = p->ctrl, *restrict q_step = b->q_step, *restrict went = b->went;
   double *restrict               brate = b->rate, *restrict asked = b->asked, *restrict p_int = b->p_int;
   double *restrict               hat = b->hat, *restrict bdrive = b->drive, *restrict bw = b->w, *restrict delta = b->delta;
-  const double *restrict         p_feed = p->feed, *restrict qpos = p->qpos, *restrict qvel = p->qvel, *restrict qacc = p->qacc;
+  const double *restrict         p_feed = p->feed, *restrict p_limit = p->limit, *restrict p_gains = p->gains;
+  const double *restrict         qpos = p->qpos, *restrict qvel = p->qvel, *restrict qacc = p->qacc;
   const double *restrict         damping = b->damping, *restrict bj = b->j, *restrict bk = b->k, *restrict bc = b->c;
   const double *restrict         gap = b->gap, *restrict shock = b->shock, *restrict mesh = b->mesh;
-  const double *restrict         observe = b->observe, *restrict track = b->track, *restrict peak = b->peak;
+  const double *restrict         v_mesh = b->v_mesh, *restrict inv_m = b->inv_m;
+  const double *restrict         observe = b->observe, *restrict track = b->track;
   const int *restrict            qadr = p->qadr, *restrict vadr = p->vadr;
-  const unsigned char *restrict  shorted = p->shorted, *restrict on_arr = b->on;
-  _Alignas(64) double            qp[WBC_PASS_MAX], qv[WBC_PASS_MAX], qa[WBC_PASS_MAX];
+  const unsigned char *restrict  shorted = p->shorted, *restrict cut = p->cut, *restrict on_arr = b->on;
+  _Alignas(64) double            qp[WBC_PASS_MAX], qv[WBC_PASS_MAX], qa[WBC_PASS_MAX], pg[WBC_PASS_MAX];
   _Alignas(64) double            qd[WBC_PASS_MAX], ctrl[WBC_PASS_MAX], brake[WBC_PASS_MAX], j[WBC_PASS_MAX], k[WBC_PASS_MAX];
+  _Alignas(64) double            top[WBC_PASS_MAX], feed[WBC_PASS_MAX], trk[WBC_PASS_MAX];
   _Alignas(64) double            lim[WBC_PASS_MAX], mean[WBC_PASS_MAX], rel[WBC_PASS_MAX], x[WBC_PASS_MAX], th[WBC_PASS_MAX];
   double *restrict               xp = x, *restrict thp = th;
 
@@ -104,34 +107,50 @@ static void stepped(const wbc_steps_t *s, int n)
     qp[i] = qpos[qadr[i]];
     qv[i] = qvel[vi];
     qa[i] = qacc[vi];
+    pg[i] = p_gains[2 * i];
+    xp[i] = (bw[i] - qv[i]) / v_mesh[i];
   }
+  nptanh(b, xp, thp, n);
   for (int i = 0; i < n; i++)
   {
-    qd[i] = qv[i] + half * qa[i];
+    const double b0 = bc[i] + (mesh[i] / v_mesh[i]) * (1.0 - thp[i] * thp[i]);
+    const double im = inv_m[i];
+    const double h_mid = (im > 0.0) ? (half / (1.0 + (third * b0) * im)) : half;
+    const double lim_live = ((shorted[i] | cut[i]) != 0U) ? 0.0 : p_limit[i];
+    const int    pd_on = pg[i] > 0.0;
+    const double ti = npminimum(shock[i], lim_live);
+    const double fi = npclip(p_feed[i], -ti, ti);
+    const double ki = npmaximum(bk[i], 1.0);
+    const double qi = qv[i] + h_mid * qa[i];
+    const double ri = brate[i] + ease * ((fi - asked[i]) / dt - brate[i]);
+    const int    act = (ti > 0.0) & (!pd_on) & ((fi != 0.0) | (ri != 0.0));
+
+    top[i] = ti;
+    feed[i] = fi;
+    qd[i] = qi;
     ctrl[i] = p_ctrl[i];
     brake[i] = (shorted[i] != 0U) ? damping[i] : 0.0;
     j[i] = (on_arr[i] != 0U) ? bj[i] : 1.0;
-    k[i] = npmaximum(bk[i], 1.0);
+    k[i] = ki;
     mean[i] = 0.0;
     q_step[i] = qp[i];
-    went[i] = dt * qd[i];
-    lim[i] = gap[i] + shock[i] / k[i];
-    brate[i] = brate[i] + ease * ((p_feed[i] - asked[i]) / dt - brate[i]);
-    asked[i] = p_feed[i];
+    went[i] = dt * qi;
+    lim[i] = gap[i] + shock[i] / ki;
+    brate[i] = ri;
+    asked[i] = fi;
+    trk[i] = (act != 0) ? track[i] : 0.0;
   }
   for (int sub = 0; sub < subs; sub++)
   {
     for (int i = 0; i < n; i++)
     {
       rel[i] = bw[i] - qd[i];
-      xp[i] = rel[i] / mesh_rs;
+      xp[i] = rel[i] / v_mesh[i];
     }
     nptanh(b, xp, thp, n);
     for (int i = 0; i < n; i++)
     {
       const int    on = on_arr[i] != 0U;
-      const int    act = (p_feed[i] != 0.0) | (brate[i] != 0.0);
-      const double trk = (act != 0) ? track[i] : 0.0;
       const double d0 = delta[i];
       const double past = npsign(d0) * npmaximum(fabs(d0) - gap[i], 0.0);
       double       passed = (past != 0.0) ? (bk[i] * past + bc[i] * rel[i]) + mesh[i] * thp[i] : 0.0;
@@ -140,9 +159,9 @@ static void stepped(const wbc_steps_t *s, int n)
       passed = on ? npclip(passed, -shock[i], shock[i]) : passed;
       pi = on ? p_int[i] + h * ((bdrive[i] - brake[i] * bw[i]) - hat[i]) : 0.0;
       ht = observe[i] * (pi - j[i] * bw[i]);
-      cap = fabs(ht) + play_nm;
-      drive = ctrl[i] + trk * (npclip(p_feed[i] - ht, -cap, cap) + bc[i] * (brate[i] / k[i] - rel[i]));
-      drive = on ? npclip(drive, -peak[i], peak[i]) : ctrl[i];
+      cap = npminimum(top[i], npmaximum(fabs(ht), fabs(feed[i])) + play_nm);
+      drive = ctrl[i] + trk[i] * (npclip(feed[i] - ht, -cap, cap) + bc[i] * (brate[i] / k[i] - rel[i]));
+      drive = on ? npclip(drive, -top[i], top[i]) : ctrl[i];
       wi = on ? (bw[i] + (h * (drive - passed)) / j[i]) / (1.0 + (h * brake[i]) / j[i]) : qd[i];
       p_int[i] = pi;
       hat[i] = ht;

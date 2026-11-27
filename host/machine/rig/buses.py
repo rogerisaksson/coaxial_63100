@@ -259,9 +259,12 @@ class Segment:
                 h.warm(k, b.warm[i])
                 b.warm[i] = 0.0
         mixed = [(k, j) for k, j in self.pairs if ask[k] is not None and ask[j] is not None]
+        top_a = [b.limit[i] / self.drives[k][0] for k, i in enumerate(self.indices)]
         for k, j in mixed:
-            ask[k], ask[j], emf[k], emf[j] = (ask[k] + ask[j], ask[k] - ask[j], emf[k] + emf[j],
-                                              emf[k] - emf[j])
+            ak = max(-top_a[k], min(top_a[k], ask[k]))
+            aj = max(-top_a[j], min(top_a[j], ask[j]))
+            ask[k], ask[j], emf[k], emf[j] = (ak + aj, ak - aj, emf[k] + emf[j], emf[k] - emf[j])
+            top_a[k] = top_a[j] = max(top_a[k], top_a[j]) if (top_a[k] > 0.0 and top_a[j] > 0.0) else 0.0
         got = [0.0] * len(self.indices)
         for k, i in enumerate(self.indices):
             if ask[k] is None:
@@ -269,7 +272,7 @@ class Segment:
             # Motoring, the back-EMF takes from the supply; braking, it adds to it.
             e = abs(emf[k])
             amps = (b.volts[0] + (-e if ask[k] * emf[k] > 0.0 else e)) / b.ohm[i]
-            top = (min(b.limit[i] / self.drives[k][0], max(0.0, amps)) * h.derate[k]
+            top = (min(top_a[k], max(0.0, amps)) * h.derate[k]
                    if h.gates[k] else 0.0)
             got[k] = max(-top, min(top, ask[k]))
             h.load(k, self.drives[k][0] * got[k])

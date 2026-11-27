@@ -172,7 +172,7 @@ double wbc_imp_swing_w(const wbc_imp_t *k, double drive, double turns, double go
 
 void wbc_imp_beat(const wbc_imp_t *k, double drive, double psi, double sway, double lateral, double turns,
                   const double was[2], double need, const double lead[2], const double split[2], const double begun[2],
-                  const double stood[2], double phi_w, double thrown, double *stepping, double *way,
+                  const double stood[2], double phi_w, double thrown, double lat, double *stepping, double *way,
                   double *swung, double sweep[2], double phi[2], double on[2], double off[2], double u[2],
                   double flying[2])
 {
@@ -196,7 +196,8 @@ void wbc_imp_beat(const wbc_imp_t *k, double drive, double psi, double sway, dou
   {
     /* or from where the other came down, standing in the last FALL_U of its swing (stride.beat) */
     const double other = ((stood[1 - b] * was[1 - b]) * (double)(u[1 - b] > 1.0 - k->fall_u)) * (double)(u[1 - b] < 1.0);
-    const double side_hold = ((((k->sea_roll * (double)(fabs(drive) < 10.0 * k->stirs))
+    const double side_hold = (((((k->sea_roll * (double)(fabs(drive) < 10.0 * k->stirs))
+                                 * (double)(fabs(lat) > 0.1 * k->stirs))
                                 * stood[b]) * stood[1 - b]) * was[b])
                              * (double)(phi[b] > (phi_w - PI_D) - 0.5 * phi_w) * (double)(phi[b] <= phi_w - PI_D);
     const double came = npmax(other, side_hold) * (double)(u[b] <= 0.0);
@@ -415,8 +416,8 @@ void wbc_imp_vaults(const wbc_imp_t *k, const double leg[2][3], const double len
 }
 
 void wbc_imp_clears(const wbc_imp_t *k, const double u[2], const double flying[2], const double swung[2],
-                    const double high[2], const double tip[2], const double tipping[2], const double tilt[2],
-                    const double late[2], const double land[2], double clear[3][2])
+                    const double hurry[2], const double high[2], const double tip[2], const double tipping[2],
+                    const double tilt[2], const double late[2], const double land[2], double clear[3][2])
 {
   for (int b = 0; b < 2; b++)
   {
@@ -427,16 +428,17 @@ void wbc_imp_clears(const wbc_imp_t *k, const double u[2], const double flying[2
     const double e11 = ((((-30.0 * by) * by) * (1.0 - by)) * (1.0 - by)) / k->fall_u;
     const double e20 = (((60.0 * on) * (1.0 - on)) * (1.0 - 2.0 * on)) / k->rise_u2;
     const double e21 = (((60.0 * by) * (1.0 - by)) * (1.0 - 2.0 * by)) / k->fall_u2;
+    const double rate = swung[b] * hurry[b];
     const double down = npmax(tip[b], tilt[b]), toes = k->half_m + k->toe_m * e00, dip = wbc_sin(down);
     const wbc_sc_t tipped = wbc_sc(tip[b]);
 
     clear[0][b] = (((((high[b] * flying[b]) * e00) * e01) - k->reach_m_s * late[b]) + (land[b] * flying[b]) * (1.0 - e01))
                   + flying[b] * (k->half_m * npmax(-tipped.s, 0.0) + toes * npmax(dip, 0.0));
-    clear[1][b] = (((((high[b] * flying[b]) * (e10 * e01 + e00 * e11)) * swung[b]) - k->reach_m_s * (double)(late[b] > 0.0))
-                   - ((land[b] * flying[b]) * e11) * swung[b])
+    clear[1][b] = (((((high[b] * flying[b]) * (e10 * e01 + e00 * e11)) * rate) - k->reach_m_s * (double)(late[b] > 0.0))
+                   - ((land[b] * flying[b]) * e11) * rate)
                   + ((flying[b] * ((-k->half_m) * (double)(tip[b] < 0.0) + toes * (double)(tip[b] > 0.0))) * tipped.c)
                     * tipping[b]
-                  + (((flying[b] * k->toe_m) * e10) * swung[b]) * npmax(dip, 0.0);
+                  + (((flying[b] * k->toe_m) * e10) * rate) * npmax(dip, 0.0);
     clear[2][b] = ((((high[b] * flying[b]) * (e20 * e01 + e00 * e21)) * (swung[b] * swung[b]))
                    - ((land[b] * flying[b]) * e21) * (swung[b] * swung[b]))
                   + (((flying[b] * k->toe_m) * e20) * (swung[b] * swung[b])) * npmax(dip, 0.0);

@@ -56,7 +56,7 @@ def _step_typed():
                ('hang_rate', f), ('cn', p * c), ('chain_held', (i * QP_ROWS) * 2), ('chain_nheld', i * 2),
                ('chain_let', (i * 3) * c), ('chain_nlet', i), ('chain_let_pad', i),
                ('chain_slide_m_s', f), ('chain_w_pin', f), ('chain_tilt', f), ('rows_free', f * 10), ('soles_free', (f * 6) * 2), ('soles', (f * 6) * 2),
-               ('lean', f)]
+               ('lean', f), ('kt', f * d)]
     Step = type('Step', (ctypes.Structure,), {'_fields_': fields})
     if ctypes.sizeof(Step) != size:
         raise ValueError('wbc_step_t is %d bytes, its mirror %d' % (size, ctypes.sizeof(Step)))
@@ -96,6 +96,7 @@ def _laid(b, sensed):
     k.active[:len(active)] = active.tolist()
     for at, (p, r) in enumerate(b.pairs):
         k.pairs[at][0], k.pairs[at][1] = p, r
+    k.kt[:len(b.kt)] = b.kt.tolist()
     k.moment[:rounds.NU] = rounds.MOMENT.tolist()
     k.room[:] = rounds.ROOM.tolist()
     for name in 'COM TURN SWING KNEE POSTURE HEIGHT MOMENT FOLD STOP PART AIR PIN KEEP STILL'.split():

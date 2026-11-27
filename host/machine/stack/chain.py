@@ -29,7 +29,7 @@ from machine import libm
 from machine.senses.borne import CARPAL, LET
 from machine.stack import chain_qp
 from machine.stack.rounds import LEGS
-from machine.stack.shrunk import box, shrunk
+from machine.stack.shrunk import box, overloaded, paired, paired_limit, paired_shrunk
 from machine.stack.wbc import G, HELD_K, LIMIT_S, STOP_RAD, SWING_KD, turn_error
 
 #: The regime as its text says it (`closed-chain-regime`): level 2's damping m and level 1's on x, a contact's
@@ -310,23 +310,23 @@ def step(b, s, ask, regime, stopped=False, compliant='sensed'):
     b.chain_let = chain_qp.letting(keys, holds, let, b.chain_warm[0], chain_qp.zrows(holds, width, mode), al)
     qdd = np.zeros(n)
     qdd[given], qdd[P] = np.concatenate([x, held]), foreseen
-    if met or not (np.abs(tau1) > limit).any():
+    plim, ptau1 = paired_limit(limit, b.pairs, b.kt), paired(tau1, b.pairs, b.kt)
+    if met or (not (np.abs(tau1) > limit).any() and not (np.abs(ptau1) > plim).any()):
         scale, tau = 1.0, tau1
     else:
         zeta = u[nd:]
         tau0, qdd0 = maps.t0 + maps.Tz @ zeta, np.zeros(n)
         qdd0[given], qdd0[P] = np.concatenate([np.zeros(nd), held]), maps.p0 + maps.Pz @ zeta
-        scale = shrunk(tau1, tau0, -limit, limit)
+        ptau0 = paired(tau0, b.pairs, b.kt)
+        scale = paired_shrunk(tau1, tau0, ptau1, ptau0, limit, plim)
         tau, qdd = tau0 + scale * (tau1 - tau0), qdd0 + scale * (qdd - qdd0)
-        s0 = shrunk(tau, np.zeros(nd), -limit, limit) if (np.abs(tau0) > limit).any() else 1.0
+        ptau, zeros = ptau0 + scale * (ptau1 - ptau0), np.zeros(nd)
+        s0 = (paired_shrunk(tau, zeros, ptau, zeros, limit, plim)
+              if ((np.abs(tau0) > limit).any() or (np.abs(ptau0) > plim).any()) else 1.0)
         if s0 < 1.0:
             tau, qdd = s0 * tau, s0 * qdd
         scale = s0 * scale
-    past = np.abs(tau1) > b.clamp * (1.0 + 1e-6)
-    over = past.copy()
-    for p, q in b.pairs:
-        over[p] = over[q] = past[p] or past[q]
-    b.load = np.abs(tau1) / b.clamp
+    over, b.load = overloaded(tau1, ptau1, b.clamp, b.pairs, b.kt)
     return {'tau': np.clip(tau, lo, hi), 'qacc': qdd, 'bears': [0.0, 0.0], 'cop': [], 'over': over, 'slack': [],
             'held': b.chain_warm, 'holds': holds, 'modes': mode, 'borne': z.reshape(-1, 3), 'scale': scale,
             'residual': residual, 'foreseen': foreseen, 'met': met, 'al': al}

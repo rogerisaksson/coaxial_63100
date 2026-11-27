@@ -70,7 +70,7 @@ class Drives(ctypes.Structure):
 
     _fields_ = [('n', _i), ('q_at', _i), ('qd_at', _i), ('qm_at', _i), ('knee', _i * 2), ('cervical', _i * 2),
                 ('knee_nm', _d), ('knee_soft', _d), ('leak_s', _d), ('wep_hold_s', _d),
-                ('joints', _vp), ('act', _vp), ('y', _vp), ('qacc', _vp), ('tau', _vp), ('over', _vp),
+                ('joints', _vp), ('act', _vp), ('y', _vp), ('qacc', _vp), ('tau', _vp), ('over', _vp), ('sea', _vp),
                 ('jeff', _vp), ('clamp', _vp), ('wep', _vp), ('wep_lim', _vp), ('clamp_j', _vp), ('q_lo', _vp),
                 ('q_hi', _vp), ('eso', _vp), ('ref_q', _vp), ('ref_v', _vp), ('hold', _vp), ('sb', _vp),
                 ('feed', _vp), ('limit', _vp), ('release', _vp), ('bus_k', _vp), ('bus', _vp), ('posture_kd', _d),

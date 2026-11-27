@@ -203,7 +203,7 @@
         stroke-turn 10.0 turn 1.0 half 0.5
         ;; the robot's legs' rolls and yaws and its trunk's roll and twist, squared in every phase
         square (:hip-roll [:rate 0.0 square-rate] :hip-yaw [:rate 0.0 square-rate] :ankle-roll [:rate 0.0 square-rate]
-                :spine-roll [:rate 0.0 square-rate] :waist [:rate 0.0 square-rate])
+                :spine-roll [:rate 0.0 square-rate] :waist [:rate 0.0 square-rate] :spine [:rate 0.0 square-rate])
         even (:hip [:even 0.0 even-rate] :knee [:rate fold even-rate] :ankle [:even 0.0 even-rate])
         sat (:shoulder [:rate :seat brace-rate] :elbow [:rate locked air-rate])
         lift (:hip [:start 0.0 lift-rate] :knee [:start 0.0 air-rate])]

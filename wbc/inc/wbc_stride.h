@@ -11,7 +11,7 @@ double wbc_imp_swing_w(const wbc_imp_t *k, double drive, double turns, double go
 /** machine.law.stride.beat: (stepping, way, swung) out, each limb's sweep, phi, on, off, u, flying. */
 void wbc_imp_beat(const wbc_imp_t *k, double drive, double psi, double sway, double lateral, double turns,
                   const double was[2], double need, const double lead[2], const double split[2], const double begun[2],
-                  const double stood[2], double phi_w, double thrown, double *stepping, double *way,
+                  const double stood[2], double phi_w, double thrown, double lat, double *stepping, double *way,
                   double *swung, double sweep[2], double phi[2], double on[2], double off[2], double u[2],
                   double flying[2]);
 
@@ -59,8 +59,8 @@ void wbc_imp_vaults(const wbc_imp_t *k, const double leg[2][3], const double len
 
 /** machine.law.stride.clears: a swinging sole's middle over the floor, its rate, its acceleration. */
 void wbc_imp_clears(const wbc_imp_t *k, const double u[2], const double flying[2], const double swung[2],
-                    const double high[2], const double tip[2], const double tipping[2], const double tilt[2],
-                    const double late[2], const double land[2], double clear[3][2]);
+                    const double hurry[2], const double high[2], const double tip[2], const double tipping[2],
+                    const double tilt[2], const double late[2], const double land[2], double clear[3][2]);
 void wbc_imp_footholds(const wbc_imp_t *k, const double *along, const double *rise, int told, const double s_meet[2],
                        const double s_fore[2], const double s_now[2], double s_com, double reach, const double hold[2],
                        double gap, double step, double s_new[2], double top[2], double land[2], double run[2], double cell[2]);

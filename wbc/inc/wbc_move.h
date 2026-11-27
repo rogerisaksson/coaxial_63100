@@ -72,10 +72,10 @@ double wbc_bedexit_step(const wbc_bedexit_t *b, double *state, double *cmd, cons
                         double soles, double shins, double pitch);
 
 /** The floor scoot's phases, the parts it moves (hips, knees, shoulders, elbows, the legs' rolls and yaws and the
-    ankles a side each, the trunk's roll and twist), their joints and its heels' steps. */
+    ankles a side each, the trunk's roll, twist and pitch), their joints and its heels' steps. */
 #define WBC_SCOOT_PHASES 9
-#define WBC_SCOOT_PARTS  10
-#define WBC_SCOOT_MOVED  18
+#define WBC_SCOOT_PARTS  11
+#define WBC_SCOOT_MOVED  19
 #define WBC_SCOOT_STEPS  2
 
 /** The floor scoot's state's slots: the phase, the step, each side's way this cycle, the heading aimed at,

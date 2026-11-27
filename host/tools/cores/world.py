@@ -37,9 +37,9 @@ class Boxes(ctypes.Structure):
 
     """wbc_boxes_t: the robot's gearboxes, pointing at `gearbox.Boxes`'s arrays and its world's braking."""
 
-    _fields_ = ([(name, _vp) for name in ('on', 'k', 'c', 'j', 'gap', 'shock', 'mesh', 'observe', 'track', 'peak',
-                                           'damping', 'delta', 'w', 'hat', 'p_int', 'drive', 'asked', 'rate',
-                                           'q_step', 'went', 'tanh', 'tanh_data')]
+    _fields_ = ([(name, _vp) for name in ('on', 'k', 'c', 'j', 'gap', 'shock', 'mesh', 'v_mesh', 'inv_m',
+                                           'observe', 'track', 'peak', 'damping', 'delta', 'w', 'hat', 'p_int',
+                                           'drive', 'asked', 'rate', 'q_step', 'went', 'tanh', 'tanh_data')]
                 + [(name, _d) for name in ('ahead_wind', 'ahead_play', 'play_nm', 'mesh_rad_s', 'rate_s')]
                 + [('substeps', _i), ('spare', _i)])
 
@@ -137,9 +137,9 @@ def boxed(w):
     on = np.ascontiguousarray(bx.sprung, np.bool_)
     loop, data = numpy_tanh()
     b = Boxes(on=point(on, np.bool_), damping=point(w.damping), tanh=loop, tanh_data=data,
-              **{k: point(getattr(bx, k)) for k in ('k', 'c', 'j', 'gap', 'shock', 'mesh', 'observe', 'track', 'peak',
-                                                     'delta', 'w', 'hat', 'p_int', 'drive', 'asked', 'rate', 'q_step',
-                                                     'went')},
+              **{k: point(getattr(bx, k)) for k in ('k', 'c', 'j', 'gap', 'shock', 'mesh', 'v_mesh', 'inv_m',
+                                                     'observe', 'track', 'peak', 'delta', 'w', 'hat', 'p_int',
+                                                     'drive', 'asked', 'rate', 'q_step', 'went')},
               ahead_wind=drives.AHEAD_WIND, ahead_play=drives.AHEAD_PLAY, play_nm=gearbox.PLAY_NM,
               mesh_rad_s=gearbox.MESH_RAD_S, rate_s=gearbox.RATE_S, substeps=gearbox.SUBSTEPS)
     return b, (on,)
