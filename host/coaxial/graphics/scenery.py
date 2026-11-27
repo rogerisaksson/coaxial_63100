@@ -216,6 +216,14 @@ def _laid(edges):
     return np.asarray(ends, float).reshape(-1, 3), np.asarray(inks, int)
 
 
+def _hashable(value):
+    try:
+        hash(value)
+        return True
+    except TypeError:
+        return False
+
+
 @functools.lru_cache(maxsize=32)
 def _asked_ways(field, ways):
     from coaxial.model.blocks import numpy as np
@@ -223,40 +231,50 @@ def _asked_ways(field, ways):
     at = (course.track(ways) if field is grounds else field.track())['at']
     ends = [end for k in range(0, len(at), 2 * LINE_DASH)
             for end in (at[k], at[(k + LINE_DASH) % len(at)])]
-    return np.asarray(ends, float), np.full(len(ends) // 2, list(INKS).index('line'))
+    return np.asarray(ends, float).reshape(-1, 3), np.full(len(ends) // 2, list(INKS).index('line'))
 
 
 def asked(field=grounds, line_: object = True):
     """(ends, inks) of the line the course asks (`course.track`, or the `field`'s), dashed."""
     ways = line_ if isinstance(line_, tuple) else getattr(line_, 'ways', None)
-    if ways is None or isinstance(ways, tuple):
+    if (ways is None or isinstance(ways, tuple)) and _hashable((ways, field)):
         return _asked_ways(field, ways)
     from coaxial.model.blocks import numpy as np
     from machine.aircraft import course
     at = (course.track(ways) if field is grounds else field.track())['at']
     ends = [end for k in range(0, len(at), 2 * LINE_DASH)
             for end in (at[k], at[(k + LINE_DASH) % len(at)])]
-    return np.asarray(ends, float), np.full(len(ends) // 2, list(INKS).index('line'))
+    return np.asarray(ends, float).reshape(-1, 3), np.full(len(ends) // 2, list(INKS).index('line'))
 
 
 @functools.lru_cache(maxsize=64)
 def _edges_cached(gate, has_line, ways, field):
     from coaxial.model.blocks import numpy as np
-    parts = [standing(field)] + [runway()] * int(gate is None or field is not grounds) + [
-        gates(gate, field)] * int(gate is not None) + [_asked_ways(field, ways)] * int(has_line)
+    parts = [standing(field)]
+    if gate is None or field is not grounds:
+        parts.append(runway())
+    if gate is not None:
+        parts.append(gates(gate, field))
+    if has_line:
+        parts.append(_asked_ways(field, ways))
     return np.vstack([p[0] for p in parts]), np.concatenate([p[1] for p in parts])
 
 
-def edges(gate=None, line_=False, field=grounds):
+def edges(gate=None, line_: object = False, field=grounds):
     """(ends, inks) of every edge that stands on `field` - with the runway strip off the gate
     course, and on an airfield on it too, the course's gates where `gate` is the one flown to
     next, and the line it asks with `line_`."""
     ways = line_ if isinstance(line_, tuple) else getattr(line_, 'ways', None)
-    if ways is None or isinstance(ways, tuple):
+    if (ways is None or isinstance(ways, tuple)) and _hashable((ways, field)):
         return _edges_cached(gate, bool(line_), ways, field)
     from coaxial.model.blocks import numpy as np
-    parts = [standing(field)] + [runway()] * int(gate is None or field is not grounds) + [
-        gates(gate, field)] * int(gate is not None) + [asked(field, line_)] * int(bool(line_))
+    parts = [standing(field)]
+    if gate is None or field is not grounds:
+        parts.append(runway())
+    if gate is not None:
+        parts.append(gates(gate, field))
+    if bool(line_):
+        parts.append(asked(field, line_))
     return np.vstack([p[0] for p in parts]), np.concatenate([p[1] for p in parts])
 
 

@@ -356,8 +356,18 @@ int rs_ground_shaded(int nseg, const double *restrict fx, const double *restrict
     {
       const double a = (x0 * 2.0 < x1 * 2.0) ? (x0 * 2.0) : (x1 * 2.0);
       const double b = (x0 * 2.0 > x1 * 2.0) ? (x0 * 2.0) : (x1 * 2.0);
-      const double hi = ceil(b);
-      for (double i = floor(a) + 1.0; i < hi && nt < ts_cap; i += 1.0)
+      const double lim = (double)(2 * width) + 1.0;
+      double       lo = floor(a) + 1.0;
+      double       hi = ceil(b);
+      if (lo < 0.0)
+      {
+        lo = 0.0;
+      }
+      if (hi > lim)
+      {
+        hi = lim;
+      }
+      for (double i = lo; i < hi && nt < ts_cap; i += 1.0)
       {
         ts_buf[nt++] = (i / 2.0 - x0) / dx;
       }
@@ -366,8 +376,18 @@ int rs_ground_shaded(int nseg, const double *restrict fx, const double *restrict
     {
       const double a = (y0 * 4.0 < y1 * 4.0) ? (y0 * 4.0) : (y1 * 4.0);
       const double b = (y0 * 4.0 > y1 * 4.0) ? (y0 * 4.0) : (y1 * 4.0);
-      const double hi = ceil(b);
-      for (double i = floor(a) + 1.0; i < hi && nt < ts_cap; i += 1.0)
+      const double lim = (double)(4 * height) + 1.0;
+      double       lo = floor(a) + 1.0;
+      double       hi = ceil(b);
+      if (lo < 0.0)
+      {
+        lo = 0.0;
+      }
+      if (hi > lim)
+      {
+        hi = lim;
+      }
+      for (double i = lo; i < hi && nt < ts_cap; i += 1.0)
       {
         ts_buf[nt++] = (i / 4.0 - y0) / dy;
       }
@@ -379,12 +399,12 @@ int rs_ground_shaded(int nseg, const double *restrict fx, const double *restrict
     {
       const double t = 0.5 * (ts_buf[k] + ts_buf[k + 1]);
       const double gx = x0 + dx * t, gy = y0 + dy * t, gd = d0 + dd * t;
-      if (gx < 0.0 || gy < 0.0)
+      if (!(gx >= 0.0 && gx < (double)width && gy >= 0.0 && gy < (double)height))
       {
         continue;
       }
       const int px = (int)gx, py = (int)gy;
-      if (px >= width || py >= height)
+      if (px < 0 || px >= width || py < 0 || py >= height)
       {
         continue;
       }

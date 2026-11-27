@@ -11,6 +11,7 @@ a pole marked each metre up and what stands about the course are the quad's worl
 (`coaxial.graphics.scenery`); the camera frames `reach` m about `centre`, SIGHT reaches off.
 """
 import math
+import weakref
 
 from coaxial.graphics import engine, scenery, shapes
 from coaxial.graphics.callouts import lines
@@ -228,6 +229,58 @@ def _painted(frame, rotors, dense):
 _POSE_STATIC: dict = {}
 
 
+def _turn_rows(vectors, mat):
+    """Apply 3x3 row-major `mat` to `(n, 3)` `vectors`, matching `rs_pose_parts` bit-for-bit."""
+    return (vectors[:, 0:1] * mat[:, 0] + vectors[:, 1:2] * mat[:, 1]) + vectors[:, 2:3] * mat[:, 2]
+
+
+def _pose_static(frame, dense, moving, fuv, fp_len, pick):
+    """Cached `(uv, index)` for `(frame, dense, moving)` validated by weakrefs against `id()` reuse."""
+    from coaxial.model.blocks import numpy as np
+    s_key = (id(frame), bool(dense), tuple(id(part) for part, _r, _s in moving))
+    s_hit = _POSE_STATIC.get(s_key)
+    if (s_hit is not None and s_hit[0]() is frame
+            and all(ref() is part for ref, (part, _r, _s) in zip(s_hit[1], moving))):
+        return s_hit[2], s_hit[3]
+    uvs = [fuv] + [pick(part)[2] for part, _r, _s in moving]
+    idxs, base = [frame.index], fp_len
+    for part, _r, _s in moving:
+        idxs.append(part.index + base)
+        base += len(pick(part)[0])
+    uv = fuv if len(uvs) == 1 else np.concatenate(uvs)
+    idx = frame.index if len(idxs) == 1 else np.vstack(idxs)
+    try:
+        refs = (weakref.ref(frame), tuple(weakref.ref(part) for part, _r, _s in moving))
+    except TypeError:
+        return uv, idx
+    while len(_POSE_STATIC) >= 64:
+        del _POSE_STATIC[next(iter(_POSE_STATIC))]
+    _POSE_STATIC[s_key] = (refs[0], refs[1], uv, idx)
+    return uv, idx
+
+
+def pose_meshes_twin(pose, rotors, dense, frame, moving):
+    """`pose_meshes` in NumPy alone, bit-for-bit equal to `raster.pose_parts`."""
+    from coaxial.model.blocks import numpy as np
+    turn, at = np.asarray(pose['turn'], float), np.asarray(pose['at'], float)
+    pick = (lambda m: (m.dense[0], m.dense[1], m.dense[2], m.dense[3])) if dense else \
+        (lambda m: (m.corners, m.normals, m.uv, m.materials))
+    fp, fn, fuv, _fm = pick(frame)
+    pos_l, nrm_l, m_mats = [_turn_rows(fp, turn) + at], [_turn_rows(fn, turn)], []
+    for part, rot_local, spot in moving:
+        here = turn @ rot_local
+        p, n, _u, m = pick(part)
+        pos_l.append(_turn_rows(p, here) + (at + turn @ np.asarray(spot, float)))
+        nrm_l.append(_turn_rows(n, here))
+        m_mats.append(m)
+    uv, idx = _pose_static(frame, dense, moving, fuv, len(fp), pick)
+    out_p = pos_l[0] if len(pos_l) == 1 else np.concatenate(pos_l)
+    out_n = nrm_l[0] if len(nrm_l) == 1 else np.concatenate(nrm_l)
+    f_painted = _painted(frame, rotors, dense)
+    mats = f_painted if not m_mats else np.concatenate([f_painted] + m_mats)
+    return out_p, out_n, uv, mats, idx
+
+
 def pose_meshes(pose, rotors, dense, frame, moving):
     """(positions, normals, uv, materials, index) in the world: `frame` at `pose` and each
     `(part_mesh, rot_local, spot)` in `moving` turned and placed in the frame's axes."""
@@ -250,31 +303,14 @@ def pose_meshes(pose, rotors, dense, frame, moving):
         spots.append(at + turn @ np.asarray(spot, float))
         m_mats.append(m)
         total_n += len(p)
-    s_key = (id(frame), bool(dense), tuple(id(part) for part, _r, _s in moving))
-    s_hit = _POSE_STATIC.get(s_key)
-    if s_hit is None:
-        while len(_POSE_STATIC) >= 64:
-            del _POSE_STATIC[next(iter(_POSE_STATIC))]
-        uvs = [fuv] + [pick(part)[2] for part, _r, _s in moving]
-        idxs, base = [frame.index], len(fp)
-        for part, _r, _s in moving:
-            idxs.append(part.index + base)
-            base += len(pick(part)[0])
-        s_hit = _POSE_STATIC[s_key] = (
-            fuv if len(uvs) == 1 else np.concatenate(uvs),
-            frame.index if len(idxs) == 1 else np.vstack(idxs),
-        )
     posed = c_raster.pose_parts(parts_pn, np.asarray(turns, float), np.asarray(spots, float), total_n)
     if posed is None:
-        pos_l = [fp @ turn.T + at] + [p @ t.reshape(3, 3).T + s for (p, _n), t, s in zip(parts_pn[1:], turns[1:], spots[1:])]
-        nrm_l = [fn @ turn.T] + [n @ t.reshape(3, 3).T for (_p, n), t in zip(parts_pn[1:], turns[1:])]
-        out_p = pos_l[0] if len(pos_l) == 1 else np.concatenate(pos_l)
-        out_n = nrm_l[0] if len(nrm_l) == 1 else np.concatenate(nrm_l)
-    else:
-        out_p, out_n = posed
+        return pose_meshes_twin(pose, rotors, dense, frame, moving)
+    out_p, out_n = posed
+    uv, idx = _pose_static(frame, dense, moving, fuv, len(fp), pick)
     f_painted = _painted(frame, rotors, dense)
     mats = f_painted if not m_mats else np.concatenate([f_painted] + m_mats)
-    return out_p, out_n, s_hit[0], mats, s_hit[1]
+    return out_p, out_n, uv, mats, idx
 
 
 def _posed(pose, rotors, dense, see='shell'):

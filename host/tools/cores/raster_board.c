@@ -152,20 +152,24 @@ void rs_shade(int width, int height, const double *restrict depth, const uint8_t
       const double u = (((double)px + 0.5) - cx) / scale;
       const double tz = distance - 1.0 / w, tx = u / w, ty = v / w;
       double       shaded = 0.0;
-      if (sbuf != NULL && s_n > 0)
+      if (sbuf != NULL && s_n > 0 && lid && sun[at] != 0u)
       {
-        const int si =
-          (int)(((((tx * s_vecs9[0] + ty * s_vecs9[1]) + tz * s_vecs9[2]) / s_ext) * 0.5 + 0.5) *
-                (double)(s_n - 1));
-        const int sj =
-          (int)(((((tx * s_vecs9[3] + ty * s_vecs9[4]) + tz * s_vecs9[5]) / s_ext) * 0.5 + 0.5) *
-                (double)(s_n - 1));
-        if (lid && sun[at] != 0u && si >= 0 && si < s_n && sj >= 0 && sj < s_n)
+        const double si_f =
+          ((((tx * s_vecs9[0] + ty * s_vecs9[1]) + tz * s_vecs9[2]) / s_ext) * 0.5 + 0.5) *
+          (double)(s_n - 1);
+        const double sj_f =
+          ((((tx * s_vecs9[3] + ty * s_vecs9[4]) + tz * s_vecs9[5]) / s_ext) * 0.5 + 0.5) *
+          (double)(s_n - 1);
+        if (si_f > -1.0 && si_f < (double)s_n && sj_f > -1.0 && sj_f < (double)s_n)
         {
-          const double occ = sbuf[sj * s_n + si];
-          if (occ > ((tx * s_vecs9[6] + ty * s_vecs9[7]) + tz * s_vecs9[8]) + bias)
+          const int si = (int)si_f, sj = (int)sj_f;
+          if (si >= 0 && si < s_n && sj >= 0 && sj < s_n)
           {
-            shaded = sh_step;
+            const double occ = sbuf[sj * s_n + si];
+            if (occ > ((tx * s_vecs9[6] + ty * s_vecs9[7]) + tz * s_vecs9[8]) + bias)
+            {
+              shaded = sh_step;
+            }
           }
         }
       }
@@ -230,12 +234,17 @@ void rs_shade(int width, int height, const double *restrict depth, const uint8_t
 
 static inline int64_t rs_blend_glow(double heat, const int64_t *restrict rgb, int max_lo)
 {
-  int lo = (int)heat;
-  if (lo > max_lo)
+  const double clamped = (heat < 0.0) ? 0.0 : heat;
+  int          lo = (int)clamped;
+  if (lo < 0)
+  {
+    lo = 0;
+  }
+  else if (lo > max_lo)
   {
     lo = max_lo;
   }
-  const double   f = heat - (double)lo;
+  const double   f = clamped - (double)lo;
   const int64_t *a = rgb + (size_t)lo * 3u, *b = a + 3u;
   const int64_t  r = (int64_t)((double)a[0] + (double)(b[0] - a[0]) * f + 0.5);
   const int64_t  g = (int64_t)((double)a[1] + (double)(b[1] - a[1]) * f + 0.5);

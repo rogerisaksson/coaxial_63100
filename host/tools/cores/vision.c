@@ -371,10 +371,10 @@ int32_t vs_stereo_core(const int64_t *restrict gl, const int64_t *restrict gr, i
       continue;
     }
     const int32_t init_max = (rad < height - 1) ? rad : (height - 1);
-    for (int32_t ry = 0; ry <= init_max; ry++)
+    for (int32_t row_y = 0; row_y <= init_max; row_y++)
     {
-      vs_diff_hsum_row(&gl[(size_t)ry * (size_t)width + (size_t)d], &gr[(size_t)ry * (size_t)width],
-                       &ring_buf[(size_t)(ry % ring_rows) * (size_t)width], wd, rad);
+      vs_diff_hsum_row(&gl[(size_t)row_y * (size_t)width + (size_t)d], &gr[(size_t)row_y * (size_t)width],
+                       &ring_buf[(size_t)(row_y % ring_rows) * (size_t)width], wd, rad);
     }
     const int64_t *r0 = &ring_buf[0];
     for (int32_t u = 0; u < wd; u++)
@@ -499,12 +499,17 @@ void vs_voxel_add(const double *restrict xyz, const float *restrict rgb, int32_t
     const double  pz = xyz[(size_t)p * 3U + 2U];
     const double  dx = px - ex, dy = py - ey, dz = pz - ez;
     const double  away = sqrt((dx * dx + dy * dy) + dz * dz);
-    const bool    ok = (py > floor_m) && (py < ceil_m) && (away > near_m) && (away < far_m);
+    const bool ok = (py > floor_m) && (py < ceil_m) && (away > near_m) && (away < far_m);
+    if (!ok)
+    {
+      out_flat[p] = -1;
+      continue;
+    }
     const int64_t ii = (int64_t)floor((px - ox) / voxel);
     const int64_t jj = (int64_t)floor((py - floor_m) / voxel);
     const int64_t kk = (int64_t)floor((pz - oz) / voxel);
-    const bool inside = (ii >= 0 && ii < (int64_t)nx && jj >= 0 && jj < (int64_t)ny && kk >= 0 && kk < (int64_t)nz);
-    if (ok && inside)
+    const bool    inside = (ii >= 0 && ii < (int64_t)nx && jj >= 0 && jj < (int64_t)ny && kk >= 0 && kk < (int64_t)nz);
+    if (inside)
     {
       const size_t f = ((size_t)ii * (size_t)ny + (size_t)jj) * (size_t)nz + (size_t)kk;
       out_flat[p] = (int64_t)f;

@@ -372,14 +372,42 @@ def test_c11_raster_cells_parity(report):
     ref_n = np.concatenate([q_frame.dense[1] @ turn_q.T]
                            + [pt.dense[1] @ (turn_q @ rl).T for pt, rl, _sp3 in q_mov])
     pose_err = max(float(np.max(np.abs(pos_c - ref_p))), float(np.max(np.abs(nrm_c - ref_n))))
+    pos_tw, nrm_tw, _uv_tw, _mat_tw, _idx_tw = quadcopter.pose_meshes_twin(
+        pose, rotors, True, q_frame, q_mov)
+    twin_ok = (np.array_equal(pos_c.view(np.uint64), pos_tw.view(np.uint64))
+               and np.array_equal(nrm_c.view(np.uint64), nrm_tw.view(np.uint64)))
+    import gc
+    from machine.aircraft import airfield
+    class _TempMesh:
+        def __init__(self, n):
+            self.corners = np.zeros((n, 3))
+            self.normals = np.zeros((n, 3))
+            self.uv = np.zeros((n, 2))
+            self.materials = np.zeros(n, dtype=int)
+            self.index = np.zeros((1, 3), dtype=int)
+            self.dense = (self.corners, self.normals, self.uv, self.materials)
+            self.parts = []
+    cache_ok = True
+    for n_a, n_b in ((3, 5), (4, 7), (6, 2)):
+        m_a = _TempMesh(n_a)
+        _, _, uv_a, _, _ = quadcopter.pose_meshes(pose, [], False, m_a, [])
+        del m_a
+        gc.collect()
+        m_b = _TempMesh(n_b)
+        _, _, uv_b, _, _ = quadcopter.pose_meshes(pose, [], False, m_b, [])
+        cache_ok = cache_ok and len(uv_a) == n_a and len(uv_b) == n_b
+    unhash_ok = (not scenery._hashable(([0.0],))
+                 and len(scenery.edges(None, line_=([0.0],), field=airfield)[0]) > 0)
     pic = onboard.picture((0.0, 2.5, -6.0), (0.15, -0.12, 0.08), gate=0, line_=True)
     thumb = rng.integers(0, 256, (32, 48, 3), dtype=np.uint8)
     eyes_box = inset.eyes((thumb, [('chair', (210, 150, 80), [(80, 120), (220, 110), (240, 290), (70, 280)])]), 104, 36)
     report.check('C11 raster_strokes.c lines, strokes, ground, pose_parts and insets hold parity',
-                 lines_ok and ground_ok and strokes_ok and pose_err <= 1e-14
+                 lines_ok and ground_ok and strokes_ok and pose_err <= 1e-14 and twin_ok
+                 and cache_ok and unhash_ok
                  and len(pos_c) == len(nrm_c) == len(uv_c) == len(mat_c) and len(idx_c) > 0
                  and len(pic) == onboard.HIGH and len(eyes_box) > 0,
-                 'lines=%s ground=%s strokes=%s pose_err=%.2e' % (lines_ok, ground_ok, strokes_ok, pose_err))
+                 'lines=%s ground=%s strokes=%s pose_err=%.2e twin=%s cache=%s unhash=%s'
+                 % (lines_ok, ground_ok, strokes_ok, pose_err, twin_ok, cache_ok, unhash_ok))
 
 
 ROSTER = (test_lines_draw_what_line_draws, test_c11_raster_cells_parity, test_the_level_is_drawn_at_the_dot,

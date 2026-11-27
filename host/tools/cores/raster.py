@@ -2,6 +2,7 @@
 import ctypes
 import functools
 import os
+import threading
 
 import numpy as np
 
@@ -15,7 +16,7 @@ SOURCES = [SOURCE, CELLS_SOURCE, STROKES_SOURCE, BOARD_SOURCE]
 FLAGS = ('-O3', '-ffp-contract=off', '-fno-math-errno', '-fno-trapping-math',
          '-fvect-cost-model=dynamic') + build.native()
 _SCRATCH: dict[int, tuple] = {}
-_STROKE_BUF: list = [0, None]
+_raster_tls = threading.local()
 _SOLID_CACHE: dict[int, tuple] = {}
 _SPANS: dict[int, tuple] = {}
 _DRAPE_CACHE: dict[int, tuple] = {}
@@ -373,11 +374,11 @@ def strokes(ends, m, cam, centre, near_m: float):
     if nseg <= 0 or width <= 0 or height <= 0:
         return (np.empty(0, dtype=int), np.empty(0, dtype=int),
                 np.empty(0, dtype=np.float64), np.empty(0, dtype=int))
-    need = nseg * 80
-    if _STROKE_BUF[0] < need:
-        _STROKE_BUF[0] = need
-        _STROKE_BUF[1] = np.empty(need, dtype=np.uint8)
-    scratch = _STROKE_BUF[1]
+    need = nseg * 10
+    scratch = getattr(_raster_tls, 'strokes', None)
+    if scratch is None or len(scratch) < need:
+        scratch = np.empty(need, dtype=np.float64)
+        _raster_tls.strokes = scratch
     m9 = np.ascontiguousarray(m, dtype=np.float64).ravel()
     c3 = np.ascontiguousarray(centre, dtype=np.float64).ravel()
     counts = np.zeros(2, dtype=np.int64)
@@ -428,9 +429,11 @@ def pose_parts(parts_p_n, turns9, spots3, total_n: int):
         return out_p, out_n
     p_arrs = [np.ascontiguousarray(p, dtype=np.float64) for p, _n in parts_p_n]
     n_arrs = [np.ascontiguousarray(n, dtype=np.float64) for _p, n in parts_p_n]
+    counts = np.array([len(a) for a in p_arrs], dtype=np.int32)
+    if int(counts.sum()) != total_n or any(len(p) != len(n) for p, n in zip(p_arrs, n_arrs)):
+        return None
     p_ptrs = np.array([a.ctypes.data for a in p_arrs], dtype=np.uintp)
     n_ptrs = np.array([a.ctypes.data for a in n_arrs], dtype=np.uintp)
-    counts = np.array([len(a) for a in p_arrs], dtype=np.int32)
     t_c = np.ascontiguousarray(turns9, dtype=np.float64)
     s_c = np.ascontiguousarray(spots3, dtype=np.float64)
     lib.rs_pose_parts(nparts, p_ptrs.ctypes.data, n_ptrs.ctypes.data, counts.ctypes.data,

@@ -78,7 +78,7 @@ def _scene_cached(gate, has_line, ways, field):
     return np.vstack([floor, ends]), pitch, all_inks, palette
 
 
-def picture(eye, aim, gate=None, line_=False, field=grounds):
+def picture(eye, aim, gate=None, line_: object = False, field=grounds):
     """The picture's body (`inset.dotted`) from the lens at `eye` looking as `aim` has it
     (`sight`): the ground's grid and what stands on `field`, with the course's gates where
     `gate` is the one flown to next and its line with `line_`."""
@@ -86,7 +86,7 @@ def picture(eye, aim, gate=None, line_=False, field=grounds):
     (m, centre), cam = sight(eye, aim), lens()
     ground = air(aim[1], aim[2] if len(aim) > 2 else 0.0)
     ways = line_ if isinstance(line_, tuple) else getattr(line_, 'ways', None)
-    if ways is None or isinstance(ways, tuple):
+    if (ways is None or isinstance(ways, tuple)) and scenery._hashable((ways, field)):
         all_ends, pitch, inks, palette = _scene_cached(gate, bool(line_), ways, field)
     else:
         (floor, pitch), (ends, raw_inks) = scenery.grid(), scenery.edges(gate, line_, field)

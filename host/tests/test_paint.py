@@ -288,7 +288,16 @@ def test_board_c_kernels_match_python(report):
             gnd_ok = gnd_ok and c_g is not None and (
                 c_g[0].tolist(), c_g[1].tolist(), c_g[2].tolist()
             ) == (laid[0].tolist(), laid[1].tolist(), greys.tolist())
-    report.check('ground_runs_shaded matches _laid + _shaded unrolled and rolled', gnd_ok)
+    wide_runs = [('fan0', [(-200.0, 14.0, 5.0), (300.0, 14.0, 5.0)], 1.0),
+                 ('fan1', [(40.0, -200.0, 4.0), (40.0, 300.0, 8.0)], 1.0)]
+    wide_c = raster_board.ground_runs_shaded(wide_runs, None, 16, 80, 28, near_d, reach, None)
+    wide_p = ground._laid(wide_runs, 80, 28, None)
+    assert wide_p is not None
+    wide_g = ground._shaded(wide_p, static)
+    gnd_ok = gnd_ok and wide_c is not None and len(wide_c[0]) > 0 and (
+        wide_c[0].tolist(), wide_c[1].tolist(), wide_c[2].tolist()
+    ) == (wide_p[0].tolist(), wide_p[1].tolist(), wide_g.tolist())
+    report.check('ground_runs_shaded matches _laid + _shaded unrolled, rolled, and wide off-screen', gnd_ok)
 
     chars = [' ', 'a', 'b', 'c', 'd', ' ']
     tones = [None, (12, 180, 220), (12, 180, 220), 214, None, 44]

@@ -1,13 +1,15 @@
 """SIMD C11 board 3D shadow, shading, glow/halftone/rim, silhouette, and ground (`raster_board.c`)."""
 import ctypes
 import functools
+import threading
 
 import numpy as np
 
 from tools.cores import raster
 
-_BOARD_TLS: dict = {}
+_BOARD_TLS = threading.local()
 _ART_CACHE: dict = {}
+_ART_CAP = 16
 _PACKED_RUNS: dict = {}
 
 
@@ -71,15 +73,18 @@ def raster_folded(solid, m, fine_cam, width: int, height: int, beam, sun_min: fl
     if lib is None:
         return None
     pos_c, idx_c, nrm_c, sx, sy, ooz = raster._solid_arrays(solid)
-    key = ('fine', width, height)
-    fine_bufs = _BOARD_TLS.get(key)
-    if fine_bufs is None:
+    key = (width, height)
+    fine_hit = getattr(_BOARD_TLS, 'fine', None)
+    if fine_hit is None or fine_hit[0] != key:
         npix = (width * 2) * (height * 4)
-        fine_bufs = _BOARD_TLS[key] = (
+        fine_hit = (
+            key,
             np.empty(npix, dtype=np.float64),
             np.empty(npix, dtype=np.uint8),
             np.empty(npix, dtype=np.uint8),
         )
+        _BOARD_TLS.fine = fine_hit
+    fine_bufs = fine_hit[1:]
     ncells = width * height
     out_d = np.empty(ncells, dtype=np.float64)
     out_t = np.empty(ncells, dtype=np.uint8)
@@ -122,6 +127,8 @@ def shade_arrays(depth_c, top_c, sun_c, cam, m, pivot: float, slope: float, floo
         if aw > 0 and ah > 0:
             hit = _ART_CACHE.get(id(dense))
             if hit is None or hit[0] is not dense:
+                while len(_ART_CACHE) >= _ART_CAP:
+                    del _ART_CACHE[next(iter(_ART_CACHE))]
                 hit = _ART_CACHE[id(dense)] = (dense, np.ascontiguousarray(dense, dtype=np.int32))
             art_ptr, art_w, art_h = hit[1].ctypes.data, int(aw), int(ah)
     s_ptr, s_n, s_ext, s_vecs_ptr = 0, 0, 1.0, 0
@@ -190,11 +197,11 @@ def paint_edge(width: int, height: int, reached_u8, heat, colour: bool, edge_tbl
     if lib is None:
         return False
     ncells = width * height
-    key = ('edge', ncells)
-    scratch = _BOARD_TLS.get(key)
-    if scratch is None:
-        scratch = _BOARD_TLS[key] = (np.empty(ncells, dtype=np.int32),
-                                     np.empty(ncells, dtype=np.int32))
+    edge_hit = getattr(_BOARD_TLS, 'edge', None)
+    if edge_hit is None or edge_hit[0] < ncells:
+        edge_hit = (ncells, np.empty(ncells, dtype=np.int32), np.empty(ncells, dtype=np.int32))
+        _BOARD_TLS.edge = edge_hit
+    scratch = edge_hit[1:]
     et_c = np.ascontiguousarray(edge_tbl, dtype=np.int64)
     rgb_c = np.ascontiguousarray(glow_rgb, dtype=np.int64)
     heat_c = None if heat is None else np.ascontiguousarray(heat, dtype=np.float64)
@@ -250,10 +257,11 @@ def ground_shaded(fx, fy, fd, seg_s, seg_line, seg_fade, n_labels: int, horizon_
         return None
     ncells = width * height
     ts_cap = 2 * width + 4 * height + 16
-    key = ('gnd', ncells, ts_cap)
-    sc = _BOARD_TLS.get(key)
-    if sc is None:
-        sc = _BOARD_TLS[key] = (
+    key = (ncells, ts_cap)
+    gnd_hit = getattr(_BOARD_TLS, 'gnd', None)
+    if gnd_hit is None or gnd_hit[0] != key:
+        gnd_hit = (
+            key,
             np.empty(ts_cap, dtype=np.float64),
             np.empty(ncells, dtype=np.int32),
             np.empty(ncells, dtype=np.uint64),
@@ -265,6 +273,8 @@ def ground_shaded(fx, fy, fd, seg_s, seg_line, seg_fade, n_labels: int, horizon_
             np.empty(ncells, dtype=np.int32),
             np.empty(ncells, dtype=np.uint8),
         )
+        _BOARD_TLS.gnd = gnd_hit
+    sc = gnd_hit[1:]
     fx_c = np.ascontiguousarray(fx, dtype=np.float64)
     fy_c = np.ascontiguousarray(fy, dtype=np.float64)
     fd_c = np.ascontiguousarray(fd, dtype=np.float64)

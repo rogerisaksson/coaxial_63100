@@ -16,7 +16,6 @@ WAY_INCLUDES = [os.path.join(REPO, 'wbc', 'inc')]
 WAY_FLAGS = ('-O3', '-ffp-contract=off', '-fno-math-errno', '-fno-trapping-math',
              '-fvect-cost-model=dynamic') + build.native()
 _way_tls = threading.local()
-_phi_trig: list = [None, None, None]
 
 
 def current() -> bool:
@@ -85,10 +84,12 @@ def gaps(poses, phi, k_dirs: int, meets, toward, centres, axes, half):
     sy, cy = np.sin(yaw), np.cos(yaw)
     ahead = np.ascontiguousarray(np.stack([sy, cy], -1), dtype=np.float64)
     left = np.ascontiguousarray(np.stack([cy, -sy], -1), dtype=np.float64)
-    if _phi_trig[0] is not phi:
-        _phi_trig[:] = [phi, np.cos(phi)[None, :, None], np.sin(phi)[None, :, None]]
+    trig = getattr(_way_tls, 'phi_trig', None)
+    if trig is None or trig[0] is not phi:
+        trig = (phi, np.cos(phi)[None, :, None], np.sin(phi)[None, :, None])
+        _way_tls.phi_trig = trig
     dirs = np.ascontiguousarray(
-        _phi_trig[1] * ahead[:, None, :] + _phi_trig[2] * left[:, None, :],
+        trig[1] * ahead[:, None, :] + trig[2] * left[:, None, :],
         dtype=np.float64,
     )
     m_u8 = np.ascontiguousarray(meets, dtype=np.uint8)

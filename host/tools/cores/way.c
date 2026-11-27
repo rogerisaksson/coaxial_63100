@@ -101,6 +101,11 @@ int32_t wy_gaps(int32_t n_poses, const double *restrict at_pts, const double *re
         const double y_val = (0.0 + ax0 * lf0) + ax1 * lf1;
         const double x_val = (0.0 + ax0 * ah0) + ax1 * ah1;
         double       ang = fmod(wbc_arctan2(y_val, x_val), two_pi);
+        if (lm_nan(ang))
+        {
+          theirs = ang;
+          break;
+        }
         if (ang != 0.0)
         {
           if (ang < 0.0)

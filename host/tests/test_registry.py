@@ -219,6 +219,11 @@ def test_c11_vision_and_way_bit_exact_parity(report, _c):
                     and np.array_equal(m_c.top.view(np.uint64), m_py.top.view(np.uint64))
                     and np.array_equal(m_c.moments.view(np.uint64), m_py.moments.view(np.uint64))
                     and np.array_equal(m_c.colour.view(np.uint32), m_py.colour.view(np.uint32)))
+    bad_xyz = np.array([[np.nan, 1.0, 1.0], [1.0, np.inf, 1.0], [1.0, 1.0, -np.inf]])
+    bad_rgb = np.zeros((3, 3), dtype=np.uint8)
+    hits_before = m_c.hits.copy()
+    bad_flat = m_c.add(bad_xyz, bad_rgb, np.array([0.0, 1.4, 0.0]))
+    vox_same = vox_same and np.array_equal(bad_flat, np.full(3, -1)) and np.array_equal(m_c.hits, hits_before)
     astar_off = 0
     for _ in range(40):
         grid = rng.uniform(1.0, 5.0, (32, 32))
