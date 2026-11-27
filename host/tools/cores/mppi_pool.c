@@ -26,8 +26,9 @@ void mppi_plane_costs_lanes(const double *x0, const double *u, const double *ref
 typedef struct
 {
   const double *x0, *u, *ref, *k, *c, *r, *weight, *u0, *wind;
-  double       *cost;
-  double        dt, w_p, w_v;
+  const double *white, *nom, *sigma, *lo, *hi, *prior;
+  double       *u_mut, *noise, *cost;
+  double        dt, w_p, w_v, ar, ar_scale;
   int           nc, ns, nr, n, h;
 } mppi_job_t;
 
@@ -68,6 +69,87 @@ static BOOL CALLBACK init_gate(PINIT_ONCE once, PVOID param, PVOID *ctx)
 static pthread_mutex_t pool_gate = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
+static inline double clamp_d(double v, double lo, double hi)
+{
+  return (v < lo) ? lo : ((v > hi) ? hi : v);
+}
+
+static void prepare_chunk(const mppi_job_t *j, int base, int stop)
+{
+  const size_t  stride = (size_t)j->h * 4U;
+  const double  ar = j->ar, ar_s = j->ar_scale;
+  const double  s0 = j->sigma[0], s1 = j->sigma[1], s2 = j->sigma[2], s3 = j->sigma[3];
+  const double  lo0 = j->lo[0], lo1 = j->lo[1], lo2 = j->lo[2], lo3 = j->lo[3];
+  const double  hi0 = j->hi[0], hi1 = j->hi[1], hi2 = j->hi[2], hi3 = j->hi[3];
+  const double *nom = j->nom;
+
+  for (int i = base; i < stop; i++)
+  {
+    const size_t  off = (size_t)i * stride;
+    const double *wh = j->white + off;
+    double       *u_out = j->u_mut + off;
+    double       *ns_out = j->noise + off;
+
+    if ((i == 0) && (j->prior != NULL))
+    {
+      const double p0 = clamp_d(j->prior[0], lo0, hi0);
+      const double p1 = clamp_d(j->prior[1], lo1, hi1);
+      const double p2 = clamp_d(j->prior[2], lo2, hi2);
+      const double p3 = clamp_d(j->prior[3], lo3, hi3);
+
+      for (int step = 0; step < j->h; step++)
+      {
+        const size_t o = (size_t)step * 4U;
+
+        u_out[o + 0U] = p0;
+        u_out[o + 1U] = p1;
+        u_out[o + 2U] = p2;
+        u_out[o + 3U] = p3;
+        ns_out[o + 0U] = p0 - nom[o + 0U];
+        ns_out[o + 1U] = p1 - nom[o + 1U];
+        ns_out[o + 2U] = p2 - nom[o + 2U];
+        ns_out[o + 3U] = p3 - nom[o + 3U];
+      }
+      continue;
+    }
+    double w0 = wh[0], w1 = wh[1], w2 = wh[2], w3 = wh[3];
+    double u0 = clamp_d(nom[0] + w0 * s0, lo0, hi0);
+    double u1 = clamp_d(nom[1] + w1 * s1, lo1, hi1);
+    double u2 = clamp_d(nom[2] + w2 * s2, lo2, hi2);
+    double u3 = clamp_d(nom[3] + w3 * s3, lo3, hi3);
+
+    u_out[0] = u0;
+    u_out[1] = u1;
+    u_out[2] = u2;
+    u_out[3] = u3;
+    ns_out[0] = u0 - nom[0];
+    ns_out[1] = u1 - nom[1];
+    ns_out[2] = u2 - nom[2];
+    ns_out[3] = u3 - nom[3];
+    for (int step = 1; step < j->h; step++)
+    {
+      const size_t o = (size_t)step * 4U;
+
+      w0 = ar * w0 + ar_s * wh[o + 0U];
+      w1 = ar * w1 + ar_s * wh[o + 1U];
+      w2 = ar * w2 + ar_s * wh[o + 2U];
+      w3 = ar * w3 + ar_s * wh[o + 3U];
+      u0 = clamp_d(nom[o + 0U] + w0 * s0, lo0, hi0);
+      u1 = clamp_d(nom[o + 1U] + w1 * s1, lo1, hi1);
+      u2 = clamp_d(nom[o + 2U] + w2 * s2, lo2, hi2);
+      u3 = clamp_d(nom[o + 3U] + w3 * s3, lo3, hi3);
+      u_out[o + 0U] = u0;
+      u_out[o + 1U] = u1;
+      u_out[o + 2U] = u2;
+      u_out[o + 3U] = u3;
+      ns_out[o + 0U] = u0 - nom[o + 0U];
+      ns_out[o + 1U] = u1 - nom[o + 1U];
+      ns_out[o + 2U] = u2 - nom[o + 2U];
+      ns_out[o + 3U] = u3 - nom[o + 3U];
+    }
+  }
+}
+
 static void run_chunks(void)
 {
   const mppi_job_t j = pool_job;
@@ -80,6 +162,10 @@ static void run_chunks(void)
     if (base >= j.n)
     {
       break;
+    }
+    if (j.white != NULL)
+    {
+      prepare_chunk(&j, base, stop);
     }
     mppi_plane_costs_lanes(j.x0, j.u + (size_t)base * (size_t)j.h * 4U, j.ref, j.k, j.c, j.nc, j.ns,
                            j.r, j.nr, j.weight, j.u0, stop - base, j.h, j.dt, j.w_p, j.w_v, j.wind,
@@ -312,14 +398,17 @@ static int ensure_worker(int idx
   return w->started == 1;
 }
 
-void mppi_plane_costs_parallel(const double *x0, const double *u, const double *ref,
-                               const double *k, const double *c, int nc, int ns, const double *r,
-                               int nr, const double *weight, const double *u0, int n, int h,
-                               double dt, double w_p, double w_v, const double *wind, double *cost)
+static void dispatch_job(const mppi_job_t *job)
 {
-  if (n < MPPI_MIN_BATCH)
+  if (job->n < MPPI_MIN_BATCH)
   {
-    mppi_plane_costs_lanes(x0, u, ref, k, c, nc, ns, r, nr, weight, u0, n, h, dt, w_p, w_v, wind, cost);
+    if (job->white != NULL)
+    {
+      prepare_chunk(job, 0, job->n);
+    }
+    mppi_plane_costs_lanes(job->x0, job->u, job->ref, job->k, job->c, job->nc, job->ns, job->r,
+                           job->nr, job->weight, job->u0, job->n, job->h, job->dt, job->w_p,
+                           job->w_v, job->wind, job->cost);
     return;
   }
 #ifdef _WIN32
@@ -328,12 +417,18 @@ void mppi_plane_costs_parallel(const double *x0, const double *u, const double *
 #else
   const int avail = available_threads();
 #endif
-  const int by_n = n / 32;
+  const int by_n = job->n / 32;
   const int total = (avail < by_n) ? avail : by_n;
 
   if (total <= 1)
   {
-    mppi_plane_costs_lanes(x0, u, ref, k, c, nc, ns, r, nr, weight, u0, n, h, dt, w_p, w_v, wind, cost);
+    if (job->white != NULL)
+    {
+      prepare_chunk(job, 0, job->n);
+    }
+    mppi_plane_costs_lanes(job->x0, job->u, job->ref, job->k, job->c, job->nc, job->ns, job->r,
+                           job->nr, job->weight, job->u0, job->n, job->h, job->dt, job->w_p,
+                           job->w_v, job->wind, job->cost);
     return;
   }
 #ifdef _WIN32
@@ -342,7 +437,7 @@ void mppi_plane_costs_parallel(const double *x0, const double *u, const double *
 #else
   (void)pthread_mutex_lock(&pool_gate);
 #endif
-  pool_job = (mppi_job_t){x0, u, ref, k, c, r, weight, u0, wind, cost, dt, w_p, w_v, nc, ns, nr, n, h};
+  pool_job = *job;
   __atomic_store_n(&pool_next, 0, __ATOMIC_RELEASE);
   int launched = 0;
 
@@ -422,4 +517,33 @@ void mppi_plane_costs_parallel(const double *x0, const double *u, const double *
 #else
   (void)pthread_mutex_unlock(&pool_gate);
 #endif
+}
+
+void mppi_plane_costs_parallel(const double *x0, const double *u, const double *ref,
+                               const double *k, const double *c, int nc, int ns, const double *r,
+                               int nr, const double *weight, const double *u0, int n, int h,
+                               double dt, double w_p, double w_v, const double *wind, double *cost)
+{
+  const mppi_job_t job = {
+    .x0 = x0, .u = u, .ref = ref, .k = k, .c = c, .r = r, .weight = weight, .u0 = u0, .wind = wind,
+    .cost = cost, .dt = dt, .w_p = w_p, .w_v = w_v, .nc = nc, .ns = ns, .nr = nr, .n = n, .h = h,
+  };
+  dispatch_job(&job);
+}
+
+void mppi_sample_and_costs(const double *x0, const double *white, const double *nom,
+                           const double *sigma, const double *lo, const double *hi,
+                           const double *prior, double ar, double ar_scale, double *u_out,
+                           double *noise_out, const double *ref, const double *k, const double *c,
+                           int nc, int ns, const double *r, int nr, const double *weight,
+                           const double *u0, int n, int h, double dt, double w_p, double w_v,
+                           const double *wind, double *cost)
+{
+  const mppi_job_t job = {
+    .x0 = x0, .u = u_out, .ref = ref, .k = k, .c = c, .r = r, .weight = weight, .u0 = u0,
+    .wind = wind, .white = white, .nom = nom, .sigma = sigma, .lo = lo, .hi = hi, .prior = prior,
+    .u_mut = u_out, .noise = noise_out, .cost = cost, .dt = dt, .w_p = w_p, .w_v = w_v,
+    .ar = ar, .ar_scale = ar_scale, .nc = nc, .ns = ns, .nr = nr, .n = n, .h = h,
+  };
+  dispatch_job(&job);
 }

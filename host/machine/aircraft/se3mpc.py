@@ -215,8 +215,28 @@ class Mppi:
         self.consts = xp.asarray([named[n] for n in CONSTS])
         self.weights = xp.asarray([self.W[n] for n in WEIGHTS])
         self.model = Batch(craft, xp)
-        self.run = mppi.kernel(xp) if card else mppi.library().mppi_plane_costs
+        if card:
+            self._lib, self.run = None, mppi.kernel(xp)
+        else:
+            self._lib = mppi.library()
+            self.run = self._lib.mppi_plane_costs
+        self._bufs: tuple | None = None
         self.cost = 0.0
+
+    def _cpu_bufs(self, k: int, h: int):
+        import numpy as np
+        if self._bufs is None or self._bufs[0] != (k, h):
+            self._bufs = (
+                (k, h),
+                np.empty((k, h, 4), dtype=np.float64),
+                np.empty((k, h, 4), dtype=np.float64),
+                np.empty((k, h, 4), dtype=np.float64),
+                np.empty(k, dtype=np.float64),
+                np.empty(18, dtype=np.float64),
+                np.empty(4, dtype=np.float64),
+                np.empty(3, dtype=np.float64),
+            )
+        return self._bufs[1:]
 
     def costs(self, x, u, ref, w_p, w_v, wind=(0.0, 0.0, 0.0)):
         """Each rollout's cost (k,) from `x` under the controls `u` (k, h, 4), asked `ref` (h, REF):
@@ -267,21 +287,60 @@ class Mppi:
         """The controls for now at `x` (`observed`), asked `ref` (h, REF) at its steps; `prior`,
         a law's controls, weighed beside the samples, held over the horizon."""
         xp, k, h = self.xp, self.k, self.h
-        white = self.rng.standard_normal((k, h, 4))
-        for n in range(1, h):     # a manoeuvre, not a buzz: noise correlated along the horizon
-            white[:, n] = self.ar * white[:, n - 1] + math.sqrt(1.0 - self.ar ** 2) * white[:, n]
-        u = xp.clip(self.nominal[None] + white * self.sigma, self.lo, self.hi)
-        if prior is not None:
-            u[0] = xp.clip(xp.asarray(prior, dtype=xp.float64), self.lo, self.hi)
-        noise = u - self.nominal[None]
-        cost = self.costs(x, u, ref, w_p, w_v, wind)
-        gap = cost - cost.min()
-        lam = max(1e-6, float(xp.sort(gap)[max(1, int(self.share * k))]))    # a share of them weighs
+        ar_scale = math.sqrt(1.0 - self.ar ** 2)
+        if self._lib is not None and self.costs.__func__ is Mppi.costs:
+            import numpy as np
+            white, u, noise, cost, x0, pr_buf, wind_buf = self._cpu_bufs(k, h)
+            self.rng.standard_normal(out=white)
+            x0[0:3], x0[3:6], x0[6:15], x0[15:18] = x[0], x[1], np.ravel(x[2]), x[3]
+            wind_buf[:] = wind
+            nom = np.ascontiguousarray(self.nominal, dtype=np.float64)
+            sig = np.ascontiguousarray(self.sigma, dtype=np.float64)
+            lo = np.ascontiguousarray(self.lo, dtype=np.float64)
+            hi = np.ascontiguousarray(self.hi, dtype=np.float64)
+            ref_c = np.ascontiguousarray(ref, dtype=np.float64)
+            consts_c = np.ascontiguousarray(self.consts, dtype=np.float64)
+            contacts_c = np.ascontiguousarray(self.contacts, dtype=np.float64)
+            rest_c = np.ascontiguousarray(self.rest, dtype=np.float64)
+            weights_c = np.ascontiguousarray(self.weights, dtype=np.float64)
+            dp = ctypes.POINTER(ctypes.c_double)
+            pr_ptr = ctypes.cast(0, dp)
+            pr_arr = None if prior is None else np.asarray(prior, dtype=np.float64)
+            if pr_arr is not None and pr_arr.shape == (4,):
+                pr_buf[:] = pr_arr
+                pr_ptr = pr_buf.ctypes.data_as(dp)
+            elif pr_arr is not None:
+                pr_buf[:] = 0.0
+            self._lib.mppi_sample_and_costs(
+                x0.ctypes.data_as(dp), white.ctypes.data_as(dp), nom.ctypes.data_as(dp),
+                sig.ctypes.data_as(dp), lo.ctypes.data_as(dp), hi.ctypes.data_as(dp), pr_ptr,
+                float(self.ar), ar_scale, u.ctypes.data_as(dp), noise.ctypes.data_as(dp),
+                ref_c.ctypes.data_as(dp), consts_c.ctypes.data_as(dp), contacts_c.ctypes.data_as(dp),
+                len(contacts_c), self.ns, rest_c.ctypes.data_as(dp), len(rest_c),
+                weights_c.ctypes.data_as(dp), nom.ctypes.data_as(dp), k, h, float(self.dt),
+                float(w_p), float(w_v), wind_buf.ctypes.data_as(dp), cost.ctypes.data_as(dp))
+            if pr_arr is not None and pr_arr.shape != (4,):
+                u[0] = np.clip(pr_arr, lo, hi)
+                noise[0] = u[0] - nom
+                cost[0] = self.costs(x, u[:1], ref_c, w_p, w_v, wind_buf)[0]
+        else:
+            white = self.rng.standard_normal((k, h, 4))
+            for n in range(1, h):     # a manoeuvre, not a buzz: noise correlated along the horizon
+                white[:, n] = self.ar * white[:, n - 1] + ar_scale * white[:, n]
+            u = xp.clip(self.nominal[None] + white * self.sigma, self.lo, self.hi)
+            if prior is not None:
+                u[0] = xp.clip(xp.asarray(prior, dtype=xp.float64), self.lo, self.hi)
+            noise = u - self.nominal[None]
+            cost = self.costs(x, u, ref, w_p, w_v, wind)
+        c_min = float(cost.min())
+        gap = cost - c_min
+        idx = max(1, int(self.share * k))
+        lam = max(1e-6, float(xp.partition(gap, idx)[idx]))    # a share of them weighs
         weight = xp.exp(-gap / lam)
         self.nominal = self.nominal + (weight[:, None, None] * noise).sum(0) / weight.sum()
         out = self.nominal[0].copy()
         self.nominal = xp.concatenate((self.nominal[1:], self.nominal[-1:]))
-        self.cost = float(cost.min())
+        self.cost = c_min
         return [float(a) for a in (out.get() if hasattr(out, 'get') else out)]
 
 

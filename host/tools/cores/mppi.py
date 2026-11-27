@@ -40,6 +40,10 @@ def library():
     args = [d, d, d, d, d, i, i, d, i, d, d, i, i, f, f, f, d, d]
     lib.mppi_plane_costs.argtypes, lib.mppi_plane_costs.restype = args, None
     lib.mppi_plane_costs_parallel.argtypes, lib.mppi_plane_costs_parallel.restype = args, None
+    lib.mppi_sample_and_costs.argtypes = [
+        d, d, d, d, d, d, d, f, f, d, d, d, d, d, i, i, d, i, d, d, i, i, f, f, f, d, d,
+    ]
+    lib.mppi_sample_and_costs.restype = None
     setattr(lib, 'mppi_plane_costs', lib.mppi_plane_costs_parallel)
     return lib
 
