@@ -1,6 +1,7 @@
 """SIMD C11 kernels (`identify.c`) for campaign low-pass, hem kinematics, and self-contact."""
 import ctypes
 import functools
+import hashlib
 import os
 
 import numpy as np
@@ -14,8 +15,8 @@ INCLUDES = [os.path.join(REPO, 'wbc', 'inc')]
 FLAGS = (('-O3', '-fno-math-errno', '-fno-trapping-math', '-fvect-cost-model=dynamic',
           '-fno-builtin-sin', '-fno-builtin-cos') + build.native())
 KEPT = 8
-_CAPS: dict[int, tuple] = {}
-_HEMS: dict[tuple[int, int], tuple] = {}
+_CAPS: dict[bytes, tuple] = {}
+_HEMS: dict[bytes, dict] = {}
 
 
 @functools.lru_cache(maxsize=1)
@@ -59,15 +60,32 @@ def lowpass(x, a: float):
     return arr
 
 
+def _caps_key(lay, caps) -> bytes:
+    """Content digest of `lay['caps']` and `lay['parent']`, pinning no external objects."""
+    b_pos, b_rot, jnts, ck, _cr, ca, cb, pr, pdrv, reach_sq, rad_sq = caps
+    h = hashlib.sha1(('%d:' % len(lay['bodies'])).encode())
+    for arr in (lay['parent'], b_pos, b_rot, ck, ca, cb, pr, pdrv, reach_sq, rad_sq):
+        a = np.ascontiguousarray(arr)
+        h.update(('%s:%s:' % (a.dtype.str, a.shape)).encode())
+        h.update(a.tobytes())
+    for row in jnts:
+        h.update(b';')
+        for ji, ax, jp in row:
+            h.update(('%d:' % int(ji)).encode())
+            h.update(np.ascontiguousarray(ax, dtype=np.float64).tobytes())
+            h.update(np.ascontiguousarray(jp, dtype=np.float64).tobytes())
+    return h.digest()
+
+
 def _packed_caps(lay):
-    """Pack `lay['caps']` and `lay['parent']` into flat C arrays cached by `id(caps)` without mutating `lay`."""
+    """Pack `lay['caps']` and `lay['parent']` into flat C arrays cached by content digest."""
     caps = lay.get('caps')
     if caps is None:
         return None
-    key = id(caps)
+    key = _caps_key(lay, caps)
     hit = _CAPS.get(key)
-    if hit is not None and hit[0] is caps:
-        return hit[1]
+    if hit is not None:
+        return hit
     b_pos, b_rot, jnts, ck, _cr, ca, cb, pr, pdrv, reach_sq, rad_sq = caps
     nb = len(lay['bodies'])
     parent = np.ascontiguousarray(lay['parent'], dtype=np.int32)
@@ -105,7 +123,7 @@ def _packed_caps(lay):
               len(ck_c), ck_c, ca_c, cb_c, len(pr), pair_a, pair_b, rsq_c, csq_c, ndrv, pdrv_u8, pdrv_mask)
     while len(_CAPS) >= KEPT:
         del _CAPS[next(iter(_CAPS))]
-    _CAPS[key] = (caps, packed)
+    _CAPS[key] = packed
     return packed
 
 
@@ -150,12 +168,23 @@ def _quat_rot_rows(q_arr):
     ]).astype(np.float64, copy=False)
 
 
+def _hem_key(m, lay) -> bytes:
+    """Topology digest of `m` and `lay` for `_hem_chains`, pinning neither `MjModel` nor `lay`."""
+    h = hashlib.sha1(('%d:%d:' % (m.nbody, m.njnt)).encode())
+    for arr in (lay['bodies'], lay['parent'], lay['vadr'], m.body_jntadr, m.body_jntnum, m.jnt_dofadr):
+        a = np.ascontiguousarray(arr)
+        h.update(('%s:' % (a.shape,)).encode())
+        h.update(a.tobytes())
+    h.update(repr(tuple(int(k) for k in lay.get('hems', ()))).encode())
+    return h.digest()
+
+
 def _hem_chains(m, lay):
-    """Return cached `{k: (b, links, j_span, jnt_ids, j_idx)}` topology for `lay['hems']`."""
-    key = (id(m), id(lay))
+    """Return cached `{k: (b, links, j_span, jnt_ids, j_idx, nj_tot)}` topology for `lay['hems']`."""
+    key = _hem_key(m, lay)
     hit = _HEMS.get(key)
-    if hit is not None and hit[0] is m and hit[1] is lay:
-        return hit[2]
+    if hit is not None:
+        return hit
     chains = {}
     for k in lay.get('hems', ()):
         k_i = int(k)
@@ -177,7 +206,7 @@ def _hem_chains(m, lay):
         chains[k_i] = (b, links, j_span, jnt_ids, np.array(j_idx_l or [0], dtype=np.int32), len(j_idx_l))
     while len(_HEMS) >= KEPT:
         del _HEMS[next(iter(_HEMS))]
-    _HEMS[key] = (m, lay, chains)
+    _HEMS[key] = chains
     return chains
 
 
@@ -194,8 +223,7 @@ def hem_anchor(m, lay, ys_arr, dt: float, k: int, offsets: tuple[int, int, int, 
     ys_c = np.ascontiguousarray(ys_arr, dtype=np.float64)
     n = len(ys_c) - 1
     if n <= 0:
-        z = np.zeros((0, 3), dtype=np.float64)
-        return z, z, z
+        return np.zeros((0, 3), dtype=np.float64), np.zeros((0, 3), dtype=np.float64), np.zeros((0, 3), dtype=np.float64)
     nlinks = len(links)
     link_pos = np.ascontiguousarray(m.body_pos[links], dtype=np.float64) if nlinks else np.zeros((1, 3))
     link_rot = _quat_rot_rows(m.body_quat[links]) if nlinks else np.zeros((1, 9))

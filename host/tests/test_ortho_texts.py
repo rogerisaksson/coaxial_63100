@@ -149,7 +149,46 @@ def test_the_core_and_the_renderer_branch_nowhere(report):
                  ', '.join(modal[0]) or 'none; dicts at %s' % dicts)
 
 
-ROSTER = [test_a_text_compiles_to_rows, test_what_is_no_text_is_refused, test_the_core_and_the_renderer_branch_nowhere]
+def test_gym_entries_cache_tracks_compiler_files(report):
+    """`machine.texts.kept.gym_entries` tracks DSP compiler files and `extra_files` for disk invalidation."""
+    import tempfile
+    from machine.body import mechatronics
+    from machine.texts import dsp, kept, kernel, patch
+    seen_files, calls = [], [0]
+
+    def fake_compile(nm):
+        calls[0] += 1
+        return ((nm, b'', (nm,)),)
+
+    orig_cache, orig_disk = kept.CACHE, kept.disk
+    with tempfile.TemporaryDirectory() as tmp:
+        dep = os.path.join(tmp, 'extra_dep.py')
+        with open(dep, 'w', encoding='ascii') as f:
+            f.write('V = 1\n')
+        try:
+            kept.CACHE = os.path.join(tmp, 'cache')
+            kept.disk = lambda d, tag, k, files, extra, fn, size=8: (
+                seen_files.extend(files), orig_disk(d, tag, k, files, extra, fn, size))[1]
+            kept.gym_entries(mechatronics.ROBOT, mechatronics.ROBOT, fake_compile, (dep,))
+            kept._ENTRIES.clear()
+            kept.gym_entries(mechatronics.ROBOT, mechatronics.ROBOT, fake_compile, (dep,))
+            with open(dep, 'w', encoding='ascii') as f:
+                f.write('V = 22\n')
+            st = os.stat(dep)
+            os.utime(dep, ns=(st.st_atime_ns, st.st_mtime_ns + 2_000_000_000))
+            kept._ENTRIES.clear()
+            kept.gym_entries(mechatronics.ROBOT, mechatronics.ROBOT, fake_compile, (dep,))
+        finally:
+            kept.CACHE, kept.disk = orig_cache, orig_disk
+            kept._ENTRIES.clear()
+    tracked = {os.path.abspath(p) for p in seen_files if p}
+    want = {os.path.abspath(p) for p in (dsp.__file__, kernel.__file__, patch.__file__, dep)}
+    report.check('gym_entries tracks dsp/kernel/patch and extra_files and invalidates on change',
+                 want.issubset(tracked) and calls[0] == 2, 'calls=%d missing=%s' % (calls[0], want - tracked))
+
+
+ROSTER = [test_a_text_compiles_to_rows, test_what_is_no_text_is_refused, test_the_core_and_the_renderer_branch_nowhere,
+          test_gym_entries_cache_tracks_compiler_files]
 
 
 def main(argv=None):

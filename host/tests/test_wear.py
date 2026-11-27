@@ -276,6 +276,19 @@ def test_the_campaign_kernels_in_c_are_python_s(report):
                 hem_err = max(hem_err, max(float(np.max(np.abs(g - w))) for g, w in zip(got_h, want_h)))
     report.check('identify.hem_anchor matches Python across %d hems (worst %.2e)' % (len(lay['hems']), hem_err),
                  (not has_cc) or (hem_ok and hem_err < 1e-11), 'worst %.2e' % hem_err)
+    if has_cc and lay['hems']:
+        identify._CAPS.clear()
+        identify._HEMS.clear()
+        for _ in range(2):
+            b2 = wbc.Body(identified=False)
+            lay2 = sysid.laid(b2)
+            identify.self_hit(lay2, ys[:4], edge.QUAT.start, edge.Q.start)
+            identify.hem_anchor(b2.m, lay2, ys[:4], 0.001, lay2['hems'][0], offsets)
+        no_pin = (len(identify._CAPS) == 1 and len(identify._HEMS) == 1
+                  and all(isinstance(k, bytes) for k in identify._HEMS)
+                  and all(isinstance(v, dict) for v in identify._HEMS.values()))
+        report.check('identify caches key by topology digest without pinning MjModel or duplicating entries',
+                     no_pin, 'caps=%d hems=%d' % (len(identify._CAPS), len(identify._HEMS)))
 
 
 ROSTER = (test_the_campaign_kernels_in_c_are_python_s,

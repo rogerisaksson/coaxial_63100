@@ -90,7 +90,7 @@ def entries(text=None, name=GYMS[0], texts=None, suite=None):
     if text is not None or texts is not None or suite is not None:
         return list(_compile_entries(text, name, texts, suite))
     from machine.texts import kept
-    return kept.gym_entries(name, GYMS[0], lambda nm: _compile_entries(None, nm, None, None))
+    return kept.gym_entries(name, GYMS[0], lambda nm: _compile_entries(None, nm, None, None), (__file__,))
 
 
 def statics_laid(every=1, inner=None):

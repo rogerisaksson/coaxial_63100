@@ -47,14 +47,22 @@ def _atomic_write(prefix: str, target: str, data: bytes) -> None:
             f.write(data)
         os.replace(tmp, target)
     except OSError:
-        if os.path.exists(tmp):
+        try:
             os.unlink(tmp)
+        except OSError:
+            pass
 
 
 def _prune_stats(prefix: str, limit: int = 32) -> None:
+    entries = []
     try:
-        entries = [(e.stat().st_mtime_ns, e.path) for e in os.scandir(CACHE)
-                   if e.name.startswith(prefix) and e.name.endswith('.idx')]
+        with os.scandir(CACHE) as it:
+            for e in it:
+                if e.name.startswith(prefix) and e.name.endswith('.idx'):
+                    try:
+                        entries.append((e.stat().st_mtime_ns, e.path))
+                    except OSError:
+                        continue
     except OSError:
         return
     for _mt, p in sorted(entries)[:-limit]:
@@ -138,12 +146,13 @@ def disk(kept, tag: str, key, files, extra, fn, size: int = 8):
 _ENTRIES: dict = {}
 
 
-def gym_entries(name: str, default_name: str, compile_fn):
+def gym_entries(name: str, default_name: str, compile_fn, extra_files=()):
     """Return cached `[(label, wire, names)]` for `name` from memory or `.cache/compiled/texts`."""
     from machine.body import figure, gait, mechatronics
     from machine.moves import clocked
-    from machine.texts import acts, curves, dsp, maneuver, ortho
-    key = (name, mechatronics.ROBOT, figure.SCALE, gait.SIMILAR)
+    from machine.texts import acts, curves, dsp, kernel, maneuver, ortho, patch
+    extras = tuple(extra_files)
+    key = (name, mechatronics.ROBOT, figure.SCALE, gait.SIMILAR, extras)
     hit = _ENTRIES.get(key)
     if hit is not None:
         return list(pickle.loads(hit))
@@ -154,7 +163,8 @@ def gym_entries(name: str, default_name: str, compile_fn):
         return list(compile_fn(name))
     motion_lisp = os.path.join(mechatronics.HUMANOID, 'motion.lisp')
     extra = (tuple(dsp.SUITE) + tuple(dsp.KERNEL) + ((motion_lisp,) if os.path.isfile(motion_lisp) else ())
-             + (maneuver.__file__, acts.__file__, curves.__file__, clocked.__file__)
+             + (dsp.__file__, kernel.__file__, patch.__file__,
+                maneuver.__file__, acts.__file__, curves.__file__, clocked.__file__)
              if name == default_name else ())
-    files = inc + extra + mechatronics.body_sources(mechatronics.ROBOT) + (ortho.__file__,)
+    files = inc + extra + extras + mechatronics.body_sources(mechatronics.ROBOT) + (ortho.__file__,)
     return list(disk(_ENTRIES, 'entries', key, files, key, lambda k: compile_fn(k[0])))
