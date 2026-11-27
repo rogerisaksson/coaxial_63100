@@ -19,6 +19,8 @@ STATE: dict = {}
 _LOCK = threading.Lock()
 #: The compile's process while it runs.
 _RUN: list = [None]
+#: The braille spinner in front of a compiling row or pre-menu bar, SPIN_HZ frames a second.
+SPIN, SPIN_HZ = '\u28fe\u28fd\u28fb\u28bf\u287f\u28df\u28ef\u28f7', 10.0
 #: Shared C11 / 3D warmup targets per page name (`board`: `native://` C11 firmware/world,
 #: `raster`: `raster.c` 3D engine & Braille C11, `mesh`: STL board decimates & shadowmap).
 PAGE_WARMED = {

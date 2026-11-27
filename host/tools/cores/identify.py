@@ -19,6 +19,16 @@ _CAPS: dict[bytes, tuple] = {}
 _HEMS: dict[bytes, dict] = {}
 
 
+def current() -> bool:
+    """Whether `identify.c` is already loaded or compiled on disk for this host."""
+    return _lib.cache_info().currsize > 0 or build.is_built(SOURCES, INCLUDES, 'identify', FLAGS)
+
+
+def ensure():
+    """Compile and load `identify.c` if a host C compiler is available."""
+    return _lib()
+
+
 @functools.lru_cache(maxsize=1)
 def _lib():
     """Compile and load `identify.c` with `wbc_libm.c`, or return `None` if no C compiler exists."""

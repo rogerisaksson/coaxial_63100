@@ -17,6 +17,7 @@ import numpy as np
 from tools.cores import build
 
 SOURCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'prefetch.c')
+FLAGS = ('-O3',) + build.native()
 BUDGET_SHARE = 0.75
 CODE_WINDOW_B = 4096
 OPENBLAS_CAP_B = 2 * 1024 * 1024
@@ -29,10 +30,22 @@ _PINNED_TEXT: dict[int, tuple[int, int]] = {}
 _KEEP_LIBS: list = []
 
 
+def current() -> bool:
+    """Whether `prefetch.c` is already loaded or compiled on disk for this host."""
+    return _lib.cache_info().currsize > 0 or build.is_built([SOURCE], [], 'prefetch', FLAGS)
+
+
+def ensure():
+    """Compile and load `prefetch.c` if a host C compiler is available."""
+    if build.find_cc() is None:
+        return None
+    return _lib()
+
+
 @functools.lru_cache(maxsize=1)
 def _lib():
     """Compile and load `prefetch.c` once per process with native instruction-set flags."""
-    path, _warn = build.cached([SOURCE], [], 'prefetch', ('-O3',) + build.native())
+    path, _warn = build.cached([SOURCE], [], 'prefetch', FLAGS)
     lib = ctypes.CDLL(path)
     u64p = ctypes.POINTER(ctypes.c_uint64)
     i32p = ctypes.POINTER(ctypes.c_int32)

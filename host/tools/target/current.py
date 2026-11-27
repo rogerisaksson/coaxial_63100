@@ -38,22 +38,29 @@ def behind(preset, path):
     return pending(said)
 
 
-def ensure():
-    """Every tree built where behind its sources, said; True where all are current."""
+def is_current() -> bool:
+    """Whether every target image preset is already up to date with its sources."""
+    path = toolchain_path()
+    return not any(behind(preset, path) for preset in PRESETS)
+
+
+def ensure(quiet: bool = False):
+    """Every tree built where behind its sources, said unless `quiet`; True where all are current."""
     path = toolchain_path()
     late = {preset: behind(preset, path) for preset in PRESETS}
     if not any(late.values()):
         return True
-    for preset, why in late.items():
-        if why:
-            print('IMAGES  %s behind its sources (%s): building' % (preset, why))
+    if not quiet:
+        for preset, why in late.items():
+            if why:
+                print('IMAGES  %s behind its sources (%s): building' % (preset, why))
     built = all([build(preset, path) for preset in PRESETS])
     # Release current and Debug relinked, Debug's would be the newest open() loads.
     debug, release = (ROOT / 'build' / preset / APP for preset in PRESETS)
     if built and release.exists() and debug.exists() \
             and release.stat().st_mtime < debug.stat().st_mtime:
         os.utime(release)
-    if not built:
+    if not built and not quiet:
         print('IMAGES  the old ones stand: the emulator and the bench would run them')
     return built
 

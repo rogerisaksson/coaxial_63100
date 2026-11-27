@@ -28,6 +28,7 @@ from rich.panel import Panel
 from rich.text import Text
 
 from terminal import compiling
+from terminal.compiling import SPIN, SPIN_HZ
 from terminal import loader
 from terminal import readout
 from terminal import stand
@@ -54,11 +55,6 @@ LISTED = ENTRIES + (('Q', 'QUIT', 'leave the terminal'),)
 #: its control system compiles (`terminal.compiling`).
 MACHINES = tuple(getattr(page, 'COMPILED', None) for page in loader.pages())
 NEEDS = tuple(compiling.needs_of(page) for page in loader.pages())
-
-
-#: The braille spinner in front of an entry whose machine compiles: a dot gone round a full cell, SPIN_HZ a second,
-#: each row a step on from the one above.
-SPIN, SPIN_HZ = '⣾⣽⣻⢿⡿⣟⣯⣷', 10.0
 
 
 def _compiling(at, now=None):
@@ -379,7 +375,7 @@ def _second_question(chosen):
     return (chosen - 101, 0)
 
 
-def main(argv=None, preload=None):
+def main(argv=None, preload=None, warmup_tasks=None, on_warmed=None):
     """The page until a choice: its code - 0 to quit, 101 + the entry -
     returned to the loader that runs this page in its own process, or the
     exit code as a script.
@@ -409,31 +405,39 @@ def main(argv=None, preload=None):
         # No terminal to page on: read the choice as a line.
         return _typed_choice(sys.stdin.readline().strip().lower())
 
-    stop = threading.Event()
-    threading.Thread(target=_watch_broker, args=(stop,), daemon=True).start()
-    learn = link = None
-    if args.simulated:
-        # Asked for by name: no probe, and the chip says so from the first
-        # frame rather than eight seconds into the page.
-        _BROKER['board'] = False
-        learn = threading.Thread(target=_learn, args=(args.port, True),
-                                 daemon=True)
-        learn.start()
-    else:
-        link = threading.Thread(target=_watch_link, args=(args.port, stop),
-                                daemon=True)
-        link.start()
-    warm = threading.Thread(target=stand.warm, daemon=True)
-    warm.start()
     state = preload if preload is not None else loader.fresh()
     _BROKER['preload'] = state
-    if preload is None and not args.frames:
-        # Run alone, the page preloads for itself; the smoke draws the page,
-        # not the model.
-        threading.Thread(target=loader.preload, args=(state,),
-                         daemon=True).start()
+    if warmup_tasks is None and preload is None and console and not args.frames:
+        from terminal import warmup
+        warmup_tasks = warmup.cold_tasks(args.port, args.simulated, state)
+
+    stop = threading.Event()
+    learn = link = warm = None
+
+    def _start_watchers():
+        nonlocal learn, link, warm
+        threading.Thread(target=_watch_broker, args=(stop,), daemon=True).start()
+        if args.simulated:
+            _BROKER['board'] = False
+            learn = threading.Thread(target=_learn, args=(args.port, True),
+                                     daemon=True)
+            learn.start()
+        else:
+            link = threading.Thread(target=_watch_link, args=(args.port, stop),
+                                    daemon=True)
+            link.start()
+        warm = threading.Thread(target=stand.warm, daemon=True)
+        warm.start()
+        if preload is None and not args.frames and not any(
+                k == 'mesh' for k, _l, _f in (warmup_tasks or ())):
+            threading.Thread(target=loader.preload, args=(state,),
+                             daemon=True).start()
+
+    if not warmup_tasks:
+        _start_watchers()
     if args.frames:
-        warm.join()      # the smoke test draws the board, not the wait
+        if warm is not None:
+            warm.join()  # the smoke test draws the board, not the wait
         if learn is not None:
             learn.join()     # and the readout with something to print
         else:
@@ -444,6 +448,14 @@ def main(argv=None, preload=None):
                 time.sleep(0.05)
     try:
         with curtain(page) as live, Keys(console, mouse=True, quits=frozenset(), menus=frozenset()) as keys:
+            if warmup_tasks:
+                from terminal import warmup
+                if not warmup.run_in_curtain(live, keys, page, args.port, warmup_tasks):
+                    return 0
+                _start_watchers()
+                if on_warmed is not None:
+                    on_warmed()
+                last = view['opened'] = time.monotonic()
             while True:
                 frame += 1
                 now = time.monotonic()

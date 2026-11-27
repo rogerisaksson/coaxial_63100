@@ -156,7 +156,7 @@ def _warm_raster():
         compiling.done('raster')
 
 
-def preload(state, model=None, interactive=False):
+def preload(state, model=None, interactive=False, on_step=None):
     """Everything a page will ask for, into this process's memory, once and
     off the frame loop: the model's decimates - the preload's pickle
     taken as it stands when its stamp matches, else built and written for
@@ -184,6 +184,8 @@ def preload(state, model=None, interactive=False):
         state['steps'] = state['steps'][-3:] + [line]
         if cold:
             compiling.note('mesh', line.upper())
+        if on_step is not None:
+            on_step(line)
 
     began = time.perf_counter()
     try:
@@ -205,7 +207,7 @@ def preload(state, model=None, interactive=False):
             compiling.done('mesh')
 
 
-def front_page(args, opened, state):
+def front_page(args, opened, state, warmup_tasks=None, on_warmed=None):
     """The front page, here: its choice as the code it answers with."""
     from terminal import menu
     argv = ['--port', args.port]
@@ -215,7 +217,7 @@ def front_page(args, opened, state):
         argv += ['--open', opened]
     if args.frames:
         argv += ['--frames', str(args.frames)]
-    return menu.main(argv, preload=state)
+    return menu.main(argv, preload=state, warmup_tasks=warmup_tasks, on_warmed=on_warmed)
 
 
 def kept(args, listed):
@@ -268,37 +270,59 @@ def main(argv=None):
                         help='draw this many and exit - the smoke')
     args = parser.parse_args(argv)
     kept(args, [by_name(args.name)[0]] if args.name else pages())
-    if sys.stdin.isatty() and not args.frames:
-        # A pull's sources, built before a page runs their images (tools/target/current.py).
-        from tools.target import current
-        current.ensure()
     state = fresh()
     interactive = sys.stdin.isatty() and not args.frames
-    if interactive:
+    tubed = sys.stdout.isatty() and not args.frames
+    if interactive and not tubed:
+        from tools.target import current
+        current.ensure()
         threading.Thread(target=_warm_raster, name='warm-raster', daemon=True).start()
-    preloading = False
-    if args.name != 'humanoid':
-        threading.Thread(target=preload, args=(state, None, interactive), daemon=True).start()
-        preloading = True
     if args.frames and not args.name:
+        threading.Thread(target=preload, args=(state, None, False), daemon=True).start()
         return front_page(args, None, state)
-    view = by_name(args.name) if args.name else None
-    opened, code = None, 0
-    tubed = sys.stdout.isatty()
     if tubed:
         from terminal.ui import stage, tube
         tube.on()
+    view = by_name(args.name) if args.name else None
+    preloading = False
+    boot_tasks = []
+    if interactive and tubed:
+        from terminal import warmup
+        boot_tasks = warmup.cold_tasks(args.port, args.simulated, state,
+                                       include_preload=(args.name != 'humanoid'))
+        if any(k == 'mesh' for k, _l, _f in boot_tasks):
+            preloading = True
+    if args.name != 'humanoid' and not preloading:
+        threading.Thread(target=preload, args=(state, None, interactive and not boot_tasks),
+                         daemon=True).start()
+        preloading = True
+    if view is not None and boot_tasks:
+        from terminal import warmup
+        if not warmup.ensure(args.port, boot_tasks):
+            if tubed:
+                tube.off(stage.last_rows(stage.stage()))
+            from terminal.ui import ahead
+            ahead.let_go()
+            return 0
+        boot_tasks = []
+    opened, code = None, 0
     while True:
         if view is None:
             if not preloading:
                 threading.Thread(target=preload, args=(state, None, interactive), daemon=True).start()
                 preloading = True
-            if sys.stdin.isatty():
-                # The machines' control systems behind their sources compiled behind the front page, their
-                # entries greyed till each is done (`terminal.compiling`); one compile at a time.
-                from terminal import compiling
-                compiling.start([getattr(p, 'COMPILED', None) for p in pages()])
-            picked = front_page(args, opened, state)
+
+            def _start_machines():
+                if sys.stdin.isatty():
+                    from terminal import compiling
+                    compiling.start([getattr(p, 'COMPILED', None) for p in pages()])
+
+            if not boot_tasks:
+                _start_machines()
+            picked = front_page(args, opened, state,
+                                warmup_tasks=boot_tasks or None,
+                                on_warmed=_start_machines if boot_tasks else None)
+            boot_tasks = []
             if picked < FIRST:
                 break
             view = listing()[3][picked]

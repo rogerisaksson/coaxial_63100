@@ -128,6 +128,7 @@ TOUCHES = (
     ('host/terminal/ui/',                      (STRUCTURE, *VIEWS,
                                                 'test_simulated.py')),
     ('host/terminal/compiling.py',             (STRUCTURE, 'test_views_keys.py', 'test_quick.py')),
+    ('host/terminal/warmup.py',                (STRUCTURE, *VIEWS)),
 ) + CORES + (
     ('host/tools/sim/warmed.py',               (STRUCTURE, 'test_quick.py', 'test_views_keys.py')),
     ('host/tools/sim/streams.py',              QUADS + (STREAMS,)),

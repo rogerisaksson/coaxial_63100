@@ -305,10 +305,58 @@ def test_a_chord_rearms_the_terminal(report):
                  keys.rearmed == 0 and keys.clicked() == [(30, 23)] and keys.panned() == (2, 1), str(keys.rearmed))
 
 
+def test_pre_menu_braille_warmup_bar(report):
+    """Before the menu opens (`terminal.warmup`), cold 3D and host C11 cores render a centered two-row Braille
+    progress bar with percent remaining in text, counting from 100% REMAINING down to 0% REMAINING."""
+    import io
+    from types import SimpleNamespace as SN
+    from rich.console import Console
+    from terminal import warmup
+    from terminal.ui import chrome, stage
+
+    def render_at(share, width=120, height=36):
+        con = Console(width=width, height=height, theme=stage.THEME, force_terminal=True,
+                      color_system='truecolor', file=io.StringIO(), legacy_windows=False)
+        with con.capture() as cap:
+            con.print(chrome.Crt(warmup.compose('native://', share, '3D ENGINE & BRAILLE C11',
+                                                'STEP 1 OF 2  MESH, TRIANGLES & BRAILLE', 1.4,
+                                                SN(width=width, height=height))), end='')
+        return ansi_plain(cap.get())
+
+    start_txt, mid_txt, end_txt = render_at(0.0), render_at(0.63), render_at(1.0)
+    bar_mid = warmup.braille_bar(0.5, 30).plain.splitlines()
+    bar_end = warmup.braille_bar(1.0, 30).plain.splitlines()
+    mid_lines = mid_txt.splitlines()
+    box_rows = [idx for idx, line in enumerate(mid_lines) if '37% REMAINING' in line]
+    braille_n = sum(1 for ch in ''.join(bar_mid) if 0x2801 <= ord(ch) <= 0x28FF)
+    ran = []
+
+    class DummyLive:
+        def update(self, renderable, *, refresh=False):
+            ran.append((renderable, refresh))
+
+    class DummyKeys:
+        def poll(self):
+            return None, 0.0
+
+        def taken(self):
+            return []
+
+    ok = warmup.run_in_curtain(DummyLive(), DummyKeys(), SN(size=SN(width=100, height=30)),
+                               'native://', [('raster', '3D ENGINE & BRAILLE C11',
+                                              lambda step: step(0.5, 'TRIANGLES'))])
+    report.check('centered two-row Braille bar shows percent remaining from 100% down to 0% and runs tasks to ready',
+                 '100% REMAINING' in start_txt and '37% REMAINING' in mid_txt and '0% REMAINING' in end_txt
+                 and 'COMPILING 3D & HOST CORES' in mid_txt and len(bar_mid) == 2 and len(bar_mid[0]) == 30
+                 and braille_n == 60 and len(set(bar_end[0])) == 1 and len(box_rows) == 1
+                 and 8 <= box_rows[0] <= 26 and ok and len(ran) >= 1,
+                 'rows=%s updates=%d' % (box_rows, len(ran)))
+
+
 ROSTER = (test_a_page_its_keys_the_terminals_after, test_esc_the_front_page, test_a_compiling_machines_entry_waits,
           test_leaving_sweeps_no_board_never_opened, test_tab_and_help_in_any_mode,
           test_the_robots_modes_before_its_rows, test_folded_into_the_page, test_the_drawing_takes_the_columns_room,
-          test_a_paste_is_never_typed, test_a_chord_rearms_the_terminal)
+          test_a_paste_is_never_typed, test_a_chord_rearms_the_terminal, test_pre_menu_braille_warmup_bar)
 
 
 def main(argv=None):
