@@ -3,6 +3,7 @@
 #define _GNU_SOURCE
 #endif
 
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -36,10 +37,16 @@ typedef BOOL(WINAPI *pf_prefetch_vm_fn)(HANDLE, ULONG_PTR, pf_mem_range_t *, ULO
   {                                                                                   \
     const uintptr_t step2 = step * 2u, step3 = step * 3u, step4 = step * 4u;          \
     uint64_t        lines = 0u;                                                       \
+    if (from < 0 || from >= to)                                                       \
+      return 0u;                                                                      \
     for (int i = from; i < to; i++)                                                   \
     {                                                                                 \
-      uintptr_t       p = (uintptr_t)addrs[i];                                        \
-      const uintptr_t end = p + (uintptr_t)lens[i];                                   \
+      const uintptr_t p0 = (uintptr_t)addrs[i];                                       \
+      const uintptr_t len = (uintptr_t)lens[i];                                       \
+      if (p0 == 0u || len == 0u || len > UINTPTR_MAX - p0)                            \
+        continue;                                                                     \
+      uintptr_t       p = p0;                                                         \
+      const uintptr_t end = p0 + len;                                                 \
       while (p < end && end - p >= step4)                                             \
       {                                                                               \
         PF_LINE(p, rw_const, loc_const);                                              \
@@ -173,15 +180,17 @@ void pf_caches(uint64_t out[5])
   GetLogicalProcessorInformationEx(RelationCache, NULL, &need);
   if (need > 0u && need <= 65536u)
   {
-    unsigned char buf[65536];
-    if (GetLogicalProcessorInformationEx(RelationCache, (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)buf, &need))
+    _Alignas(SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX) unsigned char buf[65536];
+    if (GetLogicalProcessorInformationEx(RelationCache, (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)(void *)buf, &need))
     {
+      const DWORD min_sz =
+        (DWORD)(offsetof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX, Cache) + sizeof(CACHE_RELATIONSHIP));
       DWORD at = 0u;
-      while (at + sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX) <= need)
+      while (at + min_sz <= need)
       {
         const SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *rec =
           (const SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)(const void *)(buf + at);
-        if (rec->Size == 0u)
+        if (rec->Size < min_sz || rec->Size > need - at)
           break;
         if (rec->Relationship == RelationCache)
         {

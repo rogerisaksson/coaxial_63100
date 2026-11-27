@@ -26,6 +26,7 @@ PART_WORK_L2_B = 64 * 1024
 
 CacheInfo = namedtuple('CacheInfo', ('line', 'l1d', 'l1i', 'l2', 'l3'))
 _PINNED_TEXT: dict[int, tuple[int, int]] = {}
+_KEEP_LIBS: list = []
 
 
 @functools.lru_cache(maxsize=1)
@@ -316,9 +317,24 @@ def _collect_l2_l3(g, add_span, code_syms: list[tuple[int, int]]):
         add_span(3, 0, *_arr_span(tab))
 
 
+@functools.lru_cache(maxsize=1)
+def _quick_init_addr() -> int:
+    """Resolve `PyInit__quick` once per process without repeated `CDLL` loads."""
+    from tools.cores import quick
+    qmod = quick.module()
+    if qmod is None or not getattr(qmod, '__file__', None):
+        return 0
+    try:
+        qlib = ctypes.CDLL(qmod.__file__)
+        _KEEP_LIBS.append(qlib)
+        return _fn_addr(getattr(qlib, 'PyInit__quick', None))
+    except OSError:
+        return 0
+
+
 def _collect_code(g, add_span, extra_syms: list[tuple[int, int]]) -> int:
     """Pin shared-library `.text` segments into OS RAM and register hot entrypoints in L2 and segments in L3."""
-    from tools.cores import motion as c_motion, quick, wbc
+    from tools.cores import motion as c_motion, wbc
     lib = wbc.library()
     syms: list[tuple[int, int]] = [
         (_fn_addr(getattr(lib, 'wbh_beat_passed', None)), 0),
@@ -327,13 +343,9 @@ def _collect_code(g, add_span, extra_syms: list[tuple[int, int]]) -> int:
     ]
     blas = c_motion.numpy_blas()
     syms.append((int(blas.gemm or 0), OPENBLAS_CAP_B))
-    qmod = quick.module()
-    if qmod is not None and hasattr(qmod, '__file__') and qmod.__file__:
-        try:
-            qlib = ctypes.CDLL(qmod.__file__)
-            syms.append((_fn_addr(getattr(qlib, 'PyInit__quick', None)), 0))
-        except OSError:
-            pass
+    q_addr = _quick_init_addr()
+    if q_addr:
+        syms.append((q_addr, 0))
     syms.extend(extra_syms)
     seen_bases: set[int] = set()
     seen_hot: set[int] = set()

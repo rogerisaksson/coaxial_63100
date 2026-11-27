@@ -39,8 +39,6 @@ def swap(g, unit: Any, keep: str = '', s=None) -> dict[str, Any]:
         return {'type': 'engram', 'compile_ms': rec['compile_ms'], **res}
     out = _validate_and_swap_core(g, rec)
     out['compile_ms'] = rec['compile_ms']
-    from tools.cores import prefetch
-    prefetch.refresh(g)
     return out
 
 
@@ -75,6 +73,9 @@ def swap_batch(g, specs: Any, s=None) -> list[dict[str, Any]]:
                 engrams.unload(g, slot, keep=keep, s=s)
             else:
                 engrams.swap(g, prev_eng, keep=keep, s=s)
+        if prev_hooks and not applied_engrams:
+            from tools.cores import prefetch
+            prefetch.refresh(g)
         raise
     return results
 
@@ -86,19 +87,22 @@ def unload(g, target: str, keep: str = '', s=None):
         g[target] = bk['stock_cores'].pop(target)
         bk['active_cores'].pop(target, None)
     engrams.unload(g, target, keep=keep, s=s)
-    from tools.cores import prefetch
-    prefetch.refresh(g)
 
 
 def unload_all(g, s=None):
     """Unload all active hot-swapped cores and engrams back to stock definitions."""
     bk = g.get('bank')
+    had_cores = bool(bk and bk.get('active_cores'))
+    had_engrams = bool(bk and bk.get('active'))
     if bk:
         for hook in list(bk.get('active_cores', ())):
             if hook in bk.get('stock_cores', {}):
                 g[hook] = bk['stock_cores'].pop(hook)
             bk['active_cores'].pop(hook, None)
     engrams.unload_all(g, s=s)
+    if had_cores and not had_engrams:
+        from tools.cores import prefetch
+        prefetch.refresh(g)
 
 
 def active(g) -> dict[str, dict[str, str]]:
