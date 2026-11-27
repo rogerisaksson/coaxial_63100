@@ -35,9 +35,8 @@ def laid():
     from machine.texts import ortho
     from machine.process import sprung
     from machine.body.figure import JOINTS
-    g = sprung.laid()
-    fr, rest = g['fr'], g['rest']
-    body = (('mass', g['body'].mass), ('weight', fr[modal.WEIGHT]), ('com_height', fr[modal.H0]),
+    _world, body_wbc, *_mid, fr, rest, _rest_y = sprung.statics_laid()
+    body = (('mass', body_wbc.mass), ('weight', fr[modal.WEIGHT]), ('com_height', fr[modal.H0]),
             ('omega', fr[modal.OMEGA]), ('leg', modal.LEG_M), ('stance_width', 2.0 * fr[modal.W0]),
             ('knee', math.degrees(fr[modal.KNEE])))
     modes = [('mode_' + name, fr[modal.UNIT][i], fr[modal.MASS][i], rest[latent.K][i], rest[latent.D][i])

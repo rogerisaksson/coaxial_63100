@@ -1,4 +1,4 @@
-"""SIMD C11 kernels (`identify.c`) for campaign low-pass smoothing and capsule self-contact."""
+"""SIMD C11 kernels (`identify.c`) for campaign low-pass, hem kinematics, and self-contact."""
 import ctypes
 import functools
 import os
@@ -15,6 +15,7 @@ FLAGS = (('-O3', '-fno-math-errno', '-fno-trapping-math', '-fvect-cost-model=dyn
           '-fno-builtin-sin', '-fno-builtin-cos') + build.native())
 KEPT = 8
 _CAPS: dict[int, tuple] = {}
+_HEMS: dict[tuple[int, int], tuple] = {}
 
 
 @functools.lru_cache(maxsize=1)
@@ -36,6 +37,13 @@ def _lib():
         i32, vp, vp, vp,
     ]
     lib.id_self_hit.restype = i32
+    lib.id_hem_anchor.argtypes = [
+        i32, i32, i32, i32, i32, i32, i32, f64, vp,
+        i32, vp, vp, vp,
+        i32, vp, vp, vp,
+        vp, vp, vp,
+    ]
+    lib.id_hem_anchor.restype = i32
     return lib
 
 
@@ -124,3 +132,85 @@ def self_hit(lay, ys_arr, quat_at: int, q_at: int):
     if rc != 0:
         return None
     return out.view(bool)
+
+
+def _quat_rot_rows(q_arr):
+    """Convert `(K, 4)` `(w, x, y, z)` quaternions into contiguous `(K, 9)` rotation matrices."""
+    q = np.asarray(q_arr, dtype=np.float64)
+    if len(q) == 0:
+        return np.zeros((1, 9), dtype=np.float64)
+    w, x, y, z = q[:, 0], q[:, 1], q[:, 2], q[:, 3]
+    xx, yy, zz = x * x, y * y, z * z
+    xy, xz, yz = x * y, x * z, y * z
+    wx, wy, wz = w * x, w * y, w * z
+    return np.column_stack([
+        1.0 - 2.0 * (yy + zz), 2.0 * (xy - wz), 2.0 * (xz + wy),
+        2.0 * (xy + wz), 1.0 - 2.0 * (xx + zz), 2.0 * (yz - wx),
+        2.0 * (xz - wy), 2.0 * (yz + wx), 1.0 - 2.0 * (xx + yy),
+    ]).astype(np.float64, copy=False)
+
+
+def _hem_chains(m, lay):
+    """Return cached `{k: (b, links, j_span, jnt_ids, j_idx)}` topology for `lay['hems']`."""
+    key = (id(m), id(lay))
+    hit = _HEMS.get(key)
+    if hit is not None and hit[0] is m and hit[1] is lay:
+        return hit[2]
+    chains = {}
+    for k in lay.get('hems', ()):
+        k_i = int(k)
+        b = int(lay['bodies'][k_i])
+        rev, p = [], int(lay['parent'][k_i])
+        while p > 0:
+            rev.append(int(lay['bodies'][p]))
+            p = int(lay['parent'][p])
+        links = list(reversed(rev))
+        j_span = np.zeros((max(1, len(links)), 2), dtype=np.int32)
+        jnt_ids, j_idx_l = [], []
+        for lk_i, link in enumerate(links):
+            j_span[lk_i, 0] = len(j_idx_l)
+            first = int(m.body_jntadr[link])
+            for j in range(first, first + int(m.body_jntnum[link])):
+                jnt_ids.append(j)
+                j_idx_l.append(int(np.flatnonzero(lay['vadr'] == m.jnt_dofadr[j])[0]))
+            j_span[lk_i, 1] = len(j_idx_l)
+        chains[k_i] = (b, links, j_span, jnt_ids, np.array(j_idx_l or [0], dtype=np.int32), len(j_idx_l))
+    while len(_HEMS) >= KEPT:
+        del _HEMS[next(iter(_HEMS))]
+    _HEMS[key] = (m, lay, chains)
+    return chains
+
+
+def hem_anchor(m, lay, ys_arr, dt: float, k: int, offsets: tuple[int, int, int, int, int]):
+    """Compute `(ap, om, alb)` `(N - 1, 3)` in C for hem `k`, or return `None` when C is unavailable."""
+    lib = _lib()
+    if lib is None:
+        return None
+    chains = _hem_chains(m, lay)
+    spec = chains.get(int(k))
+    if spec is None:
+        return None
+    b, links, j_span, jnt_ids, j_idx, nj_tot = spec
+    ys_c = np.ascontiguousarray(ys_arr, dtype=np.float64)
+    n = len(ys_c) - 1
+    if n <= 0:
+        z = np.zeros((0, 3), dtype=np.float64)
+        return z, z, z
+    nlinks = len(links)
+    link_pos = np.ascontiguousarray(m.body_pos[links], dtype=np.float64) if nlinks else np.zeros((1, 3))
+    link_rot = _quat_rot_rows(m.body_quat[links]) if nlinks else np.zeros((1, 9))
+    j_ax = np.ascontiguousarray(m.jnt_axis[jnt_ids], dtype=np.float64) if nj_tot else np.zeros((1, 3))
+    end_pos = np.ascontiguousarray(m.body_pos[b], dtype=np.float64)
+    ap = np.empty((n, 3), dtype=np.float64)
+    om = np.empty((n, 3), dtype=np.float64)
+    alb = np.empty((n, 3), dtype=np.float64)
+    quat_at, gyro_at, accel_at, q_at, qd_at = (int(v) for v in offsets)
+    rc = lib.id_hem_anchor(
+        n, ys_c.shape[1], quat_at, gyro_at, accel_at, q_at, qd_at, float(dt), ys_c.ctypes.data,
+        nlinks, link_pos.ctypes.data, link_rot.ctypes.data, j_span.ctypes.data,
+        nj_tot, j_idx.ctypes.data, j_ax.ctypes.data, end_pos.ctypes.data,
+        ap.ctypes.data, om.ctypes.data, alb.ctypes.data,
+    )
+    if rc != 0:
+        return None
+    return ap, om, alb

@@ -255,7 +255,7 @@ def free(lay, ys, every=1, stop_deg=STOP_DEG):
     at = np.arange(0, len(ys_arr) - 1, every)
     q, margin = ys_arr[at, edge.Q], math.radians(stop_deg)
     near = (q < lay['lo'] + margin) | (q > lay['hi'] - margin)
-    touch = np.linalg.norm(ys_arr[:, edge.TOUCH].reshape(len(ys_arr), -1, 3), axis=2) > 0.0
+    touch = np.any(ys_arr[:, edge.TOUCH].reshape(len(ys_arr), -1, 3) != 0.0, axis=2)
     hit = ((touch.astype(int) @ lay['skin'].T) > 0) | campaign.self_hit(lay, ys_arr)
     cs = np.vstack([np.zeros((1, hit.shape[1]), int), np.cumsum(hit, axis=0)])
     clear = (cs[np.minimum(at + every + 1, len(hit))] - cs[np.maximum(at - every, 0)]) == 0

@@ -260,12 +260,17 @@ def test_the_robots_manifest_is_its_build(r):
     r.check('a stack naming a part the library lacks is refused, the parts named',
             'U9 is no motor' in refused and 'MN6007' in refused, refused)
     import subprocess
+    from concurrent.futures import ThreadPoolExecutor
     host = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    for other in [n for n in mechatronics.robots() if n != mechatronics.ROBOT]:
-        run = subprocess.run([sys.executable, '-X', 'utf8', '-c', 'from tools.cores import manifest\n'
-                              'raise SystemExit(0 if open(manifest.path(), encoding="utf-8").read() == manifest.text() else 1)'],
-                             cwd=host, env=dict(os.environ, COAXIAL_ROBOT=other, PYTHONPATH=host),
-                             capture_output=True, text=True, timeout=300)
+    others = [n for n in mechatronics.robots() if n != mechatronics.ROBOT]
+    cmd = [sys.executable, '-X', 'utf8', '-c', 'from tools.cores import manifest\n'
+           'raise SystemExit(0 if open(manifest.path(), encoding="utf-8").read() == manifest.text() else 1)']
+    workers = max(1, min(len(others), 8, (os.cpu_count() or 2) // 2))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        runs = list(pool.map(lambda o: subprocess.run(
+            cmd, cwd=host, env=dict(os.environ, COAXIAL_ROBOT=o, PYTHONPATH=host),
+            capture_output=True, text=True, timeout=300), others))
+    for other, run in zip(others, runs):
         r.check('%s\'s manifest is its tool\'s output under COAXIAL_ROBOT' % other, run.returncode == 0,
                 run.stderr[-300:] or 'COAXIAL_ROBOT=%s python tools/cores/manifest.py --write' % other)
     import re

@@ -1,4 +1,4 @@
-/** identify.c - SIMD C11 capsule self-contact and bidirectional low-pass kernels for sysid. */
+/** identify.c - SIMD C11 capsule self-contact, hem kinematics, and low-pass kernels for sysid. */
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
@@ -9,6 +9,7 @@
 #define ID_MAX_BODIES 64
 #define ID_MAX_JOINTS 64
 #define ID_MAX_CAPS   96
+#define ID_MAX_CHAIN  32
 #define ID_LANES      8
 
 /** Bidirectional first-order low-pass filter on contiguous `(n, cols)` row-major float64 array. */
@@ -336,6 +337,223 @@ int id_self_hit(int n, int stride, int quat_at, int q_at, const double *restrict
             dst[d] = (uint8_t)((mk >> d) & 1u);
           }
         }
+      }
+    }
+  }
+  return 0;
+}
+
+static inline void id_cross_lanes(const double u[3][ID_LANES], const double v[3][ID_LANES],
+                                  double c[3][ID_LANES])
+{
+  for (int l = 0; l < ID_LANES; l++)
+  {
+    c[0][l] = u[1][l] * v[2][l] - u[2][l] * v[1][l];
+    c[1][l] = u[2][l] * v[0][l] - u[0][l] * v[2][l];
+    c[2][l] = u[0][l] * v[1][l] - u[1][l] * v[0][l];
+  }
+}
+
+static void id_hem_init_block(int m, int stride, int quat_at, int gyro_at, int accel_at, double dt,
+                              const double *restrict ys, double R[9][ID_LANES],
+                              double wv[3][ID_LANES], double al[3][ID_LANES], double a[3][ID_LANES])
+{
+  for (int l = 0; l < ID_LANES; l++)
+  {
+    const int     row = (l < m) ? l : 0;
+    const double *r0_row = ys + (size_t)row * (size_t)stride;
+    const double *r1_row = ys + (size_t)(row + 1) * (size_t)stride;
+    const double *q0 = r0_row + quat_at;
+    const double *q1 = r1_row + quat_at;
+    const double *g0 = r0_row + gyro_at;
+    const double *g1 = r1_row + gyro_at;
+    const double *acc1 = r1_row + accel_at;
+    double        rot0[9], rot1[9], dg[3];
+
+    id_quat_rot(q0[0], q0[1], q0[2], q0[3], rot0);
+    id_quat_rot(q1[0], q1[1], q1[2], q1[3], rot1);
+    dg[0] = (g1[0] - g0[0]) / dt;
+    dg[1] = (g1[1] - g0[1]) / dt;
+    dg[2] = (g1[2] - g0[2]) / dt;
+    for (int d = 0; d < 9; d++)
+    {
+      R[d][l] = rot0[d];
+    }
+    for (int i = 0; i < 3; i++)
+    {
+      wv[i][l] = (rot0[3 * i] * g0[0] + rot0[3 * i + 1] * g0[1]) + rot0[3 * i + 2] * g0[2];
+      al[i][l] = (rot0[3 * i] * dg[0] + rot0[3 * i + 1] * dg[1]) + rot0[3 * i + 2] * dg[2];
+      a[i][l] = (rot1[3 * i] * acc1[0] + rot1[3 * i + 1] * acc1[1]) + rot1[3 * i + 2] * acc1[2];
+    }
+  }
+}
+
+static void id_hem_link_step(int m, int stride, int q_at, int qd_at, double dt,
+                             const double *restrict ys, const double bp[3], const double br[9],
+                             int j0, int j1, const int32_t *restrict j_idx,
+                             const double *restrict j_ax, double R[9][ID_LANES],
+                             double wv[3][ID_LANES], double al[3][ID_LANES], double a[3][ID_LANES])
+{
+  double dp[3][ID_LANES], wdp[3][ID_LANES], wwdp[3][ID_LANES], aldp[3][ID_LANES], rn[9][ID_LANES];
+
+  for (int i = 0; i < 3; i++)
+  {
+    for (int l = 0; l < ID_LANES; l++)
+    {
+      dp[i][l] = (R[3 * i][l] * bp[0] + R[3 * i + 1][l] * bp[1]) + R[3 * i + 2][l] * bp[2];
+    }
+  }
+  id_cross_lanes(al, dp, aldp);
+  id_cross_lanes(wv, dp, wdp);
+  id_cross_lanes(wv, wdp, wwdp);
+  for (int i = 0; i < 3; i++)
+  {
+    for (int l = 0; l < ID_LANES; l++)
+    {
+      a[i][l] = (a[i][l] + aldp[i][l]) + wwdp[i][l];
+    }
+    for (int j = 0; j < 3; j++)
+    {
+      const double b0 = br[j], b1 = br[3 + j], b2 = br[6 + j];
+      for (int l = 0; l < ID_LANES; l++)
+      {
+        rn[3 * i + j][l] = (R[3 * i][l] * b0 + R[3 * i + 1][l] * b1) + R[3 * i + 2][l] * b2;
+      }
+    }
+  }
+  for (int d = 0; d < 9; d++)
+  {
+    for (int l = 0; l < ID_LANES; l++)
+    {
+      R[d][l] = rn[d][l];
+    }
+  }
+  for (int jn = j0; jn < j1; jn++)
+  {
+    const int     ji = (int)j_idx[jn];
+    const double *ax = j_ax + 3 * jn;
+    double        sw[3][ID_LANES], wsw[3][ID_LANES], dr[9][ID_LANES];
+    double        qd_v[ID_LANES], qdd_v[ID_LANES];
+
+    for (int i = 0; i < 3; i++)
+    {
+      for (int l = 0; l < ID_LANES; l++)
+      {
+        sw[i][l] = (R[3 * i][l] * ax[0] + R[3 * i + 1][l] * ax[1]) + R[3 * i + 2][l] * ax[2];
+      }
+    }
+    id_cross_lanes(wv, sw, wsw);
+    for (int l = 0; l < ID_LANES; l++)
+    {
+      const int     row = (l < m) ? l : 0;
+      const double *r0_row = ys + (size_t)row * (size_t)stride;
+      const double *r1_row = ys + (size_t)(row + 1) * (size_t)stride;
+      const double  hq = 0.5 * r0_row[q_at + ji];
+      const double  qd0 = r0_row[qd_at + ji];
+      const double  cq = (fabs(hq) < LM_FAR) ? lm_cos_near(hq) : wbc_cos(hq);
+      const double  sq = (fabs(hq) < LM_FAR) ? lm_sin_near(hq) : wbc_sin(hq);
+      double        d_one[9];
+
+      qd_v[l] = qd0;
+      qdd_v[l] = (r1_row[qd_at + ji] - qd0) / dt;
+      id_quat_rot(cq, sq * ax[0], sq * ax[1], sq * ax[2], d_one);
+      for (int d = 0; d < 9; d++)
+      {
+        dr[d][l] = d_one[d];
+      }
+    }
+    for (int i = 0; i < 3; i++)
+    {
+      for (int l = 0; l < ID_LANES; l++)
+      {
+        al[i][l] = (al[i][l] + sw[i][l] * qdd_v[l]) + wsw[i][l] * qd_v[l];
+        wv[i][l] = wv[i][l] + sw[i][l] * qd_v[l];
+      }
+      for (int j = 0; j < 3; j++)
+      {
+        for (int l = 0; l < ID_LANES; l++)
+        {
+          rn[3 * i + j][l] = (R[3 * i][l] * dr[j][l] + R[3 * i + 1][l] * dr[3 + j][l])
+                             + R[3 * i + 2][l] * dr[6 + j][l];
+        }
+      }
+    }
+    for (int d = 0; d < 9; d++)
+    {
+      for (int l = 0; l < ID_LANES; l++)
+      {
+        R[d][l] = rn[d][l];
+      }
+    }
+  }
+}
+
+/** Propagate pelvic IMU and encoder chain kinematics to hem anchor `(ap, om, alb)` across `n` steps. */
+int id_hem_anchor(int n, int stride, int quat_at, int gyro_at, int accel_at, int q_at, int qd_at,
+                  double dt, const double *restrict ys, int nlinks, const double *restrict link_pos,
+                  const double *restrict link_rot, const int32_t *restrict j_span, int nj_tot,
+                  const int32_t *restrict j_idx, const double *restrict j_ax,
+                  const double *restrict end_pos, double *restrict ap_out,
+                  double *restrict om_out, double *restrict alb_out)
+{
+  if (nlinks < 0 || nlinks > ID_MAX_CHAIN || nj_tot < 0 || nj_tot > ID_MAX_JOINTS || dt <= 0.0)
+  {
+    return -1;
+  }
+  if (n <= 0)
+  {
+    return 0;
+  }
+
+  _Alignas(64) double R[9][ID_LANES];
+  _Alignas(64) double wv[3][ID_LANES];
+  _Alignas(64) double al[3][ID_LANES];
+  _Alignas(64) double a[3][ID_LANES];
+  _Alignas(64) double dp[3][ID_LANES];
+  _Alignas(64) double wdp[3][ID_LANES];
+  _Alignas(64) double wwdp[3][ID_LANES];
+  _Alignas(64) double aldp[3][ID_LANES];
+  _Alignas(64) double atot[3][ID_LANES];
+
+  for (int base_t = 0; base_t < n; base_t += ID_LANES)
+  {
+    const int     m = (n - base_t < ID_LANES) ? (n - base_t) : ID_LANES;
+    const double *ys_blk = ys + (size_t)base_t * (size_t)stride;
+
+    id_hem_init_block(m, stride, quat_at, gyro_at, accel_at, dt, ys_blk, R, wv, al, a);
+    for (int lk = 0; lk < nlinks; lk++)
+    {
+      id_hem_link_step(m, stride, q_at, qd_at, dt, ys_blk, link_pos + 3 * lk, link_rot + 9 * lk,
+                       (int)j_span[2 * lk], (int)j_span[2 * lk + 1], j_idx, j_ax, R, wv, al, a);
+    }
+    for (int i = 0; i < 3; i++)
+    {
+      for (int l = 0; l < ID_LANES; l++)
+      {
+        dp[i][l] = (R[3 * i][l] * end_pos[0] + R[3 * i + 1][l] * end_pos[1])
+                   + R[3 * i + 2][l] * end_pos[2];
+      }
+    }
+    id_cross_lanes(al, dp, aldp);
+    id_cross_lanes(wv, dp, wdp);
+    id_cross_lanes(wv, wdp, wwdp);
+    for (int i = 0; i < 3; i++)
+    {
+      for (int l = 0; l < ID_LANES; l++)
+      {
+        atot[i][l] = (a[i][l] + aldp[i][l]) + wwdp[i][l];
+      }
+    }
+    for (int l = 0; l < m; l++)
+    {
+      double *ap_r = ap_out + (size_t)(base_t + l) * 3u;
+      double *om_r = om_out + (size_t)(base_t + l) * 3u;
+      double *ab_r = alb_out + (size_t)(base_t + l) * 3u;
+      for (int i = 0; i < 3; i++)
+      {
+        ap_r[i] = (R[i][l] * atot[0][l] + R[3 + i][l] * atot[1][l]) + R[6 + i][l] * atot[2][l];
+        om_r[i] = (R[i][l] * wv[0][l] + R[3 + i][l] * wv[1][l]) + R[6 + i][l] * wv[2][l];
+        ab_r[i] = (R[i][l] * al[0][l] + R[3 + i][l] * al[1][l]) + R[6 + i][l] * al[2][l];
       }
     }
   }

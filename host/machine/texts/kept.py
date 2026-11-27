@@ -39,20 +39,68 @@ def _file_digest(path: str) -> bytes:
     return _FILE_DIGESTS[ap][1]
 
 
+def _atomic_write(prefix: str, target: str, data: bytes) -> None:
+    os.makedirs(CACHE, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=CACHE, prefix=prefix + '.', suffix='.tmp')
+    try:
+        with os.fdopen(fd, 'wb') as f:
+            f.write(data)
+        os.replace(tmp, target)
+    except OSError:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+
+
+def _prune_stats(prefix: str, limit: int = 32) -> None:
+    try:
+        entries = [(e.stat().st_mtime_ns, e.path) for e in os.scandir(CACHE)
+                   if e.name.startswith(prefix) and e.name.endswith('.idx')]
+    except OSError:
+        return
+    for _mt, p in sorted(entries)[:-limit]:
+        try:
+            os.unlink(p)
+        except OSError:
+            pass
+
+
 def disk(kept, tag: str, key, files, extra, fn, size: int = 8):
     """`loaded` backed by `.cache/compiled/texts/<tag>_<sha256>.pkl` keyed by `files` and `extra`."""
     blob = kept.pop(key, None)
     if blob is not None:
         kept[key] = blob
         return pickle.loads(blob)
-    h = hashlib.sha256()
-    h.update(repr((sys.version_info[:3], pickle.HIGHEST_PROTOCOL, extra)).encode('utf-8'))
+    meta = (sys.version_info[:3], pickle.HIGHEST_PROTOCOL, extra)
     try:
-        for p in sorted({os.path.abspath(f) for f in files if f}):
-            h.update(os.path.basename(p).encode('utf-8') + b'\0' + _file_digest(p))
+        paths = sorted({os.path.abspath(f) for f in files if f})
+        stats = [(p, st.st_mtime_ns, getattr(st, 'st_ctime_ns', 0), st.st_size)
+                 for p in paths for st in (os.stat(p),)]
     except OSError:
         return loaded(kept, key, fn, size)
-    target = os.path.join(CACHE, '%s_%s.pkl' % (tag, h.hexdigest()[:16]))
+    stat_sig = hashlib.sha256(repr((meta, stats)).encode('utf-8')).hexdigest()[:16]
+    idx_prefix = tag + '_stat_'
+    idx_path = os.path.join(CACHE, '%s%s.idx' % (idx_prefix, stat_sig))
+    digest_hex = None
+    if os.path.isfile(idx_path):
+        try:
+            with open(idx_path, 'rb') as f:
+                raw = f.read().decode('ascii').strip()
+            if len(raw) == 16:
+                digest_hex = raw
+        except (OSError, UnicodeDecodeError):
+            digest_hex = None
+    wrote_idx = False
+    if digest_hex is None:
+        h = hashlib.sha256()
+        h.update(repr(meta).encode('utf-8'))
+        try:
+            for p in paths:
+                h.update(os.path.basename(p).encode('utf-8') + b'\0' + _file_digest(p))
+        except OSError:
+            return loaded(kept, key, fn, size)
+        digest_hex = h.hexdigest()[:16]
+        wrote_idx = True
+    target = os.path.join(CACHE, '%s_%s.pkl' % (tag, digest_hex))
     if os.path.isfile(target):
         try:
             with open(target, 'rb') as f:
@@ -61,6 +109,12 @@ def disk(kept, tag: str, key, files, extra, fn, size: int = 8):
             kept[key] = blob
             while len(kept) > size:
                 del kept[next(iter(kept))]
+            if wrote_idx:
+                try:
+                    _atomic_write(idx_prefix, idx_path, digest_hex.encode('ascii'))
+                    _prune_stats(idx_prefix)
+                except OSError:
+                    pass
             return got
         except (OSError, EOFError, pickle.UnpicklingError, AttributeError, ValueError, ImportError):
             blob = None
@@ -73,15 +127,9 @@ def disk(kept, tag: str, key, files, extra, fn, size: int = 8):
     while len(kept) > size:
         del kept[next(iter(kept))]
     try:
-        os.makedirs(CACHE, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=CACHE, prefix=tag + '.', suffix='.tmp')
-        try:
-            with os.fdopen(fd, 'wb') as f:
-                f.write(blob)
-            os.replace(tmp, target)
-        except OSError:
-            if os.path.exists(tmp):
-                os.unlink(tmp)
+        _atomic_write(tag, target, blob)
+        _atomic_write(idx_prefix, idx_path, digest_hex.encode('ascii'))
+        _prune_stats(idx_prefix)
     except OSError:
         pass
     return got

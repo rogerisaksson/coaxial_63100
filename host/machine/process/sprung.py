@@ -93,17 +93,14 @@ def entries(text=None, name=GYMS[0], texts=None, suite=None):
     return kept.gym_entries(name, GYMS[0], lambda nm: _compile_entries(None, nm, None, None))
 
 
-def laid(every=1, inner=None, solver=None, texts=None, suite=None, gym=None):
-    """The robot stands on the floor on the loop, at rest: one dict of what a run holds - its gym's
-    entries of its texts `texts` and the suite `suite` where given (`entries`), both kept."""
+def statics_laid(every=1, inner=None):
+    """Return standing rest `(world, body, m, names, limbs, sense, est, s, y, fr, rest, rest_y)`."""
     import numpy as np
-    from machine.body import bends, figure, gait, heat, servos
-    from machine.law import latent, melt, modal, motion, statics
-    from machine.world import physics
-    from machine.eyes import registry
-    from machine.stack import wbc
-    from machine.body.drives import kind, peak, wep_scale
+    from machine.body import figure, gait
     from machine.body.figure import JOINTS
+    from machine.law import latent, modal, statics
+    from machine.stack import wbc
+    from machine.world import physics
     world, body, pose, inner = physics.World(), wbc.Body(), figure.stand(), (inner or INNER)
     world.reset(pose)
     s = wbc.sense(body, world.data.qpos, world.data.qvel)
@@ -112,15 +109,16 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None, gym=None):
     world.gains[:] *= np.array(SERVO_SHARE) * (inner == 'pd')
     world.gains[~body.driven] = 0.0
     m, names = body.m, [j for j, d in zip(JOINTS, body.driven) if d]
-    limbs = {'hips': [m.body(s0 + 'thigh').id for s0 in ('left_', 'right_')], 'shoulders': [names.index(s0 + 'shoulder') for s0 in ('left_', 'right_')],
+    limbs = {'hips': [m.body(s0 + 'thigh').id for s0 in ('left_', 'right_')],
+             'shoulders': [names.index(s0 + 'shoulder') for s0 in ('left_', 'right_')],
              'elbows': [names.index(s0 + 'elbow') for s0 in ('left_', 'right_')]}
     sense, est = edge.laid(world), estimate.laid(body, world.data.qpos[0:3])
     s = sensed(body, est, sense, limbs)
     y = modal.sensed(s, (0.0, 0.0), np.zeros(modal.SENSED))
     y[modal.CELLS] = sense[edge.CELLS]
     fr = statics.frame(y, body.mass, float(m.body_subtreemass[m.body('left_hip_yaw').id]), float(m.body_subtreemass[body.torso]),
-                     float(m.body_subtreemass[m.body('left_upper_arm').id]), float(m.body_subtreemass[m.body('left_forearm').id]),
-                     float(np.mean(s['q'][list(body.knees)])), 0.001 * every)
+                       float(m.body_subtreemass[m.body('left_upper_arm').id]), float(m.body_subtreemass[m.body('left_forearm').id]),
+                       float(np.mean(s['q'][list(body.knees)])), 0.001 * every)
     rest = statics.rest(fr)
     modes_g = gait.table('modes')
     k_g = float(fr[modal.WEIGHT] / fr[modal.H0])
@@ -131,6 +129,22 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None, gym=None):
     rest[latent.K][[modal.AXIAL, modal.LATERAL, modal.SAGITTAL]] = (k_ax, k_lat, k_sag)
     rest[latent.D][[modal.AXIAL, modal.LATERAL, modal.SAGITTAL]] = (
         d_ax, modes_g['rest_lateral_d_share'] * d_ax, d_sag)
+    return world, body, m, names, limbs, sense, est, s, y, fr, rest, rest_y
+
+
+def laid(every=1, inner=None, solver=None, texts=None, suite=None, gym=None):
+    """The robot stands on the floor on the loop, at rest: one dict of what a run holds - its gym's
+    entries of its texts `texts` and the suite `suite` where given (`entries`), both kept."""
+    import numpy as np
+    from machine.body import bends, heat, servos
+    from machine.law import latent, melt, modal, motion
+    from machine.world import physics
+    from machine.eyes import registry
+    from machine.stack import wbc
+    from machine.body.drives import kind, peak, wep_scale
+    from machine.body.figure import JOINTS
+    inner = inner or INNER
+    world, body, m, names, limbs, sense, est, s, y, fr, rest, rest_y = statics_laid(every=every, inner=inner)
     st, tab = latent.state(rest), np.zeros((0, latent.TABLE))
     out = latent.step(st.copy(), tab, 0.0, 0.001 * every, np.zeros(latent.OUT))
     joints = np.flatnonzero(body.driven)

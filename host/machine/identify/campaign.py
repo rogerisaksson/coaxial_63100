@@ -168,11 +168,11 @@ def boxes(body, ys, taus, dt, armature, every=1):
         J = float(armature[i])
         w_nm = min(WOUND_NM, round(drives.mesh(joint_name), 2))
         r_nm = min(ROTOR_NM, 3.0 * drives.armature(joint_name))
-        _, play, _, _, zero = _box(delta[:, i], rel[:, i], motor[:, i] - J * wacc[:, i], w_nm)
+        k, play, c, mesh, zero = _box(delta[:, i], rel[:, i], motor[:, i] - J * wacc[:, i], w_nm)
         if play <= 0.0:
             got_z = _deadband(delta[:, i], rel[:, i], mot3[:, i] - J * wacc[:, i], w_nm)
             if got_z is not None:
-                _, play, _, _, zero = got_z
+                k, play, c, mesh, zero = got_z
         if play > 0.0:
             inside = np.abs(wound_up[:, driven[i]] - zero) < INSIDE * play
             rows = inside[at - 1] & inside[at] & inside[at + 1] & (np.abs(mean[:, i]) > ROTOR_NM)
@@ -180,11 +180,11 @@ def boxes(body, ys, taus, dt, armature, every=1):
                 rows = inside[at - 1] & inside[at] & inside[at + 1] & (np.abs(mean[:, i]) > r_nm)
             if rows.sum() >= ROTOR_ROWS and (mean[rows, i] @ second[rows, i]) > 0.0:
                 J = float(mean[rows, i] @ mean[rows, i] / (mean[rows, i] @ second[rows, i]))
-        k, play, c, mesh, zero = _box(delta[:, i], rel[:, i], motor[:, i] - J * wacc[:, i], w_nm)
-        if play <= 0.0:
-            got_z = _deadband(delta[:, i], rel[:, i], mot3[:, i] - J * wacc[:, i], w_nm)
-            if got_z is not None:
-                k, play, c, mesh, zero = got_z
+                k, play, c, mesh, zero = _box(delta[:, i], rel[:, i], motor[:, i] - J * wacc[:, i], w_nm)
+                if play <= 0.0:
+                    got_z = _deadband(delta[:, i], rel[:, i], mot3[:, i] - J * wacc[:, i], w_nm)
+                    if got_z is not None:
+                        k, play, c, mesh, zero = got_z
         ks = drives.series(joint_name)
         if ks > 0.0 and (k == 0.0 or drives.track(joint_name) > 0.0) and len(taus):
             k0 = 1.0 / (1.0 / drives.wind(joint_name) + 1.0 / ks)
@@ -269,13 +269,44 @@ def rotations(q):
                      np.stack([2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)], -1)], -2)
 
 
+def hem_anchor_py(m, lay, ys, dt, k):
+    """`(ap, om, alb)` `(N - 1, 3)` anchor kinematics in NumPy for hem `k`, kept as fallback and oracle."""
+    import numpy as np
+    n, rot, b = len(ys) - 1, rotations, int(lay['bodies'][k])
+    R = rot(ys[:n, edge.QUAT])
+    wv = np.einsum('nij,nj->ni', R, ys[:n, edge.GYRO])
+    al = np.einsum('nij,nj->ni', R, (ys[1:n + 1, edge.GYRO] - ys[:n, edge.GYRO]) / dt)
+    a = np.einsum('nij,nj->ni', rot(ys[1:n + 1, edge.QUAT]), ys[1:n + 1, edge.ACCEL])
+    qd_all = ys[:n, edge.QD]
+    qdd_all = (ys[1:n + 1, edge.QD] - qd_all) / dt
+    chain, p = [], int(lay['parent'][k])
+    while p > 0:
+        chain.append(int(lay['bodies'][p]))
+        p = int(lay['parent'][p])
+    for link in reversed(chain):
+        dp = np.einsum('nij,j->ni', R, m.body_pos[link])
+        a = a + np.cross(al, dp) + np.cross(wv, np.cross(wv, dp))
+        R = R @ rot(m.body_quat[link])
+        first = int(m.body_jntadr[link])
+        for j in range(first, first + int(m.body_jntnum[link])):
+            ax, ji = m.jnt_axis[j], int(np.flatnonzero(lay['vadr'] == m.jnt_dofadr[j])[0])
+            q, qd, qdd_j = ys[:n, edge.Q][:, ji], qd_all[:, ji:ji + 1], qdd_all[:, ji:ji + 1]
+            sw = np.einsum('nij,j->ni', R, ax)
+            al, wv = al + sw * qdd_j + np.cross(wv, sw) * qd, wv + sw * qd
+            c, s = libm.cos(0.5 * q), libm.sin(0.5 * q)
+            R = R @ rot(np.column_stack([c, s * ax[0], s * ax[1], s * ax[2]]))
+    dp = np.einsum('nij,j->ni', R, m.body_pos[b])
+    ap = np.einsum('nji,nj->ni', R, a + np.cross(al, dp) + np.cross(wv, np.cross(wv, dp)))
+    return ap, np.einsum('nji,nj->ni', R, wv), np.einsum('nji,nj->ni', R, al)
+
+
 def hemming(lay, body, ys, dt, every, state_holder=None):
     """The robot's unmeasured 2-DoF pendulums (`lay['hems']`) integrated at `dt` over `ys` with their stops,
     sampled every `every`th, yielding after each: ((qadr, vadr, q, qd, qdd), free). Each one's anchor
     follows its chain down from the pelvis, a link's every joint in its order (the torso's spine and
     waist both), its IMU and its encoders the chain's motion."""
     import numpy as np
-    from tools.cores import wbc as cores
+    from tools.cores import identify as c_id, wbc as cores
     hems = lay.get('hems', ())
     m, at = body.m, np.arange(0, len(ys) - 1, every)
     jids = [int(lay['jnt'][h]) for k in hems for h in range(lay['span'][k, 0], lay['span'][k, 1])]
@@ -283,13 +314,8 @@ def hemming(lay, body, ys, dt, every, state_holder=None):
     if len(ys) < 2 or not jids or float(m.body_mass[m.jnt_bodyid[jids[0]]]) <= 0.0:
         z = np.zeros((len(at), len(jids)))
         return (qadr, vadr, z, z, z), np.ones((len(at), len(hems)), bool)
-    n, rot = len(ys) - 1, rotations
-    R0 = rot(ys[:n, edge.QUAT])
-    w0 = np.einsum('nij,nj->ni', R0, ys[:n, edge.GYRO])
-    al0 = np.einsum('nij,nj->ni', R0, (ys[1:n + 1, edge.GYRO] - ys[:n, edge.GYRO]) / dt)
-    a0 = np.einsum('nij,nj->ni', rot(ys[1:n + 1, edge.QUAT]), ys[1:n + 1, edge.ACCEL])
-    qd_all = ys[:n, edge.QD]
-    qdd_all = (ys[1:n + 1, edge.QD] - qd_all) / dt
+    n = len(ys) - 1
+    offsets = (edge.QUAT.start, edge.GYRO.start, edge.ACCEL.start, edge.Q.start, edge.QD.start)
     q_out, v_out, a_out = np.zeros((n, len(jids))), np.zeros((n, len(jids))), np.zeros((n, len(jids)))
     hit, prev = np.zeros((n, len(hems)), bool), state_holder.get('_hem_prev') if state_holder is not None else None
     yield
@@ -301,26 +327,8 @@ def hemming(lay, body, ys, dt, every, state_holder=None):
         if mass <= 0.0:
             next_state.append((0.0, 0.0, 0.0, 0.0))
             continue
-        chain, p = [], int(lay['parent'][k])
-        while p > 0:
-            chain.append(int(lay['bodies'][p]))
-            p = int(lay['parent'][p])
-        R, wv, al, a = R0, w0, al0, a0
-        for link in reversed(chain):
-            dp = np.einsum('nij,j->ni', R, m.body_pos[link])
-            a = a + np.cross(al, dp) + np.cross(wv, np.cross(wv, dp))
-            R = R @ rot(m.body_quat[link])
-            first = int(m.body_jntadr[link])
-            for j in range(first, first + int(m.body_jntnum[link])):
-                ax, ji = m.jnt_axis[j], int(np.flatnonzero(lay['vadr'] == m.jnt_dofadr[j])[0])
-                q, qd, qdd_j = ys[:n, edge.Q][:, ji], qd_all[:, ji:ji + 1], qdd_all[:, ji:ji + 1]
-                sw = np.einsum('nij,j->ni', R, ax)
-                al, wv = al + sw * qdd_j + np.cross(wv, sw) * qd, wv + sw * qd
-                c, s = libm.cos(0.5 * q), libm.sin(0.5 * q)
-                R = R @ rot(np.column_stack([c, s * ax[0], s * ax[1], s * ax[2]]))
-        dp = np.einsum('nij,j->ni', R, m.body_pos[b])
-        ap = np.einsum('nji,nj->ni', R, a + np.cross(al, dp) + np.cross(wv, np.cross(wv, dp)))
-        om, alb = np.einsum('nji,nj->ni', R, wv), np.einsum('nji,nj->ni', R, al)
+        got_c = c_id.hem_anchor(m, lay, ys, dt, k, offsets)
+        ap, om, alb = hem_anchor_py(m, lay, ys, dt, k) if got_c is None else got_c
         L, I0 = -float(m.body_ipos[b, 1]), float(m.body_inertia[b, 0])
         J, jx, jz = I0 + mass * L * L, jids[2 * s_idx], jids[2 * s_idx + 1]
         stiff, damp = float(m.jnt_stiffness[jx]), float(m.dof_damping[vadr[2 * s_idx]])

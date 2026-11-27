@@ -235,12 +235,13 @@ def test_the_robots_wear_apart_lands_as_here(report):
 
 
 def test_the_campaign_kernels_in_c_are_python_s(report):
-    """`tools.cores.identify` low-pass and capsule self-contact kernels match Python bit for bit."""
+    """`tools.cores.identify` low-pass, hem-anchor, and capsule self-contact kernels match Python."""
     from machine.identify import campaign, sysid
     from machine.senses import edge
     from machine.stack import wbc
     from tools.cores import build, identify
-    lay = sysid.laid(wbc.Body(identified=False))
+    body = wbc.Body(identified=False)
+    lay = sysid.laid(body)
     rng = np.random.default_rng(7)
     x1, x2 = rng.normal(size=257), rng.normal(size=(311, 97))
     a = float(np.exp(-2.0 * np.pi * campaign.SMOOTH_HZ * 0.001))
@@ -254,12 +255,27 @@ def test_the_campaign_kernels_in_c_are_python_s(report):
     ys = np.zeros((133, edge.SENSED))
     quat = rng.normal(size=(len(ys), 4))
     ys[:, edge.QUAT] = quat / np.linalg.norm(quat, axis=1, keepdims=True)
+    ys[:, edge.GYRO] = rng.normal(size=(len(ys), 3))
+    ys[:, edge.ACCEL] = rng.normal(size=(len(ys), 3))
     ys[:, edge.Q] = rng.uniform(-1.8, 1.8, size=(len(ys), edge.Q.stop - edge.Q.start))
+    ys[:, edge.QD] = rng.normal(size=(len(ys), edge.QD.stop - edge.QD.start))
     got_hit = identify.self_hit(lay, ys, edge.QUAT.start, edge.Q.start)
     want_hit = campaign.self_hit_py(lay, ys)
     report.check('identify.self_hit matches Python bit for bit across %d random poses (%d overlaps)' % (
         len(ys), int(want_hit.sum())),
                  (not has_cc) or (got_hit is not None and np.array_equal(got_hit, want_hit) and int(want_hit.sum()) > 0))
+    offsets = (edge.QUAT.start, edge.GYRO.start, edge.ACCEL.start, edge.Q.start, edge.QD.start)
+    hem_err = 0.0
+    hem_ok = True
+    for k in lay['hems']:
+        got_h = identify.hem_anchor(body.m, lay, ys, 0.001, k, offsets)
+        want_h = campaign.hem_anchor_py(body.m, lay, ys, 0.001, k)
+        if has_cc:
+            hem_ok = hem_ok and got_h is not None
+            if got_h is not None:
+                hem_err = max(hem_err, max(float(np.max(np.abs(g - w))) for g, w in zip(got_h, want_h)))
+    report.check('identify.hem_anchor matches Python across %d hems (worst %.2e)' % (len(lay['hems']), hem_err),
+                 (not has_cc) or (hem_ok and hem_err < 1e-11), 'worst %.2e' % hem_err)
 
 
 ROSTER = (test_the_campaign_kernels_in_c_are_python_s,
