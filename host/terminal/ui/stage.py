@@ -99,7 +99,7 @@ def stage():
     _vt_on()
     console = Console(highlight=False, theme=THEME)
     if console.is_terminal:
-        placed.placed()
+        placed.placed(ui=True)
     if console.is_terminal and console.color_system != 'truecolor':
         # rich guesses the colour depth from the environment, and on a Windows
         # console with no COLORTERM it guesses 256 or 16 - the glow ramp's

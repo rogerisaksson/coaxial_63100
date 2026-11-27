@@ -1,40 +1,18 @@
 """The robot's processes placed by its host's topology: a core apart, its loop's on a cache of its own.
 
-Where each of the robot's processes runs, never what it tells; read off the host at each start, nothing of any one
-machine written here. Windows tells its cores, their classes and their caches (GetLogicalProcessorInformationEx), Linux
-its sysfs, on any processor of theirs; macOS binds no thread to a core, there the loop's thread is told the
-user's own (its quality of service: its fast cores, not throttled); another system is left as it is. A host of two
-cores or fewer, of one cache for all its cores, of a cache a core, of fast and slow cores or of several memory nodes is
-placed by the same lines.
+Read off the host at each start: Windows via GetLogicalProcessorInformationEx, Linux via sysfs and cgroup cpusets,
+macOS via QOS_CLASS_USER_INTERACTIVE. Each helper process claims a physical core (`core`) off processor 0 and binds a
+single thread (`apart`) without SMT sibling contention; a terminal UX (`placed(ui=True)`) pins its render thread to a
+claimed core on Windows while keeping its process mask across one thread per non-loop core so background loaders and
+child pools spread cleanly. Each real-time loop (`placed(True)`) claims a last-level cache group (`chosen`), pinning
+its main thread to the group's first fast core while helper C threads run on the group's remaining cores.
 
-A core of its own: each process on a physical core it takes among the robot's processes on the host (`core`), not the
-system's first (its interrupts'); a batch's job on one its relay takes for it (`claim`, `bind`); all taken, on one
-processor of each core none holds. Moved by the system, a process of a batch of 28 touched 40 cores in 5 s; on a core
-of its own, none, and did a tenth more work. Two of the robot's processes on one core's two threads ran at half pace
-each (its law's pass 0.41 ms slower, 0.04 apart). Within the processors who starts the robot gives it (GIVEN). The
-robot's loop's on a cache of its own (`placed(True)`): the cores that share a last-level cache are a group; its
-loop's process takes one for itself among its loops on the host (`_claim`) - one of its fastest cores' where they
-differ -, its thread held to the group's first fast core where the system holds a thread apart from its process
-(Windows), the thread of its C's beside it (`steps.ahead`) on its neighbours; its other processes leave every group
-so taken, or its first core alone where that would leave them none (`left`). A group lies within one memory node and
-memory is the node's that first touches it, so the loop's is its own. Moved among all the robot's cores its loop ran
-each at a cold cache, its camera's map beside it on its cache: on a host of 32 cores, four to a cache, its bed
-errand's pace 1.28 -> 1.70, its door's 1.68 -> 1.94, a fifth apart between runs before and steady after. Above normal
-priority under a benchmark's relay (BENCH set, `tools.dev.focus.relay`): the pace measured beside a peer's suites
-flickered 8-17 % between runs of the same tree.
-
-    placed.placed()      # this process: True where it now runs on a core of its own, off the loops' caches
-    placed.placed(True)  # the robot's loop's: on a cache group of its own where one is free, its thread on its first core
-    placed.placed(cache=True)  # the robot's camera's, its vision's: a group of its own, its threads free, kept by later calls
-    mask, held = placed.claim()   # a core for a job this one starts: bind(pid, mask), then free(held)
-    placed.raised()      # above normal priority where BENCH is set: True where it now is
-    placed.cores()       # [each physical core's logical processors, a mask] where the host tells them, else []
-    placed.groups()      # [each last-level cache's logical processors, a mask], else []
-    placed.topology()    # ([(class, a core's mask)], [a last-level cache's mask]) as the host tells them
-    placed.now()         # this process's logical processors now, a mask
-    placed.chosen(caches, own, free, fast)   # the loop's processors of the group it takes, 0 where none fits
-    placed.core(found, caches, own, free)    # a core of its own, 0 where none
-    placed.left(caches, own, taken)          # another process's: `own` off the groups taken
+    placed.placed()            # helper process: 1 thread on a claimed physical core, off loop caches
+    placed.placed(True)        # real-time loop: dedicated LLC group, main thread on its first fast core
+    placed.placed(cache=True)  # camera / vision: dedicated LLC group, threads free within it
+    placed.placed(ui=True)     # terminal UX: UI thread on a claimed core, process mask 1 thread/core off loop caches
+    placed.free_processors()   # 1 thread per free physical core off processor 0, loop caches, and claimed cores
+    mask, held = placed.claim()
 """
 import ctypes
 import os
@@ -411,18 +389,13 @@ def raised():
     return bool(kernel.SetPriorityClass(kernel.GetCurrentProcess(), getattr(subprocess, 'ABOVE_NORMAL_PRIORITY_CLASS')))
 
 
-def placed(loop=False, host=None, cache=False):
-    """This process on a core of its own (`core`) off the loops' groups - all taken, on the lowest processor
-    of each none holds -, above normal priority where a benchmark asks (`raised`), not throttled as a
-    background window's (Windows). The robot's `loop`'s on a cache group it takes (`chosen`, none of its cores
-    held), this thread - its loop's - on its first fast core (`_bound`), or the user's own where none is bound
-    (`_keen`, macOS); a `cache` process (its camera's, its vision's) on a group alike, its threads free in it
-    - held to one, a peer's load there cut its pace 6-10 %; either on a core where no group is free. False
-    where it cannot be placed (two cores or fewer, another system); results untouched either way."""
+def placed(loop=False, host=None, cache=False, ui=False):
+    """Place this process on its host's topology (`loop` for a real-time loop's LLC group, `cache` for camera/vision,
+    `ui` for a terminal UX whose Windows render thread takes a dedicated core while child/loader threads span `rest`)."""
     if host is None:
         raised()
         if sys.platform == 'darwin':
-            return loop and _keen()
+            return (loop or ui) and _keen()
     found, caches = topology() if host is None else host
     if len(found) < 3:
         return False
@@ -438,7 +411,6 @@ def placed(loop=False, host=None, cache=False):
             _MINE.append(mine)
             if _CORED:
                 _ungiven()
-    # a group or a core once taken is kept: an aside's own call after it (`aside.serve`) binds it there again
     mine = _MINE[1] if len(_MINE) > 1 else 0
     rest = left(caches, own, _taken)
     if not mine and len(_CORED) < 2:
@@ -446,14 +418,29 @@ def placed(loop=False, host=None, cache=False):
         if cored:
             _CORED.append(cored)
     cored = 0 if mine else (_CORED[1] if len(_CORED) > 1 else 0)
-    to = mine or cored or rest & ~sum(mask for _klass, mask in found if _taken(mask, 'core')) or rest
-    first = (to & fast or to) & -(to & fast or to) if loop and (mine or cored) else 0
+    one = (cored & own) or (cored & -cored)
+    win_ui = ui and not (loop or cache) and sys.platform == 'win32'
+    to = (rest | one) if win_ui else (
+        mine or one or rest & ~sum(mask for _klass, mask in found if _taken(mask, 'core')) or rest)
+    first = ((to & fast or to) & -(to & fast or to) if (mine or cored) else 0) if loop else (one if win_ui else 0)
     held = _bound(to, first)
     if mine and not held:
         _given()
     if cored and not held:
         _ungiven()
     return held
+
+
+def free_processors(host=None):
+    """One logical processor per free physical core (no SMT sibling sharing, off processor 0, off active loop cache
+    groups and claimed cores such as a terminal page's), falling back to non-loop or host processors on small hosts."""
+    found, caches = topology() if host is None else host
+    if not found:
+        return 0
+    own, _fast = apart(found)
+    rest = left(caches, own, _taken) if own else 0
+    free = rest & ~sum(mask for _klass, mask in found if _taken(mask, 'core'))
+    return free or rest or own or sum(mask for _klass, mask in found)
 
 
 def claim(host=None):

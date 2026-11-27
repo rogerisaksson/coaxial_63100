@@ -38,6 +38,8 @@ TORN = (OSError, EOFError, pickle.UnpicklingError, AttributeError, ImportError, 
 _HELD: dict = {}
 #: The kinds whose kept file was read in this process.
 _READ: set = set()
+#: In-process content digests keyed by path -> ((size, mtime_ns), sha1_hex) so timestamp-only touches do not restamp.
+_DIGESTS: dict = {}
 #: What `taken` tells a part not waiting while a kept library of its kind still loads: it asks again at its next call,
 #: numpy's meanwhile - waited for, the robot's loop stood 6 to 22 ms at a part laid anew on a shape it met first (its
 #: legs' leave at each new count of what bears it, seated), a library its build had lost a compile's whole.
@@ -77,7 +79,12 @@ def _stamped(at, out):
                 _stamped(e.path, out)
         elif e.name.endswith(('.py', '.lisp', '.c', '.h', '.toml')):
             st = e.stat(follow_symlinks=False)
-            out.update(('%s %d %d\n' % (e.path[len(REPO):], st.st_size, st.st_mtime_ns)).encode())
+            stat_key = (st.st_size, st.st_mtime_ns)
+            cached = _DIGESTS.get(e.path)
+            if cached is None or cached[0] != stat_key:
+                with open(e.path, 'rb') as f:
+                    cached = _DIGESTS[e.path] = (stat_key, hashlib.sha1(f.read()).hexdigest())
+            out.update(('%s %d %s\n' % (e.path[len(REPO):], st.st_size, cached[1])).encode())
 
 
 def _file(part):

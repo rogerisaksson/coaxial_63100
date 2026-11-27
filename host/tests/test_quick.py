@@ -216,19 +216,22 @@ def test_the_robots_compile_says_each_build_as_it_lands(report, c):
 
 
 #: The compile's process as its page starts it, on the page's core till it spreads: its processors before and after,
-#: those it is given.
+#: those free off the page's core and SMT siblings.
 SPREAD = ('import sys; from machine.process import placed; from tools.sim import warmed; sys.stdin.readline(); '
-          'was = placed.now(); warmed.spread(); print("%x %x %x" % (was, placed.now(), sum(placed.cores())), flush=True)')
+          'was = placed.now(); warmed.spread(); '
+          'print("%x %x %x" % (was, placed.now(), placed.free_processors()), flush=True)')
 
 
 def test_the_robots_compile_leaves_its_pages_core(report, c):
     """The compile the robot's page starts (`tools.sim.warmed.spread`), started on a core as the page holds one and
-    told to float as the page tells it: on every processor the robot is given once it spreads - left on the page's
-    core, its builds, world and law shared 2 processors of 64, 123 s for 44."""
+    told to float as the page tells it: on one processor per free physical core off the page's core once it spreads -
+    neither trapped on the page's core nor contending across SMT siblings."""
     import subprocess
     from machine.process import placed
+    cores = placed.cores()
     mask, holding = placed.claim()
-    if not mask:
+    if not mask or len(cores) < 3:
+        placed.free(holding)
         report.check('the robot\'s compile leaves its page\'s core (this host tells none to bind, or none is free)',
                      True, '')
         return
@@ -242,9 +245,28 @@ def test_the_robots_compile_leaves_its_pages_core(report, c):
     finally:
         placed.free(holding)
     was, now, given = (int(x, 16) for x in said) if len(said) == 3 else (0, 0, -1)
-    report.check('the robot\'s compile started on its page\'s core spreads over all the robot is given: %d '
-                 'processors of %d, from %d' % (bin(now).count('1'), bin(given).count('1'), bin(was).count('1')),
-                 bound and was == mask and now == given and bool(now & ~mask), '%x -> %x of %x' % (was, now, given))
+    no_smt = all(((now & core) & ((now & core) - 1)) == 0 for core in cores)
+    left_page = not (now & mask)
+    report.check('the robot\'s compile started on its page\'s core spreads onto 1 thread per free physical core off '
+                 'the page\'s core: %d processors of %d, from %d' % (bin(now).count('1'), bin(given).count('1'),
+                                                                     bin(was).count('1')),
+                 bound and was == mask and now == given and left_page and no_smt and bool(now),
+                 '%x -> %x of %x (mask %x)' % (was, now, given, mask))
+    ui_env = dict(os.environ, PYTHONPATH=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    ui_child = subprocess.Popen(
+        [sys.executable, '-X', 'utf8', '-c',
+         'from machine.process import placed; ok = placed.placed(ui=True); '
+         'cored = placed._CORED[1] if len(placed._CORED) > 1 else 0; '
+         'print("%d %x %x %x" % (ok, placed.now(), placed.free_processors(), cored), flush=True)'],
+        stdout=subprocess.PIPE, text=True, env=ui_env)
+    ui_said = (ui_child.communicate(timeout=30)[0] or '').split()
+    ui_ok, ui_now, ui_free, ui_cored = (int(x, 16) for x in ui_said) if len(ui_said) == 4 else (0, 0, 0, 0)
+    no_smt_ui = all(((ui_now & core) & ((ui_now & core) - 1)) == 0 for core in cores)
+    no_smt_free = all(((ui_free & core) & ((ui_free & core) - 1)) == 0 for core in cores)
+    report.check('terminal UX placement keeps child/loader mask free of SMT sibling contention and reserves its UI core',
+                 bool(ui_ok and ui_now and ui_free and no_smt_ui and no_smt_free
+                      and (not (ui_free & ui_cored) or bin(ui_free).count('1') <= 1)),
+                 'ui %x, free %x, cored %x' % (ui_now, ui_free, ui_cored))
 
 
 def test_the_compiles_strip_keeps_time(report, c):
@@ -303,10 +325,96 @@ def test_warm_only_and_cache_fallbacks(report, c):
                  'left=%s stale=%s rebuilt=%s why=%s' % (cold_left, os.path.exists(stale), rebuilt, job.get('why')))
 
 
+def test_warmed_errand_hulls_and_content_stamp(report, c):
+    """`warmed._errand` and `_hold_hulls` read `pace.Run.s['g']` without `AttributeError`, `compiling._read` clears a
+    machine on its `DONE` line, and `kept.stamp` stays invariant across timestamp-only touches."""
+    import io
+    import tempfile
+    from machine.law import barrier
+    from terminal import compiling
+    from tools.cores import bodied, kept
+    from tools.sim import warmed
+
+    class FakeRun:
+        def __init__(self):
+            self.s = {'g': {'ringed': bodied.on_shapes(barrier.ringed, 'ringed_w', (0, 1, 2, 3, 4, 5)),
+                            'ringed_ahead': [4, 11]}}
+            self.told, self.ran = [], []
+
+        def tell(self, **kw):
+            self.told.append(kw)
+
+        def go(self, sec):
+            self.ran.append(sec)
+
+    fake = FakeRun()
+    orig_ahead = barrier.ahead
+    calls = []
+    try:
+        barrier.ahead = lambda law, left, warm_only=False, paced=True: (calls.append((list(left), paced)) or left.clear())
+        warmed._errand(fake, (0.5, 0.0, 0.0), 1.0)
+        warmed._hold_hulls(fake)
+    finally:
+        barrier.ahead = orig_ahead
+
+    class FakeProc:
+        def __init__(self, lines):
+            self.stdout = io.StringIO(lines)
+
+        def poll(self):
+            return 0
+
+        def wait(self):
+            return 0
+
+    done_seen = []
+    with compiling._LOCK:
+        compiling.STATE['robot'] = [0.5, 'WALKING', 0.0]
+        compiling.STATE['quad'] = [0.0, 'WAITING', 0.0]
+    try:
+        said = warmed.told(FakeProc('done robot 39 0 0 4.2\n'),
+                           done=lambda m: (done_seen.append(m), compiling.STATE.pop(m, None)))
+        robot_cleared = 'robot' not in compiling.STATE and 'quad' in compiling.STATE
+        fault_said = warmed.told(FakeProc('AttributeError: boom\n'))
+    finally:
+        with compiling._LOCK:
+            compiling.STATE.pop('robot', None)
+            compiling.STATE.pop('quad', None)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        src = os.path.join(tmp, 'probe.py')
+        with open(src, 'w', encoding='utf-8') as f:
+            f.write('X = 1\n')
+        orig_sources = kept.SOURCES
+        try:
+            kept.SOURCES = (tmp,)
+            kept.stamp.cache_clear()
+            s1 = kept.stamp()
+            st = os.stat(src)
+            os.utime(src, ns=(st.st_atime_ns, st.st_mtime_ns + 1_000_000_000))
+            kept.stamp.cache_clear()
+            s2 = kept.stamp()
+            with open(src, 'w', encoding='utf-8') as f:
+                f.write('X = 2\n')
+            kept.stamp.cache_clear()
+            s3 = kept.stamp()
+        finally:
+            kept.SOURCES = orig_sources
+            kept.stamp.cache_clear()
+
+    report.check('warmed._errand reads Run.s, _hold_hulls sweeps unheld HULLS, DONE clears machine, content stamp ignores utime',
+                 calls[0] == ([4, 11], False) and calls[1][0] == list(barrier.HULLS) and calls[1][1] is False
+                 and fake.told == [{'twist': (0.5, 0.0, 0.0)}] and fake.ran == [1.0]
+                 and done_seen == ['robot'] and robot_cleared and '39 parts held' in said.get('robot', '')
+                 and fault_said.get('_fault') == 'AttributeError: boom' and s1 == s2 and s2 != s3,
+                 'calls=%s done=%s s1==s2=%s s2!=s3=%s' % (calls[:2], done_seen, s1 == s2, s2 != s3))
+
+
 ROSTER = (test_a_part_called_whole_in_c_as_by_its_glue, test_the_robots_step_asked_in_c_as_by_python,
           test_a_runner_lets_its_part_go, test_a_world_laid_anew_lets_those_before_go,
           test_the_robots_compile_says_each_build_as_it_lands, test_the_robots_compile_leaves_its_pages_core,
-          test_the_compiles_strip_keeps_time, test_warm_only_and_cache_fallbacks)
+          test_the_compiles_strip_keeps_time, test_warm_only_and_cache_fallbacks,
+          test_warmed_errand_hulls_and_content_stamp)
 
 
 def main(argv=None):

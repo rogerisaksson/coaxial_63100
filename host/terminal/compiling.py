@@ -51,8 +51,11 @@ def _read(run, behind):
                 STATE.pop(m, None)
             if machine in STATE:
                 STATE[machine][:2] = [share, text]
+    def done(machine):
+        with _LOCK:
+            STATE.pop(machine, None)
     try:
-        warmed.told(run, step)
+        warmed.told(run, step, done)
     finally:
         with _LOCK:
             for m in behind:

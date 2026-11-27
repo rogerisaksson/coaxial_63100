@@ -68,11 +68,24 @@ def behind(machines=MACHINES):
 
 
 def spread():
-    """This process on every processor it is given (`placed.cores`), not on its starter's: started by the robot's
-    page, which holds a core of its own (`terminal.ui.stage`), its builds, the robot's world and its law shared that
-    core's 2 processors of 64 - its first build 57 s, the whole 123 s for 44. Whether it now is."""
+    """Place this compile on one logical processor per free physical core (no SMT sibling contention, off processor 0
+    and off cores/caches held by the terminal page, `Ahead` or live loops), at below-normal priority on a desk so
+    background GCC builds never starve the interactive UX."""
+    import ctypes
     from machine.process import placed
-    return placed.bind(os.getpid(), sum(placed.cores()))
+    from tools.dev import background
+    if not background.runner():
+        if sys.platform == 'win32':
+            kernel = ctypes.windll.kernel32
+            kernel.GetCurrentProcess.restype = ctypes.c_void_p
+            kernel.SetPriorityClass.argtypes = (ctypes.c_void_p, ctypes.c_uint32)
+            kernel.SetPriorityClass(kernel.GetCurrentProcess(), background.BELOW_NORMAL)
+        elif hasattr(os, 'nice'):
+            try:
+                os.nice(background.NICE)
+            except OSError:
+                pass
+    return placed.bind(os.getpid(), placed.free_processors())
 
 
 def built(what, low, high, jobs, beat=BEAT_S):
@@ -92,10 +105,28 @@ def built(what, low, high, jobs, beat=BEAT_S):
 
 def _errand(r, twist, seconds):
     from machine.law import barrier
-    while r.g.get('ringed_ahead'):
-        barrier.ahead(r.g['ringed'], r.g['ringed_ahead'], paced=False)
+    g = r.s['g']
+    while g.get('ringed_ahead'):
+        barrier.ahead(g['ringed'], g['ringed_ahead'], paced=False)
     r.tell(twist=twist)
     r.go(seconds)
+
+
+def _hold_hulls(r):
+    """Hold and persist any `barrier.HULLS` shapes on `r` whose C libraries finished building."""
+    if not hasattr(r, 's'):
+        return
+    from machine.law import barrier
+    ringed = r.s['g'].get('ringed')
+    if ringed is None:
+        return
+    pending = []
+    for k in barrier.HULLS:
+        part = ringed.get(((3,), (3,), (3,), (), (k, 2), ()))
+        if part is None or (part.c is None and part.why is None):
+            pending.append(k)
+    if pending:
+        barrier.ahead(ringed, pending, paced=False)
 
 
 def _flown(r, seconds):
@@ -127,15 +158,16 @@ def compiled(machine=ROBOT, width=None):
             do(r)
             for _ in range(ROUNDS):
                 yield from built(what, share - half, share, held.unbuilt())
+                _hold_hulls(r)
                 r.go(HOLD_S)
                 got, numpy, under = bodied.met(since)
                 yield share + half, '%s: HELD %d OF %d' % (what.upper(), got, got + numpy + under)
-                if not held.unbuilt():
+                if not held.unbuilt() and not under:
                     break
     finally:
         r.close()
     got, numpy, under = bodied.met(since)
-    if not held.unbuilt():
+    if not held.unbuilt() and not under:
         kept.marked(_mark(machine))
     return got, numpy, under, time.perf_counter() - began
 
@@ -153,13 +185,14 @@ def started(machines):
                             errors='replace')
 
 
-def told(run, step=lambda machine, share, text: None):
-    """`run`'s (`started`'s) lines read till it ends: `step(machine, share, text)` each step; {machine: what its
-    end says}. The process waited for, ended where it still runs."""
-    said = {}
+def told(run, step=lambda machine, share, text: None, done=lambda machine: None):
+    """`run`'s (`started`'s) lines read till it ends: `step(machine, share, text)` each step, `done(machine)` as each
+    finishes; {machine: what its end says}. The process waited for, ended where it still runs."""
+    said, fault = {}, ''
     try:
-        for line in run.stdout or ():
-            word, machine, rest = (line.strip().split(' ', 2) + ['', ''])[:3]
+        for raw in run.stdout or ():
+            line = raw.strip()
+            word, machine, rest = (line.split(' ', 2) + ['', ''])[:3]
             if word == STEP:
                 share, _, text = rest.partition(' ')
                 step(machine, float(share), text)
@@ -167,10 +200,15 @@ def told(run, step=lambda machine, share, text: None):
                 got, numpy, under, seconds = rest.split()
                 said[machine] = ("%s parts held, %s numpy's, %s under way, %.0f s"
                                  % (got, numpy, under, float(seconds)))
+                done(machine)
+            elif line:
+                fault = line
     finally:
         if run.poll() is None:
             run.kill()
         run.wait()
+    if not said and fault:
+        said['_fault'] = fault
     return said
 
 
@@ -181,7 +219,8 @@ def ensure(step=lambda share, text: None, machines=(ROBOT,)):
     if not late:
         return True, 'current'
     said = told(started(late), lambda _machine, share, text: step(share, text))
-    return not behind(late), '; '.join(said.values()) or 'ended without a word'
+    fault = said.pop('_fault', '')
+    return not behind(late), '; '.join(said.values()) or fault or 'ended without a word'
 
 
 def main(argv=None):

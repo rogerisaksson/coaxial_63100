@@ -243,10 +243,13 @@ def test_two_loops_take_each_a_cache_and_another_process_leaves_both(report):
         report.check("the robot's loops each take a cache of their own (this run's job holds its processes, or none is free)",
                      not (mine_a or mine_b) or (ok_a and ok_b), 'placed %d %d %d' % (ok_a, ok_b, ok_c))
         return
-    report.check('two of the robot\'s loops each on a cache group of its own, another process off both',
+    cores = [mask for _klass, mask in found]
+    no_smt_c = all(((now_c & core) & ((now_c & core) - 1)) == 0 for core in cores)
+    report.check('two of the robot\'s loops each on a cache group of its own, another process off both without SMT '
+                 'sibling sharing',
                  ok_a and ok_b and ok_c and mine_a and mine_b and now_a == mine_a and now_b == mine_b
                  and any(mine_a == g & own for g in caches) and any(mine_b == g & own for g in caches)
-                 and not mine_a & mine_b and not now_c & (mine_a | mine_b) and now_c,
+                 and not mine_a & mine_b and not now_c & (mine_a | mine_b) and now_c and no_smt_c,
                  'loops %x %x, another %x' % (now_a, now_b, now_c))
 
 
