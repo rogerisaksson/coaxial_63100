@@ -38,6 +38,12 @@ def _lib():
     i32, f64, vp = ctypes.c_int32, ctypes.c_double, ctypes.c_void_p
     lib.wy_apart.argtypes = [i32, vp, i32, vp, vp, vp, vp]
     lib.wy_apart.restype = None
+    lib.wy_costed.argtypes = [
+        i32, vp, i32, vp, vp, vp, vp,
+        i32, f64, f64, f64, f64, f64, vp, vp,
+        i32, f64, f64, i32, f64, vp, i32, vp,
+    ]
+    lib.wy_costed.restype = None
     lib.wy_gaps.argtypes = [
         i32, vp, vp, vp, vp, vp, i32, i32, vp, vp, vp, vp, vp,
         f64, f64, f64, vp,
@@ -60,15 +66,56 @@ def apart(points, centres, axes, half):
     lib = _lib()
     if lib is None:
         return None
-    pts = np.ascontiguousarray(points, dtype=np.float64).reshape(-1, 2)
-    c_arr = np.ascontiguousarray(centres, dtype=np.float64).reshape(-1, 2)
-    ax_arr = np.ascontiguousarray(axes, dtype=np.float64).reshape(-1, 2, 2)
-    hf_arr = np.ascontiguousarray(half, dtype=np.float64).reshape(-1, 2)
+    pts = points if (type(points) is np.ndarray and points.dtype == np.float64
+                     and points.ndim == 2 and points.shape[1] == 2 and points.flags.c_contiguous) \
+        else np.ascontiguousarray(points, dtype=np.float64).reshape(-1, 2)
+    c_arr = centres if (type(centres) is np.ndarray and centres.dtype == np.float64 and centres.flags.c_contiguous) \
+        else np.ascontiguousarray(centres, dtype=np.float64).reshape(-1, 2)
+    ax_arr = axes if (type(axes) is np.ndarray and axes.dtype == np.float64 and axes.flags.c_contiguous) \
+        else np.ascontiguousarray(axes, dtype=np.float64).reshape(-1, 2, 2)
+    hf_arr = half if (type(half) is np.ndarray and half.dtype == np.float64 and half.flags.c_contiguous) \
+        else np.ascontiguousarray(half, dtype=np.float64).reshape(-1, 2)
     n_pts, m_things = len(pts), len(c_arr)
     out = np.empty((n_pts, m_things), dtype=np.float64)
     if n_pts > 0 and m_things > 0:
         lib.wy_apart(n_pts, pts.ctypes.data, m_things, c_arr.ctypes.data,
                      ax_arr.ctypes.data, hf_arr.ctypes.data, out.ctypes.data)
+    return out
+
+
+def costed(points, centres, axes, half, margin0, aperture, clear_cfg, unk_cfg, seen, clear_first: bool):
+    """`(N,)` fused obstacle costmap in C, bit-for-bit equal to `obstacles.costed`."""
+    lib = _lib()
+    if lib is None:
+        return None
+    pts = points if (type(points) is np.ndarray and points.dtype == np.float64
+                     and points.ndim == 2 and points.shape[1] == 2 and points.flags.c_contiguous) \
+        else np.ascontiguousarray(points, dtype=np.float64).reshape(-1, 2)
+    n_pts, m_things = len(pts), len(margin0)
+    out = np.empty(n_pts, dtype=np.float64)
+    if n_pts == 0:
+        return out
+    c_arr = np.ascontiguousarray(centres, dtype=np.float64)
+    ax_arr = np.ascontiguousarray(axes, dtype=np.float64)
+    hf_arr = np.ascontiguousarray(half, dtype=np.float64)
+    m0_arr = np.ascontiguousarray(margin0, dtype=np.float64)
+    s_arr = seen if (type(seen) is np.ndarray and seen.dtype == np.float64
+                     and seen.ndim == 1 and seen.flags.c_contiguous) \
+        else np.ascontiguousarray(seen, dtype=np.float64).reshape(-1)
+    if aperture is not None:
+        tx, tz, fx, fz, cone_exp, hit_u8, ahead_h = aperture
+        ap_on = 1
+        hit_ptr, ah_ptr = hit_u8.ctypes.data, ahead_h.ctypes.data
+    else:
+        ap_on, tx, tz, fx, fz, cone_exp, hit_ptr, ah_ptr = 0, 0.0, 0.0, 0.0, 0.0, 1.0, 0, 0
+    has_clear, w_clear, decay_m = clear_cfg
+    has_unk, w_unk = unk_cfg
+    lib.wy_costed(
+        n_pts, pts.ctypes.data, m_things, c_arr.ctypes.data, ax_arr.ctypes.data, hf_arr.ctypes.data,
+        m0_arr.ctypes.data, ap_on, float(tx), float(tz), float(fx), float(fz), float(cone_exp),
+        hit_ptr, ah_ptr, int(has_clear), float(w_clear), float(decay_m),
+        int(has_unk), float(w_unk), s_arr.ctypes.data, 1 if clear_first else 0, out.ctypes.data,
+    )
     return out
 
 

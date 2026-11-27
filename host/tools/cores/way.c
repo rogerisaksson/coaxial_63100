@@ -32,6 +32,117 @@ void wy_apart(int32_t n_pts, const double *restrict pts, int32_t m_things, const
   }
 }
 
+static inline bool wy_box_check(double px, double pz, size_t j, const double *restrict centres,
+                                const double *restrict axes, const double *restrict half, double mj,
+                                double *restrict min_m)
+{
+  const double off0 = px - centres[j * 2U + 0U];
+  const double off1 = pz - centres[j * 2U + 1U];
+  const size_t ao = j * 4U;
+  const double t0 = (0.0 + axes[ao + 0U] * off0) + axes[ao + 1U] * off1;
+  const double t1 = (0.0 + axes[ao + 2U] * off0) + axes[ao + 3U] * off1;
+  const double r0 = fabs(t0) - half[j * 2U + 0U];
+  const double r1 = fabs(t1) - half[j * 2U + 1U];
+  const double hi_r = (r0 > r1) ? r0 : r1;
+
+  if (hi_r > mj && (hi_r - mj) >= *min_m)
+  {
+    return false;
+  }
+  double dj;
+  if (r0 <= 0.0 && r1 <= 0.0)
+  {
+    dj = 0.0;
+  }
+  else if (r0 <= 0.0 && r1 >= 0.0 && r1 < INFINITY)
+  {
+    dj = r1 + 0.0;
+  }
+  else if (r1 <= 0.0 && r0 >= 0.0 && r0 < INFINITY)
+  {
+    dj = r0 + 0.0;
+  }
+  else
+  {
+    const double d0 = lm_sel(r0 <= 0.0, 0.0, r0);
+    const double d1 = lm_sel(r1 <= 0.0, 0.0, r1);
+    dj = wbc_hypot(d0, d1);
+  }
+  if (dj <= mj)
+  {
+    return true;
+  }
+  const double diff = dj - mj;
+  if (diff < *min_m || lm_nan(diff))
+  {
+    *min_m = lm_nan(*min_m) ? *min_m : diff;
+  }
+  return false;
+}
+
+void wy_costed(int32_t n_pts, const double *restrict pts, int32_t m_things, const double *restrict centres,
+               const double *restrict axes, const double *restrict half, const double *restrict margin0,
+               int32_t aperture_on, double tx, double tz, double fx, double fz, double cone_exp,
+               const uint8_t *restrict hit, const double *restrict ahead_h, int32_t has_clear, double w_clear,
+               double decay_m, int32_t has_unk, double w_unk, const double *restrict seen, int32_t clear_first,
+               double *restrict out_cost)
+{
+  for (int32_t i = 0; i < n_pts; i++)
+  {
+    const double px = pts[(size_t)i * 2U + 0U];
+    const double pz = pts[(size_t)i * 2U + 1U];
+    double       min_m = INFINITY;
+    bool         blocked = false;
+
+    for (int32_t j = 0; j < m_things; j++)
+    {
+      if (aperture_on != 0 && hit[j] != 0U)
+      {
+        continue;
+      }
+      if (wy_box_check(px, pz, (size_t)j, centres, axes, half, margin0[j], &min_m))
+      {
+        blocked = true;
+        break;
+      }
+    }
+    if (!blocked && aperture_on != 0)
+    {
+      const double ox = px - tx;
+      const double oz = pz - tz;
+      const double oh = wbc_hypot(ox, oz);
+      const double denom = (oh >= 1e-9) ? oh : 1e-9;
+      const double cos_t = ((0.0 + ox * fx) + oz * fz) / denom;
+      const double s = wbc_power(0.5 * (1.0 + cos_t), cone_exp);
+      const double om_s = 1.0 - s;
+      for (int32_t j = 0; j < m_things; j++)
+      {
+        if (hit[j] == 0U)
+        {
+          continue;
+        }
+        const double mj = om_s * margin0[j] + s * ahead_h[j];
+        if (wy_box_check(px, pz, (size_t)j, centres, axes, half, mj, &min_m))
+        {
+          blocked = true;
+          break;
+        }
+      }
+    }
+    if (blocked)
+    {
+      out_cost[i] = INFINITY;
+    }
+    else
+    {
+      const double pos_m = lm_nan(min_m) ? min_m : ((min_m > 0.0) ? min_m : 0.0);
+      const double cl = (has_clear != 0) ? (w_clear * wbc_exp(-pos_m / decay_m)) : 0.0;
+      const double uk = (has_unk != 0) ? (w_unk * (1.0 - seen[i])) : 0.0;
+      out_cost[i] = (clear_first != 0) ? ((1.0 + cl) + uk) : ((1.0 + uk) + cl);
+    }
+  }
+}
+
 int32_t wy_gaps(int32_t n_poses, const double *restrict poses, const double *restrict sy, const double *restrict cy,
                 const double *restrict cos_phi, const double *restrict sin_phi, int32_t k_dirs, int32_t m_things,
                 const uint8_t *restrict meets, const double *restrict toward, const double *restrict centres,

@@ -130,6 +130,34 @@ def _affordance_aperture(field, node):
 #: extension's its own entry.
 LAYERS = {':class-margin': (0, _class_margin), ':affordance-aperture': (1, _affordance_aperture),
           ':clearance': (1, _clearance), ':unknown': (1, _unknown)}
+_BUILTIN = dict(LAYERS)
+_APART = apart
+_PREPARED: list = []
+
+
+def _prepared(things, floor):
+    """Cached `(m_things, reach, ahead, base_margin, kinds, slots, centres, fp_c, fp_axes, fp_half)` for `(things, floor)`."""
+    for entry in _PREPARED:
+        if entry[0] is things and entry[1] == floor:
+            return entry[2]
+    b_things = boxes(things)
+    meets, toward = footprint.met(b_things, floor, footprint.reach('walk'))
+    _d_meets, docked = footprint.met(b_things, floor, footprint.reach('dock'))
+    m_things = [p for p, m in zip(b_things, meets) if m]
+    (_lo, _hi, fp_c, fp_axes, fp_half), _meetings = footprint._laid_things(m_things)
+    reach = toward[meets][:, ACROSS].max(axis=1, initial=0.0)
+    ahead = docked[meets][:, 0]
+    swell = np.array([float(p[6]) if len(p) > 6 else 0.0 for p in m_things], float)
+    base_margin = np.ascontiguousarray(reach + 0.5 * voxels.CELL_M + swell, dtype=np.float64)
+    kinds = [p[0] for p in m_things]
+    slots = np.array([int(p[4]) if len(p) > 4 else -1 for p in m_things], np.int64)
+    centres = np.ascontiguousarray([(p[1][0], p[1][2]) for p in m_things], dtype=np.float64).reshape(-1, 2) \
+        if m_things else np.empty((0, 2), dtype=np.float64)
+    got = (m_things, reach, ahead, base_margin, kinds, slots, centres, fp_c, fp_axes, fp_half)
+    if len(_PREPARED) >= 8:
+        _PREPARED.pop(0)
+    _PREPARED.append((things, floor, got))
+    return got
 
 
 def costed(points, things, floor, seen, slot=-1, face=None):
@@ -138,19 +166,49 @@ def costed(points, things, floor, seen, slot=-1, face=None):
     thing's before a point's; `seen` (N,) 1 where the robot's eyes have seen, `slot` the thing it goes
     to, `face` (x, z) the outward normal of its face the robot docks at, None for none."""
     node = laws()['costmap']
-    things = boxes(things)
-    meets, toward = footprint.met(things, floor, footprint.reach('walk'))
-    _d_meets, docked = footprint.met(things, floor, footprint.reach('dock'))
-    things = [p for p, m in zip(things, meets) if m]
-    reach = toward[meets][:, ACROSS].max(axis=1, initial=0.0)
-    swell = np.array([float(p[6]) if len(p) > 6 else 0.0 for p in things], float)
+    m_things, reach, ahead, base_margin, kinds, slots, centres, fp_c, fp_axes, fp_half = _prepared(things, float(floor))
+    ordered = sorted(node['layers'], key=lambda n: LAYERS[n][0])
+    if apart is _APART and all(LAYERS.get(n) == _BUILTIN.get(n) for n in ordered):
+        p1 = [n for n in ordered if LAYERS[n][0] == 1]
+        if ':affordance-aperture' not in p1 or (':clearance' not in p1
+                                                or p1.index(':affordance-aperture') < p1.index(':clearance')):
+            margin0 = base_margin
+            if ':class-margin' in ordered:
+                margins = dict(node['class-margins-mm'] or {})
+                cm = 1e-3 * np.array([margins.get(k, 0.0) for k in kinds], float)
+                for n in ordered:
+                    if n == ':class-margin':
+                        margin0 = margin0 + cm
+            aperture = None
+            if ':affordance-aperture' in p1:
+                funnel = laws()['docking-funnel']
+                goes = (slots == slot) & (slot >= 0) & (face is not None) & (funnel['selector'] != ':none')
+                if goes.any():
+                    k = int(np.argmax(goes))
+                    target = m_things[k]
+                    hit = goes | (apart(centres, [target])[:, 0] <= 0.0)
+                    ahead_h = np.minimum(margin0, margin0 - reach + ahead[k] + funnel['touch-standoff-m'])
+                    f_arr = np.asarray(face, float)
+                    aperture = (float(target[1][0]), float(target[1][2]), float(f_arr[0]), float(f_arr[1]),
+                                float(funnel['cone-exponent']), np.ascontiguousarray(hit, dtype=np.uint8),
+                                np.ascontiguousarray(ahead_h, dtype=np.float64))
+            has_clear = ':clearance' in p1
+            has_unk = ':unknown' in p1
+            clear_first = not (has_clear and has_unk and p1.index(':unknown') < p1.index(':clearance'))
+            from tools.cores import way
+            got = way.costed(
+                points, fp_c, fp_axes, fp_half, margin0, aperture,
+                (has_clear, node['clearance-weight'] if has_clear else 0.0,
+                 1e-3 * node['clearance-decay-mm'] if has_clear else 1.0),
+                (has_unk, node['unknown-weight'] if has_unk else 0.0), seen, clear_first,
+            )
+            if got is not None:
+                return got
     points = np.asarray(points, float).reshape(-1, 2)
-    field = {'points': points, 'things': things, 'reach': reach, 'ahead': docked[meets][:, 0],
-             'margin': (reach + 0.5 * voxels.CELL_M + swell)[None, :], 'kept': np.ones(len(things), bool),
-             'd': apart(points, things), 'cost': np.ones(len(points)), 'kinds': [p[0] for p in things],
-             'slots': np.array([int(p[4]) if len(p) > 4 else -1 for p in things], np.int64),
-             'centres': np.array([(p[1][0], p[1][2]) for p in things], float).reshape(-1, 2), 'slot': slot,
-             'face': face, 'seen': np.asarray(seen, float)}
-    for name in sorted(node['layers'], key=lambda n: LAYERS[n][0]):
+    field = {'points': points, 'things': m_things, 'reach': reach, 'ahead': ahead,
+             'margin': base_margin[None, :], 'kept': np.ones(len(m_things), bool),
+             'd': apart(points, m_things), 'cost': np.ones(len(points)), 'kinds': kinds,
+             'slots': slots, 'centres': centres, 'slot': slot, 'face': face, 'seen': np.asarray(seen, float)}
+    for name in ordered:
         LAYERS[name][1](field, node)
     return np.where((field['d'] <= field['margin']).any(axis=1), np.inf, field['cost'])

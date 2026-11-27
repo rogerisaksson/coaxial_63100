@@ -96,7 +96,7 @@ def _laid_things(things):
         np.ascontiguousarray([p[2] for p in prints], dtype=np.float64).reshape(-1, 2) if prints else np.empty((0, 2)),
     )
     meetings: dict = {}
-    if len(_THINGS) >= 4:
+    if len(_THINGS) >= 8:
         _THINGS.pop(0)
     _THINGS.append((things, laid, meetings))
     return laid, meetings

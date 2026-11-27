@@ -53,8 +53,8 @@ def _free(cells, cell):
     return 0 <= cell[0] < cells.shape[0] and 0 <= cell[1] < cells.shape[1] and not cells[cell]
 
 
-#: Cached `(at, (nx, nz))` for `(X_M, Z_M, CELL_M)` (`_grid`).
-_GRID: list = [None, None, None]
+#: Cached `(key, at, (nx, nz), ones)` for `(X_M, Z_M, CELL_M)` (`_grid`).
+_GRID: list = [None, None, None, None]
 
 
 def _grid():
@@ -68,7 +68,9 @@ def _grid():
                            voxels.Z_M[0] + (np.arange(nz) + 0.5) * voxels.CELL_M, indexing='ij')
         at = np.ascontiguousarray(np.column_stack([x.ravel(), z.ravel()]), dtype=np.float64)
         at.setflags(write=False)
-        _GRID[:] = [key, at, (nx, nz)]
+        ones = np.ones(len(at), dtype=np.float64)
+        ones.setflags(write=False)
+        _GRID[:] = [key, at, (nx, nz), ones]
     return _GRID[1], _GRID[2]
 
 
@@ -82,7 +84,7 @@ def costs(things, floor, seen=None, slot=-1, face=None):
     map it ground it onto its 1.92 rad stop and its spring flung the robot at 1.66 m/s."""
     np = sight._np()
     at, shape = _grid()
-    known = np.ones(len(at)) if seen is None else np.asarray(seen, float).reshape(-1)
+    known = _GRID[3] if seen is None else np.asarray(seen, float).reshape(-1)
     return obstacles.costed(at, things, floor, known, slot, face).reshape(shape)
 
 
