@@ -292,6 +292,25 @@ def test_the_robots_clothes_bend_at_the_joints(report):
                                 'cloth_left_sleeve', 'cloth_right_sleeve'}
                  and all(0.01 < v < 0.08 for v in cloth.values()),
                  {k: round(v, 3) for k, v in cloth.items()})
+    import numpy as np
+    from coaxial.graphics import lit, shapes
+    from tools.cores import build, raster as c_raster
+    has_cc = build.find_cc() is not None
+    frames = body._frames(stride)
+    mp_c = c_raster.moved(body.dense[0], body.dense[1], body.dense_spans, frames)
+    mp_p = shapes.moved_py(body.dense[0], body.dense[1], body.dense_spans, frames)
+    m, fine, centre = gynoid._looked(120, 40, 30.0, 8.0, 1.0, (0.0, 0.0))
+    pr_c = c_raster.project(bent, m, fine, centre)
+    pr_p = lit.project_py(bent, m, fine, centre)
+    sp_c = c_raster.splat_bins(bent, body.dense[3], m, fine, centre, lit.UNDER, lit.LAYER_M)
+    sp_p = lit._splat_bins_py(bent, body.dense[3], m, fine, centre)
+    raster_ok = (not has_cc) or (
+        mp_c is not None and pr_c is not None and sp_c is not None
+        and np.array_equal(mp_c[0], mp_p[0]) and np.array_equal(mp_c[1], mp_p[1])
+        and all(np.array_equal(a, b) for a, b in zip(pr_c, pr_p))
+        and np.array_equal(sp_c[0], sp_p[0]) and np.array_equal(sp_c[1], sp_p[1])
+    )
+    report.check('C11 raster kernels match Python moved, project and 2x2 splat bins on dressed mesh', raster_ok)
 
 
 def test_a_scene_laid_anew_is_told_the_keys_again(report):

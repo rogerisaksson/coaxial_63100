@@ -18,6 +18,8 @@ STUNT_TRANSIENT = ('approach', 'lower', 'seated_', 'sit_edge', 'recline', 'bed_r
                    'scoot', 'sit_up', 'swing_out', 'plant', 'lean', 'thrust',
                    'kneel', 'tip', 'push_arms', 'half_kneel', 'cushion', 'descent',
                    'crouch_load', 'propulsion', 'flight_tuck', 'seat_land', 'step_off', 'drop', 'absorb')
+_STUNT_EXACT = frozenset(p for p in STUNT_TRANSIENT if not p.endswith('_'))
+_STUNT_PREFIX = tuple(p if p.endswith('_') else p + '_' for p in STUNT_TRANSIENT)
 
 
 def rise_until(g):
@@ -31,9 +33,10 @@ def rise_until(g):
 def in_stunt_transient(g):
     """Whether the robot is in a transient stunt phase or joint program (neither standing nor settled at
     rest)."""
+    if g.get('played') is not None or rise_until(g) > g['t']:
+        return True
     cur = sprung.doing(g)
-    return g.get('played') is not None or rise_until(g) > g['t'] or any(
-        cur.startswith(p) if p.endswith('_') else (cur == p or cur.startswith(p + '_')) for p in STUNT_TRANSIENT)
+    return cur in _STUNT_EXACT or cur.startswith(_STUNT_PREFIX)
 #: The robot has halted after a stop's brake: slower than HALT_M_S along its way with both soles touching
 #: (`leap.TOUCH_N`); its stand is said then, or at the brake's doubled horizon unmet. Each sole at a quarter of the
 #: robot's weight instead waited out the horizon: stopped, it rests 43 N on one sole and 251 on the other.

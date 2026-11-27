@@ -113,7 +113,7 @@ def control(g, dt):
     g['grip'] = g['felt'](g['grip'], g['grip_seen'], g['grip_settled'], body.d.xmat[g['grip_at']].reshape(2, 2, 3, 3),
                           y_in[edge.TOUCH].reshape(-1, 3),
                           g['est']['slip'], float(g['fr'][modal.WEIGHT]), dt * ev, g['grip_prior'])
-    g['loads'] = [float(v) for v in y_in[edge.LOAD]]
+    g['loads'] = y_in[edge.LOAD].tolist()
     y = g['modal_sensed'](s, g['loads'], g['y'])
     y[modal.CELLS] = y_in[edge.CELLS]
     y[modal.GRIP] = g['held'] = g['outside'](g['grip'], g['situations']['grips'])
@@ -155,7 +155,7 @@ def control(g, dt):
     ask['com_acc'] = emancipation.settled(emancipation.counterweighted(ask['com_acc'], g), g, s)
     emancipation.opened(g, s, ask, dt * ev)
     somatic.asked(g, s, out, told, ask)
-    bears = np.array(g['loads']) >= leap.TOUCH_N
+    bears = y_in[edge.LOAD] >= leap.TOUCH_N
     # control's weighing between its parts at once (`upright.weighs`, its C `g['upright']`): what it reads, none of
     # them writes before it is read below
     seat, hold, w_neck, w_base, w_hop_base, w_hop_base2, pelvic = g['upright'](g, s, told, ask, sw, w_hop)
@@ -171,7 +171,8 @@ def control(g, dt):
                                                   float(y_in[edge.LINK][0]), g['shield'])
     ask['mu'] = g['sloped'](g['grip'], g['situations']['grips'])
     ask['hold'] = hold
-    w_up = np.array([w_neck, w_base, w_hop_base, w_hop_base2])
+    w_up = g['_w_up']
+    w_up[:] = (w_neck, w_base, w_hop_base, w_hop_base2)
     M = g['braced'].scaled(s['M'], w_up)
     lo, hi = g['bounds'](s['v'][body.act], float(y_in[edge.LINK][0]))
     # the robot's rise's gate keeps closed chains only as they leave it, never taking it into them
@@ -286,6 +287,7 @@ def laid(g):
     g['_cv_sh'] = list(g['cervical']) + list(g['limbs']['shoulders'])
     g['_acv_sh'] = body.act[g['_cv_sh']]
     g['_derate'] = g['wep_lim'] / np.maximum(1.0, body.wep)
+    g['_w_up'] = np.zeros(4)
     names = [JOINTS[j] for j in joints]
     g['brace'] = np.array([[d.get(n, 0.0) for n in names] for d in (brace.TUCK, brace.AX, brace.LAT)])
     g['braced'] = c_brace.laid(body, g['brace'], g['_cv_sh'], g['_acv_sh'], g['legs'], g['free_kp'])

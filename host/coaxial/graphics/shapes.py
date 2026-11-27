@@ -298,17 +298,29 @@ def _np():
     return _SHAPES_NP
 
 
-def moved(points, normals, spans, frames):
-    """Points and normals each moved into the body's frame by its part's (turn, spot)."""
+def moved_py(points, normals, spans, frames):
+    """`moved` in pure NumPy, kept as fallback and parity oracle."""
     np = _SHAPES_NP or _np()
     out_p, out_n = np.empty_like(points), np.empty_like(normals)
     for (lo, hi), (turn, spot) in zip(spans, frames):
         if hi > lo:
-            t = turn.T
-            np.matmul(points[lo:hi], t, out=out_p[lo:hi])
-            out_p[lo:hi] += spot
-            np.matmul(normals[lo:hi], t, out=out_n[lo:hi])
+            t = np.asarray(turn, float).ravel()
+            px, py, pz = points[lo:hi, 0], points[lo:hi, 1], points[lo:hi, 2]
+            nx, ny, nz = normals[lo:hi, 0], normals[lo:hi, 1], normals[lo:hi, 2]
+            out_p[lo:hi, 0] = ((px * t[0] + py * t[1]) + pz * t[2]) + spot[0]
+            out_p[lo:hi, 1] = ((px * t[3] + py * t[4]) + pz * t[5]) + spot[1]
+            out_p[lo:hi, 2] = ((px * t[6] + py * t[7]) + pz * t[8]) + spot[2]
+            out_n[lo:hi, 0] = (nx * t[0] + ny * t[1]) + nz * t[2]
+            out_n[lo:hi, 1] = (nx * t[3] + ny * t[4]) + nz * t[5]
+            out_n[lo:hi, 2] = (nx * t[6] + ny * t[7]) + nz * t[8]
     return out_p, out_n
+
+
+def moved(points, normals, spans, frames):
+    """Points and normals each moved into the body's frame by its part's (turn, spot)."""
+    from tools.cores import raster as c_raster
+    got = c_raster.moved(points, normals, spans, frames)
+    return moved_py(points, normals, spans, frames) if got is None else got
 
 
 #: How far apart the dots drawn without a card are sampled on the surface, metres: under two

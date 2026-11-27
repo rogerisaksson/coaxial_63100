@@ -93,37 +93,49 @@ def _light(normals, materials, uv):
     return out
 
 
-def project(points, m, cam, centre):
-    """(sx, sy, w) of world points: engine.project, every point at once."""
+def project_py(points, m, cam, centre):
+    """`project` in pure NumPy, kept as fallback and parity oracle."""
     np = _const()[0]
-    rot = np.asarray(m, float).reshape(3, 3).T
+    m9 = np.asarray(m, float).ravel()
     pts = np.asarray(points, float)
+    c0, c1, c2 = (float(v) for v in np.asarray(centre, float).ravel())
     if len(pts) > 64:
-        q = pts @ rot
-        q -= np.asarray(centre, float) @ rot
+        cr0 = (c0 * m9[0] + c1 * m9[1]) + c2 * m9[2]
+        cr1 = (c0 * m9[3] + c1 * m9[4]) + c2 * m9[5]
+        cr2 = (c0 * m9[6] + c1 * m9[7]) + c2 * m9[8]
+        px, py, pz = pts[:, 0], pts[:, 1], pts[:, 2]
+        qx = ((px * m9[0] + py * m9[1]) + pz * m9[2]) - cr0
+        qy = ((px * m9[3] + py * m9[4]) + pz * m9[5]) - cr1
+        qz = ((px * m9[6] + py * m9[7]) + pz * m9[8]) - cr2
     else:
-        q = (pts - centre) @ rot
-    dz = cam['distance'] - q[:, 2]
+        dx, dy, dz0 = pts[:, 0] - c0, pts[:, 1] - c1, pts[:, 2] - c2
+        qx = (dx * m9[0] + dy * m9[1]) + dz0 * m9[2]
+        qy = (dx * m9[3] + dy * m9[4]) + dz0 * m9[5]
+        qz = (dx * m9[6] + dy * m9[7]) + dz0 * m9[8]
+    dz = cam['distance'] - qz
     w = np.divide(1.0, dz, out=np.zeros_like(dz), where=dz != 0.0)
     sw = cam['scale'] * w
-    return (cam['cx'] + sw * q[:, 0],
-            cam['cy'] - sw * cam.get('aspect', 0.5) * q[:, 1], w)
+    return (cam['cx'] + sw * qx,
+            cam['cy'] - sw * cam.get('aspect', 0.5) * qy, w)
 
 
-def splat(arrays, m, cam, centre):
-    """(depth, colour) without a card: every corner of (positions, normals, materials, uv) a
-    2x2 dot splat, the nearest winning - one UNDER a garment as LAYER_M further; the colour
-    `_light`'s four a dot."""
+def project(points, m, cam, centre):
+    """(sx, sy, w) of world points: engine.project, every point at once."""
+    from tools.cores import raster as c_raster
+    got = c_raster.project(points, m, cam, centre)
+    return project_py(points, m, cam, centre) if got is None else got
+
+
+def _splat_bins_py(positions, materials, m, cam, centre):
     np = _const()[0]
-    positions, normals, materials, uv = arrays
     height, width = int(cam['height']), int(cam['width'])
-    sx, sy, w = project(positions, m, cam, centre)
+    sx, sy, w = project_py(positions, m, cam, centre)
     ix = np.rint(np.clip(sx, -2.0, width)).astype(np.int32)
     iy = np.rint(np.clip(sy, -2.0, height)).astype(np.int32)
     stride = width + 1
     cell = (iy + 1) * stride + (ix + 1) + 1
     cell[(w <= 0.0) | (ix < -1) | (ix >= width) | (iy < -1) | (iy >= height)] = 0
-    order = np.argsort(w / (1.0 + LAYER_M * w * ((materials & UNDER) > 0)))
+    order = np.argsort(w / (1.0 + LAYER_M * w * ((materials & UNDER) > 0)), kind='stable')
     cells = np.full((height + 1) * stride + 1, -1, np.int32)
     cells[cell[order]] = order
     top = cells[1:][cells[1:] >= 0]
@@ -135,6 +147,19 @@ def splat(arrays, m, cam, centre):
         keep = (x >= 0) & (x < width) & (y >= 0) & (y < height)
         depth[y[keep], x[keep]] = w_t[keep]
         win[y[keep], x[keep]] = top[keep]
+    return depth, win
+
+
+def splat(arrays, m, cam, centre):
+    """(depth, colour) without a card: every corner of (positions, normals, materials, uv) a
+    2x2 dot splat, the nearest winning - one UNDER a garment as LAYER_M further; the colour
+    `_light`'s four a dot."""
+    np = _const()[0]
+    from tools.cores import raster as c_raster
+    positions, normals, materials, uv = arrays
+    height, width = int(cam['height']), int(cam['width'])
+    bins = c_raster.splat_bins(positions, materials, m, cam, centre, UNDER, LAYER_M)
+    depth, win = _splat_bins_py(positions, materials, m, cam, centre) if bins is None else bins
     rgb = np.zeros((height, width, 4), np.uint8)
     hit = win >= 0
     if hit.any():
@@ -253,8 +278,12 @@ def braille(depth, rgb, floor, width, height, colour=True, overlay=None, leaders
     tone = np.ascontiguousarray(rgb[..., :3])
     lum = tone @ (0.2126 / 255.0, 0.7152 / 255.0, 0.0722 / 255.0)
     pad = np.pad(depth, 1)
-    steps = [pad[1:-1, :-2], pad[1:-1, 2:], pad[:-2, 1:-1], pad[2:, 1:-1]]
-    edge = covered & np.any([(s == 0.0) | (np.abs(s - depth) > 0.04 * depth) for s in steps], 0)
+    thresh = 0.04 * depth
+    s0, s1, s2, s3 = pad[1:-1, :-2], pad[1:-1, 2:], pad[:-2, 1:-1], pad[2:, 1:-1]
+    edge = covered & (((s0 == 0.0) | (np.abs(s0 - depth) > thresh))
+                      | ((s1 == 0.0) | (np.abs(s1 - depth) > thresh))
+                      | ((s2 == 0.0) | (np.abs(s2 - depth) > thresh))
+                      | ((s3 == 0.0) | (np.abs(s3 - depth) > thresh)))
     # A covered cell keeps 0.4 of its dots at the least: on 0.04 + 0.96 lum^1.5 a mid-grey shell
     # read as a cloud of points. Black paint keeps none - a wing's lettering, on the floor's 0.4 a
     # blur.

@@ -136,14 +136,31 @@ def _turned(frames, angles, goal, hung, joints, laid):
     p, n = (at.copy() if about is None else at - about), out.copy()
     for joint, axis, sign in reversed(joints):
         whole = sign * float(angles.get(joint, 0.0))
-        base = base @ turn_about(axis, -whole)
-        i, j = TURNED[axis]
-        c, s = np.cos(math.radians(whole) * share), np.sin(math.radians(whole) * share)
-        for v in (p, n):
-            v[:, i], v[:, j] = c * v[:, i] - s * v[:, j], s * v[:, i] + c * v[:, j]
+        if whole:
+            base = base @ turn_about(axis, -whole)
+            i, j = TURNED[axis]
+            rad = math.radians(whole) * share
+            c, s = np.cos(rad), np.sin(rad)
+            for v in (p, n):
+                vi, vj = v[:, i].copy(), v[:, j]
+                v[:, i], v[:, j] = c * vi - s * vj, s * vi + c * vj
     if about is not None:
         p += about
     return (there @ turn.T + spot, facing @ turn.T), (p @ base.T + hinge, n @ base.T), hinge
+
+
+_HELD_AT: dict = {}
+
+
+def _held_slots(held, idx):
+    key = (id(held), id(idx))
+    hit = _HELD_AT.get(key)
+    if hit is None or hit[0] is not held or hit[1] is not idx:
+        if len(_HELD_AT) > 64:
+            _HELD_AT.clear()
+        from coaxial.model.blocks import numpy as np
+        hit = _HELD_AT[key] = (held, idx, np.searchsorted(held, idx))
+    return hit[2]
 
 
 def bent(pos, norm, frames, angles, table, dense=False):
@@ -168,8 +185,13 @@ def bent(pos, norm, frames, angles, table, dense=False):
             got = row_laid[dense]
             whole, part, hinge = _turned(frames, angles, row_goal, row_hung, row_joints, got)
             for idx, weight, (places, facings) in ((got[0], got[7][0], whole), (got[3], got[7][1], part)):
-                at = np.searchsorted(held, idx)
-                sums[at] += np.hstack([places, facings, np.broadcast_to(hinge, places.shape), np.ones((len(idx), 1))]) * weight[:, None]
+                if len(idx):
+                    at = _held_slots(held, idx)
+                    w = weight[:, None]
+                    sums[at, 0:3] += places * w
+                    sums[at, 3:6] += facings * w
+                    sums[at, 6:9] += w * hinge
+                    sums[at, 9] += weight
         places, facings, joint = (sums[:, i:i + 3] / sums[:, 9:] for i in (0, 3, 6))
         reach, away = np.linalg.norm(pos[held] - joint, axis=1), places - joint
         pos[held] = joint + away * (reach / np.maximum(np.linalg.norm(away, axis=1), 1e-12))[:, None]

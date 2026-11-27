@@ -20,6 +20,7 @@ import hashlib
 import os
 import pickle
 import sys
+import time
 
 import numpy as np
 
@@ -28,6 +29,10 @@ from tools.cores import build
 
 #: Where held programs are kept between processes: a file a kind, beside the libraries they are built in.
 KEPT = os.path.join(build.OUT, 'kept')
+#: Persistent `(size, mtime_ns) -> sha1` cache for `stamp()`, with a 2 s racy-clean window for recent writes.
+_DIGESTS_FILE = os.path.join(KEPT, 'digests.pkl')
+RACY_NS = 2_000_000_000
+_DIGESTS_LOADED = [False]
 #: The folders whose sources a trace reads - the robot's machine, these cores, the texts its constants are of.
 SOURCES = tuple(os.path.join(REPO, 'host', *part) for part in (('machine',), ('tools', 'cores'), ('lisp',)))
 #: What a kept file may fail with as it is read - torn, of another numpy's or another code's - read as none.
@@ -50,6 +55,35 @@ def _key(part):
     return part.fn, part.name, tuple(part.inputs), part.body
 
 
+def _load_digests():
+    if _DIGESTS_LOADED[0]:
+        return
+    _DIGESTS_LOADED[0] = True
+    try:
+        with open(_DIGESTS_FILE, 'rb') as f:
+            saved = pickle.load(f)
+        if isinstance(saved, dict):
+            for k, v in saved.items():
+                _DIGESTS.setdefault(k, v)
+    except TORN:
+        pass
+
+
+def _save_digests():
+    if len(_DIGESTS) > 2048:
+        for k in list(_DIGESTS)[:-1536]:
+            del _DIGESTS[k]
+    whole = '%s.%d' % (_DIGESTS_FILE, os.getpid())
+    try:
+        os.makedirs(KEPT, exist_ok=True)
+        with open(whole, 'wb') as f:
+            pickle.dump(_DIGESTS, f, protocol=pickle.HIGHEST_PROTOCOL)
+        os.replace(whole, _DIGESTS_FILE)
+    except (OSError, pickle.PicklingError):
+        with contextlib.suppress(OSError):
+            os.remove(whole)
+
+
 @functools.cache
 def stamp():
     """Every source a trace reads - its path, size and time written -, its build (`COAXIAL_ROBOT`) and the host it is
@@ -57,15 +91,19 @@ def stamp():
     digest; once a process."""
     from importlib import metadata
     from machine.body import mechatronics
+    _load_digests()
+    now_ns, dirty = time.time_ns(), [False]
     out = hashlib.sha1()
     for root in SOURCES:
-        _stamped(root, out)
+        _stamped(root, out, now_ns, dirty)
+    if dirty[0]:
+        _save_digests()
     out.update(('%s %s %s %s %s' % (sys.version, np.__version__, metadata.version('mujoco'), build._host(),
                                     mechatronics.ROBOT)).encode())
     return out.hexdigest()
 
 
-def _stamped(at, out):
+def _stamped(at, out, now_ns, dirty):
     """Folder `at`'s sources stamped into `out` by their directory entries' own sizes and times - a stat of each
     path its own was 131 ms of the robot's laying."""
     try:
@@ -76,14 +114,17 @@ def _stamped(at, out):
     for e in found:
         if e.is_dir(follow_symlinks=False):
             if e.name != '__pycache__':
-                _stamped(e.path, out)
+                _stamped(e.path, out, now_ns, dirty)
         elif e.name.endswith(('.py', '.lisp', '.c', '.h', '.toml')):
             st = e.stat(follow_symlinks=False)
             stat_key = (st.st_size, st.st_mtime_ns)
             cached = _DIGESTS.get(e.path)
-            if cached is None or cached[0] != stat_key:
+            if cached is None or cached[0] != stat_key or now_ns - st.st_mtime_ns <= RACY_NS:
                 with open(e.path, 'rb') as f:
-                    cached = _DIGESTS[e.path] = (stat_key, hashlib.sha1(f.read()).hexdigest())
+                    sha = hashlib.sha1(f.read()).hexdigest()
+                if cached is None or cached != (stat_key, sha):
+                    dirty[0] = True
+                cached = _DIGESTS[e.path] = (stat_key, sha)
             out.update(('%s %d %s\n' % (e.path[len(REPO):], st.st_size, cached[1])).encode())
 
 

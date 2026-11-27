@@ -36,7 +36,6 @@ from machine.texts import kernel, ortho
 from machine.senses import touch
 from machine.body.figure import BALL, BODY, CONTACTS, FIST_AT, FIST_R, HEEL, PADS, pad
 from machine.stack.wbc import CORNERS, MU
-from tools.cores.model import rotation
 from tools.cores.wbc import address
 
 #: The robot's manifolds, the registry's; its forefeet's, of its soles' points.
@@ -303,9 +302,21 @@ def _prepared(obs, qpos, v):
         obs['gated'][:] = ~obs['soled'] & (obs['latch_of'] @ (obs['latched'] > 0.5) == 0.0)
         obs['gated_of'][0] = latched
     base, u = obs['base'], obs['u']
-    R = rotation(qpos[3:7])
-    base[:9], base[9:] = R.ravel(), qpos[:3]
-    u[:3], u[3:6], u[6:] = v[3:6], R.T @ v[:3], v[6:len(u)]
+    qw, qx, qy, qz = float(qpos[3]), float(qpos[4]), float(qpos[5]), float(qpos[6])
+    xx, yy, zz = qx * qx, qy * qy, qz * qz
+    xy, xz, yz = qx * qy, qx * qz, qy * qz
+    wx, wy, wz = qw * qx, qw * qy, qw * qz
+    r00, r01, r02 = 1.0 - 2.0 * (yy + zz), 2.0 * (xy - wz), 2.0 * (xz + wy)
+    r10, r11, r12 = 2.0 * (xy + wz), 1.0 - 2.0 * (xx + zz), 2.0 * (yz - wx)
+    r20, r21, r22 = 2.0 * (xz - wy), 2.0 * (yz + wx), 1.0 - 2.0 * (xx + yy)
+    base[:9] = (r00, r01, r02, r10, r11, r12, r20, r21, r22)
+    base[9:] = qpos[:3]
+    vx, vy, vz = float(v[0]), float(v[1]), float(v[2])
+    u[:3] = v[3:6]
+    u[3] = (r00 * vx + r10 * vy) + r20 * vz
+    u[4] = (r01 * vx + r11 * vy) + r21 * vz
+    u[5] = (r02 * vx + r12 * vy) + r22 * vz
+    u[6:] = v[6:len(u)]
     obs['q'][:] = qpos[7:7 + len(obs['q'])]
 
 
