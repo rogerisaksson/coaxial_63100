@@ -159,42 +159,46 @@ def test_sweep_rate_on_every_acquisition(report):
 
 def test_configure_takes_a_designed_chain(report):
     with opened() as device:
+        d, q = device.drive, device.daq
         chain = bessel.design(20000.0, 200.0)
-        device.daq.configure('NTC', chain=chain)
+        q.configure('NTC', chain=chain)
         report.check('configure(chain=) sums by its boxcar',
-                     device.daq.state()['accumulate'] == chain['boxcar'],
-                     device.daq.state()['accumulate'])
+                     q.state()['accumulate'] == chain['boxcar'], q.state()['accumulate'])
         report.check('and loads its sections and decimation',
                      device.board.daq._shape == (len(chain['sections']), chain['decimate']),
                      device.board.daq._shape)
         spans = []
         for hz in (20, 5000):
             device.board.daq.tone(hz=hz, rate_hz=20000, amplitude=10000, offset=32768)
-            vals = [r.value('NTC') for r in device.daq.collect(40, timeout=5.0).records[10:]]
+            vals = [r.value('NTC') for r in q.collect(40, timeout=5.0).records[10:]]
             spans.append(max(vals) - min(vals))
         device.board.daq.tone(hz=0)
-        phase_ok = True
+        phase_ok, pspans = True, []
         if device.simulated:
-            phase_chain = bessel.design(50000.0, 500.0)
+            pchain = bessel.design(50000.0, 500.0)
             device.afe.on()
             device.gates.on()
-            phase_spans = []
+            pfaults = []
             try:
                 for hz in (20.0, 1050.0):
-                    device.drive.write(id_ref=0.0, iq_ref=5.0,
-                                       omega_target=2.0 * 3.141592653589793 * hz, accel=1e7)
-                    device.drive.on('hold')
-                    device.daq.configure('Phase U', clock='tim1', chain=phase_chain)
-                    vals = [r.value('Phase U')
-                            for r in device.daq.collect(40, timeout=5.0).records[10:]]
-                    phase_spans.append(max(vals) - min(vals))
-                    device.drive.off()
+                    w = 6.283185307179586 * hz
+                    d.write(id_ref=0.0, iq_ref=5.0, omega_target=w, accel=5e5)
+                    d.on('hold')
+                    end = time.monotonic() + 1.0
+                    while abs(d.state()['omega_cmd']) < 0.99 * w and time.monotonic() < end:
+                        time.sleep(0.002)
+                    q.configure('Phase U', clock='tim1', chain=pchain)
+                    vals = [r.value('Phase U') for r in q.collect(80, timeout=5.0).records[15:]]
+                    pspans.append(max(vals) - min(vals))
+                    pfaults.append(d.state()['fault'])
+                    d.off()
             finally:
                 device.gates.off()
                 device.afe.off()
-            phase_ok = phase_spans[0] > 1400 and phase_spans[1] < 100
+            phase_ok = pspans[0] > 1400 and pspans[1] < 100 and not any(pfaults)
         report.check('the C filter core passes 20 Hz and attenuates 5 kHz',
-                     spans[0] > 15000 and spans[1] < 200 and phase_ok, spans)
+                     spans[0] > 15000 and spans[1] < 200 and phase_ok,
+                     '%s phase=%s' % (spans, pspans))
 
 
 def test_read_of_a_finite_run(report):

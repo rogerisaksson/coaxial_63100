@@ -520,7 +520,7 @@ static int rs_fan_lit(double wy_a, double wy_b, double south, double phase, doub
       {
         out_t1[ocnt - 1] = tb;
       }
-      else
+      else if (ocnt < 32)
       {
         out_t0[ocnt] = ta;
         out_t1[ocnt] = tb;
@@ -542,11 +542,16 @@ static int rs_fan_lit(double wy_a, double wy_b, double south, double phase, doub
   return ocnt;
 }
 
-static void rs_flush_run(int *p_cnt, int *s_cnt, int run_start, int *run_len, int32_t lid,
-                         double fade, int32_t *seg_s, int32_t *seg_line, double *seg_fade)
+static int rs_flush_run(int *p_cnt, int *s_cnt, int max_pts, int run_start, int *run_len,
+                        int32_t lid, double fade, int32_t *seg_s, int32_t *seg_line,
+                        double *seg_fade)
 {
   if (*run_len > 1)
   {
+    if (*s_cnt + (*run_len - 1) > max_pts)
+    {
+      return 0;
+    }
     for (int j = 0; j < *run_len - 1; j++)
     {
       seg_s[*s_cnt] = (int32_t)(run_start + j);
@@ -560,6 +565,7 @@ static void rs_flush_run(int *p_cnt, int *s_cnt, int run_start, int *run_len, in
     *p_cnt = run_start;
   }
   *run_len = 0;
+  return 1;
 }
 
 /** Build `ground._runs` + `packed_runs` flat arrays directly in C for `step`. */
@@ -569,9 +575,15 @@ void rs_ground_step(int width, double far_depth, const double *restrict sky_y, i
                     int n_rungs, const double *restrict rung6, const int32_t *restrict rung_lids,
                     double *restrict out_fx, double *restrict out_fy, double *restrict out_fd,
                     int32_t *restrict seg_s, int32_t *restrict seg_line, double *restrict seg_fade,
-                    int32_t *restrict out_counts)
+                    int max_pts, int32_t *restrict out_counts)
 {
   int p_cnt = 0, s_cnt = 0;
+  if (width + 1 > max_pts)
+  {
+    out_counts[0] = -1;
+    out_counts[1] = -1;
+    return;
+  }
   for (int col = 0; col <= width; col++)
   {
     out_fx[p_cnt] = (double)col;
@@ -601,7 +613,19 @@ void rs_ground_step(int width, double far_depth, const double *restrict sky_y, i
         const double ta = t0_buf[k], tb = t1_buf[k];
         if (run_len > 0 && ta > 0.0)
         {
-          rs_flush_run(&p_cnt, &s_cnt, run_start, &run_len, lid, 1.0, seg_s, seg_line, seg_fade);
+          if (!rs_flush_run(&p_cnt, &s_cnt, max_pts, run_start, &run_len, lid, 1.0, seg_s,
+                            seg_line, seg_fade))
+          {
+            out_counts[0] = -1;
+            out_counts[1] = -1;
+            return;
+          }
+        }
+        if (p_cnt + 2 > max_pts)
+        {
+          out_counts[0] = -1;
+          out_counts[1] = -1;
+          return;
         }
         if (run_len == 0)
         {
@@ -619,13 +643,25 @@ void rs_ground_step(int width, double far_depth, const double *restrict sky_y, i
         run_len++;
         if (tb < 1.0)
         {
-          rs_flush_run(&p_cnt, &s_cnt, run_start, &run_len, lid, 1.0, seg_s, seg_line, seg_fade);
+          if (!rs_flush_run(&p_cnt, &s_cnt, max_pts, run_start, &run_len, lid, 1.0, seg_s,
+                            seg_line, seg_fade))
+          {
+            out_counts[0] = -1;
+            out_counts[1] = -1;
+            return;
+          }
         }
       }
     }
     if (run_len > 0)
     {
-      rs_flush_run(&p_cnt, &s_cnt, run_start, &run_len, lid, 1.0, seg_s, seg_line, seg_fade);
+      if (!rs_flush_run(&p_cnt, &s_cnt, max_pts, run_start, &run_len, lid, 1.0, seg_s, seg_line,
+                        seg_fade))
+      {
+        out_counts[0] = -1;
+        out_counts[1] = -1;
+        return;
+      }
     }
   }
   for (int r = 0; r < n_rungs; r++)
@@ -633,13 +669,23 @@ void rs_ground_step(int width, double far_depth, const double *restrict sky_y, i
     const double *rg = rung6 + (size_t)r * 6u;
     const double  x0 = rg[0], py0 = rg[1], x1 = rg[2], py1 = rg[3], inv_w = rg[4], fade = rg[5];
     const int32_t lid = rung_lids[r];
-    int           run_start = p_cnt, run_len = 0;
+    if (x1 == x0)
+    {
+      continue;
+    }
+    int run_start = p_cnt, run_len = 0;
     for (int col = 0; col <= width; col++)
     {
       const double t = ((double)col - x0) / (x1 - x0);
       const double fy = py0 + (py1 - py0) * t;
       if (0.0 <= t && t <= 1.0 && sky_y[col] <= fy)
       {
+        if (p_cnt + 1 > max_pts)
+        {
+          out_counts[0] = -1;
+          out_counts[1] = -1;
+          return;
+        }
         if (run_len == 0)
         {
           run_start = p_cnt;
@@ -652,12 +698,24 @@ void rs_ground_step(int width, double far_depth, const double *restrict sky_y, i
       }
       else if (run_len > 0)
       {
-        rs_flush_run(&p_cnt, &s_cnt, run_start, &run_len, lid, fade, seg_s, seg_line, seg_fade);
+        if (!rs_flush_run(&p_cnt, &s_cnt, max_pts, run_start, &run_len, lid, fade, seg_s, seg_line,
+                          seg_fade))
+        {
+          out_counts[0] = -1;
+          out_counts[1] = -1;
+          return;
+        }
       }
     }
     if (run_len > 0)
     {
-      rs_flush_run(&p_cnt, &s_cnt, run_start, &run_len, lid, fade, seg_s, seg_line, seg_fade);
+      if (!rs_flush_run(&p_cnt, &s_cnt, max_pts, run_start, &run_len, lid, fade, seg_s, seg_line,
+                        seg_fade))
+      {
+        out_counts[0] = -1;
+        out_counts[1] = -1;
+        return;
+      }
     }
   }
   out_counts[0] = (int32_t)p_cnt;

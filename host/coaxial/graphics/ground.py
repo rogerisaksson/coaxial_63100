@@ -167,10 +167,10 @@ def _runs(static, width, height, step):
     """The floor at a scroll step as polylines, (line, [(fx, fy, depth)], fade), in the
     order _ground_dot's faint rule wants: the horizon, the fan's dashes, the rungs. Kept a
     step (`_RUNS`)."""
-    key = (width, height, step)
+    key = (id(static), width, height, step)
     got = _RUNS.get(key)
-    if got is not None:
-        return got
+    if got is not None and got[0] is static:
+        return got[1]
     if len(_RUNS) >= BACKDROPS_KEPT:
         _RUNS.clear()
     phase = step / RUNG_STEPS
@@ -213,7 +213,7 @@ def _runs(static, width, height, step):
                 run = []
         if len(run) > 1:
             runs.append((('rung', k), run, fade))
-    _RUNS[key] = runs
+    _RUNS[key] = (static, runs)
     return runs
 
 

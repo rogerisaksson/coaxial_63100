@@ -48,7 +48,7 @@ def _lib():
     lib.rs_ground_shaded.restype = i32
     lib.rs_ground_step.argtypes = [
         i32, f64, vp, i32, vp, vp, vp, f64, f64, f64,
-        i32, vp, vp, vp, vp, vp, vp, vp, vp, vp,
+        i32, vp, vp, vp, vp, vp, vp, vp, vp, i32, vp,
     ]
     lib.rs_ground_step.restype = None
     return lib
@@ -259,11 +259,15 @@ def ground_step_shaded(static, r_list, width: int, height: int, step: int, cap: 
     lib = _lib()
     if lib is None:
         return None
-    key = ('step', width, height, step)
-    pk = _PACKED_RUNS.get(key)
-    if pk is None:
+    key = ('step', id(static), width, height, step)
+    pk_hit = _PACKED_RUNS.get(key)
+    if pk_hit is not None and pk_hit[0] is static:
+        pk = pk_hit[1]
+    else:
         st_hit = _ART_CACHE.get(('fan', id(static)))
         if st_hit is None or st_hit[0] is not static:
+            while len(_ART_CACHE) >= _ART_CAP:
+                del _ART_CACHE[next(iter(_ART_CACHE))]
             sky_y = np.array([pt[1] for pt in static['horizon']], dtype=np.float64)
             fan = static['fan']
             pts = np.array([pt for _k, run in fan for pt in run], dtype=np.float64).reshape(-1, 4)
@@ -289,7 +293,7 @@ def ground_step_shaded(static, r_list, width: int, height: int, step: int, cap: 
             return None
         rung6 = np.array(r6, dtype=np.float64) if r6 else np.zeros((0, 6), dtype=np.float64)
         rl_c = np.array(r_lids, dtype=np.int32)
-        max_pts = (width + 1) + len(fan_pts) * 4 + len(r_lids) * (width + 2) + 32
+        max_pts = (width + 1) + len(fan_pts) * 16 + len(r_lids) * (width + 2) + 64
         fx_b = np.empty(max_pts, dtype=np.float64)
         fy_b = np.empty(max_pts, dtype=np.float64)
         fd_b = np.empty(max_pts, dtype=np.float64)
@@ -304,16 +308,16 @@ def ground_step_shaded(static, r_list, width: int, height: int, step: int, cap: 
             south, step / 96.0, south + 6.0 * 1.65,
             len(r_lids), rung6.ctypes.data, rl_c.ctypes.data,
             fx_b.ctypes.data, fy_b.ctypes.data, fd_b.ctypes.data,
-            ss_b.ctypes.data, sl_b.ctypes.data, sf_b.ctypes.data, cnts.ctypes.data,
+            ss_b.ctypes.data, sl_b.ctypes.data, sf_b.ctypes.data, max_pts, cnts.ctypes.data,
         )
         np_cnt, ns_cnt = int(cnts[0]), int(cnts[1])
-        if ns_cnt == 0:
+        if np_cnt < 0 or ns_cnt <= 0:
             return None
         pk = (fx_b[:np_cnt].copy(), fy_b[:np_cnt].copy(), fd_b[:np_cnt].copy(),
               ss_b[:ns_cnt].copy(), sl_b[:ns_cnt].copy(), sf_b[:ns_cnt].copy(), n_labels, 0)
         if len(_PACKED_RUNS) >= cap:
             _PACKED_RUNS.clear()
-        _PACKED_RUNS[key] = pk
+        _PACKED_RUNS[key] = (static, pk)
     near_d = float(static['near_depth'])
     fx, fy = roll(pk[0], pk[1]) if roll is not None else (pk[0], pk[1])
     return ground_shaded(fx, fy, pk[2], pk[3], pk[4], pk[5], pk[6], pk[7],

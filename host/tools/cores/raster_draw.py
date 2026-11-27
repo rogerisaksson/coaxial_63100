@@ -2,18 +2,20 @@
 import ctypes
 import functools
 import math
+import threading
 
 import numpy as np
 
 from machine.rig import ansi
 from tools.cores import raster
 
-_DRAW_TLS: dict = {}
+_draw_tls = threading.local()
 _MESH_CACHE: dict = {}
 _TINT_CACHE: dict = {}
 _SHADE_LUT: dict = {}
 _THERMAL_CACHE: dict = {}
-_GRID_STASH: list = [None, None, None]
+_THERMAL_CONST: list = [None]
+_LIT_CONST: list = [None]
 
 
 @functools.lru_cache(maxsize=1)
@@ -91,10 +93,11 @@ def ascii3d_raster(model, matrix, distance, scale, cx, cy, cols, top, bottom, la
         return None
     pos_c, idx_c, nrm_c = _model_arrays(model)
     n_verts, n_tris = len(pos_c) // 3, len(idx_c) // 3
-    v_key = ('a3_v', n_verts)
-    v_sc = _DRAW_TLS.get(v_key)
-    if v_sc is None:
-        v_sc = _DRAW_TLS[v_key] = tuple(np.empty(n_verts, dtype=np.float64) for _ in range(6))
+    v_hit = getattr(_draw_tls, 'a3_v', None)
+    if v_hit is None or v_hit[0] < n_verts:
+        v_hit = (n_verts, tuple(np.empty(max(1, n_verts), dtype=np.float64) for _ in range(6)))
+        _draw_tls.a3_v = v_hit
+    v_sc = v_hit[1]
     deep = max(0, (bottom - top) * cols)
     depth = np.empty(deep, dtype=np.float64)
     value = np.empty(deep, dtype=np.float64)
@@ -122,6 +125,8 @@ def _shades_lut(shades):
         return None
     hit = _SHADE_LUT.get(id(shades))
     if hit is None or hit[0] is not shades:
+        if len(_SHADE_LUT) >= 16:
+            _SHADE_LUT.clear()
         lut = np.repeat(np.arange(256, dtype=np.int32)[:, None], 3, axis=1)
         for k, triple in shades.items():
             if 0 <= k < 256:
@@ -140,10 +145,11 @@ def ascii3d_resolve(depth, value, width, height, cols, cell_rows, supersample, r
     value_c = np.ascontiguousarray(value, dtype=np.float64)
     who_c = None if who is None else np.ascontiguousarray(who, dtype=np.int32)
     ncells = width * height
-    r_key = ('a3_r', ncells, height)
-    sc = _DRAW_TLS.get(r_key)
-    if sc is None:
-        sc = _DRAW_TLS[r_key] = (
+    r_key = (ncells, height)
+    r_hit = getattr(_draw_tls, 'a3_r', None)
+    if r_hit is None or r_hit[0] != r_key:
+        r_hit = (
+            r_key,
             np.empty(ncells, dtype=np.float64),
             np.empty(ncells, dtype=np.float64),
             np.empty(ncells, dtype=np.int32),
@@ -152,6 +158,8 @@ def ascii3d_resolve(depth, value, width, height, cols, cell_rows, supersample, r
             np.empty(ncells, dtype=np.int32),
             np.empty(height, dtype=np.int32),
         )
+        _draw_tls.a3_r = r_hit
+    sc = r_hit[1:]
     ramp_c = np.array([ord(ch) for ch in ramp], dtype=np.int32)
     lut_c = _shades_lut(shades)
     lib.rs_ascii3d_resolve(
@@ -164,7 +172,7 @@ def ascii3d_resolve(depth, value, width, height, cols, cell_rows, supersample, r
         sc[0].ctypes.data, sc[1].ctypes.data, 0 if who_c is None else sc[2].ctypes.data,
         sc[3].ctypes.data, sc[4].ctypes.data, sc[5].ctypes.data, sc[6].ctypes.data,
     )
-    text_all = sc[4].view(f'<U{ncells}')[0]
+    text_all = sc[4].view(f'=U{ncells}')[0]
     lens = sc[6].tolist()
     if who_c is None:
         return '\n'.join(text_all[r * width:r * width + lens[r]] for r in range(height))
@@ -217,10 +225,11 @@ def csec_body(frame, s, r, rotor_deg: float, slots: int, poles: int, drive, blur
         xc = np.asarray(s['x'], dtype=np.int32)
         yc = np.asarray(s['y'], dtype=np.int32)
     n_dots, ncells = len(kind), width * height
-    key = ('csec', width, height, n_dots)
-    sc = _DRAW_TLS.get(key)
-    if sc is None:
-        sc = _DRAW_TLS[key] = (
+    key = (width, height, n_dots)
+    cs_hit = getattr(_draw_tls, 'csec', None)
+    if cs_hit is None or cs_hit[0] != key:
+        cs_hit = (
+            key,
             np.empty(width * 2 * height * 4, dtype=np.uint8),
             np.empty(max(1, n_dots), dtype=np.int32),
             np.empty(max(1, n_dots), dtype=np.int32),
@@ -228,6 +237,8 @@ def csec_body(frame, s, r, rotor_deg: float, slots: int, poles: int, drive, blur
             np.empty((height, width), dtype=np.int32),
             np.empty((height, width), dtype=np.int32),
         )
+        _draw_tls.csec = cs_hit
+    sc = cs_hit[1:]
     coast = int(drive is not None and max(abs(d) for d in drive) < 0.02)
     pars8 = np.array([r.tooth_in, r.tooth_out, r.magnet_in, r.magnet_out, r.line,
                       math.radians(rotor_deg), float(blur), math.tau], dtype=np.float64)
@@ -292,15 +303,18 @@ def dial_frame(a, geom, span, needle, lit, glow, width: int, height: int):
     if lib is None:
         return None
     n_samples, n_dots, ncells = len(a['dot']), len(a['cell']), width * height
-    key = ('dial_f', n_dots, ncells)
-    sc = _DRAW_TLS.get(key)
-    if sc is None:
-        sc = _DRAW_TLS[key] = (
+    key = (n_dots, height, width)
+    dl_hit = getattr(_draw_tls, 'dial_f', None)
+    if dl_hit is None or dl_hit[0] != key:
+        dl_hit = (
+            key,
             np.empty(max(1, n_dots), dtype=np.int32),
             np.empty(max(1, n_dots), dtype=np.int64),
             np.empty((height, width), dtype=np.int64),
             np.empty((height, width), dtype=np.int64),
         )
+        _draw_tls.dial_f = dl_hit
+    sc = dl_hit[1:]
     seg_lut = None
     if geom.subs:
         flat = []
@@ -327,9 +341,11 @@ def dial_frame(a, geom, span, needle, lit, glow, width: int, height: int):
 
 def stash_thermal_grid(rows, temps, on):
     """Remember the latest `(temps, on)` NumPy arrays behind `thermalmap._grid`'s list output."""
-    _GRID_STASH[0] = rows
-    _GRID_STASH[1] = np.ascontiguousarray(temps, dtype=np.float64)
-    _GRID_STASH[2] = np.ascontiguousarray(on, dtype=np.uint8)
+    _draw_tls.grid_stash = (
+        rows,
+        np.ascontiguousarray(temps, dtype=np.float64),
+        np.ascontiguousarray(on, dtype=np.uint8),
+    )
 
 
 def thermal_braille_rows(grid, mask, labels, noise):
@@ -338,8 +354,9 @@ def thermal_braille_rows(grid, mask, labels, noise):
     if lib is None or not grid or not grid[0]:
         return None
     down, cells = len(grid), len(grid[0])
-    if _GRID_STASH[0] is grid:
-        temps_c, on_c = _GRID_STASH[1], _GRID_STASH[2]
+    stash = getattr(_draw_tls, 'grid_stash', None)
+    if stash is not None and stash[0] is grid:
+        temps_c, on_c = stash[1], stash[2]
     else:
         temps_c = np.array([[0.0 if v is None else float(v) for v in r] for r in grid],
                            dtype=np.float64)
@@ -349,22 +366,22 @@ def thermal_braille_rows(grid, mask, labels, noise):
         if len(_THERMAL_CACHE) >= 16:
             _THERMAL_CACHE.clear()
         m_hit = _THERMAL_CACHE[id(mask)] = (mask, np.asarray(mask, dtype=np.uint8, order='C'))
-    c_const = _THERMAL_CACHE.get('const')
-    if c_const is None:
+    c_const = _THERMAL_CONST[0]
+    if c_const is None or c_const[0] is not noise:
         stops_c = np.array([s[0] for s in ansi.THERMAL_STOPS], dtype=np.float64)
         stops_rgb = np.array([ch for _t, rgb in ansi.THERMAL_STOPS for ch in rgb], dtype=np.int32)
         noise_c = np.asarray(noise, dtype=np.uint16, order='C')
-        c_const = _THERMAL_CACHE['const'] = (stops_c, stops_rgb, noise_c)
+        c_const = _THERMAL_CONST[0] = (noise, stops_c, stops_rgb, noise_c)
     rows_n = down // 2
     out_codes = np.empty(rows_n * cells, dtype=np.int32)
     out_rgb = np.empty(rows_n * cells, dtype=np.int32)
     lib.rs_thermal_braille(
         down, cells, temps_c.ctypes.data, on_c.ctypes.data, m_hit[1].ctypes.data,
-        c_const[2].ctypes.data, c_const[0].ctypes.data, c_const[1].ctypes.data,
-        len(c_const[0]), out_codes.ctypes.data, out_rgb.ctypes.data,
+        c_const[3].ctypes.data, c_const[1].ctypes.data, c_const[2].ctypes.data,
+        len(c_const[1]), out_codes.ctypes.data, out_rgb.ctypes.data,
     )
     mark_ink = (60, 175, 185)
-    text_all = list(out_codes.view(f'<U{rows_n * cells}')[0])
+    text_all = list(out_codes.view(f'=U{rows_n * cells}')[0])
     rgb_list = out_rgb.tolist()
     tones_all = [None if v < 0 else ((v >> 16) & 255, (v >> 8) & 255, v & 255) for v in rgb_list]
     for (r, c), ch in labels.items():
@@ -387,11 +404,11 @@ def splat_lit(arrays, m, cam, centre, under_flag: int, layer_m: float):
         return None
     depth, win = bins
     height, width = depth.shape
-    c_lit = _THERMAL_CACHE.get('lit_const')
+    c_lit = _LIT_CONST[0]
     if c_lit is None:
         from coaxial.graphics import lit as lit_mod
         _np, key3, fill3, half3, pal, *_ = lit_mod._const()
-        c_lit = _THERMAL_CACHE['lit_const'] = (
+        c_lit = _LIT_CONST[0] = (
             np.ascontiguousarray(key3, dtype=np.float64),
             np.ascontiguousarray(fill3, dtype=np.float64),
             np.ascontiguousarray(half3, dtype=np.float64),

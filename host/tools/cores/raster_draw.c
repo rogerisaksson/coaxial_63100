@@ -4,6 +4,19 @@
 #include <stdint.h>
 #include <string.h>
 
+static inline int rd_clamp_int(double v, int lo, int hi)
+{
+  if (!(v >= (double)lo))
+  {
+    return lo;
+  }
+  if (v >= (double)hi)
+  {
+    return hi;
+  }
+  return (int)v;
+}
+
 static void rd_ascii3d_fill(double *restrict depth, double *restrict value, int32_t *restrict who,
                             int32_t wear, double lit, const double *tri9, double area,
                             int first, int last, int left, int right, int top, int cols)
@@ -101,13 +114,18 @@ void rs_ascii3d_raster(int n_verts, const double *restrict pos, int n_tris,
   {
     const size_t t = (size_t)tri * 3u;
     const int    a = (int)idx[t], b = (int)idx[t + 1u], c = (int)idx[t + 2u];
-    double       py0 = sy[a], py1 = sy[b], py2 = sy[c];
-    double       low = (py0 < py1) ? py0 : py1;
+    double       oa = ooz[a], ob = ooz[b], og = ooz[c];
+    if (oa == 0.0 || ob == 0.0 || og == 0.0)
+    {
+      continue;
+    }
+    double py0 = sy[a], py1 = sy[b], py2 = sy[c];
+    double low = (py0 < py1) ? py0 : py1;
     if (py2 < low)
     {
       low = py2;
     }
-    int first = (int)low;
+    int first = rd_clamp_int(low, top - 2, bottom + 2);
     if (first >= bottom)
     {
       continue;
@@ -117,13 +135,8 @@ void rs_ascii3d_raster(int n_verts, const double *restrict pos, int n_tris,
     {
       high = py2;
     }
-    int last = (int)high + 1;
+    int last = rd_clamp_int(high, top - 2, bottom + 2) + 1;
     if (last <= top)
-    {
-      continue;
-    }
-    double oa = ooz[a], ob = ooz[b], og = ooz[c];
-    if (oa == 0.0 || ob == 0.0 || og == 0.0)
     {
       continue;
     }
@@ -144,17 +157,10 @@ void rs_ascii3d_raster(int n_verts, const double *restrict pos, int n_tris,
       og = to;
       area = -area;
     }
-    int left = (int)((x0 < x1) ? x0 : x1);
-    if (x2 < (double)left)
-    {
-      left = (int)x2;
-    }
-    int right = (int)((x0 > x1) ? x0 : x1);
-    if (x2 > (double)right)
-    {
-      right = (int)x2;
-    }
-    right += 1;
+    const double min_x = (x0 < x1) ? ((x0 < x2) ? x0 : x2) : ((x1 < x2) ? x1 : x2);
+    const double max_x = (x0 > x1) ? ((x0 > x2) ? x0 : x2) : ((x1 > x2) ? x1 : x2);
+    int          left = rd_clamp_int(min_x, -2, cols + 2);
+    int          right = rd_clamp_int(max_x, -2, cols + 2) + 1;
     const int tiny = (right - left == 1) && (last - first == 1);
     first = (first < top) ? top : first;
     last = (last > bottom) ? bottom : last;
@@ -290,11 +296,7 @@ static void rd_ascii3d_wire(const double *near_b, const int32_t *paintbox, int h
   if (wearing >= 0 && has_shades)
   {
     const double span = (z_hi - z_lo) != 0.0 ? (z_hi - z_lo) : 1.0;
-    int          third = (int)(3.0 * (here - z_lo) / span);
-    if (third > 2)
-    {
-      third = 2;
-    }
+    int          third = rd_clamp_int(3.0 * (here - z_lo) / span, 0, 2);
     if (wearing < 256)
     {
       wearing = shades_lut[wearing * 3 + third];
@@ -401,7 +403,7 @@ void rs_ascii3d_resolve(const double *restrict depth, const double *restrict val
       else
       {
         const double cl = (shade[at] < 0.0) ? 0.0 : ((shade[at] > 1.0) ? 1.0 : shade[at]);
-        int          ridx = (int)((1.0 - cl) * (double)steps);
+        int          ridx = rd_clamp_int((1.0 - cl) * (double)steps, 0, steps);
         if (invert)
         {
           ridx = steps - ridx;
@@ -412,10 +414,7 @@ void rs_ascii3d_resolve(const double *restrict depth, const double *restrict val
         {
           const int denom = (steps > 1) ? steps : 1;
           int       third = (band[at] * 3) / denom;
-          if (third > 2)
-          {
-            third = 2;
-          }
+          third = (third < 0) ? 0 : ((third > 2) ? 2 : third);
           wear = shades_lut[wear * 3 + third];
         }
         out_tone[at] = wear;

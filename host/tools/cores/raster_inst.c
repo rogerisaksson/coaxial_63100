@@ -532,7 +532,11 @@ void rs_dial_frame(int n_samples, int n_dots, int n_cells, const int64_t *restri
       }
       else
       {
-        const int    bin = ((int)(p / tau * 720.0)) % 720;
+        int bin = ((int)(p / tau * 720.0)) % 720;
+        if (bin < 0)
+        {
+          bin += 720;
+        }
         const double g = glow[bin];
         if (g > 0.0)
         {
@@ -597,7 +601,11 @@ void rs_thermal_braille(int down, int cells, const double *restrict temps,
                         const int32_t *restrict stops_rgb, int n_stops,
                         int32_t *restrict out_codes, int32_t *restrict out_rgb)
 {
-  const int     rows = down / 2, wide = 2 * cells;
+  const int rows = down / 2, wide = 2 * cells;
+  if (n_stops < 2 || stops_c[n_stops - 1] <= stops_c[0])
+  {
+    return;
+  }
   const double  t_min = stops_c[0], inv_span = 1.0 / (stops_c[n_stops - 1] - t_min);
   const int32_t mark_rgb = (60 << 16) | (175 << 8) | 185;
 

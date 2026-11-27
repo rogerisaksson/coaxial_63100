@@ -66,6 +66,14 @@ def test_wave7_c_kernels_match_python(report):
         assert c_g is not None and laid is not None
         step_ok = step_ok and (c_g[0].tolist(), c_g[1].tolist(), c_g[2].tolist()) == (
             laid[0].tolist(), laid[1].tolist(), ground._shaded(laid, static).tolist())
+    cam_far = engine.camera(80, 28, 1.5, distance=6.0, zoom=1.0, tip=wireframe.CAMERA_TIP)
+    static_far = ground._ground_static(80, 28, 6.0, cam_far['view'])
+    c_far = raster_board.ground_step_shaded(static_far, ground._rungs(static_far, 0.0),
+                                            80, 28, 0, 16, None)
+    laid_far = ground._laid(ground._runs(static_far, 80, 28, 0), 80, 28, None)
+    assert c_far is not None and laid_far is not None
+    step_ok = step_ok and (c_far[0].tolist(), c_far[1].tolist(), c_far[2].tolist()) == (
+        laid_far[0].tolist(), laid_far[1].tolist(), ground._shaded(laid_far, static_far).tolist())
     report.check('rs_ground_step matches _runs + _laid + _shaded across scroll steps', step_ok)
 
     q = (0.18, 0.31, -0.22, 0.908)
