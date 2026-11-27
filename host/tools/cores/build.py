@@ -136,13 +136,8 @@ def beside(sources, includes):
     return list(includes) + [d for d in folders if os.path.normcase(d) not in known]
 
 
-def cached(sources, includes, name, extra=(), heads=None):
-    """(path, warnings) of a library built once for these sources', their headers' and the
-    flags' bytes, shared by every process that asks - a stand-in opened in each of a gate's
-    suites built it once -, a compiler sought only where none is built yet; built by one process
-    at a time, the others waiting for it (`_claimed`). `heads` its headers' bytes where a round of
-    builds read them once (`headers`): read for each of the robot's law's 33 parts, 23 files a part in a
-    thread beside its loop, they held its builds 0.63 s of its first second."""
+def library_path(sources, includes, name, extra=(), heads=None):
+    """Output shared-library path in `OUT` keyed by flags, host ISA, sources, and headers."""
     digest = hashlib.sha1(' '.join(FLAGS + list(extra)).encode())
     digest.update(str(bool(os.environ.get('COAXIAL_GCOV'))).encode())
     digest.update((_host() if any(flag.endswith('=native') for flag in extra) else '').encode())
@@ -150,8 +145,26 @@ def cached(sources, includes, name, extra=(), heads=None):
         with open(path, 'rb') as f:
             digest.update(f.read())
     digest.update(headers(beside(sources, includes)) if heads is None else heads)
-    lib = os.path.join(OUT, '%s_%s%s' % (name, digest.hexdigest()[:12],
+    return os.path.join(OUT, '%s_%s%s' % (name, digest.hexdigest()[:12],
                                           '.dll' if os.name == 'nt' else '.so'))
+
+
+def is_built(sources, includes, name, extra=(), heads=None):
+    """Whether the cached shared library for `sources` and `includes` is already built on disk."""
+    try:
+        return os.path.exists(library_path(sources, includes, name, extra, heads))
+    except OSError:
+        return False
+
+
+def cached(sources, includes, name, extra=(), heads=None):
+    """(path, warnings) of a library built once for these sources', their headers' and the
+    flags' bytes, shared by every process that asks - a stand-in opened in each of a gate's
+    suites built it once -, a compiler sought only where none is built yet; built by one process
+    at a time, the others waiting for it (`_claimed`). `heads` its headers' bytes where a round of
+    builds read them once (`headers`): read for each of the robot's law's 33 parts, 23 files a part in a
+    thread beside its loop, they held its builds 0.63 s of its first second."""
+    lib = library_path(sources, includes, name, extra, heads)
     if os.path.exists(lib) or not _claimed(lib):
         return lib, []
     try:

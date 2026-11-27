@@ -143,7 +143,20 @@ def fresh():
     return {'steps': [], 'status': 'idle'}
 
 
-def preload(state, model=None):
+def _warm_raster():
+    """Compile and load `raster.c` off the frame loop, showing progress on 3D pages if cold."""
+    from terminal import compiling
+    from tools.cores import raster
+    if raster.current():
+        return
+    compiling.note('raster', '3D ENGINE & BRAILLE C11')
+    try:
+        raster.ensure()
+    finally:
+        compiling.done('raster')
+
+
+def preload(state, model=None, interactive=False):
     """Everything a page will ask for, into this process's memory, once and
     off the frame loop: the model's decimates - the preload's pickle
     taken as it stands when its stamp matches, else built and written for
@@ -153,6 +166,7 @@ def preload(state, model=None):
     from coaxial.draw import orientation
     from coaxial.graphics import creases, shading, stereotype, wireframe
     from coaxial.graphics import preload as pickled
+    from terminal import compiling
     path = model or orientation.MODEL
     ram, disk = pickled.room()
     state.update(
@@ -162,23 +176,33 @@ def preload(state, model=None):
         disk='unknown' if disk is None else '%.1f gb free' % (disk / 2**30),
         status='loading')
 
+    cold = interactive and not pickled.whole(pickled.load(path))
+    if cold:
+        compiling.note('mesh', 'STL DECIMATES & SHADOWS')
+
     def say(line):
         state['steps'] = state['steps'][-3:] + [line]
+        if cold:
+            compiling.note('mesh', line.upper())
 
     began = time.perf_counter()
-    if not pickled.whole(pickled.load(path)):
-        why = pickled.refusal()
-        if why is None:
-            say('written: %.1f mb' % (pickled.build(path, progress=say) / 2**20))
-        else:
-            say(why)
-    say('decimates: %d in memory' % len(wireframe._lods()))
-    say('outline: %d loops' % len(creases._outline_source()[1]))
-    say('primitives: %d' % len(stereotype._stereotypes()))
-    shading._shadowmap((1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0))
-    say('shadow casters')
-    state['status'] = 'resident: %s, %.1f s' % (resident(),
-                                                time.perf_counter() - began)
+    try:
+        if not pickled.whole(pickled.load(path)):
+            why = pickled.refusal()
+            if why is None:
+                say('written: %.1f mb' % (pickled.build(path, progress=say) / 2**20))
+            else:
+                say(why)
+        say('decimates: %d in memory' % len(wireframe._lods()))
+        say('outline: %d loops' % len(creases._outline_source()[1]))
+        say('primitives: %d' % len(stereotype._stereotypes()))
+        shading._shadowmap((1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0))
+        say('shadow casters')
+        state['status'] = 'resident: %s, %.1f s' % (resident(),
+                                                    time.perf_counter() - began)
+    finally:
+        if cold:
+            compiling.done('mesh')
 
 
 def front_page(args, opened, state):
@@ -249,9 +273,12 @@ def main(argv=None):
         from tools.target import current
         current.ensure()
     state = fresh()
+    interactive = sys.stdin.isatty() and not args.frames
+    if interactive:
+        threading.Thread(target=_warm_raster, name='warm-raster', daemon=True).start()
     preloading = False
     if args.name != 'humanoid':
-        threading.Thread(target=preload, args=(state,), daemon=True).start()
+        threading.Thread(target=preload, args=(state, None, interactive), daemon=True).start()
         preloading = True
     if args.frames and not args.name:
         return front_page(args, None, state)
@@ -264,7 +291,7 @@ def main(argv=None):
     while True:
         if view is None:
             if not preloading:
-                threading.Thread(target=preload, args=(state,), daemon=True).start()
+                threading.Thread(target=preload, args=(state, None, interactive), daemon=True).start()
                 preloading = True
             if sys.stdin.isatty():
                 # The machines' control systems behind their sources compiled behind the front page, their
@@ -276,6 +303,10 @@ def main(argv=None):
                 break
             view = listing()[3][picked]
         page, name = view
+        from terminal import compiling
+        from terminal.ui import ahead
+        compiling.stop()
+        ahead.let_go_except(getattr(page, 'AHEAD', None))
         code = run_page(page, name, args)
         opened = name if name in listing()[2] else None
         view = listing()[3].get(code)

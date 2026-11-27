@@ -53,5 +53,6 @@ CORES = (
     ('host/tools/cores/identify.c',            (STRUCTURE, SYSID, WEAR)),
     ('host/tools/cores/raster.py',             (STRUCTURE, RENDER, PAINT, *VIEWS)),
     ('host/tools/cores/raster.c',              (STRUCTURE, RENDER, PAINT, *VIEWS)),
+    ('host/tools/cores/raster_cells.c',        (STRUCTURE, RENDER, PAINT, *VIEWS)),
     ('host/tools/cores/aero.py',               QUADS + (AERO_CORE, STREAMS)),
 )

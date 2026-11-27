@@ -163,12 +163,20 @@ def _held_slots(held, idx):
     return hit[2]
 
 
-def bent(pos, norm, frames, angles, table, dense=False):
-    """`pos` and `norm` (`shapes.moved`'s) bent in place at `angles` {joint: deg}: each row's
-    corners wholly its target's laid by its frame, those between turned about the joint by
-    their share of each of its turns, their reach from it kept; a garment across both sides
-    where each side's bend puts it, by its weight there, its reach kept from the joints'
-    places so weighted - averaged, a corner between two turns sank to their chord."""
+def _joint_turns(base, joints, angles):
+    """`(base, rot_axes, rot_rads)` for active joints in `reversed(joints)`."""
+    rot_axes, rot_rads = [], []
+    for joint, axis, sign in reversed(joints):
+        whole = sign * float(angles.get(joint, 0.0))
+        if whole:
+            base = base @ turn_about(axis, -whole)
+            rot_axes.extend(TURNED[axis])
+            rot_rads.append(math.radians(whole))
+    return base, rot_axes, rot_rads
+
+
+def bent_py(pos, norm, frames, angles, table, dense=False):
+    """`bent` in pure NumPy, kept as fallback and parity oracle."""
     from coaxial.model.blocks import numpy as np
     k = 0
     while k < len(table):
@@ -180,7 +188,7 @@ def bent(pos, norm, frames, angles, table, dense=False):
             continue
         held = blend[2]
         rows = [row for row in table[k:k + 2] if row[3 + dense][7] is not None and row[3 + dense][7][2] is held]
-        sums = np.zeros((len(held), 10))           # weighted places, facings, joints and the weights
+        sums = np.zeros((len(held), 10))
         for row_goal, row_hung, row_joints, *row_laid in rows:
             got = row_laid[dense]
             whole, part, hinge = _turned(frames, angles, row_goal, row_hung, row_joints, got)
@@ -196,4 +204,42 @@ def bent(pos, norm, frames, angles, table, dense=False):
         reach, away = np.linalg.norm(pos[held] - joint, axis=1), places - joint
         pos[held] = joint + away * (reach / np.maximum(np.linalg.norm(away, axis=1), 1e-12))[:, None]
         norm[held] = facings
+        k += len(rows)
+
+
+def bent(pos, norm, frames, angles, table, dense=False):
+    """`pos` and `norm` (`shapes.moved`'s) bent in place at `angles` {joint: deg}: each row's
+    corners wholly its target's laid by its frame, those between turned about the joint by
+    their share of each of its turns, their reach from it kept; a garment across both sides
+    where each side's bend puts it, by its weight there, its reach kept from the joints'
+    places so weighted - averaged, a corner between two turns sank to their chord."""
+    from coaxial.model.blocks import numpy as np
+    from tools.cores import raster as c_raster
+    if not (isinstance(pos, np.ndarray) and pos.dtype == np.float64 and pos.flags.c_contiguous
+            and isinstance(norm, np.ndarray) and norm.dtype == np.float64 and norm.flags.c_contiguous
+            and c_raster.ensure() is not None):
+        bent_py(pos, norm, frames, angles, table, dense)
+        return
+    k = 0
+    while k < len(table):
+        goal, hung, joints, *laid = table[k]
+        got_laid = laid[dense]
+        blend = got_laid[7]
+        if blend is None:
+            turn, spot = frames[goal]
+            base, hinge = frames[hung]
+            base, rot_axes, rot_rads = _joint_turns(base, joints, angles)
+            c_raster.drape_row(pos, norm, turn, spot, base, hinge, got_laid, rot_axes, rot_rads)
+            k += 1
+            continue
+        held = blend[2]
+        rows = [row for row in table[k:k + 2] if row[3 + dense][7] is not None and row[3 + dense][7][2] is held]
+        sums = np.zeros((len(held), 10), dtype=np.float64)
+        for row_goal, row_hung, row_joints, *row_laid in rows:
+            turn, spot = frames[row_goal]
+            base, hinge = frames[row_hung]
+            base, rot_axes, rot_rads = _joint_turns(base, row_joints, angles)
+            c_raster.drape_row(pos, norm, turn, spot, base, hinge, row_laid[dense], rot_axes,
+                               rot_rads, sums)
+        c_raster.drape_finish(pos, norm, got_laid, sums)
         k += len(rows)

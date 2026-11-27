@@ -19,6 +19,45 @@ STATE: dict = {}
 _LOCK = threading.Lock()
 #: The compile's process while it runs.
 _RUN: list = [None]
+#: Shared C11 / 3D warmup targets per page name (`board`: `native://` C11 firmware/world,
+#: `raster`: `raster.c` 3D engine & Braille C11, `mesh`: STL board decimates & shadowmap).
+PAGE_WARMED = {
+    'session': ('board',),
+    'imu': ('board', 'raster', 'mesh'),
+    'angle': ('board',),
+    'adc': ('board',),
+    'motor': ('board',),
+    'thermal_observer': ('board', 'raster', 'mesh'),
+    'humanoid': ('raster',),
+    'quad': ('raster',),
+    'helicopter': ('raster',),
+    'ornithopter': ('raster',),
+    'aerobat': ('raster',),
+    'atlas': ('raster',),
+}
+
+
+def needs_of(page):
+    """Tuple of compile/warmup target keys that `page` waits on while active in `STATE`."""
+    own = getattr(page, 'COMPILED', None)
+    extra = PAGE_WARMED.get(getattr(page, 'NAME', ''), ())
+    return ((own,) if own is not None else ()) + tuple(t for t in extra if t != own)
+
+
+def note(target, text, share=0.0):
+    """Record or update an in-process C11 or mesh compile step for `target` in `STATE`."""
+    now = time.monotonic()
+    with _LOCK:
+        if target in STATE:
+            STATE[target][:2] = [share, text]
+        else:
+            STATE[target] = [share, text, now]
+
+
+def done(target):
+    """Clear `target` from `STATE` once its compile or preload finishes."""
+    with _LOCK:
+        STATE.pop(target, None)
 
 
 def start(machines):

@@ -204,8 +204,12 @@ def take(module, function):
 
 def let_go():
     """Every kept drawing closed: the terminal on its way out."""
+    let_go_except(None)
+
+
+def let_go_except(keep_pair=None):
+    """Close every kept drawing except `keep_pair` `(module, function)` so idle workers release GPUs."""
     with _KEPT_LOCK:
-        kept = list(_KEPT.values())
-        _KEPT.clear()
-    for each in kept:
+        drop = [v for k, v in list(_KEPT.items()) if k != keep_pair and _KEPT.pop(k, None) is not None]
+    for each in drop:
         each.close()

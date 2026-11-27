@@ -36,6 +36,7 @@ class Serial(SerialBase):
         self.units = self._limb.units
         self.console = self._limb.console
         self._answer = bytearray()
+        self._limb.attach()
         self.is_open = True
 
     def virtual_seconds(self):
@@ -43,6 +44,8 @@ class Serial(SerialBase):
         return self._limb.seconds()
 
     def close(self):
+        if getattr(self, 'is_open', False) and hasattr(self, '_limb'):
+            self._limb.detach()
         self.is_open = False
 
     def _reconfigure_port(self, force_update=False):

@@ -282,8 +282,63 @@ def test_lines_draw_what_line_draws(report):
     report.check('lines sets the dots line sets, dot for dot', bad == 0, '%d of 300 differ' % bad)
 
 
+def test_c11_raster_cells_parity(report):
+    """C11 `raster.c` and `raster_cells.c` match `engine.raster_py`, `engine.fold_py`,
+    `drape.bent_py`, and `lit._braille_cells_py`."""
+    import numpy as np
+    from coaxial.graphics import drape, engine, gynoid, lit, shading, shapes
+    from machine.body import figure
+    from tools.cores import raster as c_raster
+    from tools.render.oracle import DISTANCE, cube
+    if c_raster.ensure() is None:
+        return
+    solid, half = cube()
+    reach = math.sqrt(sum(h * h for h in half))
+    fine_c = engine.fine(engine.camera(48, 22, reach, distance=DISTANCE))
+    m_cube = engine.pose(35, 25, 110)
+    d_c, t_c, s_c = engine.raster(solid, m_cube, fine_c, beam=shading.LIGHT, sun_min=shading.SUN_MIN)
+    d_p, t_p, s_p = engine.raster_py(solid, m_cube, fine_c, beam=shading.LIGHT, sun_min=shading.SUN_MIN)
+    db_c, tb_c, sb_c = engine.raster(solid, m_cube, fine_c, beam=shading.LIGHT, sun_min=shading.SUN_MIN, band=(12, 52))
+    db_p, tb_p, sb_p = engine.raster_py(solid, m_cube, fine_c, beam=shading.LIGHT, sun_min=shading.SUN_MIN, band=(12, 52))
+    f_c = engine.fold(d_c, t_c, s_c, 48, 22)
+    f_p = engine.fold_py(d_p, t_p, s_p, 48, 22)
+    report.check('C11 triangle raster and 2x4 fold bit-exact with Python oracles',
+                 d_c == d_p and t_c == t_p and s_c == s_p
+                 and db_c == db_p and tb_c == tb_p and sb_c == sb_p and f_c == f_p)
 
-ROSTER = (test_lines_draw_what_line_draws, test_the_level_is_drawn_at_the_dot,
+    body = gynoid.body()
+    stride = dict(figure.stand(), left_hip=-28.0, right_hip=20.0, left_knee=42.0, waist_yaw=14.0)
+    frames = body._frames(stride, ((0.0, figure.standing(), 0.0), figure.IDENT))
+    p_dc, n_dc = shapes.moved(body.dense[0], body.dense[1], body.dense_spans, frames)
+    p_dp, n_dp = p_dc.copy(), n_dc.copy()
+    drape.bent(p_dc, n_dc, frames, stride, body.bends, dense=True)
+    drape.bent_py(p_dp, n_dp, frames, stride, body.bends, dense=True)
+    drape_err = max(float(np.max(np.abs(p_dc - p_dp))), float(np.max(np.abs(n_dc - n_dp))))
+    report.check('C11 drape cloth skinning matches Python bent_py within 1e-14',
+                 drape_err <= 1e-14, 'max %.2e' % drape_err)
+
+    view_m = shapes.view(30.0, 14.0)
+    cam_b = engine.fine(engine.camera(48, 22, 1.0, distance=3.5))
+    depth_b, rgb_b = lit.splat((p_dc, n_dc, body.dense[3], body.dense[2]), view_m, cam_b, (0.0, 0.85, 0.0))
+    fl_b = lit.grid(view_m, cam_b, (0.0, 0.85, 0.0))
+    _np, _k, _f, _h, _pl, _bt, fl_ink, ld_ink = lit._const()
+    over = np.zeros_like(depth_b, dtype=bool)
+    over[16:24, 20:28] = True
+    alone = np.zeros_like(depth_b, dtype=bool)
+    alone[28:32, 30:34] = True
+    leaders = np.zeros_like(depth_b, dtype=bool)
+    leaders[4:12, 4:12] = True
+    bc_c = c_raster.braille_cells(depth_b, rgb_b, fl_b, lit._noise64(), over, alone, leaders,
+                                  fl_ink, ld_ink, 48, 22)
+    bc_p = lit._braille_cells_py(depth_b, rgb_b, fl_b, over, alone, leaders, fl_ink, ld_ink, 48, 22)
+    ink_err = float(np.max(np.abs(bc_c[2] - bc_p[2]))) if bc_c is not None else math.inf
+    report.check('C11 Braille cell fold matches _braille_cells_py',
+                 bc_c is not None and np.array_equal(bc_c[0], bc_p[0])
+                 and np.array_equal(bc_c[1], bc_p[1]) and ink_err <= 1e-12,
+                 'ink max %.2e' % ink_err)
+
+
+ROSTER = (test_lines_draw_what_line_draws, test_c11_raster_cells_parity, test_the_level_is_drawn_at_the_dot,
           test_the_teeth_keep_their_length_and_a_shared_cell_goes_to_the_most,
           test_a_line_keeps_the_cell_it_shares_with_an_area,
           test_nothing_in_the_drawing_can_be_sheared, test_the_flat_drawings_spend_the_block)

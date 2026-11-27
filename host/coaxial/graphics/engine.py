@@ -74,8 +74,8 @@ def fine(cam):
                 cx=DOTS_X * cam['cx'], cy=DOTS_Y * cam['cy'])
 
 
-def raster(solid, m, cam, beam=None, sun_min=0.0, band=None):
-    """Depth, horizontal-face and shadow-eligibility flags per cell."""
+def raster_py(solid, m, cam, beam=None, sun_min=0.0, band=None):
+    """`raster` in pure Python, kept as fallback and bit-exact parity oracle."""
     pos, idx, nrm = solid
     m0, m1, m2, m3, m4, m5, m6, m7, m8 = m
     width, height = cam['width'], cam['height']
@@ -159,6 +159,13 @@ def raster(solid, m, cam, beam=None, sun_min=0.0, band=None):
     return depth, top, sun
 
 
+def raster(solid, m, cam, beam=None, sun_min=0.0, band=None):
+    """Depth, horizontal-face and shadow-eligibility flags per cell."""
+    from tools.cores import raster as c_raster
+    got = c_raster.triangles(solid, m, cam, beam, sun_min, band)
+    return raster_py(solid, m, cam, beam, sun_min, band) if got is None else got
+
+
 #: A cell's eight dot samples in the fine raster: (column, row) offset
 #: within the cell and the braille bit that dot is, so the fold's mask
 #: is the glyph's own bit order and a dot grid can be clipped by one
@@ -175,11 +182,8 @@ def _cellwise(field, width, height, dtype):
             .transpose(0, 2, 1, 3).reshape(height, width, DOTS_X * DOTS_Y))
 
 
-def fold(depth, top, sun, width, height):
-    """A dot-resolution raster (`fine`) down to cells: (depth, top, sun,
-    coverage, reached). A cell's depth, top and sun are its nearest sample's,
-    the first of equals in DOT_SAMPLES order.
-    """
+def fold_py(depth, top, sun, width, height):
+    """`fold` in pure NumPy, kept as fallback and bit-exact parity oracle."""
     from coaxial.model.blocks import numpy as np
     d = _cellwise(depth, width, height, float)
     hit = d != 0.0
@@ -196,6 +200,16 @@ def fold(depth, top, sun, width, height):
             at_near(top), at_near(sun),
             np.where(covered, hits / float(len(DOT_SAMPLES)), 0.0).ravel().tolist(),
             bytearray((hit * bits).sum(axis=2).astype(np.uint8).tobytes()))
+
+
+def fold(depth, top, sun, width, height):
+    """A dot-resolution raster (`fine`) down to cells: (depth, top, sun,
+    coverage, reached). A cell's depth, top and sun are its nearest sample's,
+    the first of equals in DOT_SAMPLES order.
+    """
+    from tools.cores import raster as c_raster
+    got = c_raster.fold(depth, top, sun, width, height)
+    return fold_py(depth, top, sun, width, height) if got is None else got
 
 
 #: Beyond this radius a surface point takes no ink from the art: the

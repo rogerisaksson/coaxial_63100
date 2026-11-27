@@ -64,14 +64,25 @@ def test_a_compiling_machines_entry_waits(report):
         with compiling._LOCK:
             compiling.STATE.pop('robot', None)
     done = menu._chosen({'picked': 0, 'who': None}, at)
+    imu_at = next(i for i, p in enumerate(loader.pages()) if p.NAME == 'imu')
+    compiling.note('raster', '3D ENGINE & BRAILLE C11')
+    try:
+        imu_row = next(t for t in menu.roster(imu_at).renderables
+                       if isinstance(t, Text) and menu.ENTRIES[imu_at][1] in t.plain)
+        imu_blocked = menu._chosen({'picked': 0, 'who': None}, imu_at)
+    finally:
+        compiling.done('raster')
+    imu_ready = menu._chosen({'picked': 0, 'who': None}, imu_at)
     turns = {menu.spun(at, k / menu.SPIN_HZ) for k in range(len(menu.SPIN))}
     report.check('greyed, a spinner turning before it, its compile said on it, chosen by no key, the cursor on it; '
                  'chosen once done',
                  'COMPILING ROBOT: STANDING: 3 OF 34 BUILT ON 6 CORES  1:01' in row.plain
                  and row.plain[0] == '>' and row.plain[1] in menu.SPIN and turns == set(menu.SPIN)
                  and any(span.style == 'greyed' for span in row.spans) and entered is None and not typed_in
-                 and nav['picked'] == at and done == loader.FIRST + at, '%r; %r %r -> %r' % (row.plain.strip(), entered,
-                                                                                         typed_in, done))
+                 and nav['picked'] == at and done == loader.FIRST + at
+                 and 'COMPILING RASTER: 3D ENGINE & BRAILLE C11' in imu_row.plain
+                 and imu_blocked is None and imu_ready == loader.FIRST + imu_at,
+                 '%r; %r %r -> %r' % (row.plain.strip(), entered, typed_in, done))
 
 
 def test_leaving_sweeps_no_board_never_opened(report):

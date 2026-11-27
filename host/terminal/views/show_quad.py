@@ -26,6 +26,7 @@ coaxial.graphics.onboard), there or not (C).
     python terminal/views/show_quad.py --frames 60
 """
 import argparse
+import collections
 import functools
 import math
 import sys
@@ -36,8 +37,9 @@ from coaxial.draw.gauges import policy_word
 from coaxial.graphics import engine, inset, onboard, quadcopter
 from machine.aircraft import airfield, flightpack, gimbal, grounds, pull, quad
 from terminal.loader import answer
-from terminal.ui import recorder
+from terminal.ui import bindings, recorder
 from terminal.ui.console import WHEEL_STEP
+from terminal.ui.marquee import Marquee
 from terminal.views.quad import keys as craft_keys
 from terminal.views.quad.keys import ZOOM_STEP
 from terminal.ui.ahead import Ahead
@@ -70,6 +72,21 @@ CHASE_M, CHASE_K, CHASE_S = 4.0, 2.0, 0.3
 
 #: A press of + or -, the reach framed over or times it, and the zoom's bounds.
 ZOOM = (0.25, 4.0)
+ASKED_STATES = 8
+
+
+def _blank_art(width, height):
+    return '\n'.join(' ' * width for _ in range(height))
+
+
+def _compiled_craft(craft_name):
+    """Compile `craft_name`'s C control cores on the boot strip if behind stamp."""
+    from tools.sim import warmed
+    if craft_name not in warmed.MACHINES or warmed.current(craft_name):
+        return
+    with boot('COMPILING CONTROL SYSTEM') as step:
+        ok, told = warmed.ensure(step, machines=(craft_name,))
+    say('ok' if ok else 'fail', 'control system', told)
 
 
 def thrusts(frame, rotors):
@@ -83,6 +100,8 @@ def compose_craft(console, origin, rotors, frame, flight, trace, now, art, yaw, 
                   flown_mod, extra_row=None):
     """One frame for any coaxial aircraft: the 3D viewport and the 5-box side HUD (`FLIGHT`,
     `WIND`, `ROTORS`, `HEIGHT/POWER`, `BUS/PEAK TEMP`)."""
+    if not bindings.UX['column']:
+        return frame_of(console, origin, title, art, [], craft_keys.PAD)
     name, cells, peak, share = flight['stage'], flight['cells'], flight['peak'], flight['share']
     n_rotors = len(rotors)
     weight = craft.MASS_KG * craft.GRAVITY
@@ -279,6 +298,9 @@ def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, loo
     parser.add_argument('--frames', type=int, default=0,
                         help='stop after this many, instead of running until closed')
     args = parser.parse_args(argv)
+    craft_name = craft.__name__.rpartition('.')[2]
+    if not args.frames:
+        _compiled_craft(craft_name)
     emu = not args.simulated and bool(args.port) and str(args.port).startswith('emulator://')
     with boot('LINKING %s ROTORS' % word.upper()) as ready:
         apart = flying.Flying(craft, flown_mod, len(labels), port=args.port if emu else None)
@@ -296,15 +318,16 @@ def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, loo
     else:
         say('warn', 'rotors', banner or ('two stand-in boards on the pilot, %s and %s on the 63100'
                                          % labels))
-    drawing = Ahead(gfx.__name__, 'render')
+    drawing = Ahead(gfx.__name__, 'render', waits=bool(args.frames), laid=True)
     say('ok', 'drawing', drawing.name or 'a process of its own, dots')
-    playback, trace = Playback.steady(flying.blend), []
+    playback, trace = Playback.steady(flying.blend), collections.deque()
+    asked = collections.deque(maxlen=ASKED_STATES)
     held = {'epoch': None, 'shown': None, 'arrows': True, 'line': True, 'carried': True, 'see': 0}
     camera = {'reach': near_m, 'yaw': base_yaw, 'pitch': SIDE_PITCH, 't': None, 'zoom': 1.0}
 
     def zoomed(k):
         camera['zoom'] = max(ZOOM[0], min(ZOOM[1], camera['zoom'] * k))
-    held.update(zoomed=zoomed, record=lambda: recorded(held, craft.__name__.rpartition('.')[2], labels),
+    held.update(zoomed=zoomed, record=lambda: recorded(held, craft_name, labels),
                 send=apart.send)
 
     def took(states):
@@ -321,7 +344,7 @@ def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, loo
                 recorder.added(held['recording'], [flown_row(state['t'], frame, cells, state['rotors'],
                                                              held.pop('keyed', ''))])
         while trace and trace[-1][0] - trace[0][0] > traces.TRACE_S:
-            trace.pop(0)
+            trace.popleft()
         playback.push(states)
 
     took(said)
@@ -345,7 +368,7 @@ def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, loo
         gate = (flight['lap'] or {}).get('gate', 1) if chased else None
         field = getattr(flown_mod, 'FIELD', grounds if chased else airfield)
         line_ = flown.ways(flown_mod.CARD) if chased and held['line'] else False
-        art = '\n'.join(drawing.drawn(
+        lines = drawing.drawn(
             frame, [(r['angle'], r['w'], (r['budget'] or {}).get('winding_c'), r['board_c'],
                      (r.get('cooling') or {}).get('sink_c'))
                     for r in rotors], width, height, yaw=camera['yaw'], pitch=camera['pitch'],
@@ -353,11 +376,18 @@ def run_craft_view(argv, doc, craft, gfx, flown_mod, compose_fn, thrusts_fn, loo
             field=field, thrusts=thrusts_fn(frame, rotors) if held['arrows'] else None,
             line_=line_, see=quadcopter.LAYERS[held['see']],
             inset={**(carried(frame, now['aim'], gate, line_, width, height, field)
-                      if held['carried'] else {}), **recorder.corner(held.get('recording'), width)}))
-        # Drawn a frame ahead: this frame shows the state asked the frame before, its HUD too.
-        (shown, yaw), held['drawn'] = held.get('drawn') or (now, camera['yaw']), (now, camera['yaw'])
+                      if held['carried'] else {}), **recorder.corner(held.get('recording'), width)})
+        asked.append((now, camera['yaw']))
+        if lines is None:
+            art, (shown, yaw) = _blank_art(width, height), (now, camera['yaw'])
+        else:
+            art = Marquee.of(lines, centred=True)
+            shown, yaw = asked[max(0, len(asked) - 1 - drawing.behind)]
+        shown_t = shown['t']
+        tr_rows = list(trace) if not trace or trace[-1][0] <= shown_t else [
+            row for row in trace if row[0] <= shown_t]
         return compose_fn(board_view, origin, shown['rotors'], shown['frame'], shown['flight'],
-                          [row for row in trace if row[0] <= shown['t']], shown['t'], art, yaw=yaw)
+                          tr_rows, shown_t, art, yaw=yaw)
 
     try:
         leaving = run_view(board_view, terminal, 1.0 / max(args.hz, 0.5), args.frames, draw,

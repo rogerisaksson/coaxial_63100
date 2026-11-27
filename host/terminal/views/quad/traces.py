@@ -55,20 +55,41 @@ def _dots(points, now, wide, rows, rule=None, spikes=False):
             dot(x, row_of(rule))
     # A column of dots its samples' mean: every pass joined to the next, the power was a comb
     # of the rotors' loops at their clamp.
-    columns = {}
+    sums, counts, peaks, extras = [0.0] * dots_x, [0] * dots_x, [-math.inf] * dots_x, {}
+    base_x = dots_x - 1
     for t, share in points:
-        column = columns.setdefault(int(round((1.0 - (now - t) / TRACE_S) * (dots_x - 1))), [])
-        column.append(share)
+        x = int(round((1.0 - (now - t) / TRACE_S) * base_x))
+        if 0 <= x < dots_x:
+            sums[x] += share
+            counts[x] += 1
+            if share > peaks[x]:
+                peaks[x] = share
+        else:
+            col = extras.setdefault(x, [0.0, 0, -math.inf])
+            col[0] += share
+            col[1] += 1
+            if share > col[2]:
+                col[2] = share
+    xs = sorted(extras)
+    lo = [x for x in xs if x < 0]
+    hi = [x for x in xs if x >= dots_x]
+    ordered = ([(x, extras[x][0] / extras[x][1], extras[x][2]) for x in lo]
+               + [(x, sums[x] / counts[x], peaks[x]) for x in range(dots_x) if counts[x]]
+               + [(x, extras[x][0] / extras[x][1], extras[x][2]) for x in hi])
     was = None
-    for x in sorted(columns):
-        y = row_of(sum(columns[x]) / len(columns[x]))
+    for x, mean_s, max_s in ordered:
+        y = row_of(mean_s)
         if was is not None:
-            for k in range(1, abs(y - was[1]) + 1):
-                dot(was[0] + (x - was[0]) * k // max(1, abs(y - was[1])),
-                    was[1] + (1 if y > was[1] else -1) * k)
+            span_y = abs(y - was[1])
+            step_y = 1 if y > was[1] else -1
+            dx = x - was[0]
+            denom = span_y if span_y > 1 else 1
+            for k in range(1, span_y + 1):
+                dot(was[0] + dx * k // denom, was[1] + step_y * k)
         dot(x, y)
-        for peak in range(row_of(max(columns[x])), y if spikes else 0):
-            dot(x, peak)
+        if spikes:
+            for peak in range(row_of(max_s), y):
+                dot(x, peak)
         was = (x, y)
     return cells
 
@@ -108,7 +129,8 @@ def heights(trace, now, width):
     its right, to the half kilowatt over its most, a pass's most a spike."""
     marks = {HEIGHT_ROWS - 1 - min(HEIGHT_ROWS - 1, int(height_y(m) * (HEIGHT_ROWS - 1) + 0.5)):
              '%g' % m for m in MARKS}
-    top = max([POWER_W] + [POWER_STEP_W * math.ceil(w / POWER_STEP_W) for _t, _h, _v, w, _c in trace])
+    max_w = max((w for _t, _h, _v, w, _c in trace), default=0.0)
+    top = max(POWER_W, POWER_STEP_W * math.ceil(max_w / POWER_STEP_W))
     return plot(now, width, HEIGHT_ROWS,
                 ([(t, height_y(h)) for t, h, _v, _w, _c in trace], marks, LEFT),
                 ([(t, w / top) for t, _h, _v, w, _c in trace],

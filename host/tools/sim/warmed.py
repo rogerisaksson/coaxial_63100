@@ -233,6 +233,9 @@ def main(argv=None):
     if unknown:
         parser.error('no machine %s: %s' % (', '.join(unknown), ', '.join(MACHINES)))
     from machine.process import placed
+    from tools.cores import raster
+    if not raster.current():
+        raster.ensure()
     late = behind(args.machines or MACHINES)
     os.environ.setdefault(placed.FLOAT, '1')
     if late:

@@ -191,11 +191,19 @@ def grid(m, cam, centre, travel=(0.0, 0.0), pitch=FLOOR_PITCH, half=FLOOR_HALF):
     return out
 
 
+def _noise64():
+    got = _CACHED.get('noise64')
+    if got is None:
+        np = _const()[0]
+        got = _CACHED['noise64'] = np.ascontiguousarray(np.asarray(NOISE, float) / 4096.0)
+    return got
+
+
 def _mask(height, width):
     got = _CACHED.get((height, width))
     if got is None:
         np = _const()[0]
-        noise = np.asarray(NOISE, float) / 4096.0
+        noise = _noise64()
         reps = (height // len(noise) + 1, width // len(noise[0]) + 1)
         got = _CACHED[(height, width)] = np.tile(noise, reps)[:height, :width]
     return got
@@ -251,30 +259,10 @@ def _towed(hand, covered, hits, height, width):
     return 1.0 - WEFT * np.where(right >= left, got[0], got[1]) * (right + left) / np.maximum(hits, 1)
 
 
-def braille(depth, rgb, floor, width, height, colour=True, overlay=None, leaders=None,
-            props=()):
-    """Dot rasters down to cells: a dot where the light clears its screen - the blue noise, a
-    twill's where `rgb`'s fourth tells one (`_screened`), its cells toned as its tows lie
-    (`_towed`) -, the silhouette and every depth step always; the floor's dots where nothing covers it, the `leaders`' dots and the `props`'
-    [(dots, ink[, over])] in their inks - an ink, or one a cell, (height, width, 3) -, where
-    nothing covers them or, `over`, whatever does (a force's arrow), ALONE in their cells where
-    `over` is that: nothing else of what is lit drawn there (a shell's mark), and TINT a cell's
-    ink toward theirs by their mean over it, lighting none (a mark too fine to draw); the `overlay`'s
-    cells {(row, col): (codepoint, key)} over all (`callouts`). Lines, ANSI where `colour`."""
-    np, _k, _f, _h, _p, _bits, floor_ink, leader_ink = _const()
+def _braille_cells_py(depth, rgb, floor, over, alone, leaders, floor_ink, leader_ink, width, height):
+    """Pure-NumPy `(cells, hits, ink)` fold for `braille`, kept as fallback and parity oracle."""
+    np = _const()[0]
     covered = depth > 0.0
-    over, alone = np.zeros_like(covered), None
-    for dots, _ink, *on_top in props:
-        if on_top and on_top[0] == TINT:
-            continue
-        if on_top and on_top[0]:
-            over = over | dots
-            if on_top[0] == ALONE:
-                alone = dots if alone is None else (alone | dots)
-        else:
-            leaders = dots if leaders is None else (leaders | dots)
-    # The colours laid end to end apart from a dot's screen: weighed four a dot the light took
-    # 1.16 ms at 300 x 300, three 0.58 and the laying 0.39.
     tone = np.ascontiguousarray(rgb[..., :3])
     lum = tone @ (0.2126 / 255.0, 0.7152 / 255.0, 0.0722 / 255.0)
     pad = np.pad(depth, 1)
@@ -284,16 +272,13 @@ def braille(depth, rgb, floor, width, height, colour=True, overlay=None, leaders
                       | ((s1 == 0.0) | (np.abs(s1 - depth) > thresh))
                       | ((s2 == 0.0) | (np.abs(s2 - depth) > thresh))
                       | ((s3 == 0.0) | (np.abs(s3 - depth) > thresh)))
-    # A covered cell keeps 0.4 of its dots at the least: on 0.04 + 0.96 lum^1.5 a mid-grey shell
-    # read as a cloud of points. Black paint keeps none - a wing's lettering, on the floor's 0.4 a
-    # blur.
     keep = (0.40 + 0.60 * np.clip(lum, 0.0, 1.0)) * (lum > 0.004)
     mask = _mask(*depth.shape)
     lit = covered & (keep > (_screened(mask, rgb[..., 3]) if rgb.shape[-1] > 3 else mask))
-    if alone is not None:                      # a mark's cells: nothing else of what is lit in them
+    if alone is not None:
         a4 = alone[0::4] | alone[1::4] | alone[2::4] | alone[3::4]
         lit.reshape(height, DOTS_Y, width, DOTS_X).transpose(0, 2, 1, 3)[a4[:, 0::2] | a4[:, 1::2]] = False
-    lit = lit | edge | over
+    lit = lit | edge | (over if over is not None else False)
     ground = (floor > 0.0) & ~covered
     lead = leaders & ~covered if leaders is not None else np.zeros_like(covered)
     on_dots = lit | ground | lead
@@ -304,33 +289,60 @@ def braille(depth, rgb, floor, width, height, colour=True, overlay=None, leaders
              | (on_dots[0::4, 1::2] * BRAILLE_BITS[1][0])
              | (on_dots[1::4, 1::2] * BRAILLE_BITS[1][1])
              | (on_dots[2::4, 1::2] * BRAILLE_BITS[1][2])
-             | (on_dots[3::4, 1::2] * BRAILLE_BITS[1][3]))
+             | (on_dots[3::4, 1::2] * BRAILLE_BITS[1][3])).astype(np.uint8)
     c4 = covered[0::4].astype(int) + covered[1::4] + covered[2::4] + covered[3::4]
-    hits = c4[:, 0::2] + c4[:, 1::2]
-    # A dot nothing covers is black as a raster leaves it (`splat`, a card's): none is cut out.
-    # A cell's ink is the mean of the dots it may draw: black paint's, never drawn, are no part
-    # of it - a pad's cells over its black backing were half as bright as their foam.
+    hits = (c4[:, 0::2] + c4[:, 1::2]).astype(np.uint8)
     m4 = tone[0::4].astype(int) + tone[1::4] + tone[2::4] + tone[3::4]
     inked = covered & (lum > 0.004)
     i4 = inked[0::4].astype(int) + inked[1::4] + inked[2::4] + inked[3::4]
     body = (m4[:, 0::2] + m4[:, 1::2]) / np.maximum(i4[:, 0::2] + i4[:, 1::2], 1)[..., None]
     body = np.clip(body * 1.2 + 18.0, 0.0, 255.0)
-    if rgb.shape[-1] > 3 and (rgb[..., 3] < 208).any():                 # carbon's tows, a cell a thread
+    if rgb.shape[-1] > 3 and (rgb[..., 3] < 208).any():
         body = body * _towed(rgb[..., 3], covered, hits, height, width)[..., None]
     shine = floor.reshape(height, DOTS_Y, width, DOTS_X).max(axis=(1, 3))
-    text = np.where(cells > 0, BRAILLE + cells, ord(' ')).tolist()
-    for (row, col), (char, _ink) in (overlay or {}).items():
-        text[row][col] = char
-    if not colour:
-        return [''.join(map(chr, row)) for row in text]
-    # A cell's ink in steps of INK_STEP a channel, so runs of it share one escape; a blank cell
-    # takes its left neighbour's, so a gap does not break a run. Cell by cell: 11.7 ms a frame at
-    # 180 x 56, and rich parsed an escape a cell after it.
     no_hit = hits == 0
     ink = np.where((hits > 0)[..., None], body, floor_ink * shine[..., None])
     led = (lead[0::4] | lead[1::4] | lead[2::4] | lead[3::4])
     led = (led[:, 0::2] | led[:, 1::2]) & no_hit
     ink = np.where(led[..., None], leader_ink, ink)
+    return cells, hits, ink
+
+
+def braille(depth, rgb, floor, width, height, colour=True, overlay=None, leaders=None,
+            props=()):
+    """Dot rasters down to cells: a dot where the light clears its screen - the blue noise, a
+    twill's where `rgb`'s fourth tells one (`_screened`), its cells toned as its tows lie
+    (`_towed`) -, the silhouette and every depth step always; the floor's dots where nothing covers it, the `leaders`' dots and the `props`'
+    [(dots, ink[, over])] in their inks - an ink, or one a cell, (height, width, 3) -, where
+    nothing covers them or, `over`, whatever does (a force's arrow), ALONE in their cells where
+    `over` is that: nothing else of what is lit drawn there (a shell's mark), and TINT a cell's
+    ink toward theirs by their mean over it, lighting none (a mark too fine to draw); the `overlay`'s
+    cells {(row, col): (codepoint, key)} over all (`callouts`). Lines, ANSI where `colour`."""
+    from tools.cores import raster as c_raster
+    np, _k, _f, _h, _p, _bits, floor_ink, leader_ink = _const()
+    over, alone = None, None
+    for dots, _ink, *on_top in props:
+        if on_top and on_top[0] == TINT:
+            continue
+        if on_top and on_top[0]:
+            over = dots if over is None else (over | dots)
+            if on_top[0] == ALONE:
+                alone = dots if alone is None else (alone | dots)
+        else:
+            leaders = dots if leaders is None else (leaders | dots)
+    folded = c_raster.braille_cells(depth, rgb, floor, _noise64(), over, alone, leaders,
+                                    floor_ink, leader_ink, width, height)
+    if folded is None:
+        cells, hits, ink = _braille_cells_py(depth, rgb, floor, over, alone, leaders,
+                                             floor_ink, leader_ink, width, height)
+    else:
+        cells, hits, ink = folded
+    text = np.where(cells > 0, BRAILLE + cells.astype(int), ord(' ')).tolist()
+    for (row, col), (char, _ink) in (overlay or {}).items():
+        text[row][col] = char
+    if not colour:
+        return [''.join(map(chr, row)) for row in text]
+    no_hit = hits == 0
     for dots, prop_ink, *on_top in props:
         if on_top and on_top[0] == TINT:       # toward its ink by its mean over each cell, on what is lit
             c4 = dots[0::4] + dots[1::4] + dots[2::4] + dots[3::4]

@@ -33,7 +33,7 @@ from coaxial.model.thermal_app import APPLICATIONS
 from coaxial.simulated.sto import PILOT_HZ
 from tools import REPO
 from tools.cores import fakeboard
-from tools.cores.build import FAST, OUT, cached, find_cc
+from tools.cores.build import FAST, OUT, cached, find_cc, is_built
 from tools.cores.model import built
 from tools.cores.native_trace import TRACE, traced
 from tools.emu import world as worlds
@@ -101,6 +101,22 @@ _BUILT = {}
 _COPIES = itertools.count()
 _LIMBS = {}
 _LOCK = threading.RLock()
+
+
+def current():
+    """Whether the native board and world shared libraries are already compiled for this tree."""
+    if 'board' in _BUILT and 'world' in _BUILT:
+        return True
+    from machine.body import mechatronics
+    b_name = ('native_board' if mechatronics.ROBOT == mechatronics.STOCK
+              else 'native_board_' + mechatronics.ROBOT)
+    return (is_built(built(SOURCES), INCLUDES, b_name, EXTRA + tuple(FAST))
+            and is_built(worlds.SOURCES, worlds.INCLUDES, 'native_world', FAST))
+
+
+def ensure():
+    """Ensure the native board and world shared libraries are built."""
+    return _libraries()
 
 
 def _libraries():
@@ -262,9 +278,23 @@ class Limb:
         self._line = 0                 # the line's last activity, us of the limb's clock
         self._start = time.monotonic()
         self._stop = threading.Event()
+        self._wake = threading.Event()
+        self._open = 0
         self._asked, self._load = (self._start, 0), 1.0
         self._thread = threading.Thread(target=self._pace, name='native limb', daemon=True)
         self._thread.start()
+
+    def attach(self):
+        """Mark one serial handle open on this limb and wake the real-time pacer if parked."""
+        with self.lock:
+            self._open += 1
+            self._start = max(self._start, time.monotonic() - self._us / 1e6 - 0.5 * HOST_QUIET_S)
+        self._wake.set()
+
+    def detach(self):
+        """Release one serial handle on this limb."""
+        with self.lock:
+            self._open = max(0, self._open - 1)
 
     def seconds(self):
         """The limb's clock, s."""
@@ -354,27 +384,46 @@ class Limb:
             self._us = us
 
     def _pace(self):
-        """The boards' clocks held to the wall's, a lockstep at a time."""
+        """The boards' clocks held to the wall's, a lockstep at a time; parked once closed past deadman."""
         timer = getattr(ctypes, 'windll', None)
+        period_on = False
         if timer is not None:
             timer.winmm.timeBeginPeriod(1)
+            period_on = True
         try:
             last = time.monotonic()
+            quiet_us = int((HOST_QUIET_S + 1.0) * 1e6)
             while not self._stop.wait(PACE_S):
+                park = False
                 woke = time.monotonic() if TRACE else 0.0
                 with self.lock:
                     held = time.monotonic() if TRACE else 0.0
                     wall = int((time.monotonic() - self._start) * 1e6)
                     if wall - self._us >= PACE_S * 1e6:
                         self._run_to(min(wall, self._us + int(BURST_S * 1e6)))
+                    if self._open <= 0 and (self._us - self._line) > quiet_us:
+                        park = True
+                        self._wake.clear()
                 if TRACE:
                     ran = time.monotonic()
                     if max(woke - last, held - woke, ran - held) > BURST_S:
                         traced('pace', gap_s=round(woke - last, 3), lock_s=round(held - woke, 3),
                                run_s=round(ran - held, 3), board_s=self._us / 1e6)
                     last = ran
+                if park:
+                    if period_on and timer is not None:
+                        timer.winmm.timeEndPeriod(1)
+                        period_on = False
+                    while not self._stop.is_set() and not self._wake.wait(0.25):
+                        pass
+                    if self._stop.is_set():
+                        return
+                    if not period_on and timer is not None:
+                        timer.winmm.timeBeginPeriod(1)
+                        period_on = True
+                    last = time.monotonic()
         finally:
-            if timer is not None:
+            if period_on and timer is not None:
                 timer.winmm.timeEndPeriod(1)
 
     def send(self, data):
@@ -407,6 +456,7 @@ class Limb:
             self._us = max(self._us, int(max(board.seconds() for board in self.boards) * 1e6))
             self._line = self._us
             ahead = self._us / 1e6 - (time.monotonic() - self._start)
+        self._wake.set()
         if ahead > 0.0:
             time.sleep(ahead)
 

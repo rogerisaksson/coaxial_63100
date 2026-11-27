@@ -1,4 +1,4 @@
-/** raster.c - O(N) C11 3D mesh transform, projection, and 2x2 dot-splat rasterizer kernels. */
+/** raster.c - C11 3D mesh transform, projection, 2x2 dot-splat, and triangle rasterizer kernels. */
 #include <math.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -205,6 +205,148 @@ void rs_splat(int n, const double *restrict pos, const uint32_t *restrict materi
         depth[pix] = best_w[t];
         win[pix] = best_idx[t];
       }
+    }
+  }
+}
+
+static void rs_project_solid(int nverts, const double *restrict pos, const double *restrict m9,
+                             double distance, double scale, double cx, double cy, double aspect,
+                             double *restrict sx, double *restrict sy, double *restrict ooz)
+{
+  const double m0 = m9[0], m1 = m9[1], m2 = m9[2];
+  const double m3 = m9[3], m4 = m9[4], m5 = m9[5];
+  const double m6 = m9[6], m7 = m9[7], m8 = m9[8];
+  for (int i = 0; i < nverts; i++)
+  {
+    const size_t o = (size_t)i * 3u;
+    const double x = pos[o], y = pos[o + 1u], z = pos[o + 2u];
+    const double tx = (m0 * x + m1 * y) + m2 * z;
+    const double ty = (m3 * x + m4 * y) + m5 * z;
+    const double tz = (m6 * x + m7 * y) + m8 * z;
+    const double w = 1.0 / (distance - tz);
+    sx[i] = cx + (scale * w) * tx;
+    sy[i] = cy - ((scale * aspect) * w) * ty;
+    ooz[i] = w;
+  }
+}
+
+static void rs_scan_triangle(double x0, double y0, double x1, double y1, double x2, double y2,
+                             double oa, double ob, double og, double area, uint8_t flat,
+                             uint8_t lit, int width, int first, int last, double *restrict depth,
+                             uint8_t *restrict top, uint8_t *restrict sun)
+{
+  const double w_lim = (double)width;
+  const double y_lo_lim = (double)first - 2.0;
+  const double y_hi_lim = (double)last;
+  const double min_x = (x0 < x1) ? ((x0 < x2) ? x0 : x2) : ((x1 < x2) ? x1 : x2);
+  const double max_x = (x0 > x1) ? ((x0 > x2) ? x0 : x2) : ((x1 > x2) ? x1 : x2);
+  const double min_y = (y0 < y1) ? ((y0 < y2) ? y0 : y2) : ((y1 < y2) ? y1 : y2);
+  const double max_y = (y0 > y1) ? ((y0 > y2) ? y0 : y2) : ((y1 > y2) ? y1 : y2);
+  const double cx_max = (max_x < -2.0) ? -2.0 : ((max_x > w_lim) ? w_lim : max_x);
+  const double cy_max = (max_y < y_lo_lim) ? y_lo_lim : ((max_y > y_hi_lim) ? y_hi_lim : max_y);
+  const int    lo_x = (min_x <= 0.0) ? 0 : ((min_x >= w_lim) ? width : (int)min_x);
+  const int    rx_hi = (int)cx_max + 1;
+  const int    hi_x = (rx_hi < width) ? rx_hi : (width - 1);
+  const int    lo_y = (min_y <= (double)first) ? first : ((min_y >= y_hi_lim) ? last : (int)min_y);
+  const int    ry_hi = (int)cy_max + 1;
+  const int    hi_y = (ry_hi < last) ? ry_hi : (last - 1);
+  if (hi_x < lo_x || hi_y < lo_y)
+  {
+    return;
+  }
+  const double inv = 1.0 / area;
+  const double e0x = x2 - x1, e0y = y2 - y1;
+  const double e1x = x0 - x2, e1y = y0 - y2;
+  for (int py = lo_y; py <= hi_y; py++)
+  {
+    const size_t row = (size_t)(py - first) * (size_t)width;
+    const double r0 = e0x * ((double)py - y1);
+    const double r1 = e1x * ((double)py - y2);
+    int          inside = 0;
+    for (int px = lo_x; px <= hi_x; px++)
+    {
+      const double w0 = (r0 - e0y * ((double)px - x1)) * inv;
+      const double w1 = (r1 - e1y * ((double)px - x2)) * inv;
+      const double w2 = (1.0 - w0) - w1;
+      if (w0 < 0.0 || w1 < 0.0 || w2 < 0.0)
+      {
+        if (inside)
+        {
+          break;
+        }
+        continue;
+      }
+      inside = 1;
+      const double here = (w0 * oa + w1 * ob) + w2 * og;
+      const size_t at = row + (size_t)px;
+      if (here > depth[at])
+      {
+        depth[at] = here;
+        top[at] = flat;
+        sun[at] = lit;
+      }
+    }
+  }
+}
+
+/** Rasterize indexed triangles onto `[first, last)` rows matching `engine.raster` bit-for-bit. */
+void rs_triangles(int nverts, const double *restrict pos, int ntris, const int32_t *restrict idx,
+                  const double *restrict nrm, const double *restrict m9, double distance,
+                  double scale, double cx, double cy, double aspect, double lx, double ly,
+                  double lz, double sun_min, int width, int first, int last, double *restrict sx,
+                  double *restrict sy, double *restrict ooz, double *restrict depth,
+                  uint8_t *restrict top, uint8_t *restrict sun)
+{
+  const int rows = last - first;
+  if (width <= 0 || rows <= 0)
+  {
+    return;
+  }
+  const size_t npix = (size_t)width * (size_t)rows;
+  memset(depth, 0, npix * sizeof(double));
+  memset(top, 0, npix);
+  memset(sun, 0, npix);
+  if (nverts <= 0 || ntris <= 0)
+  {
+    return;
+  }
+  rs_project_solid(nverts, pos, m9, distance, scale, cx, cy, aspect, sx, sy, ooz);
+
+  const double m0 = m9[0], m1 = m9[1], m2 = m9[2];
+  const double m3 = m9[3], m4 = m9[4], m5 = m9[5];
+  const double m6 = m9[6], m7 = m9[7], m8 = m9[8];
+  for (int t = 0; t < ntris; t++)
+  {
+    const size_t to = (size_t)t * 3u;
+    const int    a = (int)idx[to], b = (int)idx[to + 1u], c = (int)idx[to + 2u];
+    const double bx = nrm[to], by = nrm[to + 1u], bz = nrm[to + 2u];
+    double       nx = (m0 * bx + m1 * by) + m2 * bz;
+    double       ny = (m3 * bx + m4 * by) + m5 * bz;
+    double       nz = (m6 * bx + m7 * by) + m8 * bz;
+    if (nz < 0.0)
+    {
+      nx = -nx;
+      ny = -ny;
+      nz = -nz;
+    }
+    const uint8_t lit = ((bz > 0.0) && (((nx * lx + ny * ly) + nz * lz) > sun_min)) ? 1u : 0u;
+    const uint8_t flat = ((bz > 0.9) || (bz < -0.9)) ? 1u : 0u;
+    double        x0 = sx[a], y0 = sy[a], x1 = sx[b], y1 = sy[b], x2 = sx[c], y2 = sy[c];
+    double        area = (x1 - x0) * (y2 - y0) - (y1 - y0) * (x2 - x0);
+    if (area == 0.0)
+    {
+      continue;
+    }
+    double oa = ooz[a], ob = ooz[b], og = ooz[c];
+    if (area < 0.0)
+    {
+      rs_scan_triangle(x0, y0, x2, y2, x1, y1, oa, og, ob, -area, flat, lit, width, first, last,
+                       depth, top, sun);
+    }
+    else
+    {
+      rs_scan_triangle(x0, y0, x1, y1, x2, y2, oa, ob, og, area, flat, lit, width, first, last,
+                       depth, top, sun);
     }
   }
 }

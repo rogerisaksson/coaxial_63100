@@ -53,6 +53,7 @@ LISTED = ENTRIES + (('Q', 'QUIT', 'leave the terminal'),)
 #: Each entry's machine, its page's COMPILED (None for a page that lays none): its row greyed and not chosen while
 #: its control system compiles (`terminal.compiling`).
 MACHINES = tuple(getattr(page, 'COMPILED', None) for page in loader.pages())
+NEEDS = tuple(compiling.needs_of(page) for page in loader.pages())
 
 
 #: The braille spinner in front of an entry whose machine compiles: a dot gone round a full cell, SPIN_HZ a second,
@@ -61,9 +62,14 @@ SPIN, SPIN_HZ = '⣾⣽⣻⢿⡿⣟⣯⣷', 10.0
 
 
 def _compiling(at, now=None):
-    """What entry `at`'s row says while its machine compiles, None when it may be chosen."""
-    machine = MACHINES[at] if at < len(MACHINES) else None
-    return compiling.said(machine, now) if machine is not None else None
+    """What entry `at`'s row says while its machine or C11/mesh dependency compiles, None when ready."""
+    if at >= len(NEEDS):
+        return None
+    for target in NEEDS[at]:
+        said = compiling.said(target, now)
+        if said is not None:
+            return said
+    return None
 
 
 def spun(at, now):
@@ -135,11 +141,17 @@ def _watch_link(port, stop=None):
 
     while stop is None or not stop.is_set():
         if str(port).startswith('native:'):
-            from tools.cores.native import limb_for
+            from tools.cores import native
+            cold_board = not native.current()
+            if cold_board:
+                compiling.note('board', 'STM32H753 NATIVE FIRMWARE & WORLD C11')
             try:
-                limb_for(str(port))
+                native.limb_for(str(port))
             except RuntimeError:
                 pass
+            finally:
+                if cold_board:
+                    compiling.done('board')
             if stop is not None and stop.is_set():
                 return
         try:

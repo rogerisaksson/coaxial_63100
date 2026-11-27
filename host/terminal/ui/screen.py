@@ -286,7 +286,10 @@ class Beat:
         if not self.works:
             return 0.0
         ordered = sorted(self.works)
-        return min(LEAD_MAX_S, ordered[int(LEAD_SHARE * (len(ordered) - 1))] + LEAD_MARGIN_S)
+        raw = ordered[int(LEAD_SHARE * (len(ordered) - 1))] + LEAD_MARGIN_S
+        if len(ordered) >= 4:
+            raw = min(raw, max(self.period, 2.0 * ordered[len(ordered) // 2] + LEAD_MARGIN_S))
+        return min(LEAD_MAX_S, raw)
 
     def slot(self, began):
         """When the frame begun at `began` is to be written."""
@@ -352,7 +355,8 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
                     if console:
                         board_view._buffer.append(Segment(SYNC_END))
                     worked = time.perf_counter()
-                    beat.took(worked - began)
+                    if count > 1:
+                        beat.took(worked - began)
                     rest = _DRAWN_AT[0] - worked
                     if rest > 0.0:
                         time.sleep(rest)

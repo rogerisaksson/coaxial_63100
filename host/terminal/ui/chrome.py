@@ -11,6 +11,7 @@ Over a page's drawing (`Chrome`): lock brackets round what the page draws, `\uff
 kana, blinking, over a teal subtag bottom right. Chrome only fills blanks: nothing the
 page draws is covered, and a piece with no room is left out whole. KANA names each page.
 """
+import functools
 import random
 import time
 
@@ -75,6 +76,12 @@ BLANK = ' \u2800'
 
 #: A wide character's second cell in a row's cells.
 WIDE = '\0'
+_FREE3 = b'\x01\x01\x01'
+
+
+@functools.lru_cache(maxsize=4096)
+def _seg_width(text):
+    return len(text) if text.isascii() else cell_len(text)
 
 
 class _Row:
@@ -87,9 +94,10 @@ class _Row:
 
     def __init__(self, line):
         self.segs, self.put = [seg for seg in line if not seg.control], {}
-        text = ''.join(seg.text for seg in self.segs)
-        if cell_len(text) == len(text):             # a cell a char: the row measured once
-            self.text, self.bg, at = text, bytearray(len(text)), 0
+        widths = [_seg_width(seg.text) for seg in self.segs]
+        if all(w == len(seg.text) for w, seg in zip(widths, self.segs)):
+            self.text = ''.join(seg.text for seg in self.segs)
+            self.bg, at = bytearray(len(self.text)), 0
             for seg in self.segs:
                 end = at + len(seg.text)
                 if seg.style is not None and seg.style.bgcolor is not None:
@@ -97,15 +105,15 @@ class _Row:
                 at = end
             return
         chars, self.bg = [], bytearray()
-        for seg in self.segs:
+        for w, seg in zip(widths, self.segs):
             text, style = seg.text, seg.style
             back = b'\x01' if style is not None and style.bgcolor is not None else b'\x00'
-            if cell_len(text) == len(text):
+            if w == len(text):
                 chars.append(text)
                 self.bg += back * len(text)
                 continue
             for ch in text:
-                wide = cell_len(ch) == 2
+                wide = _seg_width(ch) == 2
                 chars.append(ch + WIDE if wide else ch)
                 self.bg += back * (2 if wide else 1)
         self.text = ''.join(chars)
@@ -138,7 +146,7 @@ class _Row:
         puts, k, at = sorted(self.put), 0, 0
         for seg in self.segs:
             text, style = seg.text, seg.style
-            width = cell_len(text)
+            width = _seg_width(text)
             here = []
             while k < len(puts) and puts[k] < at + width:
                 here.append(puts[k])
@@ -147,8 +155,8 @@ class _Row:
                 yield seg
                 at += width
                 continue
-            cells = [ch for ch in text] if width == len(text) else [
-                piece for ch in text for piece in ((ch, '') if cell_len(ch) == 2 else (ch,))]
+            cells = list(text) if width == len(text) else [
+                piece for ch in text for piece in ((ch, '') if _seg_width(ch) == 2 else (ch,))]
             for c in here:
                 cells[c - at] = None
             run = []
@@ -258,16 +266,30 @@ class Crt:
 
 def _crt(rows, t):
     height, width = len(rows), len(rows[0].text)
+    stride = width + 2
+    free = bytearray(b'\x01' * (stride * (height + 2)))
+    for r, row in enumerate(rows):
+        base = (r + 1) * stride + 1
+        txt, bg, put = row.text, row.bg, row.put
+        for c in range(width):
+            cell = put.get(c)
+            is_blank = (txt[c] in BLANK and not bg[c]) if cell is None else (
+                cell[0] in BLANK and (cell[1] is None or cell[1].bgcolor is None))
+            if not is_blank:
+                free[base + c] = 0
     rng = random.Random(int(t * NOISE_HZ))
 
     def clear(r, c):
         """Off any text or line by a cell: a dot beside one reads as part of it."""
-        return all(rows[m].blank(n) for m in (r - 1, r, r + 1) for n in (c - 1, c, c + 1)
-                   if 0 <= m < height and 0 <= n < width)
+        o = (r + 1) * stride + c
+        return (free[o - stride:o - stride + 3] == _FREE3
+                and free[o:o + 3] == _FREE3
+                and free[o + stride:o + stride + 3] == _FREE3)
     for _ in range(int(NOISE * width * height)):
         r, c = rng.randrange(height), rng.randrange(width)
         if clear(r, c):
             rows[r].put[c] = (chr(0x2800 + (1 << rng.randrange(8))), rng.choice(SNOW))
+            free[(r + 1) * stride + c + 1] = 0
     # The sweep: faint braille at the beam, thinning and dimming behind it.
     beam = (t / SWEEP_S) % 1.0 * (height + DECAY_ROWS)
     for r in range(max(0, int(beam - DECAY_ROWS)), min(height, int(beam) + 1)):
@@ -279,3 +301,4 @@ def _crt(rows, t):
             c = rng.randrange(width)
             if clear(r, c):
                 rows[r].put[c] = (chr(0x2800 + (1 << rng.randrange(8))), ink)
+                free[(r + 1) * stride + c + 1] = 0
