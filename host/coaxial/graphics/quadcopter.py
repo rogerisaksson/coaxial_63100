@@ -238,7 +238,7 @@ def pose_meshes(pose, rotors, dense, frame, moving):
         (lambda m: (m.corners, m.normals, m.uv, m.materials))
     fp, fn, fuv, _fm = pick(frame)
     parts_pn = [(fp, fn)]
-    turns = [turn.T.ravel()]
+    turns = [turn.ravel()]
     spots = [at]
     m_mats = []
     total_n = len(fp)
@@ -246,7 +246,7 @@ def pose_meshes(pose, rotors, dense, frame, moving):
         here = turn @ rot_local
         p, n, _u, m = pick(part)
         parts_pn.append((p, n))
-        turns.append(here.T.ravel())
+        turns.append(here.ravel())
         spots.append(at + turn @ np.asarray(spot, float))
         m_mats.append(m)
         total_n += len(p)
@@ -266,8 +266,8 @@ def pose_meshes(pose, rotors, dense, frame, moving):
         )
     posed = c_raster.pose_parts(parts_pn, np.asarray(turns, float), np.asarray(spots, float), total_n)
     if posed is None:
-        pos_l = [fp @ turn.T + at] + [p @ t.reshape(3, 3) + s for (p, _n), t, s in zip(parts_pn[1:], turns[1:], spots[1:])]
-        nrm_l = [fn @ turn.T] + [n @ t.reshape(3, 3) for (_p, n), t in zip(parts_pn[1:], turns[1:])]
+        pos_l = [fp @ turn.T + at] + [p @ t.reshape(3, 3).T + s for (p, _n), t, s in zip(parts_pn[1:], turns[1:], spots[1:])]
+        nrm_l = [fn @ turn.T] + [n @ t.reshape(3, 3).T for (_p, n), t in zip(parts_pn[1:], turns[1:])]
         out_p = pos_l[0] if len(pos_l) == 1 else np.concatenate(pos_l)
         out_n = nrm_l[0] if len(nrm_l) == 1 else np.concatenate(nrm_l)
     else:

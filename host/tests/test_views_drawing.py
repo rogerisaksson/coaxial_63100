@@ -355,18 +355,31 @@ def test_c11_raster_cells_parity(report):
     ys_p, xs_p, w_p, wh_p = scenery.strokes_twin(ends, m_s, cam_s, ctr_s)
     strokes_ok = (np.array_equal(ys_c, ys_p) and np.array_equal(xs_c, xs_p)
                   and np.array_equal(wh_c, wh_p) and np.array_equal(w_c.view(np.uint64), w_p.view(np.uint64)))
-    pose = {'turn': np.asarray(shapes.view(18.0, -12.0)).reshape(3, 3), 'at': (0.2, 2.4, -5.0)}
+    turn_q = shapes.turn_about('z', 28.0) @ shapes.turn_about('x', -19.0) @ shapes.turn_about('y', 43.0)
+    at_q = np.array([0.2, 2.4, -5.0])
+    pose = {'turn': turn_q, 'at': at_q, 'controls': (0.4, 0.25, -0.3, 0.15)}
     rotors = [(0.5, 420.0, 48.0, 42.0, 36.0), (1.2, 10.0, 49.0, 43.0, 36.5),
-              (2.1, 420.0, 47.0, 41.0, 35.5), (0.8, 420.0, 48.5, 42.5, 36.0)]
+              (2.1, 420.0, 47.0, 41.0, 35.5), (0.8, 8.0, 48.5, 42.5, 36.0)]
     pos_c, nrm_c, uv_c, mat_c, idx_c = quadcopter._posed(pose, rotors, True, 'shell')
+    from machine.aircraft import quad as quad_phys
+    q_frame, q_prop = quadcopter.mesh('frame', 'shell'), quadcopter.mesh('prop')
+    q_mov = [(q_prop, shapes.turn_about('y', math.degrees(sp * r[0])), (rx, quad_phys.DISC_M + 0.006, rz))
+             for (rx, rz), sp, r in zip(quad_phys.ROTOR_AT, quad_phys.SPIN, rotors)
+             if abs(r[1]) < quadcopter.BLADES_RAD_S]
+    ref_p = np.concatenate([q_frame.dense[0] @ turn_q.T + at_q]
+                           + [pt.dense[0] @ (turn_q @ rl).T + at_q + turn_q @ np.asarray(sp3, float)
+                              for pt, rl, sp3 in q_mov])
+    ref_n = np.concatenate([q_frame.dense[1] @ turn_q.T]
+                           + [pt.dense[1] @ (turn_q @ rl).T for pt, rl, _sp3 in q_mov])
+    pose_err = max(float(np.max(np.abs(pos_c - ref_p))), float(np.max(np.abs(nrm_c - ref_n))))
     pic = onboard.picture((0.0, 2.5, -6.0), (0.15, -0.12, 0.08), gate=0, line_=True)
     thumb = rng.integers(0, 256, (32, 48, 3), dtype=np.uint8)
     eyes_box = inset.eyes((thumb, [('chair', (210, 150, 80), [(80, 120), (220, 110), (240, 290), (70, 280)])]), 104, 36)
-    report.check('C11 raster_strokes.c lines, strokes, ground, pose_parts and insets hold 0-ULP parity',
-                 lines_ok and ground_ok and strokes_ok
+    report.check('C11 raster_strokes.c lines, strokes, ground, pose_parts and insets hold parity',
+                 lines_ok and ground_ok and strokes_ok and pose_err <= 1e-14
                  and len(pos_c) == len(nrm_c) == len(uv_c) == len(mat_c) and len(idx_c) > 0
                  and len(pic) == onboard.HIGH and len(eyes_box) > 0,
-                 'lines=%s ground=%s strokes=%s' % (lines_ok, ground_ok, strokes_ok))
+                 'lines=%s ground=%s strokes=%s pose_err=%.2e' % (lines_ok, ground_ok, strokes_ok, pose_err))
 
 
 ROSTER = (test_lines_draw_what_line_draws, test_c11_raster_cells_parity, test_the_level_is_drawn_at_the_dot,
