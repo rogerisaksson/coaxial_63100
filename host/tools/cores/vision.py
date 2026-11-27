@@ -8,15 +8,19 @@ import numpy as np
 
 from tools.cores import build
 
-VISION_C = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'vision.c')
+_DIR = os.path.dirname(os.path.abspath(__file__))
+VISION_C = os.path.join(_DIR, 'vision.c')
+VISION_EPI_C = os.path.join(_DIR, 'vision_epi.c')
+VISION_SOURCES = [VISION_C, VISION_EPI_C]
 VISION_FLAGS = ('-O3', '-ffp-contract=off', '-fno-math-errno', '-fno-trapping-math',
                 '-fvect-cost-model=dynamic') + build.native()
+MAX_THREADS = 8
 _vision_tls = threading.local()
 
 
 def current() -> bool:
     """Whether `vision.c` is already loaded or compiled on disk for this host."""
-    return _lib.cache_info().currsize > 0 or build.is_built([VISION_C], [], 'vision', VISION_FLAGS)
+    return _lib.cache_info().currsize > 0 or build.is_built(VISION_SOURCES, [], 'vision', VISION_FLAGS)
 
 
 def ensure():
@@ -29,7 +33,7 @@ def _lib():
     """Compile and load `vision.c`, or return `None` when no host C compiler is available."""
     if build.find_cc() is None:
         return None
-    path, _warn = build.cached([VISION_C], [], 'vision', VISION_FLAGS)
+    path, _warn = build.cached(VISION_SOURCES, [], 'vision', VISION_FLAGS)
     lib = ctypes.CDLL(path)
     i32, i64, f32, f64, vp = (ctypes.c_int32, ctypes.c_int64, ctypes.c_float,
                               ctypes.c_double, ctypes.c_void_p)
@@ -42,6 +46,12 @@ def _lib():
         vp, vp, vp, vp, vp, vp, vp, vp, vp, vp, vp, vp, vp,
     ]
     lib.vs_stereo_core.restype = i32
+    lib.vs_stereo_post.argtypes = [
+        vp, vp, vp, vp, vp, vp, vp, vp,
+        i32, i32, i32, i32, f64, f32,
+        vp, vp, vp, vp, vp, vp,
+    ]
+    lib.vs_stereo_post.restype = None
     lib.vs_voxel_add.argtypes = [
         vp, vp, i32, vp, i32, i32, i32,
         f64, f64, f64, f64, f64, f64, f64, f64, i32, i32,
@@ -50,6 +60,10 @@ def _lib():
     lib.vs_voxel_add.restype = None
     lib.vs_warp_u8.argtypes = [vp, vp, vp, vp, i32, i32, i32, vp]
     lib.vs_warp_u8.restype = None
+    lib.vs_epi_from_d.argtypes = [vp, i32, i32, f64, i32, i32, vp, vp, vp, vp, vp]
+    lib.vs_epi_from_d.restype = None
+    lib.vs_epi_kept.argtypes = [vp, vp, vp, i32, i32, vp]
+    lib.vs_epi_kept.restype = None
     return lib
 
 
@@ -62,15 +76,23 @@ def _stereo_scratch(height: int, width: int, d_stride: int, rad: int):
         got = (
             key,
             np.empty(4 * npix, dtype=np.uint64),
+            np.empty(npix * d_stride, dtype=np.uint8),
             np.empty(npix * d_stride, dtype=np.float32),
-            np.empty(npix * d_stride, dtype=np.float32),
-            np.empty(2 * width * (d_stride + 2), dtype=np.float32),
-            np.empty(ring_rows * width, dtype=np.int64),
-            np.empty(width, dtype=np.int64),
+            np.empty((height + width) * (d_stride + 2), dtype=np.float32),
+            np.empty(MAX_THREADS * ring_rows * width, dtype=np.int64),
+            np.empty(max(MAX_THREADS * width, width + 2 * npix), dtype=np.int64),
             np.empty(npix, dtype=np.int64),
             np.empty(npix, dtype=np.int64),
             np.empty(npix, dtype=np.int64),
             np.empty(npix, dtype=np.int64),
+            np.empty(npix, dtype=np.int64),
+            np.empty(npix, dtype=np.int64),
+            np.empty(npix, dtype=np.float32),
+            np.empty(npix, dtype=np.float32),
+            np.empty(npix, dtype=np.int64),
+            np.empty(npix, dtype=np.float32),
+            np.empty(npix, dtype=np.float32),
+            np.empty(npix, dtype=np.float32),
         )
         _vision_tls.stereo = got
     return got[1:]
@@ -117,8 +139,9 @@ def disparity(left, right, d_count: int, census_xy: tuple[int, int], quantum: in
     height, width = l_arr.shape[:2]
     npix = height * width
     rad = int(window) // 2
-    (census_buf, cost_hwd, total_hwd, wave_buf, ring_buf, vsum_buf,
-     box_a, box_b, gl_buf, gr_buf) = _stereo_scratch(height, width, d_stride, rad)
+    (census_buf, cost_u8, total_hwd, wave_buf, ring_buf, vsum_buf,
+     box_a, box_b, box_c, gl_buf, gr_buf, best, tbest, second, seen, c0, lo, hi) = _stereo_scratch(
+         height, width, d_stride, rad)
     if l_arr.dtype == np.uint8 and l_arr.shape == (height, width, 3):
         lc = np.ascontiguousarray(l_arr)
         lib.vs_grey_u8(lc.ctypes.data, gl_buf.ctypes.data, npix)
@@ -132,53 +155,26 @@ def disparity(left, right, d_count: int, census_xy: tuple[int, int], quantum: in
     else:
         gr = np.ascontiguousarray(grey_fn(r_arr, np), dtype=np.int64)
 
-    best = np.empty((height, width), dtype=np.int64)
-    tbest = np.empty((height, width), dtype=np.float32)
-    second = np.empty((height, width), dtype=np.float32)
-    seen = np.empty((height, width), dtype=np.int64)
-    c0 = np.empty((height, width), dtype=np.float32)
-    lo = np.empty((height, width), dtype=np.float32)
-    hi = np.empty((height, width), dtype=np.float32)
     status = lib.vs_stereo_core(
         gl.ctypes.data, gr.ctypes.data, height, width, int(d_count), d_stride,
         int(census_xy[0]) // 2, int(census_xy[1]) // 2, int(quantum), rad,
         float(p1), float(p2),
-        census_buf.ctypes.data, cost_hwd.ctypes.data, total_hwd.ctypes.data,
+        census_buf.ctypes.data, cost_u8.ctypes.data, total_hwd.ctypes.data,
         wave_buf.ctypes.data, ring_buf.ctypes.data, vsum_buf.ctypes.data,
         best.ctypes.data, tbest.ctypes.data, second.ctypes.data, seen.ctypes.data,
         c0.ctypes.data, lo.ctypes.data, hi.ctypes.data,
     )
     if status != 0:
         return None
-    denom = lo - 2.0 * c0 + hi
-    curved = np.isfinite(denom) & (denom > 1e-6)
-    sub = np.zeros_like(c0)
-    sub[curved] = 0.5 * (lo[curved] - hi[curved]) / denom[curved]
-    disp = best + np.clip(sub, -0.5, 0.5)
-
-    w2 = float(window * window)
-    gl_sum = box_a.reshape(height, width)
-    lib.vs_box_i64(gl.ctypes.data, gl_sum.ctypes.data, box_b.ctypes.data, vsum_buf.ctypes.data,
-                   height, width, rad)
-    mean = gl_sum / w2
-    gl_sq = gl * gl
-    gl2_sum = box_a.reshape(height, width)
-    lib.vs_box_i64(gl_sq.ctypes.data, gl2_sum.ctypes.data, box_b.ctypes.data, vsum_buf.ctypes.data,
-                   height, width, rad)
-    spread = np.sqrt(np.maximum(gl2_sum / w2 - mean * mean, 0.0))
-
-    rows, cols = np.indices((height, width), dtype=int)
-    agreed = np.abs(seen[rows, np.clip(cols - best, 0, width - 1)] - best) <= 1
-    jump = np.zeros((height, width), dtype=np.int64)
-    jump[:, 1:] |= np.abs(best[:, 1:] - best[:, :-1]) > 1
-    jump[1:, :] |= np.abs(best[1:, :] - best[:-1, :]) > 1
-    jump_sum = box_a.reshape(height, width)
-    lib.vs_box_i64(jump.ctypes.data, jump_sum.ctypes.data, box_b.ctypes.data, vsum_buf.ctypes.data,
-                   height, width, rad)
-    rim = jump_sum > 0
-    kept = ((spread > texture) & (second > unique * np.maximum(tbest, 1.0)) & (best > 0)
-            & (best < d_count - 1) & np.isfinite(c0) & agreed & ~rim)
-    kept[:, :d_count] = False
+    disp = np.empty((height, width), dtype=np.float64)
+    kept = np.empty((height, width), dtype=np.bool_)
+    lib.vs_stereo_post(
+        gl.ctypes.data, best.ctypes.data, tbest.ctypes.data, second.ctypes.data, seen.ctypes.data,
+        c0.ctypes.data, lo.ctypes.data, hi.ctypes.data,
+        height, width, int(d_count), rad, float(texture), float(np.float32(unique)),
+        box_a.ctypes.data, box_b.ctypes.data, box_c.ctypes.data, vsum_buf.ctypes.data,
+        disp.ctypes.data, kept.ctypes.data,
+    )
     return disp, kept
 
 
@@ -223,3 +219,34 @@ def warp_u8(img, at4, wt4, on_mask, height: int, width: int, bits: int):
     lib.vs_warp_u8(src.ctypes.data, at_c.ctypes.data, wt_c.ctypes.data, on_c.ctypes.data,
                    int(height), int(width), int(bits), dst.ctypes.data)
     return dst
+
+
+def epi_from_d(d_xyz, height: int, width: int, f_px: float, bits: int, fine: int):
+    """Compute `((V, U), on, (at4, wt4))` from `(height, width, 3)` `d_xyz` in C, or `None` without C."""
+    lib = _lib()
+    if lib is None:
+        return None
+    dc = np.ascontiguousarray(d_xyz, dtype=np.float64)
+    npix = height * width
+    v_out = np.empty((height, width), dtype=np.int64)
+    u_out = np.empty((height, width), dtype=np.int64)
+    on_out = np.empty((height, width), dtype=np.bool_)
+    at4 = np.empty((4, npix), dtype=np.int32)
+    wt4 = np.empty((4, npix), dtype=np.int32)
+    lib.vs_epi_from_d(dc.ctypes.data, int(height), int(width), float(f_px), int(bits), int(fine),
+                      v_out.ctypes.data, u_out.ctypes.data, on_out.ctypes.data,
+                      at4.ctypes.data, wt4.ctypes.data)
+    return (v_out, u_out), on_out, (at4, wt4)
+
+
+def epi_kept(inner0, inner1, disp, height: int, width: int):
+    """Compute `(height, width)` epipolar kept mask in C, or `None` without C."""
+    lib = _lib()
+    if lib is None:
+        return None
+    i0 = np.ascontiguousarray(inner0, dtype=np.uint8)
+    i1 = np.ascontiguousarray(inner1, dtype=np.uint8)
+    dc = np.ascontiguousarray(disp, dtype=np.float64)
+    out = np.empty((height, width), dtype=np.bool_)
+    lib.vs_epi_kept(i0.ctypes.data, i1.ctypes.data, dc.ctypes.data, int(height), int(width), out.ctypes.data)
+    return out

@@ -64,6 +64,10 @@ def turn(w):
     return np.eye(3) + libm.sin(a) / a * k + (1.0 - libm.cos(a)) / (a * a) * k @ k
 
 
+#: Cached CPU `Laid` geometry keyed by `(left_R, right_R, line)` bytes so steady-gaze looks skip recomputing maps.
+_LAID_CACHE: dict = {}
+
+
 class Laid:
 
     """The robot's eyes' pictures laid on its epipolar planes: the planes' frame `E` (3, 3) in the
@@ -77,12 +81,20 @@ class Laid:
 
     def __init__(self, left_R, right_R, line=None, xp=None):
         np = _np()
-        self.xp, self._host = xp or np, {}
+        self.xp, self._host, self._inner, self._key = xp or np, {}, None, None
         xp = self.xp
-        line = np.array(LINE) * BASELINE_M if line is None else np.asarray(line, float)
-        self.B = float(np.linalg.norm(line))
-        e1 = line / self.B
-        o = -(np.asarray(left_R, float)[:, 2] + np.asarray(right_R, float)[:, 2])
+        lr = np.ascontiguousarray(left_R, dtype=float)
+        rr = np.ascontiguousarray(right_R, dtype=float)
+        ln = np.array(LINE) * BASELINE_M if line is None else np.ascontiguousarray(line, dtype=float)
+        key = (lr.tobytes(), rr.tobytes(), ln.tobytes()) if xp is np else None
+        self._key = key
+        cached = _LAID_CACHE.get(key) if key is not None else None
+        if cached is not None:
+            self.B, self.E, self.beta, self.fv, self._at, self._on, self._four, self._inner = cached
+            return
+        self.B = float(np.linalg.norm(ln))
+        e1 = ln / self.B
+        o = -(lr[:, 2] + rr[:, 2])
         o = o / np.linalg.norm(o)
         e3 = -(o - (o @ e1) * e1)
         e3 = e3 / np.linalg.norm(e3)
@@ -90,11 +102,16 @@ class Laid:
         self.beta = libm.arcsin(max(-1.0, min(1.0, float(o @ e1))))
         self.fv = F * libm.cos(self.beta)
         rows, cols = indices(xp, float)
-        t = (H / 2.0 - rows) / self.fv
+        t = (H / 2.0 - rows[:, :1]) / self.fv if xp is np else (H / 2.0 - rows) / self.fv
         c = 1.0 / xp.sqrt(1.0 + t * t)
         b = self.beta + xp.arctan((cols - W / 2.0) * c / F)
-        rays = xp.stack([xp.sin(b), xp.cos(b) * t * c, -xp.cos(b) * c], axis=-1)
-        self._at, self._on, self._four = zip(*(self._map(rays, np.asarray(R, float)) for R in (left_R, right_R)))
+        cb = xp.cos(b)
+        rays = xp.stack([xp.sin(b), cb * t * c, -cb * c], axis=-1)
+        self._at, self._on, self._four = zip(*(self._map(rays, R) for R in (lr, rr)))
+        if key is not None:
+            if len(_LAID_CACHE) >= 8:
+                _LAID_CACHE.pop(next(iter(_LAID_CACHE)))
+            _LAID_CACHE[key] = (self.B, self.E, self.beta, self.fv, self._at, self._on, self._four, None)
 
     @property
     def at(self):
@@ -117,6 +134,11 @@ class Laid:
         the finer picture's FINE x FINE sums `_areas`, weights (4, H W) in 2^BITS squared) about it there."""
         xp = self.xp
         d = rays @ xp.asarray((R.T @ self.E).T)
+        if xp is _np():
+            from tools.cores import vision
+            got = vision.epi_from_d(d, H, W, F, BITS, FINE)
+            if got is not None:
+                return got
         ahead = xp.where(d[..., 2] < 0.0, -d[..., 2], 1.0)
         q, (h, w) = 1 << BITS, _AREAS
         # placed in fixed point first, on its picture by those: a pixel on its last row a float's last bit past it was off
@@ -160,9 +182,17 @@ class Laid:
     def _kept(self, disp):
         """`kept` on its array module."""
         xp = self.xp
-        inner = [_boxed((~on).astype(xp.int64), WINDOW // 2, xp) == 0 for on in self._on]
+        if self._inner is None:
+            self._inner = tuple(_boxed((~on).astype(xp.int64), WINDOW // 2, xp) == 0 for on in self._on)
+            if self._key is not None and self._key in _LAID_CACHE:
+                _LAID_CACHE[self._key] = _LAID_CACHE[self._key][:-1] + (self._inner,)
+        if xp is _np():
+            from tools.cores import vision
+            got = vision.epi_kept(self._inner[0], self._inner[1], disp, H, W)
+            if got is not None:
+                return got
         rows, cols = indices(xp)
-        return inner[0] & inner[1][rows, xp.clip(xp.rint(cols - disp).astype(xp.int64), 0, W - 1)]
+        return self._inner[0] & self._inner[1][rows, xp.clip(xp.rint(cols - disp).astype(xp.int64), 0, W - 1)]
 
 
 def points(rows, cols, disp, beta, fv, B=BASELINE_M):
