@@ -182,14 +182,16 @@ def _ink(grid, tone, masks, width, colour, heat):
     line's - in the edge tone, lit by `heat` where the glow left any. The
     count of cells inked."""
     for at, mask in masks.items():
+        ebits = mask
         r, c = divmod(at, width)
         was = grid[r][c]
         if BRAILLE <= ord(was) < BRAILLE + 256:
             mask |= ord(was) - BRAILLE
         grid[r][c] = chr(BRAILLE + mask)
         if colour:
-            tone[r][c] = _edge_tone(heat[at] if heat is not None and heat[at]
-                                    else OUTLINE_BASE)
+            base = heat[at] if heat is not None and heat[at] else OUTLINE_BASE
+            scale = 0.5 if heat is not None and heat[at] and not (ebits & (ebits - 1)) else 1.0
+            tone[r][c] = _edge_tone(base, scale)
     return len(masks)
 
 

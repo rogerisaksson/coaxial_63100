@@ -51,11 +51,12 @@ def blend(heat):
     return (v[:, 0] << 16) | (v[:, 1] << 8) | v[:, 2]
 
 
-def edge_tone(base):
+def edge_tone(base, scale=None):
     """`shading._edge_tone` on an array of heats, packed."""
     from coaxial.model.blocks import numpy as np
     top_heat = len(GLOW) - 1 + HOTTEST
-    return blend(np.minimum(len(GLOW) - 1, base + OUTLINE_LIFT * (0.5 + 0.5 * base / top_heat)))
+    lift = OUTLINE_LIFT if scale is None else scale * OUTLINE_LIFT
+    return blend(np.minimum(len(GLOW) - 1, base + lift * (0.5 + 0.5 * base / top_heat)))
 
 
 def _key_lit(face, at, px, py, rig):
@@ -215,10 +216,13 @@ def _rim(face, glyph, tone, heat, colour):
     at, reach = at[rim], reach[rim]
     was = glyph[at] - BRAILLE
     was = np.where((was >= 0) & (was <= 0xFF), was, 0)
-    glyph[at] = BRAILLE + ((was & reach) | _tables()['rim'][reach])
+    ebits = _tables()['rim'][reach]
+    glyph[at] = BRAILLE + ((was & reach) | ebits)
     if colour:
         base = heat[at] if heat is not None else np.zeros(len(at))
-        tone[at] = edge_tone(np.where(base != 0.0, base, OUTLINE_BASE))
+        has = base != 0.0
+        scale = np.where(has & ((ebits & (ebits - 1)) == 0), 0.5, 1.0)
+        tone[at] = edge_tone(np.where(has, base, OUTLINE_BASE), scale)
 
 
 def painted(cells, cam, m, colour, persist, foreign):

@@ -326,20 +326,33 @@ def _posed(pose, rotors, dense, see='shell'):
 
 def swept_rings(pose, rings_and_rotors, m, cam, centre):
     """[(dots, ink)]: each fast rotor's swept ring `(ring, spot)` where `abs(w) >= BLADES_RAD_S`,
-    its rim dotted."""
+    its rim dotted evenly along screen arc length."""
     from coaxial.model.blocks import numpy as np
     turn, at = np.asarray(pose['turn'], float), np.asarray(pose['at'], float)
-    drawn = np.zeros((cam['height'], cam['width']), bool)
+    rim = np.zeros((cam['height'], cam['width']), bool)
     for (ring, spot), (_angle, w, *_heat) in rings_and_rotors:
         if abs(w) < BLADES_RAD_S:
             continue
         hub = at + turn @ np.asarray(spot, float)
-        sx, sy, _w = project(ring @ turn.T + hub, m, cam, centre)
-        lines(drawn, sx, sy, np.roll(sx, 1), np.roll(sy, 1))
-    ys, xs = np.nonzero(drawn)
-    keep = ((xs + ys) % RIM_EVERY) == 0
-    rim = np.zeros_like(drawn)
-    rim[ys[keep], xs[keep]] = True
+        sx, sy, sw = project(ring @ turn.T + hub, m, cam, centre)
+        x1, y1, w1 = np.roll(sx, -1), np.roll(sy, -1), np.roll(sw, -1)
+        seg = (sw > 0.0) & (w1 > 0.0)
+        if not seg.any():
+            continue
+        ds = np.where(seg, np.hypot(x1 - sx, y1 - sy), 0.0)
+        total = float(ds.sum())
+        if total < 1.0:
+            continue
+        n = max(1, int(round(total / RIM_EVERY)))
+        knots, ask = np.r_[0.0, np.cumsum(ds)], np.arange(n) * (total / n)
+        k = np.clip(np.searchsorted(knots, ask, side='right') - 1, 0, len(sx) - 1)
+        valid = seg[k] & (ds[k] > 1e-9)
+        k, ask = k[valid], ask[valid]
+        t = (ask - knots[k]) / ds[k]
+        px = np.rint(sx[k] + (x1[k] - sx[k]) * t).astype(int)
+        py = np.rint(sy[k] + (y1[k] - sy[k]) * t).astype(int)
+        ok = (px >= 0) & (px < cam['width']) & (py >= 0) & (py < cam['height'])
+        rim[py[ok], px[ok]] = True
     return [(rim, RIM_INK)]
 
 

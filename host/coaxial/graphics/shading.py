@@ -394,7 +394,7 @@ def _dots(grid, heat, classes, coverage, width, height, window,
             grid[py][px] = chr(BRAILLE + (mask or lone))
 
 
-def _edge_tone(base):
+def _edge_tone(base, scale=1.0):
     """The tone an edge takes - a part's outline, the rim - off the heat
     under it, lifted by OUTLINE_LIFT toward the ladder's top rung, which
     HOTTEST keeps from the face: readable ink is what that rung is
@@ -402,7 +402,7 @@ def _edge_tone(base):
     """
     top_heat = len(GLOW) - 1 + HOTTEST
     return _blend(min(len(GLOW) - 1,
-                      base + OUTLINE_LIFT * (0.5 + 0.5 * base / top_heat)))
+                      base + (scale * OUTLINE_LIFT) * (0.5 + 0.5 * base / top_heat)))
 
 
 def _edge_glyphs():
@@ -447,11 +447,12 @@ def _rim(grid, tone, classes, reached, heat, width, height, colour):
             face = ord(grid[py][px]) - BRAILLE
             if not 0 <= face <= 0xFF:
                 face = 0
-            grid[py][px] = chr(BRAILLE + ((face & reach) | EDGE_GLYPH[reach]))
+            ebits = EDGE_GLYPH[reach]
+            grid[py][px] = chr(BRAILLE + ((face & reach) | ebits))
             if colour:
-                base = (heat[at] if heat is not None and heat[at]
-                        else OUTLINE_BASE)
-                tone[py][px] = _edge_tone(base)
+                base = heat[at] if heat is not None and heat[at] else OUTLINE_BASE
+                scale = 0.5 if heat is not None and heat[at] and not (ebits & (ebits - 1)) else 1.0
+                tone[py][px] = _edge_tone(base, scale)
 
 
 def _keylight(cam, width, height):

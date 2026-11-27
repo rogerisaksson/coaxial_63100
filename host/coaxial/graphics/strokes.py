@@ -89,12 +89,15 @@ def _span(buf, width):
 def _ink(glyph, tone, at, mask, colour, heat):
     """`lines._ink`: `mask` over each cell's own dots, in the edge tone."""
     from coaxial.model.blocks import numpy as np
+    ebits = mask
     was = glyph[at]
     mask = np.where((was >= BRAILLE) & (was < BRAILLE + 256), mask | (was - BRAILLE), mask)
     glyph[at] = BRAILLE + mask
     if colour:
         base = heat[at] if heat is not None else np.zeros(len(at))
-        tone[at] = edge_tone(np.where(base != 0.0, base, OUTLINE_BASE))
+        has = base != 0.0
+        scale = np.where(has & ((ebits & (ebits - 1)) == 0), 0.5, 1.0)
+        tone[at] = edge_tone(np.where(has, base, OUTLINE_BASE), scale)
 
 
 def outline(glyph, tone, buf, cam, m, colour, heat):

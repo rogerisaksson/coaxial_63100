@@ -274,16 +274,24 @@ def _braille_cells_py(depth, rgb, floor, over, alone, leaders, floor_ink, leader
     hand = rgb[..., 3] if rgb.shape[-1] > 3 else np.full(depth.shape, 255, np.uint8)
     miss = np.where(hand >= 248, np.minimum(3, 255 - hand.astype(int)), hand.astype(int) & 3)
     sub_h = np.where(covered, 4 - miss, 4)
+    solid = covered & (sub_h >= 2)
     lum = tone @ (0.2126 / 255.0, 0.7152 / 255.0, 0.0722 / 255.0)
-    pad = np.pad(depth, 1)
+    pad, spad = np.pad(depth, 1), np.pad(np.where(solid, depth, 0.0), 1)
     thresh = 0.04 * depth
-    s0, s1, s2, s3 = pad[1:-1, :-2], pad[1:-1, 2:], pad[:-2, 1:-1], pad[2:, 1:-1]
+    d0, d1, d2, d3 = pad[1:-1, :-2], pad[1:-1, 2:], pad[:-2, 1:-1], pad[2:, 1:-1]
+    s0, s1, s2, s3 = spad[1:-1, :-2], spad[1:-1, 2:], spad[:-2, 1:-1], spad[2:, 1:-1]
     e0, e1 = (s0 == 0.0) | ((depth - s0) > thresh), (s1 == 0.0) | ((depth - s1) > thresh)
     e2, e3 = (s2 == 0.0) | ((depth - s2) > thresh), (s3 == 0.0) | ((depth - s3) > thresh)
-    edge = covered & np.where(sub_h >= 2, e0 | e1 | e2 | e3, (e0 & e1) | (e2 & e3))
+    re0, re1 = (d0 == 0.0) | ((depth - d0) > thresh), (d1 == 0.0) | ((depth - d1) > thresh)
+    re2, re3 = (d2 == 0.0) | ((depth - d2) > thresh), (d3 == 0.0) | ((depth - d3) > thresh)
+    near_s = (((s0 > 0.0) & (np.abs(depth - s0) <= thresh))
+              | ((s1 > 0.0) & (np.abs(depth - s1) <= thresh))
+              | ((s2 > 0.0) & (np.abs(depth - s2) <= thresh))
+              | ((s3 > 0.0) & (np.abs(depth - s3) <= thresh)))
+    edge = np.where(solid, e0 | e1 | e2 | e3, covered & ~near_s & ((re0 & re1) | (re2 & re3)))
     keep = (0.40 + 0.60 * np.clip(lum, 0.0, 1.0)) * (lum > 0.004) * (sub_h * 0.25)
     mask = _mask(*depth.shape)
-    lit = covered & (keep > (_screened(mask, hand) if rgb.shape[-1] > 3 else mask))
+    lit = solid & (keep > (_screened(mask, hand) if rgb.shape[-1] > 3 else mask))
     if alone is not None:
         a4 = alone[0::4] | alone[1::4] | alone[2::4] | alone[3::4]
         lit.reshape(height, DOTS_Y, width, DOTS_X).transpose(0, 2, 1, 3)[a4[:, 0::2] | a4[:, 1::2]] = False
@@ -353,11 +361,20 @@ def braille(depth, rgb, floor, width, height, colour=True, overlay=None, leaders
     if not colour:
         return [''.join(map(chr, row)) for row in text]
     no_hit = hits == 0
+    pop = None
     for dots, prop_ink, *on_top in props:
         if on_top and on_top[0] == TINT:       # toward its ink by its mean over each cell, on what is lit
             c4 = dots[0::4] + dots[1::4] + dots[2::4] + dots[3::4]
             share = (c4[:, 0::2] + c4[:, 1::2]) / float(DOTS_X * DOTS_Y) * (hits > 0)
             ink = ink + share[..., None] * (np.asarray(prop_ink, float) - ink)
+            continue
+        if on_top and on_top[0] and on_top[0] != ALONE:
+            if pop is None:
+                pop = np.unpackbits(cells[:, :, None], axis=2).sum(axis=2)
+            c4 = dots[0::4].astype(int) + dots[1::4] + dots[2::4] + dots[3::4]
+            pn = c4[:, 0::2] + c4[:, 1::2]
+            w = np.where(no_hit, (pn > 0).astype(float), np.minimum(1.0, pn * 1.6 / np.maximum(pop, 1)))
+            ink = ink + w[..., None] * (np.asarray(prop_ink, float) - ink)
             continue
         d4 = dots[0::4] | dots[1::4] | dots[2::4] | dots[3::4]
         on = d4[:, 0::2] | d4[:, 1::2]

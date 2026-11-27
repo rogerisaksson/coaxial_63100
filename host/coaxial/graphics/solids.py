@@ -37,10 +37,12 @@ def _decimated(path, divisions):
 #: the decimate's slit. 86 corners at radius 0.100, 257 triangles
 #: touching them, against the 48 decimate's 5 645.
 BORE_KEEP = 0.115
+RIM_KEEP = 0.97
 
 
 def _bore_keep(corner):
-    return corner[0] * corner[0] + corner[1] * corner[1] < BORE_KEEP * BORE_KEEP
+    r2 = corner[0] * corner[0] + corner[1] * corner[1]
+    return r2 < BORE_KEEP * BORE_KEEP or r2 > RIM_KEEP * RIM_KEEP
 
 
 def _forget():

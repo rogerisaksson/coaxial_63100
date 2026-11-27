@@ -137,16 +137,47 @@ static void rs_braille_cell(int cx, int cy, int W, int H, const double *restrict
         left_n += (hand >= 96u) ? 1 : 0;
       }
       const double th = 0.04 * d;
-      const double s0 = (x > 0) ? depth[p - 1u] : 0.0;
-      const double s1 = (x + 1 < W) ? depth[p + 1u] : 0.0;
-      const double s2 = (y > 0) ? depth[p - stride] : 0.0;
-      const double s3 = (y + 1 < H) ? depth[p + stride] : 0.0;
-      const int    e0 = (s0 == 0.0 || (d - s0) > th), e1 = (s1 == 0.0 || (d - s1) > th);
-      const int    e2 = (s2 == 0.0 || (d - s2) > th), e3 = (s3 == 0.0 || (d - s3) > th);
-      const int    edge = (sub_h >= 2) ? (e0 || e1 || e2 || e3) : ((e0 && e1) || (e2 && e3));
-      const double lum_c = (lum < 0.0) ? 0.0 : ((lum > 1.0) ? 1.0 : lum);
-      const double keep = ((lum > 0.004) ? (0.40 + 0.60 * lum_c) : 0.0) * ((double)sub_h * 0.25);
-      const int    lit_d = (!cell_alone) && (keep > rs_screen_thresh(x, y, hand, noise64));
+      const size_t q0 = p - 1u, q1 = p + 1u, q2 = p - stride, q3 = p + stride;
+      const double d0 = (x > 0) ? depth[q0] : 0.0;
+      const double d1 = (x + 1 < W) ? depth[q1] : 0.0;
+      const double d2 = (y > 0) ? depth[q2] : 0.0;
+      const double d3 = (y + 1 < H) ? depth[q3] : 0.0;
+      double       s0 = d0, s1 = d1, s2 = d2, s3 = d3;
+      if (channels > 3)
+      {
+        const uint8_t h0 = (x > 0) ? rgb[q0 * ch + 3u] : 255u;
+        const uint8_t h1 = (x + 1 < W) ? rgb[q1 * ch + 3u] : 255u;
+        const uint8_t h2 = (y > 0) ? rgb[q2 * ch + 3u] : 255u;
+        const uint8_t h3 = (y + 1 < H) ? rgb[q3 * ch + 3u] : 255u;
+        const int     m0 = (h0 >= 248u) ? (int)(255u - h0) : (int)(h0 & 3u);
+        const int     m1 = (h1 >= 248u) ? (int)(255u - h1) : (int)(h1 & 3u);
+        const int     m2 = (h2 >= 248u) ? (int)(255u - h2) : (int)(h2 & 3u);
+        const int     m3 = (h3 >= 248u) ? (int)(255u - h3) : (int)(h3 & 3u);
+        s0 = (d0 > 0.0 && m0 <= 2) ? d0 : 0.0;
+        s1 = (d1 > 0.0 && m1 <= 2) ? d1 : 0.0;
+        s2 = (d2 > 0.0 && m2 <= 2) ? d2 : 0.0;
+        s3 = (d3 > 0.0 && m3 <= 2) ? d3 : 0.0;
+      }
+      int edge = 0, lit_d = 0;
+      if (sub_h >= 2)
+      {
+        const int e0 = (s0 == 0.0 || (d - s0) > th), e1 = (s1 == 0.0 || (d - s1) > th);
+        const int e2 = (s2 == 0.0 || (d - s2) > th), e3 = (s3 == 0.0 || (d - s3) > th);
+        edge = e0 || e1 || e2 || e3;
+        const double lum_c = (lum < 0.0) ? 0.0 : ((lum > 1.0) ? 1.0 : lum);
+        const double keep = ((lum > 0.004) ? (0.40 + 0.60 * lum_c) : 0.0) * ((double)sub_h * 0.25);
+        lit_d = (!cell_alone) && (keep > rs_screen_thresh(x, y, hand, noise64));
+      }
+      else
+      {
+        const int near_s = (s0 > 0.0 && (d - s0) <= th && (s0 - d) <= th) ||
+                           (s1 > 0.0 && (d - s1) <= th && (s1 - d) <= th) ||
+                           (s2 > 0.0 && (d - s2) <= th && (s2 - d) <= th) ||
+                           (s3 > 0.0 && (d - s3) <= th && (s3 - d) <= th);
+        const int re0 = (d0 == 0.0 || (d - d0) > th), re1 = (d1 == 0.0 || (d - d1) > th);
+        const int re2 = (d2 == 0.0 || (d - d2) > th), re3 = (d3 == 0.0 || (d - d3) > th);
+        edge = (!near_s) && ((re0 && re1) || (re2 && re3));
+      }
       on_dot = lit_d || edge || (over != NULL && over[p] != 0u);
     }
     else

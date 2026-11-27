@@ -26,7 +26,7 @@ STEREO_EVEN = 2.5      # ...with its corners' angular gaps within this
 # ratio: a chamfered square's corners share a radius too, but crowd in pairs at
 # the chamfers
 STEREO_PAIR = 0.05     # arches pair when width and height agree this close
-STEREO_TURN = 0.02     # a block turns off the board's axes only to save this
+STEREO_TURN = 0.008    # a block turns off the board's axes only to save this
 STEREO_SEGMENTS = 24   # a drum's circle
 #: Two loops are one part when their footprints' overlap is this share
 #: of the smaller one: a base ring under a lid, a rounding's facets on
@@ -349,12 +349,12 @@ def _box_extent(corners):
 
 
 def _box_angle(pts):
-    """The angle, in 2-degree steps, of the least-area box round `pts` - the
+    """The angle, in 1-degree steps, of the least-area box round `pts` - the
     board's own axes unless turning saves more than STEREO_TURN of the
     area.
     """
     areas = []
-    for deg in range(0, 90, 2):
+    for deg in range(0, 90):
         a = math.radians(deg)
         ca, sa = math.cos(a), math.sin(a)
         us = [p[0] * ca + p[1] * sa for p in pts]

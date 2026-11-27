@@ -424,11 +424,14 @@ void rs_paint_dots_rim(int width, int height, const uint8_t *restrict cls,
         {
           was = 0;
         }
-        glyph[at] = 0x2800LL + ((was & reach) | rim_glyph[reach]);
+        const int64_t ebits = rim_glyph[reach];
+        glyph[at] = 0x2800LL + ((was & reach) | ebits);
         if (colour)
         {
-          const double base = (heat != NULL && heat[at] != 0.0) ? heat[at] : 3.0;
-          double       eh = base + 3.0 * (0.5 + 0.5 * base / top_heat);
+          const int    has = (heat != NULL && heat[at] != 0.0);
+          const double base = has ? heat[at] : 3.0;
+          const double lift = (has && (ebits & (ebits - 1LL)) == 0LL) ? 1.5 : 3.0;
+          double       eh = base + lift * (0.5 + 0.5 * base / top_heat);
           if (eh > (double)(n_glow - 1))
           {
             eh = (double)(n_glow - 1);
@@ -547,8 +550,10 @@ void rs_edge(int width, int height, const uint8_t *restrict reached_in, const do
       glyph[i] = 0x2800LL + m_or;
       if (colour)
       {
-        const double base = (heat != NULL && heat[i] != 0.0) ? heat[i] : 3.0;
-        double       eh = base + 3.0 * (0.5 + 0.5 * base / top_heat);
+        const int    has = (heat != NULL && heat[i] != 0.0);
+        const double base = has ? heat[i] : 3.0;
+        const double lift = (has && (mask & (mask - 1LL)) == 0LL) ? 1.5 : 3.0;
+        double       eh = base + lift * (0.5 + 0.5 * base / top_heat);
         if (eh > (double)(n_glow - 1))
         {
           eh = (double)(n_glow - 1);

@@ -11,7 +11,7 @@ frames, surfaces sampled into dots.
 import math
 
 #: Corners round a ring.
-AROUND = 20
+AROUND = 32
 
 
 def loft(rings, material, poles=None, along='y'):

@@ -8,7 +8,6 @@ to shoe, a bed's mattress a grid sagging where the robot presses it.
 import itertools
 
 from coaxial.graphics import callouts
-from coaxial.graphics.lit import project
 
 PROP_INK = {'hole': (255, 96, 128), 'sill': (255, 184, 80), 'slip': (96, 214, 255),
             'rug': (200, 160, 110), 'lace': (230, 90, 230), 'stairs': (220, 225, 235),
@@ -24,8 +23,8 @@ _BOX_SIGNS = tuple((float(i), float(j), float(k)) for i in (-1, 1) for j in (-1,
 _BOX_EDGES = tuple((a, b) for a in range(8) for b in range(a + 1, 8) if bin(a ^ b).count('1') == 1)
 #: A mattress's top drawn GRID lines each way, its give spread SAG_M about each press: a foam's.
 GRID, SAG_M = 9, 0.12
-#: A round prop's two rims RIM points round, four sides between them.
-RIM = 16
+#: A round prop's two rims RIM points round, four sides between them; edges clip NEAR_M ahead.
+RIM, NEAR_M = 24, 0.2
 
 
 def _round(pos, half, turn, shift):
@@ -69,6 +68,8 @@ def lines(props, m, cam, centre, travel, dents=None, rounds=None):
         return []
     from coaxial.model.blocks import numpy as np
     signs, by_ink, shift = np.asarray(_BOX_SIGNS), {}, (travel[0], 0.0, travel[1])
+    m3, ctr = np.asarray(m, float).reshape(3, 3), np.asarray(centre, float)
+    limit, aspect = cam['distance'] - NEAR_M, cam.get('aspect', 0.5)
     for (kind, *shape), round_ in zip(props, itertools.chain(rounds or (), itertools.repeat(False))):
         if kind == 'lace':
             corners, edges = np.array(shape, float) - shift, ((0, 1),)
@@ -82,14 +83,25 @@ def lines(props, m, cam, centre, travel, dents=None, rounds=None):
             corners = (signs * np.asarray(half)) @ np.asarray(turn, float).T + (
                 pos[0] - travel[0], pos[1], pos[2] - travel[1])
             edges = _BOX_EDGES
-        sx, sy, w = project(corners, m, cam, centre)
-        if (w <= 0.0).all():
+        q = (corners - ctr) @ m3.T
+        a, b = np.asarray(edges, int).T
+        pa, pb = q[a].copy(), q[b].copy()
+        seen = (pa[:, 2] < limit) | (pb[:, 2] < limit)
+        if not seen.any():
             continue
+        pa, pb = pa[seen], pb[seen]
+        for p, o in ((pa, pb), (pb, pa)):
+            cut = p[:, 2] > limit
+            if cut.any():
+                t = (limit - p[cut, 2]) / (o[cut, 2] - p[cut, 2])
+                p[cut] += (o[cut] - p[cut]) * t[:, None]
+        wa = cam['scale'] / (cam['distance'] - pa[:, 2])
+        wb = cam['scale'] / (cam['distance'] - pb[:, 2])
+        sx0, sy0 = cam['cx'] + wa * pa[:, 0], cam['cy'] - wa * aspect * pa[:, 1]
+        sx1, sy1 = cam['cx'] + wb * pb[:, 0], cam['cy'] - wb * aspect * pb[:, 1]
         ink = PROP_INK.get(kind, (200, 200, 200))
         ends = by_ink.setdefault(ink, ([], [], [], []))
-        a, b = np.asarray(edges, int).T
-        seen = (w[a] > 0.0) & (w[b] > 0.0)
-        for into, values in zip(ends, (sx[a[seen]], sy[a[seen]], sx[b[seen]], sy[b[seen]])):
+        for into, values in zip(ends, (sx0, sy0, sx1, sy1)):
             into.append(values)
     drawn = []
     for ink, ends in by_ink.items():
