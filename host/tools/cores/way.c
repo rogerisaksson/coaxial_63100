@@ -32,12 +32,13 @@ void wy_apart(int32_t n_pts, const double *restrict pts, int32_t m_things, const
   }
 }
 
-int32_t wy_gaps(int32_t n_poses, const double *restrict at_pts, const double *restrict ahead,
-                const double *restrict left, const double *restrict dirs, int32_t k_dirs, int32_t m_things,
+int32_t wy_gaps(int32_t n_poses, const double *restrict poses, const double *restrict sy, const double *restrict cy,
+                const double *restrict cos_phi, const double *restrict sin_phi, int32_t k_dirs, int32_t m_things,
                 const uint8_t *restrict meets, const double *restrict toward, const double *restrict centres,
                 const double *restrict axes, const double *restrict half, double two_pi, double step_rad,
                 double cos_pi_k, double *restrict out)
 {
+  double ndirs[2 * WY_MAX_K];
   double at_dot_d[WY_MAX_K];
 
   if (k_dirs <= 0 || k_dirs > WY_MAX_K)
@@ -46,19 +47,20 @@ int32_t wy_gaps(int32_t n_poses, const double *restrict at_pts, const double *re
   }
   for (int32_t n = 0; n < n_poses; n++)
   {
-    const double  at0 = at_pts[(size_t)n * 2U + 0U];
-    const double  at1 = at_pts[(size_t)n * 2U + 1U];
-    const double  ah0 = ahead[(size_t)n * 2U + 0U];
-    const double  ah1 = ahead[(size_t)n * 2U + 1U];
-    const double  lf0 = left[(size_t)n * 2U + 0U];
-    const double  lf1 = left[(size_t)n * 2U + 1U];
-    const double *ndirs = &dirs[(size_t)n * (size_t)k_dirs * 2U];
+    const double  at0 = poses[(size_t)n * 3U + 0U];
+    const double  at1 = poses[(size_t)n * 3U + 1U];
+    const double  ah0 = sy[n];
+    const double  ah1 = cy[n];
+    const double  lf0 = cy[n];
+    const double  lf1 = -sy[n];
     double       *orow = &out[(size_t)n * (size_t)m_things];
 
     for (int32_t k = 0; k < k_dirs; k++)
     {
-      const double d0 = ndirs[(size_t)k * 2U + 0U];
-      const double d1 = ndirs[(size_t)k * 2U + 1U];
+      const double d0 = cos_phi[k] * ah0 + sin_phi[k] * lf0;
+      const double d1 = cos_phi[k] * ah1 + sin_phi[k] * lf1;
+      ndirs[(size_t)k * 2U + 0U] = d0;
+      ndirs[(size_t)k * 2U + 1U] = d1;
       at_dot_d[k] = (0.0 + at0 * d0) + at1 * d1;
     }
     for (int32_t m = 0; m < m_things; m++)
@@ -262,6 +264,143 @@ int32_t wy_astar(const double *restrict cost, int32_t nx, int32_t nz, int32_t si
           idx = par;
         }
         heap_f[idx] = nf;
+        heap_n[idx] = nxt;
+      }
+    }
+  }
+  return 0;
+}
+
+void wy_nearest_free(const uint8_t *restrict blocked, int32_t nx, int32_t nz, int32_t ci, int32_t cj,
+                     int32_t *restrict out_ij)
+{
+  int32_t best_i = ci;
+  int32_t best_j = cj;
+  int64_t best_d2 = INT64_MAX;
+
+  for (int32_t i = 0; i < nx; i++)
+  {
+    const int64_t di = (int64_t)i - (int64_t)ci;
+    const int64_t di2 = di * di;
+    const size_t  row_o = (size_t)i * (size_t)nz;
+    if (di2 >= best_d2)
+    {
+      continue;
+    }
+    for (int32_t j = 0; j < nz; j++)
+    {
+      if (blocked[row_o + (size_t)j] == 0U)
+      {
+        const int64_t dj = (int64_t)j - (int64_t)cj;
+        const int64_t d2 = di2 + dj * dj;
+        if (d2 < best_d2)
+        {
+          best_d2 = d2;
+          best_i = i;
+          best_j = j;
+        }
+      }
+    }
+  }
+  out_ij[0] = best_i;
+  out_ij[1] = best_j;
+}
+
+int32_t wy_walked(const uint8_t *restrict blocked, int32_t nx, int32_t nz, int32_t si, int32_t sj, double d0,
+                  double w_card, double w_diag, double *restrict out, double *restrict heap_f, int32_t *restrict heap_n,
+                  int32_t heap_cap)
+{
+  static const int32_t di[8] = {-1, -1, -1, 0, 0, 1, 1, 1};
+  static const int32_t dj[8] = {-1, 0, 1, -1, 1, -1, 0, 1};
+  const double         step_w[8] = {w_diag, w_card, w_diag, w_card, w_card, w_diag, w_card, w_diag};
+  const int32_t        ncells = nx * nz;
+
+  if (nx <= 0 || nz <= 0 || si < 0 || si >= nx || sj < 0 || sj >= nz || heap_cap < 1)
+  {
+    return -1;
+  }
+  for (int32_t k = 0; k < ncells; k++)
+  {
+    out[k] = INFINITY;
+  }
+  const int32_t start_n = si * nz + sj;
+  out[start_n] = d0;
+  int32_t hlen = 1;
+  heap_f[0] = d0;
+  heap_n[0] = start_n;
+
+  while (hlen > 0)
+  {
+    const double  shere = heap_f[0];
+    const int32_t here = heap_n[0];
+    hlen--;
+    if (hlen > 0)
+    {
+      const double  lf = heap_f[hlen];
+      const int32_t ln = heap_n[hlen];
+      int32_t       idx = 0;
+      for (;;)
+      {
+        const int32_t left_c = 2 * idx + 1;
+        if (left_c >= hlen)
+        {
+          break;
+        }
+        int32_t       best_c = left_c;
+        const int32_t right_c = left_c + 1;
+        if (right_c < hlen && wy_heap_less(heap_f[right_c], heap_n[right_c], heap_f[left_c], heap_n[left_c]))
+        {
+          best_c = right_c;
+        }
+        if (!wy_heap_less(heap_f[best_c], heap_n[best_c], lf, ln))
+        {
+          break;
+        }
+        heap_f[idx] = heap_f[best_c];
+        heap_n[idx] = heap_n[best_c];
+        idx = best_c;
+      }
+      heap_f[idx] = lf;
+      heap_n[idx] = ln;
+    }
+    if (shere > out[here])
+    {
+      continue;
+    }
+    const int32_t hi = here / nz, hj = here % nz;
+    for (int32_t dir = 0; dir < 8; dir++)
+    {
+      const int32_t ni = hi + di[dir], nj = hj + dj[dir];
+      if (ni < 0 || ni >= nx || nj < 0 || nj >= nz)
+      {
+        continue;
+      }
+      const int32_t nxt = ni * nz + nj;
+      if (blocked[nxt] != 0U)
+      {
+        continue;
+      }
+      const double cand = shere + step_w[dir];
+      if (cand < out[nxt])
+      {
+        if (hlen >= heap_cap)
+        {
+          return -1;
+        }
+        out[nxt] = cand;
+        int32_t idx = hlen++;
+        while (idx > 0)
+        {
+          const int32_t par = (idx - 1) / 2;
+          if (!wy_heap_less(cand, nxt, heap_f[par], heap_n[par]))
+          {
+            break;
+          }
+          heap_f[idx] = heap_f[par];
+          heap_n[idx] = heap_n[par];
+          idx = par;
+        }
+        heap_f[idx] = cand;
         heap_n[idx] = nxt;
       }
     }

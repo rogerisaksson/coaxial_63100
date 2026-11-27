@@ -149,13 +149,18 @@ def even(g, e=None):
 
 def walked(at, cells):
     """(nx, nz) m the robot's walk over `cells`' free ones from `at` (x, z), inf where none reaches."""
-    import numpy as np
     from machine.way import route
     from machine.eyes import grids
+    from tools.cores import way
     here = route._cell(*at)
     start = here if route._free(cells, here) else grids.nearest_free(cells, here)
+    d0 = 0.0 if here == start else voxels.CELL_M * math.dist(here, start)
+    got = way.walked(cells, start, d0, voxels.CELL_M)
+    if got is not None:
+        return got
+    import numpy as np
     out = np.full(cells.shape, np.inf)
-    todo = [(voxels.CELL_M * math.dist(here, start), start)]
+    todo = [(d0, start)]
     steps = [(i, j, voxels.CELL_M * math.hypot(i, j)) for i in (-1, 0, 1) for j in (-1, 0, 1) if (i, j) != (0, 0)]
     while todo:
         m, (i, j) = heapq.heappop(todo)

@@ -148,6 +148,10 @@ def convex(pts):
 
 def nearest_free(blocked, cell):
     """The free cell of `blocked` (nx, nz) nearest `cell`, `cell` itself where none is."""
+    from tools.cores import way
+    got = way.nearest_free(blocked, cell)
+    if got is not None:
+        return got
     import numpy as np
     free = np.argwhere(~blocked)
     if len(free) == 0:

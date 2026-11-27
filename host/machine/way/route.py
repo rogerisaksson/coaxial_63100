@@ -53,14 +53,23 @@ def _free(cells, cell):
     return 0 <= cell[0] < cells.shape[0] and 0 <= cell[1] < cells.shape[1] and not cells[cell]
 
 
+#: Cached `(at, (nx, nz))` for `(X_M, Z_M, CELL_M)` (`_grid`).
+_GRID: list = [None, None, None]
+
+
 def _grid():
     """(nx * nz, 2) the robot's map's cells' centres (x, z), and its shape."""
-    np = sight._np()
-    nx = int(round((voxels.X_M[1] - voxels.X_M[0]) / voxels.CELL_M))
-    nz = int(round((voxels.Z_M[1] - voxels.Z_M[0]) / voxels.CELL_M))
-    x, z = np.meshgrid(voxels.X_M[0] + (np.arange(nx) + 0.5) * voxels.CELL_M,
-                       voxels.Z_M[0] + (np.arange(nz) + 0.5) * voxels.CELL_M, indexing='ij')
-    return np.column_stack([x.ravel(), z.ravel()]), (nx, nz)
+    key = (voxels.X_M, voxels.Z_M, voxels.CELL_M)
+    if _GRID[0] != key:
+        np = sight._np()
+        nx = int(round((voxels.X_M[1] - voxels.X_M[0]) / voxels.CELL_M))
+        nz = int(round((voxels.Z_M[1] - voxels.Z_M[0]) / voxels.CELL_M))
+        x, z = np.meshgrid(voxels.X_M[0] + (np.arange(nx) + 0.5) * voxels.CELL_M,
+                           voxels.Z_M[0] + (np.arange(nz) + 0.5) * voxels.CELL_M, indexing='ij')
+        at = np.ascontiguousarray(np.column_stack([x.ravel(), z.ravel()]), dtype=np.float64)
+        at.setflags(write=False)
+        _GRID[:] = [key, at, (nx, nz)]
+    return _GRID[1], _GRID[2]
 
 
 def costs(things, floor, seen=None, slot=-1, face=None):

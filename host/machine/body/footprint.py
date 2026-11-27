@@ -75,8 +75,8 @@ def took(deg):
     return TOOK[_bin(deg)]
 
 
-#: The things last read (`_laid_things`): the list, its boxes' and footprints' arrays, its meetings by floor and reach.
-_THINGS: list = [None, None, {}]
+#: Recent `things` lists read (`_laid_things`): [(things, arrays, meetings), ..] so unfiltered and dock-filtered lists stay warm.
+_THINGS: list = []
 
 
 def _laid_things(things):
@@ -84,12 +84,22 @@ def _laid_things(things):
     meetings (`met`), laid once a list - nothing writes into the robot's things -: a dock's ask reads them some 220
     times (`dock.docked`), laid each its footprints were 343 thousand an errand."""
     import numpy as np
-    if _THINGS[0] is not things:
-        prints = [affordance.footprint(t) for t in things]
-        _THINGS[:] = [things, (np.array([affordance.bottom(t) for t in things], float).reshape(-1),
-                               np.array([affordance.top(t) for t in things], float).reshape(-1),
-                               *(np.array([p[i] for p in prints]) for i in range(3))), {}]
-    return _THINGS[1], _THINGS[2]
+    for entry in _THINGS:
+        if entry[0] is things:
+            return entry[1], entry[2]
+    prints = [affordance.footprint(t) for t in things]
+    laid = (
+        np.ascontiguousarray([affordance.bottom(t) for t in things], dtype=np.float64).reshape(-1),
+        np.ascontiguousarray([affordance.top(t) for t in things], dtype=np.float64).reshape(-1),
+        np.ascontiguousarray([p[0] for p in prints], dtype=np.float64).reshape(-1, 2) if prints else np.empty((0, 2)),
+        np.ascontiguousarray([p[1] for p in prints], dtype=np.float64).reshape(-1, 2, 2) if prints else np.empty((0, 2, 2)),
+        np.ascontiguousarray([p[2] for p in prints], dtype=np.float64).reshape(-1, 2) if prints else np.empty((0, 2)),
+    )
+    meetings: dict = {}
+    if len(_THINGS) >= 4:
+        _THINGS.pop(0)
+    _THINGS.append((things, laid, meetings))
+    return laid, meetings
 
 
 def met(things, floor, h):
@@ -104,8 +114,9 @@ def met(things, floor, h):
         first = np.clip(np.floor(lo / BAND_M), 0, len(h) - 1).astype(int)
         last = np.clip(np.floor(hi / BAND_M), 0, len(h) - 1).astype(int)
         spans = (np.arange(len(h))[None, :] >= first[:, None]) & (np.arange(len(h))[None, :] <= last[:, None])
-        toward = np.where(spans[:, :, None], h[None, :, :], 0.0).max(axis=1)
-        got = meetings[(floor, id(h))] = (h, (hi > leap.TOUCH_M) & (lo < len(h) * BAND_M), toward)
+        toward = np.ascontiguousarray(np.where(spans[:, :, None], h[None, :, :], 0.0).max(axis=1), dtype=np.float64)
+        meets = (hi > leap.TOUCH_M) & (lo < len(h) * BAND_M)
+        got = meetings[(floor, id(h))] = (h, meets, toward, np.ascontiguousarray(meets, dtype=np.uint8))
     return got[1], got[2]
 
 
@@ -120,9 +131,10 @@ def gaps(poses, h, things, floor):
     if not len(things):
         return np.full((len(poses), 0), np.inf)
     meets, toward = met(things, floor, h)
-    (_lo, _hi, c, axes, half), _meetings = _laid_things(things)
+    (_lo, _hi, c, axes, half), meetings = _laid_things(things)
+    meets_u8 = meetings[(floor, id(h))][3]
     from tools.cores import way
-    got = way.gaps(poses, phi, K, meets, toward, c, axes, half)
+    got = way.gaps(poses, phi, K, meets_u8, toward, c, axes, half)
     if got is not None:
         return got
     yaw, at = poses[:, 2], poses[:, :2]
