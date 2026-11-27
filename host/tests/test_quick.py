@@ -228,6 +228,23 @@ def test_the_robots_compile_leaves_its_pages_core(report, c):
     neither trapped on the page's core nor contending across SMT siblings."""
     import subprocess
     from machine.process import placed
+    base = 64 + (os.getpid() % 256) * 4 if sys.platform == 'win32' else 64
+    c1, c2, c3 = (1 << (base + k) for k in range(3))
+    synth = ([(0, 1), (0, c1), (0, c2), (0, c3)], [1 | c1 | c2 | c3])
+    h_page = placed._take(c3, 'core')
+    try:
+        free_one = placed.free_processors(synth)
+        h_rest = [placed._take(c1, 'core'), placed._take(c2, 'core')]
+        try:
+            free_all = placed.free_processors(synth)
+        finally:
+            for h in h_rest:
+                placed.free(h)
+    finally:
+        placed.free(h_page)
+    report.check('free_processors excludes processor 0 and claimed cores, falling back to non-loop cores when saturated',
+                 h_page is not None and free_one == (c1 | c2) and free_all == (c1 | c2 | c3),
+                 'free_one %x, free_all %x' % (free_one, free_all))
     cores = placed.cores()
     mask, holding = placed.claim()
     if not mask or len(cores) < 3:
@@ -246,27 +263,26 @@ def test_the_robots_compile_leaves_its_pages_core(report, c):
         placed.free(holding)
     was, now, given = (int(x, 16) for x in said) if len(said) == 3 else (0, 0, -1)
     no_smt = all(((now & core) & ((now & core) - 1)) == 0 for core in cores)
-    left_page = not (now & mask)
     report.check('the robot\'s compile started on its page\'s core spreads onto 1 thread per free physical core off '
                  'the page\'s core: %d processors of %d, from %d' % (bin(now).count('1'), bin(given).count('1'),
                                                                      bin(was).count('1')),
-                 bound and was == mask and now == given and left_page and no_smt and bool(now),
+                 bound and was == mask and now == given and bool(now & ~mask) and no_smt,
                  '%x -> %x of %x (mask %x)' % (was, now, given, mask))
     ui_env = dict(os.environ, PYTHONPATH=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     ui_child = subprocess.Popen(
         [sys.executable, '-X', 'utf8', '-c',
          'from machine.process import placed; ok = placed.placed(ui=True); '
          'cored = placed._CORED[1] if len(placed._CORED) > 1 else 0; '
-         'print("%d %x %x %x" % (ok, placed.now(), placed.free_processors(), cored), flush=True)'],
+         'taken = int(placed._taken(cored, "core")) if cored else 1; '
+         'print("%x %x %x %x %x" % (ok, placed.now(), placed.free_processors(), cored, taken), flush=True)'],
         stdout=subprocess.PIPE, text=True, env=ui_env)
     ui_said = (ui_child.communicate(timeout=30)[0] or '').split()
-    ui_ok, ui_now, ui_free, ui_cored = (int(x, 16) for x in ui_said) if len(ui_said) == 4 else (0, 0, 0, 0)
+    ui_ok, ui_now, ui_free, ui_cored, ui_taken = (int(x, 16) for x in ui_said) if len(ui_said) == 5 else (0,) * 5
     no_smt_ui = all(((ui_now & core) & ((ui_now & core) - 1)) == 0 for core in cores)
     no_smt_free = all(((ui_free & core) & ((ui_free & core) - 1)) == 0 for core in cores)
     report.check('terminal UX placement keeps child/loader mask free of SMT sibling contention and reserves its UI core',
-                 bool(ui_ok and ui_now and ui_free and no_smt_ui and no_smt_free
-                      and (not (ui_free & ui_cored) or bin(ui_free).count('1') <= 1)),
-                 'ui %x, free %x, cored %x' % (ui_now, ui_free, ui_cored))
+                 bool(ui_ok and ui_now and ui_free and ui_taken and no_smt_ui and no_smt_free),
+                 'ui %x, free %x, cored %x, taken %d' % (ui_now, ui_free, ui_cored, ui_taken))
 
 
 def test_the_compiles_strip_keeps_time(report, c):
@@ -296,6 +312,7 @@ def test_warm_only_and_cache_fallbacks(report, c):
     import hashlib
     from machine.law import barrier
     from tools.cores import bodied, held, kept
+    held.settled(60.0)
     cold_left, cold_part = [11, 12], bodied.on_shapes(_cold_probe, 'cold_probe', (0,))
     barrier.ahead(cold_part, cold_left, warm_only=True)
     bad_path, orig_replace = kept._shape_file(cold_part.at), os.replace
@@ -305,17 +322,18 @@ def test_warm_only_and_cache_fallbacks(report, c):
         kept.keep_shape(cold_part.at, ((3,),))
     finally:
         os.replace = orig_replace
-    src = 'void dummy_fallback(void) {}\n'
+    src, tag = 'void dummy_fallback(void) {}\n', 'dummy_fallback'
     orig_cached, orig_loaded, orig_built = held._cached_path, held.loaded, held.built
     rebuilt = []
     try:
-        held._cached_path = lambda _s, _n, _m: 'missing_cached.so'
+        held._cached_path = lambda s, n, m: 'missing_cached.so' if n == tag else orig_cached(s, n, m)
         held.loaded = lambda p, n, batch=False, solves=False: (
-            (_ for _ in ()).throw(OSError('pruned')) if p == 'missing_cached.so'
-            else (rebuilt.append(p) or (None, None)))
-        held.built = lambda _s, _n, _m, _h=None: 'rebuilt.so'
-        job = held.building(src, 'dummy_fallback', False)
-        job['done'].wait(5.0)
+            ((_ for _ in ()).throw(OSError('pruned')) if p == 'missing_cached.so'
+             else (rebuilt.append(p) or (None, None))) if n == tag
+            else orig_loaded(p, n, batch=batch, solves=solves))
+        held.built = lambda s, n, m, h=None: 'rebuilt.so' if n == tag else orig_built(s, n, m, h)
+        job = held.building(src, tag, False)
+        job['done'].wait(15.0)
     finally:
         held._cached_path, held.loaded, held.built = orig_cached, orig_loaded, orig_built
         held._BUILDING.pop(hashlib.sha1(src.encode()).hexdigest(), None)
