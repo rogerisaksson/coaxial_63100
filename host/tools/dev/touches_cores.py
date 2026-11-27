@@ -1,5 +1,5 @@
 """What a change to tools/cores/ reaches: its modules, a prefix each, and their suites."""
-from tools.dev.suites import (AERO_CORE, BOOT_CLIENT, BOOT_CORE, COMPILED, QUICK, TICK, VECTORIZED, LIBM,
+from tools.dev.suites import (AERO_CORE, BOOT_CLIENT, BOOT_CORE, COMPILED, ENGRAMS, HOTSWAP, QUICK, TICK, VECTORIZED, LIBM,
                               PORTED, BORNE, REGISTRY, CLASSES, CORE, CTRL_CORE, DAQ_CORE, DRIVE,
                               DRIVE_OBSERVER, FILTER, LEAP, ORTHO, QUADS, REACH, SENSORLESS, SHTP,
                               STREAMS, STRUCTURE, SYSID, THERMAL, THERMAL_APP, WBC_CORE, WEAR,
@@ -48,5 +48,7 @@ CORES = (
     ('host/tools/cores/quick_part.c',          (STRUCTURE, COMPILED, QUICK, PORTED, ORTHO)),
     ('host/tools/cores/quick_step.c',          (STRUCTURE, QUICK, WBC_CORE, PORTED)),
     ('host/tools/cores/quick.h',               (STRUCTURE, COMPILED, QUICK, PORTED, ORTHO)),
+    ('host/tools/cores/prefetch.py',           (STRUCTURE, HOTSWAP, ENGRAMS, QUICK)),
+    ('host/tools/cores/prefetch.c',            (STRUCTURE, HOTSWAP, ENGRAMS, QUICK)),
     ('host/tools/cores/aero.py',               QUADS + (AERO_CORE, STREAMS)),
 )

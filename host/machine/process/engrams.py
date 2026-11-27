@@ -438,6 +438,8 @@ def swap(g, engram, keep='', s=None):
             bk['stock'][skey] = bk['programs'].get(engram.slot)
         bk['programs'][engram.slot] = payload
     bk['active'][(engram.slot, str(keep))] = engram.name
+    from tools.cores import prefetch
+    prefetch.refresh(g)
     return {'engram': engram.name, 'slot': engram.slot, 'swapped_live': swapped_live, **hv}
 
 
@@ -473,6 +475,8 @@ def unload(g, slot, keep='', s=None):
             else:
                 bk['programs'][slot] = orig
     bk['active'].pop((slot, keep), None)
+    from tools.cores import prefetch
+    prefetch.refresh(g)
 
 
 def unload_all(g, s=None):

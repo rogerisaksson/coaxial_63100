@@ -39,6 +39,8 @@ def swap(g, unit: Any, keep: str = '', s=None) -> dict[str, Any]:
         return {'type': 'engram', 'compile_ms': rec['compile_ms'], **res}
     out = _validate_and_swap_core(g, rec)
     out['compile_ms'] = rec['compile_ms']
+    from tools.cores import prefetch
+    prefetch.refresh(g)
     return out
 
 
@@ -84,6 +86,8 @@ def unload(g, target: str, keep: str = '', s=None):
         g[target] = bk['stock_cores'].pop(target)
         bk['active_cores'].pop(target, None)
     engrams.unload(g, target, keep=keep, s=s)
+    from tools.cores import prefetch
+    prefetch.refresh(g)
 
 
 def unload_all(g, s=None):
@@ -339,6 +343,8 @@ def reload_state(s, name: str | None = 'default', *, snap=None, path: str | None
         worker.apply(s, {'say': say})
     if command is not None:
         worker.apply(s, dict(command))
+    from tools.cores import prefetch
+    prefetch.refresh(s['g'])
     d = s['g']['world'].data
     return {
         'reloaded': name if path is None else path, 't': float(s['g']['t']),
@@ -475,7 +481,9 @@ def apply_hotswap(s, cmd: Any) -> dict[str, Any]:
                 unload(g, str(cmd['target']), keep=str(cmd.get('keep', '')), s=s)
             return {'action': 'unload', 'active': active(g)}
         if action == 'status':
-            return {'action': 'status', 'active': active(g), 'checkpoints': list_states(s)}
+            pf = g.get('_prefetch')
+            return {'action': 'status', 'active': active(g), 'checkpoints': list_states(s),
+                    'prefetch': pf.stats() if pf is not None else None}
         if 'spec' in cmd:
             cmd = cmd['spec']
     swapped = swap_batch(g, cmd, s=s)

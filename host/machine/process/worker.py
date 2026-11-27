@@ -377,6 +377,11 @@ class Robot:
         peek.peeked(self.s)
         return self.s.pop('_wear_s', 0.0)
 
+    def wake(self):
+        pf = self.s['g'].get('_prefetch')
+        if pf is not None:
+            pf.hot()
+
     def said(self, ratio, headroom=1.0):
         if ratio is not None:
             self.s['ratio'], self.s['headroom'] = ratio, headroom

@@ -62,6 +62,7 @@ def paced(world, commands, states, shown=None, lead_s=LEAD_S, realtime=True, say
     second stepping, the waits left out), and at each new epoch. A pass's `step` returns the wall
     seconds it spent that the pace leaves out; `rest_s` the loop's least turn while it waits."""
     put(states, world.said(None))
+    wake = getattr(world, 'wake', None)
     wall0 = wall_said = last_wall = time.perf_counter()
     sim0, said_at, spent, ran, ratio, headroom = world.t, 0.0, 0.0, 0.0, 1.0, 1.0
     passes = 0
@@ -122,6 +123,8 @@ def paced(world, commands, states, shown=None, lead_s=LEAD_S, realtime=True, say
             rest = rest_s - (last_wall - began)
             if rest > 0.0:
                 time.sleep(rest)
+                if wake is not None:
+                    wake()
                 last_wall = time.perf_counter()
 
 

@@ -1,5 +1,4 @@
 """Compile and dry-run validate LLM-generated C11 microkernels, Python hooks, and Lisp engrams."""
-import copy
 import ctypes
 import hashlib
 import json
@@ -69,9 +68,7 @@ def _tables_from_defmove(name: str, lisp_text: str):
 def _engram_from_row(row: dict[str, Any]) -> Engram:
     """Normalize an LLM engram dict (supporting raw Lisp `defmove` or `ortho` text) into `Engram`."""
     from machine.texts import ortho
-    name = str(row['name'])
-    slot = str(row['slot'])
-    kind = str(row['kind'])
+    name, slot, kind = str(row['name']), str(row['slot']), str(row['kind'])
     task = str(row.get('task', slot))
     spec = dict(row.get('spec', {}))
     if kind == 'sensed' and 'lisp' in spec:
@@ -136,9 +133,7 @@ class CompiledCCore:
 
     def __call__(self, *args):
         import numpy as np
-        c_vals: list[Any] = []
-        keep_alive: list[Any] = []
-        writeback: list[tuple[Any, Any]] = []
+        c_vals, keep_alive, writeback = [], [], []
         pos = 0
         for token in self.arg_specs:
             if token.startswith('len:'):
@@ -149,16 +144,10 @@ class CompiledCCore:
                 continue
             val = args[pos]
             pos += 1
-            if token in ('f64*', 'ptr'):
-                arr = val if (isinstance(val, np.ndarray) and val.dtype == np.float64
-                              and val.flags.c_contiguous) else np.ascontiguousarray(val, dtype=np.float64)
-                if arr is not val and isinstance(val, np.ndarray) and val.flags.writeable:
-                    writeback.append((val, arr))
-                keep_alive.append(arr)
-                c_vals.append(arr.ctypes.data)
-            elif token == 'i32*':
-                arr = val if (isinstance(val, np.ndarray) and val.dtype == np.int32
-                              and val.flags.c_contiguous) else np.ascontiguousarray(val, dtype=np.int32)
+            if token in ('f64*', 'ptr', 'i32*'):
+                dt = np.int32 if token == 'i32*' else np.float64
+                arr = val if (isinstance(val, np.ndarray) and val.dtype == dt
+                              and val.flags.c_contiguous) else np.ascontiguousarray(val, dtype=dt)
                 if arr is not val and isinstance(val, np.ndarray) and val.flags.writeable:
                     writeback.append((val, arr))
                 keep_alive.append(arr)
@@ -233,18 +222,21 @@ def _eval_python_fn(name: str, source: str, entry: str):
     return fn
 
 
+def _clone_one(val):
+    """Clone NumPy arrays, dicts, lists, and tuples while preserving opaque C handles."""
+    import numpy as np
+    if isinstance(val, np.ndarray):
+        return val.copy()
+    if isinstance(val, dict):
+        return {k: _clone_one(v) for k, v in val.items()}
+    if isinstance(val, (list, tuple)):
+        return type(val)(_clone_one(v) for v in val)
+    return val
+
+
 def _clone_args(args):
     """Deep-copy NumPy arrays, dicts, and lists in `args` so dry-run probes never mutate `g`."""
-    import numpy as np
-    out = []
-    for a in args:
-        if isinstance(a, np.ndarray):
-            out.append(a.copy())
-        elif isinstance(a, (dict, list)):
-            out.append(copy.deepcopy(a))
-        else:
-            out.append(a)
-    return tuple(out)
+    return tuple(_clone_one(a) for a in args)
 
 
 def _hook_probe_args(g, hook: str):
@@ -252,49 +244,32 @@ def _hook_probe_args(g, hook: str):
     import numpy as np
     from machine.law import modal
     from machine.senses import edge
-    dt = 0.001 * float(g['every'])
-    if hook == 'released':
-        return (g['release'].copy(), g['weighed_w'].copy(), g['a'].copy(),
-                g['distal'].copy(), g['distal_side'].copy())
-    if hook in ('outside', 'sloped'):
-        return (g['grip'].copy(), g['situations']['grips'].copy())
-    if hook == 'bounds':
-        return (g['s']['v'][g['body'].act].copy(), float(g['sense'][edge.LINK][0]))
-    if hook == 'pitched':
-        return (g['y'].copy(), g['fr'].copy())
-    if hook == 'sured':
-        return (g['a'].copy(), g['posture'].copy(), np.zeros_like(g['posture']),
-                g['brace'].copy(), 0.8, 0.2, 0.0, 0.0)
-    if hook == 'weighed':
-        return (copy.deepcopy(g['observer']), g['told'].copy(), float(g['fr'][modal.WEIGHT]), dt)
-    if hook == 'modes':
-        return (g['y'].copy(), g['fr'].copy(), g['out'].copy())
-    if hook == 'modal_sensed':
-        return (copy.deepcopy(g['s']), list(g['loads']), g['y'].copy())
-    if hook == 'latent':
-        return (g['st'].copy(), g['tab'].copy(), float(g['t']), dt, g['out'].copy())
-    if hook == 'couple':
-        return (g['s']['q'][g['joints']].copy(), g['s']['v'][g['body'].act].copy(),
-                g['ref_q'].copy(), g['ref_v'].copy(), g['eso'][2].copy(), g['out'].copy())
-    if hook == 'impedance':
-        return (g['out'].copy(), g['y'].copy(), g['fr'].copy(), g['a'].copy())
-    if hook == 'surety_field':
-        return (float(g['surety']), dt, math.nan, float(g['t']))
-    if hook == 'poses':
-        return (g['a'].copy(), g['y'].copy(), g['fr'].copy(), g['posture'].copy(),
-                g['bend'].copy(), g['arms'].copy(), g['reaches'].copy(), g['folds'].copy(),
-                g['body'].knees, g['weighed_w'].copy(), 0.0)
-    if hook == 'gripped':
-        sits = g['situations']
-        return (g['out'].copy(), float(g.get('held', 0.8)), g['a'][modal.STANCE].copy(),
-                sits['caps'].copy(), g['into'].copy(), sits['floors'].copy(),
-                float(sits['period']), g['eased'].copy(), dt)
-    if hook == 'readings':
-        return (g['y'].copy(), g['fr'].copy(), g['a'].copy(), g['grip'].copy(),
-                g['sense'][edge.TOUCH].reshape(-1, 3).copy(), float(g['fr'][modal.WEIGHT]))
-    if hook == 'read':
-        return (g['situations'], np.zeros(len(g['situations']['names'])))
-    return None
+    dt, sits, body = 0.001 * float(g['every']), g['situations'], g['body']
+    probes = {
+        'released': lambda: (g['release'], g['weighed_w'], g['a'], g['distal'], g['distal_side']),
+        'outside': lambda: (g['grip'], sits['grips']),
+        'sloped': lambda: (g['grip'], sits['grips']),
+        'bounds': lambda: (g['s']['v'][body.act], float(g['sense'][edge.LINK][0])),
+        'pitched': lambda: (g['y'], g['fr']),
+        'sured': lambda: (g['a'], g['posture'], np.zeros_like(g['posture']), g['brace'], 0.8, 0.2, 0.0, 0.0),
+        'weighed': lambda: (g['observer'], g['told'], float(g['fr'][modal.WEIGHT]), dt),
+        'modes': lambda: (g['y'], g['fr'], g['out']),
+        'modal_sensed': lambda: (g['s'], list(g['loads']), g['y']),
+        'latent': lambda: (g['st'], g['tab'], float(g['t']), dt, g['out']),
+        'couple': lambda: (g['s']['q'][g['joints']], g['s']['v'][body.act],
+                           g['ref_q'], g['ref_v'], g['eso'][2], g['out']),
+        'impedance': lambda: (g['out'], g['y'], g['fr'], g['a']),
+        'surety_field': lambda: (float(g['surety']), dt, math.nan, float(g['t'])),
+        'poses': lambda: (g['a'], g['y'], g['fr'], g['posture'], g['bend'], g['arms'],
+                          g['reaches'], g['folds'], body.knees, g['weighed_w'], 0.0),
+        'gripped': lambda: (g['out'], float(g.get('held', 0.8)), g['a'][modal.STANCE],
+                            sits['caps'], g['into'], sits['floors'], float(sits['period']), g['eased'], dt),
+        'readings': lambda: (g['y'], g['fr'], g['a'], g['grip'],
+                             g['sense'][edge.TOUCH].reshape(-1, 3), float(g['fr'][modal.WEIGHT])),
+        'read': lambda: (sits, np.zeros(len(sits['names']))),
+    }
+    fn = probes.get(hook)
+    return _clone_args(fn()) if fn is not None else None
 
 
 def _bind_python_core(record: dict[str, Any], g=None, probe_args=None):
@@ -344,8 +319,7 @@ def _bind_python_core(record: dict[str, Any], g=None, probe_args=None):
 
 def _compile_python_core(row: dict[str, Any], g=None) -> dict[str, Any]:
     """Compile a Python/NumPy core specification and optionally trace/build C11 immediately."""
-    name = str(row['name'])
-    hook = row.get('hook')
+    name, hook = str(row['name']), row.get('hook')
     entry = str(row.get('entry') or hook or name)
     fn = _eval_python_fn(name, str(row['source']), entry)
     record: dict[str, Any] = {
@@ -380,7 +354,7 @@ def normalize_specs(source: Any) -> list[dict[str, Any]]:
             for item in raw.get('items', ()):
                 out.extend(normalize_specs(item))
             for core in raw.get('cores', ()):
-                out.append(dict(core, type='core'))
+                out.extend(normalize_specs(dict(core, type='core')))
             for eng in raw.get('engrams', ()):
                 out.append({'type': 'engram', 'engram': eng} if isinstance(eng, Engram) else dict(eng, type='engram'))
             return out
@@ -489,8 +463,7 @@ def _validate_and_swap_core(g, rec: dict[str, Any]) -> dict[str, Any]:
         _bind_python_core(rec, g=g, probe_args=probe)
     cand = rec['callable']
     if probe is not None:
-        ref_args = _clone_args(probe)
-        cand_args = _clone_args(probe)
+        ref_args, cand_args = _clone_args(probe), _clone_args(probe)
         want = stock_fn(*ref_args)
         try:
             got = cand(*cand_args)
@@ -504,6 +477,8 @@ def _validate_and_swap_core(g, rec: dict[str, Any]) -> dict[str, Any]:
         bk['stock_cores'][hook] = g[hook]
     g[hook] = cand
     bk['active_cores'][hook] = rec['name']
+    from tools.cores import prefetch
+    prefetch.refresh(g)
     return {
         'type': 'core', 'name': rec['name'], 'hook': hook, 'kind': rec['kind'],
         'compiled_c': bool(rec.get('compiled_c')), 'warnings': list(rec.get('warnings', ())),

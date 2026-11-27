@@ -22,7 +22,7 @@ _BASE_STATIC_G = frozenset({
     'joints', 'legs', 'leg_joints', 'limbs', 'cervical', 'waist_idx', 'head_idx', 'situations',
     'rng', 'q_lo', 'q_hi', 'clamp', 'wep_lim', 'free_kp', 'rate_hz', 'every', 'texts', 'suite',
     'bend', 'arms', 'reaches', 'folds', 'distal', 'distal_side', '_stand_entry', '_brake_wire',
-    'drives', 'bus', 'tick', 'observer', 'heat', 'registry', 'bank', 'played',
+    'drives', 'bus', 'tick', 'observer', 'heat', 'registry', 'bank', 'played', '_prefetch',
 })
 #: Derived caches on `g` (holding raw C mask addresses or identity-keyed memos) rebuilt on restore.
 _DERIVED_G = frozenset({'_falls_by', '_falls_down', '_falls_parts', '_falls_of', '_said_of', '_told_with'})
@@ -493,6 +493,9 @@ def restore(s, snap):
         worn.parts = iter(()) if worn.due_at is not None else None
     if getattr(s['g'].get('vision'), 'apart', False):
         s['g']['vision'].pending = False
+    pf = s['g'].get('_prefetch')
+    if pf is not None:
+        pf.rebuild(s['g'], eager=False)
 
 
 def advance_until(s, predicate, max_s, commands=()):

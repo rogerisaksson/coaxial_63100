@@ -132,6 +132,8 @@ def activate(g, command):
     slot['enter_t0'] = None
     bank['handover'] = None
     g['played'] = slot
+    from tools.cores import prefetch
+    prefetch.refresh(g)
 
 
 def begin_move(g, world, p):
@@ -193,6 +195,8 @@ def release(g):
     if bank is not None:
         bank['handover'] = None
     g['played'], g['programs'] = None, {}
+    from tools.cores import prefetch
+    prefetch.refresh(g)
 
 
 def blend_exit(g, world):

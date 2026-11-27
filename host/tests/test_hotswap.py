@@ -303,10 +303,97 @@ def test_live_worker_apply_and_tcp_telemetry_hotswap(report):
         physics.ROOM, physics.CAMERA, physics.SIGHT = prev
 
 
+def test_tiered_l1_l2_l3_cache_prefetch_loader(report):
+    """`tools.cores.prefetch` stages the 1 kHz loop in L1, law cores in L2, and engrams/code in L3 bit-identically."""
+    import ctypes
+    import hashlib
+    from machine.process import bank, hotswap, worker
+    from machine.world import physics
+    from tools.cores import prefetch
+
+    prev = (physics.ROOM, physics.CAMERA, physics.SIGHT)
+    physics.ROOM = physics.CAMERA = physics.SIGHT = 0.0
+    try:
+        info = prefetch.caches()
+        report.check('prefetch.caches detects valid hardware L1/L2/L3 cache hierarchy',
+                     32 <= info.line <= 256 and 0 < info.l1d <= info.l2 <= info.l3, str(info))
+
+        s = worker.session(walks=True)
+        g = s['g']
+        loader: prefetch.Loader = g['_prefetch']
+        st0 = loader.stats()
+        report.check('session stages L1, L2, and L3 within hardware capacity budgets and pins C libraries',
+                     isinstance(loader, prefetch.Loader)
+                     and 0 < st0['l1_bytes'] <= int(info.l1d * prefetch.BUDGET_SHARE)
+                     and 0 < st0['l2_bytes'] <= int(info.l2 * prefetch.BUDGET_SHARE)
+                     and 0 < st0['l3_bytes'] <= int(info.l3 * prefetch.BUDGET_SHARE)
+                     and st0['pinned_libs'] >= 2
+                     and st0['lines_all'] >= st0['lines_hot'] >= st0['lines_l1'] > 0,
+                     str(st0))
+
+        # Activating a pre-warmed C move promotes its wbc_sensed_t table and buffers into L1; release demotes it back.
+        slot = g['bank']['moves'][('chair_mount', '')]
+        tb_addr = ctypes.addressof(slot['move']._laid()[1]) & ~(info.line - 1)
+        l1_before = set(loader.addrs[loader.cuts[3]:loader.cuts[5]].tolist())
+        bank.activate(g, {'joints': 'chair_mount'})
+        l1_active = set(loader.addrs[loader.cuts[3]:loader.cuts[5]].tolist())
+        bank.release(g)
+        l1_released = set(loader.addrs[loader.cuts[3]:loader.cuts[5]].tolist())
+        report.check('activating a C move promotes its table and buffers from L3 to L1 and release restores L3',
+                     tb_addr not in l1_before and tb_addr in l1_active and tb_addr not in l1_released,
+                     'before=%s active=%s released=%s' % (tb_addr in l1_before, tb_addr in l1_active, tb_addr in l1_released))
+
+        # Hot-swapping a C11 core and Lisp engram updates prefetch status and pins the new shared library.
+        c_spec = {
+            'type': 'core', 'kind': 'c', 'name': 'pf_sloped_core', 'hook': 'sloped',
+            'entry': 'pf_sloped_core', 'args': ['f64*', 'f64*'], 'returns': {'shape': [2], 'dtype': 'float64'},
+            'source': (
+                'void pf_sloped_core(const double *g, const double *gs, double *out) {\n'
+                '    (void)gs; out[0] = g[0]; out[1] = g[1];\n'
+                '}\n'
+            ),
+        }
+        hotswap.swap(g, c_spec, s=s)
+        status = hotswap.apply_hotswap(s, {'action': 'status'})
+        pf_stat = status.get('prefetch') or {}
+        hotswap.unload_all(g, s=s)
+        report.check('hotswap status exposes live prefetch telemetry and pins newly compiled C11 microkernels',
+                     pf_stat.get('pinned_libs', 0) >= st0['pinned_libs'] and pf_stat.get('lines_hot', 0) > 0,
+                     str(pf_stat))
+
+        # Bit-exactness: 300 passes with active prefetch + wake() match 300 passes with _prefetch disabled bit-for-bit.
+        s_a = worker.session(walks=True)
+        rob_a = worker.Robot(s_a)
+        h_a = hashlib.sha1()
+        for k in range(300):
+            if k % 50 == 0:
+                rob_a.wake()
+            worker.stepped(s_a)
+            d_a = s_a['g']['world'].data
+            for arr in (d_a.qpos, d_a.qvel, d_a.ctrl):
+                h_a.update(arr.tobytes())
+
+        s_b = worker.session(walks=True)
+        s_b['g']['_prefetch'] = None
+        h_b = hashlib.sha1()
+        for _ in range(300):
+            worker.stepped(s_b)
+            d_b = s_b['g']['world'].data
+            for arr in (d_b.qpos, d_b.qvel, d_b.ctrl):
+                h_b.update(arr.tobytes())
+
+        report.check('L1/L2/L3 prefetch loader and slice wakeups preserve bit-exact simulation trajectories',
+                     h_a.hexdigest() == h_b.hexdigest(),
+                     '%s vs %s' % (h_a.hexdigest()[:16], h_b.hexdigest()[:16]))
+    finally:
+        physics.ROOM, physics.CAMERA, physics.SIGHT = prev
+
+
 ROSTER = (
     test_compile_and_hotswap_c_python_and_lisp_units,
     test_mujoco_pose_reload_disk_checkpoint_and_parallel_iterate,
     test_live_worker_apply_and_tcp_telemetry_hotswap,
+    test_tiered_l1_l2_l3_cache_prefetch_loader,
 )
 
 

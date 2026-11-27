@@ -179,6 +179,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
         g['sensed'](body, world.data.qpos[:body.m.nq].copy(), world.data.qvel[:body.m.nv].copy(), paced=False)
     barrier_mod = __import__('machine.law.barrier', fromlist=['ahead'])
     barrier_mod.ahead(g['ringed'], g['ringed_ahead'], warm_only=True)
+    _prefetch().stage(g, eager=True)
     return g
 
 
@@ -259,6 +260,13 @@ def relaid(g, where=(0.0, 0.0), yaw=0.0):
     from tools.cores import step as c_step
     c_step.reset_chain(g['solves'][1])
     bank.reset(g)
+    _prefetch().stage(g, eager=False)
+
+
+@functools.cache
+def _prefetch():
+    from tools.cores import prefetch
+    return prefetch
 
 
 def looked(g):
