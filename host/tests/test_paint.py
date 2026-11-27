@@ -234,9 +234,72 @@ def test_a_named_page_s_drawing_starts_first(report):
                  asked == [('coaxial.draw.easel', 'render')], str(asked))
 
 
+def test_board_c_kernels_match_python(report):
+    """`raster_board` C11 folded raster, shading, ground, and `ansi.run_row` match Python/NumPy."""
+    import numpy as np
+    from coaxial.graphics import ground
+    from machine.rig import ansi
+    from tools.cores import raster_board
+    report.check('raster_board C11 library is built and loaded', raster_board._lib() is not None)
+    solid, cam = _camera(60, 20, 1.0)
+    planes = wireframe._slab_planes(solid)
+    face = wireframe._face()
+    fold_ok = True
+    for q in POSES[:4]:
+        m = engine.multiply(cam['view'], orientation.matrix(q))
+        smap = wireframe._shadowmap(m)
+        c_fold = raster_board.raster_folded(solid, m, engine.fine(cam), 60, 20,
+                                            wireframe.LIGHT, wireframe.SUN_MIN)
+        assert c_fold is not None
+        p_buf, p_top, p_sun, p_cov, p_reach = wireframe._raster(solid, m, cam, None)
+        c_sh = raster_board.shade_arrays(c_fold[0], c_fold[1], c_fold[2], cam, m,
+                                         wireframe.PIVOT, wireframe.SLOPE, wireframe.FLOOR,
+                                         face, smap, wireframe.SHADOW_DIM, wireframe.BIAS,
+                                         planes, engine.TONE_DEPTH)
+        assert c_sh is not None
+        lv, br, sd = [0.0] * 1200, [0.0] * 1200, [0.0] * 1200
+        p_cls = engine.shade(p_buf, p_top, p_sun, cam, m, wireframe.PIVOT, wireframe.SLOPE,
+                             wireframe.FLOOR, art=face, shadow=smap,
+                             shadow_step=wireframe.SHADOW_DIM, bias=wireframe.BIAS,
+                             levels=lv, bare=br, seed=sd, planes=planes)
+        fold_ok = fold_ok and (
+            np.array_equal(c_fold[0].view(np.uint64), np.asarray(p_buf, np.float64).view(np.uint64))
+            and bytes(c_fold[1]) == bytes(p_top) and bytes(c_fold[2]) == bytes(p_sun)
+            and np.array_equal(c_fold[3].view(np.uint64), np.asarray(p_cov, np.float64).view(np.uint64))
+            and bytes(c_fold[4]) == bytes(p_reach) and bytes(c_sh[0]) == bytes(p_cls)
+            and np.array_equal(c_sh[1].view(np.uint64), np.asarray(lv, np.float64).view(np.uint64))
+            and np.array_equal(c_sh[2].view(np.uint64), np.asarray(br, np.float64).view(np.uint64))
+            and np.array_equal(c_sh[3].view(np.uint64), np.asarray(sd, np.float64).view(np.uint64)))
+    report.check('raster_folded and shade_arrays match Python 0-ULP across 4 poses', fold_ok)
+
+    static = ground._static(80, 28, 3.2, cam['view'])
+    near_d = static['near_depth']
+    reach = max(1e-9, static['far_depth'] - near_d)
+    def roll(fx, fy):
+        return fx * 0.96 - fy * 0.28 + 3.1, fx * 0.28 + fy * 0.96 - 1.4
+    gnd_ok = True
+    for step in (0, 7, 19):
+        runs = ground._runs(static, 80, 28, step)
+        for rl in (None, roll):
+            c_g = raster_board.ground_runs_shaded(runs, None, 16, 80, 28, near_d, reach, rl)
+            laid = ground._laid(runs, 80, 28, rl)
+            assert laid is not None
+            greys = ground._shaded(laid, static)
+            gnd_ok = gnd_ok and c_g is not None and (
+                c_g[0].tolist(), c_g[1].tolist(), c_g[2].tolist()
+            ) == (laid[0].tolist(), laid[1].tolist(), greys.tolist())
+    report.check('ground_runs_shaded matches _laid + _shaded unrolled and rolled', gnd_ok)
+
+    chars = [' ', 'a', 'b', 'c', 'd', ' ']
+    tones = [None, (12, 180, 220), (12, 180, 220), 214, None, 44]
+    report.check('ansi.run_row matches ansi.run exactly',
+                 ansi.run_row(chars, tones) == ansi.run(zip(chars, tones)))
+
+
 ROSTER = (test_the_face_is_painted_at_once, test_the_shadow_is_cast_at_once,
           test_the_crew_decimates_as_this_process_does, test_the_easel_warms_from_a_cold_preload,
-          test_a_drawing_is_kept_for_its_page, test_a_named_page_s_drawing_starts_first)
+          test_a_drawing_is_kept_for_its_page, test_a_named_page_s_drawing_starts_first,
+          test_board_c_kernels_match_python)
 
 
 def main(argv=None):

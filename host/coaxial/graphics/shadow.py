@@ -20,6 +20,10 @@ def cast(solid, m, light, size, extent):
     up = (ly * right[2] - lz * right[1],
           lz * right[0] - lx * right[2],
           lx * right[1] - ly * right[0])
+    from tools.cores import raster_board
+    got = raster_board.shadow_cast(solid, m, right, up, (lx, ly, lz), size, extent)
+    if got is not None:
+        return got, size, extent, right, up, (lx, ly, lz)
     x, y, z = np.asarray(pos, float).reshape(-1, 3).T
     tx = m0 * x + m1 * y + m2 * z
     ty = m3 * x + m4 * y + m5 * z

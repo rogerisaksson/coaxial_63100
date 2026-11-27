@@ -226,23 +226,33 @@ def painted(cells, cam, m, colour, persist, foreign):
     `wireframe._paint`'s glow, halftone, rim, outline and edge, each over the last."""
     from coaxial.model.blocks import numpy as np
     from coaxial.graphics import strokes
+    from tools.cores import raster_board
     buf, coverage, reached, classes, levels, bare, seed = cells
     width, height = cam['width'], cam['height']
-    cls = np.frombuffer(bytes(classes), np.uint8)
+    cls = np.ascontiguousarray(np.frombuffer(bytes(classes), np.uint8))
+    reach_u8 = np.ascontiguousarray(np.frombuffer(bytes(reached), np.uint8))
+    buf_f = np.ascontiguousarray(buf, dtype=np.float64)
+    cov_f = np.ascontiguousarray(coverage, dtype=np.float64)
+    lv_f = None if levels is None else np.ascontiguousarray(levels, dtype=np.float64)
+    br_f = None if bare is None else np.ascontiguousarray(bare, dtype=np.float64)
+    sd_f = None if seed is None else np.ascontiguousarray(seed, dtype=np.float64)
     face = {'width': width, 'height': height, 'cls': cls, 'lit': np.flatnonzero(cls),
-            'buf': np.asarray(buf, float), 'coverage': np.asarray(coverage, float),
-            'reached': np.frombuffer(bytes(reached), np.uint8).astype(np.int64),
-            'levels': None if levels is None else np.asarray(levels, float),
-            'bare': None if bare is None else np.asarray(bare, float),
-            'seed': None if seed is None else np.asarray(seed, float)}
+            'buf': buf_f, 'coverage': cov_f, 'reached': reach_u8.astype(np.int64),
+            'levels': lv_f, 'bare': br_f, 'seed': sd_f}
     glyph = np.full(width * height, BLANK, np.int64)
     tone = np.full(width * height, -1, np.int64)
-    heat = _glow(face, glyph, tone, colour, cam)
-    if colour:
-        _dots(face, glyph, heat, _expose(heat, face, persist))
-    _rim(face, glyph, tone, heat, colour)
+    ok, heat = raster_board.paint_glow_dots_rim(
+        width, height, cls, reach_u8, buf_f, cov_f, lv_f, br_f, sd_f,
+        colour, _keylight(cam, width, height), _tables(), _expose, face, persist, glyph, tone)
+    if not ok:
+        heat = _glow(face, glyph, tone, colour, cam)
+        if colour:
+            _dots(face, glyph, heat, _expose(heat, face, persist))
+        _rim(face, glyph, tone, heat, colour)
     if not foreign:
-        strokes.outline(glyph, tone, face['buf'], cam, m, colour, heat)
-        strokes.edge(glyph, tone, face['reached'], cam, colour, heat)
+        strokes.outline(glyph, tone, buf_f, cam, m, colour, heat)
+        if not raster_board.paint_edge(width, height, reach_u8, heat, colour,
+                                       strokes._tables()[1], _tables()['rgb'], glyph, tone):
+            strokes.edge(glyph, tone, face['reached'], cam, colour, heat)
     at = np.flatnonzero(glyph != BLANK)
     return at, glyph[at], tone[at]

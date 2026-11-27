@@ -299,3 +299,146 @@ void rs_pose_parts(int nparts, const uintptr_t *restrict pts_ptrs,
     base += (size_t)n;
   }
 }
+
+static void rs_sort_unique(double *ts, int *cnt)
+{
+  const int n = *cnt;
+  for (int i = 1; i < n; i++)
+  {
+    const double v = ts[i];
+    int          j = i - 1;
+    while (j >= 0 && ts[j] > v)
+    {
+      ts[j + 1] = ts[j];
+      j--;
+    }
+    ts[j + 1] = v;
+  }
+  int m = (n > 0) ? 1 : 0;
+  for (int i = 1; i < n; i++)
+  {
+    if (ts[i] != ts[m - 1])
+    {
+      ts[m++] = ts[i];
+    }
+  }
+  *cnt = m;
+}
+
+/** Direct polyline raster + haze shading matching `ground._laid` + `ground._shaded` (0-ULP). */
+int rs_ground_shaded(int nseg, const double *restrict fx, const double *restrict fy,
+                     const double *restrict fd, const int32_t *restrict seg_s,
+                     const int32_t *restrict seg_line, const double *restrict seg_fade,
+                     int horizon_id, int width, int height, double near_depth, double reach,
+                     double *restrict ts_buf, int ts_cap, int32_t *restrict cell_slot,
+                     uint64_t *restrict line_bits, int64_t *restrict out_cell,
+                     int64_t *restrict out_mask, int64_t *restrict out_grey,
+                     double *restrict acc_depth, double *restrict acc_fade,
+                     int32_t *restrict acc_dots, uint8_t *restrict acc_hz)
+{
+  static const int64_t BBITS[2][4] = {{0x01, 0x02, 0x04, 0x40}, {0x08, 0x10, 0x20, 0x80}};
+  const int            ncells = width * height;
+  for (int i = 0; i < ncells; i++)
+  {
+    cell_slot[i] = -1;
+  }
+  int m = 0;
+  for (int g = 0; g < nseg; g++)
+  {
+    const int    s = (int)seg_s[g];
+    const double x0 = fx[s], y0 = fy[s], d0 = fd[s];
+    const double x1 = fx[s + 1], y1 = fy[s + 1], d1 = fd[s + 1];
+    const double dx = x1 - x0, dy = y1 - y0, dd = d1 - d0;
+    int          nt = 0;
+    ts_buf[nt++] = 0.0;
+    ts_buf[nt++] = 1.0;
+    if (dx != 0.0)
+    {
+      const double a = (x0 * 2.0 < x1 * 2.0) ? (x0 * 2.0) : (x1 * 2.0);
+      const double b = (x0 * 2.0 > x1 * 2.0) ? (x0 * 2.0) : (x1 * 2.0);
+      const double hi = ceil(b);
+      for (double i = floor(a) + 1.0; i < hi && nt < ts_cap; i += 1.0)
+      {
+        ts_buf[nt++] = (i / 2.0 - x0) / dx;
+      }
+    }
+    if (dy != 0.0)
+    {
+      const double a = (y0 * 4.0 < y1 * 4.0) ? (y0 * 4.0) : (y1 * 4.0);
+      const double b = (y0 * 4.0 > y1 * 4.0) ? (y0 * 4.0) : (y1 * 4.0);
+      const double hi = ceil(b);
+      for (double i = floor(a) + 1.0; i < hi && nt < ts_cap; i += 1.0)
+      {
+        ts_buf[nt++] = (i / 4.0 - y0) / dy;
+      }
+    }
+    rs_sort_unique(ts_buf, &nt);
+    const int32_t lid = seg_line[g];
+    const double  fade = seg_fade[g];
+    for (int k = 0; k + 1 < nt; k++)
+    {
+      const double t = 0.5 * (ts_buf[k] + ts_buf[k + 1]);
+      const double gx = x0 + dx * t, gy = y0 + dy * t, gd = d0 + dd * t;
+      if (gx < 0.0 || gy < 0.0)
+      {
+        continue;
+      }
+      const int px = (int)gx, py = (int)gy;
+      if (px >= width || py >= height)
+      {
+        continue;
+      }
+      const int at = py * width + px;
+      int       slot = (int)cell_slot[at];
+      if (slot < 0)
+      {
+        slot = m++;
+        cell_slot[at] = (int32_t)slot;
+        out_cell[slot] = (int64_t)at;
+        out_mask[slot] = 0;
+        acc_hz[slot] = 0u;
+        acc_depth[slot] = 0.0;
+        acc_dots[slot] = 0;
+        line_bits[slot] = 0ull;
+        acc_fade[slot] = fade;
+      }
+      else if (fade < 0.5)
+      {
+        continue;
+      }
+      const int col = (gx - (double)px >= 0.5) ? 1 : 0;
+      int       row = (int)((gy - (double)py) * 4.0);
+      if (row > 3)
+      {
+        row = 3;
+      }
+      out_mask[slot] |= BBITS[col][row];
+      if (lid == horizon_id)
+      {
+        acc_hz[slot] = 1u;
+      }
+      acc_depth[slot] += gd;
+      acc_dots[slot] += 1;
+      line_bits[slot] |= (1ull << (uint32_t)lid);
+      if (fade > acc_fade[slot])
+      {
+        acc_fade[slot] = fade;
+      }
+    }
+  }
+  for (int s = 0; s < m; s++)
+  {
+    uint64_t bits = line_bits[s];
+    int      nlines = 0;
+    while (bits != 0ull)
+    {
+      bits &= (bits - 1ull);
+      nlines++;
+    }
+    const double g = acc_hz[s]
+                       ? 128.0
+                       : (118.0 * pow(0.4, ((acc_depth[s] / (double)acc_dots[s]) - near_depth) / reach));
+    out_grey[s] = (int64_t)((g * acc_fade[s]) / sqrt((double)nlines) + 0.5);
+  }
+  return m;
+}

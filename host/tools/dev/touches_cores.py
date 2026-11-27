@@ -56,6 +56,8 @@ CORES = (
     ('host/tools/cores/raster.c',              (STRUCTURE, RENDER, PAINT, *VIEWS)),
     ('host/tools/cores/raster_cells.c',        (STRUCTURE, RENDER, PAINT, *VIEWS)),
     ('host/tools/cores/raster_strokes.c',      (STRUCTURE, RENDER, PAINT, *VIEWS)),
+    ('host/tools/cores/raster_board.py',       (STRUCTURE, RENDER, PAINT, *VIEWS)),
+    ('host/tools/cores/raster_board.c',        (STRUCTURE, RENDER, PAINT, *VIEWS)),
     ('host/tools/cores/vision.py',             (STRUCTURE, REGISTRY, SIGHT, GAZE)),
     ('host/tools/cores/vision.c',              (STRUCTURE, REGISTRY, SIGHT, GAZE)),
     ('host/tools/cores/way.py',                (STRUCTURE, REGISTRY, WAYFINDER, REACH, DOCKS, SIGHT)),

@@ -1,0 +1,282 @@
+"""SIMD C11 board 3D shadow, shading, glow/halftone/rim, silhouette, and ground (`raster_board.c`)."""
+import ctypes
+import functools
+
+import numpy as np
+
+from tools.cores import raster
+
+_BOARD_TLS: dict = {}
+_ART_CACHE: dict = {}
+_PACKED_RUNS: dict = {}
+
+
+@functools.lru_cache(maxsize=1)
+def _lib():
+    """Bind `raster_board.c` symbols on the shared `raster` library."""
+    lib = raster.ensure()
+    if lib is None:
+        return None
+    i32, f64, vp = ctypes.c_int, ctypes.c_double, ctypes.c_void_p
+    lib.rs_shadow_cast.argtypes = [i32, vp, i32, vp, vp, vp, vp, vp, i32, f64, vp, vp, vp, vp]
+    lib.rs_shadow_cast.restype = None
+    lib.rs_raster_folded.argtypes = [
+        i32, vp, i32, vp, vp, vp, f64, f64, f64, f64, f64, f64, f64, f64, f64,
+        i32, i32, vp, vp, vp, vp, vp, vp, vp, vp, vp, vp, vp,
+    ]
+    lib.rs_raster_folded.restype = None
+    lib.rs_shade.argtypes = [
+        i32, i32, vp, vp, vp, vp, vp, vp, vp, i32, i32, vp, i32, f64, vp, vp, vp, vp, vp,
+    ]
+    lib.rs_shade.restype = None
+    lib.rs_paint_glow.argtypes = [
+        i32, i32, vp, vp, vp, vp, vp, vp, i32, i32, vp, vp, vp, vp, vp, i32, vp, vp, vp,
+    ]
+    lib.rs_paint_glow.restype = None
+    lib.rs_paint_dots_rim.argtypes = [
+        i32, i32, vp, vp, vp, i32, f64, f64, vp, vp, vp, i32, vp, vp,
+    ]
+    lib.rs_paint_dots_rim.restype = None
+    lib.rs_edge.argtypes = [i32, i32, vp, vp, i32, vp, vp, i32, vp, vp, vp, vp]
+    lib.rs_edge.restype = None
+    lib.rs_ground_shaded.argtypes = [
+        i32, vp, vp, vp, vp, vp, vp, i32, i32, i32, f64, f64,
+        vp, i32, vp, vp, vp, vp, vp, vp, vp, vp, vp,
+    ]
+    lib.rs_ground_shaded.restype = i32
+    return lib
+
+
+def shadow_cast(solid, m, right, up, light, size: int, extent: float):
+    """Orthographic `shadow.cast` depth buffer in C, or `None` without C."""
+    lib = _lib()
+    if lib is None:
+        return None
+    pos_c, idx_c, _nrm, la, lb, lc = raster._solid_arrays(solid)
+    m9 = np.ascontiguousarray(m, dtype=np.float64).ravel()
+    r3 = np.ascontiguousarray(right, dtype=np.float64).ravel()
+    u3 = np.ascontiguousarray(up, dtype=np.float64).ravel()
+    l3 = np.ascontiguousarray(light, dtype=np.float64).ravel()
+    sbuf = np.empty(size * size, dtype=np.float64)
+    lib.rs_shadow_cast(len(pos_c) // 3, pos_c.ctypes.data, len(idx_c) // 3, idx_c.ctypes.data,
+                       m9.ctypes.data, r3.ctypes.data, u3.ctypes.data, l3.ctypes.data,
+                       int(size), float(extent), la.ctypes.data, lb.ctypes.data, lc.ctypes.data,
+                       sbuf.ctypes.data)
+    return sbuf
+
+
+def raster_folded(solid, m, fine_cam, width: int, height: int, beam, sun_min: float):
+    """Fused fine triangle raster + 2x4 cell fold returning NumPy/bytes buffers, or `None`."""
+    lib = _lib()
+    if lib is None:
+        return None
+    pos_c, idx_c, nrm_c, sx, sy, ooz = raster._solid_arrays(solid)
+    key = ('fine', width, height)
+    fine_bufs = _BOARD_TLS.get(key)
+    if fine_bufs is None:
+        npix = (width * 2) * (height * 4)
+        fine_bufs = _BOARD_TLS[key] = (
+            np.empty(npix, dtype=np.float64),
+            np.empty(npix, dtype=np.uint8),
+            np.empty(npix, dtype=np.uint8),
+        )
+    ncells = width * height
+    out_d = np.empty(ncells, dtype=np.float64)
+    out_t = np.empty(ncells, dtype=np.uint8)
+    out_s = np.empty(ncells, dtype=np.uint8)
+    out_cov = np.empty(ncells, dtype=np.float64)
+    out_r = np.empty(ncells, dtype=np.uint8)
+    m9 = np.ascontiguousarray(m, dtype=np.float64).ravel()
+    lx, ly, lz = beam if beam else (0.0, 0.0, 1.0)
+    lib.rs_raster_folded(
+        len(pos_c) // 3, pos_c.ctypes.data, len(idx_c) // 3, idx_c.ctypes.data,
+        nrm_c.ctypes.data, m9.ctypes.data,
+        float(fine_cam['distance']), float(fine_cam['scale']), float(fine_cam['cx']),
+        float(fine_cam['cy']), float(fine_cam.get('aspect', 0.5)),
+        float(lx), float(ly), float(lz), float(sun_min), width, height,
+        sx.ctypes.data, sy.ctypes.data, ooz.ctypes.data,
+        fine_bufs[0].ctypes.data, fine_bufs[1].ctypes.data, fine_bufs[2].ctypes.data,
+        out_d.ctypes.data, out_t.ctypes.data, out_s.ctypes.data,
+        out_cov.ctypes.data, out_r.ctypes.data,
+    )
+    return out_d, out_t, out_s, out_cov, out_r
+
+
+def shade_arrays(depth_c, top_c, sun_c, cam, m, pivot: float, slope: float, floor_v: float,
+                 art, shadow, shadow_step: float, bias: float, planes, tone_depth: float = 0.0):
+    """Compute `(classes_bytes, levels_arr, bare_arr, seed_arr)` in C matching `engine.shade`."""
+    lib = _lib()
+    if lib is None:
+        return None
+    width, height = int(cam['width']), int(cam['height'])
+    ncells = width * height
+    m9 = np.ascontiguousarray(m, dtype=np.float64).ravel()
+    cam5 = np.array([cam['distance'], cam['scale'], cam['cx'], cam['cy'], cam.get('reach', 1.0)],
+                    dtype=np.float64)
+    plane = float(planes[0]) if planes is not None else 0.0
+    pars7 = np.array([pivot, slope, floor_v, shadow_step, bias, plane, tone_depth],
+                     dtype=np.float64)
+    art_ptr, art_w, art_h = 0, 0, 0
+    if art and m9[8] >= 0.0:
+        _rows, aw, ah, dense = art
+        if aw > 0 and ah > 0:
+            hit = _ART_CACHE.get(id(dense))
+            if hit is None or hit[0] is not dense:
+                hit = _ART_CACHE[id(dense)] = (dense, np.ascontiguousarray(dense, dtype=np.int32))
+            art_ptr, art_w, art_h = hit[1].ctypes.data, int(aw), int(ah)
+    s_ptr, s_n, s_ext, s_vecs_ptr = 0, 0, 1.0, 0
+    s_vecs = None
+    if shadow:
+        sbuf, s_n, s_ext, s_right, s_up, s_beam = shadow
+        sbuf_c = np.ascontiguousarray(sbuf, dtype=np.float64)
+        s_vecs = np.array([*s_right, *s_up, *s_beam], dtype=np.float64)
+        s_ptr, s_vecs_ptr = sbuf_c.ctypes.data, s_vecs.ctypes.data
+    out_cls = np.empty(ncells, dtype=np.uint8)
+    levels = np.zeros(ncells, dtype=np.float64)
+    bare = np.zeros(ncells, dtype=np.float64)
+    seed = np.zeros(ncells, dtype=np.float64)
+    lib.rs_shade(
+        width, height, depth_c.ctypes.data, top_c.ctypes.data, sun_c.ctypes.data,
+        m9.ctypes.data, cam5.ctypes.data, pars7.ctypes.data,
+        art_ptr, art_w, art_h, s_ptr, int(s_n), float(s_ext), s_vecs_ptr,
+        out_cls.ctypes.data, levels.ctypes.data, bare.ctypes.data, seed.ctypes.data,
+    )
+    return bytearray(out_cls.tobytes()), levels, bare, seed
+
+
+def paint_glow_dots_rim(width: int, height: int, cls_u8, reached_u8, buf_f, cov_f, levels_f,
+                        bare_f, seed_f, colour: bool, rig, tables, expose_fn, face_dict, persist,
+                        glyph, tone):
+    """Run `_glow` + `_expose` + `_dots` + `_rim` in C, returning `heat` (or `None` in mono)."""
+    lib = _lib()
+    if lib is None:
+        return False, None
+    key, lamp, colf, rowf, distance, _scale = rig
+    has_key = int(key is not None and lamp is not None and colf is not None
+                  and rowf is not None and distance is not None)
+    rig6 = np.array([*(key or (0.0, 0.0)), *(lamp or (0.0, 0.0, 0.0)), distance or 0.0],
+                    dtype=np.float64)
+    colf_c = np.ascontiguousarray(colf if has_key else [0.0], dtype=np.float64)
+    rowf_c = np.ascontiguousarray(rowf if has_key else [0.0], dtype=np.float64)
+    heat = np.zeros(width * height, dtype=np.float64) if colour else None
+    rungs_c = np.ascontiguousarray(tables['rung'], dtype=np.int64)
+    rgb_c = np.ascontiguousarray(tables['rgb'], dtype=np.int64)
+    lib.rs_paint_glow(
+        width, height, cls_u8.ctypes.data,
+        0 if levels_f is None else levels_f.ctypes.data,
+        0 if bare_f is None else bare_f.ctypes.data,
+        0 if seed_f is None else seed_f.ctypes.data,
+        cov_f.ctypes.data, buf_f.ctypes.data, int(bool(colour)), has_key,
+        rig6.ctypes.data, colf_c.ctypes.data, rowf_c.ctypes.data,
+        rungs_c.ctypes.data, rgb_c.ctypes.data, len(rgb_c),
+        glyph.ctypes.data, tone.ctypes.data, 0 if heat is None else heat.ctypes.data,
+    )
+    lo, hi = expose_fn(heat, face_dict, persist) if colour else (0.0, 1.0)
+    noise_c = np.ascontiguousarray(tables['noise'], dtype=np.int64)
+    rim_c = np.ascontiguousarray(tables['rim'], dtype=np.int64)
+    lib.rs_paint_dots_rim(
+        width, height, cls_u8.ctypes.data, reached_u8.ctypes.data,
+        0 if heat is None else heat.ctypes.data, int(bool(colour)), float(lo), float(hi),
+        noise_c.ctypes.data, rim_c.ctypes.data, rgb_c.ctypes.data, len(rgb_c),
+        glyph.ctypes.data, tone.ctypes.data,
+    )
+    return True, heat
+
+
+def paint_edge(width: int, height: int, reached_u8, heat, colour: bool, edge_tbl, glow_rgb,
+               glyph, tone) -> bool:
+    """Run `strokes.edge` flood-fill and silhouette rim in C."""
+    lib = _lib()
+    if lib is None:
+        return False
+    ncells = width * height
+    key = ('edge', ncells)
+    scratch = _BOARD_TLS.get(key)
+    if scratch is None:
+        scratch = _BOARD_TLS[key] = (np.empty(ncells, dtype=np.int32),
+                                     np.empty(ncells, dtype=np.int32))
+    et_c = np.ascontiguousarray(edge_tbl, dtype=np.int64)
+    rgb_c = np.ascontiguousarray(glow_rgb, dtype=np.int64)
+    heat_c = None if heat is None else np.ascontiguousarray(heat, dtype=np.float64)
+    lib.rs_edge(
+        width, height, reached_u8.ctypes.data, 0 if heat_c is None else heat_c.ctypes.data,
+        int(bool(colour)), et_c.ctypes.data, rgb_c.ctypes.data, len(rgb_c),
+        scratch[0].ctypes.data, scratch[1].ctypes.data, glyph.ctypes.data, tone.ctypes.data,
+    )
+    return True
+
+
+def packed_runs(runs, key=None, cap: int = 192):
+    """Pre-flatten `ground._runs` polylines for `ground_shaded`, cached by `key`."""
+    if key is not None and key in _PACKED_RUNS:
+        return _PACKED_RUNS[key]
+    kept = [r for r in runs if len(r[1]) > 1]
+    if not kept:
+        return None
+    labels: dict = {}
+    ids = np.array([labels.setdefault(line, len(labels)) for line, _p, _f in kept], np.int32)
+    fades = np.array([fade for _l, _p, fade in kept], np.float64)
+    lengths = np.array([len(pts) for _l, pts, _f in kept], np.int32)
+    p = np.array([pt for _l, pts, _f in kept for pt in pts], np.float64)
+    start = np.ones(len(p), dtype=bool)
+    start[np.cumsum(lengths) - 1] = False
+    seg_s = np.flatnonzero(start).astype(np.int32)
+    run_of = np.repeat(np.arange(len(kept), dtype=np.int32), lengths - 1)
+    out = (p[:, 0], p[:, 1], p[:, 2], seg_s, ids[run_of], fades[run_of],
+           len(labels), labels.get('horizon', -1))
+    if key is not None:
+        if len(_PACKED_RUNS) >= cap:
+            _PACKED_RUNS.clear()
+        _PACKED_RUNS[key] = out
+    return out
+
+
+def ground_runs_shaded(runs, key, cap: int, width: int, height: int, near_depth: float,
+                       reach: float, roll=None):
+    """Run `packed_runs` + optional `roll` + `ground_shaded` in C, or return `None`."""
+    pk = packed_runs(runs, key, cap)
+    if pk is None:
+        return None
+    fx, fy = roll(pk[0], pk[1]) if roll is not None else (pk[0], pk[1])
+    return ground_shaded(fx, fy, pk[2], pk[3], pk[4], pk[5], pk[6], pk[7],
+                         width, height, near_depth, reach)
+
+
+def ground_shaded(fx, fy, fd, seg_s, seg_line, seg_fade, n_labels: int, horizon_id: int,
+                  width: int, height: int, near_depth: float, reach: float):
+    """Compute `(cells, masks, greys)` for `ground._laid` + `ground._shaded` in C, or `None`."""
+    lib = _lib()
+    if lib is None or n_labels > 64:
+        return None
+    ncells = width * height
+    ts_cap = 2 * width + 4 * height + 16
+    key = ('gnd', ncells, ts_cap)
+    sc = _BOARD_TLS.get(key)
+    if sc is None:
+        sc = _BOARD_TLS[key] = (
+            np.empty(ts_cap, dtype=np.float64),
+            np.empty(ncells, dtype=np.int32),
+            np.empty(ncells, dtype=np.uint64),
+            np.empty(ncells, dtype=np.int64),
+            np.empty(ncells, dtype=np.int64),
+            np.empty(ncells, dtype=np.int64),
+            np.empty(ncells, dtype=np.float64),
+            np.empty(ncells, dtype=np.float64),
+            np.empty(ncells, dtype=np.int32),
+            np.empty(ncells, dtype=np.uint8),
+        )
+    fx_c = np.ascontiguousarray(fx, dtype=np.float64)
+    fy_c = np.ascontiguousarray(fy, dtype=np.float64)
+    fd_c = np.ascontiguousarray(fd, dtype=np.float64)
+    s_c = np.ascontiguousarray(seg_s, dtype=np.int32)
+    l_c = np.ascontiguousarray(seg_line, dtype=np.int32)
+    f_c = np.ascontiguousarray(seg_fade, dtype=np.float64)
+    m = lib.rs_ground_shaded(
+        len(s_c), fx_c.ctypes.data, fy_c.ctypes.data, fd_c.ctypes.data,
+        s_c.ctypes.data, l_c.ctypes.data, f_c.ctypes.data,
+        int(horizon_id), width, height, float(near_depth), float(reach),
+        sc[0].ctypes.data, ts_cap, sc[1].ctypes.data, sc[2].ctypes.data,
+        sc[3].ctypes.data, sc[4].ctypes.data, sc[5].ctypes.data,
+        sc[6].ctypes.data, sc[7].ctypes.data, sc[8].ctypes.data, sc[9].ctypes.data,
+    )
+    return sc[3][:m].copy(), sc[4][:m].copy(), sc[5][:m].copy()

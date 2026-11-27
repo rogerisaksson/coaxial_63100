@@ -10,7 +10,8 @@ from tools.cores import build
 SOURCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'raster.c')
 CELLS_SOURCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'raster_cells.c')
 STROKES_SOURCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'raster_strokes.c')
-SOURCES = [SOURCE, CELLS_SOURCE, STROKES_SOURCE]
+BOARD_SOURCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'raster_board.c')
+SOURCES = [SOURCE, CELLS_SOURCE, STROKES_SOURCE, BOARD_SOURCE]
 FLAGS = ('-O3', '-ffp-contract=off', '-fno-math-errno', '-fno-trapping-math',
          '-fvect-cost-model=dynamic') + build.native()
 _SCRATCH: dict[int, tuple] = {}

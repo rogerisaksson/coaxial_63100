@@ -34,13 +34,20 @@ TEAL = 44
 ASH = 242
 
 
+_FG_CODES: dict = {}
+
+
 def code(number):
     """One foreground escape: a palette number, or an (r, g, b) tuple as
     24-bit colour - the glow ramp interpolates between palette steps,
     and a 256-colour cyan has only five rungs between black and full."""
-    if isinstance(number, tuple):
-        return '\033[38;2;%d;%d;%dm' % number
-    return '\033[38;5;%dm' % number
+    got = _FG_CODES.get(number)
+    if got is None:
+        got = ('\033[38;2;%d;%d;%dm' % number if isinstance(number, tuple)
+               else '\033[38;5;%dm' % number)
+        if len(_FG_CODES) < 4096:
+            _FG_CODES[number] = got
+    return got
 
 
 def back(number):
@@ -173,6 +180,20 @@ def run(cells):
             current = number
         out.append(text)
 
+    if current is not None:
+        out.append(RESET)
+    return ''.join(out)
+
+
+def run_row(chars, tones):
+    """`run` over parallel `chars` and `tones` lists without building per-cell tuples."""
+    out = []
+    current = None
+    for text, number in zip(chars, tones):
+        if number is not None and number != current:
+            out.append(code(number))
+            current = number
+        out.append(text)
     if current is not None:
         out.append(RESET)
     return ''.join(out)

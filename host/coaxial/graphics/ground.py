@@ -132,6 +132,7 @@ def _backdrop(width, height, distance, view, phase=0.0):
     of its scroll: the horizon, the fan's dashes and the rungs at the phase's
     step, greys settled per cell.
     """
+    from tools.cores import raster_board
     step = int(phase * RUNG_STEPS + 0.5) % RUNG_STEPS
     key = (width, height, step)
     got = _BACKDROP.get(key)
@@ -140,9 +141,17 @@ def _backdrop(width, height, distance, view, phase=0.0):
     if len(_BACKDROP) >= BACKDROPS_KEPT:
         _BACKDROP.clear()
     static = _static(width, height, distance, view)
-    laid = _laid(_runs(static, width, height, step), width, height)
-    masks = {} if laid is None else {at: (mk, (g, g, g)) for at, mk, g in zip(
-        laid[0].tolist(), laid[1].tolist(), _shaded(laid, static).tolist())}
+    runs = _runs(static, width, height, step)
+    near_d = static['near_depth']
+    c_got = raster_board.ground_runs_shaded(runs, key, BACKDROPS_KEPT, width, height, near_d,
+                                            max(1e-9, static['far_depth'] - near_d))
+    if c_got is not None:
+        masks = {at: (mk, (g, g, g)) for at, mk, g in zip(
+            c_got[0].tolist(), c_got[1].tolist(), c_got[2].tolist())}
+    else:
+        laid = _laid(runs, width, height)
+        masks = {} if laid is None else {at: (mk, (g, g, g)) for at, mk, g in zip(
+            laid[0].tolist(), laid[1].tolist(), _shaded(laid, static).tolist())}
     _BACKDROP[key] = masks
     return masks
 
@@ -213,7 +222,7 @@ def _runs(static, width, height, step):
 def _lit(wy0, wy1, south, phase, solid):
     """The pieces of a fan segment from world y `wy0` to `wy1` a dash lights, as fractions
     [(t0, t1)]: DASH of each spacing from its rung out, all of it past `solid`."""
-    if wy1 == wy0:
+    if wy1 == wy0 or (wy0 >= solid and wy1 >= solid):
         return [(0.0, 1.0)]
     u0, u1 = sorted(((wy - south) / RUNG_SPACING + phase) for wy in (wy0, wy1))
     edges = {u0, u1}
@@ -460,13 +469,23 @@ def _ground(codes, inks, buf, distance, width, height, colour, view, scroll=None
         masks = _backdrop(width, height, distance, view, phase)
         parts = [masks]
     else:
+        from tools.cores import raster_board
         static = _static(width, height, distance, view)
         roll = approach.roller(flown, width, height, static)
         step = int(phase * RUNG_STEPS + 0.5) % RUNG_STEPS
-        laid = _laid(_runs(static, width, height, step), width, height, roll)
-        if laid is not None:
-            codes[laid[0]] = BRAILLE + laid[1]
-            inks[laid[0]] = _shaded(laid, static) * 0x010101
+        runs = _runs(static, width, height, step)
+        near_d = static['near_depth']
+        c_got = raster_board.ground_runs_shaded(runs, (width, height, step), BACKDROPS_KEPT,
+                                                width, height, near_d,
+                                                max(1e-9, static['far_depth'] - near_d), roll)
+        if c_got is not None:
+            codes[c_got[0]] = BRAILLE + c_got[1]
+            inks[c_got[0]] = c_got[2] * 0x010101
+        else:
+            laid = _laid(runs, width, height, roll)
+            if laid is not None:
+                codes[laid[0]] = BRAILLE + laid[1]
+                inks[laid[0]] = _shaded(laid, static) * 0x010101
         parts = [approach.stars(static, width, height, scroll or 0.0, roll),
                  approach.corridor(static, width, height,
                                    (scroll or 0.0) * GROUND_SPEED * RUNG_SPACING,

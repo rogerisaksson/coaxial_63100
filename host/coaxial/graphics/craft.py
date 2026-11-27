@@ -236,21 +236,40 @@ def craft(width, height, t, board=None):
     else:
         _jet(now, mark, t)
 
-    for py in range(int(y0 - reach / ASPECT) - 1, int(y0 + reach / ASPECT) + 2):
-        for half in range(2 * int(x0 - reach) - 2, 2 * int(x0 + reach) + 4):
-            for row in range(4):
-                x, y = half / 2.0 + 0.25, py + 0.125 + 0.25 * row
-                dx, dy = (x - x0) / size, (y - y0) * ASPECT / size
-                u, v = dx * c + dy * s, (-dx * s + dy * c) / bank
-                if math.hypot(u, v * bank) > REACH:
-                    continue
-                if bank > 0.0 and ((u - CANOPY_AT[0]) / CANOPY_R[0]) ** 2 \
-                        + (v / CANOPY_R[1]) ** 2 <= 1.0:
+    from coaxial.model.blocks import numpy as np
+    pys = np.arange(int(y0 - reach / ASPECT) - 1, int(y0 + reach / ASPECT) + 2, dtype=np.float64)
+    halfs = np.arange(2 * int(x0 - reach) - 2, 2 * int(x0 + reach) + 4, dtype=np.float64)
+    if len(pys) and len(halfs):
+        xs_1d = halfs * 0.5 + 0.25
+        gy, gx, gr = np.meshgrid(pys, xs_1d, np.array([0.125, 0.375, 0.625, 0.875]), indexing='ij')
+        xf, yf = gx.ravel(), (gy + gr).ravel()
+        dx, dy = (xf - x0) / size, (yf - y0) * ASPECT / size
+        u, v = dx * c + dy * s, (-dx * s + dy * c) / bank
+        in_r = np.hypot(u, v * bank) <= REACH
+        if in_r.any():
+            xf, yf, u, v = xf[in_r], yf[in_r], u[in_r], v[in_r]
+
+            def poly_in(pts):
+                arr = np.asarray(pts, dtype=np.float64)
+                u0, v0 = arr[:, 0], arr[:, 1]
+                u1, v1 = np.roll(u0, -1), np.roll(v0, -1)
+                cond = (v0[:, None] > v[None, :]) != (v1[:, None] > v[None, :])
+                dv = np.where(cond, v1[:, None] - v0[:, None], 1.0)
+                cross = cond & (u[None, :] < u0[:, None] + (u1 - u0)[:, None] * (v[None, :] - v0[:, None]) / dv)
+                return (cross.sum(axis=0) & 1) == 1
+
+            can = (bank > 0.0) & (((u - CANOPY_AT[0]) / CANOPY_R[0]) ** 2 + (v / CANOPY_R[1]) ** 2 <= 1.0)
+            hull = ~can & poly_in(HULL_SHAPE)
+            fin = ~can & ~hull & (poly_in(FINS[0]) | poly_in(FINS[1]))
+            hit = can | hull | fin
+            for x, y, uu, vv, is_c, is_h in zip(xf[hit].tolist(), yf[hit].tolist(), u[hit].tolist(),
+                                                 v[hit].tolist(), can[hit].tolist(), hull[hit].tolist()):
+                if is_c:
                     mark(x, y, steel(GLASS[2] / HULL[2]) if now['fade'] < 1.0 else GLASS, 2)
-                elif _inside(u, v, HULL_SHAPE):
-                    mark(x, y, steel(1.0 - 0.35 * min(1.0, abs(v) / 0.19)), 1)   # the hull's spine lit
-                elif any(_inside(u, v, fin) for fin in FINS):
-                    mark(x, y, steel(0.7 + 0.25 * lean * (1.0 if v > 0.0 else -1.0)), 0)
+                elif is_h:
+                    mark(x, y, steel(1.0 - 0.35 * min(1.0, abs(vv) / 0.19)), 1)
+                else:
+                    mark(x, y, steel(0.7 + 0.25 * lean * (1.0 if vv > 0.0 else -1.0)), 0)
     return {at: (mask, inks[at][1], inks[at][0] >= 0) for at, mask in cells.items()}
 
 

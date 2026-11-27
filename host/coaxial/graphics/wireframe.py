@@ -242,6 +242,21 @@ def _cells(solid, m, cam, crew, face, foreign):
         shading = (PIVOT, SLOPE, FLOOR, None if foreign else _shadowmap(m),
                    SHADOW_DIM, BIAS, not foreign, planes)
         return crew.frame(solid, m, cam, LIGHT, SUN_MIN, shading)
+    if crew is None or not crew.holds(solid):
+        from tools.cores import raster_board
+        folded = raster_board.raster_folded(solid, m, engine.fine(cam), width, height, LIGHT, SUN_MIN)
+        if folded is not None:
+            buf_c, top_c, sun_c, cov_c, reach_c = folded
+            if not face:
+                return buf_c.tolist(), cov_c.tolist(), bytearray(reach_c.tobytes()), None, None, None, None
+            shaded = raster_board.shade_arrays(
+                buf_c, top_c, sun_c, cam, m, PIVOT, SLOPE, FLOOR,
+                None if foreign else _face(), None if foreign else _shadowmap(m),
+                SHADOW_DIM, BIAS, planes, engine.TONE_DEPTH)
+            if shaded is not None:
+                cls_b, levels_c, bare_c, seed_c = shaded
+                return (buf_c.tolist(), cov_c.tolist(), bytearray(reach_c.tobytes()),
+                        cls_b, levels_c, bare_c, seed_c)
     buf, topf, sun, coverage, reached = _raster(solid, m, cam, crew)
     if not face:
         return buf, coverage, reached, None, None, None, None
@@ -522,6 +537,4 @@ def render(q, width, height, zoom=1.0, colour=True,
 
     if not colour:
         return '\n'.join(''.join(row).rstrip() for row in grid)
-    return '\n'.join(
-        ansi.run([(grid[r][c], tone[r][c]) for c in range(width)]).rstrip()
-        for r in range(height))
+    return '\n'.join(ansi.run_row(grid[r], tone[r]).rstrip() for r in range(height))
