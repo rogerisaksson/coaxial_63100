@@ -27,7 +27,7 @@ static void rf_project_lit(int nverts, const double *restrict pos, const double 
     const double ty = (m3 * qx + m4 * qy) + m5 * qz;
     const double tz = (m6 * qx + m7 * qy) + m8 * qz;
     const double dz = distance - tz;
-    if (!(dz > 1e-6))
+    if (!(dz > 1e-6) || !isfinite(tx) || !isfinite(ty))
     {
       vbuf[vo] = 0.0;
       vbuf[vo + 1u] = 0.0;
@@ -246,9 +246,9 @@ static void rf_resolve_pixel(size_t pix, int ns, const int32_t *restrict idx,
       sec_o = oo;
       sec_s = s;
     }
-    const int    raw = (tid < 0) ? 0 : tid;
-    const int    swapped = (raw & 1);
-    const size_t to = (size_t)(raw >> 1) * 3u;
+    const uint32_t raw = (uint32_t)tid;
+    const int      swapped = (int)(raw & 1u);
+    const size_t   to = (size_t)(raw >> 1u) * 3u;
     const int    ia = (int)idx[to];
     const int    ib = (int)idx[to + (swapped ? 2u : 1u)];
     const int    ic = (int)idx[to + (swapped ? 1u : 2u)];
@@ -331,6 +331,10 @@ void rs_lit_mesh_fsaa(int nverts, const double *restrict pos, const double *rest
 
   for (int t = 0; t < ntris; t++)
   {
+    if ((uint32_t)t >= 0x40000000u)
+    {
+      break;
+    }
     const size_t to = (size_t)t * 3u;
     const int    ia = (int)idx[to], ib = (int)idx[to + 1u], ic = (int)idx[to + 2u];
     if (ia < 0 || ia >= nverts || ib < 0 || ib >= nverts || ic < 0 || ic >= nverts)
@@ -345,17 +349,19 @@ void rs_lit_mesh_fsaa(int nverts, const double *restrict pos, const double *rest
       continue;
     }
     const double area = (vb[0] - va[0]) * (vc[1] - va[1]) - (vb[1] - va[1]) * (vc[0] - va[0]);
-    if (area == 0.0)
+    if (!isfinite(area) || area == 0.0)
     {
       continue;
     }
+    const uint32_t ut = (uint32_t)t;
     if (area < 0.0)
     {
-      rf_scan_tri((t << 1) | 1, va, vc, vb, -area, width, height, fsaa, zbuf, obuf, tbuf, bbuf);
+      rf_scan_tri((int)((ut << 1u) | 1u), va, vc, vb, -area, width, height, fsaa, zbuf, obuf, tbuf,
+                  bbuf);
     }
     else
     {
-      rf_scan_tri(t << 1, va, vb, vc, area, width, height, fsaa, zbuf, obuf, tbuf, bbuf);
+      rf_scan_tri((int)(ut << 1u), va, vb, vc, area, width, height, fsaa, zbuf, obuf, tbuf, bbuf);
     }
   }
 

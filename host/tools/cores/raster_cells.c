@@ -114,7 +114,8 @@ static void rs_braille_cell(int cx, int cy, int W, int H, const double *restrict
     const double  d = depth[p], fl = floor_b[p];
     const uint8_t cr = rgb[co], cg = rgb[co + 1u], cb = rgb[co + 2u];
     const uint8_t hand = (channels > 3) ? rgb[co + 3u] : 255u;
-    const int     miss = (hand >= 248u) ? (int)(255u - hand) : (int)(hand & 3u);
+    const int     raw_m = (hand >= 248u) ? (int)(255u - hand) : (int)(hand & 3u);
+    const int     miss = (raw_m > 3) ? 3 : raw_m;
     const int     sub_h = (d > 0.0) ? (4 - miss) : 4;
     mr += sub_h * (int)cr;
     mg += sub_h * (int)cg;

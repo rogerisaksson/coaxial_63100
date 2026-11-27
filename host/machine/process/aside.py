@@ -32,6 +32,7 @@ class Aside:
 
     def __init__(self, module, name):
         self.module, self.name, self.process, self.into, self.out = module, name, None, None, None
+        self._listening = False
 
     def start(self):
         """The process spawned, where it is not yet; itself."""
@@ -39,7 +40,7 @@ class Aside:
             p = subprocess.Popen([sys.executable, '-m', self.module], stdin=subprocess.PIPE,
                                  stdout=subprocess.PIPE, cwd=HOST)
             assert p.stdin is not None and p.stdout is not None
-            self.process, self.into, self.out = p, p.stdin, p.stdout
+            self.process, self.into, self.out, self._listening = p, p.stdin, p.stdout, False
         return self
 
     def send(self, ask):
@@ -62,26 +63,41 @@ class Aside:
 
     def heard(self, answers):
         """The process's answers onto the queue `answers` as they come, None once it has ended, by a thread of its own."""
+        self._listening = True
         threading.Thread(target=_heard, args=(self.out, answers), daemon=True).start()
 
     def ended(self):
         """What its end said: its exit code, waited for."""
-        return '%s ended, exit code %s' % (self.name, self.process.wait() if self.process is not None else None)
+        p = self.process
+        return '%s ended, exit code %s' % (self.name, p.wait() if p is not None else None)
 
     def close(self, wait=1.0):
-        """The process ended: a None sent, its stdin closed, `wait` s for it to end, then killed."""
-        if self.process is None:
+        """The process ended: None sent, stdin closed, `wait` s to exit, then killed and reaped."""
+        process, into, out, listening = self.process, self.into, self.out, self._listening
+        if process is None:
             return
-        assert self.into is not None
+        self.process = self.into = self.out = None
+        self._listening = False
+        assert into is not None
         try:
-            pickle.dump(None, self.into)
-            self.into.close()
-            self.process.wait(timeout=wait)
-        except (OSError, subprocess.TimeoutExpired):
-            self.process.kill()
-            self.process.wait()
+            pickle.dump(None, into)
+        except OSError:
+            pass
         finally:
-            self.process = None
+            try:
+                into.close()
+            except OSError:
+                pass
+        if not listening and out is not None:
+            try:
+                out.close()
+            except OSError:
+                pass
+        try:
+            process.wait(timeout=wait)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
 
 
 def _heard(out, answers):
@@ -92,6 +108,11 @@ def _heard(out, answers):
             answers.put(pickle.load(out))
     except (EOFError, OSError, pickle.UnpicklingError):
         answers.put(None)
+    finally:
+        try:
+            out.close()
+        except OSError:
+            pass
 
 
 def _said(out, answer):

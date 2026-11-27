@@ -272,7 +272,7 @@ def _braille_cells_py(depth, rgb, floor, over, alone, leaders, floor_ink, leader
     covered = depth > 0.0
     tone = np.ascontiguousarray(rgb[..., :3])
     hand = rgb[..., 3] if rgb.shape[-1] > 3 else np.full(depth.shape, 255, np.uint8)
-    miss = np.where(hand >= 248, 255 - hand.astype(int), hand.astype(int) & 3)
+    miss = np.where(hand >= 248, np.minimum(3, 255 - hand.astype(int)), hand.astype(int) & 3)
     sub_h = np.where(covered, 4 - miss, 4)
     lum = tone @ (0.2126 / 255.0, 0.7152 / 255.0, 0.0722 / 255.0)
     pad = np.pad(depth, 1)

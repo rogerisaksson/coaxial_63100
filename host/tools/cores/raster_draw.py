@@ -454,13 +454,17 @@ def lit_mesh_fsaa(positions, normals, uv, materials, index, m, cam, centre, unde
     lib = _lib()
     if lib is None:
         return None
-    pos_c = np.ascontiguousarray(positions, dtype=np.float64)
-    nrm_c = np.ascontiguousarray(normals, dtype=np.float64)
-    uv_c = np.ascontiguousarray(uv, dtype=np.float64)
-    mat_c = np.ascontiguousarray(materials, dtype=np.uint32)
-    idx_c = np.ascontiguousarray(index, dtype=np.int32).reshape(-1, 3)
-    n_verts, n_tris = len(pos_c), len(idx_c)
     height, width = int(cam['height']), int(cam['width'])
+    if height <= 0 or width <= 0:
+        h0, w0 = max(0, height), max(0, width)
+        return np.zeros((h0, w0), dtype=np.float64), np.zeros((h0, w0, 4), dtype=np.uint8)
+    pos_c = np.ascontiguousarray(positions, dtype=np.float64).reshape(-1, 3)
+    nrm_c = np.ascontiguousarray(normals, dtype=np.float64).reshape(-1, 3)
+    uv_c = np.ascontiguousarray(uv, dtype=np.float64).reshape(-1, 2)
+    mat_c = np.ascontiguousarray(materials, dtype=np.uint32).ravel()
+    idx_c = np.ascontiguousarray(index, dtype=np.int32).reshape(-1, 3)
+    n_verts = min(len(pos_c), len(nrm_c), len(uv_c), len(mat_c))
+    n_tris = len(idx_c)
     ns = 4 if fsaa else 1
     nsub = max(1, height * width * ns)
     vcap = max(1, n_verts * 7)

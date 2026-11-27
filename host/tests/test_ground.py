@@ -195,6 +195,29 @@ def test_fsaa_braille_and_gpu_cpu_parity(report):
                  np.array_equal(bc_c[0], bc_p[0]) and np.array_equal(bc_c[1], bc_p[1])
                  and float(np.max(np.abs(bc_c[2] - bc_p[2]))) <= 1e-12)
 
+    d_h = np.full((8, 4), 0.5, np.float64)
+    rgb_h = np.full((8, 4, 4), 200, np.uint8)
+    rgb_h[..., 3] = 248
+    bh_c = c_raster.braille_cells(d_h, rgb_h, np.zeros_like(d_h), lit._noise64(), None, None, None,
+                                  fl_ink, ld_ink, 2, 2)
+    bh_p = lit._braille_cells_py(d_h, rgb_h, np.zeros_like(d_h), None, None, None, fl_ink, ld_ink, 2, 2)
+    assert bh_c is not None
+    report.check('Braille coverage clamps hand=248 to positive sub-dot weight in C and Python',
+                 np.array_equal(bh_c[2], bh_p[2]) and float(bh_c[2][0, 0, 0]) > 50.0,
+                 'c=%s py=%s' % (bh_c[2][0, 0].tolist(), bh_p[2][0, 0].tolist()))
+
+    pos_nan = np.array([[np.nan, 0.0, 0.0], [0.5, 0.0, 0.0], [0.0, 0.5, 0.0]])
+    nrm_nan = np.array([[0.0, 0.0, 1.0]] * 3)
+    got_nan = raster_draw.lit_mesh_fsaa(pos_nan, nrm_nan, np.zeros((3, 2)), np.zeros(3, np.uint32),
+                                        np.array([[0, 1, 2]], np.int32), np.eye(3), fine,
+                                        (0.0, 0.0, 0.0), lit.UNDER, lit.LAYER_M, True)
+    got_empty = raster_draw.lit_mesh_fsaa(pos_nan[:0], nrm_nan[:0], np.zeros((0, 2)),
+                                          np.zeros(0, np.uint32), np.zeros((0, 3), np.int32),
+                                          np.eye(3), fine, (0.0, 0.0, 0.0), lit.UNDER, lit.LAYER_M, True)
+    assert got_nan is not None and got_empty is not None
+    report.check('C11 FSAA handles NaN vertices and empty meshes safely',
+                 int((got_nan[0] > 0).sum()) == 0 and int((got_empty[0] > 0).sum()) == 0)
+
     ad = card.adapter()
     if ad is not None:
         lr = gpu.LitRaster(found=ad)
@@ -207,8 +230,19 @@ def test_fsaa_braille_and_gpu_cpu_parity(report):
         report.check('GPU LitRaster 4x FSAA agrees with C11 4x FSAA (Jaccard > 0.97, RGB MAD < 2.0)',
                      jacc > 0.97 and rgb_mad < 2.0,
                      'jaccard=%.4f rgb_mad=%.2f' % (jacc, rgb_mad))
-    else:
-        _ = raster_draw
+        p_q = np.array([[-0.4, -0.4, 0.0], [0.4, -0.4, 0.0], [-0.4, 0.4, 0.0], [0.4, 0.4, 0.0]])
+        n_q = np.array([[0.0, 0.0, 1.0]] * 4)
+        u_q, m_q = np.zeros((4, 2)), np.full(4, lit.paint((180, 210, 240)), np.uint32)
+        f_small = engine.fine(engine.camera(20, 10, 1.0, distance=3.0))
+        d_e, _ = lr.raster(p_q[:0], n_q[:0], u_q[:0], m_q[:0], np.zeros((0, 3), np.int32),
+                           np.eye(3), f_small, (0.0, 0.0, 0.0), 1.0)
+        d_t1, _ = lr.raster(p_q, n_q, u_q, m_q, np.array([[0, 1, 2]], np.int32),
+                            np.eye(3), f_small, (0.0, 0.0, 0.0), 1.0)
+        d_t2, _ = lr.raster(p_q, n_q, u_q, m_q, np.array([[1, 3, 2]], np.int32),
+                            np.eye(3), f_small, (0.0, 0.0, 0.0), 1.0)
+        report.check('GPU LitRaster accepts (3, 3) view, empty mesh, and updated same-size index buffer',
+                     int((d_e > 0).sum()) == 0 and int((d_t1 > 0).sum()) > 0
+                     and int((d_t2 > 0).sum()) > 0 and not np.array_equal(d_t1 > 0, d_t2 > 0))
 
 
 ROSTER = (test_the_floor_is_laid_at_once, test_wave7_c_kernels_match_python,

@@ -277,9 +277,36 @@ def test_the_robots_picture_tells_past_its_map(report):
                  shown == ['floor', 'wall', 'window'], str(shown))
 
 
+def test_aside_close_reaps_after_kill(report):
+    """Closing an Aside past its graceful wait kills and reaps the process without timing out."""
+    import queue
+    import time
+    from machine.process import aside
+    heard_q = queue.Queue()
+    with_reader = aside.Aside('machine.way.planner', 'reap-heard').start()
+    with_reader.heard(heard_q)
+    p1, in1, out1 = with_reader.process, with_reader.into, with_reader.out
+    assert p1 is not None and in1 is not None and out1 is not None
+    with_reader.close(0.0)
+    with_reader.close(0.0)
+    sentinel = heard_q.get(timeout=5.0)
+    deadline = time.monotonic() + 2.0
+    while not out1.closed and time.monotonic() < deadline:
+        time.sleep(0.01)
+    direct = aside.Aside('machine.way.planner', 'reap-direct').start()
+    p2, in2, out2 = direct.process, direct.into, direct.out
+    assert p2 is not None and in2 is not None and out2 is not None
+    direct.close(0.0)
+    ok = (with_reader.process is None and p1.poll() is not None and in1.closed and sentinel is None and out1.closed
+          and direct.process is None and p2.poll() is not None and in2.closed and out2.closed)
+    report.check('Aside.close(0.0) kills, reaps and closes pipes without TimeoutExpired', ok,
+                 'p1=%s in1=%s out1=%s sentinel=%r p2=%s in2=%s out2=%s' % (
+                     p1.poll(), in1.closed, out1.closed, sentinel, p2.poll(), in2.closed, out2.closed))
+
+
 ROSTER = [test_the_robots_fake_camera_tells_the_room, test_the_lodge_told_as_a_house, test_a_cabin_told_from_outside, test_the_lodge_from_its_deck, test_the_robots_registry_keeps_what_each_is,
           test_the_robots_picture_tells_past_its_map, test_the_robots_loop_sees_through_it, test_the_robots_vision_panel_holds_its_view,
-          test_the_robots_page_keeps_its_pace]
+          test_the_robots_page_keeps_its_pace, test_aside_close_reaps_after_kill]
 
 
 def main(argv=None):

@@ -249,16 +249,19 @@ class LitRaster:
     def _upload(self, arrays, index):
         import wgpu
         buffers, indices, count = self._mesh
-        if not buffers or buffers[0].size != arrays[0].nbytes or len(index) != count:
+        if (not buffers or len(buffers) != len(arrays)
+                or any(b.size != a.nbytes for b, a in zip(buffers, arrays))
+                or len(index) != count):
             buffers = [self.device.create_buffer(
                 size=a.nbytes, usage=wgpu.BufferUsage.VERTEX | wgpu.BufferUsage.COPY_DST)
                 for a in arrays]
-            indices = self.device.create_buffer_with_data(
-                data=index.tobytes(), usage=wgpu.BufferUsage.INDEX)
+            indices = self.device.create_buffer(
+                size=index.nbytes, usage=wgpu.BufferUsage.INDEX | wgpu.BufferUsage.COPY_DST)
             count = len(index)
             self._mesh = (buffers, indices, count)
         for buffer, a in zip(buffers, arrays):
             self.device.queue.write_buffer(buffer, 0, a.tobytes())
+        self.device.queue.write_buffer(indices, 0, index.tobytes())
         return buffers, indices, count
 
     def _targets_for(self, width, height, fsaa):
@@ -302,25 +305,29 @@ class LitRaster:
         from coaxial.model.blocks import numpy as np
         use_fsaa = self.fsaa if fsaa is None else bool(fsaa)
         width, height, distance = int(cam['width']), int(cam['height']), float(cam['distance'])
+        pos_c = np.ascontiguousarray(positions, np.float32).reshape(-1, 3)
+        nrm_c = np.ascontiguousarray(normals, np.float32).reshape(-1, 3)
+        uv_c = np.ascontiguousarray(uv, np.float32).reshape(-1, 2)
+        mat_c = np.ascontiguousarray(material, np.uint32).ravel()
+        idx_c = np.ascontiguousarray(index, np.uint32).ravel()
+        if width <= 0 or height <= 0 or len(pos_c) == 0 or len(idx_c) == 0:
+            h0, w0 = max(0, height), max(0, width)
+            return np.zeros((h0, w0), np.float32), np.zeros((h0, w0, 4), np.uint8)
         near, far = 1.0 / max(1e-3, distance - reach), 1.0 / (distance + reach)
 
         def unit(v):
             v = np.asarray(v, float)
             return v / np.linalg.norm(v)
 
+        mf = tuple(np.asarray(m, float).ravel())
         self.device.queue.write_buffer(self.uniform, 0, np.concatenate([
-            np.asarray(tuple(m)[0:3] + (0.0,) + tuple(m)[3:6] + (0.0,) + tuple(m)[6:9] + (0.0,)),
+            np.asarray(mf[0:3] + (0.0,) + mf[3:6] + (0.0,) + mf[6:9] + (0.0,)),
             [cam['cx'], cam['cy'], cam['scale'], cam.get('aspect', 0.5),
              distance, width, height, 1.0 if use_fsaa else 0.0,
              near, 1.0 / max(1e-6, near - far), LAYER_M, 0.0],
             list(centre) + [0.0], list(unit(key)) + [0.0], list(unit(fill)) + [GLOSS]])
             .astype(np.float32).tobytes())
-        buffers, indices, count = self._upload(
-            [np.ascontiguousarray(positions, np.float32),
-             np.ascontiguousarray(normals, np.float32),
-             np.ascontiguousarray(uv, np.float32),
-             np.ascontiguousarray(material, np.uint32)],
-            np.ascontiguousarray(index, np.uint32).ravel())
+        buffers, indices, count = self._upload([pos_c, nrm_c, uv_c, mat_c], idx_c)
         depth_t, colour_t, z_t, depth_hi, colour_hi, res_group = self._targets_for(
             width, height, use_fsaa)
         encoder = self.device.create_command_encoder()
