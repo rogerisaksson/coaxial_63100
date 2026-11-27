@@ -141,15 +141,13 @@ def _backdrop(width, height, distance, view, phase=0.0):
     if len(_BACKDROP) >= BACKDROPS_KEPT:
         _BACKDROP.clear()
     static = _static(width, height, distance, view)
-    runs = _runs(static, width, height, step)
-    near_d = static['near_depth']
-    c_got = raster_board.ground_runs_shaded(runs, key, BACKDROPS_KEPT, width, height, near_d,
-                                            max(1e-9, static['far_depth'] - near_d))
+    c_got = raster_board.ground_step_shaded(static, _rungs(static, step / RUNG_STEPS),
+                                            width, height, step, BACKDROPS_KEPT)
     if c_got is not None:
         masks = {at: (mk, (g, g, g)) for at, mk, g in zip(
             c_got[0].tolist(), c_got[1].tolist(), c_got[2].tolist())}
     else:
-        laid = _laid(runs, width, height)
+        laid = _laid(_runs(static, width, height, step), width, height)
         masks = {} if laid is None else {at: (mk, (g, g, g)) for at, mk, g in zip(
             laid[0].tolist(), laid[1].tolist(), _shaded(laid, static).tolist())}
     _BACKDROP[key] = masks
@@ -473,16 +471,13 @@ def _ground(codes, inks, buf, distance, width, height, colour, view, scroll=None
         static = _static(width, height, distance, view)
         roll = approach.roller(flown, width, height, static)
         step = int(phase * RUNG_STEPS + 0.5) % RUNG_STEPS
-        runs = _runs(static, width, height, step)
-        near_d = static['near_depth']
-        c_got = raster_board.ground_runs_shaded(runs, (width, height, step), BACKDROPS_KEPT,
-                                                width, height, near_d,
-                                                max(1e-9, static['far_depth'] - near_d), roll)
+        c_got = raster_board.ground_step_shaded(static, _rungs(static, step / RUNG_STEPS),
+                                                width, height, step, BACKDROPS_KEPT, roll)
         if c_got is not None:
             codes[c_got[0]] = BRAILLE + c_got[1]
             inks[c_got[0]] = c_got[2] * 0x010101
         else:
-            laid = _laid(runs, width, height, roll)
+            laid = _laid(_runs(static, width, height, step), width, height, roll)
             if laid is not None:
                 codes[laid[0]] = BRAILLE + laid[1]
                 inks[laid[0]] = _shaded(laid, static) * 0x010101

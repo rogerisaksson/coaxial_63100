@@ -202,6 +202,11 @@ def _project(positions, matrix, distance, scale, cx, cy):
 def rasterise(model, matrix, distance, scale, cx, cy, cols, top, bottom,
               lamp, cull=CULLING, tints=None, who=None):
     """(depth, value) for framebuffer rows `top` up to `bottom`."""
+    from tools.cores import raster_draw
+    got = raster_draw.ascii3d_raster(model, matrix, distance, scale, cx, cy, cols, top, bottom,
+                                     lamp, cull, tints=tints, who=who)
+    if got is not None:
+        return got[0], got[1]
     positions, indices, normals = model
     m0, m1, m2, m3, m4, m5, m6, m7, m8 = matrix
     eye = (0.0, 0.0, distance)
@@ -341,11 +346,20 @@ def render(model, matrix, width, height, distance=None, ramp=CHARACTERS,
     cols, rows, cell_rows, distance, scale, cx, cy = _setup(
         model, matrix, width, height, distance, zoom, supersample, aspect,
         centre)
+    lamp = light if light else light_position()
+    from tools.cores import raster_draw
+    ras = raster_draw.ascii3d_raster(model, matrix, distance, scale, cx, cy, cols, 0, rows,
+                                     lamp, cull, tints=tints, who=True if tints is not None else None)
+    if ras is not None:
+        res = raster_draw.ascii3d_resolve(ras[0], ras[1], width, height, cols, cell_rows,
+                                          supersample, ramp, invert, ink=ink, who=ras[2],
+                                          ink_colour=ink_colour, shades=shades, wire=wire)
+        if res is not None:
+            return res
 
     who = [0] * (rows * cols) if tints is not None else None
     depth, value = rasterise(model, matrix, distance, scale, cx, cy, cols,
-                             0, rows, light if light else light_position(),
-                             cull, tints=tints, who=who)
+                             0, rows, lamp, cull, tints=tints, who=who)
     return resolve(depth, value, width, height, cols, cell_rows,
                     supersample, ramp, invert, ink=ink, who=who,
                     ink_colour=ink_colour, shades=shades, wire=wire)
@@ -368,6 +382,12 @@ def resolve(depth, value, width, height, cols, cell_rows, supersample,
              ramp, invert, ink=None, who=None, ink_colour=None,
              shades=None, wire=False):
     """The framebuffer down to characters, averaging each cell."""
+    from tools.cores import raster_draw
+    res = raster_draw.ascii3d_resolve(depth, value, width, height, cols, cell_rows, supersample,
+                                      ramp, invert, ink=ink, who=who, ink_colour=ink_colour,
+                                      shades=shades, wire=wire)
+    if res is not None:
+        return res
     background = ramp[0] if invert else ramp[-1]
 
     # Per cell first: mean shade and nearest depth, so the ink test is cell

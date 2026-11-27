@@ -462,3 +462,204 @@ int rs_ground_shaded(int nseg, const double *restrict fx, const double *restrict
   }
   return m;
 }
+
+static int rs_fan_lit(double wy_a, double wy_b, double south, double phase, double solid,
+                      double *out_t0, double *out_t1)
+{
+  if (wy_b == wy_a || (wy_a >= solid && wy_b >= solid))
+  {
+    out_t0[0] = 0.0;
+    out_t1[0] = 1.0;
+    return 1;
+  }
+  const double lo_w = (wy_a < wy_b) ? wy_a : wy_b;
+  const double hi_w = (wy_a < wy_b) ? wy_b : wy_a;
+  const double u0 = (lo_w - south) / 1.65 + phase, u1 = (hi_w - south) / 1.65 + phase;
+  double       edges[64];
+  int          ecnt = 0;
+  edges[ecnt++] = u0;
+  edges[ecnt++] = u1;
+  const int n_lo = (int)floor(u0), n_hi = (int)ceil(u1);
+  for (int n = n_lo; n <= n_hi && ecnt < 60; n++)
+  {
+    const double ea = (double)n, eb = (double)n + 0.5;
+    if (u0 < ea && ea < u1)
+    {
+      edges[ecnt++] = ea;
+    }
+    if (u0 < eb && eb < u1)
+    {
+      edges[ecnt++] = eb;
+    }
+  }
+  const double us = (solid - south) / 1.65 + phase;
+  if (u0 < us && us < u1 && ecnt < 63)
+  {
+    edges[ecnt++] = us;
+  }
+  rs_sort_unique(edges, &ecnt);
+  int ocnt = 0;
+  for (int i = 0; i < ecnt - 1; i++)
+  {
+    const double mid = 0.5 * (edges[i] + edges[i + 1]);
+    double       m_mod = fmod(mid, 1.0);
+    if (m_mod < 0.0)
+    {
+      m_mod += 1.0;
+    }
+    if (mid >= us || m_mod < 0.5)
+    {
+      double ta = (edges[i] - u0) / (u1 - u0), tb = (edges[i + 1] - u0) / (u1 - u0);
+      if (wy_b < wy_a)
+      {
+        const double tmp = 1.0 - tb;
+        tb = 1.0 - ta;
+        ta = tmp;
+      }
+      if (ocnt > 0 && fabs(out_t1[ocnt - 1] - ta) < 1e-9)
+      {
+        out_t1[ocnt - 1] = tb;
+      }
+      else
+      {
+        out_t0[ocnt] = ta;
+        out_t1[ocnt] = tb;
+        ocnt++;
+      }
+    }
+  }
+  if (wy_b < wy_a && ocnt > 1)
+  {
+    for (int i = 0; i < ocnt / 2; i++)
+    {
+      const double a0 = out_t0[i], a1 = out_t1[i];
+      out_t0[i] = out_t0[ocnt - 1 - i];
+      out_t1[i] = out_t1[ocnt - 1 - i];
+      out_t0[ocnt - 1 - i] = a0;
+      out_t1[ocnt - 1 - i] = a1;
+    }
+  }
+  return ocnt;
+}
+
+static void rs_flush_run(int *p_cnt, int *s_cnt, int run_start, int *run_len, int32_t lid,
+                         double fade, int32_t *seg_s, int32_t *seg_line, double *seg_fade)
+{
+  if (*run_len > 1)
+  {
+    for (int j = 0; j < *run_len - 1; j++)
+    {
+      seg_s[*s_cnt] = (int32_t)(run_start + j);
+      seg_line[*s_cnt] = lid;
+      seg_fade[*s_cnt] = fade;
+      (*s_cnt)++;
+    }
+  }
+  else
+  {
+    *p_cnt = run_start;
+  }
+  *run_len = 0;
+}
+
+/** Build `ground._runs` + `packed_runs` flat arrays directly in C for `step`. */
+void rs_ground_step(int width, double far_depth, const double *restrict sky_y, int n_fan,
+                    const double *restrict fan_pts, const int32_t *restrict fan_starts,
+                    const int32_t *restrict fan_lids, double south, double phase, double solid,
+                    int n_rungs, const double *restrict rung6, const int32_t *restrict rung_lids,
+                    double *restrict out_fx, double *restrict out_fy, double *restrict out_fd,
+                    int32_t *restrict seg_s, int32_t *restrict seg_line, double *restrict seg_fade,
+                    int32_t *restrict out_counts)
+{
+  int p_cnt = 0, s_cnt = 0;
+  for (int col = 0; col <= width; col++)
+  {
+    out_fx[p_cnt] = (double)col;
+    out_fy[p_cnt] = sky_y[col];
+    out_fd[p_cnt] = far_depth;
+    if (col < width)
+    {
+      seg_s[s_cnt] = (int32_t)col;
+      seg_line[s_cnt] = 0;
+      seg_fade[s_cnt] = 1.0;
+      s_cnt++;
+    }
+    p_cnt++;
+  }
+  double t0_buf[32], t1_buf[32];
+  for (int f = 0; f < n_fan; f++)
+  {
+    const int     lo = (int)fan_starts[f], hi = (int)fan_starts[f + 1];
+    const int32_t lid = fan_lids[f];
+    int           run_start = p_cnt, run_len = 0;
+    for (int i = lo; i < hi - 1; i++)
+    {
+      const double *p = fan_pts + (size_t)i * 4u, *q = p + 4u;
+      const int     nl = rs_fan_lit(p[3], q[3], south, phase, solid, t0_buf, t1_buf);
+      for (int k = 0; k < nl; k++)
+      {
+        const double ta = t0_buf[k], tb = t1_buf[k];
+        if (run_len > 0 && ta > 0.0)
+        {
+          rs_flush_run(&p_cnt, &s_cnt, run_start, &run_len, lid, 1.0, seg_s, seg_line, seg_fade);
+        }
+        if (run_len == 0)
+        {
+          run_start = p_cnt;
+          out_fx[p_cnt] = p[0] + (q[0] - p[0]) * ta;
+          out_fy[p_cnt] = p[1] + (q[1] - p[1]) * ta;
+          out_fd[p_cnt] = p[2] + (q[2] - p[2]) * ta;
+          p_cnt++;
+          run_len = 1;
+        }
+        out_fx[p_cnt] = p[0] + (q[0] - p[0]) * tb;
+        out_fy[p_cnt] = p[1] + (q[1] - p[1]) * tb;
+        out_fd[p_cnt] = p[2] + (q[2] - p[2]) * tb;
+        p_cnt++;
+        run_len++;
+        if (tb < 1.0)
+        {
+          rs_flush_run(&p_cnt, &s_cnt, run_start, &run_len, lid, 1.0, seg_s, seg_line, seg_fade);
+        }
+      }
+    }
+    if (run_len > 0)
+    {
+      rs_flush_run(&p_cnt, &s_cnt, run_start, &run_len, lid, 1.0, seg_s, seg_line, seg_fade);
+    }
+  }
+  for (int r = 0; r < n_rungs; r++)
+  {
+    const double *rg = rung6 + (size_t)r * 6u;
+    const double  x0 = rg[0], py0 = rg[1], x1 = rg[2], py1 = rg[3], inv_w = rg[4], fade = rg[5];
+    const int32_t lid = rung_lids[r];
+    int           run_start = p_cnt, run_len = 0;
+    for (int col = 0; col <= width; col++)
+    {
+      const double t = ((double)col - x0) / (x1 - x0);
+      const double fy = py0 + (py1 - py0) * t;
+      if (0.0 <= t && t <= 1.0 && sky_y[col] <= fy)
+      {
+        if (run_len == 0)
+        {
+          run_start = p_cnt;
+        }
+        out_fx[p_cnt] = (double)col;
+        out_fy[p_cnt] = fy;
+        out_fd[p_cnt] = inv_w;
+        p_cnt++;
+        run_len++;
+      }
+      else if (run_len > 0)
+      {
+        rs_flush_run(&p_cnt, &s_cnt, run_start, &run_len, lid, fade, seg_s, seg_line, seg_fade);
+      }
+    }
+    if (run_len > 0)
+    {
+      rs_flush_run(&p_cnt, &s_cnt, run_start, &run_len, lid, fade, seg_s, seg_line, seg_fade);
+    }
+  }
+  out_counts[0] = (int32_t)p_cnt;
+  out_counts[1] = (int32_t)s_cnt;
+}

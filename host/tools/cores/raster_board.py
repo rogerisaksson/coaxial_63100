@@ -46,6 +46,11 @@ def _lib():
         vp, i32, vp, vp, vp, vp, vp, vp, vp, vp, vp,
     ]
     lib.rs_ground_shaded.restype = i32
+    lib.rs_ground_step.argtypes = [
+        i32, f64, vp, i32, vp, vp, vp, f64, f64, f64,
+        i32, vp, vp, vp, vp, vp, vp, vp, vp, vp,
+    ]
+    lib.rs_ground_step.restype = None
     return lib
 
 
@@ -247,6 +252,72 @@ def ground_runs_shaded(runs, key, cap: int, width: int, height: int, near_depth:
     fx, fy = roll(pk[0], pk[1]) if roll is not None else (pk[0], pk[1])
     return ground_shaded(fx, fy, pk[2], pk[3], pk[4], pk[5], pk[6], pk[7],
                          width, height, near_depth, reach)
+
+
+def ground_step_shaded(static, r_list, width: int, height: int, step: int, cap: int, roll=None):
+    """Build `ground._runs` + `packed_runs` in C (`rs_ground_step`) and shade, or return `None`."""
+    lib = _lib()
+    if lib is None:
+        return None
+    key = ('step', width, height, step)
+    pk = _PACKED_RUNS.get(key)
+    if pk is None:
+        st_hit = _ART_CACHE.get(('fan', id(static)))
+        if st_hit is None or st_hit[0] is not static:
+            sky_y = np.array([pt[1] for pt in static['horizon']], dtype=np.float64)
+            fan = static['fan']
+            pts = np.array([pt for _k, run in fan for pt in run], dtype=np.float64).reshape(-1, 4)
+            lens = [len(run) for _k, run in fan]
+            starts = np.array([0] + list(np.cumsum(lens)), dtype=np.int32)
+            lids_map: dict = {}
+            lids = np.array([lids_map.setdefault(k, 1 + len(lids_map)) for k, _r in fan], np.int32)
+            st_hit = _ART_CACHE[('fan', id(static))] = (static, sky_y, pts, starts, lids,
+                                                        1 + len(lids_map))
+        _, sky_y, fan_pts, fan_starts, fan_lids, base_lid = st_hit
+        r6, r_lids = [], []
+        hrow = static['hrow']
+        for k, (yc, wc, x0, y0, _w0, x1, y1, _w1) in enumerate(r_list):
+            if wc <= 0.0 or wc > 2.0 or yc < hrow:
+                continue
+            beyond = r_list[k + 1][0] if k + 1 < len(r_list) else hrow
+            fade = min(1.0, max(0.0, (yc - beyond) / 1.5))
+            if fade >= 0.1:
+                r6.append((x0, y0, x1, y1, 1.0 / wc, fade))
+                r_lids.append(base_lid + len(r_lids))
+        n_labels = base_lid + len(r_lids)
+        if n_labels > 63:
+            return None
+        rung6 = np.array(r6, dtype=np.float64) if r6 else np.zeros((0, 6), dtype=np.float64)
+        rl_c = np.array(r_lids, dtype=np.int32)
+        max_pts = (width + 1) + len(fan_pts) * 4 + len(r_lids) * (width + 2) + 32
+        fx_b = np.empty(max_pts, dtype=np.float64)
+        fy_b = np.empty(max_pts, dtype=np.float64)
+        fd_b = np.empty(max_pts, dtype=np.float64)
+        ss_b = np.empty(max_pts, dtype=np.int32)
+        sl_b = np.empty(max_pts, dtype=np.int32)
+        sf_b = np.empty(max_pts, dtype=np.float64)
+        cnts = np.zeros(2, dtype=np.int32)
+        south = float(static['south'])
+        lib.rs_ground_step(
+            int(width), float(static['far_depth']), sky_y.ctypes.data,
+            len(fan_lids), fan_pts.ctypes.data, fan_starts.ctypes.data, fan_lids.ctypes.data,
+            south, step / 96.0, south + 6.0 * 1.65,
+            len(r_lids), rung6.ctypes.data, rl_c.ctypes.data,
+            fx_b.ctypes.data, fy_b.ctypes.data, fd_b.ctypes.data,
+            ss_b.ctypes.data, sl_b.ctypes.data, sf_b.ctypes.data, cnts.ctypes.data,
+        )
+        np_cnt, ns_cnt = int(cnts[0]), int(cnts[1])
+        if ns_cnt == 0:
+            return None
+        pk = (fx_b[:np_cnt].copy(), fy_b[:np_cnt].copy(), fd_b[:np_cnt].copy(),
+              ss_b[:ns_cnt].copy(), sl_b[:ns_cnt].copy(), sf_b[:ns_cnt].copy(), n_labels, 0)
+        if len(_PACKED_RUNS) >= cap:
+            _PACKED_RUNS.clear()
+        _PACKED_RUNS[key] = pk
+    near_d = float(static['near_depth'])
+    fx, fy = roll(pk[0], pk[1]) if roll is not None else (pk[0], pk[1])
+    return ground_shaded(fx, fy, pk[2], pk[3], pk[4], pk[5], pk[6], pk[7],
+                         width, height, near_d, max(1e-9, float(static['far_depth']) - near_d))
 
 
 def ground_shaded(fx, fy, fd, seg_s, seg_line, seg_fade, n_labels: int, horizon_id: int,

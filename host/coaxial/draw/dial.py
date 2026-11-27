@@ -59,11 +59,9 @@ SWEEP_OUT, SWEEP_IN = 9.0, 11.0
 SWEEP_FADE = math.radians(70.0)
 SWEEP_STEPS = 8
 
-#: The phosphor: where the needle has been, decaying wherever it is not. Bins
-#: round the dial, and the seconds brightness takes to halve. A tail drawn off
-#: the reading alone sat ahead of a needle running counter-clockwise and rode
-#: along with it; this is lit by the needle passing and by nothing
-#: else, so it decays behind it whichever way it turns.
+#: The phosphor: where the needle has been, decaying wherever it is not (bins
+#: round the dial, seconds brightness takes to halve), trailing whichever way
+#: the needle turns.
 TRAIL_BINS = 720
 TRAIL_HALF_S = 0.55
 
@@ -265,6 +263,10 @@ def _arrays(width, height, aspect):
 
 
 def _arrayed(width, height, aspect):
+    from tools.cores import raster_draw
+    got = raster_draw.dial_arrays(width, height, aspect)
+    if got is not None:
+        return got
     from coaxial.model.blocks import numpy as np      # behind the OpenBLAS cap
     cols = {k: [] for k in ('dot', 'dx', 'dy', 'phi', 'base', 'needle', 'sweep', 'seg', 'cell', 'bit')}
     for i, (x, y, samples) in enumerate(_samples(width, height, aspect)):
@@ -380,19 +382,23 @@ def _raster(degrees, width, height, weak, aspect, field=None, kelvin=None,
     stretch = aspect / DOTS_Y * DOTS_X
     # Every sample at once: a sample at a time was 370 ms a frame at 200x60.
     from coaxial.model.blocks import numpy as np
+    from tools.cores import raster_draw
     a = _arrays(width, height, aspect)
     glow = None if trail is None else _glow(trail, span, time.monotonic())
-    cls = _classes(a, geom, span, needle, lit, glow)
-    count = np.bincount(a['dot'], weights=cls >= 0, minlength=len(a['cell']))
-    top = np.full(len(a['cell']), -1)
-    np.maximum.at(top, a['dot'], cls)
-    # A dot lights when half its samples or more hit (`covered`).
-    light = covered(count, len(SUBDOT)) & (count > 0) & (a['cell'] >= 0)
-    bits, owners = np.zeros(width * height, int), np.full(width * height, -1)
-    np.bitwise_or.at(bits, a['cell'][light], a['bit'][light])
-    np.maximum.at(owners, a['cell'][light], top[light])
-    dots = bits.reshape(height, width).tolist()
-    owner = owners.reshape(height, width).tolist()
+    c_got = raster_draw.dial_frame(a, geom, span, needle, lit, glow, width, height)
+    if c_got is not None:
+        dots, owner = c_got
+    else:
+        cls = _classes(a, geom, span, needle, lit, glow)
+        count = np.bincount(a['dot'], weights=cls >= 0, minlength=len(a['cell']))
+        top = np.full(len(a['cell']), -1)
+        np.maximum.at(top, a['dot'], cls)
+        light = covered(count, len(SUBDOT)) & (count > 0) & (a['cell'] >= 0)
+        bits, owners = np.zeros(width * height, int), np.full(width * height, -1)
+        np.bitwise_or.at(bits, a['cell'][light], a['bit'][light])
+        np.maximum.at(owners, a['cell'][light], top[light])
+        dots = bits.reshape(height, width).tolist()
+        owner = owners.reshape(height, width).tolist()
 
     # The numbers last, and only onto cells no dot reached.
     for mark in range(0, 360, 30):
@@ -443,13 +449,11 @@ def render(degrees, width=64, height=23, field=None, aspect=CELL_ASPECT,
     dots, owner, text, _, inks = _raster(degrees, width, height, weak, aspect, field,
                                          kelvin, trail)
     lines = []
-    for row in range(height):
-        cells = [(text[row][col] or chr(BRAILLE + dots[row][col]),
-                  inks.get((row, col), LABEL_INK) if text[row][col]
-                  else INK.get(owner[row][col]))
-                 for col in range(width)]
-        lines.append(ansi.run(cells) if colour
-                     else ''.join(char for char, _ in cells))
+    for r in range(height):
+        ch = [text[r][c] or chr(BRAILLE + dots[r][c]) for c in range(width)]
+        lines.append(ansi.run_row(ch, [inks.get((r, c), LABEL_INK) if text[r][c]
+                                       else INK.get(owner[r][c]) for c in range(width)])
+                     if colour else ''.join(ch))
     return '\n'.join(lines)
 
 

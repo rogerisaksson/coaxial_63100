@@ -11,9 +11,7 @@ from machine.rig import ansi
 #: renderer: a taller font draws the circle an ellipse by exactly the ratio.
 
 #: How much of its band the motor fills: one, since `layout` hands it
-#: exactly the columns the gutters leave (BAR_GAP is the air). 0.84, 0.78,
-#: 0.70 and 0.62 fought a centre that ignored six gutter columns one side
-#: and four the other.
+#: the columns the gutters leave (BAR_GAP is the air).
 F_FIT = 1.0
 
 #: Every radius as a fraction of the can's, which is sized to the box: at
@@ -472,14 +470,10 @@ class Frame:
         """The one place this becomes terminal output."""
         at = dict(tint or {})
         out = []
-        for row in range(self.height):
-            cells = [(self.text[row][col]
-                      or chr(BRAILLE + self.dots[row][col]),
-                      at[(row, col)] if (row, col) in at
-                      else ink.get(self.owner[row][col]))
-                     for col in range(self.width)]
-            out.append(ansi.run(cells) if colour
-                       else ''.join(char for char, _ in cells))
+        for r in range(self.height):
+            ch = [self.text[r][c] or chr(BRAILLE + self.dots[r][c]) for c in range(self.width)]
+            out.append(ansi.run_row(ch, [at.get((r, c), ink.get(self.owner[r][c]))
+                                         for c in range(self.width)]) if colour else ''.join(ch))
         return out
 
 
@@ -523,6 +517,10 @@ def _seat_arrays(frame, seat):
 
 
 def _seat_arrayed(frame, seat):
+    from tools.cores import raster_draw
+    got = raster_draw.csec_seat(frame.width, frame.height, seat)
+    if got is not None:
+        return got
     from coaxial.model.blocks import numpy as np      # behind the OpenBLAS cap
     made = _samples(frame, seat)
     kind = np.full((len(made), len(SUBDOT)), -1)
@@ -584,10 +582,12 @@ def _votes(s, r, rotor, slots, poles, drive, blur=0.0):
 
 
 def _body(frame, seat, rotor_deg, slots, poles, drive, blur=0.0):
-    """The motor itself, every dot at once: a dot at a time was 195 ms a frame at
-    200x60."""
-    from coaxial.model.blocks import numpy as np
+    """The motor itself, every dot at once: a dot at a time was 195 ms a frame at 200x60."""
+    from tools.cores import raster_draw
     s = _seat_arrays(frame, seat)
+    if raster_draw.csec_body(frame, s, seat.radii, rotor_deg, slots, poles, drive, blur):
+        return
+    from coaxial.model.blocks import numpy as np
     cls, share = _votes(s, seat.radii, math.radians(rotor_deg), slots, poles, drive, blur)
     # Each sample votes with its coverage, and the dot goes to the class that
     # covers most of it: summed a class at a time in the order the classes are

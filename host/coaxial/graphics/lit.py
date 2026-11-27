@@ -154,6 +154,10 @@ def splat(arrays, m, cam, centre):
     """(depth, colour) without a card: every corner of (positions, normals, materials, uv) a
     2x2 dot splat, the nearest winning - one UNDER a garment as LAYER_M further; the colour
     `_light`'s four a dot."""
+    from tools.cores import raster_draw
+    c_got = raster_draw.splat_lit(arrays, m, cam, centre, UNDER, LAYER_M)
+    if c_got is not None:
+        return c_got
     np = _const()[0]
     from tools.cores import raster as c_raster
     positions, normals, materials, uv = arrays

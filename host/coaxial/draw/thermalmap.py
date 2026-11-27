@@ -272,6 +272,8 @@ def _grid(nodes, board_c, cells, layout, aspect=CELL_ASPECT):
     temps = np.broadcast_to(field(x, y, board_c, nodes, layout), x.shape)
     rows = [[t if o else None for t, o in zip(line, keep)]
             for line, keep in zip(temps.tolist(), on.tolist())]
+    from tools.cores import raster_draw
+    raster_draw.stash_thermal_grid(rows, temps, on)
     if not on.any():
         return rows, None, None
     return rows, float(temps[on].min()), float(temps[on].max())
@@ -393,20 +395,14 @@ def _mask(cells, down, marks):
     bore = max(BORE_MM, per_cell)
     boxes = [frame(refs, margin) for _label, refs, _where, margin in marks]
 
+    from coaxial.model.blocks import numpy as np
     wide, high = 2 * cells, 2 * down
-    rows = []
-    for j in range(high):
-        y = ((high - 1) / 2.0 - j) * dy
-        line = []
-        for i in range(wide):
-            x = (i - (wide - 1) / 2.0) * dx
-            r = math.hypot(x, y)
-            if r > OUTER_MM or r < bore:
-                line.append(OFF)
-                continue
-            line.append(MARK if (r > OUTER_MM - 2.0 * edge
-                                 or r < bore + 2.0 * edge) else FIELD)
-        rows.append(line)
+    ys = (((high - 1) / 2.0 - np.arange(high)) * dy)[:, None]
+    xs = ((np.arange(wide) - (wide - 1) / 2.0) * dx)[None, :]
+    rad = np.hypot(xs, ys)
+    rows = np.where((rad > OUTER_MM) | (rad < bore), OFF,
+                    np.where((rad > OUTER_MM - 2.0 * edge) | (rad < bore + 2.0 * edge),
+                             MARK, FIELD)).tolist()
     placed = [_cell_rect(box, cells, down, dx, dy) for box in boxes]
     rects = [rect for rect, _lanes in placed]
     lanes = [lanes for _rect, lanes in placed]
@@ -432,6 +428,10 @@ def _braille_rows(grid, marks=MARKS):
     """
     down, cells = len(grid), len(grid[0])
     mask, labels = _mask(cells, down, tuple(marks or ()))
+    from tools.cores import raster_draw
+    c_rows = raster_draw.thermal_braille_rows(grid, mask, labels, NOISE)
+    if c_rows is not None:
+        return c_rows
     bit = BRAILLE_BITS
     levels = NOISE_LEVELS
     n = NOISE_N
