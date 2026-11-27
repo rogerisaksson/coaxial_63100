@@ -11,7 +11,7 @@ import math
 import random
 import threading
 import time
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 from coaxial.comm.wire import BYTE_FRACTION, CENTI, MICRO, MILLI, centi, micro, milli
 from coaxial.devices.thermal import THROTTLE_AT, ThermalControl, application
@@ -119,6 +119,7 @@ class SimulatedThermal(ThermalControl):
         self._driven = False
         self._at = None
         self._cycle = None
+        self._wired: Any = None
         self._row_buf = (ctypes.c_float * len(stand.ROW))()
         self._out_buf = (ctypes.c_float * 3)()
         self._lock = threading.RLock()
@@ -136,6 +137,11 @@ class SimulatedThermal(ThermalControl):
     def _row(self, seen, acting):
         """The load as the board gathers it (world_stand.h's row, `stand.ROW`): `seen` a sample
         fixed by the caller, or the drive's."""
+        wired = self._wired
+        if (seen is None and wired is not None
+                and (self._sample, self._duty, self._speed_of,
+                     self._afe_on, self._meter_locked, self._clamp_of) == wired[1]):
+            return wired[0]._fill_thermal_row(self._row_buf, acting)
         sample = seen if seen is not None else self._sample()
         amps = sample.get('amps') or (0.0, 0.0, 0.0)
         duty = sample.get('duty') or self._duty() or (0.0, 0.0, 0.0)

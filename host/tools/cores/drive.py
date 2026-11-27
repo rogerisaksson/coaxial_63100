@@ -86,6 +86,13 @@ class Drive:
         assert self.n_states == len(STATES), self.n_states
         assert self.n_th_params == len(THERMAL_PARAMS), self.n_th_params
         assert self.n_th_states == len(THERMAL_STATES), self.n_th_states
+        self._param_buf = (ctypes.c_float * self.n_params)()
+        self._sp_buf = (ctypes.c_float * len(SETPOINTS))()
+        self._obs_buf = (ctypes.c_float * len(OBS))()
+        self._state_buf = (ctypes.c_float * self.n_states)()
+        self._model_state_buf = (ctypes.c_float * 4)()
+        self._th_param_buf = (ctypes.c_float * self.n_th_params)()
+        self._th_state_buf = (ctypes.c_float * self.n_th_states)()
 
     def obs_sync(self, theta, omega):
         """Hand the chain an estimate, the way the drive does on a mode."""
@@ -99,7 +106,7 @@ class Drive:
 
     def obs(self):
         """The chain's state: what drv_obs writes, named."""
-        buf = (ctypes.c_float * len(OBS))()
+        buf = self._obs_buf
         self.lib.drv_obs(self.h, buf, len(OBS))
         return dict(zip(OBS, list(buf)))
 
@@ -108,11 +115,12 @@ class Drive:
             self.lib.drv_free(self.h)
 
     def params(self, **kw):
-        arr = (ctypes.c_float * self.n_params)()
+        arr = self._param_buf
         self.lib.drv_params_get(self.h, arr, self.n_params)
         got = dict(zip(PARAMS, arr))
         got.update(kw)
-        arr = (ctypes.c_float * self.n_params)(*[got[k] for k in PARAMS])
+        for idx, k in enumerate(PARAMS):
+            arr[idx] = got[k]
         self.lib.drv_params_set(self.h, arr, self.n_params)
         return got
 
@@ -121,7 +129,9 @@ class Drive:
         got.update(getattr(self, '_sp', {}))
         got.update(kw)
         self._sp = got
-        arr = (ctypes.c_float * len(SETPOINTS))(*[got[k] for k in SETPOINTS])
+        arr = self._sp_buf
+        for idx, k in enumerate(SETPOINTS):
+            arr[idx] = got[k]
         self.lib.drv_setpoints_set(self.h, arr, len(SETPOINTS))
 
     def mode(self, mode, enabled=True, powered=True):
@@ -139,9 +149,15 @@ class Drive:
         return bool(trip), tuple(duty)
 
     def state(self):
-        arr = (ctypes.c_float * self.n_states)()
+        arr = self._state_buf
         self.lib.drv_state(self.h, arr, self.n_states)
         return dict(zip(STATES, arr))
+
+    def mode_and_omega(self):
+        """Return `(mode_id, omega_hat)` without dict allocation."""
+        arr = self._state_buf
+        self.lib.drv_state(self.h, arr, self.n_states)
+        return arr[11], arr[1]
 
     def window(self):
         arr = (ctypes.c_double * self.n_window)()
@@ -190,7 +206,7 @@ class Drive:
         self.lib.drv_source(self.h, int(model))
 
     def model_state(self):
-        arr = (ctypes.c_float * 4)()
+        arr = self._model_state_buf
         self.lib.drv_model_state(self.h, arr)
         return dict(zip(('theta', 'omega', 'id', 'iq'), arr))
 
@@ -202,11 +218,12 @@ class Drive:
     # -- real-time junction observer, WEP envelope, and dynamic PWM --------
     def thermal_params(self, **kw):
         """Get or update Cauer thermal RC and WEP parameters."""
-        arr = (ctypes.c_float * self.n_th_params)()
+        arr = self._th_param_buf
         self.lib.drv_thermal_params_get(self.h, arr, self.n_th_params)
         got: dict[str, float] = dict(zip(THERMAL_PARAMS, arr))
         got.update(kw)
-        arr = (ctypes.c_float * self.n_th_params)(*[got[k] for k in THERMAL_PARAMS])
+        for idx, k in enumerate(THERMAL_PARAMS):
+            arr[idx] = got[k]
         self.lib.drv_thermal_params_set(self.h, arr, self.n_th_params)
         return got
 
@@ -224,7 +241,7 @@ class Drive:
 
     def thermal_state(self):
         """Read the real-time junction observer and WEP envelope state."""
-        arr = (ctypes.c_float * self.n_th_states)()
+        arr = self._th_state_buf
         self.lib.drv_thermal_state(self.h, arr, self.n_th_states)
         return dict(zip(THERMAL_STATES, arr))
 

@@ -343,18 +343,28 @@ def law(slot, ts):
     return drive.Drive(lib, ts, at=lib.world_drive_law(slot))
 
 
-def row(slot):
-    """Slot `slot`'s drive row, named (DRIVE_ROW)."""
+def row_raw(slot):
+    """Slot `slot`'s raw C double buffer (`DRIVE_ROW`), without dict allocation."""
     buf = _bufs()[1]
     library().world_drive_read(slot, buf)
-    return dict(zip(DRIVE_ROW, buf))
+    return buf
+
+
+def row(slot):
+    """Slot `slot`'s drive row, named (DRIVE_ROW)."""
+    return dict(zip(DRIVE_ROW, row_raw(slot)))
+
+
+def window_raw(slot):
+    """Slot `slot`'s raw C window buffer (`WINDOW_ROW`), taken without dict allocation."""
+    buf = _bufs()[2]
+    library().world_drive_window(slot, buf)
+    return buf
 
 
 def window(slot):
     """Slot `slot`'s drive's window, named (WINDOW_ROW), taken."""
-    buf = _bufs()[2]
-    library().world_drive_window(slot, buf)
-    return dict(zip(WINDOW_ROW, buf))
+    return dict(zip(WINDOW_ROW, window_raw(slot)))
 
 
 def loop(slot):

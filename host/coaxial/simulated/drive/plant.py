@@ -97,10 +97,11 @@ class DrivePlant:
     @_rotor_locked
     def _duty(self):
         """What the modulator put on the compares last period; none on an open bridge."""
-        row = self._now_row()
-        if not row['driven']:
+        self._advance()
+        rbuf = stand.row_raw(self._slot)
+        if not rbuf[3]:
             return (0.0, 0.0, 0.0)
-        return (row['duty_u'], row['duty_v'], row['duty_w'])
+        return (rbuf[4], rbuf[5], rbuf[6])
 
     @_rotor_locked
     def _dq(self):
@@ -122,21 +123,24 @@ class DrivePlant:
     def _mode(self):
         """The law's mode, by name."""
         with self._lock:
-            return MODE_NAMES[int(self._now()[0]['mode'])]
+            self._advance()
+            return MODE_NAMES[int(self._law.mode_and_omega()[0])]
 
     @property
     def _mech(self):
         """The shaft, rad mechanical, unwrapped: what a shaft sensor reads."""
         with self._lock:
-            return self._now_row()['shaft']
+            self._advance()
+            return stand.row_raw(self._slot)[10]
 
     @_rotor_locked
     def _rpm(self):
         """The rotor, rpm mechanical, as board_thermal.c's speed_now takes it: off the estimate
         the loop runs on, by the record's pole pairs; none while off. By the bench motor's 7 the
         QUAD page's 63100, 14, cooled its boards on 2 941 rpm at 1 471."""
-        law = self._now()[0]
-        if law['mode'] == 0.0:
+        self._advance()
+        mode, omega_hat = self._law.mode_and_omega()
+        if mode == 0.0:
             return 0.0
         pairs = self._params.get('motor_pole_pairs') or self.DEFAULTS['motor_pole_pairs']
-        return abs(law['omega_hat']) / pairs / RAD_S_PER_RPM
+        return abs(omega_hat) / pairs / RAD_S_PER_RPM

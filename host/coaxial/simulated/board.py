@@ -5,6 +5,9 @@ from typing import Any
 from coaxial.comm.protocol import BROADCAST
 from coaxial.errors import DeviceStateError
 from coaxial.kalman.observer import Observer
+from coaxial.model import inverter
+from motor import pmsm
+from tools.cores import stand
 from coaxial.simulated.acquire.capture import SimulatedCapture
 from coaxial.simulated.acquire.clock import SimulatedClock
 from coaxial.simulated.acquire.daq import SimulatedDaq
@@ -97,7 +100,7 @@ class SimulatedBoard:
         # What the thermal model samples: the drive, its rotor, the AFE rail.
         self.thermal._sample = self.drive.sample
         self.thermal._speed_of = self.drive._rpm
-        self.thermal._afe_on = lambda: self.afe.state()['on']
+        self.thermal._afe_on = lambda: self.afe._on
         self.thermal._meter_locked = lambda: self.gate_drivers._armed
         # The drive's triple is the gate drivers', armed at a mode; the AFE the board's, the
         # record's dead-time rows its calibration's.
@@ -126,6 +129,11 @@ class SimulatedBoard:
         self.thermal._derate_to = self._derate_drive
         self.thermal._clamp_of = self.drive._clamp
         self.thermal._duty = self._effective_duty
+        self.thermal._wired = (
+            self,
+            (self.thermal._sample, self.thermal._duty, self.thermal._speed_of,
+             self.thermal._afe_on, self.thermal._meter_locked, self.thermal._clamp_of),
+        )
         # The drive is what the phases and the gates follow: a record and the
         # modulation that produced it come from one electrical angle, or they
         # are two inventions that happen to be printed together.
@@ -171,6 +179,50 @@ class SimulatedBoard:
             return (0.0, 0.0, 0.0)
         period = float(gates.PERIOD or 1)
         return tuple(t / period for t in gates._duty_ticks())
+
+    def _fill_thermal_row(self, buf, acting):
+        """Fill `stand.ROW` `buf` directly from wired `drive`, `afe`, and `gate_drivers`."""
+        drv, afe, gates = self.drive, self.afe, self.gate_drivers
+        with drv._lock:
+            drv._advance()
+            rbuf = stand.row_raw(drv._slot)
+            on = bool(gates._driving()) if drv._switching else False
+            wbuf = stand.window_raw(drv._slot)
+            if wbuf[4]:
+                drv._counted = ((wbuf[0], wbuf[1], wbuf[2]), wbuf[3])
+            squares, link_amps = drv._counted if on else ((0.0, 0.0, 0.0), 0.0)
+            mode, omega_hat = drv._law.mode_and_omega()
+            if not gates._enabled:
+                du = dv = dw = 0.0
+            else:
+                p_int = gates.PERIOD
+                period = float(p_int or 1)
+                if mode != 0.0:
+                    if rbuf[3]:
+                        du = int(round(rbuf[4] * p_int)) / period
+                        dv = int(round(rbuf[5] * p_int)) / period
+                        dw = int(round(rbuf[6] * p_int)) / period
+                    else:
+                        du = dv = dw = 0.0
+                else:
+                    c0, c1, c2 = gates._compares
+                    du, dv, dw = c0 / period, c1 / period, c2 / period
+            pairs = drv._params.get('motor_pole_pairs') or drv.DEFAULTS['motor_pole_pairs']
+            rpm = 0.0 if mode == 0.0 else abs(omega_hat) / pairs / pmsm.RAD_S_PER_RPM
+            buf[0], buf[1] = float(bool(afe._on)), float(on)
+            buf[2], buf[3], buf[4] = du, dv, dw
+            if on:
+                buf[5], buf[6], buf[7] = rbuf[7], rbuf[8], rbuf[9]
+            else:
+                buf[5] = buf[6] = buf[7] = 0.0
+            buf[8] = float(drv._model['vdc'] or 0.0)
+            buf[9] = float(link_amps)
+            buf[10] = float(rpm)
+            buf[11] = inverter.T_DEAD
+            buf[12], buf[13] = float(bool(gates._armed)), float(bool(acting))
+            buf[14] = float(drv._clamp() or 0.0)
+            buf[15], buf[16], buf[17] = squares[0], squares[1], squares[2]
+            return buf
 
     def _drop_stage(self):
         """Drop the gates for the thermal envelope. True if it did."""

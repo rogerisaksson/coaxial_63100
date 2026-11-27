@@ -131,6 +131,8 @@ class SimulatedDrive(DrivePlant, DriveCapture, DriveControl):
         """The law brought to now, in whole periods: the wall's seconds since the law last ran,
         CATCH_UP_S at most - at least `least` when a TIM1 window clocks the drive -, or what
         the drive's world told; a trip drops the stage."""
+        if self._pace == 0.0 and least == 0.0 and 0.0 <= self._owed < 1.0:
+            return
         now = time.time()
         if self._pace is None:
             base = max(self._at, now - CATCH_UP_S)
@@ -220,14 +222,16 @@ class SimulatedDrive(DrivePlant, DriveCapture, DriveControl):
         """Board_DriveClamp: the clamp as the record has it, A."""
         return self._params.get('drv_i_max', self.DEFAULTS.get('drv_i_max', 0.0))
 
-    @_rotor_locked
     def _derate_to(self, factor):
         """Board_DriveDerate: the clamp scaled, 0..1 - never raised."""
-        self._advance()
         derate = max(0.0, min(1.0, factor))
-        if derate != self._derate:
-            self._derate = derate
-            self._load()
+        if self._pace == 0.0 and 0.0 <= self._owed < 1.0 and derate == self._derate:
+            return
+        with self._lock:
+            self._advance()
+            if derate != self._derate:
+                self._derate = derate
+                self._load()
 
     # -- modes and setpoints ----------------------------------------------
 
