@@ -48,8 +48,16 @@ def line(dots, a, b):
 
 def lines(dots, ax, ay, bx, by):
     """`line` from (`ax`, `ay`) to (`bx`, `by`), arrays of dot coordinates, every one at once:
-    the same dots, its clip and its linspace in numpy over all of them - a ring's 96 chords one
-    call, not 96 (test_views_drawing holds them equal)."""
+    the same dots, its clip and its linspace in C (`raster.lines`) or numpy over all of them - a
+    ring's 96 chords one call, not 96 (test_views_drawing holds them equal)."""
+    from tools.cores import raster as c_raster
+    if c_raster.lines(dots, ax, ay, bx, by):
+        return
+    lines_twin(dots, ax, ay, bx, by)
+
+
+def lines_twin(dots, ax, ay, bx, by):
+    """`lines` in NumPy alone, bit-for-bit identical to `raster.lines`."""
     import numpy as np
     h, w = dots.shape
     if h <= 0 or w <= 0:

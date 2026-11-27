@@ -37,12 +37,18 @@ FAR_INK, FAR_SIZE = 0.25, 0.25
 
 def strokes(ends, m, cam, centre):
     """(ys, xs, w, which): every dot of the world segments `ends` - (2n, 3), a pair a segment -
-    in the camera `cam` looking with `m` at `centre`, its depth's 1/z and its segment's number.
-    A segment is cut NEAR_M before the eye and at the view's edges, its depth carried along it
-    - linear on the screen, as 1/z is: one behind the eye projects through it, one beside it to
-    a line of a million dots."""
+    in the camera `cam` looking with `m` at `centre`, its depth's 1/z and its segment's number."""
+    from tools.cores import raster as c_raster
+    got = c_raster.strokes(ends, m, cam, centre, NEAR_M)
+    return strokes_twin(ends, m, cam, centre) if got is None else got
+
+
+def strokes_twin(ends, m, cam, centre):
+    """`strokes` in NumPy alone, matching `raster.strokes`."""
     from coaxial.model.blocks import numpy as np
-    q = (np.asarray(ends, float) - np.asarray(centre, float)) @ np.asarray(m, float).reshape(3, 3).T
+    d = np.asarray(ends, float) - np.asarray(centre, float)
+    m3 = np.asarray(m, float).reshape(3, 3)
+    q = (d[:, 0:1] * m3[:, 0] + d[:, 1:2] * m3[:, 1]) + d[:, 2:3] * m3[:, 2]
     a, b = q[0::2].copy(), q[1::2].copy()
     limit = cam['distance'] - NEAR_M
     which = np.nonzero((a[:, 2] < limit) | (b[:, 2] < limit))[0]
@@ -80,8 +86,15 @@ def strokes(ends, m, cam, centre):
 def ground(m, cam, centre):
     """The ground's grid lines as a (height, width) brightness, each dot by its depth: 0 none,
     far dimmer."""
+    from tools.cores import raster as c_raster
+    got = c_raster.ground(grid()[0], m, cam, centre, NEAR_M)
+    return ground_twin(m, cam, centre) if got is None else got
+
+
+def ground_twin(m, cam, centre):
+    """`ground` in NumPy alone, matching `raster.ground`."""
     from coaxial.model.blocks import numpy as np
-    ys, xs, w, _which = strokes(grid()[0], m, cam, centre)
+    ys, xs, w, _which = strokes_twin(grid()[0], m, cam, centre)
     out = np.zeros((cam['height'], cam['width']))
     np.maximum.at(out, (ys, xs), 0.2 + 0.8 * np.clip(w * cam['distance'], 0.0, 1.0))
     return out
@@ -203,21 +216,44 @@ def _laid(edges):
     return np.asarray(ends, float).reshape(-1, 3), np.asarray(inks, int)
 
 
-def asked(field=grounds, line_: object = True):
-    """(ends, inks) of the line the course asks (`course.track`, or the `field`'s), dashed."""
+@functools.lru_cache(maxsize=32)
+def _asked_ways(field, ways):
     from coaxial.model.blocks import numpy as np
     from machine.aircraft import course
-    ways = line_ if isinstance(line_, tuple) else getattr(line_, 'ways', None)
     at = (course.track(ways) if field is grounds else field.track())['at']
     ends = [end for k in range(0, len(at), 2 * LINE_DASH)
             for end in (at[k], at[(k + LINE_DASH) % len(at)])]
     return np.asarray(ends, float), np.full(len(ends) // 2, list(INKS).index('line'))
 
 
+def asked(field=grounds, line_: object = True):
+    """(ends, inks) of the line the course asks (`course.track`, or the `field`'s), dashed."""
+    ways = line_ if isinstance(line_, tuple) else getattr(line_, 'ways', None)
+    if ways is None or isinstance(ways, tuple):
+        return _asked_ways(field, ways)
+    from coaxial.model.blocks import numpy as np
+    from machine.aircraft import course
+    at = (course.track(ways) if field is grounds else field.track())['at']
+    ends = [end for k in range(0, len(at), 2 * LINE_DASH)
+            for end in (at[k], at[(k + LINE_DASH) % len(at)])]
+    return np.asarray(ends, float), np.full(len(ends) // 2, list(INKS).index('line'))
+
+
+@functools.lru_cache(maxsize=64)
+def _edges_cached(gate, has_line, ways, field):
+    from coaxial.model.blocks import numpy as np
+    parts = [standing(field)] + [runway()] * int(gate is None or field is not grounds) + [
+        gates(gate, field)] * int(gate is not None) + [_asked_ways(field, ways)] * int(has_line)
+    return np.vstack([p[0] for p in parts]), np.concatenate([p[1] for p in parts])
+
+
 def edges(gate=None, line_=False, field=grounds):
     """(ends, inks) of every edge that stands on `field` - with the runway strip off the gate
     course, and on an airfield on it too, the course's gates where `gate` is the one flown to
     next, and the line it asks with `line_`."""
+    ways = line_ if isinstance(line_, tuple) else getattr(line_, 'ways', None)
+    if ways is None or isinstance(ways, tuple):
+        return _edges_cached(gate, bool(line_), ways, field)
     from coaxial.model.blocks import numpy as np
     parts = [standing(field)] + [runway()] * int(gate is None or field is not grounds) + [
         gates(gate, field)] * int(gate is not None) + [asked(field, line_)] * int(bool(line_))

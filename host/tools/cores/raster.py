@@ -9,9 +9,12 @@ from tools.cores import build
 
 SOURCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'raster.c')
 CELLS_SOURCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'raster_cells.c')
-SOURCES = [SOURCE, CELLS_SOURCE]
-FLAGS = ('-O3', '-fno-math-errno', '-fno-trapping-math', '-fvect-cost-model=dynamic') + build.native()
+STROKES_SOURCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'raster_strokes.c')
+SOURCES = [SOURCE, CELLS_SOURCE, STROKES_SOURCE]
+FLAGS = ('-O3', '-ffp-contract=off', '-fno-math-errno', '-fno-trapping-math',
+         '-fvect-cost-model=dynamic') + build.native()
 _SCRATCH: dict[int, tuple] = {}
+_STROKE_BUF: list = [0, None]
 _SOLID_CACHE: dict[int, tuple] = {}
 _SPANS: dict[int, tuple] = {}
 _DRAPE_CACHE: dict[int, tuple] = {}
@@ -67,6 +70,21 @@ def _lib():
     lib.rs_drape_row.restype = None
     lib.rs_drape_finish.argtypes = [i32, vp, vp, vp, vp]
     lib.rs_drape_finish.restype = None
+    i64 = ctypes.c_int64
+    lib.rs_lines.argtypes = [vp, i32, i32, i32, vp, vp, vp, vp]
+    lib.rs_lines.restype = None
+    lib.rs_strokes_prep.argtypes = [
+        i32, vp, vp, vp, f64, f64, f64, f64, f64, f64, i32, i32, vp, vp,
+    ]
+    lib.rs_strokes_prep.restype = None
+    lib.rs_strokes_emit.argtypes = [i64, vp, i32, i32, vp, vp, vp, vp]
+    lib.rs_strokes_emit.restype = None
+    lib.rs_ground.argtypes = [
+        i32, vp, vp, vp, f64, f64, f64, f64, f64, f64, i32, i32, vp,
+    ]
+    lib.rs_ground.restype = None
+    lib.rs_pose_parts.argtypes = [i32, vp, vp, vp, vp, vp, vp, vp]
+    lib.rs_pose_parts.restype = None
     return lib
 
 
@@ -324,3 +342,96 @@ def drape_finish(pos, norm, laid, sums):
     lib.rs_drape_finish(len(held), held.ctypes.data, sums.ctypes.data, pos.ctypes.data,
                         norm.ctypes.data)
     return True
+
+
+def lines(dots, ax, ay, bx, by) -> bool:
+    """Rasterize 2D segments into contiguous `bool` `dots` in C matching `callouts.lines`."""
+    lib = _lib()
+    if lib is None or not dots.flags.c_contiguous or dots.dtype != np.bool_:
+        return False
+    h, w = dots.shape
+    ax_c = np.ascontiguousarray(ax, dtype=np.float64).ravel()
+    ay_c = np.ascontiguousarray(ay, dtype=np.float64).ravel()
+    bx_c = np.ascontiguousarray(bx, dtype=np.float64).ravel()
+    by_c = np.ascontiguousarray(by, dtype=np.float64).ravel()
+    n = min(len(ax_c), len(ay_c), len(bx_c), len(by_c))
+    if n > 0 and h > 0 and w > 0:
+        lib.rs_lines(dots.ctypes.data, int(h), int(w), int(n),
+                     ax_c.ctypes.data, ay_c.ctypes.data, bx_c.ctypes.data, by_c.ctypes.data)
+    return True
+
+
+def strokes(ends, m, cam, centre, near_m: float):
+    """Clip and step 3D segments `ends` `(2n, 3)` in C matching `scenery.strokes`."""
+    lib = _lib()
+    if lib is None:
+        return None
+    ends_c = np.ascontiguousarray(ends, dtype=np.float64).reshape(-1, 3)
+    nseg = len(ends_c) // 2
+    width, height = int(cam['width']), int(cam['height'])
+    if nseg <= 0 or width <= 0 or height <= 0:
+        return (np.empty(0, dtype=int), np.empty(0, dtype=int),
+                np.empty(0, dtype=np.float64), np.empty(0, dtype=int))
+    need = nseg * 80
+    if _STROKE_BUF[0] < need:
+        _STROKE_BUF[0] = need
+        _STROKE_BUF[1] = np.empty(need, dtype=np.uint8)
+    scratch = _STROKE_BUF[1]
+    m9 = np.ascontiguousarray(m, dtype=np.float64).ravel()
+    c3 = np.ascontiguousarray(centre, dtype=np.float64).ravel()
+    counts = np.zeros(2, dtype=np.int64)
+    lib.rs_strokes_prep(
+        nseg, ends_c.ctypes.data, m9.ctypes.data, c3.ctypes.data,
+        float(cam['distance']), float(near_m), float(cam['scale']), float(cam['cx']),
+        float(cam['cy']), float(cam.get('aspect', 0.5)), width, height,
+        scratch.ctypes.data, counts.ctypes.data,
+    )
+    kept, total = int(counts[0]), int(counts[1])
+    ys = np.empty(total, dtype=np.int64)
+    xs = np.empty(total, dtype=np.int64)
+    w_out = np.empty(total, dtype=np.float64)
+    which = np.empty(total, dtype=np.int64)
+    if kept > 0 and total > 0:
+        lib.rs_strokes_emit(kept, scratch.ctypes.data, width, height,
+                            ys.ctypes.data, xs.ctypes.data, w_out.ctypes.data, which.ctypes.data)
+    return ys, xs, w_out, which
+
+
+def ground(ends, m, cam, centre, near_m: float):
+    """Fused `scenery.ground` `(height, width)` grid brightness in C."""
+    lib = _lib()
+    if lib is None:
+        return None
+    ends_c = np.ascontiguousarray(ends, dtype=np.float64).reshape(-1, 3)
+    width, height = int(cam['width']), int(cam['height'])
+    out = np.empty((height, width), dtype=np.float64)
+    m9 = np.ascontiguousarray(m, dtype=np.float64).ravel()
+    c3 = np.ascontiguousarray(centre, dtype=np.float64).ravel()
+    lib.rs_ground(
+        len(ends_c) // 2, ends_c.ctypes.data, m9.ctypes.data, c3.ctypes.data,
+        float(cam['distance']), float(near_m), float(cam['scale']), float(cam['cx']),
+        float(cam['cy']), float(cam.get('aspect', 0.5)), width, height, out.ctypes.data,
+    )
+    return out
+
+
+def pose_parts(parts_p_n, turns9, spots3, total_n: int):
+    """Transform `[(pts, nrm), ...]` in C into `(out_pos, out_nrm)`, or return `None`."""
+    lib = _lib()
+    if lib is None:
+        return None
+    nparts = len(parts_p_n)
+    out_p = np.empty((total_n, 3), dtype=np.float64)
+    out_n = np.empty((total_n, 3), dtype=np.float64)
+    if nparts <= 0 or total_n <= 0:
+        return out_p, out_n
+    p_arrs = [np.ascontiguousarray(p, dtype=np.float64) for p, _n in parts_p_n]
+    n_arrs = [np.ascontiguousarray(n, dtype=np.float64) for _p, n in parts_p_n]
+    p_ptrs = np.array([a.ctypes.data for a in p_arrs], dtype=np.uintp)
+    n_ptrs = np.array([a.ctypes.data for a in n_arrs], dtype=np.uintp)
+    counts = np.array([len(a) for a in p_arrs], dtype=np.int32)
+    t_c = np.ascontiguousarray(turns9, dtype=np.float64)
+    s_c = np.ascontiguousarray(spots3, dtype=np.float64)
+    lib.rs_pose_parts(nparts, p_ptrs.ctypes.data, n_ptrs.ctypes.data, counts.ctypes.data,
+                      t_c.ctypes.data, s_c.ctypes.data, out_p.ctypes.data, out_n.ctypes.data)
+    return out_p, out_n

@@ -9,7 +9,7 @@ instruments' rounded frame, its title in the top edge and a note in the bottom o
 `labels` plates on the picture, none over another; nothing where the viewport has no room.
 """
 from coaxial.graphics.callouts import FRAME_CORNERS, FRAME_INK, packed
-from coaxial.graphics.raster import BRAILLE, BRAILLE_BITS, DOTS_X, DOTS_Y
+from coaxial.graphics.raster import BRAILLE, BRAILLE_BITS, DOTS_Y
 from machine.eyes import sight
 
 #: The inks of the frame's title and its note (the theme's `name` and `value`), and a label's
@@ -32,13 +32,17 @@ def dotted(dots, ink, ground):
     """A body of braille: `dots` ((4 * rows, 2 * wide) bool), a cell's `ink` and its `ground`
     ((rows, wide, 3))."""
     from coaxial.model.blocks import numpy as np
-    rows, wide = dots.shape[0] // DOTS_Y, dots.shape[1] // DOTS_X
-    bits = np.array([[BRAILLE_BITS[lane][y] for lane in range(DOTS_X)] for y in range(DOTS_Y)])
-    glyphs = (dots.reshape(rows, DOTS_Y, wide, DOTS_X) * bits[None, :, None, :]).sum(axis=(1, 3))
-    glyphs, ink, ground = glyphs.tolist(), ink.astype(int).tolist(), ground.astype(int).tolist()
-    return [[(BRAILLE + glyphs[r][c] if glyphs[r][c] else ord(' '),
-              packed(tuple(ink[r][c]), tuple(ground[r][c]))) for c in range(wide)]
-            for r in range(rows)]
+    rows = dots.shape[0] // DOTS_Y
+    glyphs = ((dots[0::4, 0::2] * BRAILLE_BITS[0][0]) | (dots[1::4, 0::2] * BRAILLE_BITS[0][1])
+              | (dots[2::4, 0::2] * BRAILLE_BITS[0][2]) | (dots[3::4, 0::2] * BRAILLE_BITS[0][3])
+              | (dots[0::4, 1::2] * BRAILLE_BITS[1][0]) | (dots[1::4, 1::2] * BRAILLE_BITS[1][1])
+              | (dots[2::4, 1::2] * BRAILLE_BITS[1][2]) | (dots[3::4, 1::2] * BRAILLE_BITS[1][3]))
+    fi, bi = ink.astype(np.int64), ground.astype(np.int64)
+    fg = (fi[..., 0] << 16) | (fi[..., 1] << 8) | fi[..., 2]
+    bg = (((bi[..., 0] << 16) | (bi[..., 1] << 8) | bi[..., 2]) + 1) << 24
+    chars = np.where(glyphs, BRAILLE + glyphs.astype(int), ord(' ')).tolist()
+    keys = (fg | bg).tolist()
+    return [list(zip(chars[r], keys[r])) for r in range(rows)]
 
 
 def docked(body, width, height, title, note='', labels=()):
@@ -91,6 +95,7 @@ def eyes(seen, width, height):
     [(kind, ink, [(col, row), ..] in the eye's image)]) - each hull's ink along its edge, where
     the picture's own edge does not cut it, and lightly over what it covers; its kind a label
     at its top left, the smallest hull's first."""
+    from coaxial.model.blocks import numpy as np
     thumb, hulls = seen
     rows, wide = thumb.shape[0], thumb.shape[1]
     picture = thumb.astype(float)
@@ -98,13 +103,21 @@ def eyes(seen, width, height):
     labels = []
     for kind, ink, hull in hulls:
         poly = [(u * sx, v * sy) for u, v in hull]
-        inside = set(_filled(poly, rows, wide))
-        for r, c in inside:
-            rim = any(0 <= rr < rows and 0 <= cc < wide and (rr, cc) not in inside
-                      for rr, cc in ((r - 1, c), (r + 1, c), (r, c - 1), (r, c + 1)))
-            share = EDGE if rim else TINT
-            picture[r, c] = picture[r, c] * (1.0 - share) + [share * i for i in ink]
-        labels.append((len(inside), min(v for _u, v in poly) // 2, min(u for u, _v in poly),
+        pts = _filled(poly, rows, wide)
+        if pts:
+            mask = np.zeros((rows, wide), bool)
+            rr, cc = zip(*pts)
+            mask[rr, cc] = True
+            pad = np.pad(mask, 1, constant_values=True)
+            rim = mask & ~(pad[:-2, 1:-1] & pad[2:, 1:-1] & pad[1:-1, :-2] & pad[1:-1, 2:])
+            inner = mask & ~rim
+            ink_f = np.array([float(i) for i in ink])
+            picture[inner] = picture[inner] * (1.0 - TINT) + (TINT * ink_f)
+            picture[rim] = picture[rim] * (1.0 - EDGE) + (EDGE * ink_f)
+            count = int(mask.sum())
+        else:
+            count = 0
+        labels.append((count, min(v for _u, v in poly) // 2, min(u for u, _v in poly),
                        kind, ink))
     return docked(pixels(picture.astype(thumb.dtype)), width, height, EYES,
                   '%d told' % len(hulls) if hulls else '',

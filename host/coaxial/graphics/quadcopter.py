@@ -13,7 +13,7 @@ a pole marked each metre up and what stands about the course are the quad's worl
 import math
 
 from coaxial.graphics import engine, scenery, shapes
-from coaxial.graphics.callouts import line, lines
+from coaxial.graphics.callouts import lines
 from coaxial.graphics.lit import CORE, PLATE, braille, paint, project, splat
 from machine.rig import ansi
 from machine.aircraft import quad
@@ -225,26 +225,56 @@ def _painted(frame, rotors, dense):
     return materials
 
 
+_POSE_STATIC: dict = {}
+
+
 def pose_meshes(pose, rotors, dense, frame, moving):
     """(positions, normals, uv, materials, index) in the world: `frame` at `pose` and each
     `(part_mesh, rot_local, spot)` in `moving` turned and placed in the frame's axes."""
     from coaxial.model.blocks import numpy as np
+    from tools.cores import raster as c_raster
     turn, at = np.asarray(pose['turn'], float), np.asarray(pose['at'], float)
     pick = (lambda m: (m.dense[0], m.dense[1], m.dense[2], m.dense[3])) if dense else \
         (lambda m: (m.corners, m.normals, m.uv, m.materials))
-    points, normals, uv, _materials = pick(frame)
-    out = [[points @ turn.T + at], [normals @ turn.T], [uv], [_painted(frame, rotors, dense)]]
-    index, base = [frame.index], len(points)
+    fp, fn, fuv, _fm = pick(frame)
+    parts_pn = [(fp, fn)]
+    turns = [turn.T.ravel()]
+    spots = [at]
+    m_mats = []
+    total_n = len(fp)
     for part, rot_local, spot in moving:
         here = turn @ rot_local
-        p, n, u, m = pick(part)
-        out[0].append(p @ here.T + at + turn @ np.asarray(spot, float))
-        out[1].append(n @ here.T)
-        out[2].append(u)
-        out[3].append(m)
-        index.append(part.index + base)
-        base += len(p)
-    return tuple(np.concatenate(o) for o in out) + (np.vstack(index),)
+        p, n, _u, m = pick(part)
+        parts_pn.append((p, n))
+        turns.append(here.T.ravel())
+        spots.append(at + turn @ np.asarray(spot, float))
+        m_mats.append(m)
+        total_n += len(p)
+    s_key = (id(frame), bool(dense), tuple(id(part) for part, _r, _s in moving))
+    s_hit = _POSE_STATIC.get(s_key)
+    if s_hit is None:
+        while len(_POSE_STATIC) >= 64:
+            del _POSE_STATIC[next(iter(_POSE_STATIC))]
+        uvs = [fuv] + [pick(part)[2] for part, _r, _s in moving]
+        idxs, base = [frame.index], len(fp)
+        for part, _r, _s in moving:
+            idxs.append(part.index + base)
+            base += len(pick(part)[0])
+        s_hit = _POSE_STATIC[s_key] = (
+            fuv if len(uvs) == 1 else np.concatenate(uvs),
+            frame.index if len(idxs) == 1 else np.vstack(idxs),
+        )
+    posed = c_raster.pose_parts(parts_pn, np.asarray(turns, float), np.asarray(spots, float), total_n)
+    if posed is None:
+        pos_l = [fp @ turn.T + at] + [p @ t.reshape(3, 3) + s for (p, _n), t, s in zip(parts_pn[1:], turns[1:], spots[1:])]
+        nrm_l = [fn @ turn.T] + [n @ t.reshape(3, 3) for (_p, n), t in zip(parts_pn[1:], turns[1:])]
+        out_p = pos_l[0] if len(pos_l) == 1 else np.concatenate(pos_l)
+        out_n = nrm_l[0] if len(nrm_l) == 1 else np.concatenate(nrm_l)
+    else:
+        out_p, out_n = posed
+    f_painted = _painted(frame, rotors, dense)
+    mats = f_painted if not m_mats else np.concatenate([f_painted] + m_mats)
+    return out_p, out_n, s_hit[0], mats, s_hit[1]
 
 
 def _posed(pose, rotors, dense, see='shell'):
@@ -298,6 +328,7 @@ def _arrows(pose, thrusts, m, cam, centre):
     turn, at = np.asarray(pose['turn'], float), np.asarray(pose['at'], float)
     up, side = turn[:, 1], turn[:, 0]
     drawn = np.zeros((cam['height'], cam['width']), bool)
+    pts = []
     for (x, z), thrust in zip(quad.ROTOR_AT, thrusts):
         length = ARROW_M_PER_N * max(0.0, thrust)
         if length <= 0.0:
@@ -305,11 +336,15 @@ def _arrows(pose, thrusts, m, cam, centre):
         hub = at + turn @ np.array([x, quad.DISC_M, z])
         tip = hub + length * up
         back = tip - ARROW_HEAD * length * up
-        points = np.array([hub, tip, back + 0.5 * ARROW_HEAD * length * side,
-                           back - 0.5 * ARROW_HEAD * length * side])
-        sx, sy, _w = project(points, m, cam, centre)
-        for a, b in ((0, 1), (1, 2), (1, 3)):
-            line(drawn, (sx[a], sy[a]), (sx[b], sy[b]))
+        pts.extend((hub, tip, back + 0.5 * ARROW_HEAD * length * side,
+                    back - 0.5 * ARROW_HEAD * length * side))
+    if pts:
+        sx, sy, _w = project(np.asarray(pts), m, cam, centre)
+        n = len(pts) // 4
+        b = np.arange(n) * 4
+        ia = np.concatenate([b, b + 1, b + 1])
+        ib = np.concatenate([b + 1, b + 2, b + 3])
+        lines(drawn, sx[ia], sy[ia], sx[ib], sy[ib])
     return [(drawn, ARROW_INK, True)]
 
 

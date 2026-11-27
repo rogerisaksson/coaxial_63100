@@ -337,6 +337,37 @@ def test_c11_raster_cells_parity(report):
                  and np.array_equal(bc_c[1], bc_p[1]) and ink_err <= 1e-12,
                  'ink max %.2e' % ink_err)
 
+    from coaxial.graphics import callouts, inset, onboard, quadcopter, scenery
+    rng = np.random.default_rng(42)
+    dc2, dp2 = np.zeros((144, 208), bool), np.zeros((144, 208), bool)
+    ax, ay = rng.uniform(-40.0, 240.0, 160), rng.uniform(-30.0, 180.0, 160)
+    bx, by = rng.uniform(-40.0, 240.0, 160), rng.uniform(-30.0, 180.0, 160)
+    callouts.lines(dc2, ax, ay, bx, by)
+    callouts.lines_twin(dp2, ax, ay, bx, by)
+    lines_ok = np.array_equal(dc2, dp2)
+
+    cam_s = engine.fine({'scale': 62.0, 'cx': 52.0, 'cy': 18.0, 'distance': 11.0, 'width': 104, 'height': 36, 'reach': 11.0})
+    m_s, ctr_s = shapes.view(25.0, -18.0), (0.2, 1.8, -0.4)
+    g_c, g_py = scenery.ground(m_s, cam_s, ctr_s), scenery.ground_twin(m_s, cam_s, ctr_s)
+    ground_ok = np.array_equal(g_c.view(np.uint64), g_py.view(np.uint64))
+    ends, _inks = scenery.edges(0, True)
+    ys_c, xs_c, w_c, wh_c = scenery.strokes(ends, m_s, cam_s, ctr_s)
+    ys_p, xs_p, w_p, wh_p = scenery.strokes_twin(ends, m_s, cam_s, ctr_s)
+    strokes_ok = (np.array_equal(ys_c, ys_p) and np.array_equal(xs_c, xs_p)
+                  and np.array_equal(wh_c, wh_p) and np.array_equal(w_c.view(np.uint64), w_p.view(np.uint64)))
+    pose = {'turn': np.asarray(shapes.view(18.0, -12.0)).reshape(3, 3), 'at': (0.2, 2.4, -5.0)}
+    rotors = [(0.5, 420.0, 48.0, 42.0, 36.0), (1.2, 10.0, 49.0, 43.0, 36.5),
+              (2.1, 420.0, 47.0, 41.0, 35.5), (0.8, 420.0, 48.5, 42.5, 36.0)]
+    pos_c, nrm_c, uv_c, mat_c, idx_c = quadcopter._posed(pose, rotors, True, 'shell')
+    pic = onboard.picture((0.0, 2.5, -6.0), (0.15, -0.12, 0.08), gate=0, line_=True)
+    thumb = rng.integers(0, 256, (32, 48, 3), dtype=np.uint8)
+    eyes_box = inset.eyes((thumb, [('chair', (210, 150, 80), [(80, 120), (220, 110), (240, 290), (70, 280)])]), 104, 36)
+    report.check('C11 raster_strokes.c lines, strokes, ground, pose_parts and insets hold 0-ULP parity',
+                 lines_ok and ground_ok and strokes_ok
+                 and len(pos_c) == len(nrm_c) == len(uv_c) == len(mat_c) and len(idx_c) > 0
+                 and len(pic) == onboard.HIGH and len(eyes_box) > 0,
+                 'lines=%s ground=%s strokes=%s' % (lines_ok, ground_ok, strokes_ok))
+
 
 ROSTER = (test_lines_draw_what_line_draws, test_c11_raster_cells_parity, test_the_level_is_drawn_at_the_dot,
           test_the_teeth_keep_their_length_and_a_shared_cell_goes_to_the_most,

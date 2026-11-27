@@ -69,6 +69,15 @@ def sight(eye, aim):
     return tuple(m.ravel().tolist()), np.asarray(eye, float) - lens()['distance'] * level[2]
 
 
+@functools.lru_cache(maxsize=64)
+def _scene_cached(gate, has_line, ways, field):
+    from coaxial.model.blocks import numpy as np
+    (floor, pitch), (ends, inks) = scenery.grid(), scenery._edges_cached(gate, has_line, ways, field)
+    palette = np.asarray(list(scenery.INKS.values()) + [FLOOR_INK], float)
+    all_inks = np.concatenate([np.full(len(pitch), len(palette) - 1), inks])
+    return np.vstack([floor, ends]), pitch, all_inks, palette
+
+
 def picture(eye, aim, gate=None, line_=False, field=grounds):
     """The picture's body (`inset.dotted`) from the lens at `eye` looking as `aim` has it
     (`sight`): the ground's grid and what stands on `field`, with the course's gates where
@@ -76,12 +85,17 @@ def picture(eye, aim, gate=None, line_=False, field=grounds):
     from coaxial.model.blocks import numpy as np
     (m, centre), cam = sight(eye, aim), lens()
     ground = air(aim[1], aim[2] if len(aim) > 2 else 0.0)
-    (floor, pitch), (ends, inks) = scenery.grid(), scenery.edges(gate, line_, field)
-    palette = np.asarray(list(scenery.INKS.values()) + [FLOOR_INK], float)
+    ways = line_ if isinstance(line_, tuple) else getattr(line_, 'ways', None)
+    if ways is None or isinstance(ways, tuple):
+        all_ends, pitch, inks, palette = _scene_cached(gate, bool(line_), ways, field)
+    else:
+        (floor, pitch), (ends, raw_inks) = scenery.grid(), scenery.edges(gate, line_, field)
+        palette = np.asarray(list(scenery.INKS.values()) + [FLOOR_INK], float)
+        all_ends = np.vstack([floor, ends])
+        inks = np.concatenate([np.full(len(pitch), len(palette) - 1), raw_inks])
     reach = np.concatenate([np.sqrt(cam['scale'] * max(0.0, float(eye[1])) * pitch / APART),
-                            np.full(len(inks), np.inf)])
-    inks = np.concatenate([np.full(len(pitch), len(palette) - 1), inks])
-    ys, xs, which, share = scenery.drawn(np.vstack([floor, ends]), m, cam, centre, reach)
+                            np.full(len(inks) - len(pitch), np.inf)])
+    ys, xs, which, share = scenery.drawn(all_ends, m, cam, centre, reach)
     dots = np.zeros((HIGH * DOTS_Y, WIDE * DOTS_X), bool)
     dots[ys, xs] = True
     rows, cols = ys // DOTS_Y, xs // DOTS_X
