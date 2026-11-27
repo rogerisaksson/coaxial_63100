@@ -63,12 +63,19 @@ class Ring:
 
     def window(self, start=None, n=0):
         """(the robot's edge arrays, its drives' torques but the last) of the window at `start`, `n`
-        rows - the one at hand where not given -, lists as its worker's were: each a row of a copy of
-        its own."""
+        rows - the one at hand where not given -, laid contiguous in their own copies."""
         import numpy as np
         start, n = (self.start, self.n) if start is None else (start, n)
-        rows = self.rows[(start + np.arange(n)) % self.cap]
-        return list(rows[:, :edge.SENSED]), list(rows[:-1, edge.SENSED:])
+        if n <= 0:
+            return np.zeros((0, edge.SENSED)), np.zeros((0, WIDTH - edge.SENSED))
+        start %= self.cap
+        end = start + n
+        if end <= self.cap:
+            rows = self.rows[start:end]
+            return np.ascontiguousarray(rows[:, :edge.SENSED]), np.ascontiguousarray(rows[:-1, edge.SENSED:])
+        first = self.cap - start
+        rows = np.vstack((self.rows[start:], self.rows[:n - first]))
+        return np.ascontiguousarray(rows[:, :edge.SENSED]), np.ascontiguousarray(rows[:-1, edge.SENSED:])
 
     def next(self):
         """The next window begun at this one's last row, as the robot's worker's lists began it."""

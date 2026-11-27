@@ -178,7 +178,8 @@ def laid(s):
     if s.get('g') is not None and s['g']['keep'] is not None:
         s['g']['keep'].close()
     was = s.get('g')
-    g = s['g'] = sprung.laid(s['every'], texts=s['texts'], suite=s['suite'])
+    g = s['g'] = sprung.laid(s['every'], texts=s['texts'], suite=s['suite'],
+                             gym=s['gym'] if s.get('gym_name') == sprung.GYMS[0] else None)
     relaid = was is not None
     if relaid:
         g['planner'], g['vision'] = was['planner'], was['vision']

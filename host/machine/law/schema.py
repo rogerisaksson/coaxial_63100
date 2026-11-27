@@ -119,11 +119,9 @@ def shielded(body, near, s, ask, volts, shield_=None):
     which = np.flatnonzero(near['d'] - FLOOR < INFLUENCE)
     h, short = (shield if shield_ is None else shield_)(near['d'], near['J'], s['M'], s['v'], s['q'], posture, volts,
                                                          act)
-    if (short[which] > 0.0).any():
+    if len(which) and (short[which] > 0.0).any():
         return _shielded(body, near, s, ask, volts)
-    f = _evading(which.tobytes())
-    return posture + np.zeros(len(act)) / POSTURE_KD[0], {'d': near['d'], 'h': h[which], 'which': which,
-                                                          'spill': np.zeros(f + len(which))[f:], 'held': []}
+    return posture + 0.0, {'d': near['d'], 'h': h[which], 'which': which, 'spill': np.zeros(len(which)), 'held': []}
 
 
 @functools.lru_cache(maxsize=256)

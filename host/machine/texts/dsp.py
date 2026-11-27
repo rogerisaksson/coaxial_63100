@@ -472,12 +472,18 @@ def read(paths, texts=None):
     (`ortho.source`): constants as {param: value}, states and patches as gaits, stages, transitions,
     a schedule as compile-to-soa's keys, functions as Defuns. Each call its own copy, the same texts
     evaluated once a process per build."""
-    from machine.body import mechatronics
+    from machine.body import figure, gait, mechatronics
     try:
-        sources = (mechatronics.ROBOT,) + tuple((path, ortho.source(path, texts)) for path in paths)
+        sources = (mechatronics.ROBOT, figure.SCALE, gait.SIMILAR) + tuple(
+            (path, ortho.source(path, texts)) for path in paths)
     except (SyntaxError, OSError):  # a text missing: refused where the reading meets it, uncached
         return _evaluated((path, ortho.source(path, texts)) for path in paths)
-    return kept.loaded(_READ, sources, lambda keyed: _evaluated(keyed[1:]))
+    if texts is None:
+        files = tuple(paths) + mechatronics.body_sources(mechatronics.ROBOT) + (
+            __file__, _kernel.__file__, patch.__file__, ortho.__file__)
+        return kept.disk(_READ, 'dsp', sources, files, (mechatronics.ROBOT, figure.SCALE, gait.SIMILAR),
+                         lambda keyed: _evaluated(keyed[3:]))
+    return kept.loaded(_READ, sources, lambda keyed: _evaluated(keyed[3:]))
 
 
 def _evaluated(sources):

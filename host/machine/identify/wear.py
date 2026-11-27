@@ -324,9 +324,10 @@ def torso_loading(w, ys, dt):
     """`torso_load` a part at a time (`sysid.borning`)."""
     import numpy as np
     lay, body = w['lay'], w['body']
-    Yb, fb = yield from sysid.borning(lay, body, ys, dt, EVERY)
-    at = np.arange(0, len(ys) - 1, EVERY)
-    alone = ~np.asarray([ys[i] for i in at])[:, edge.TOUCH].reshape(len(at), -1, 3)[:, borne.ABOVE].any(axis=(1, 2))
+    ys_arr = np.asarray(ys)
+    Yb, fb = yield from sysid.borning(lay, body, ys_arr, dt, EVERY)
+    at = np.arange(0, len(ys_arr) - 1, EVERY)
+    alone = ~ys_arr[at, edge.TOUCH].reshape(len(at), -1, 3)[:, borne.ABOVE].any(axis=(1, 2))
     on = (fb[:, 0] > 2.0 * leap.TOUCH_N * sysid.LEVER_M) & alone
     Yb, fb = Yb[on], fb[on]
     b = body.m.body('torso').id

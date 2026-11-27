@@ -234,7 +234,36 @@ def test_the_robots_wear_apart_lands_as_here(report):
                  'here %s, stood %s; apart %s, stood %s, read apart %s' % (here[1], here[3], apart[1], apart[3], apart[4]))
 
 
-ROSTER = (test_a_load_is_read_and_the_robots_wear_named,
+def test_the_campaign_kernels_in_c_are_python_s(report):
+    """`tools.cores.identify` low-pass and capsule self-contact kernels match Python bit for bit."""
+    from machine.identify import campaign, sysid
+    from machine.senses import edge
+    from machine.stack import wbc
+    from tools.cores import build, identify
+    lay = sysid.laid(wbc.Body(identified=False))
+    rng = np.random.default_rng(7)
+    x1, x2 = rng.normal(size=257), rng.normal(size=(311, 97))
+    a = float(np.exp(-2.0 * np.pi * campaign.SMOOTH_HZ * 0.001))
+    c1, c2 = identify.lowpass(x1, a), identify.lowpass(x2, a)
+    p1, p2 = campaign.lowpass_py(x1, 0.001), campaign.lowpass_py(x2, 0.001)
+    has_cc = build.find_cc() is not None
+    report.check('identify.lowpass matches Python bit for bit on 1-D and 97-column 2-D arrays',
+                 (not has_cc) or (c1 is not None and c2 is not None
+                                  and np.array_equal(c1.view(np.int64), p1.view(np.int64))
+                                  and np.array_equal(c2.view(np.int64), p2.view(np.int64))))
+    ys = np.zeros((133, edge.SENSED))
+    quat = rng.normal(size=(len(ys), 4))
+    ys[:, edge.QUAT] = quat / np.linalg.norm(quat, axis=1, keepdims=True)
+    ys[:, edge.Q] = rng.uniform(-1.8, 1.8, size=(len(ys), edge.Q.stop - edge.Q.start))
+    got_hit = identify.self_hit(lay, ys, edge.QUAT.start, edge.Q.start)
+    want_hit = campaign.self_hit_py(lay, ys)
+    report.check('identify.self_hit matches Python bit for bit across %d random poses (%d overlaps)' % (
+        len(ys), int(want_hit.sum())),
+                 (not has_cc) or (got_hit is not None and np.array_equal(got_hit, want_hit) and int(want_hit.sum()) > 0))
+
+
+ROSTER = (test_the_campaign_kernels_in_c_are_python_s,
+          test_a_load_is_read_and_the_robots_wear_named,
           test_a_box_played_out_and_a_zero_slipped_are_named,
           test_a_load_on_the_robots_back_is_read_off_its_insoles,
           test_the_robots_wear_apart_lands_as_here)

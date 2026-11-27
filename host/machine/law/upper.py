@@ -9,6 +9,10 @@ from machine.senses import edge
 def step_modal(g, s, y, y_in, out):
     """The robot's upper body's yield and the loop's ask: `support.couple` and `impedance.ask` in C bit
     for bit (`g['couple']`, `g['impedance']`, `laid`)."""
-    qd = np.ascontiguousarray(y_in[edge.QD][g['joints']], dtype=np.float64)
-    dq = g['couple'](np.ascontiguousarray(s['q'], dtype=np.float64), qd, g['ref_q'], g['ref_v'], g['eso'][2], out)
-    return dq, g['impedance'](out, y, g['fr'], g['a'])
+    qd = y_in[edge.QD][g['joints']]
+    if not (type(qd) is np.ndarray and qd.dtype == np.float64 and qd.flags.c_contiguous):
+        qd = np.ascontiguousarray(qd, dtype=np.float64)
+    sq = s['q']
+    if not (type(sq) is np.ndarray and sq.dtype == np.float64 and sq.flags.c_contiguous):
+        sq = np.ascontiguousarray(sq, dtype=np.float64)
+    return g['couple'](sq, qd, g['ref_q'], g['ref_v'], g['eso'][2], out), g['impedance'](out, y, g['fr'], g['a'])

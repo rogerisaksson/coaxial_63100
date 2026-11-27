@@ -69,10 +69,7 @@ STACK_EVERY, DOWN_DEG, DOWN_M = _sprung_bus['law_div'], 50.0, 0.45
 GYMS = (mechatronics.ROBOT, 'examples')
 
 
-def entries(text=None, name=GYMS[0], texts=None, suite=None):
-    """[(label, wire, names)]: the gym's entries of `text` - lisp/humanoid/`name`.lisp's, its own with the
-    ortho-DSP suite's stunts played on it (`maneuver.texts`) and the kernel's clocked gaits (`clocked.texts`) -, of
-    the robot's texts `texts` ({key: text}) and the suite `suite` where given, else their files'."""
+def _compile_entries(text, name, texts, suite):
     if text is None:
         from machine.moves import clocked
         from machine.texts import maneuver
@@ -81,12 +78,22 @@ def entries(text=None, name=GYMS[0], texts=None, suite=None):
     tables, phases = ortho.compiled(text, texts=texts)
     sz = ortho.ROW.size
     stream = [tables[''][i:i + sz] for i in range(0, len(tables['']), sz)]
-    return ([(STREAM_NAMES.get(ortho.rows(w)[0][0], '#%d' % ortho.rows(w)[0][0]), w,
-              (STREAM_NAMES.get(ortho.rows(w)[0][0], '#%d' % ortho.rows(w)[0][0]),)) for w in stream]
-            + [(n, tables[n], phases[n] + ('rest',)) for n in phases])
+    return tuple([(STREAM_NAMES.get(ortho.rows(w)[0][0], '#%d' % ortho.rows(w)[0][0]), w,
+                   (STREAM_NAMES.get(ortho.rows(w)[0][0], '#%d' % ortho.rows(w)[0][0]),)) for w in stream]
+                 + [(n, tables[n], phases[n] + ('rest',)) for n in phases])
 
 
-def laid(every=1, inner=None, solver=None, texts=None, suite=None):
+def entries(text=None, name=GYMS[0], texts=None, suite=None):
+    """[(label, wire, names)]: the gym's entries of `text` - lisp/humanoid/`name`.lisp's, its own with the
+    ortho-DSP suite's stunts played on it (`maneuver.texts`) and the kernel's clocked gaits (`clocked.texts`) -, of
+    the robot's texts `texts` ({key: text}) and the suite `suite` where given, else their files'."""
+    if text is not None or texts is not None or suite is not None:
+        return list(_compile_entries(text, name, texts, suite))
+    from machine.texts import kept
+    return kept.gym_entries(name, GYMS[0], lambda nm: _compile_entries(None, nm, None, None))
+
+
+def laid(every=1, inner=None, solver=None, texts=None, suite=None, gym=None):
     """The robot stands on the floor on the loop, at rest: one dict of what a run holds - its gym's
     entries of its texts `texts` and the suite `suite` where given (`entries`), both kept."""
     import numpy as np
@@ -135,7 +142,8 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
     drv = (defrobot.read() or {}).get('drives', {})
     rng = np.array([[math.radians(drv[j]['range'][0]), math.radians(drv[j]['range'][1])] if 'range' in drv.get(j, {})
                     else [-np.inf, np.inf] for j in names])
-    sit, gym = situation.text(), entries(texts=texts, suite=suite)
+    sit = situation.text()
+    gym = entries(texts=texts, suite=suite) if gym is None else list(gym)
     from tools.cores import bodied
     sensing = bodied.on_body(wbc.sense, 'sense')
     from tools.cores import step as c_step

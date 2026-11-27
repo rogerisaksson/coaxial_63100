@@ -46,8 +46,8 @@ def pose():
     return degrees
 
 
-def lowpass(x, dt, hz=SMOOTH_HZ):
-    """`x` (N, ..) low-passed at `hz` both ways: no phase, first order each way."""
+def lowpass_py(x, dt, hz=SMOOTH_HZ):
+    """`lowpass` in pure NumPy/Python, kept as fallback and bit-exact parity oracle."""
     import numpy as np
     a = libm.exp(-2.0 * math.pi * hz * dt)
     x = np.array(x, float)
@@ -58,6 +58,14 @@ def lowpass(x, dt, hz=SMOOTH_HZ):
     return x
 
 
+def lowpass(x, dt, hz=SMOOTH_HZ):
+    """`x` (N, ..) low-passed at `hz` both ways: no phase, first order each way."""
+    from tools.cores import identify as c_id
+    a = libm.exp(-2.0 * math.pi * hz * dt)
+    got = c_id.lowpass(x, a)
+    return lowpass_py(x, dt, hz) if got is None else got
+
+
 def smoothed(ys, taus, dt, hz=SMOOTH_HZ):
     """(ys, taus) low-passed at `hz` both ways (`lowpass`), every sensed column and every torque
     alike: a gearbox's rotor rings at its mode in the motor's encoder and the torque that
@@ -66,8 +74,7 @@ def smoothed(ys, taus, dt, hz=SMOOTH_HZ):
     import numpy as np
     ys, taus = np.asarray(ys, float), np.asarray(taus, float)
     out = ys.copy()
-    for cols in (edge.QUAT, edge.GYRO, edge.ACCEL, edge.Q, edge.QD, edge.QM):
-        out[:, cols] = lowpass(ys[:, cols], dt, hz)
+    out[:, :edge.QM.stop] = lowpass(ys[:, :edge.QM.stop], dt, hz)
     out[:, edge.QUAT] /= np.linalg.norm(out[:, edge.QUAT], axis=1, keepdims=True)
     return out, lowpass(taus, dt, hz)
 
@@ -366,9 +373,8 @@ def capsules(m, bodies, above, driven, vadr):
             libm.sq(half[pr[:, 0]] + half[pr[:, 1]]), libm.sq(cr[pr[:, 0]] + cr[pr[:, 1]]))
 
 
-def self_hit(lay, ys_arr, chunk=400):
-    """(N, driven) bool: which drives lie between two capsules of the robot that overlap at each
-    step of `ys_arr`, where internal self-contact torques enter without touching `edge.TOUCH`."""
+def self_hit_py(lay, ys_arr, chunk=400):
+    """`self_hit` in pure NumPy/Python, kept as fallback and parity oracle."""
     import numpy as np
     caps = lay.get('caps')
     if caps is None or not len(ys_arr):
@@ -416,3 +422,11 @@ def self_hit(lay, ys_arr, chunk=400):
         hit[step_i[over], pair_i[over]] = True
         out[start:start + m] = (hit.astype(int) @ pdrv_i) > 0
     return out
+
+
+def self_hit(lay, ys_arr, chunk=400):
+    """(N, driven) bool: which drives lie between two capsules of the robot that overlap at each
+    step of `ys_arr`, where internal self-contact torques enter without touching `edge.TOUCH`."""
+    from tools.cores import identify as c_id
+    got = c_id.self_hit(lay, ys_arr, edge.QUAT.start, edge.Q.start)
+    return self_hit_py(lay, ys_arr, chunk) if got is None else got

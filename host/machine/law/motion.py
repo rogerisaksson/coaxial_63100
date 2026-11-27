@@ -48,19 +48,24 @@ def axial_k(st):
     return max(float(st[_AXIAL_K[0]]), float(st[_AXIAL_K[1]]))
 
 
+_OBS_R1, _OBS_R2, _OBS_R3 = int(observer.ROWS[1]), int(observer.ROWS[2]), int(observer.ROWS[3])
+
+
 def seen(g, dt):
     """`wbc.sense`'s view of the robot as its sensors and its estimate have it, `dt` s on: both in C bit
     for bit once built (`g['estimated']`, `laid`; `g['sensed']`, `sprung.laid`)."""
     body, limbs = g['body'], g['limbs']
     qpos, qvel = g['estimated'](g['est'], body, g['sense'], dt)
     s = observer.beside(g['observer'], g, body, limbs, qpos, qvel, dt)
-    shares = np.append(g['observer']['soles'] * g['unanchored'],
-                       g['observer']['normal'][observer.ROWS[1:4]].sum()) / float(g['fr'][modal.WEIGHT])
+    obs = g['observer']
+    soles_u, nrm, wt = obs['soles'] * g['unanchored'], obs['normal'], float(g['fr'][modal.WEIGHT])
+    shares = np.array([float(soles_u[0]) / wt, float(soles_u[1]) / wt,
+                       float((nrm[_OBS_R1] + nrm[_OBS_R2]) + nrm[_OBS_R3]) / wt])
     inekf.stepped(g['inekf'], body, g['sense'], shares, dt, g['inekf_points'], g['inekf_step'], g['inekf_glue'])
     palmar = g['palmar'] = min(float(g['told'][ortho.PALMAR]), float(g['st'][latent.TO][latent.MANIFOLD.start + ortho.PALMAR]))
     # what bears the robot and, sat, its seat's cone in C on its contacts before any is a dict
     # (`emancipation.seated`)
-    s['prop'], s['contacts'], s['palms'] = g['borne'](body, s, g['sense'], float(g['fr'][modal.WEIGHT]), palmar,
+    s['prop'], s['contacts'], s['palms'] = g['borne'](body, s, g['sense'], wt, palmar,
                                                       g['a'][modal.LET_GO], g)
     return s
 

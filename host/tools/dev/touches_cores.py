@@ -50,5 +50,7 @@ CORES = (
     ('host/tools/cores/quick.h',               (STRUCTURE, COMPILED, QUICK, PORTED, ORTHO)),
     ('host/tools/cores/prefetch.py',           (STRUCTURE, HOTSWAP, ENGRAMS, QUICK)),
     ('host/tools/cores/prefetch.c',            (STRUCTURE, HOTSWAP, ENGRAMS, QUICK)),
+    ('host/tools/cores/identify.py',           (STRUCTURE, SYSID, WEAR)),
+    ('host/tools/cores/identify.c',            (STRUCTURE, SYSID, WEAR)),
     ('host/tools/cores/aero.py',               QUADS + (AERO_CORE, STREAMS)),
 )
