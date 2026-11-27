@@ -7,7 +7,10 @@
 
 #include <math.h>
 #include <stddef.h>
+#include <string.h>
 #include <mujoco/mujoco.h>
+
+_Static_assert(sizeof(mjtNum) == sizeof(double), "MuJoCo mjtNum must be IEEE-754 float64");
 
 void wbc_world_rated(wbc_steps_t *s, double span)
 {
@@ -567,4 +570,47 @@ int wbc_world_held(mjData *d, const wbc_held_t *h)
     }
   }
   return woke;
+}
+
+void wbc_world_posed(wbc_kinematics_t kin, const struct mjModel_ *m, struct mjData_ *d, int n, int nq,
+                     const double *qpos, int nb, const int *bodies, int nj, const int *jnt,
+                     double *xpos, double *xmat, double *axis, double *anchor)
+{
+  const size_t qbytes = (size_t)nq * sizeof(double);
+
+  for (int k = 0; k < n; k++)
+  {
+    memcpy(d->qpos, qpos + (size_t)k * (size_t)nq, qbytes);
+    kin(m, d);
+    for (int b = 0; b < nb; b++)
+    {
+      const size_t       bid = (size_t)bodies[b];
+      const size_t       off = (size_t)k * (size_t)nb + (size_t)b;
+      const double      *src_p = d->xpos + 3U * bid;
+      const double      *src_m = d->xmat + 9U * bid;
+      double            *dst_p = xpos + 3U * off;
+      double            *dst_m = xmat + 9U * off;
+
+      dst_p[0] = src_p[0];
+      dst_p[1] = src_p[1];
+      dst_p[2] = src_p[2];
+      memcpy(dst_m, src_m, 9U * sizeof(double));
+    }
+    for (int j = 0; j < nj; j++)
+    {
+      const size_t  jid = (size_t)jnt[j];
+      const size_t  off = (size_t)k * (size_t)nj + (size_t)j;
+      const double *src_ax = d->xaxis + 3U * jid;
+      const double *src_an = d->xanchor + 3U * jid;
+      double       *dst_ax = axis + 3U * off;
+      double       *dst_an = anchor + 3U * off;
+
+      dst_ax[0] = src_ax[0];
+      dst_ax[1] = src_ax[1];
+      dst_ax[2] = src_ax[2];
+      dst_an[0] = src_an[0];
+      dst_an[1] = src_an[1];
+      dst_an[2] = src_an[2];
+    }
+  }
 }

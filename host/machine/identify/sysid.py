@@ -219,7 +219,8 @@ def rowing(lay, body, ys, taus, dt, every=1, extra=None):
     Y = np.empty((len(at), len(lay['driven']), len(lay['names'])))
     for s in range(0, len(at), ROWS_AT):
         e = min(s + ROWS_AT, len(at))
-        Y[s:e] = regressor.in_c(lay, body, qpos[s:e], qvel[s:e], qacc[s:e], a0[s:e], wacc[s:e])[:, lay['driven']]
+        got = regressor.in_c(lay, body, qpos[s:e], qvel[s:e], qacc[s:e], a0[s:e], wacc[s:e])
+        np.take(got, lay['driven'], axis=1, out=Y[s:e])
         yield
     tau = np.asarray(taus, float)[at][:, lay['joint']]
     stick = lay.get('stick', STICK)
@@ -293,33 +294,33 @@ def borning(lay, body, ys, dt, every=1):
     qpos, qvel, qacc, a0, wacc, at = _state(lay, body, ys_arr, dt, every, at=at)
     now = ys_arr[at + 1]
     yield
-    parts, Y = [], None
-    for s in range(0, len(at), ROWS_AT):
-        e = min(s + ROWS_AT, len(at))
-        part = regressor.posed(lay, body, qpos[s:e])
-        got = regressor.in_c(lay, body, qpos[s:e], qvel[s:e], qacc[s:e], a0[s:e], wacc[s:e], part)
-        if Y is None:
-            Y = np.empty((len(at),) + got.shape[1:])
-        Y[s:e] = got
-        parts.append(part)
-        yield
-    if Y is None:
-        frames = regressor.posed(lay, body, qpos)
-        Y = regressor.in_c(lay, body, qpos, qvel, qacc, a0, wacc, frames)
-    else:
-        frames = tuple(np.concatenate([p[k] for p in parts]) for k in range(4))
-    xpos, xmat, _axis, _anchor = frames
+    n_h = len(lay['hinge'])
     soles = lay['col'][[m.body(name).id for name in edge.INSOLES]] // 10
-    Ri, pi = xmat[:, soles], xpos[:, soles]
+    keep_b = np.r_[0, soles]
+    if len(at):
+        Y6 = np.empty((len(at), 6, len(lay['names'])))
+        xp = np.empty((len(at), len(keep_b), 3))
+        xm = np.empty((len(at), len(keep_b), 3, 3))
+        for s in range(0, len(at), ROWS_AT):
+            e = min(s + ROWS_AT, len(at))
+            part = regressor.posed(lay, body, qpos[s:e])
+            got = regressor.in_c(lay, body, qpos[s:e], qvel[s:e], qacc[s:e], a0[s:e], wacc[s:e], part)
+            Y6[s:e] = got[:, n_h:n_h + 6]
+            xp[s:e], xm[s:e] = part[0][:, keep_b], part[1][:, keep_b]
+            yield
+    else:
+        frames = regressor.posed(lay, body, qpos)
+        Y6 = regressor.in_c(lay, body, qpos, qvel, qacc, a0, wacc, frames)[:, n_h:n_h + 6]
+        xp, xm = frames[0][:, keep_b], frames[1][:, keep_b]
+    Ri, pi = xm[:, 1:], xp[:, 1:]
     pressed, cop = now[:, edge.PRESS], now[:, edge.COP].reshape(len(at), -1, 3)
     normal = Ri[:, :, :, 1]
     where = pi + np.einsum('nsij,nsj->nsi', Ri, cop)
-    R, p = xmat[:, 0], xpos[:, 0]
+    R, p = xm[:, 0], xp[:, 0]
     push = np.einsum('nsi,ns->ni', normal, pressed)
     turn = np.einsum('nsi,ns->ni', np.cross(where - p[:, None], normal), pressed)
     h = p[:, 1] - (pressed * where[:, :, 1]).sum(axis=1) / np.maximum(pressed.sum(axis=1), 1e-9)
-    n_h = len(lay['hinge'])
-    F, M = Y[:, n_h:n_h + 3], np.einsum('nij,njc->nic', R, Y[:, n_h + 3:n_h + 6])
+    F, M = Y6[:, :3], np.einsum('nij,njc->nic', R, Y6[:, 3:6])
     out = np.stack([LEVER_M * F[:, 1], M[:, 0] + h[:, None] * F[:, 2], M[:, 2] - h[:, None] * F[:, 0]], axis=1)
     f = np.stack([LEVER_M * push[:, 1], turn[:, 0] + h * push[:, 2], turn[:, 2] - h * push[:, 0]], axis=1)
     return out, f

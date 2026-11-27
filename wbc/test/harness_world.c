@@ -353,6 +353,30 @@ API void wbh_world_after(wbc_steps_t *s)
   wbc_world_after(s);
 }
 
+API void wbh_world_join_before(wbc_steps_t *s, double since)
+{
+  wbc_world_drives(s, since);
+  (void)wbh_world_behind();
+  wbc_world_stuck_step(s);
+}
+
+API int wbh_world_split_after(wbc_steps_t *s, wbh_stage_t stage, const void *model, void *data)
+{
+  int pending;
+
+  wbc_world_contacts_after(s);
+  pending = wbh_world_ahead(stage, model, data);
+  wbc_world_rest_after(s);
+  return pending;
+}
+
+API void wbh_world_posed(wbc_kinematics_t kin, const struct mjModel_ *m, struct mjData_ *d, int n, int nq,
+                         const double *qpos, int nb, const int *bodies, int nj, const int *jnt,
+                         double *xpos, double *xmat, double *axis, double *anchor)
+{
+  wbc_world_posed(kin, m, d, n, nq, qpos, nb, bodies, nj, jnt, xpos, xmat, axis, anchor);
+}
+
 API int wbh_world_paired(const wbc_steps_t *s, const unsigned char *a, const unsigned char *b, double below)
 {
   return wbc_world_paired(s, a, b, below);
@@ -625,4 +649,30 @@ API int wbh_gmo_ahead(wbc_gmo_t *o, const double *base, const double *q, const d
 #endif
   }
   return gmo_beside.pending;
+}
+
+API void wbh_gmo_prepare(double *base, double *q, double *u, int nu, const double *qpos, const double *v)
+{
+  const double qw = qpos[3], qx = qpos[4], qy = qpos[5], qz = qpos[6];
+  const double xx = qx * qx, yy = qy * qy, zz = qz * qz;
+  const double xy = qx * qy, xz = qx * qz, yz = qy * qz;
+  const double wx = qw * qx, wy = qw * qy, wz = qw * qz;
+  const double r00 = 1.0 - 2.0 * (yy + zz), r01 = 2.0 * (xy - wz), r02 = 2.0 * (xz + wy);
+  const double r10 = 2.0 * (xy + wz), r11 = 1.0 - 2.0 * (xx + zz), r12 = 2.0 * (yz - wx);
+  const double r20 = 2.0 * (xz - wy), r21 = 2.0 * (yz + wx), r22 = 1.0 - 2.0 * (xx + yy);
+  const double vx = v[0], vy = v[1], vz = v[2];
+
+  base[0] = r00; base[1] = r01; base[2] = r02;
+  base[3] = r10; base[4] = r11; base[5] = r12;
+  base[6] = r20; base[7] = r21; base[8] = r22;
+  base[9] = qpos[0]; base[10] = qpos[1]; base[11] = qpos[2];
+  u[0] = v[3]; u[1] = v[4]; u[2] = v[5];
+  u[3] = (r00 * vx + r10 * vy) + r20 * vz;
+  u[4] = (r01 * vx + r11 * vy) + r21 * vz;
+  u[5] = (r02 * vx + r12 * vy) + r22 * vz;
+  if (nu > 6)
+  {
+    memcpy(u + 6, v + 6, (size_t)(nu - 6) * sizeof(double));
+    memcpy(q, qpos + 7, (size_t)(nu - 6) * sizeof(double));
+  }
 }

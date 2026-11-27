@@ -29,7 +29,8 @@ SOURCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gmo_probe.c')
 OBSERVER = tuple(os.path.join(REPO, 'wbc', 'src', name) for name in ('wbc_gmo.c', 'wbc_gmo_factor.c'))
 #: wbc_gmo.c's functions too small to time - a call's hooks would cost more than the call -, their seconds their
 #: callers'.
-UNTIMED = ('turned', 'dot', 'clip01', 'passed', 'along', 'pushed', 'closest', 'own', 'added', 'lessened')
+UNTIMED = ('turned', 'dot', 'clip01', 'passed', 'along', 'pushed', 'closest', 'own', 'added', 'lessened',
+           'wbc_gmo_added', 'wbc_gmo_lessened')
 #: The rows probe_gmo_read lays: each slot's calls, ticks with its callees, ticks alone, calls it made, calls beneath.
 ROWS = 5
 #: The empty calls the hooks are measured on.

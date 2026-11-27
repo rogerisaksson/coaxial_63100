@@ -10,7 +10,7 @@ from machine.aircraft.aerobat.airframe import (A_DISC, ATT_KD, ATT_KP, FLOOR_M, 
                                       VECT_RATIO, W_TOP, WATERFALL_HZ, WATERFALL_RAD, WING, YAW_KD,
                                       YAW_KP, _aero_cda, _aero_inflow, _prop_drag, prop_speed,
                                       slipstream)
-from machine.aircraft.aerobat.observer import observe
+from machine.aircraft.aerobat.observer import attitude_c, observe, trimmed_c
 from machine.aircraft.helicopter.kit import (Answer, _mat_mul, _plan_hold, _rot_x, _smooth_target,
                                     _so3_torques, _step_hold, _stunt_step, _turn_heading)
 from machine.aircraft.wingborne import AIRBORNE_M, STALL_RAD, WHEELS_M, flare, lined, plane, run, toward, whole
@@ -126,25 +126,34 @@ class Core:
         w_on = self.wingborne * (w_ask if gate is None else gate)
         self._w_gate = None
         knife_eff = float(row.get('knife', 0.0)) + self.roll_ang
-        r_wing, want_up = plane(WING, turn, (ax_des, ay_des, az_des), u, w_on, want_up,
-                                knife_eff, w_roll)
-        r_des, w_ff = _smooth_target(self, tuple(want_up), sign, yaw, rate, pace, dt)
-        k = whole(w_on) * (r_wing is not None)
-        r_out = toward(r_des, r_wing or r_des, k)
+        got_c = attitude_c(self, turn, (ax_des, ay_des, az_des), u, want_up, sign, yaw, rate, pace,
+                           dt, w_on, knife_eff, w_roll, whole(w_on))
+        if got_c is not None:
+            r_out, w_ff, k = got_c
+        else:
+            r_wing, want_up = plane(WING, turn, (ax_des, ay_des, az_des), u, w_on, want_up,
+                                    knife_eff, w_roll)
+            r_des, w_ff = _smooth_target(self, tuple(want_up), sign, yaw, rate, pace, dt)
+            k = whole(w_on) * (r_wing is not None)
+            r_out = toward(r_des, r_wing or r_des, k)
         if not stunt and self.airborne and self.r_prev is not None and k >= 0.999:
             self.r_prev = r_out
         return (r_out,
                 ((1.0 - k) * w_ff[0], (1.0 - k) * w_ff[1] + k * w_roll, (1.0 - k) * w_ff[2]),
                 f_des, stunt, inv)
 
-    def yawed(self, law, row, state):
+    def yawed(self, law, row, state, vel=None, at=None):
         """(the heading's rate asked, rad/s; the runway's line low flight comes round to): the
         row's turn, and low, straight and unslid the line's, eased in (LINED_M). The plan turns
         the heading by it too: on the quad course's gate's, switched on, a pass's lean asked 13
         m/s^2 across the final."""
-        vel, fast = [float(x) for x in state['vel']], row.get('speed', 0.0) > 5.0
+        if vel is None:
+            vel = [float(x) for x in state['vel']]
+        if at is None:
+            at = [float(x) for x in state['at']]
+        fast = row.get('speed', 0.0) > 5.0
         rate = math.radians(float(row.get('turn', 0.0))) if self.airborne else 0.0
-        target = lined(RUNWAY_RAD, fast and law['heading'], vel, [float(x) for x in state['at']], state['h'],
+        target = lined(RUNWAY_RAD, fast and law['heading'], vel, at, state['h'],
                        ROTATE_M_S)
         low = (row.get('lined', 1.0) * max(float(self.airborne), ease((state['h'] - 0.05) / 0.1))
                * ease((LINED_M[1] - row['height']) / (LINED_M[1] - LINED_M[0]))
@@ -167,14 +176,19 @@ class Core:
         return float(row.get('lined', 1.0) >= 0.5 and row.get('speed', 0.0) <= 5.0) * GUST_S * max(
             0.0, math.sqrt(self.gust2) - GUST_FLOOR)
 
-    def plan(self, law, row, state, dt, pull_max):
+    def plan(self, law, row, state, dt, pull_max, vel=None, at=None):
         """Advance outer horizontal kinematics `aerokin.lean` across `dt` s."""
+        if vel is None:
+            vel = [float(x) for x in state['vel']]
+        if at is None:
+            at = [float(x) for x in state['at']]
         c0, s0 = law['heading']
-        law['heading'] = _turn_heading((c0, s0), self.yawed(law, row, state)[0], dt)
+        law['heading'] = _turn_heading((c0, s0), self.yawed(law, row, state, vel, at)[0], dt)
         reach = max(aerokin.LEAST * GRAVITY, pull_max)
         self.floor = FLOOR_M * max(0.0, 1.0 - math.hypot(row.get('speed', 0.0), row.get('slide', 0.0)) / 5.0)
         r_climb = dict(row, height=max(self.floor, row['height'] + self.margin(row))) if row['height'] >= 0.0 else row
-        v2 = sum((float(state['vel'][a]) - self.wind[a]) ** 2 for a in range(3))
+        vx, vy, vz = vel[0] - self.wind[0], vel[1] - self.wind[1], vel[2] - self.wind[2]
+        v2 = sum((vx * vx, vy * vy, vz * vz))
         ka = max(abs(math.sin(0.5 * math.pi * (row.get('knife', 0.0) + self.roll_ang))),
                  min(1.0, abs(row.get('roll', 0.0)) * 4.0))
         kd = aerokin.KD + self.wingborne * (1.0 - ka) * (
@@ -206,7 +220,8 @@ class Core:
         # Nose first the aerobat flies a speed: chasing a place it lagged a turn by 12 m.
         held = 1.0 - self.airborne * (1.0 - on)
         if row['height'] >= 0.0:
-            law['spot'] = [p + held * (float(state['at'][a]) - p) for p, a in zip(law['spot'], (0, 2))]
+            s_spot = law['spot']
+            law['spot'] = [s_spot[0] + held * (at[0] - s_spot[0]), s_spot[1] + held * (at[2] - s_spot[1])]
         law['heading'] = (c0, s0)
         return _plan_hold(self, along, dt, ease((row.get('speed', 0.0) - FAST_M_S[0]) / (FAST_M_S[1] - FAST_M_S[0])))
 
@@ -217,8 +232,8 @@ class Core:
         drag = 0.5 * RHO * _aero_cda(*prev_ctrl[1:3]) / MASS_KG * math.hypot(*u)
         air_acc = [(1.0 - self.wing_air) * (self.push_hat[a] + w_lift[a] / MASS_KG)
                    + self.wing_air * self.push_slow[a] - drag * u[a] for a in (0, 1, 2)]
-        along = self.plan(law, row, state, dt, pull_max) if along is None else (_step_hold(self, along, dt) or along)
-        rate, target_yaw = self.yawed(law, row, state)
+        along = self.plan(law, row, state, dt, pull_max, vel, at) if along is None else (_step_hold(self, along, dt) or along)
+        rate, target_yaw = self.yawed(law, row, state, vel, at)
         law['heading'] = c, s = _turn_heading(law['heading'], rate, dt)
         yaw = math.atan2(s, c)
         self.landed = -0.1 < row['height'] < 0.0 and (self.landed or (self.airborne and state['h'] <= TOUCH_M))
@@ -245,9 +260,10 @@ class Core:
     def se3(self, law, row, state, turn, spin, u, r_des, w_ff, f_des, dt, reach, limits=None):
         """Inner dynamic SE(3) control and slipstream surface allocation for `(r_des, w_ff, f_des)`."""
         f_des = max(0.0, min(MASS_KG * reach, f_des))
-        tau_x, tau_y, tau_z = WING.trimmed(_so3_torques(
-            self, turn, r_des, w_ff, spin, INERTIA, (ATT_KP, YAW_KP, ROLL_KP), (ATT_KD, YAW_KD, ROLL_KD)),
-            u, turn, spin)
+        got_t = trimmed_c(self, turn, r_des, w_ff, spin, u)
+        tau_x, tau_y, tau_z = got_t if got_t is not None else WING.trimmed(
+            _so3_torques(self, turn, r_des, w_ff, spin, INERTIA, (ATT_KP, YAW_KP, ROLL_KP),
+                         (ATT_KD, YAW_KD, ROLL_KD)), u, turn, spin)
         w_top = limits[0] if limits else W_TOP
         w_vect_top = limits[1] if limits else W_TOP
         sp = state.get('speeds', (0.0, 0.0))
@@ -279,19 +295,27 @@ class Core:
 
     def step(self, law, row, state, dt, pull_max, limits=None, along=None):
         """One pass of `dt` s on `row` and `state`: outer `setpoint` into inner `se3`."""
-        observe(self, state, dt)
-        a_slow, a_rms = min(1.0, dt / GUST_SLOW_S), min(1.0, dt / GUST_RMS_S)
-        self.wind_slow = [s + a_slow * (w - s) for s, w in zip(self.wind_slow, self.wind)]
-        self.gust2 += a_rms * (sum((w - s) ** 2 for w, s in zip(self.wind, self.wind_slow)) - self.gust2)
-        law['gust'] = max(0.0, math.sqrt(self.gust2) - GUST_FLOOR)
-        a_push = min(1.0, dt / PUSH_S)
-        self.push_slow = [s + a_push * (p - s) for s, p in zip(self.push_slow, self.push_hat)]
         t_in, s_in, v_in, a_in = state['turn'], state['spin'], state['vel'], state['at']
         turn = t_in if (type(t_in) is tuple and type(t_in[0]) is tuple and type(t_in[0][0]) is float) \
             else getattr(t_in, 'tolist', lambda: [[float(x) for x in r] for r in t_in])()
-        spin = s_in if (type(s_in) is tuple and type(s_in[0]) is float) else [float(x) for x in s_in]
-        vel = v_in if (type(v_in) is tuple and type(v_in[0]) is float) else [float(x) for x in v_in]
-        at = a_in if (type(a_in) is tuple and type(a_in[0]) is float) else [float(x) for x in a_in]
+        spin = s_in if (type(s_in) is tuple and type(s_in[0]) is float) else getattr(s_in, 'tolist', lambda: [float(x) for x in s_in])()
+        vel = v_in if (type(v_in) is tuple and type(v_in[0]) is float) else getattr(v_in, 'tolist', lambda: [float(x) for x in v_in])()
+        at = a_in if (type(a_in) is tuple and type(a_in[0]) is float) else getattr(a_in, 'tolist', lambda: [float(x) for x in a_in])()
+        observe(self, state, dt, turn, vel, spin)
+        a_slow, a_rms = min(1.0, dt / GUST_SLOW_S), min(1.0, dt / GUST_RMS_S)
+        ws, wd = self.wind_slow, self.wind
+        ws0 = ws[0] + a_slow * (wd[0] - ws[0])
+        ws1 = ws[1] + a_slow * (wd[1] - ws[1])
+        ws2 = ws[2] + a_slow * (wd[2] - ws[2])
+        self.wind_slow = [ws0, ws1, ws2]
+        dw0, dw1, dw2 = wd[0] - ws0, wd[1] - ws1, wd[2] - ws2
+        self.gust2 += a_rms * (sum((dw0 * dw0, dw1 * dw1, dw2 * dw2)) - self.gust2)
+        law['gust'] = max(0.0, math.sqrt(self.gust2) - GUST_FLOOR)
+        a_push = min(1.0, dt / PUSH_S)
+        ps, ph = self.push_slow, self.push_hat
+        self.push_slow = [ps[0] + a_push * (ph[0] - ps[0]),
+                          ps[1] + a_push * (ph[1] - ps[1]),
+                          ps[2] + a_push * (ph[2] - ps[2])]
         u, knife = (vel[0] - self.wind[0], vel[1] - self.wind[1], vel[2] - self.wind[2]), row.get('knife', 0.0)
         kh = max(abs(knife), min(1.0, abs(row.get('roll', 0.0)) * 4.0))
         k = flies(row, max(self.wingborne, kh * sum(x * x for x in u) / (0.8 * ROTATE_M_S) ** 2))

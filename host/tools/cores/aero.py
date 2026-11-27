@@ -19,7 +19,8 @@ from tools import REPO
 from tools.cores.build import cached, native
 
 SOURCES = [os.path.join(REPO, 'aero', name)
-           for name in ('test/harness.c', 'src/aero.c', 'src/aero_turn.c', 'src/aero_share.c')]
+           for name in ('test/harness.c', 'test/harness_so3.c', 'src/aero.c', 'src/aero_turn.c',
+                        'src/aero_share.c')]
 INCLUDES = [os.path.join(REPO, 'aero', 'inc'), os.path.join(REPO, 'aero', 'src'),
             os.path.join(REPO, 'comms', 'inc')]
 #: Built as the firmware builds it (CMakeLists.txt) on this host's own instruction sets, nothing contracted
@@ -119,8 +120,11 @@ def library():
         _dp, ctypes.POINTER(ctypes.c_int), _dp, _d, _d, _d, _d, _d, _d, _dp]
     lib.aeh_toward.argtypes = [_dp, _dp, _d, _dp]
     lib.aeh_so3_torques.argtypes = [_dp, _dp, _dp, _dp, _dp, _dp, _dp, _dp, _dp]
+    lib.aeh_trimmed_torques.argtypes = [_dp, _dp, _dp, _dp, _dp, _dp, _dp, _dp, _dp, _dp, _dp]
     lib.aeh_plane.argtypes = [_dp, _dp, _dp, _dp, _d, _dp, _d, _d, _dp]
     lib.aeh_plane.restype = ctypes.c_int
+    lib.aeh_aerobat_attitude.argtypes = [_dp, _dp, _dp, _dp, _dp, _dp, ctypes.POINTER(ctypes.c_int), _dp, _dp]
+    lib.aeh_aerobat_attitude.restype = _d
     return lib
 
 

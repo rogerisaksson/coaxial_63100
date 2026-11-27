@@ -11,8 +11,12 @@
 #include "wbc_blas.h"
 #include "wbc_pass.h"
 
-/** MuJoCo's data (mujoco/mjdata.h), its contacts read in wbc_world.c alone. */
+/** MuJoCo's model and data (mujoco/mjmodel.h, mujoco/mjdata.h), read in wbc_world.c alone. */
+struct mjModel_;
 struct mjData_;
+
+/** MuJoCo's `mj_kinematics(m, d)` entry point, passed from its shared library for batched posing. */
+typedef void (*wbc_kinematics_t)(const struct mjModel_ *m, struct mjData_ *d);
 
 /** A ufunc's own inner loop (numpy's PyUFuncGenericFunction): its arguments' bytes, its length, their strides. */
 typedef void (*wbc_loop_t)(char **args, const ptrdiff_t *dimensions, const ptrdiff_t *steps, void *data);
@@ -184,5 +188,11 @@ typedef struct
     that moves, not of a thing asleep, or that moves past `low`, woken; none, each held where it lies, still. How many
     woke - those the caller wakes, then holds the rest. */
 int wbc_world_held(struct mjData_ *d, const wbc_held_t *h);
+
+/** Pose `n` states `qpos` `(n, nq)` via `kin(m, d)` and gather `xpos`, `xmat`, `axis`, `anchor`
+    for `bodies` `(nb)` and `jnt` `(nj)` (`machine.identify.regressor.posed`). */
+void wbc_world_posed(wbc_kinematics_t kin, const struct mjModel_ *m, struct mjData_ *d, int n, int nq,
+                     const double *qpos, int nb, const int *bodies, int nj, const int *jnt,
+                     double *xpos, double *xmat, double *axis, double *anchor);
 
 #endif

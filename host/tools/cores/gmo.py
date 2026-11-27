@@ -93,3 +93,4 @@ def typed(lib):
     lib.wbh_gmo_step.argtypes, lib.wbh_gmo_step.restype = [ctypes.POINTER(Gmo), _vp, _vp, _vp, _d], None
     lib.wbh_gmo_ahead.argtypes, lib.wbh_gmo_ahead.restype = [ctypes.POINTER(Gmo), _vp, _vp, _vp, _d], _i
     lib.wbh_gmo_behind.argtypes, lib.wbh_gmo_behind.restype = [], _i
+    lib.wbh_gmo_prepare.argtypes, lib.wbh_gmo_prepare.restype = [_vp, _vp, _vp, _i, _vp, _vp], None

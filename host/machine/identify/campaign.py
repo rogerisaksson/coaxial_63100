@@ -151,44 +151,35 @@ def boxes(body, ys, taus, dt, armature, every=1):
     at = np.arange(1, len(ys) - 2, every)
     driven = np.flatnonzero(body.driven)
     ys, taus = np.asarray(ys), np.asarray(taus, float)
-    # a torque holds over its step: the wind-up, its rate and the motor's acceleration at the
-    # step's middle
-    wound_up = ys[:, edge.QM] - ys[:, edge.Q]
-    delta = 0.5 * (wound_up[at] + wound_up[at + 1])[:, driven]
-    rel = (wound_up[at + 1] - wound_up[at])[:, driven] / dt
     qm = ys[:, edge.QM]
-    wacc = (qm[at + 2] - qm[at + 1] - qm[at] + qm[at - 1])[:, driven] / (2.0 * (dt * dt))
-    second = (qm[at + 1] - 2.0 * qm[at] + qm[at - 1])[:, driven] / (dt * dt)
-    mean = 0.5 * (taus[at] + taus[at - 1])[:, driven]
-    motor = taus[at][:, driven]
-    mot3 = (0.25 * taus[at - 1] + 0.5 * taus[at] + 0.25 * taus[at + 1])[:, driven]
+    wu_d, qm_d, taus_d = (np.ascontiguousarray(x[:, driven].T) for x in (qm - ys[:, edge.Q], qm, taus))
+    delta, rel = 0.5 * (wu_d[:, at] + wu_d[:, at + 1]), (wu_d[:, at + 1] - wu_d[:, at]) / dt
+    wacc = (qm_d[:, at + 2] - qm_d[:, at + 1] - qm_d[:, at] + qm_d[:, at - 1]) / (2.0 * (dt * dt))
+    second = (qm_d[:, at + 1] - 2.0 * qm_d[:, at] + qm_d[:, at - 1]) / (dt * dt)
+    mean, motor = 0.5 * (taus_d[:, at] + taus_d[:, at - 1]), taus_d[:, at]
+    mot3 = 0.25 * taus_d[:, at - 1] + 0.5 * motor + 0.25 * taus_d[:, at + 1]
     out = np.zeros((len(driven), len(BOX)))
-    for i in range(len(driven)):
-        joint_name = JOINTS[driven[i]]
-        J = float(armature[i])
-        w_nm = min(WOUND_NM, round(drives.mesh(joint_name), 2))
-        r_nm = min(ROTOR_NM, 3.0 * drives.armature(joint_name))
-        k, play, c, mesh, zero = _box(delta[:, i], rel[:, i], motor[:, i] - J * wacc[:, i], w_nm)
-        if play <= 0.0:
-            got_z = _deadband(delta[:, i], rel[:, i], mot3[:, i] - J * wacc[:, i], w_nm)
-            if got_z is not None:
-                k, play, c, mesh, zero = got_z
+
+    def fit(di, ri, wai, mi, m3i, j_val, w_nm):
+        got = _box(di, ri, mi - j_val * wai, w_nm)
+        return (_deadband(di, ri, m3i - j_val * wai, w_nm) or got) if got[1] <= 0.0 else got
+
+    for i, idx in enumerate(driven):
+        joint_name, J = JOINTS[idx], float(armature[i])
+        w_nm, r_nm = min(WOUND_NM, round(drives.mesh(joint_name), 2)), min(ROTOR_NM, 3.0 * drives.armature(joint_name))
+        k, play, c, mesh, zero = fit(delta[i], rel[i], wacc[i], motor[i], mot3[i], J, w_nm)
         if play > 0.0:
-            inside = np.abs(wound_up[:, driven[i]] - zero) < INSIDE * play
-            rows = inside[at - 1] & inside[at] & inside[at + 1] & (np.abs(mean[:, i]) > ROTOR_NM)
-            if rows.sum() < ROTOR_ROWS:
-                rows = inside[at - 1] & inside[at] & inside[at + 1] & (np.abs(mean[:, i]) > r_nm)
-            if rows.sum() >= ROTOR_ROWS and (mean[rows, i] @ second[rows, i]) > 0.0:
-                J = float(mean[rows, i] @ mean[rows, i] / (mean[rows, i] @ second[rows, i]))
-                k, play, c, mesh, zero = _box(delta[:, i], rel[:, i], motor[:, i] - J * wacc[:, i], w_nm)
-                if play <= 0.0:
-                    got_z = _deadband(delta[:, i], rel[:, i], mot3[:, i] - J * wacc[:, i], w_nm)
-                    if got_z is not None:
-                        k, play, c, mesh, zero = got_z
+            inside = np.abs(wu_d[i] - zero) < INSIDE * play
+            in3, abs_m = inside[at - 1] & inside[at] & inside[at + 1], np.abs(mean[i])
+            rows = in3 & (abs_m > ROTOR_NM)
+            rows = (in3 & (abs_m > r_nm)) if rows.sum() < ROTOR_ROWS else rows
+            if rows.sum() >= ROTOR_ROWS and (mean[i, rows] @ second[i, rows]) > 0.0:
+                mr = mean[i, rows]
+                J = float(mr @ mr / (mr @ second[i, rows]))
+                k, play, c, mesh, zero = fit(delta[i], rel[i], wacc[i], motor[i], mot3[i], J, w_nm)
         ks = drives.series(joint_name)
         if ks > 0.0 and (k == 0.0 or drives.track(joint_name) > 0.0) and len(taus):
-            k0 = 1.0 / (1.0 / drives.wind(joint_name) + 1.0 / ks)
-            zero = float(np.median(wound_up[:-1, driven[i]] - taus[:, driven[i]] / k0))
+            zero = float(np.median(wu_d[i, :-1] - taus_d[i] / (1.0 / (1.0 / drives.wind(joint_name) + 1.0 / ks))))
         out[i] = k, play, c, mesh, J, zero
     return out
 

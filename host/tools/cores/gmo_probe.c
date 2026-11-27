@@ -122,6 +122,7 @@ static const probe_fn_t probe_fns[] = {
     {(void (*)(void))wbc_gmo_left, "wbc_gmo_left"},   {(void (*)(void))probe_solve, "wbc_chol_solve"},
     {(void (*)(void))probe_hypot, "wbc_hypot"},       {(void (*)(void))shared, "shared"},
     {(void (*)(void))wbc_gmo_felt, "wbc_gmo_felt"},   {(void (*)(void))probe_solve_from, "wbc_chol_solve_from"},
+    {(void (*)(void))wbc_gmo_solve, "wbc_gmo_solve"},
     {(void (*)(void))probe_empties, "probe_empties"}, {(void (*)(void))probe_empty, "probe_empty"}};
 #define PROBE_FNS   ((int)(sizeof probe_fns / sizeof probe_fns[0]))
 #define PROBE_SLOTS (PROBE_FNS + 1)

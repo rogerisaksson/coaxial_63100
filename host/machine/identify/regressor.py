@@ -13,8 +13,12 @@ def posed(lay, body, qpos):
     """(xpos (N, bodies, 3), xmat (N, bodies, 3, 3), axis (N, hinges, 3), anchor (N, hinges, 3))
     the robot's links' frames and its hinges' axes, world, at `qpos` (N, nq)."""
     import numpy as np
+    from tools.cores import world as c_world
     m, d, mj = body.m, body.d, body.mj
     bodies, jnt, n = lay['bodies'], lay['jnt'], len(qpos)
+    got = c_world.posed(m, d, qpos, bodies, jnt)
+    if got is not None:
+        return got
     xpos, xmat = np.zeros((n, len(bodies), 3)), np.zeros((n, len(bodies), 3, 3))
     axis, anchor = np.zeros((n, len(jnt), 3)), np.zeros((n, len(jnt), 3))
     for k in range(n):

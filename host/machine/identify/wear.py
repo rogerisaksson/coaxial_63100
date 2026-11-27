@@ -133,23 +133,29 @@ def windowing(w, ys, taus, dt):
     yield
     n, n_d, p = Y.shape
     rows_ = Y.reshape(-1, p)
-    pred = rows_ @ w['nominal']
-    fric = w['nominal'][lay['drive']:].copy()
-    fric[0::3] = 0.0
-    sliding = rows_[:, lay['drive']:] @ fric
+    keep = np.any(rows_ != 0.0, axis=1)
     movers, drive = w['D'].shape[1], np.tile(np.arange(n_d), n)
-    A = np.zeros((n * n_d, movers + n_d))
-    A[:, :movers] = rows_ @ w['D']
-    A[np.arange(n * n_d), movers + drive] = (sliding - pred) * UNIT['kt']
+    if keep.any():
+        pred = rows_ @ w['nominal']
+        fric = w['nominal'][lay['drive']:].copy()
+        fric[0::3] = 0.0
+        sliding = rows_[:, lay['drive']:] @ fric
+        A = np.zeros((n * n_d, movers + n_d))
+        A[:, :movers] = rows_ @ w['D']
+        A[np.arange(n * n_d), movers + drive] = (sliding - pred) * UNIT['kt']
+        a_out, left_out, drive_out = A[keep], (tau.reshape(-1) - pred)[keep], drive[keep]
+    else:
+        a_out = np.zeros((0, movers + n_d))
+        left_out = np.zeros(0)
+        drive_out = np.zeros(0, dtype=drive.dtype)
     yield
-    keep = np.abs(rows_).sum(axis=1) > 0.0
     comp = np.where(w['box_on'], 0.0, 1.0 / w['nominal_boxes'][:, 1])
     zero = (ys_arr[-1, edge.QM] - ys_arr[-1, edge.Q])[lay['joint']] - np.asarray(taus[-1], float)[lay['joint']] * comp
     alone = (ys_arr[:, edge.LOAD] >= leap.TOUCH_N).all(axis=1) & ~ys_arr[:, edge.TOUCH].reshape(len(ys_arr), -1, 3)[:, borne.ABOVE].any(axis=(1, 2))
     if alone.mean() > ALONE_SHARE:
         yield
         yield from torso_loading(w, ys_arr, dt)
-    return {'A': A[keep], 'left': (tau.reshape(-1) - pred)[keep], 'drive': drive[keep],
+    return {'A': a_out, 'left': left_out, 'drive': drive_out,
             'zero': zero, 'seconds': (len(ys_arr) - 1) * dt}
 
 

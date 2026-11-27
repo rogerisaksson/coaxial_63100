@@ -52,12 +52,16 @@ class Ring:
             self.rows = np.ndarray((self.cap, WIDTH), dtype=np.float64, buffer=self.block.buf)
         else:
             self.rows = np.zeros((self.cap, WIDTH))
+        from tools.cores import quick
+        self._put = quick.row_putter()
         self.start, self.n = 0, 0
 
     def put(self, y, tau):
         """A pass's row onto the window at hand: whether it is whole (its steps and one more)."""
-        row = self.rows[(self.start + self.n) % self.cap]
-        row[:edge.SENSED], row[edge.SENSED:] = y, tau
+        idx = (self.start + self.n) % self.cap
+        if self._put is None or not self._put(self.rows, idx, y, tau, edge.SENSED, WIDTH - edge.SENSED):
+            row = self.rows[idx]
+            row[:edge.SENSED], row[edge.SENSED:] = y, tau
         self.n += 1
         return self.n > self.steps
 
@@ -158,6 +162,10 @@ class Here:
     def close(self, wait=1.0):
         self.ring.close()
 
+    def ready(self):
+        """The wear reader warm before the robot's first pass (`Apart.ready`)."""
+        return None
+
 
 class Apart(Here):
 
@@ -187,6 +195,10 @@ class Apart(Here):
             self.flight = None
         if self.aside is not None:
             self._ask(('laid', self.ring.name, self.ring.steps, self.dt, w['nominal']))
+
+    def ready(self):
+        """Wait until the wear process has laid its body and warmed its kernels."""
+        self._heard(block=True)
 
     def shut(self, at):
         self._heard(block=False)
@@ -266,6 +278,17 @@ def main():
             from machine.stack import wbc
             w = wear.laid(wbc.Body())
             same = w['nominal'].shape == nominal.shape and w['nominal'].tobytes() == nominal.tobytes()
+            if same:
+                import numpy as np
+                from machine.identify import regressor
+                from tools.cores import identify as c_id
+                c_id.ensure()
+                lay, m = w['lay'], w['body'].m
+                nb, nh, nd = len(lay['bodies']), len(lay['hinge']), len(lay['driven'])
+                z = np.zeros
+                frames = (z((1, nb, 3)), z((1, nb, 3, 3)), z((1, nh, 3)), z((1, nh, 3)))
+                regressor.in_c(lay, w['body'], z((1, m.nq)), z((1, m.nv)), z((1, m.nv)), z((1, 3)), z((1, nd)), frames)
+                regressor.in_c(lay, w['body'], z((1, m.nq)), z((1, m.nv)), z((1, m.nv)), z((1, 3)), None, frames)
             kept['w'], kept['dt'] = (w if same else None), dt
             return True if same else 'laid on a body not the robot\'s own: its nominal %s, the robot\'s own %s' % (w['nominal'].shape, nominal.shape)
         w = kept.get('w')

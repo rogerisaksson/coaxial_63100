@@ -3,12 +3,18 @@ import ctypes
 import math
 
 from machine.aircraft.aerobat import airframe as _aero_af
-from machine.aircraft.aerobat.airframe import (DIVE_M_S, GRAVITY, INERTIA, K_PITCH_Q, K_ROLL_Q, K_YAW,
-                                               MASS_KG, PROP_R, RHO, ROTATE_M_S, WING, WO_PULL, WO_TURN,
-                                               _aero_cda, _aero_inflow, _prop_drag, slipstream)
-from machine.aircraft.helicopter.kit import _aero_lib, _observe_wind_spin, observer_params
+from machine.aircraft.aerobat.airframe import (ATT_KD, ATT_KP, DIVE_M_S, GRAVITY, INERTIA, K_PITCH_Q, K_ROLL_Q,
+                                               K_YAW, MASS_KG, PROP_R, RHO, ROLL_KD, ROLL_KP, ROTATE_M_S, WING,
+                                               WO_PULL, WO_TURN, YAW_KD, YAW_KP, _aero_cda, _aero_inflow,
+                                               _prop_drag, slipstream)
+from machine.aircraft.helicopter.kit import (_FILT_IO, _FLAGS_IO, _OUT3_BUF, _R_CUR_BUF, _R_DES_BUF, _SPIN_BUF,
+                                             _TURN_HAT_BUF, _W_FF_BUF, _aero_lib, _observe_wind_spin,
+                                             observer_params)
 
 _AER_OBS = observer_params(_aero_af)
+_ATT_SCALARS = (ctypes.c_double * 10)()
+_AB_KP = (ctypes.c_double * 3)(ATT_KP, YAW_KP, ROLL_KP)
+_AB_KD = (ctypes.c_double * 3)(ATT_KD, YAW_KD, ROLL_KD)
 
 _AERO_STATE = (ctypes.c_double * 15)()
 _AERO_VEL = (ctypes.c_double * 3)()
@@ -20,14 +26,19 @@ _AERO_PARAMS = (ctypes.c_double * 17)(
 _AERO_INERTIA = (ctypes.c_double * 3)(*INERTIA)
 
 
-def observe(core, state, dt):
+def observe(core, state, dt, turn=None, vel=None, spin=None):
     """`core`'s estimates `dt` s on from `state`: the aerobat's velocity, the push on it and the wind through
     its wing too; its spin and the turn on it, the airframe's own moments known."""
-    t_in, v_in, s_in = state['turn'], state['vel'], state['spin']
-    turn = t_in if (type(t_in) is tuple and type(t_in[0]) is tuple and type(t_in[0][0]) is float) \
-        else getattr(t_in, 'tolist', lambda: [[float(x) for x in r] for r in t_in])()
-    vel = v_in if (type(v_in) is tuple and type(v_in[0]) is float) else [float(x) for x in v_in]
-    spin = s_in if (type(s_in) is tuple and type(s_in[0]) is float) else [float(x) for x in s_in]
+    if turn is None:
+        t_in = state['turn']
+        turn = t_in if (type(t_in) is tuple and type(t_in[0]) is tuple and type(t_in[0][0]) is float) \
+            else getattr(t_in, 'tolist', lambda: [[float(x) for x in r] for r in t_in])()
+    if vel is None:
+        v_in = state['vel']
+        vel = v_in if (type(v_in) is tuple and type(v_in[0]) is float) else [float(x) for x in v_in]
+    if spin is None:
+        s_in = state['spin']
+        spin = s_in if (type(s_in) is tuple and type(s_in[0]) is float) else [float(x) for x in s_in]
     h = float(state['h'])
     if not (h > 0.03 and core.begun):
         core.vel_hat, core.spin_hat, core.begun = list(vel), list(spin), True
@@ -109,3 +120,50 @@ def observe(core, state, dt):
     # read 6 m/s in still air, and wing-borne none was read.
     _observe_wind_spin(core, u, fast, alpha, gamma, up, spin, tau, INERTIA, dt, RHO * WING.side * fast / MASS_KG,
                        (t0[0], t1[0], t2[0]), WING.jacobian(u, turn), _AER_OBS)
+
+
+def attitude_c(core, turn, acc_des, u, want_up, sign, yaw, rate, pace, dt, w_on, knife_eff, w_roll, w_whole):
+    """Fused C `aeh_aerobat_attitude` pass, or `None` when the C library is absent."""
+    lib = _aero_lib()
+    if lib is None:
+        return None
+    t0, t1, t2 = turn
+    WING._turn[:] = (t0[0], t0[1], t0[2], t1[0], t1[1], t1[2], t2[0], t2[1], t2[2])
+    WING._acc[:] = acc_des
+    WING._u[:] = u
+    WING._want[:] = want_up
+    _FLAGS_IO[0], _FLAGS_IO[1] = int(core.up_filt is not None), int(core.r_prev is not None)
+    if core.up_filt is not None:
+        _FILT_IO[0], _FILT_IO[1], _FILT_IO[2] = core.up_filt
+    if core.r_prev is not None:
+        p0, p1, p2 = core.r_prev
+        _FILT_IO[3:12] = (p0[0], p0[1], p0[2], p1[0], p1[1], p1[2], p2[0], p2[1], p2[2])
+    _FILT_IO[12], _FILT_IO[13], _FILT_IO[14] = core.w_ff
+    _ATT_SCALARS[:] = (sign, yaw, rate, pace, dt, core.flip_ang, w_on, knife_eff, w_roll, w_whole)
+    k = lib.aeh_aerobat_attitude(WING._w_plane, WING._turn, WING._acc, WING._u, WING._want,
+                                 _FILT_IO, _FLAGS_IO, _ATT_SCALARS, WING._out9)
+    core.up_filt = (_FILT_IO[0], _FILT_IO[1], _FILT_IO[2])
+    core.r_prev = ((_FILT_IO[3], _FILT_IO[4], _FILT_IO[5]),
+                   (_FILT_IO[6], _FILT_IO[7], _FILT_IO[8]),
+                   (_FILT_IO[9], _FILT_IO[10], _FILT_IO[11]))
+    core.w_ff = w_ff = (_FILT_IO[12], _FILT_IO[13], _FILT_IO[14])
+    ro = WING._out9
+    return ((ro[0], ro[1], ro[2]), (ro[3], ro[4], ro[5]), (ro[6], ro[7], ro[8])), w_ff, k
+
+
+def trimmed_c(core, turn, r_des, w_ff, spin, u):
+    """Fused C `aeh_trimmed_torques` pass, or `None` when the C library is absent."""
+    lib = _aero_lib()
+    if lib is None:
+        return None
+    t0, t1, t2 = turn
+    d0, d1, d2 = r_des
+    _R_CUR_BUF[:] = (t0[0], t0[1], t0[2], t1[0], t1[1], t1[2], t2[0], t2[1], t2[2])
+    _R_DES_BUF[:] = (d0[0], d0[1], d0[2], d1[0], d1[1], d1[2], d2[0], d2[1], d2[2])
+    _W_FF_BUF[:] = w_ff
+    _SPIN_BUF[:] = spin
+    _TURN_HAT_BUF[:] = core.turn_hat
+    WING._u[:] = u
+    lib.aeh_trimmed_torques(_R_CUR_BUF, _R_DES_BUF, _W_FF_BUF, _SPIN_BUF, _TURN_HAT_BUF,
+                            _AERO_INERTIA, _AB_KP, _AB_KD, WING._w_mom, WING._u, _OUT3_BUF)
+    return _OUT3_BUF[0], _OUT3_BUF[1], _OUT3_BUF[2]

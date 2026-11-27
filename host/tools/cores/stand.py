@@ -7,6 +7,7 @@ library a process, built once for its sources' bytes (tools.cores.build.cached).
 """
 import ctypes
 import functools
+import math
 import os
 import threading
 
@@ -149,28 +150,41 @@ def _biquad_floats(sections):
 
 def drives_pass(rotors, periods, tick_s, faults):
     """Advance `rotors` across `periods` 50 kHz ticks in parallel (`world_drives_pass`)."""
-    import math
     n = len(rotors)
     if n == 0:
         return
-    key = tuple((id(r), r['slot']) for r in rotors)
-    batch = rotors[0].get('_batch')
-    if batch is None or batch[0] != key:
-        slots = (ctypes.c_int * n)(*(r['slot'] for r in rotors))
+    r0 = rotors[0]
+    batch = r0.get('_batch')
+    ok = False
+    if batch is not None and batch[0] == n:
+        ids, slots_py = batch[1], batch[2]
+        ok = True
+        for k in range(n):
+            rk = rotors[k]
+            if id(rk) != ids[k] or rk['slot'] != slots_py[k]:
+                ok = False
+                break
+    if batch is None or not ok:
+        ids = tuple(id(r) for r in rotors)
+        slots_py = tuple(r['slot'] for r in rotors)
+        slots = (ctypes.c_int * n)(*slots_py)
         moe = (ctypes.c_uint8 * n)()
         supplied = (ctypes.c_uint8 * n)(*([1] * n))
         speeds = (ctypes.c_float * n)()
         out = (ctypes.c_double * (5 * n))()
         tripped = (ctypes.c_uint32 * n)()
-        batch = (key, library().world_drives_pass, slots, moe, supplied, speeds, out, tripped)
-        rotors[0]['_batch'] = batch
-    _key, fn, slots, moe, supplied, speeds, out, tripped = batch
-    for k, r in enumerate(rotors):
-        moe[k] = 0 if r['cut'] else 1
-        speeds[k] = r['ask']
+        batch = (n, ids, slots_py, library().world_drives_pass, slots, moe, supplied, speeds, out, tripped)
+        r0['_batch'] = batch
+    _n, _ids, _slots_py, fn, slots, moe, supplied, speeds, out, tripped = batch
+    for k in range(n):
+        rk = rotors[k]
+        moe[k] = 0 if rk['cut'] else 1
+        speeds[k] = rk['ask']
     fn(n, slots, periods, moe, supplied, speeds, out, tripped)
     tau, hypot = math.tau, math.hypot
-    for k, r in enumerate(rotors):
+    no_zero = 0 not in faults
+    for k in range(n):
+        r = rotors[k]
         if tripped[k]:
             r['rig'].gates.off()
         base = 5 * k
@@ -181,7 +195,8 @@ def drives_pass(rotors, periods, tick_s, faults):
         iq_val = out[base + 3]
         r['iq'] = iq_val
         r['amps'] = hypot(out[base + 2], iq_val)
-        r['fault'] = faults.get(int(out[base + 4]))
+        fc = out[base + 4]
+        r['fault'] = None if (fc == 0.0 and no_zero) else faults.get(int(fc))
 
 
 class StoCore:

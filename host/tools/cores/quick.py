@@ -120,6 +120,12 @@ def addressing():
     return address if q is None else q.data
 
 
+def row_putter():
+    """Fast C `memcpy` writer into a 2D float64 ring buffer (`worn.Ring.put`), or None."""
+    q = module()
+    return None if q is None else q.row_put
+
+
 def caller(cfn):
     """`cfn` (a part's C, ctypes' function of eight pointers) a call of them: its int, 0 where it returns
     none, the interpreter let go as ctypes lets it; None where the extension is not built."""

@@ -258,11 +258,50 @@ static PyObject *pointed(PyObject *self, PyObject *const *args, Py_ssize_t n)
   return PyLong_FromVoidPtr(PyArray_DATA(a));
 }
 
+/* row_put(rows, idx, y, tau, ny, ntau): copy contiguous float64 `y` and `tau` into `rows[idx]`. */
+static PyObject *row_put(PyObject *self, PyObject *const *args, Py_ssize_t n)
+{
+  (void)self;
+  if (n != 6 || ndarray == NULL)
+    Py_RETURN_FALSE;
+  const Py_ssize_t idx = PyLong_AsSsize_t(args[1]);
+  const Py_ssize_t ny = PyLong_AsSsize_t(args[4]);
+  const Py_ssize_t ntau = PyLong_AsSsize_t(args[5]);
+  if (PyErr_Occurred() || idx < 0 || ny < 0 || ntau < 0)
+  {
+    PyErr_Clear();
+    Py_RETURN_FALSE;
+  }
+  const PyArrayObject_fields *r = (const PyArrayObject_fields *)args[0];
+  const PyArrayObject_fields *y = (const PyArrayObject_fields *)args[2];
+  const PyArrayObject_fields *t = (const PyArrayObject_fields *)args[3];
+  if (Py_TYPE(args[0]) != ndarray || Py_TYPE(args[2]) != ndarray || Py_TYPE(args[3]) != ndarray)
+    Py_RETURN_FALSE;
+  if (!(r->flags & NPY_ARRAY_C_CONTIGUOUS) || !(y->flags & NPY_ARRAY_C_CONTIGUOUS)
+      || !(t->flags & NPY_ARRAY_C_CONTIGUOUS))
+    Py_RETURN_FALSE;
+  if (r->descr->type_num != NPY_DOUBLE || y->descr->type_num != NPY_DOUBLE || t->descr->type_num != NPY_DOUBLE
+      || !PyArray_ISNBO(r->descr->byteorder) || !PyArray_ISNBO(y->descr->byteorder)
+      || !PyArray_ISNBO(t->descr->byteorder))
+    Py_RETURN_FALSE;
+  if (r->nd != 2 || idx >= r->dimensions[0] || r->dimensions[1] != ny + ntau
+      || y->nd != 1 || y->dimensions[0] != ny || t->nd != 1 || t->dimensions[0] != ntau)
+    Py_RETURN_FALSE;
+  double *dst = (double *)r->data + (size_t)idx * (size_t)(ny + ntau);
+  if (ny > 0)
+    memcpy(dst, y->data, (size_t)ny * sizeof(double));
+  if (ntau > 0)
+    memcpy(dst + ny, t->data, (size_t)ntau * sizeof(double));
+  Py_RETURN_TRUE;
+}
+
 static PyMethodDef methods[] = {
   {"laid", (PyCFunction)(void (*)(void))laid, METH_FASTCALL, "laid(numpy.ndarray, its float64): what a leaf is."},
   {"data", data, METH_O, "data(a): an ndarray's first element's address."},
   {"pointed", (PyCFunction)(void (*)(void))pointed, METH_FASTCALL,
    "pointed(a, type_num): its address where it is a native C-ordered ndarray of that type, else None."},
+  {"row_put", (PyCFunction)(void (*)(void))row_put, METH_FASTCALL,
+   "row_put(rows, idx, y, tau, ny, ntau): copy y and tau into rows[idx] where all three are C-contiguous float64."},
   {"context", (PyCFunction)(void (*)(void))context, METH_FASTCALL,
    "context(rows, n, keys, words, scalars, own_at): a walk laid once."},
   {"walk", (PyCFunction)(void (*)(void))walk, METH_FASTCALL,

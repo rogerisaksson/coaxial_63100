@@ -58,7 +58,7 @@ def advanced(world, now, room):
     first: its errors Python's), the contacts' slips yielded and, its `room` laid, its room's switch read before the
     next step's first half begins beside the boxes' move, their meters and the robot's link (C)."""
     _at, rated, before, after, _paired, s, _kept = _laid(world)
-    drives, stuck, contacts_after, rest_after, ahead_fn, behind_fn = s._split
+    join_before, split_after = s._fused
     d = world.data
     if room:
         s.switched, s.lamp = getattr(world, 'switched', s.switch_s), int(getattr(world, 'lamp', False))
@@ -69,19 +69,14 @@ def advanced(world, now, room):
         while d.time < now - 1e-9:
             since = d.time - start
             if world._ahead:
-                drives(since)
                 world._ahead = False
-                if behind_fn is not None:
-                    behind_fn()
-                stuck()
+                join_before(since)
             else:
                 mj.mj_step1(m, d)
                 before(since)
             mj.mj_step2(m, d)
-            if d.time < now - 1e-9 and ahead_fn is not None:
-                contacts_after()
-                world._ahead = bool(ahead_fn())
-                rest_after()
+            if d.time < now - 1e-9 and split_after is not None:
+                world._ahead = bool(split_after())
             else:
                 after()
     finally:

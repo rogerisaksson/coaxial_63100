@@ -204,7 +204,10 @@ static void stage(wbc_gmo_t *o, double ends[][2][3])
     o->list[o->listed] = k;
     o->listed += o->whole | (sqrt(dot(d, d)) - reach[c1] - reach[c2] < o->horizon);
   }
-  memcpy(o->staged, ends, sizeof o->staged);
+  if (o->capsules > 0)
+  {
+    memcpy(o->staged, ends, (size_t)o->capsules * sizeof ends[0]);
+  }
   o->stagings++;
 }
 
@@ -238,27 +241,58 @@ static void touches(wbc_gmo_t *restrict o)
     o->touched[t] = -1;
     depth[t] = 0.0;
   }
-  for (int x = 0; x < o->listed; x++)
   {
-    const int k = o->list[x], c1 = o->pair[k][0], c2 = o->pair[k][1];
-    double    s1[3], s2[3], d[3];
+    int worst = 0;
 
-    closest(ends[c1][0], ends[c1][1], ends[c2][0], ends[c2][1], s1, s2);
-    for (int i = 0; i < 3; i++)
+    for (int x = 0; x < o->listed; x++)
     {
-      d[i] = s2[i] - s1[i];
-    }
-    const double gap = sqrt(dot(d, d)) - o->capsule_r[c1] - o->capsule_r[c2];
-    int          worst = 0;
+      const int    k = o->list[x], c1 = o->pair[k][0], c2 = o->pair[k][1];
+      const double r_sum = o->capsule_r[c1] + o->capsule_r[c2];
+      const double need = r_sum + depth[worst];
+      const double lim = r_sum + 1e-9;
+      int          far_box = 0;
+      double       s1[3], s2[3], d[3];
 
-    for (int t = 1; t < WBC_GMO_TOUCH; t++)
-    {
-      worst = (depth[t] > depth[worst]) ? t : worst;
-    }
-    if (gap < depth[worst] && dot(d, d) > 0.0)
-    {
-      depth[worst] = gap;
-      o->touched[worst] = k;
+      if (need <= 0.0)
+      {
+        continue;
+      }
+      for (int i = 0; i < 3; i++)
+      {
+        const double a0 = ends[c1][0][i], a1 = ends[c1][1][i];
+        const double b0 = ends[c2][0][i], b1 = ends[c2][1][i];
+        const double lo1 = (a0 < a1) ? a0 : a1, hi1 = (a0 > a1) ? a0 : a1;
+        const double lo2 = (b0 < b1) ? b0 : b1, hi2 = (b0 > b1) ? b0 : b1;
+
+        far_box |= (lo1 - hi2 > lim) | (lo2 - hi1 > lim);
+      }
+      if (far_box)
+      {
+        continue;
+      }
+      closest(ends[c1][0], ends[c1][1], ends[c2][0], ends[c2][1], s1, s2);
+      for (int i = 0; i < 3; i++)
+      {
+        d[i] = s2[i] - s1[i];
+      }
+      const double d2 = dot(d, d);
+
+      if (d2 <= 0.0 || d2 >= (need * need) * (1.0 + 1e-12))
+      {
+        continue;
+      }
+      const double gap = sqrt(d2) - r_sum;
+
+      if (gap < depth[worst])
+      {
+        depth[worst] = gap;
+        o->touched[worst] = k;
+        worst = 0;
+        for (int t = 1; t < WBC_GMO_TOUCH; t++)
+        {
+          worst = (depth[t] > depth[worst]) ? t : worst;
+        }
+      }
     }
   }
   for (int t = 0; t < WBC_GMO_TOUCH; t++)
@@ -298,7 +332,7 @@ static void touches(wbc_gmo_t *restrict o)
     (less its height over the robot's lowest point in `reach`s) and stands still (less its speed in
     `still`s), a softmax; even over a point's edges into `expected` - the robot's soles' points
     there their last pass's pushes. */
-static void expect(wbc_gmo_t *o)
+static void expect(wbc_gmo_t *o, const double dirs[WBC_GMO_POINTS][WBC_GMO_EDGES][3])
 {
   double logit[WBC_GMO_POINTS], lowest = o->at[0][1], top = -INFINITY, sum = 0.0;
 
@@ -312,9 +346,8 @@ static void expect(wbc_gmo_t *o)
 
     for (int e = 0; e < o->edges[p]; e++)
     {
-      double n[3];
+      const double *n = dirs[p][e];
 
-      along(o, p, e, n);
       for (int i = 0; i < 3; i++)
       {
         mean[i] += n[i];
@@ -363,7 +396,7 @@ static void scoped(wbc_gmo_t *o)
 
 /** Each unknown's column of J': a point's edges along their directions; a hinge on its stop pushed
     off it; the robot's capsules touching. */
-static void columns(wbc_gmo_t *restrict o, const double *restrict q)
+static void columns(wbc_gmo_t *restrict o, const double *restrict q, double dirs[WBC_GMO_POINTS][WBC_GMO_EDGES][3])
 {
   _Alignas(64) double j[6][WBC_N];
 
@@ -376,10 +409,8 @@ static void columns(wbc_gmo_t *restrict o, const double *restrict q)
     wbc_body_point(&o->body, o->link[p], o->local[p], o->at[p]);
     for (int e = 0; e < o->edges[p]; e++)
     {
-      double n[3];
-
-      along(o, p, e, n);
-      pushed(o, o->col[p] + e, j, n, 1.0);
+      along(o, p, e, dirs[p][e]);
+      pushed(o, o->col[p] + e, j, dirs[p][e], 1.0);
     }
     for (int i = 0; i < WBC_N; i++)
     {
@@ -391,7 +422,7 @@ static void columns(wbc_gmo_t *restrict o, const double *restrict q)
 
     o->speed[p] = fmin(sqrt(dot(v, v)), sqrt(dot(w, w)));
   }
-  expect(o);
+  expect(o, dirs);
   for (int h = 0; h < NH; h++)
   {
     o->a[6 + h][o->pushes + h] = o->stopped[h] * ((q[h] <= o->stop_lo[h]) - (q[h] >= o->stop_hi[h]));
@@ -407,56 +438,15 @@ static void columns(wbc_gmo_t *restrict o, const double *restrict q)
     rounding, one not felt (`gated`) or moving past `still` only where none else would, the set solved, a
     push it would pull stepped back to none and out; its factor kept as pushes join and leave
     (wbc_gmo_factor.c). */
-/** The unknowns a row of `h` is summed for at once (`added`): a 64-byte line of them, its sums held in registers. */
-#define WBC_GMO_LANES 8
 _Static_assert(WBC_GMO_F + WBC_GMO_LANES - 1 <= WBC_GMO_LD, "a row's last block read within its padding");
-
-/** Row `x` of `h` from `x` to `m`, each element summed over the `weighed` gathered rows in their order from +0, `c`
-    each row's weight times its x-th column: a block of WBC_GMO_LANES elements along memory at once, their sums
-    apart in registers and each stored once - summed a gathered row at a time, each element was loaded and stored
-    a row, 1800 short loops a round. The last block reads the row's padding past `m` and stores none of it. */
-static void added(wbc_gmo_t *restrict o, int x, int m, int weighed, const double *restrict c)
-{
-  for (int y0 = x; y0 < m; y0 += WBC_GMO_LANES)
-  {
-    const int lanes = (m - y0 < WBC_GMO_LANES) ? (m - y0) : WBC_GMO_LANES;
-    double    sum[WBC_GMO_LANES];
-
-    for (int j = 0; j < WBC_GMO_LANES; j++)
-    {
-      sum[j] = 0.0;
-    }
-    for (int k = 0; k < weighed; k++)
-    {
-      for (int j = 0; j < WBC_GMO_LANES; j++)
-      {
-        sum[j] += c[k] * o->ag[k][y0 + j];
-      }
-    }
-    for (int j = 0; j < lanes; j++)
-    {
-      o->h[x][y0 + j] = sum[j];
-    }
-  }
-}
-
-/** The gradient to `m` row `c` of `h` times `fc` less: one product and one sum an element, each element apart - its
-    lanes independent, along memory, the fields apart in the robot's observer's struct. */
-static void lessened(wbc_gmo_t *restrict o, int m, int c, double fc)
-{
-  for (int x = 0; x < m; x++)
-  {
-    o->w[x] -= o->h[c][x] * fc;
-  }
-}
 
 static void pushes(wbc_gmo_t *restrict o, const double *restrict weight, const double *restrict shift)
 {
-  _Alignas(64) double g[NF], z[NF], sub[NF], f[NF], forward[NF];
+  _Alignas(64) double g[WBC_GMO_LD], z[NF], sub[NF], f[NF], forward[NF];
   int                 set[NF], at[NF], gate[NF], gated[NF], on[NF];
   const int     m = o->lives;
   int           rows[WBC_N], weighed = 0;
-  double        top = 0.0, most = 0.0, scale[WBC_N], wrow[WBC_N];
+  double        top = 0.0, most = 0.0, scale0[WBC_N], scale1[WBC_N], wrow[WBC_N];
 
   /* A row weighed 0, or a push f 0, adds exactly +-0 to a sum that starts at +0: left out, the same bits. */
   for (int i = 0; i < WBC_N; i++)
@@ -472,8 +462,6 @@ static void pushes(wbc_gmo_t *restrict o, const double *restrict weight, const d
       gated[o->col[p] + e] = o->gated[p] || (o->speed[p] > o->still);
     }
   }
-  /* the robot's working set gathered, x an unknown's place in it, f[x] its push: its weighed rows along
-   * memory */
   for (int x = 0; x < m; x++)
   {
     gate[x] = gated[o->live[x]];
@@ -482,6 +470,10 @@ static void pushes(wbc_gmo_t *restrict o, const double *restrict weight, const d
     {
       o->ag[k][x] = o->a[rows[k]][o->live[x]];
     }
+  }
+  for (int x = m; x < WBC_GMO_LD; x++)
+  {
+    g[x] = 0.0;
   }
   for (int k = 0; k < weighed; k++)
   {
@@ -494,15 +486,27 @@ static void pushes(wbc_gmo_t *restrict o, const double *restrict weight, const d
       g[x] += (wk * o->ag[k][x]) * dr;
     }
   }
-  for (int x = 0; x < m; x++)
+  for (int x = 0; x < m; x += 2)
   {
-    /* each h[x][y] summed over the weighed rows in their order, blocks of the row along its memory (`added`); a
-       weighed row's weight is 1, so (1 a) b is b a bit for bit: h symmetric, its lower half mirrored */
     for (int k = 0; k < weighed; k++)
     {
-      scale[k] = wrow[k] * o->ag[k][x];
+      scale0[k] = wrow[k] * o->ag[k][x];
     }
-    added(o, x, m, weighed, scale);
+    if (x + 1 < m)
+    {
+      for (int k = 0; k < weighed; k++)
+      {
+        scale1[k] = wrow[k] * o->ag[k][x + 1];
+      }
+      wbc_gmo_added(o, x, m, weighed, scale0, scale1);
+    }
+    else
+    {
+      wbc_gmo_added(o, x, m, weighed, scale0, NULL);
+    }
+  }
+  for (int x = 0; x < m; x++)
+  {
     for (int y = 0; y < x; y++)
     {
       o->h[x][y] = o->h[y][x];
@@ -517,8 +521,6 @@ static void pushes(wbc_gmo_t *restrict o, const double *restrict weight, const d
     g[x] += o->eps * top * o->expected[o->live[x]];
     most = fmax(most, fabs(g[x]));
   }
-  /* the set's L^-1 g kept from solve to solve (`forward`), its first `solved` rows standing: a push joined grows L a
-     row, one left changes L from its row on (wbc_chol_solve_from) - 107 forward passes a law pass solved whole */
   int n = 0, solved = 0;
 
   for (int round = 0; round < 3 * NF; round++)
@@ -530,17 +532,7 @@ static void pushes(wbc_gmo_t *restrict o, const double *restrict weight, const d
       on[pushing] = y;
       pushing += f[y] != 0.0;
     }
-    /* each w[x] less h[x][c] f[c] over the pushing c in their order, h[c] streamed along memory for every x
-       at once - h mirrored, h[c][x] is h[x][c] bit for bit; a push in the set is never picked: its w unread.
-       The most each pick has found held beside it, not read back through it. */
-    for (int x = 0; x < m; x++)
-    {
-      o->w[x] = g[x];
-    }
-    for (int k = 0; k < pushing; k++)
-    {
-      lessened(o, m, on[k], f[on[k]]);
-    }
+    wbc_gmo_lessened(o, m, pushing, on, g, f);
     const double tol = DBL_EPSILON * NF * most;
     double       free_w = 0.0, held_w = 0.0;
 
@@ -573,7 +565,7 @@ static void pushes(wbc_gmo_t *restrict o, const double *restrict weight, const d
       {
         sub[x] = g[at[x]];
       }
-      wbc_chol_solve_from(n, WBC_GMO_LD, &o->k[0][0], sub, solved, forward, z);
+      wbc_gmo_solve(n, o, sub, solved, forward, z);
       solved = n;
       for (int x = 0; x < n; x++)
       {
@@ -657,7 +649,7 @@ static void split(wbc_gmo_t *restrict o)
 
 /** Each manifold's normal force: a point's edges summed in the world, along each of its manifolds'
     normals, pushing. */
-static void shared(wbc_gmo_t *restrict o)
+static void shared(wbc_gmo_t *restrict o, const double dirs[WBC_GMO_POINTS][WBC_GMO_EDGES][3])
 {
   memset(o->force, 0, sizeof o->force);
   for (int s = 0; s < WBC_GMO_SHARES; s++)
@@ -667,9 +659,8 @@ static void shared(wbc_gmo_t *restrict o)
 
     for (int e = 0; e < o->edges[p]; e++)
     {
-      double n[3];
+      const double *n = dirs[p][e];
 
-      along(o, p, e, n);
       for (int i = 0; i < 3; i++)
       {
         world[i] += o->f[c + e] * n[i];
@@ -684,7 +675,7 @@ void wbc_gmo_step(wbc_gmo_t *restrict o, const wbc_frame_t *base, const double q
 {
   const double span = o->span > dt ? o->span : dt;
   const double k = o->primed * (1.0 - wbc_exp(-o->alpha * dt));
-  double       ud[WBC_N], tau[WBC_N];
+  double       ud[WBC_N], tau[WBC_N], dirs[WBC_GMO_POINTS][WBC_GMO_EDGES][3];
 
   wbc_body_pose(&o->body, base, q);
   wbc_body_mass(&o->body);
@@ -713,7 +704,7 @@ void wbc_gmo_step(wbc_gmo_t *restrict o, const wbc_frame_t *base, const double q
   memcpy(o->u, u, sizeof o->u);
   o->span = 0.0;
   o->primed = 1.0;
-  columns(o, q);
+  columns(o, q, dirs);
   split(o);
-  shared(o);
+  shared(o, dirs);
 }

@@ -20,6 +20,8 @@ GUST_S, GUST_SHARE, GUST_DEG = _W['gust_s'], _W['gust_share'], _W['gust_deg']
 EDDY_S, EDDY_DISC_S, EDDY_DISC, EDDY_UP = _W['eddy_s'], _W['eddy_disc_s'], _W['eddy_disc'], _W['eddy_up']
 REF_M, SHEAR, SHEAR_M, SHEAR_MOST, RISE_M = _W['ref_m'], _W['shear'], _W['shear_m'], _W['shear_most'], _W['rise_m']
 DISCS = _W['discs']
+_SQRT2 = math.sqrt(2.0)
+_DECAY: list = [None, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
 
 def air(seed=3, kind=None):
@@ -52,8 +54,11 @@ def blown(air, dt):
     ease = min(1.0, air['for'] / EASE_S)
     ease *= ease * (3.0 - 2.0 * ease)
     was, way = air['from']
-    mean, veer, gust, rough = air['come'] = [then + (now - then) * ease for then, now in zip(
-        was, (mean, veer, gust, rough))]
+    come = air['come']
+    mean = come[0] = was[0] + (mean - was[0]) * ease
+    veer = come[1] = was[1] + (veer - was[1]) * ease
+    gust = come[2] = was[2] + (gust - was[2]) * ease
+    rough = come[3] = was[3] + (rough - was[3]) * ease
     air['way'] = way + (air['to'] - way) * ease
     air['swing'] += math.tau * dt / veer_s if veer_s else 0.0
     way = air['way'] + math.radians(veer) * math.sin(air['swing'])
@@ -68,18 +73,36 @@ def blown(air, dt):
         into, of, share, off = air['gust']
         blows = 0.5 * share * gust * (1.0 - math.cos(math.tau * into / of))
         air['gust'] = (into + dt, of, share, off) if into + dt < of else None
-    for eddy, stir, size, over in [(air['eddy'], air['stirs'][0], rough, EDDY_S)] + [
-            (own, stir, EDDY_DISC * rough, EDDY_DISC_S)
-            for own, stir in zip(air['eddies'], air['stirs'][1:])]:
-        keep = math.exp(-dt / over)
-        kick = math.sqrt(2.0) * size * math.sqrt(1.0 - keep * keep)
-        for k in range(3):
-            stir[k] = stir[k] * keep + (EDDY_UP if k == 1 else 1.0) * kick * dice.gauss(0.0, 1.0)
-            eddy[k] = eddy[k] * keep + stir[k] * (1.0 - keep)
-    air['blows'], air['steady'] = blows, (mean * math.sin(way), 0.0, mean * math.cos(way))
-    steady = air['steady']
-    air['wind'] = (steady[0] + blows * math.sin(way + off) + air['eddy'][0], air['eddy'][1],
-                   steady[2] + blows * math.cos(way + off) + air['eddy'][2])
+    if _DECAY[0] != dt:
+        k0, k1 = math.exp(-dt / EDDY_S), math.exp(-dt / EDDY_DISC_S)
+        _DECAY[:] = [dt, k0, 1.0 - k0, math.sqrt(1.0 - k0 * k0), k1, 1.0 - k1, math.sqrt(1.0 - k1 * k1)]
+    _dt, k0, om0, s0, k1, om1, s1 = _DECAY
+    gauss = dice.gauss
+    eddy, stirs = air['eddy'], air['stirs']
+    st0 = stirs[0]
+    kick0 = (_SQRT2 * rough) * s0
+    v0 = st0[0] = st0[0] * k0 + (1.0 * kick0) * gauss(0.0, 1.0)
+    eddy[0] = eddy[0] * k0 + v0 * om0
+    v1 = st0[1] = st0[1] * k0 + (EDDY_UP * kick0) * gauss(0.0, 1.0)
+    eddy[1] = eddy[1] * k0 + v1 * om0
+    v2 = st0[2] = st0[2] * k0 + (1.0 * kick0) * gauss(0.0, 1.0)
+    eddy[2] = eddy[2] * k0 + v2 * om0
+    eddies = air['eddies']
+    kick1 = (_SQRT2 * (EDDY_DISC * rough)) * s1
+    n_ed = min(len(eddies), len(stirs) - 1)
+    for idx in range(n_ed):
+        ed, st = eddies[idx], stirs[idx + 1]
+        v0 = st[0] = st[0] * k1 + (1.0 * kick1) * gauss(0.0, 1.0)
+        ed[0] = ed[0] * k1 + v0 * om1
+        v1 = st[1] = st[1] * k1 + (EDDY_UP * kick1) * gauss(0.0, 1.0)
+        ed[1] = ed[1] * k1 + v1 * om1
+        v2 = st[2] = st[2] * k1 + (1.0 * kick1) * gauss(0.0, 1.0)
+        ed[2] = ed[2] * k1 + v2 * om1
+    sw, cw = math.sin(way), math.cos(way)
+    sx, sz = mean * sw, mean * cw
+    air['blows'], air['steady'] = blows, (sx, 0.0, sz)
+    air['wind'] = (sx + blows * math.sin(way + off) + eddy[0], eddy[1],
+                   sz + blows * math.cos(way + off) + eddy[2])
     return air['wind']
 
 

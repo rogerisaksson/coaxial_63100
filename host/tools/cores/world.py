@@ -84,7 +84,10 @@ def typed():
             raise ValueError('wbc_%s_t is %d bytes, its mirror %d' % (name, size(), ctypes.sizeof(mirror)))
     for name, args, back in (('rated', [_vp, _d], None), ('drives', [_vp, _d], None), ('stuck_step', [_vp], None),
                              ('before', [_vp, _d], None), ('contacts_after', [_vp], None), ('rest_after', [_vp], None),
-                             ('after', [_vp], None), ('paired', [_vp, _vp, _vp, _d], _i), ('ahead', [_vp, _vp, _vp], _i),
+                             ('after', [_vp], None), ('join_before', [_vp, _d], None),
+                             ('split_after', [_vp, _vp, _vp, _vp], _i),
+                             ('posed', [_vp, _vp, _vp, _i, _i, _vp, _i, _vp, _i, _vp, _vp, _vp, _vp, _vp], None),
+                             ('paired', [_vp, _vp, _vp, _d], _i), ('ahead', [_vp, _vp, _vp], _i),
                              ('behind', [], _i), ('held', [_vp, _vp], _i), ('stuck', [_vp, _vp], None),
                              ('slipped', [_vp, _vp], None)):
         fn = getattr(lib, 'wbh_world_' + name)
@@ -93,19 +96,55 @@ def typed():
 
 
 @functools.lru_cache(maxsize=None)
-def staged():
-    """(a stage begun on the thread of the robot's C's beside its law, its join, MuJoCo's `mj_step1` where
-    its library holds it): the robot's step's first half for `machine.world.steps.ahead`; None where MuJoCo's
-    library is not found beside its package."""
+def _mujoco_dll():
+    """MuJoCo's native shared library loaded once beside its Python package, or None."""
     import glob
     import os
     import mujoco
     folder = os.path.dirname(mujoco.__file__)
     found = glob.glob(os.path.join(folder, 'mujoco.dll')) + glob.glob(os.path.join(folder, 'libmujoco*'))
-    if not found:
+    return ctypes.CDLL(found[0]) if found else None
+
+
+@functools.lru_cache(maxsize=None)
+def staged():
+    """(a stage begun on the thread of the robot's C's beside its law, its join, MuJoCo's `mj_step1` where
+    its library holds it): the robot's step's first half for `machine.world.steps.ahead`; None where MuJoCo's
+    library is not found beside its package."""
+    mj_dll = _mujoco_dll()
+    if mj_dll is None:
         return None
     lib = typed()
-    return lib.wbh_world_ahead, lib.wbh_world_behind, ctypes.cast(ctypes.CDLL(found[0]).mj_step1, _vp).value
+    return lib.wbh_world_ahead, lib.wbh_world_behind, ctypes.cast(mj_dll.mj_step1, _vp).value
+
+
+@functools.lru_cache(maxsize=None)
+def _posed_fn():
+    """`(wbh_world_posed, mj_kinematics address)` or `None` when MuJoCo's library is absent."""
+    mj_dll = _mujoco_dll()
+    if mj_dll is None:
+        return None
+    return typed().wbh_world_posed, ctypes.cast(mj_dll.mj_kinematics, _vp).value
+
+
+def posed(m, d, qpos, bodies, jnt):
+    """Batch `mj_kinematics` and frame gather in C (`wbc_world_posed`), or `None`."""
+    pair = _posed_fn()
+    if pair is None:
+        return None
+    fn, kin = pair
+    q_c = np.ascontiguousarray(qpos, dtype=np.float64)
+    b_c = np.ascontiguousarray(bodies, dtype=np.int32)
+    j_c = np.ascontiguousarray(jnt, dtype=np.int32)
+    n, nb, nj = len(q_c), len(b_c), len(j_c)
+    xpos = np.empty((n, nb, 3), dtype=np.float64)
+    xmat = np.empty((n, nb, 3, 3), dtype=np.float64)
+    axis = np.empty((n, nj, 3), dtype=np.float64)
+    anchor = np.empty((n, nj, 3), dtype=np.float64)
+    if n > 0:
+        fn(kin, m._address, d._address, n, m.nq, q_c.ctypes.data, nb, b_c.ctypes.data, nj, j_c.ctypes.data,
+           xpos.ctypes.data, xmat.ctypes.data, axis.ctypes.data, anchor.ctypes.data)
+    return xpos, xmat, axis, anchor
 
 
 @functools.lru_cache(maxsize=None)
@@ -172,6 +211,9 @@ def laid(w):
                 functools.partial(lib.wbh_world_contacts_after, at), functools.partial(lib.wbh_world_rest_after, at),
                 None if stg is None else functools.partial(stg[0], stg[2], w.model._address, w.data._address),
                 None if stg is None else stg[1])
+    s._fused = (functools.partial(lib.wbh_world_join_before, at),
+                None if stg is None else functools.partial(lib.wbh_world_split_after, at, stg[2], w.model._address,
+                                                           w.data._address))
     return at, rated, before, after, paired, s, (link, masks, boxes, held)
 
 

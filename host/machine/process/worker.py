@@ -256,11 +256,12 @@ def spawned(here=False):
 
 def readied(s):
     """The robot's processes apart booted before its first pass - its vision's C warm (`vision.Apart.ready`),
-    its camera's model and renderer laid (`camera.Camera.ready`) -, beside its laying: its vision's boot held
-    its first pass 0.66 s."""
+    its camera's model and renderer laid (`camera.Camera.ready`), its wear's body and regressor warm (`worn.ready`) -,
+    beside its laying: its vision's boot held its first pass 0.66 s."""
     s['g']['vision'].ready()
     if s['g']['keep'] is not None:
         s['g']['keep'].ready()
+    s['worn'].ready()
 
 
 @functools.cache

@@ -301,6 +301,13 @@ def _prepared(obs, qpos, v):
     if obs['gated_of'][0] != latched:     # the robot's gate of its comparator's latches alone: told anew as they change
         obs['gated'][:] = ~obs['soled'] & (obs['latch_of'] @ (obs['latched'] > 0.5) == 0.0)
         obs['gated_of'][0] = latched
+    prep = obs.get('prepare')
+    if (prep is not None and type(qpos) is np.ndarray and type(v) is np.ndarray
+            and qpos.flags.c_contiguous and v.flags.c_contiguous
+            and qpos.dtype == np.float64 and v.dtype == np.float64):
+        b_ptr, q_ptr, u_ptr = obs['ins']
+        prep(b_ptr, q_ptr, u_ptr, len(obs['u']), address(qpos), address(v))
+        return
     base, u = obs['base'], obs['u']
     qw, qx, qy, qz = float(qpos[3]), float(qpos[4]), float(qpos[5]), float(qpos[6])
     xx, yy, zz = qx * qx, qy * qy, qz * qz
