@@ -236,6 +236,17 @@ class Marquee:
         #: Every line plain runs, none a Text: what it can centre itself.
         self.plain = not any(isinstance(line, Text) for line in self.lines)
 
+    def __iter__(self):
+        """Yield the visible characters of `self.lines` separated by newlines."""
+        for k, line in enumerate(self.lines):
+            if k:
+                yield '\n'
+            if isinstance(line, Text):
+                yield from line.plain
+            else:
+                for seg in line:
+                    yield from seg.text
+
     def __rich_measure__(self, console, options):
         return Measurement(min(self.wide, options.max_width), self.wide)
 
