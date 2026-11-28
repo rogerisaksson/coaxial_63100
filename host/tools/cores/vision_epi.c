@@ -512,9 +512,9 @@ void vs_epi_kept(const uint8_t *restrict inner0, const uint8_t *restrict inner1,
 void vs_stereo_post(const int64_t *restrict gl, const int64_t *restrict best, const float *restrict tbest,
                     const float *restrict second, const int64_t *restrict seen, const float *restrict c0,
                     const float *restrict lo, const float *restrict hi, int32_t height, int32_t width,
-                    int32_t d_count, int32_t rad, double texture, float unique_f, int64_t *restrict box_a,
-                    int64_t *restrict box_b, int64_t *restrict box_c, int64_t *restrict vsum_buf,
-                    double *restrict disp_out, uint8_t *restrict kept_out)
+                    int32_t d_count, int32_t rad, double texture, float unique_f, double edge_px,
+                    int64_t *restrict box_a, int64_t *restrict box_b, int64_t *restrict box_c,
+                    int64_t *restrict vsum_buf, double *restrict disp_out, uint8_t *restrict kept_out)
 {
   const size_t  npix = (size_t)height * (size_t)width;
   const int32_t win = 2 * rad + 1;
@@ -529,23 +529,34 @@ void vs_stereo_post(const int64_t *restrict gl, const int64_t *restrict best, co
   }
   vs_box_i64(box_d, box_b, box_e, vsum_buf, height, width, rad);
 
+  for (size_t i = 0U; i < npix; i++)
+  {
+    const float c0v = c0[i], lov = lo[i], hiv = hi[i];
+    const float denom = (lov - 2.0f * c0v) + hiv;
+    float       sub = 0.0f;
+    if (isfinite(denom) && (denom > 1e-6f))
+    {
+      sub = (0.5f * (lov - hiv)) / denom;
+    }
+    const float sub_c = (sub < -0.5f) ? -0.5f : ((sub > 0.5f) ? 0.5f : sub);
+    disp_out[i] = (double)best[i] + (double)sub_c;
+  }
+
   for (int32_t y = 0; y < height; y++)
   {
     const size_t rbase = (size_t)y * (size_t)width;
     for (int32_t x = 0; x < width; x++)
     {
-      const size_t  i = rbase + (size_t)x;
-      const int64_t b = best[i];
-      int64_t       jmp = 0;
+      const size_t i = rbase + (size_t)x;
+      const double di = disp_out[i];
+      int64_t      jmp = 0;
       if (x > 0)
       {
-        const int64_t dx = b - best[i - 1U];
-        jmp |= (int64_t)(((dx < 0) ? -dx : dx) > 1);
+        jmp |= (int64_t)(fabs(di - disp_out[i - 1U]) > edge_px);
       }
       if (y > 0)
       {
-        const int64_t dy = b - best[i - (size_t)width];
-        jmp |= (int64_t)(((dy < 0) ? -dy : dy) > 1);
+        jmp |= (int64_t)(fabs(di - disp_out[i - (size_t)width]) > edge_px);
       }
       box_d[i] = jmp;
     }
@@ -559,15 +570,6 @@ void vs_stereo_post(const int64_t *restrict gl, const int64_t *restrict best, co
     {
       const size_t  i = rbase + (size_t)x;
       const int64_t b = best[i];
-      const float   c0v = c0[i], lov = lo[i], hiv = hi[i];
-      const float   denom = (lov - 2.0f * c0v) + hiv;
-      float         sub = 0.0f;
-      if (isfinite(denom) && (denom > 1e-6f))
-      {
-        sub = (0.5f * (lov - hiv)) / denom;
-      }
-      const float sub_c = (sub < -0.5f) ? -0.5f : ((sub > 0.5f) ? 0.5f : sub);
-      disp_out[i] = (double)b + (double)sub_c;
       if (x < d_count)
       {
         kept_out[i] = 0U;
@@ -582,7 +584,7 @@ void vs_stereo_post(const int64_t *restrict gl, const int64_t *restrict best, co
       const float   tb = tbest[i];
       const float   tb1 = (tb != tb) ? tb : ((tb > 1.0f) ? tb : 1.0f);
       kept_out[i] = (uint8_t)((spread > texture) && (second[i] > unique_f * tb1) && (b > 0) &&
-                              (b < (int64_t)(d_count - 1)) && isfinite(c0v) && agreed && (box_c[i] <= 0));
+                              (b < (int64_t)(d_count - 1)) && isfinite(c0[i]) && agreed && (box_c[i] <= 0));
     }
   }
 }

@@ -203,7 +203,9 @@ def docked(at, things, floor, sc, box, standoff):
         steps = int(max(lat, 0.0) / voxels.CELL_M)
         offs = [0.0] * (lat >= 0.0) + [s * k * voxels.CELL_M for k in range(1, steps + 1) for s in (1.0, -1.0)]
         rank = furniture.first(sc, box, things, hn)
-        rows += [(t, hn, mid + t * tan, n, lat - abs(t), rank) for t in offs]
+        rows += [(t, hn, mid + t * tan, n,
+                  min(span - figure.HIP_HALF, figure.SOLE_HALF) if lat == 0.0 else lat - abs(t), rank)
+                 for t in offs]
 
     def gaps(poses, h):
         return footprint.gaps(poses, h, things, floor).min(axis=1, initial=math.inf)

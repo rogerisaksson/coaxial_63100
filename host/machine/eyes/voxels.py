@@ -7,23 +7,15 @@ What the robot's looks put there, in its estimate's frame.
     things, labels = chart.things()              # (kind, centre, half, R, id, clear) each, a voxel's thing in labels
     chart.blocked()                              # the floor's cells the robot may not stand in, its radius round
 
-A voxel is a thing from TOLD looks with HITS points in it, hit more often than seen through; its kind the
-`palette`'s whose body colour its chromaticity lies nearest, the light's white added (the dichromatic
-model: a highlight lies on the line from a kind's chroma to grey, so a lit timber wall stays timber and a
-grey patch its neighbours'). A top is an occupied voxel seen through above with nothing standing in the
-layer above round it - its normal up, a hole in a wall's face none -, or by one with nothing over it and
-its points level (`_segmented`); a surface the 4-connected tops of one level, a structure the
-26-connected rest - joined apart over and under a surface within its footprint a voxel round: what stands
-on a seat is not what holds it up -, each wall one, a chair's seat a surface, its back and its legs
-structures; a part of a structure whose colour differs from the structure's past the three-sigma test on
-its own pixels (`SIGMA`) a thing of its own - the door in the glass gable, a chair's back against a wall;
-a structure resting on nothing, neither the floor's layer nor under a surface, a stray left out. A
-surface's kind its pooled colour's, a structure's the kind most of its voxels have, its test read on
-those; a thing's box the floor its voxels' points cover, its axes (its turn) and extents those corners',
-its height its voxels', a surface's top its points' (`_box`, `_pieces`); its id the one of the thing it
-shares most voxels with at the look before, else new (`machine.eyes.registry`); `clear` 1.0 where the
-space over its top is seen through - a surface's -, 0.0 a structure's, its top unknown
-(`machine.way.affordance`). Nothing here reads the world's geometry.
+A voxel holds TOLD looks and HITS points, hit more often than seen through; its kind the `palette`'s
+nearest body chroma with highlight light on the line to grey (dichromatic model). A top is an occupied
+voxel seen through above with nothing round above it - normal up -, or nothing over it with level points
+(`_segmented`); 4-connected level tops form a surface, 26-connected rest a structure - split over and under
+a surface's padded footprint so seats stay separate from legs and loads -; parts differing from their
+structure past three-sigma (`SIGMA`) split into separate things; floating structures are dropped. Surfaces
+take their pooled colour's kind, structures their mode voxel kind; boxes bound floor footprint and point
+tops (`_box`, `_pieces`); ids track max voxel overlap (`machine.eyes.registry`); `clear` is 1.0 over seen
+surfaces, 0.0 for structures (`machine.way.affordance`). Nothing here reads world geometry.
 """
 import math
 import os
@@ -120,39 +112,41 @@ class Map:
         """`add` in NumPy alone, bit-for-bit identical to `vision.voxel_add`."""
         away = np.linalg.norm(xyz - eye, axis=1)
         ok = (xyz[:, 1] > FLOOR_M) & (xyz[:, 1] < CEIL_M) & (away > NEAR_M) & (away < FAR_M)
-        self._seen_through(eye, xyz[ok])
         i, j, k, inside = self._index(xyz)
         on = ok & inside
         flat = np.where(on, (i * self.ny + j) * self.nz + k, -1)
         at = flat[on]
+        hit_cnt = np.bincount(at, minlength=self.hits.size)
+        self._seen_through(eye, xyz[ok], hit_cnt)
         np.add.at(self.hits.reshape(-1), at, 1)
         np.maximum.at(self.top.reshape(-1), at, xyz[on, 1])
         x, y, z = xyz[on].T
         np.add.at(self.moments.reshape(-1, 7), at, np.column_stack([np.ones(len(x)), x, x * x, z, z * z, y, y * y]))
-        self.told.reshape(-1)[:] += np.bincount(at, minlength=self.hits.size) >= HITS
+        self.told.reshape(-1)[:] += hit_cnt >= HITS
         np.add.at(self.colour.reshape(-1, 3), at, rgb[on])
         self.looks, self._made = self.looks + 1, None
         return flat
 
-    def _seen_through(self, eye, xyz, step=0.8):
+    def _seen_through(self, eye, xyz, hit_cnt=None, step=0.8):
         """The voxels each ray from `eye` crossed short of its point by a voxel, `step` voxels a sample, up to the
-        first occupied voxel, counted free once a look; a sample over a voxel's `top` does not clear what lies low in
-        that layer."""
+        first occupied voxel, counted free where at least as many distinct rays crossed as hit that voxel this look;
+        a sample over a voxel's `top` does not clear what lies low in that layer."""
         step, d = step * self.voxel, xyz - eye
         far = np.linalg.norm(d, axis=1)
         n = int(np.ceil(far.max() / step)) if len(far) else 0
         if n == 0:
             return
         occupied, top = self.occupied().reshape(-1), self.top.reshape(-1)
-        # each voxel crossed counted once: marked, not sorted - numpy's unique of a look's samples was 6 ms of it
-        crossed = np.zeros(self.free.size, bool)
+        # distinct ray-voxel crossings: a look that hits a voxel more often than rays cross it does not clear it
+        pass_cnt = np.zeros(self.free.size, dtype=np.int64)
         # a step at a time over the rays still going: at once, tens of MB a look
         ray, last, reach = d, far - self.voxel, np.maximum(far, 1e-6)
+        prev_flat = np.full(len(ray), -1, dtype=np.int64)
         for s in range(n):
             t = s * step
             going = t < last
             if not going.all():
-                ray, last, reach = ray[going], last[going], reach[going]
+                ray, last, reach, prev_flat = ray[going], last[going], reach[going], prev_flat[going]
                 if not len(last):
                     break
             at = eye + ray * (t / reach)[:, None]
@@ -160,10 +154,14 @@ class Map:
             flat = np.where(inside, (i * self.ny + j) * self.nz + kk, 0)
             solid = inside & occupied[flat]
             told = top[flat]
-            crossed[flat[~solid & inside & ((at[:, 1] <= told) | ~np.isfinite(told))]] = True
+            mark = ~solid & inside & ((at[:, 1] <= told) | ~np.isfinite(told)) & (flat != prev_flat)
+            if mark.any():
+                pass_cnt += np.bincount(flat[mark], minlength=self.free.size)
+            prev_flat = np.where(inside, flat, -1)
             if solid.any():
-                ray, last, reach = ray[~solid], last[~solid], reach[~solid]
-        self.free.reshape(-1)[crossed] += 1
+                ray, last, reach, prev_flat = ray[~solid], last[~solid], reach[~solid], prev_flat[~solid]
+        seen = (pass_cnt > 0) if hit_cnt is None else ((pass_cnt > 0) & (pass_cnt >= hit_cnt))
+        self.free.reshape(-1)[seen] += 1
 
     def occupied(self):
         """The voxels TOLD looks have shown a thing in, more than have seen through them."""

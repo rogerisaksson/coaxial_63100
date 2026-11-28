@@ -332,10 +332,15 @@ class Keep:
         look = np.argmin(voxels.lit(voxels.chroma(last.rgb[off]), self.map.means), axis=-1)
         band = np.where(low, np.round(xyz[:, 1] / voxels.CELL_M), 1.0)
         code = coded(look, low, band)
-        grid, index = np.full((H // EVERY + 1, W // EVERY + 1), -1), np.full((H // EVERY + 1, W // EVERY + 1), -1)
-        grid[last.rows[off] // EVERY, last.cols[off] // EVERY] = code
-        index[last.rows[off] // EVERY, last.cols[off] // EVERY] = np.arange(len(off))
-        lumps = [i for _j, g in joined_by(grid, voxels._BESIDE) for i in [index[g]] if len(i) >= LUMP]
+        shape = (H // EVERY + 1, W // EVERY + 1)
+        grid, index = np.full(shape, -1), np.full(shape, -1)
+        xyz_grid, low_grid = np.zeros(shape + (3,)), np.zeros(shape, bool)
+        r_g, c_g = last.rows[off] // EVERY, last.cols[off] // EVERY
+        grid[r_g, c_g] = code
+        index[r_g, c_g] = np.arange(len(off))
+        xyz_grid[r_g, c_g] = xyz
+        low_grid[r_g, c_g] = low
+        lumps = _split_lumps([index[g] for _j, g in joined_by(grid, voxels._BESIDE, xyz_grid, 0.5, low_grid) if len(index[g]) >= LUMP], xyz, low)
         level = np.array([bool(low[i[0]]) for i in lumps], bool)
         ground = level & np.array([away[off[i]].max() >= REACH_M - voxels.CELL_M for i in lumps], bool)
         lo = np.array([xyz[i].min(axis=0) for i in lumps]).reshape(-1, 3)
@@ -358,6 +363,38 @@ class Keep:
                 housed = np.where(in_b[thing], b, housed)
         return (np.array(names + ['thing'], object)[thing], np.append(ones, -1)[thing], housed,
                 [b[0] for b in built])
+
+
+def _split_lumps(lumps, xyz, low):
+    """Halve non-floor image lumps across XZ principal axes, matching `voxels.Map._halved`."""
+    np = _np()
+    out = []
+    for lump in lumps:
+        if low[lump[0]]:
+            out.append(lump)
+            continue
+        todo = [lump]
+        while todo:
+            idx = todo.pop()
+            if len(idx) < LUMP:
+                continue
+            xz = xyz[idx][:, (0, 2)]
+            ci = np.floor(xz[:, 0] / CELL_M).astype(np.int64)
+            ck = np.floor(xz[:, 1] / CELL_M).astype(np.int64)
+            span = int(ck.max() - ck.min()) + 3
+            cells = np.unique((ci - ci.min() + 1) * span + (ck - ck.min() + 1))
+            ik = np.column_stack([ci, ck]).astype(float)
+            ik -= ik.mean(axis=0)
+            _w, v = np.linalg.eigh(ik.T @ ik)
+            along, across = ik @ v[:, 1], ik @ v[:, 0]
+            near = np.unique((cells[:, None] + (voxels._ROUND[:, 0] * span + voxels._ROUND[:, 1])[None, :]).ravel())
+            if len(cells) > 1 and (np.ptp(along) + 1.0) * (np.ptp(across) + 1.0) > len(near) + 1e-9:
+                a, b = idx[along >= 0.0], idx[along < 0.0]
+                if len(a) >= LUMP and len(b) >= LUMP:
+                    todo += [a, b]
+                    continue
+            out.append(idx)
+    return out
 
 
 def thumbnail(rgb, w, h):

@@ -30,14 +30,28 @@ int32_t vs_threads_acquire(int32_t max_want);
 void    vs_threads_release(int32_t nt);
 void    vs_parallel(int32_t nt, vs_task_fn fn, void *ctx);
 
+void vs_grey_u8(const uint8_t *restrict rgb, int64_t *restrict out, int32_t npix);
 void vs_box_i64(const int64_t *restrict src, int64_t *restrict dst, int64_t *restrict hsum, int64_t *restrict vsum,
                 int32_t height, int32_t width, int32_t rad);
+int32_t vs_stereo_core(const int64_t *restrict gl, const int64_t *restrict gr, int32_t height, int32_t width,
+                       int32_t d_count, int32_t d_stride, int32_t rx, int32_t ry, int64_t quantum, int32_t rad,
+                       float p1, float p2, uint64_t *restrict census_buf, uint8_t *restrict cost_u8,
+                       float *restrict total_hwd, float *restrict wave_buf, int64_t *restrict ring_buf,
+                       int64_t *restrict vsum_buf, int64_t *restrict best_out, float *restrict tbest_out,
+                       float *restrict second_out, int64_t *restrict seen_out, float *restrict c0_out,
+                       float *restrict lo_out, float *restrict hi_out);
 void vs_stereo_post(const int64_t *restrict gl, const int64_t *restrict best, const float *restrict tbest,
                     const float *restrict second, const int64_t *restrict seen, const float *restrict c0,
                     const float *restrict lo, const float *restrict hi, int32_t height, int32_t width,
-                    int32_t d_count, int32_t rad, double texture, float unique_f, int64_t *restrict box_a,
-                    int64_t *restrict box_b, int64_t *restrict box_c, int64_t *restrict vsum_buf,
-                    double *restrict disp_out, uint8_t *restrict kept_out);
+                    int32_t d_count, int32_t rad, double texture, float unique_f, double edge_px,
+                    int64_t *restrict box_a, int64_t *restrict box_b, int64_t *restrict box_c,
+                    int64_t *restrict vsum_buf, double *restrict disp_out, uint8_t *restrict kept_out);
+void vs_voxel_add(const double *restrict xyz, const float *restrict rgb, int32_t n_pts, const double *restrict eye,
+                  int32_t nx, int32_t ny, int32_t nz, double ox, double floor_m, double oz, double voxel,
+                  double ceil_m, double near_m, double far_m, double step_vox, int32_t hits_min, int32_t told_min,
+                  int32_t *restrict hits, int32_t *restrict told, int32_t *restrict free_arr, double *restrict top,
+                  double *restrict moments, float *restrict colour, uint8_t *restrict occ_buf,
+                  int32_t *restrict pass_cnt, int32_t *restrict counts_buf, int64_t *restrict out_flat);
 void vs_warp_u8(const uint8_t *restrict src, const int32_t *restrict at4, const int32_t *restrict wt4,
                 const uint8_t *restrict on_mask, int32_t height, int32_t width, int32_t bits, uint8_t *restrict dst);
 void vs_epi_from_d(const double *restrict d_xyz, int32_t height, int32_t width, double f_px, int32_t bits, int32_t fine,

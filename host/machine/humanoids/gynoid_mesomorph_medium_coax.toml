@@ -21,7 +21,7 @@ joint = ["ankle", "ankle_roll"]
 material = "paht_cf"
 leaves = 4
 width_m = 0.016
-thick_m = 0.002257
+thick_m = 0.002410
 arch_m = 0.010
 length_m = 0.126
 
@@ -76,10 +76,10 @@ elbow = { face = "x" }
 # Each crank a tight clamp on its drive's output ring (`sized.band`, its screws hid), its lever out past the band
 # and the leaf's eye (56 mm), as long as its ball's arm and parallel to it: the rod a parallelogram, the ratio near
 # 1 the stroke over, no crank outboard of the gearbox - the calf no wider than its drives. Both arms near level with
-# the foot flat (272 deg) onto a 36 mm heel bar (`ball_x` 18 mm), giving roll stiffness, low backlash and torque headroom
+# the foot flat (272 deg) onto a 52 mm heel bar (`ball_x` 26 mm), giving roll stiffness, low backlash and torque headroom
 # while the rods clear the band and clamps through the ankle's travel (`tools/render/foot_swung.py`).
 [linkage.rods]
-ankle = { up = 0.2624, ahead = 0.000, crank_m = 0.056, crank_deg = 272.0, ball_m = 0.056, ball_deg = 272.0, crank_x = 0.057, ball_x = 0.018, bend = false }
+ankle = { up = 0.2624, ahead = 0.000, crank_m = 0.056, crank_deg = 272.0, ball_m = 0.056, ball_deg = 272.0, crank_x = 0.057, ball_x = 0.026, bend = false }
 ankle_roll = false
 
 # The thigh's one straight tube from under the hip's axis (radial there) to the knee's clamp, leant to pass 41 mm
@@ -94,7 +94,7 @@ ankle_roll = false
 thigh = { tubes = [[[-0.009, -0.0825, 0.00873], [-0.009, 0.0842, 0.03234, "end"]]] }
 upper_arm = { radii = 0.0175 }
 forearm = { radii = [0.010, 0.015, 0.010, 0.010] }
-foot = { tubes = [[[0.0, -0.058, -0.045], [0.0, -0.050, 0.03], [0.0, -0.060, 0.105], [0.0, -0.055, 0.117]], [[0.018, 0.0, -0.0560], [-0.018, 0.0, -0.0560]], [[-0.03, -0.055, 0.117], [0.03, -0.055, 0.117]], [[0.0, 0.0, -0.0560], [0.0, 0.0, -0.026]]] }
+foot = { tubes = [[[0.0, -0.058, -0.045], [0.0, -0.050, 0.03], [0.0, -0.060, 0.105], [0.0, -0.055, 0.117]], [[0.026, 0.0, -0.0560], [-0.026, 0.0, -0.0560]], [[-0.03, -0.055, 0.117], [0.03, -0.055, 0.117]], [[0.0, 0.0, -0.0560], [0.0, 0.0, -0.026]]] }
 
 [skeleton.held]
 ankle = { struts = [[[0.051, -0.1176, -0.019], [0.051, -0.1176, -0.037]]] }

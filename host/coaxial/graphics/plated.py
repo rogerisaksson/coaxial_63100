@@ -18,12 +18,12 @@ import math
 from typing import Any
 
 from coaxial.graphics import drums, guards, mechanism, seat
-from coaxial.graphics.lit import PAINTED, SKIN, UNDER, WOVEN, paint
+from coaxial.graphics.lit import PAINTED, UNDER, WOVEN, paint
 from coaxial.graphics.livery import BOARD, BOLT, FRAME, GEAR, PAD, SERVO, STEEL, TUBE
 from coaxial.graphics.panels import OPEN, SHELL
 from coaxial.graphics.shapes import finer, loft, turn_about
 from machine.body import figure, mechatronics
-from machine.body.guards import NEAR_M
+from machine.body.guards import LIMB_SLIM, NEAR_M
 
 #: A likeness's part, the segment its corners bend into, the local y where the bend begins and
 #: ends (`drape.BLENDS`' columns): the trunk's and the limbs' joints. A shoulder's by the share
@@ -144,7 +144,8 @@ def _own(meshes, extra):
     """{segment: corners}: the robot's own shell where its guards are laid with no body beside
     its figure - its limbs' and its trunk's lofts, its busts on that."""
     from coaxial.model.blocks import numpy as np
-    out = {seg: mesh[0] for seg, mesh in meshes.items() if seg == 'torso' or seg.partition('_')[2] in guards.LIMB}
+    out = {seg: (mesh[0] * (LIMB_SLIM, 1.0, LIMB_SLIM) if seg != 'torso' and LIMB_SLIM < 1.0 else mesh[0])
+           for seg, mesh in meshes.items() if seg == 'torso' or seg.partition('_')[2] in guards.LIMB}
     busts = [rest[1][0] + np.asarray(rest[0], float) for name, _parent, *rest in extra
              if len(rest) == 2 and name.endswith('_bust') and not name.startswith('cloth_')]
     out['torso'] = np.vstack([out['torso'], *busts])
@@ -152,40 +153,41 @@ def _own(meshes, extra):
 
 
 def _skin_neck(figured):
-    """Smooth closed neck and nape skin loft (`shapes.loft`), tinted to match `like_head` or `SKIN`."""
-    rings = [(-0.040, 0.056, 0.056, -0.005), (-0.020, 0.050, 0.054, -0.004), (0.000, 0.046, 0.052, -0.003),
-             (0.025, 0.043, 0.048, -0.002), (0.042, 0.040, 0.036, 0.008), (0.058, 0.036, 0.032, 0.011),
+    """Smooth closed neck and nape skin loft (`shapes.loft`), tinted to match `like_head` or coaxial neck sheath."""
+    from coaxial.model.blocks import numpy as np
+    rings = [(-0.040, 0.056, 0.056, -0.005), (-0.020, 0.050, 0.054, -0.004),
+             (-0.0082, 0.048, 0.053, -0.0036), (-0.0078, 0.048, 0.053, -0.0036),
+             (0.000, 0.046, 0.052, -0.003), (0.025, 0.043, 0.048, -0.002),
+             (0.042, 0.040, 0.036, 0.008), (0.058, 0.036, 0.032, 0.011),
              (0.068, 0.031, 0.027, 0.012), (0.074, 0.030, 0.026, 0.012)]
-    return loft(finer(rings, -0.040, 0.074, 0.004), paint((172, 138, 121)) if figured else SKIN,
-                poles=(-0.044, 0.076))
+    mat = (paint((172, 138, 121)) if figured else
+           (lambda c: np.where(c[:, 1] < -0.008, paint((236, 239, 246), hard=True), paint((30, 33, 40), hard=True))))
+    return loft(finer(rings, -0.040, 0.074, 0.004), mat, poles=(-0.044, 0.076))
 
 
-def parts(meshes, extra, liked: Any = None, mecha=False):
-    """[(name, parent, joints, offset, rest, mesh)]: the robot bare of its clothes - its
-    mechanism (`framed`), its head, its hands, its shoes and its guards. `meshes` {segment:
-    mesh} and `extra` [(name, parent, offset, mesh)] are its shell as built: its head's parts
-    (KEPT, ENDS) and its shoes are worn of it, carbon, and its guards are laid on its limbs'
-    and its trunk's (`_own`). `liked` a figure's likeness's parts (`likeness.worn`'s, a body's
-    with them: `form.worn`'s, 'form_' and their segments): its head, its face and its hair in
-    place of the head as built; its hands, carbon - the body's where there is one - in place
-    of the bones of the robot's own; its guards laid on the body's surface."""
+def parts(meshes, extra, liked: Any = None, own_head=False):
+    """[(name, parent, joints, offset, rest, mesh)]: mechanism (`framed`), head, hands, shoes and
+    guards on `meshes`/`extra` and optional `liked` (`likeness.worn` / `form.worn`), laid over the
+    body or own shell."""
     from coaxial.model.blocks import numpy as np
     liked = list(liked or ())
     body = {part[1]: part for part in liked if part[0].startswith('form_')}
-    worn = [part for part in liked if part[0] in WORN and not (body and part[0].endswith('_hand'))
-            and not (mecha and part[0] in ('like_head', 'like_hair', 'like_fall'))]
+    coax = mechatronics.ROBOT != mechatronics.BASE
+    skip_head = own_head and coax
+    worn = [part for part in liked if part[0] in WORN
+            and not (skip_head and part[0] in ('like_head', 'like_hair', 'like_fall'))
+            and not (body and part[0].endswith('_hand'))]
     worn += [part for seg, part in body.items() if seg.endswith('_hand')]
-    figured = mecha or any(part[0] == 'like_head' for part in worn)
-    coax, z0 = mechatronics.ROBOT != mechatronics.STOCK, (0.0, 0.0, 0.0)
+    figured, z0 = skip_head or any(part[0] == 'like_head' for part in worn), (0.0, 0.0, 0.0)
     gone = HANDS if any(part[0].endswith('_hand') for part in worn) else ()
-    if coax or mecha:
+    if coax:
         gone = tuple(gone) + tuple(p[0] for p in mechanism.parts()
                                    if p[0] not in ('head', 'board_neck', 'board_head')
                                    and p[0].endswith(('_neck', '_neck_frame', '_head')))
     out = framed(gone)
-    if mecha:
+    if skip_head:
         out = [(*p[:5], tuple(a[:0] for a in p[5])) if p[0] == 'head' else p for p in out]
-    if coax and not mecha:
+    if coax and not skip_head:
         out.append(('skin_neck', 'neck', (), z0, 0.0, _skin_neck(figured)))
     for name, parent, *rest in worn:
         joints, offset = (rest[0], rest[1]) if len(rest) == 3 else ((), rest[0])
@@ -204,9 +206,9 @@ def parts(meshes, extra, liked: Any = None, mecha=False):
         if len(rest) == 2 and parent == 'head' and not figured and (name in KEPT or name.endswith(ENDS)):
             out.append(('shell_' + name, parent, (), rest[0], 0.0, rest[1]))
     placed, frames = _rested(out)
-    if mecha:
-        from tools.render import face_audit as _fa
-        out.extend(_fa.terminal_parts(placed['torso'][1], placed['neck'][1], placed['head'][1]))
+    if skip_head:
+        from coaxial.graphics import head_coax
+        out.extend(head_coax.terminal_parts(placed['torso'][1], placed['neck'][1], placed['head'][1]))
         placed, frames = _rested(out)
     rested = [(part[0], part[1], part[5][0] @ frame[0].T + frame[1], part[5][1]) for part, frame in zip(out, frames)
               if frame is not None and len(part[5][0])]
@@ -255,10 +257,10 @@ def _frame(part):
     return part[0] in _SEGMENTS or part[0] in figure.STAGES or part[1] == '*' or part[0].startswith('end_')
 
 
-def _rested(parts_):
+def _rested(parts_, pose_fn=None):
     """({name: (turn, spot)}, [(turn, spot)] a part's each) of `parts_` at rest, the first at the
     origin: each on its parent by its offset and its rest turn, those posed a frame at a time
-    ('*') as they are laid at rest (`mechanism.posed`)."""
+    ('*') as they are laid at rest (`mechanism.posed` or `pose_fn`)."""
     from coaxial.model.blocks import numpy as np
     placed = {}
     for name, parent, _joints, offset, rest, _mesh in parts_:
@@ -267,7 +269,10 @@ def _rested(parts_):
         above, at = placed[parent] if parent else (np.eye(3), np.zeros(3))
         placed[name] = (above @ turn_about('z', rest) if rest else above, at + above @ np.asarray(offset, float))
     frames = [placed.get(part[0]) if part[1] != '*' else None for part in parts_]
-    mechanism.posed(parts_, placed, {}, frames)
+    if pose_fn is not None:
+        pose_fn(parts_, placed, frames)
+    else:
+        mechanism.posed(parts_, placed, {}, frames)
     return placed, frames
 
 
@@ -323,7 +328,7 @@ def _girt(cover, bones, beside):
     return out
 
 
-def _under(parts_, cloth):
+def _under(parts_, cloth, pose_fn=None):
     """`parts_` with what of them is under the garments `cloth` (parts) seen to: at rest a corner
     is under where cloth girds its segment's bone there (`_girt`) - a triangle all under is
     not drawn, nor one with a corner under and outside the cloth; what is left of a triangle
@@ -334,7 +339,7 @@ def _under(parts_, cloth):
     from coaxial.model.blocks import numpy as np
     segs = {seg[0]: seg[1] for seg in figure.SEGMENTS}
     turned = {joint: seg[0] for seg in figure.SEGMENTS for joint, *_rest in seg[2]}
-    placed, frames = _rested(parts_ + cloth)
+    placed, frames = _rested(parts_ + cloth, pose_fn=pose_fn)
 
     def stood(k, part):
         turn, spot = frames[k]
@@ -363,7 +368,7 @@ def _under(parts_, cloth):
     return out
 
 
-def dressed(parts_, liked):
+def dressed(parts_, liked, pose_fn=None):
     """`parts_` (`parts`'s) in a likeness's clothes, `liked` its parts (`likeness.worn`'s): of each
     its cloth alone - a part 'like_' and its segment, bent as the likeness's is
     (BLENDS), what of it lies under another garment tucked (TUCK_M) - and of the
@@ -381,4 +386,4 @@ def dressed(parts_, liked):
             reach = np.hypot(at[tucked, 0], at[tucked, 2])
             at[tucked] *= np.stack([1.0 - TUCK_M / np.maximum(reach, 2.0 * TUCK_M), np.ones(len(reach))], 1)[:, [0, 1, 0]]
             cloth.append((name, parent, (), rest[0], 0.0, (at, index.reshape(-1, 3), uv[used], worn[used])))
-    return _under(list(parts_), cloth) + cloth
+    return _under(list(parts_), cloth, pose_fn=pose_fn) + cloth

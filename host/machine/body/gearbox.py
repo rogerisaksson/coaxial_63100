@@ -82,6 +82,7 @@ class Boxes:
         self.held, self.q_was = float(_mj['rigid_play_rad']), np.zeros(len(JOINTS))
         self.q_step, self.went = np.zeros(len(JOINTS)), np.zeros(len(JOINTS))
         self.hat, self.p_int, self.drive = np.zeros(len(JOINTS)), np.zeros(len(JOINTS)), np.zeros(len(JOINTS))
+        self.applied, self.tracked = np.zeros(len(JOINTS)), np.zeros(len(JOINTS), bool)
         self.asked, self.rate = np.zeros(len(JOINTS)), np.zeros(len(JOINTS))
         self.v_mesh, self.inv_m = np.full(len(JOINTS), MESH_RAD_S), np.zeros(len(JOINTS))
 
@@ -89,7 +90,8 @@ class Boxes:
         """Every rotor on its joint at `q`, still, its board's observer at rest: a board's encoder
         reads its hold there."""
         self.delta[:] = self.w[:] = self.zero[:] = 0.0
-        self.hat[:] = self.p_int[:] = self.drive[:] = self.asked[:] = self.rate[:] = 0.0
+        self.hat[:] = self.p_int[:] = self.drive[:] = self.applied[:] = self.asked[:] = self.rate[:] = 0.0
+        self.tracked[:] = False
         self.q_was[:] = q
 
     def rigid(self, np, q):
@@ -129,13 +131,15 @@ class Boxes:
         j = np.where(on, self.j, 1.0)
         k = np.maximum(self.k, 1.0)
         h = dt / SUBSTEPS
-        mean = np.zeros(len(ctrl))
+        mean, mdrv = np.zeros(len(ctrl)), np.zeros(len(ctrl))
         self.q_step[:], self.went[:] = q, dt * qd
         lim = self.gap + self.shock / k
         self.rate += (dt / RATE_S) * ((feed - self.asked) / dt - self.rate)
         self.asked[:] = feed
         pd_on = np.zeros(len(ctrl), bool) if kp is None else (kp > 0.0)
         trk = np.where((top > 0.0) & (~pd_on) & ((feed != 0.0) | (self.rate != 0.0)), self.track, 0.0)
+        cd = np.where(trk > 0.0, np.maximum(trk * self.c,
+                      2.0 * np.sqrt((self.k * (1.0 + trk)) * j) - (1.0 + trk) * self.c), 0.0)
         for _ in range(SUBSTEPS):
             rel = self.w - qd
             past = np.sign(self.delta) * np.maximum(np.abs(self.delta) - self.gap, 0.0)
@@ -145,11 +149,16 @@ class Boxes:
             self.p_int[:] = np.where(on, self.p_int + h * (self.drive - brake * self.w - self.hat), 0.0)
             self.hat[:] = self.observe * (self.p_int - j * self.w)
             cap = np.minimum(top, np.maximum(np.abs(self.hat), np.abs(feed)) + PLAY_NM)
-            drive = ctrl + trk * (np.clip(feed - self.hat, -cap, cap) + self.c * (self.rate / k - rel))
+            eng = np.minimum(1.0, np.abs(self.hat) / PLAY_NM)
+            cd_e = trk * self.c + eng * (cd - trk * self.c)
+            ev = self.rate / k - rel
+            drive = ctrl + trk * np.clip(feed - self.hat, -cap, cap) + np.where(feed * ev > 0.0, cd, cd_e) * ev
             self.drive[:] = np.where(on, np.clip(drive, -top, top), ctrl)
             self.w[:] = np.where(on, (self.w + h * (self.drive - passed) / j) / (1.0 + h * brake / j), qd)
             self.delta[:] = np.where(on, np.clip(self.delta + h * (self.w - qd), -lim, lim), self.delta)
             mean += passed / SUBSTEPS
+            mdrv += self.drive / SUBSTEPS
+        self.applied[:], self.tracked[:] = mdrv, on & (trk != 0.0)
         return np.where(on, mean, ctrl)
 
     def moved(self, q):

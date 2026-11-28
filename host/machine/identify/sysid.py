@@ -70,7 +70,7 @@ def laid(body):
     drives = tuple(JOINTS[i] for i in joint)
     col = np.full(m.nbody, -1)
     col[bodies] = 10 * np.arange(len(bodies))
-    limited, rng = np.array(m.jnt_limited[ids], bool), np.array(m.jnt_range[ids], float)
+    limited, rng = np.array(m.jnt_limited[ids], bool) & np.asarray(body.driven, bool), np.array(m.jnt_range[ids], float)
     stick = np.array([STICK + (SPRUNG_STICK - STICK) * min(1.0, linkage.lever(j) * linkage.lever(j))
                       if series(j) else STICK for j in drives])
     limb, skin = np.zeros((len(joint), len(JOINTS)), bool), np.zeros((len(joint), len(edge.SKIN)), bool)

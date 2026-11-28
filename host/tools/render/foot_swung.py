@@ -138,6 +138,14 @@ def swung(step=HELD_DEG):
     return out
 
 
+def corners():
+    """[[pitch, roll, shank_m, own_m]] at the four extreme ankle travel corners."""
+    from machine.body import drives
+    (p0, p1), (r0, r1) = drives.TRAVEL['ankle'], drives.TRAVEL['ankle_roll']
+    return [[p, r, round((met(p, r, 1, False) or [(NEAR_M,)])[0][0], 5),
+             round((met(p, r, 1, True) or [(NEAR_M,)])[0][0], 5)] for p in (p0, p1) for r in (r0, r1)]
+
+
 def main(argv=None):
     from PIL import Image, ImageDraw
     from machine.body import drives

@@ -248,7 +248,7 @@ def test_the_robots_manifest_is_its_build(r):
     build, lib = mechatronics.robot(), mechatronics.library()
     r.check("each stack's motor, gearbox and inverter is the library's", all(
         named in lib[part] for stack in build['stacks'].values() for part, named in zip(mechatronics.PARTS, stack)))
-    motors = mechatronics._toml(os.path.join(mechatronics.ROBOTS, mechatronics.STOCK + '.toml'))['drives']['motors']
+    motors = mechatronics._toml(os.path.join(mechatronics.ROBOTS, mechatronics.ROBOT + '.toml'))['drives']['motors']
     motors['U9'] = ['knee']
     try:
         mechatronics.robot()
@@ -278,7 +278,7 @@ def test_the_robots_manifest_is_its_build(r):
     def peaks(robot):
         with open(os.path.join(mechatronics.LISP, 'humanoid', 'builds', robot + '.manifest.lisp'), encoding='utf-8') as f:
             return {d: float(p) for d, p in re.findall(r'\(drive (\S+) .*?\(peak ([-\d.]+)\)', f.read())}
-    robot_own, faster = peaks(mechatronics.STOCK), peaks(mechatronics.STOCK + '_performance')
+    robot_own, faster = peaks(mechatronics.BASE), peaks(mechatronics.BASE + '_performance')
     weaker = {d: (p, faster.get(d)) for d, p in robot_own.items() if faster.get(d, -1.0) < p}
     r.check('its performance build is no weaker than the robot\'s own at any drive', bool(robot_own) and not weaker, weaker)
 

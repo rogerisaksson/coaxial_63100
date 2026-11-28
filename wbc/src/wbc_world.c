@@ -86,7 +86,7 @@ static void stepped(const wbc_steps_t *s, int n)
   const int                      subs = b->substeps;
   const double                   dt = s->step_s, h = dt / (double)subs, ease = dt / b->rate_s;
   const double                   half = 0.5 * dt, third = dt / 3.0, play_nm = b->play_nm, inv_subs = (double)subs;
-  double *restrict               p_ctrl = p->ctrl, *restrict q_step = b->q_step, *restrict went = b->went;
+  double *restrict               p_ctrl = p->ctrl, *restrict p_motor = p->motor, *restrict q_step = b->q_step, *restrict went = b->went;
   double *restrict               brate = b->rate, *restrict asked = b->asked, *restrict p_int = b->p_int;
   double *restrict               hat = b->hat, *restrict bdrive = b->drive, *restrict bw = b->w, *restrict delta = b->delta;
   const double *restrict         p_feed = p->feed, *restrict p_limit = p->limit, *restrict p_gains = p->gains;
@@ -99,8 +99,9 @@ static void stepped(const wbc_steps_t *s, int n)
   const unsigned char *restrict  shorted = p->shorted, *restrict cut = p->cut, *restrict on_arr = b->on;
   _Alignas(64) double            qp[WBC_PASS_MAX], qv[WBC_PASS_MAX], qa[WBC_PASS_MAX], pg[WBC_PASS_MAX];
   _Alignas(64) double            qd[WBC_PASS_MAX], ctrl[WBC_PASS_MAX], brake[WBC_PASS_MAX], j[WBC_PASS_MAX], k[WBC_PASS_MAX];
-  _Alignas(64) double            top[WBC_PASS_MAX], feed[WBC_PASS_MAX], trk[WBC_PASS_MAX];
-  _Alignas(64) double            lim[WBC_PASS_MAX], mean[WBC_PASS_MAX], rel[WBC_PASS_MAX], x[WBC_PASS_MAX], th[WBC_PASS_MAX];
+  _Alignas(64) double            top[WBC_PASS_MAX], feed[WBC_PASS_MAX], trk[WBC_PASS_MAX], cd[WBC_PASS_MAX];
+  _Alignas(64) double            lim[WBC_PASS_MAX], mean[WBC_PASS_MAX], mdrv[WBC_PASS_MAX], rel[WBC_PASS_MAX];
+  _Alignas(64) double            x[WBC_PASS_MAX], th[WBC_PASS_MAX];
   double *restrict               xp = x, *restrict thp = th;
 
   for (int i = 0; i < n; i++)
@@ -127,21 +128,26 @@ static void stepped(const wbc_steps_t *s, int n)
     const double qi = qv[i] + h_mid * qa[i];
     const double ri = brate[i] + ease * ((fi - asked[i]) / dt - brate[i]);
     const int    act = (ti > 0.0) & (!pd_on) & ((fi != 0.0) | (ri != 0.0));
+    const double ji = (on_arr[i] != 0U) ? bj[i] : 1.0;
+    const double trki = (act != 0) ? track[i] : 0.0;
+    const double c_cl = 2.0 * sqrt((bk[i] * (1.0 + trki)) * ji) - (1.0 + trki) * bc[i];
 
     top[i] = ti;
     feed[i] = fi;
     qd[i] = qi;
     ctrl[i] = p_ctrl[i];
     brake[i] = (shorted[i] != 0U) ? damping[i] : 0.0;
-    j[i] = (on_arr[i] != 0U) ? bj[i] : 1.0;
+    j[i] = ji;
     k[i] = ki;
     mean[i] = 0.0;
+    mdrv[i] = 0.0;
     q_step[i] = qp[i];
     went[i] = dt * qi;
     lim[i] = gap[i] + shock[i] / ki;
     brate[i] = ri;
     asked[i] = fi;
-    trk[i] = (act != 0) ? track[i] : 0.0;
+    trk[i] = trki;
+    cd[i] = (trki > 0.0) ? npmaximum(trki * bc[i], c_cl) : 0.0;
   }
   for (int sub = 0; sub < subs; sub++)
   {
@@ -163,7 +169,14 @@ static void stepped(const wbc_steps_t *s, int n)
       pi = on ? p_int[i] + h * ((bdrive[i] - brake[i] * bw[i]) - hat[i]) : 0.0;
       ht = observe[i] * (pi - j[i] * bw[i]);
       cap = npminimum(top[i], npmaximum(fabs(ht), fabs(feed[i])) + play_nm);
-      drive = ctrl[i] + trk[i] * (npclip(feed[i] - ht, -cap, cap) + bc[i] * (brate[i] / k[i] - rel[i]));
+      {
+        const double trk_c = trk[i] * bc[i];
+        const double eng = npminimum(1.0, fabs(ht) / play_nm);
+        const double cd_e = trk_c + eng * (cd[i] - trk_c);
+        const double ev = brate[i] / k[i] - rel[i];
+
+        drive = (ctrl[i] + trk[i] * npclip(feed[i] - ht, -cap, cap)) + ((feed[i] * ev > 0.0) ? cd[i] : cd_e) * ev;
+      }
       drive = on ? npclip(drive, -top[i], top[i]) : ctrl[i];
       wi = on ? (bw[i] + (h * (drive - passed)) / j[i]) / (1.0 + (h * brake[i]) / j[i]) : qd[i];
       p_int[i] = pi;
@@ -172,11 +185,15 @@ static void stepped(const wbc_steps_t *s, int n)
       bw[i] = wi;
       delta[i] = on ? npclip(d0 + h * (wi - qd[i]), -lim[i], lim[i]) : d0;
       mean[i] = mean[i] + passed / inv_subs;
+      mdrv[i] = mdrv[i] + drive / inv_subs;
     }
   }
   for (int i = 0; i < n; i++)
   {
+    const int mv = (on_arr[i] != 0U) && (trk[i] != 0.0);
+
     p_ctrl[i] = (on_arr[i] != 0U) ? mean[i] : ctrl[i];
+    p_motor[i] = mv ? mdrv[i] : p_motor[i];
   }
 }
 

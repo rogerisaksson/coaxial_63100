@@ -166,7 +166,11 @@ def ramp_entry_gains(g, world, p):
 def release(g):
     """Hand authority back from active program `g['played']` to the WBC law without velocity/ESO jerk."""
     import numpy as np
-    p = g.get('played') or {}
+    raw = g.get('played')
+    if raw is None and not g.get('programs'):
+        g['played'], g['programs'] = None, {}
+        return
+    p = raw or {}
     world = g['world']
     kept = p.get('gains')
     j = g['joints']
@@ -175,9 +179,14 @@ def release(g):
     if 'ref_q' in g and 'eso' in g:
         g['ref_q'][:] = q_now
         g['ref_v'][:] = qd_now
-        g['eso'][0][:] = q_now
+        sea = (g.get('drives') or (None, {}))[1].get('sea')
+        qm_now = g['sense'][edge.QM][j]
+        g['eso'][0][:] = np.where(sea, q_now, qm_now) if sea is not None else qm_now
         g['eso'][1][:] = qd_now
         g['eso'][2][:] = 0.0
+    if 'bus' in g:
+        from machine.law import supervisor
+        supervisor.reset(g['bus'])
     if p.get('holds') and 'y' in g and 'fr' in g:
         from machine import libm
         from machine.law import modal

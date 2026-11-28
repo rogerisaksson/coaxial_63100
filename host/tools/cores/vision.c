@@ -535,7 +535,7 @@ void vs_voxel_add(const double *restrict xyz, const float *restrict rgb, int32_t
                   double ceil_m, double near_m, double far_m, double step_vox, int32_t hits_min, int32_t told_min,
                   int32_t *restrict hits, int32_t *restrict told, int32_t *restrict free_arr, double *restrict top,
                   double *restrict moments, float *restrict colour, uint8_t *restrict occ_buf,
-                  uint8_t *restrict crossed_buf, int32_t *restrict counts_buf, int64_t *restrict out_flat)
+                  int32_t *restrict pass_cnt, int32_t *restrict counts_buf, int64_t *restrict out_flat)
 {
   const size_t nvox = (size_t)nx * (size_t)ny * (size_t)nz;
   const double ex = eye[0], ey = eye[1], ez = eye[2];
@@ -558,6 +558,7 @@ void vs_voxel_add(const double *restrict xyz, const float *restrict rgb, int32_t
     }
     const double last = away - voxel;
     const double reach = (away > 1e-6) ? away : 1e-6;
+    int64_t      prev_f = -1;
     for (int32_t s = 0;; s++)
     {
       const double t = (double)s * step_m;
@@ -578,19 +579,16 @@ void vs_voxel_add(const double *restrict xyz, const float *restrict rgb, int32_t
           break;
         }
         const double tp = top[f];
-        if ((ay <= tp) || !isfinite(tp))
+        if (((int64_t)f != prev_f) && ((ay <= tp) || !isfinite(tp)))
         {
-          crossed_buf[f] = 1U;
+          pass_cnt[f] += 1;
         }
+        prev_f = (int64_t)f;
       }
-    }
-  }
-  for (size_t f = 0U; f < nvox; f++)
-  {
-    if (crossed_buf[f] != 0U)
-    {
-      free_arr[f] += 1;
-      crossed_buf[f] = 0U;
+      else
+      {
+        prev_f = -1;
+      }
     }
   }
   for (int32_t p = 0; p < n_pts; p++)
@@ -640,9 +638,19 @@ void vs_voxel_add(const double *restrict xyz, const float *restrict rgb, int32_t
   }
   for (size_t f = 0U; f < nvox; f++)
   {
-    if (counts_buf[f] != 0)
+    const int32_t pc = pass_cnt[f];
+    const int32_t hc = counts_buf[f];
+    if (pc != 0)
     {
-      if (counts_buf[f] >= hits_min)
+      if (pc >= hc)
+      {
+        free_arr[f] += 1;
+      }
+      pass_cnt[f] = 0;
+    }
+    if (hc != 0)
+    {
+      if (hc >= hits_min)
       {
         told[f] += 1;
       }

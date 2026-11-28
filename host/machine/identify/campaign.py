@@ -162,7 +162,8 @@ def boxes(body, ys, taus, dt, armature, every=1):
 
     def fit(di, ri, wai, mi, m3i, j_val, w_nm):
         got = _box(di, ri, mi - j_val * wai, w_nm)
-        return (_deadband(di, ri, m3i - j_val * wai, w_nm) or got) if got[1] <= 0.0 else got
+        bad = got[1] <= 0.0 or (len(di) > 0 and got[1] >= float(np.abs(di - got[4]).max()))
+        return (_deadband(di, ri, m3i - j_val * wai, w_nm) or got) if bad else got
 
     for i, idx in enumerate(driven):
         joint_name, J = JOINTS[idx], float(armature[i])

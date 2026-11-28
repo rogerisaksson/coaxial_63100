@@ -56,14 +56,27 @@ void wbc_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, double y
     }
     asked = qa;
     qa = wbc_bus_ask(p->bus, i, dt, qa);
-    /* the observer on the motor's encoder (link encoder on active SEAs): angle, rate, what else moves it */
-    const double q_obs = (p->sea != NULL && p->sea[i] != 0U) ? qpos : qm;
+    /* the observer on the motor's encoder (link encoder at SEA closed-loop bandwidth on active SEAs);
+       do not integrate ask into a mechanical hard stop where the link cannot accelerate past it */
+    const double sw = (p->sea != NULL) ? p->sea[i] : 0.0;
+    const double q_obs = (sw > 0.0) ? qpos : qm;
+    const double wi = (sw > 0.0) ? (wo * sw) : wo;
+    const double c3i = (sw > 0.0) ? (3.0 * wi) : c3;
+    const double c33i = (sw > 0.0) ? ((3.0 * wi) * wi) : c33;
+    const double wo3i = (sw > 0.0) ? ((wi * wi) * wi) : wo3;
+    const int    at_lo = (sw > 0.0) && (qpos <= p->q_lo[i]);
+    const int    at_hi = (sw > 0.0) && (qpos >= p->q_hi[i]);
+    const int    at_stop = (at_lo && qa < 0.0) || (at_hi && qa > 0.0);
+    const double qa_eso = at_stop ? 0.0 : qa;
 
     e = q_obs - eso0[i];
-    eso0[i] += dt * (eso1[i] + c3 * e);
-    eso1[i] += dt * (((qa + (p->sb[i] + p->bus->given[i]) / p->jeff[i]) + eso2[i]) + c33 * e);
-    eso2[i] += dt * (wo3 * e);
-    if (!in_hop)
+    eso0[i] += dt * (eso1[i] + c3i * e);
+    eso1[i] += dt * (((qa_eso + (p->sb[i] + p->bus->given[i]) / p->jeff[i]) + eso2[i]) + c33i * e);
+    if (!at_lo && !at_hi)
+    {
+      eso2[i] += dt * (wo3i * e);
+    }
+    if (!in_hop || sw > 0.0)
     {
       const double z_lim = (0.35 * p->clamp[i]) / npmax(0.05, p->jeff[i]);
 

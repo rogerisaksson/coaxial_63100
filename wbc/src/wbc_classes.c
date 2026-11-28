@@ -173,7 +173,7 @@ static void paired(const wbc_classes_t *k, int n, const double *c, work_t *w)
       under = (pair != 0U && within != 0U && w->top[a] <= (w->bottom[b] + k->cell) + k->eps) ? 1U : 0U;
       backs = (pair != 0U && beside != 0U && w->bottom[a] <= (w->top[b] + k->cell) + k->eps
                && w->top[a] >= w->top[b] + k->lumbar && w->top[a] <= k->brace_half
-               && w->lng[a] <= (w->lng[b] + k->cell) + k->eps) ? 1U : 0U;
+               && w->lng[a] <= w->lng[b] + k->thin_eps) ? 1U : 0U;
       w->held[ab] = (on != 0U || under != 0U || backs != 0U) ? 1U : 0U;
       if (w->held[ab] != 0U)
       {

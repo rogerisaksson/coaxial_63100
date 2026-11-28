@@ -259,11 +259,104 @@ def test_the_robots_modes_kinematics_and_drives_are_named(report):
                  'worst mode %s %.3f' % (md['worst_mode'], md['worst_err']))
 
 
+def test_introspection_catches_walk_drift_spasm_and_turn_weave(report):
+    """Introspection telemetry (`Tap`, `Watch`) catches lateral walk drift, floor-crash spasms, and asymmetric
+    turning weave across flat walking and symmetric WA/WD cornering."""
+    import numpy as np
+    from machine.process import introspect, watch
+    from machine.senses import edge
+    from tools.sim import scenarios
+    from tools.sim.player import played
+
+    def probe(name, play_text, sample_fn):
+        plan, secs = played(play_text)
+        scenarios.SCENARIOS[name] = ('flat', plan, secs, 'stands', None)
+        tap, judge, events = introspect.Tap(), watch.Watch(), []
+
+        def laid(s):
+            snap = tap.passed(s)
+            if snap is None:
+                return
+            events.extend(judge.step(snap))
+            sample_fn(s['g'], snap)
+
+        try:
+            res = scenarios.ran(name, laid=laid)
+        finally:
+            scenarios.SCENARIOS.pop(name, None)
+        return res, events
+
+    lat_samples = []
+    res_w, ev_w = probe('_intro_walk', 'w6 -2', lambda _g, snap: (
+        lat_samples.append(abs(float(snap['modes']['z']['lateral_shift']))) if 4.5 <= snap['t'] <= 6.0 else None))
+    bad_w = [e for e in ev_w if e['event'] in ('fall', 'stumble')]
+    spasms_w = [e for e in ev_w if e['event'] == 'spasm' and e.get('phase') == 'walk']
+    past_w = [e for e in ev_w if e['event'] == 'past_rated']
+    lat_mean = float(np.mean(lat_samples)) if lat_samples else 9.0
+    report.check('walk holds lateral symmetry with zero falls, zero stumbles, zero past-rated spasms',
+                 res_w['fell_at'] is None and not bad_w and not past_w and len(spasms_w) <= 3 and lat_mean < 0.25,
+                 'fell=%s bad=%s past=%d spasms=%d lat_mean=%.3f' % (
+                     res_w['fell_at'], [e['event'] for e in bad_w], len(past_w), len(spasms_w), lat_mean))
+
+    yaw_l, yaw_r = [], []
+    res_l, ev_l = probe('_intro_turn_l', 'w1.0 wa2.0 -1.5', lambda g, snap: (
+        yaw_l.append((snap['t'], float(edge.yaw(g['sense']))))))
+    res_r, ev_r = probe('_intro_turn_r', 'w1.0 wd2.0 -1.5', lambda g, snap: (
+        yaw_r.append((snap['t'], float(edge.yaw(g['sense']))))))
+    at_y = lambda seq, ts: float(np.degrees(np.unwrap([r[1] for r in seq]))[
+        int(np.argmin(np.abs(np.array([r[0] for r in seq]) - ts)))]) if seq else 0.0
+    left_deg, right_deg = at_y(yaw_l, 4.0) - at_y(yaw_l, 2.0), at_y(yaw_r, 4.0) - at_y(yaw_r, 2.0)
+    ev_t = ev_l + ev_r
+    bad_t = [e for e in ev_t if e['event'] in ('fall', 'stumble')]
+    past_t = [e for e in ev_t if e['event'] == 'past_rated']
+    report.check('WA/WD turns symmetrically without falls, stumbles, or past-rated spasms',
+                 res_l['fell_at'] is None and res_r['fell_at'] is None and not bad_t and not past_t
+                 and left_deg >= 15.0 and right_deg <= -15.0 and abs(abs(left_deg) - abs(right_deg)) <= 10.0,
+                 'fell=(%s,%s) bad=%s past=%d left=%+.1f right=%+.1f deg' % (
+                     res_l['fell_at'], res_r['fell_at'], [e['event'] for e in bad_t], len(past_t), left_deg, right_deg))
+
+    from tools.sim import introspected
+    rows_c, ev_c, fell_c = introspected.ran('', 'flat', [6.0, 15.0], introspected.FIELDS, errand='chair')
+    bad_c = [e for e in ev_c if e['event'] in ('fall', 'stumble', 'past_rated')]
+    report.check('introspected --errand chair sits and rises with zero falls, stumbles, or past-rated spasms',
+                 fell_c is None and not bad_c and len(rows_c) == 2 and rows_c[-1]['doing'] in ('stand', 'rest'),
+                 'fell=%s bad=%s rows=%s' % (fell_c, bad_c, [r['doing'] for r in rows_c]))
+
+
+def test_cross_bus_crc_burst_keeps_setpoint_velocity_continuous(report):
+    """Across a 3-frame CRC burst on one limb bus, `wbc_sil_spans` preserves continuous setpoint velocity
+    without zero-rate freeze or catch-up spike when the next clean frame arrives."""
+    import numpy as np
+    from machine.world import physics
+    from machine.senses import edge
+    world = physics.World()
+    sense = edge.laid(world)
+    assert sense is not None
+    idx = np.flatnonzero(world.driven).astype(np.int32)
+    q0 = world.target[idx].copy()
+    slope = 0.5
+    dt = 0.001
+    rates = []
+    for k in range(1, 8):
+        if k == 3:
+            edge.burst(world, edge.LIMBS[0][0], 3)
+        edge.drive(world, idx, target=q0 + slope * k * dt)
+        world.data.time += dt
+        world.advance()
+        rates.append(float(world.rate[idx[0]]))
+    world.close()
+    err = max(abs(r - slope) for r in rates[1:])
+    report.check('single-bus 3-frame CRC burst holds continuous setpoint rate without zeroing or catch-up spike',
+                 err < 0.02, 'rates=%s err=%.4f' % ([round(r, 4) for r in rates], err))
+
+
 ROSTER = (test_the_layouts_are_the_robots_codes_own, test_a_client_reads_the_robots_layers_live,
           test_a_traced_pass_names_the_robots_calls_and_its_observer, test_the_robots_analyzers_reduce_as_the_probes_do,
           test_the_analyzers_reload_as_the_robot_runs, test_a_spasm_is_past_the_robots_own_walk,
           test_a_recording_is_60_hz_and_whole_about_the_robots_stumble,
-          test_the_robots_modes_kinematics_and_drives_are_named)
+          test_the_robots_modes_kinematics_and_drives_are_named,
+          test_introspection_catches_walk_drift_spasm_and_turn_weave,
+          test_cross_bus_crc_burst_keeps_setpoint_velocity_continuous)
 
 
 def main(argv=None):

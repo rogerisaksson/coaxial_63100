@@ -453,7 +453,7 @@ def boxes(now, tour=None):
     each digit says (the keys' bar and help say the rest, `humanoid_keys`)."""
     if not now:
         return []
-    says = now.get('says') or ('gynoid_mesomorph_medium',)
+    says = now.get('says') or (sprung.mechatronics.ROBOT,)
     gym_name, entries = says[0], says[1:]
     scen = str(now.get('scenario') or 'flat')
     say_rows = [

@@ -44,8 +44,8 @@ HOOP_M, CLIP_M = (0.008, 0.004), 0.002
 SLIM = float(_SPEC.get('slim', 1.0))
 LIMB_SLIM = float(_SPEC.get('limb_slim', 1.0))
 #: A guard's face SKIN_M over what it lies on, its foam AIR_M clear of the mechanism the axis meets within
-#: NEAR_M, a strut STRUTS of the guard's half width from its middle.
-SKIN_M, AIR_M, NEAR_M, STRUTS = 0.002, 0.006, 0.11, 0.45
+#: NEAR_M, a strut STRUTS of the guard's half width from its middle, a header cap CAP_M tall (`lettering`).
+SKIN_M, AIR_M, NEAR_M, STRUTS, CAP_M = 0.002, 0.006, 0.11, 0.45, 0.016
 #: Steel and the carbon laminate, kg/m^3 (`materials.toml`): a strut's, a hoop's.
 STEEL_KG_M3, CF_KG_M3 = (float(mechatronics.materials()[k]) for k in ('steel_kg_m3', 'cf_kg_m3'))
 #: A limb's length, m: what its guards' shares are of.

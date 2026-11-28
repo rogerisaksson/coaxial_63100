@@ -20,7 +20,7 @@ import math
 from coaxial.graphics.livery import BOLT, FOAM, FRAME, STEEL, TUBE, VOID
 from coaxial.graphics.panels import LIMBS
 from coaxial.graphics.shapes import joined, strut
-from machine.body.guards import (AIR_M, CLIP_M, HOOP_M, LAYOUT, LIMB_SLIM, POWER, SKIN_M, SLIM, STRUT_R, STRUTS,
+from machine.body.guards import (AIR_M, CAP_M, CLIP_M, HOOP_M, LAYOUT, POWER, SKIN_M, SLIM, STRUT_R, STRUTS,
                                  THICK_M, held, hoops, shape, tubes)
 
 #: A surface is told about its axis in rows ROW_M along it and SECTORS round it: a body's
@@ -49,7 +49,7 @@ PITCH_M, FILL, PROUD_M, AROUND, RINGS = 0.0165, 0.685, 0.003, 32, 6
 #: (`lettering`), two and a half rims, a rivet RIVET_R round in each of its corners, CORNER of
 #: the way out to them. Slots through a pad took its cells: of a thigh's a handful were left,
 #: two dark eyes in it.
-BAND_M, BAND, HEADER_M, RIVET_R, CORNER = THICK_M, 0.2, 2.5 * THICK_M, 0.0045, 0.78
+BAND_M, BAND, HEADER_M, RIVET_R, CORNER = THICK_M, 0.2, max(2.5 * THICK_M, CAP_M + 2.0 * THICK_M), 0.0045, 0.78
 #: A limb's guards by the end of its segment's name: (its name, from and to down the limb,
 #: shares of its length, its middle about the limb, deg from its outer side toward ahead, its
 #: half width, deg, its kind: 'pad' a honeycomb pad under a header, 'cap' one with no header,
@@ -57,7 +57,8 @@ BAND_M, BAND, HEADER_M, RIVET_R, CORNER = THICK_M, 0.2, 2.5 * THICK_M, 0.0045, 0
 #: (`machine.body.guards.LAYOUT`). None closes its limb, and a leg's inside and its back wear
 #: none: a rider's shoulder cup and elbow guard, a pad on a thigh's outside, a knee cup and a
 #: shin guard, slats under them.
-LIMB = {limb: tuple((name,) + at[:4] + (kind, shape(at)) for (name, kind), at in zip(named, LAYOUT[limb]))
+LIMB = {limb: tuple((name, float(at[0]), float(at[1]), float(at[2]), float(at[3]), kind, shape(at))
+                    for (name, kind), at in zip(named, LAYOUT[limb]))
         for limb, named in (('upper_arm', (('cap', 'cap'), ('guard', 'pad'))), ('forearm', (('guard', 'pad'), ('slat', 'slat'))),
                             ('thigh', (('guard', 'pad'), ('slat', 'slat'), ('slat', 'slat'))),
                             ('shank', (('knee', 'cap'), ('guard', 'pad'), ('slat', 'slat'))))}
@@ -67,7 +68,7 @@ LIMB = {limb: tuple((name,) + at[:4] + (kind, shape(at)) for (name, kind), at in
 #: - its name's, under the hair, seen from behind as the page looks: a header on the back's
 #: guard lay under the hair. None under its ribs behind, none on its hips: open all the way - a
 #: thigh at its most bent and turned sweeps the pelvis's front and sides with its guard.
-TRUNK = tuple((name,) + at[:4] + (kind, shape(at)) for (name, kind), at in zip(
+TRUNK = tuple((name, float(at[0]), float(at[1]), float(at[2]), float(at[3]), kind, shape(at)) for (name, kind), at in zip(
     (('left_cup', 'cap'), ('right_cup', 'cap'), ('sternum', 'cap'), ('belly', 'slat'), ('belly', 'slat'),
      ('back', 'cap'), ('spine', 'plate')), LAYOUT['torso']))
 _FAN = ((0, 1, 2), (0, 2, 3), (0, 3, 5), (3, 4, 5))
@@ -291,7 +292,7 @@ def laid(surfaces, runs=None, stands=None):
         side, _, limb = seg.partition('_')
         x = -1.0 if side == 'right' else 1.0
         if limb in LIMB:
-            part, body, rows = limb, corners * (LIMB_SLIM, 1.0, LIMB_SLIM) if LIMB_SLIM < 1.0 else corners, [
+            part, body, rows = limb, corners, [
                 (-a * LIMBS[limb][0], -b * LIMBS[limb][0], mid, half, kind, form)
                 for _name, a, b, mid, half, kind, form in LIMB[limb]]
         elif seg == 'torso':

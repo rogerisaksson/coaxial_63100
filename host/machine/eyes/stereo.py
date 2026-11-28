@@ -23,6 +23,8 @@ from machine.eyes.voxels import NEAR_M
 
 _EY = peripherals.eyes()
 W, H, FOVY_DEG, BASELINE_M = _EY['w'], _EY['h'], _EY['fovy_deg'], _EY['baseline_m']
+#: Disparity edge threshold scaled with stereo baseline (1.0 px at 0.12 m, 0.533 px on COAX) for invariant depth edges.
+_EDGE_PX = BASELINE_M / 0.12
 DISPARITIES = int(math.ceil((H / 2.0) / libm.tan(math.radians(FOVY_DEG) / 2.0) * BASELINE_M / NEAR_M)) + 2
 WINDOW, TEXTURE, UNIQUE = _EY['window'], _EY['texture'], _EY['unique']
 CENSUS, P1, P2 = _EY['census'], _EY['p1'], _EY['p2']
@@ -329,12 +331,12 @@ def _array_disparity(left, right, xp, card=False):
             back[d, :, :W - d] = total[d, :, d:]
         seen = xp.argmin(back, axis=0)
     agreed = xp.abs(seen[rows, xp.clip(cols - best, 0, W - 1)] - best) <= 1
-    # a depth's edge: its disparity a step over one off a neighbour's - a slope's steps one at most -; within half a
-    # window of it the windows took both sides, the nearer smeared over the further: 23.7 % of such pixels
-    # matched a pixel or more off, 0.98 % of the rest
+    # a depth's edge: its disparity a step past _EDGE_PX off a neighbour's - scaled with baseline so a continuous
+    # slope stays below it while a real depth gap is caught -; within half a window of it the windows took both sides,
+    # the nearer smeared over the further
     jump = xp.zeros((H, W), dtype=xp.int64)
-    jump[:, 1:] |= xp.abs(best[:, 1:] - best[:, :-1]) > 1
-    jump[1:, :] |= xp.abs(best[1:, :] - best[:-1, :]) > 1
+    jump[:, 1:] |= xp.abs(disp[:, 1:] - disp[:, :-1]) > _EDGE_PX
+    jump[1:, :] |= xp.abs(disp[1:, :] - disp[:-1, :]) > _EDGE_PX
     rim = _boxed(jump, r, xp) > 0
     kept = ((spread > TEXTURE) & (second > UNIQUE * xp.maximum(total[best, rows, cols], 1.0)) & (best > 0)
             & (best < DISPARITIES - 1) & xp.isfinite(c0) & agreed & ~rim)
@@ -352,7 +354,7 @@ def cpu_disparity(left, right):
     if getattr(left, 'shape', ())[:2] == (H, W) and getattr(right, 'shape', ())[:2] == (H, W):
         from tools.cores import vision
         got = vision.disparity(left, right, DISPARITIES, CENSUS, QUANTUM, WINDOW, P1, P2,
-                               TEXTURE, UNIQUE, _grey)
+                               TEXTURE, UNIQUE, _grey, _EDGE_PX)
         if got is not None:
             return got
     return cpu_disparity_twin(left, right)

@@ -31,12 +31,16 @@ class Run:
     """The robot's session laid on `scene` (`scenarios.placed`) or in its room (`room`), stepped, its doing's
     flips counted, its arms and its support logged and a sit's joints kept (`seats.measured`)."""
 
+    HOOKS: list = []
+
     def __init__(self, scene='flat', room=False):
         from machine.world import physics
         from machine.process import worker
         from tools.sim import scenarios
         physics.ROOM, physics.SIGHT = float(room), 0.0
         self.s = worker.session()
+        if self.HOOKS:
+            self.s['each'].extend(self.HOOKS)
         if not room:
             scenarios.placed(self.s, scene)
         self.last, self.flips, self.calm, self.log, self.rows, self.told = None, 0, None, [], [], -1.0
@@ -275,6 +279,17 @@ def errand_hop():
 
 
 ERRANDS = {name[7:]: f for name, f in sorted(globals().items()) if name.startswith('errand_')}
+
+
+def ran(name, laid=None):
+    """Run named errand `name` with optional per-pass read-only hook `laid(s)`, returning `(line, Run)`."""
+    if laid is not None:
+        Run.HOOKS.append(laid)
+    try:
+        return ERRANDS[name]()
+    finally:
+        if laid is not None:
+            Run.HOOKS.remove(laid)
 
 
 def _relayed(names):

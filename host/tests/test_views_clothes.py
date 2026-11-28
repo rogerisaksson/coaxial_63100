@@ -263,18 +263,14 @@ def test_the_hip_holds_bends_and_clears(report):
 
 
 def test_the_foot_swings_clear(report):
-    """The coaxial build's foot through its ankle's whole travel (`tools.render.foot_swung`, a process of its own on
-    that build): its pitch from end to end, each at its roll's ends and middle, its levers turned and its rods
-    carried as the heel's shaft holds them, their leaves bowed as far as their stops let them - nothing the ankle
-    turns comes within a millimetre of what holds still on the shank (its fork, its tube, the calf's drives, their
-    clamps and covers), and no rod of the foot's own, the other rod or a lever's lug; and every part of a rod
-    bears the most a rod is asked (`leaves.held`: both drives' torque at the margin, the pitch's and the roll's
-    at once)."""
+    """The coaxial build's foot through its ankle's travel (`tools.render.foot_swung`): no ankle part within 1 mm
+    of the shank's side, no leaf within 1 mm of the foot's own or a lug, and every rod part holds `leaves.held`."""
     import json
     import subprocess
     host = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     run = subprocess.run([sys.executable, '-X', 'utf8', '-c', 'import json; from tools.render import foot_swung; '
-                          'print(json.dumps(foot_swung.swung()))'], cwd=host, capture_output=True, text=True,
+                          't = foot_swung.swung(); t["corners"] = foot_swung.corners(); print(json.dumps(t))'],
+                         cwd=host, capture_output=True, text=True,
                          env=dict(os.environ, PYTHONPATH=host, COAXIAL_ROBOT=BUILD))
     told: Any = json.loads(run.stdout.strip().splitlines()[-1]) if run.returncode == 0 else {
         'failed': run.stderr[-400:]}
@@ -282,6 +278,10 @@ def test_the_foot_swings_clear(report):
                       ('own', "no leaf comes within a millimetre of the foot's own, the other leaf or a lug")):
         report.check("through the ankle's travel, " + what, (told.get(key) or [0.0])[0] >= 0.001,
                      told.get('failed') or told.get(key))
+    corners = told.get('corners') or []
+    report.check('all four extreme ankle travel corners clear shank and own mechanism by >= 1.0 mm',
+                 len(corners) == 4 and all(min(sh, ow) >= 0.001 for _p, _r, sh, ow in corners),
+                 told.get('failed') or corners)
     held = told.get('held') or {}
     report.check('every part of a rod bears the most a rod is asked', bool(held) and min(held.values()) >= 1.0, held)
 

@@ -297,12 +297,18 @@ def laid(g):
     g['brace'] = np.array([[d.get(n, 0.0) for n in names] for d in (brace.TUCK, brace.AX, brace.LAT)])
     g['braced'] = c_brace.laid(body, g['brace'], g['_cv_sh'], g['_acv_sh'], g['legs'], g['free_kp'])
     n = len(joints)
+    trk = np.array([body_drives.track(nm) for nm in names], dtype=np.float64)
+    kw = np.maximum([body_drives.wind(nm) for nm in names], 1e-9)
+    ks = np.maximum([body_drives.series(nm) for nm in names], 1e-9)
+    jj = np.maximum([body_drives.armature(nm) for nm in names], 1e-9)
+    w_cl = np.sqrt((1.0 / (1.0 / kw + 1.0 / ks)) * (1.0 + trk) / jj)
+    sea = np.where(trk > 0.0, np.minimum(1.0, w_cl / g['wo']), 0.0)
     kept = {'joints': np.ascontiguousarray(joints, dtype=np.int32),
             'act': np.ascontiguousarray(body.act, dtype=np.int32), 'sb': np.zeros(n), 'feed': np.zeros(n),
             'limit': np.zeros(n), 'clamp_j': np.ascontiguousarray(g['clamp'][joints], dtype=np.float64),
             'qacc': np.zeros(body.n, dtype=np.float64), 'tau': np.zeros(n, dtype=np.float64),
             'jeff': np.ascontiguousarray(g['jeff'], dtype=np.float64), 'over': np.zeros(n, dtype=np.bool_),
-            'sea': np.ascontiguousarray([body_drives.track(nm) > 0.0 for nm in names], dtype=np.bool_),
+            'sea': np.ascontiguousarray(sea, dtype=np.float64),
             'release': np.ones(n)}
     g['release'], g['distal'] = kept['release'], np.array([float(nm.endswith(DISTAL)) for nm in names])
     g['_qd_j'], g['_joints_i'] = np.zeros(n), kept['joints']
@@ -325,7 +331,7 @@ def laid(g):
                       ('tau', kept['tau']), ('jeff', kept['jeff']), ('release', kept['release'])):
         setattr(p, name, cores.pointer(arr))
     p.over = cores.address(kept['over'])
-    p.sea = cores.address(kept['sea'])
+    p.sea = cores.pointer(kept['sea'])
     g['cmd'] = {'target': g['ref_q'], 'feed': kept['feed'], 'limit': kept['limit'].copy()}
     g['drives'] = (p, kept, cores.library().wbh_pass_drives)
     from tools.cores import tick

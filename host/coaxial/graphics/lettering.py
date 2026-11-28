@@ -21,6 +21,7 @@ from coaxial.graphics import guards
 from coaxial.graphics.livery import FRAME
 from coaxial.graphics.panels import LIMBS
 from machine.body import drives
+from machine.body.guards import CAP_M
 
 #: Where a system keeps its faces, and a face's file by a word in its name: a Eurostile's, a
 #: bold cut first, and one that holds katakana.
@@ -30,7 +31,7 @@ FACES = {'latin': ('eurostile',), 'kana': ('yugothb', 'meiryob', 'msgothic', 'no
 #: A cap CAP_M high and RASTER rows of it, as tall as LIKE in its face - read where a drive fills
 #: the view, a cap stands 30 to 65 dots high, a row a dot at the most: at 12 rows a glyph stood
 #: in stripes -; a label LIFT_M off its header, its words GAP of a cap apart.
-CAP_M, RASTER, LIFT_M, GAP = 0.016, 64, 0.002, 0.5
+RASTER, LIFT_M, GAP = 64, 0.002, 0.5
 LIKE = {'latin': 'H', 'kana': '\u30ed'}
 #: A guard's label by the end of its segment's name: the joint its drive turns and the joint in
 #: katakana - kata, hiji, koshi, hiza, senaka. Across its header stands the drive's type, and the

@@ -326,6 +326,7 @@ class World:
                                             np.where(self.shorted, self.damping, 0.0), STEP_S,
                                             d.ctrl if self.buses is not None else self.feed,
                                             lim_live, self.gains[:, 0])
+                self.motor[:] = np.where(self.boxes.tracked, self.boxes.applied, self.motor)
                 p.delta = self.boxes.delta.ctypes.data
             pushing = d.time < self.push_until
             if pushing or self.pushed:

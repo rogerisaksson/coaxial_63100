@@ -46,12 +46,14 @@ def test_a_text_compiles_to_rows(report):
     report.check('propulsion: extended -1.0 at MAX_SYS_K undamped, the robot\'s ZMP in its support polygon',
                  go[4] == -1.0 and go[4 + ortho.K] == ortho.SYMBOLS['MAX_SYS_K'] and go[4 + ortho.D] == 0.0
                  and go[4 + ortho.ZMP] == 1.0, 'stiffness %g' % go[4 + ortho.K])
+    from machine.body import mechatronics
     robot_own, named = ortho.compiled(_lisp('gynoid_mesomorph_medium'))
+    live_own, live_named = ortho.compiled(_lisp(mechatronics.ROBOT))
     base_t, base_p = ortho.compiled(_lisp('gait_base'))
     post_t, post_p = ortho.compiled(_lisp('postures_base'))
     stunt_t, stunt_p = ortho.compiled(_lisp('motion'))
     report.check('lisp/humanoid/gynoid_mesomorph_medium.lisp compiles: its walk and its behaviours',
-                 len(robot_own['']) == 5 * ortho.ROW.size and ortho.compiled() == (robot_own, named)
+                 len(robot_own['']) == 5 * ortho.ROW.size and ortho.compiled() == (live_own, live_named)
                  and base_t[''] == robot_own[''] and set(base_p) < set(post_p) < set(stunt_p) < set(named)
                  and ortho.rows(post_t['hop'])[1][4 + ortho.K] == 20000.0
                  and ortho.rows(robot_own['hop'])[1][4 + ortho.K] == 21800.0

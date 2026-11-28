@@ -49,7 +49,7 @@ def _lib():
     lib.vs_stereo_core.restype = i32
     lib.vs_stereo_post.argtypes = [
         vp, vp, vp, vp, vp, vp, vp, vp,
-        i32, i32, i32, i32, f64, f32,
+        i32, i32, i32, i32, f64, f32, f64,
         vp, vp, vp, vp, vp, vp,
     ]
     lib.vs_stereo_post.restype = None
@@ -109,7 +109,7 @@ def _voxel_scratch(nvox: int):
         got = (
             nvox,
             np.empty(nvox, dtype=np.uint8),
-            np.zeros(nvox, dtype=np.uint8),
+            np.zeros(nvox, dtype=np.int32),
             np.zeros(nvox, dtype=np.int32),
         )
         _vision_tls.voxel = got
@@ -132,7 +132,8 @@ def box_i64(arr, rad: int):
 
 
 def disparity(left, right, d_count: int, census_xy: tuple[int, int], quantum: int,
-              window: int, p1: float, p2: float, texture: float, unique: float, grey_fn):
+              window: int, p1: float, p2: float, texture: float, unique: float, grey_fn,
+              edge_px: float = 1.0):
     """Compute `(disp, kept)` matching `stereo.cpu_disparity` bit-for-bit, or `None` without C."""
     lib = _lib()
     if lib is None:
@@ -181,7 +182,7 @@ def disparity(left, right, d_count: int, census_xy: tuple[int, int], quantum: in
     lib.vs_stereo_post(
         gl.ctypes.data, best.ctypes.data, tbest.ctypes.data, second.ctypes.data, seen.ctypes.data,
         c0.ctypes.data, lo.ctypes.data, hi.ctypes.data,
-        height, width, int(d_count), rad, float(texture), float(np.float32(unique)),
+        height, width, int(d_count), rad, float(texture), float(np.float32(unique)), float(edge_px),
         box_a.ctypes.data, box_b.ctypes.data, box_c.ctypes.data, vsum_buf.ctypes.data,
         disp.ctypes.data, kept.ctypes.data,
     )
@@ -200,7 +201,7 @@ def voxel_add(chart, xyz, rgb, eye, ox: float, floor_m: float, oz: float, ceil_m
     n_pts = len(pts)
     out_flat = np.empty(n_pts, dtype=np.int64)
     if n_pts > 0:
-        occ_buf, crossed_buf, counts_buf = _voxel_scratch(chart.hits.size)
+        occ_buf, pass_cnt, counts_buf = _voxel_scratch(chart.hits.size)
         lib.vs_voxel_add(
             pts.ctypes.data, cols.ctypes.data, n_pts, eye_c.ctypes.data,
             int(chart.nx), int(chart.ny), int(chart.nz),
@@ -209,7 +210,7 @@ def voxel_add(chart, xyz, rgb, eye, ox: float, floor_m: float, oz: float, ceil_m
             int(hits_min), int(told_min),
             chart.hits.ctypes.data, chart.told.ctypes.data, chart.free.ctypes.data,
             chart.top.ctypes.data, chart.moments.ctypes.data, chart.colour.ctypes.data,
-            occ_buf.ctypes.data, crossed_buf.ctypes.data, counts_buf.ctypes.data,
+            occ_buf.ctypes.data, pass_cnt.ctypes.data, counts_buf.ctypes.data,
             out_flat.ctypes.data,
         )
     chart.looks, chart._made = chart.looks + 1, None

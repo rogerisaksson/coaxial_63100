@@ -131,7 +131,7 @@ def test_a_scaled_figure_follows_similarity(r):
     from machine.body import mechatronics
     scaled = sorted(name for name in mechatronics.robots()
                     if float(mechatronics.robot(name)['figure']['scale']) != 1.0)
-    stock = _gait_of(mechatronics.STOCK)
+    stock = _gait_of(mechatronics.BASE)
     r.check('a build scales the stock figure', bool(scaled) and stock['scale'] == 1.0, scaled)
     for name in scaled:
         its = _gait_of(name)
@@ -152,11 +152,11 @@ def test_a_scaled_figure_follows_similarity(r):
 
 
 def test_a_joint_dressed_in_nothing_is_bare(r):
-    """`[cloth]` resolves omitted joints to `mechatronics.BARE` in stacks order; stock states none bare."""
+    """`[cloth]` resolves omitted joints to `mechatronics.BARE` in stacks order; base states none bare."""
     from machine.body import drives, mechatronics
-    with open(os.path.join(mechatronics.ROBOTS, mechatronics.STOCK + '.toml'), 'rb') as f:
+    with open(os.path.join(mechatronics.ROBOTS, mechatronics.BASE + '.toml'), 'rb') as f:
         stated = tomllib.load(f)['cloth']
-    build = mechatronics.robot(mechatronics.STOCK)
+    build = mechatronics.robot(mechatronics.BASE)
     bare = [kind for kind in build['stacks'] if kind not in stated]
     r.check('the stock build states no joint bare and dresses only joints it has',
             bool(bare) and mechatronics.BARE not in stated.values() and set(stated) <= set(build['stacks']), stated)
@@ -196,8 +196,8 @@ def test_a_builds_drives_are_stated_once(r):
             raw[name] = tomllib.load(f)
     r.check('no build states a stack a kind, and none its packs\' count',
             not [n for n, spec in raw.items() if 'stacks' in spec or 'packs' in spec.get('pack', {})], sorted(raw))
-    own, laid = raw[mechatronics.STOCK]['drives'], mechatronics.robot(mechatronics.STOCK)['stacks']
-    r.check('the robot\'s own build lays the kinds its motors name, each on the one gearbox and inverter the build states',
+    own, laid = raw[mechatronics.BASE]['drives'], mechatronics.robot(mechatronics.BASE)['stacks']
+    r.check('the base build lays the kinds its motors name, each on the one gearbox and inverter the build states',
             list(laid) == [kind for kinds in own['motors'].values() for kind in kinds]
             and all(stack[1:] == [own['gearbox'], own['inverter']] for stack in laid.values()), laid)
     pack = mechatronics.robot()['pack']
@@ -243,12 +243,12 @@ def test_a_joints_loop_is_solved_of_what_it_turns(r):
             not soft and math.isclose(fall, float(ctl['fall_factor']) * math.sqrt(body.G_M_S2 / st['h0'])), soft)
     r.check('a loop set by its stance is a leg\'s, and asks more than gravity alone tips it with', not held, held)
     unmet = sorted(kind for kind, row in solved.items() if not row[3].feasible)
-    if mechatronics.ROBOT != mechatronics.STOCK:
+    if mechatronics.ROBOT != mechatronics.BASE:
         probe = subprocess.run([sys.executable, '-X', 'utf8', '-c',
                                 'import json; from machine.body import compile, looped; '
                                 'print(json.dumps(sorted(k for k, r in looped.table(compile.subtrees()).items() '
                                 'if not r[3].feasible)))'],
-                               env=dict(os.environ, COAXIAL_ROBOT=mechatronics.STOCK, PYTHONPATH=HOST),
+                               env=dict(os.environ, COAXIAL_ROBOT=mechatronics.BASE, PYTHONPATH=HOST),
                                cwd=HOST, capture_output=True, text=True, check=True)
         stock_unmet = json.loads(probe.stdout.strip().splitlines()[-1])
     else:

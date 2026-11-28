@@ -24,11 +24,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 if __name__ == '__main__' and '--write' in sys.argv:
     os.environ.pop('COAXIAL_ROBOT', None)
 
+from tools import REPO
+from tools.cores import written
 from machine.moves import leap
 from machine.law import modal, rhythm, se2
 from machine.eyes import voxels
-from tools import REPO
-from tools.cores import written
 
 PATH = os.path.join(REPO, 'host', 'machine', 'body', 'footprint_rows.py')
 NOTICE = "The robot's footprint as static arrays: written by host/tools/cores/footprint.py, not by hand."
@@ -110,13 +110,13 @@ def _go(s, seconds, each=lambda: None, until=lambda: False):
         _ = g['n'] % 10 or each()
 
 
-def _still(s):
+def _still(s, e):
     """Still as an errand turns the robot: settled, its rhythm still, its soles bearing alike
     (`dock.even`)."""
     from machine.way import dock, errand
     from machine.law import latent
     g = s['g']
-    return errand._settled(g) > 0.0 and float(g['st'][latent.NOW][latent.GAIN]) < 1e-6 and dock.even(g)
+    return errand._settled(g) > 0.0 and float(g['st'][latent.NOW][latent.GAIN]) < 1e-6 and dock.even(g, e)
 
 
 def moved(mode):
@@ -158,7 +158,8 @@ def turned(deg, way, walked_s, arc=0.0):
     worker.apply(s, {'heading': 0.0, 'twist': (se2.WALK_SPEED, 0.0, arc)})
     _go(s, walked_s)
     worker.apply(s, {'twist': (0.0, 0.0, 0.0)})
-    _go(s, TURN_MOST_S, until=lambda: _still(s))
+    even0: dict = {}
+    _go(s, TURN_MOST_S, until=lambda: _still(s, even0))
     root, yaw = _frame(g, d)
     to = se2.wrap_angle(yaw + way * math.radians(deg))
     out = {'h': np.full((1, K), -np.inf), 'told': False}
@@ -169,7 +170,8 @@ def turned(deg, way, walked_s, arc=0.0):
         near = abs(se2.wrap_angle(to - _frame(g, d)[1])) <= modal.LIST_RAD
         _ = near and not out['told'] and (worker.apply(s, {'heading': to, 'twist': (0.0, 0.0, 0.0)}) or out.update(told=True))
     t0 = g['t']
-    _go(s, TURN_MOST_S, each, until=lambda: out['told'] and _still(s))
+    even1: dict = {}
+    _go(s, TURN_MOST_S, each, until=lambda: out['told'] and _still(s, even1))
     end = _frame(g, d)[0] - root
     return (out['h'], (float(end @ (math.sin(yaw), math.cos(yaw))), float(end @ (math.cos(yaw), -math.sin(yaw)))),
             g['t'] - t0)

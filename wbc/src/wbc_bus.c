@@ -70,7 +70,7 @@ double wbc_bus_feed(const wbc_bus_k *k, wbc_bus_t *b, int i, double dt, double q
   trip = (double)(b->count[i] >= k->reversals);
   b->alpha[i] = npmax(trip, b->alpha[i] - dt / k->recover_s);
   gain = b->alpha[i] * (1.0 - k->rollback);
-  cmd = (feed - gain * t) - ((b->alpha[i] * k->inject) * damping) * qd;
+  cmd = (feed - gain * t) - ((b->alpha[i] * k->inject) * damping) * v;
   /* what the bus changed of the command, for the robot's drive's observer to know what moved its
    * rotor */
   b->given[i] = cmd - feed;

@@ -123,7 +123,38 @@ def test_the_mechanical_face_clears_plates_gimbals_and_neck(report):
                  (got.get('pan_n'), got.get('pan_open'), got.get('eo_open'), got.get('eo_hole_mm'), got.get('eo_outer_mm'), got.get('audit_ok')))
 
 
-ROSTER = (test_the_mechanical_face_clears_plates_gimbals_and_neck,)
+def test_terminal_ux_renders_coaxial_mechatronics_and_face(report):
+    """The terminal UX and stand render the coaxial build's clamped drives, leaf linkages and face."""
+    import numpy as np
+    from coaxial.graphics import gynoid, likeness
+    from machine.body import figure, mechatronics
+    if mechatronics.ROBOT == mechatronics.BASE:
+        return
+    shell = gynoid.body(dressed=False, see=None, like=likeness.FOUND, plates=True, own_head=True, built=True)
+    bare = gynoid.body(dressed=False, see='mechanism', own_head=True, built=True)
+    dressed = gynoid.body(dressed=True, see=None, like=likeness.FOUND, own_head=True, built=True)
+    s_names, b_names, d_names = ({p[0] for p in who.parts} for who in (shell, bare, dressed))
+    wanted = {'mecha_head', 'mecha_neck', 'coax_trunk_pelvis', 'coax_trunk_chest', 'coax_left_pectoral',
+              'coax_left_shoulder', 'coax_left_elbow_stator', 'coax_left_hip_yaw', 'coax_left_shank',
+              'coaxrod_left_ankle', 'coaxrod_left_ankle_roll', 'coaxrod_spine', 'drive_left_ankle',
+              'drive_left_elbow'}
+    pose = {'spine': 18.0, 'spine_roll': 8.0, 'left_shoulder': 35.0, 'left_elbow': 55.0,
+            'left_hip': -40.0, 'left_knee': 65.0, 'left_ankle': -22.0, 'left_ankle_roll': 9.0}
+    pos_s, nrm_s = shell.pose(pose)
+    pos_b, nrm_b = bare.pose(pose)
+    pos_d, _nrm_d = dressed.pose(pose)
+    lines = gynoid.render(figure.stand(), 60, 24, dressed=False, like=likeness.FOUND, own_head=True, built=True)
+    report.check('shell, mechanism and dressed UX bodies carry coaxial clamped drives, leaves and posed vertices',
+                 wanted <= s_names and {'mecha_head', 'mecha_neck'} <= d_names
+                 and {'coax_neck_nod', 'coax_head_turn'} <= b_names
+                 and np.isfinite(pos_s).all() and np.isfinite(nrm_s).all()
+                 and np.isfinite(pos_b).all() and np.isfinite(nrm_b).all()
+                 and np.isfinite(pos_d).all() and len(lines) == 24,
+                 (len(shell.index), len(bare.index), len(dressed.index)))
+
+
+ROSTER = (test_the_mechanical_face_clears_plates_gimbals_and_neck,
+          test_terminal_ux_renders_coaxial_mechatronics_and_face)
 
 
 def main(argv=None):

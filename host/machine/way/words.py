@@ -268,8 +268,9 @@ def _refreshed(g, er):
     off = max(-lat, min(lat, was))
     s_key = (er['kind'], top, id(suite))
     standoff = er['standoff'] if er.get('_standoff_key') == s_key else dock.standoff(er['kind'], top, suite)
+    lat_tol = min(span - figure.HIP_HALF, figure.SOLE_HALF) if lat == 0.0 else max(0.0, lat - abs(off))
     er.update(x_dock=mx + off * tx, z_dock=mz + off * tz, nx=nx, nz=nz, tx=tx, tz=tz,
-              hdd=se2.wrap_angle(hn + _FACES.get(er['kind'], 0.0)), lat_tol=max(0.0, lat - abs(off)),
+              hdd=se2.wrap_angle(hn + _FACES.get(er['kind'], 0.0)), lat_tol=lat_tol,
               top=top, standoff=standoff, _standoff_key=s_key,
               thing=box[4] if len(box) > 4 else er.get('thing'))
     er['_refreshed_key'] = ((er['kind'], er['x_dock'], er['z_dock'], er['nx'], er['nz'], er.get('thing'),

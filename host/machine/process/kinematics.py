@@ -92,20 +92,26 @@ def way(y: Any, fr: Any, a: Any) -> dict[str, Any]:
 
 
 def drives(s: dict[str, Any]) -> dict[str, Any]:
-    """The robot's driven joints' commands (`g['cmd']`), clamp shares, and bilateral knee and ankle angles
-    (deg)."""
+    """The robot's driven joints' commands (`g['cmd']`), clamp shares, SEA wind-up, observer disturbance and
+    bilateral knee and ankle angles (deg)."""
     import numpy as np
     from machine.body.figure import JOINTS
+    from machine.senses import edge
     g = s['g']
     names = [JOINTS[i] for i in g['joints']]
     cmd = {k: dict(zip(names, np.asarray(v, float).ravel().tolist())) for k, v in (g.get('cmd') or {}).items()}
-    tau = np.asarray((g.get('cmd') or {}).get('tau', ()), float).ravel()
+    tau = np.asarray((g.get('got') or {}).get('tau', (g.get('cmd') or {}).get('feed', ())), float).ravel()
     clamp = np.asarray(getattr(g.get('body'), 'clamp', ()), float).ravel()
     share = (dict(zip(names, (np.abs(tau) / np.maximum(clamp, 1e-9)).tolist()))
              if len(tau) == len(names) and len(clamp) == len(names) else {})
+    eso = g.get('eso')
+    eso_d = dict(zip(names, np.asarray(eso[2], float).ravel().tolist())) if eso is not None and len(eso) > 2 else {}
+    sense = g.get('sense')
+    wind = (dict(zip(names, np.degrees(sense[edge.QM][g['joints']] - sense[edge.Q][g['joints']]).tolist()))
+            if sense is not None else {})
     d, m = g['world'].data, g['world'].model
     qdeg = lambda jn: math.degrees(float(d.qpos[int(m.jnt_qposadr[m.joint(jn).id])]))
-    return {'joints': names, 'cmd': cmd, 'clamp_share': share,
+    return {'joints': names, 'cmd': cmd, 'clamp_share': share, 'eso_d': eso_d, 'wind_deg': wind,
             'knees_deg': [qdeg('left_knee'), qdeg('right_knee')],
             'ankles_deg': [qdeg('left_ankle'), qdeg('right_ankle')]}
 

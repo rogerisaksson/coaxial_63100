@@ -136,11 +136,12 @@ def turntable(view, width=52, height=18):
 
 def _robot(view, width, height):
     """The robot's standing on the stand, turning as the board turns."""
-    from coaxial.graphics import gynoid
+    from coaxial.graphics import gynoid, likeness
     from machine.body import figure
     return '\n'.join(gynoid.render(figure.stand(), width, height,
                                     yaw=(view['spun'] * TURN_DPS) % 360.0, lit=_STAGE['lit'],
-                                    root=((0.0, figure.standing(), 0.0), figure.IDENT), mecha=True))
+                                    like=likeness.FOUND, own_head=True, built=True,
+                                    root=((0.0, figure.standing(), 0.0), figure.IDENT)))
 
 
 def _quad(view, width, height):

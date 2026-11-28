@@ -37,14 +37,18 @@ def test_the_mechanism_in_its_livery_bolted(report):
     is."""
     import numpy as np
     from coaxial.graphics import drums, gynoid, lit, livery, mechanism, plated
-    from machine.body import figure
+    from machine.body import figure, mechatronics
     body = gynoid.body(dressed=False, plates=True)
     names, frame = [p[0] for p in body.parts], [p[0] for p in mechanism.parts()]
+    coax = mechatronics.ROBOT != mechatronics.BASE
+    gone = ({name for name in frame if name not in ('head', 'board_neck', 'board_head')
+             and name.endswith(('_neck', '_neck_frame', '_head'))} if coax else set())
+    expected = frame + (['skin_neck'] if coax else [])
     worn = {name: body.parts[names.index(name)][5][3] for name in frame}
     shells = {name for name in names if name.startswith('shell_')}
     report.check("its mechanism's every part in its order, its bolts, its guards and its seat beside; of a shell its "
                  'own head and its shoes alone - no trunk, no hips, no limb',
-                 [n for n in names if not n.startswith(('bolts_', 'guard_', 'shell_')) and not n.endswith('_seat')] == frame
+                 [n for n in names if not n.startswith(('bolts_', 'guard_', 'shell_')) and not n.endswith('_seat')] == expected
                  and names.count('left_seat') == names.count('right_seat') == 1
                  and shells == {'shell_head', 'shell_jaw', 'shell_nose', 'shell_lips'} | {
                      'shell_' + s + n for s in ('left_', 'right_') for n in ('ear', 'eye', 'foot', 'toes')},
@@ -69,7 +73,8 @@ def test_the_mechanism_in_its_livery_bolted(report):
     way = np.r_[np.ones(plated.BOLTS), -np.ones(plated.BOLTS)]
     report.check('each drive is bolted: BOLTS heads on either face of its can, a hexagon each, on a circle CIRCLE of '
                  'its radius, each on its face where it stands and BOLT_M proud of it',
-                 sorted(bolted) == sorted(name[len('drive_'):] for name in frame if name.startswith('drive_'))
+                 sorted(bolted) == sorted(name[len('drive_'):] for name in frame
+                                          if name.startswith('drive_') and name not in gone)
                  and len(heads[0]) == 2 * plated.BOLTS * 12 and bool((heads[3] == livery.BOLT).all())
                  and abs(float(ring.mean()) - plated.CIRCLE * radius) < 0.002
                  and float(np.abs(base @ axis - face).max()) < 1e-9

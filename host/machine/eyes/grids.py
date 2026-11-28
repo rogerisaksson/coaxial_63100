@@ -46,25 +46,33 @@ def joined(on, offsets):
     return _grouped(idx, label, np.argsort(label, kind='stable'))
 
 
-def joined_by(codes, offsets):
+def joined_by(codes, offsets, xyz=None, gap=0.0, flat=None):
     """[(value, index arrays)] the connected groups of each value's cells of `codes` (integers, -1 none), value by
     value and each value's lowest first - `joined(codes == value)` a value at a time, in one union-find: a full grid's
     a value was most of the robot's picture's lumps."""
     import numpy as np
-    from tools.cores import vision
-    got = vision.grid_cc_codes(codes, offsets)
-    if got is not None:
-        if not got:
-            return []
-        idx, label, value = got
-        order = np.lexsort((label, value))
-        return list(zip(value[order][_starts(label, order)].tolist(), _grouped(idx, label, order)))
+    if xyz is None or gap <= 0.0:
+        from tools.cores import vision
+        got = vision.grid_cc_codes(codes, offsets)
+        if got is not None:
+            if not got:
+                return []
+            idx, label, value = got
+            order = np.lexsort((label, value))
+            return list(zip(value[order][_starts(label, order)].tolist(), _grouped(idx, label, order)))
     at = np.flatnonzero(codes >= 0)
     if not len(at):
         return []
     idx, a, b = _paired(at, codes.shape, offsets)
     value = codes.reshape(-1)[at]
     same = value[a] == value[b]
+    if xyz is not None and gap > 0.0:
+        pts = xyz.reshape(-1, 3)[at]
+        ok = np.linalg.norm(pts[a] - pts[b], axis=1) <= gap
+        if flat is not None:
+            fl = flat.reshape(-1)[at]
+            ok = fl[a] | fl[b] | ok
+        same = same & ok
     label = _unioned(np.arange(len(at)), a[same], b[same])
     order = np.lexsort((label, value))
     return list(zip(value[order][_starts(label, order)].tolist(), _grouped(idx, label, order)))

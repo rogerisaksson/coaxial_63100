@@ -245,7 +245,7 @@ def _of(kinds, centre, half, R, clear):
     # stands against
     backs = (pair & beside & (bottom[:, None] <= top[None, :] + CELL_M + 1e-9)
              & (top[:, None] >= top[None, :] + LUMBAR) & (top[:, None] <= BRACE + 0.5 * CELL_M)
-             & (long[:, None] <= long[None, :] + CELL_M + 1e-9))
+             & (long[:, None] <= long[None, :] + (THIN + 1e-9)))
     held = on | under | backs
     # what the robot steps onto: a top no piece in the lowest slab, then each beside one it does a rise
     # of it off it

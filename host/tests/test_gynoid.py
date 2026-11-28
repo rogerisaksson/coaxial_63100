@@ -254,7 +254,7 @@ def test_the_robots_gait_is_stated_on_it(report):
     """Declarative `.toml` specs hold physical construction only, cache/recompile on edit."""
     import math, os, tempfile, tomllib
     from machine.body import build, drives, figure, gait, mechatronics, servos
-    with open(os.path.join(mechatronics.ROBOTS, mechatronics.STOCK + '.toml'), 'rb') as f:
+    with open(os.path.join(mechatronics.ROBOTS, mechatronics.BASE + '.toml'), 'rb') as f:
         raw = tomllib.load(f)
     banned = _s('servo wind series gait service pack_v cooling clamped rigid_play_deg '
                 'ahead_wind ahead_play mount_k_w off_mount_k_w passive_limits')

@@ -239,7 +239,7 @@ def _draw_viewport(state, now, width, height, terminal):
         rounds=now.get('rounds'), mark=marked(state, now, time.monotonic()),
         legend=legend(state['shown'], width) if state['called'] != 'none' else None,
         dressed=state['skin'] == 'dressed', like=likeness.FOUND, see=_seen(state), inset=inset, arrows=(now, state.get('pad')),
-        hosed=None if state['skin'] == 'dressed' else now['t'], mecha=True,
+        hosed=None if state['skin'] == 'dressed' else now['t'], own_head=True, built=True,
         horizon=horizon.segments(now, now.get('props') or (), state.get('horizon') or 'off') or None)
     asked = state.setdefault('asked', collections.deque(maxlen=ASKED))
     asked.append(now)
