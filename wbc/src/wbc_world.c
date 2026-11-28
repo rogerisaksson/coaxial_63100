@@ -169,14 +169,7 @@ static void stepped(const wbc_steps_t *s, int n)
       pi = on ? p_int[i] + h * ((bdrive[i] - brake[i] * bw[i]) - hat[i]) : 0.0;
       ht = observe[i] * (pi - j[i] * bw[i]);
       cap = npminimum(top[i], npmaximum(fabs(ht), fabs(feed[i])) + play_nm);
-      {
-        const double trk_c = trk[i] * bc[i];
-        const double eng = npminimum(1.0, fabs(ht) / play_nm);
-        const double cd_e = trk_c + eng * (cd[i] - trk_c);
-        const double ev = brate[i] / k[i] - rel[i];
-
-        drive = (ctrl[i] + trk[i] * npclip(feed[i] - ht, -cap, cap)) + ((feed[i] * ev > 0.0) ? cd[i] : cd_e) * ev;
-      }
+      drive = (ctrl[i] + trk[i] * npclip(feed[i] - ht, -cap, cap)) + cd[i] * (brate[i] / k[i] - rel[i]);
       drive = on ? npclip(drive, -top[i], top[i]) : ctrl[i];
       wi = on ? (bw[i] + (h * (drive - passed)) / j[i]) / (1.0 + (h * brake[i]) / j[i]) : qd[i];
       p_int[i] = pi;

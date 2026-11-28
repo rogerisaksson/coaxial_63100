@@ -45,7 +45,7 @@ box.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | neck | 1 | on its axis, its inverter on the torso | - | 30.0 | 51 | 16 | 1536 |
 | head | 1 | on its axis, its inverter on the torso | - | 30.0 | 51 | 5 | 1536 |
-| shoulder | 2 | on the torso, its inverter on the torso | - | 30.0 | 51 | 34 | 1536 |
+| shoulder | 2 | on the torso, its inverter on the torso | - | 30.0 | 51 | 36 | 1536 |
 | elbow | 2 | on the upper arm | - | 30.0 | 51 | 23 | 1536 |
 
 ### No drive
