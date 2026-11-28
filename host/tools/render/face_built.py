@@ -54,7 +54,7 @@ def micro_servo(at, axis, ang, hlen=0.0054, hdir=(0.0, 0.0, 1.0), dual=False, sg
 
 def oled_driver_module():
     """Build internal OLED driver PCB and FPC flex."""
-    return (csg.extrude(csg.filleted2d(csg.box2d((-0.011, 0.011), (0.022, 0.040)), r=0.002), a=0.048, b=0.051, axis=2, colour=(22, 54, 42), chamfer=0.0004).tris()
+    return (csg.extrude(csg.filleted2d(csg.box2d((-0.0085, 0.0085), (0.022, 0.040)), r=0.002), a=0.048, b=0.051, axis=2, colour=(18, 22, 26), chamfer=0.0004).tris()
             + csg.extrude(csg.filleted2d(csg.box2d((-0.0050, 0.0050), (0.026, 0.036)), r=0.0008), a=0.0465, b=0.048, axis=2, colour=fh.BAFFLE_DARK, chamfer=0.0002).tris()
             + csg.sweep(csg.box2d((-0.0045, 0.0045), (-0.0004, 0.0004)), [(0.0, 0.022, 0.050), (0.0, 0.018, 0.062), (0.0, 0.020, 0.072)], chamfer_ends=0.0001, colour=fh.MIC_GOLD).tris())
 

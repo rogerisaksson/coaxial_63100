@@ -99,42 +99,35 @@ def shell_patch(grid, wall=0.0026, chamfer=0.00055, col=CRANIUM_DARK, ref=(0.0, 
 
 
 def socket_bolt(pt, nrm, r_out=0.0022, h_out=0.0005, col_rim=BOLT_RIM, col_sock=BOLT_SOCK, fn=24):
-    """Build flush 6-lobe Torx bolt (or screw-free counterbore seat when `SCREW_FREE_PANELS` is active)."""
-    np = np_mod()
+    """Build flush 6-lobe Torx bolt (or counterbore seat when `SCREW_FREE_PANELS` is active)."""
+    np, ro = np_mod(), float(r_out)
     n = np.asarray(nrm, float)
     n /= max(float(np.linalg.norm(n)), 1e-12)
-    up = np.array([0.0, 1.0, 0.0]) if abs(float(n[1])) < 0.9 else np.array([1.0, 0.0, 0.0])
-    e1 = np.cross(up, n)
+    e1 = np.cross(np.array([0.0, 1.0, 0.0]) if abs(float(n[1])) < 0.9 else np.array([1.0, 0.0, 0.0]), n)
     e1 /= max(float(np.linalg.norm(e1)), 1e-12)
     e2, p0, is_screw = np.cross(n, e1), np.asarray(pt, float), (col_rim == BOLT_RIM)
     if SCREW_FREE_PANELS and is_screw:
-        spec = 'M3' if float(r_out) >= 0.0028 else 'M2'
+        spec = 'M3' if ro >= 0.0028 else 'M2'
         FASTENER_LOG.append((tuple(float(v) for v in p0), tuple(float(v) for v in n), spec))
         r_cb, r_cl = (0.00295, 0.00160) if spec == 'M3' else (0.00210, 0.00110)
         ang = np.linspace(0.0, 2.0 * math.pi, 18, endpoint=False)
         ca, sa = np.cos(ang), np.sin(ang)
-        ring = lambda rad, h: p0[None, :] + float(h) * n[None, :] + rad * (ca[:, None] * e1[None, :] + sa[:, None] * e2[None, :])
+        ring = lambda rad, h: p0[None, :] + h * n[None, :] + rad * (ca[:, None] * e1[None, :] + sa[:, None] * e2[None, :])
         rc0, rc1, rc2, rc3 = ring(r_cb, 0.00005), ring(r_cb, -0.0009), ring(r_cl, -0.0009), ring(r_cl, -0.0018)
         cb_top, cb_bot, tris, m = p0 + 0.00005 * n, p0 - 0.0018 * n, [], len(ang)
         for ra, rb in ((rc0, rc1), (rc1, rc2), (rc2, rc3)):
             tris += _stitch_rings(rb, ra, col_sock)
-        for k in range(m):
-            kn = (k + 1) % m
-            tris += [(np.stack((cb_top, rc0[kn], rc0[k])), col_sock), (np.stack((cb_bot, rc3[k], rc3[kn])), col_sock)]
-        return tris
+        return tris + [t for k in range(m) for kn in ((k + 1) % m,) for t in ((np.stack((cb_top, rc0[kn], rc0[k])), col_sock), (np.stack((cb_bot, rc3[k], rc3[kn])), col_sock))]
     m = max(18, int(fn)) if is_screw else int(fn)
     ang = np.linspace(0.0, 2.0 * math.pi, m, endpoint=False)
     ca, sa = np.cos(ang), np.sin(ang)
-    star = (0.50 * float(r_out) * (0.72 + 0.28 * np.cos(6.0 * ang))) if is_screw else np.full(m, 0.56 * float(r_out))
-    ring = lambda rad, h: p0[None, :] + float(h) * n[None, :] + (np.asarray(rad, float)[:, None] if np.ndim(rad) > 0 else float(rad)) * (ca[:, None] * e1[None, :] + sa[:, None] * e2[None, :])
-    r0, r1, r2, r3, r4 = ring(r_out, -0.0008), ring(r_out, 0.35 * h_out), ring(0.86 * float(r_out), h_out), ring(star, h_out), ring(0.92 * star, 0.12 * h_out)
+    star = (0.50 * ro * (0.72 + 0.28 * np.cos(6.0 * ang))) if is_screw else np.full(m, 0.56 * ro)
+    ring = lambda rad, h: p0[None, :] + h * n[None, :] + (np.asarray(rad, float)[:, None] if np.ndim(rad) > 0 else float(rad)) * (ca[:, None] * e1[None, :] + sa[:, None] * e2[None, :])
+    r0, r1, r2, r3, r4 = ring(ro, -0.0008), ring(ro, 0.35 * h_out), ring(0.86 * ro, h_out), ring(star, h_out), ring(0.92 * star, 0.12 * h_out)
     cb, ct, tris = p0 - 0.0008 * n, p0 + 0.10 * h_out * n, []
     for ra, rb, col in ((r0, r1, col_rim), (r1, r2, col_rim), (r2, r3, col_rim), (r3, r4, col_sock)):
         tris += _stitch_rings(ra, rb, col)
-    for k in range(m):
-        kn = (k + 1) % m
-        tris += [(np.stack((ct, r4[k], r4[kn])), col_sock), (np.stack((cb, r0[kn], r0[k])), col_rim)]
-    return tris
+    return tris + [t for k in range(m) for kn in ((k + 1) % m,) for t in ((np.stack((ct, r4[k], r4[kn])), col_sock), (np.stack((cb, r0[kn], r0[k])), col_rim))]
 
 
 def _orient_uv(surf_fn, loop_uv, off):
@@ -143,54 +136,67 @@ def _orient_uv(surf_fn, loop_uv, off):
 
 def _winding_flip(ring_3d, ctr_3d, nrm_3d):
     np = np_mod()
-    acc = sum(np.cross(ring_3d[k] - ctr_3d, ring_3d[(k + 1) % len(ring_3d)] - ctr_3d) for k in range(len(ring_3d)))
-    return float(np.dot(acc, nrm_3d)) < 0.0
+    return float(np.dot(sum(np.cross(ring_3d[k] - ctr_3d, ring_3d[(k + 1) % len(ring_3d)] - ctr_3d) for k in range(len(ring_3d))), nrm_3d)) < 0.0
 
 
 def _stitch_rings(ra, rb, col):
-    np, m, out = np_mod(), len(ra), []
-    for k in range(m):
-        kn = (k + 1) % m
-        out += [(np.stack((ra[k], ra[kn], rb[kn])), col), (np.stack((ra[k], rb[kn], rb[k])), col)]
-    return out
+    np, m = np_mod(), len(ra)
+    return [t for k in range(m) for kn in ((k + 1) % m,) for t in ((np.stack((ra[k], ra[kn], rb[kn])), col), (np.stack((ra[k], rb[kn], rb[k])), col))]
 
 
 def _add_bolts(surf_fn, off, bolts_uv, bolt_r, nrm_fn=None):
-    np, tris = np_mod(), []
+    np, o, tris = np_mod(), float(off), []
     for bu, bv in bolts_uv:
-        bp = np.asarray(surf_fn(float(bu), float(bv), float(off)), float)
-        bn = (np.asarray(nrm_fn(float(bu), float(bv)), float) if nrm_fn is not None
-              else bp - np.asarray(surf_fn(float(bu), float(bv), float(off - 0.002)), float))
+        u, v = float(bu), float(bv)
+        bp = np.asarray(surf_fn(u, v, o), float)
+        bn = np.asarray(nrm_fn(u, v), float) if nrm_fn is not None else bp - np.asarray(surf_fn(u, v, o - 0.002), float)
         tris += socket_bolt(bp, bn, r_out=float(bolt_r))
     return tris
 
 
 def _subdiv_cap_and_rim(p_out, p_ch, max_edge):
-    """Ear-clip clean non-collinear `p_ch`, then split interior AND boundary edges > `max_edge` in lockstep."""
+    """Ear-clip `p_ch`, Delaunay-flip interior diagonals, and subdivide edges > `max_edge`."""
     from tools.render import foot
     np = np_mod()
-    verts = [(float(p[0]), float(p[1])) for p in p_ch]
-    out_v = [(float(p[0]), float(p[1])) for p in p_out]
-    b_chain = list(range(len(verts)))
+    verts, out_v = [(float(p[0]), float(p[1])) for p in p_ch], [(float(p[0]), float(p[1])) for p in p_out]
+    b_chain, lim2 = list(range(len(verts))), float(max_edge) ** 2
     tris = [(int(t[0]), int(t[1]), int(t[2])) for t in foot._ears(np.asarray(verts, float))]
-    lim2 = float(max_edge) ** 2
+    ek = lambda u, v: (u, v) if u < v else (v, u)
+    d2 = lambda a, b: (verts[a][0] - verts[b][0]) ** 2 + (verts[a][1] - verts[b][1]) ** 2
+    q2 = lambda a, b, c: ((verts[b][0] - verts[a][0]) * (verts[c][1] - verts[a][1]) - (verts[b][1] - verts[a][1]) * (verts[c][0] - verts[a][0])) / max(d2(a, b) + d2(b, c) + d2(c, a), 1e-18)
+
+    def _flip():
+        lck = {ek(b_chain[k], b_chain[(k + 1) % len(b_chain)]) for k in range(len(b_chain))}
+        for _ in range(6):
+            he = {e: val for ti, (a, b, c) in enumerate(tris) for e, val in (((a, b), (ti, c)), ((b, c), (ti, a)), ((c, a), (ti, b)))}
+            ue, used, fl = {ek(u, v) for u, v in he}, set(), 0
+            for (a, b), (t1, c) in list(he.items()):
+                if a < b and (a, b) not in lck and (b, a) in he:
+                    t2, d = he[(b, a)]
+                    cd = ek(c, d)
+                    if t1 not in used and t2 not in used and c != d and cd not in ue and min(q2(d, c, a), q2(c, d, b)) > max(1e-5, min(q2(a, b, c), q2(b, a, d)) + 1e-5):
+                        tris[t1], tris[t2], fl = (d, c, a), (c, d, b), fl + 1
+                        used.update((t1, t2)); ue.discard((a, b)); ue.add(cd)
+            if not fl:
+                break
+
+    _flip()
     for _ in range(5):
         mids, new_chain, nb = {}, [], len(b_chain)
         for k in range(nb):
             u, v = b_chain[k], b_chain[(k + 1) % nb]
             new_chain.append(u)
-            key = (u, v) if u < v else (v, u)
-            if (verts[u][0] - verts[v][0]) ** 2 + (verts[u][1] - verts[v][1]) ** 2 > lim2:
-                mi = len(verts)
-                mids[key] = mi
+            key = ek(u, v)
+            if d2(u, v) > lim2:
+                mids[key] = len(verts)
                 verts.append((0.5 * (verts[u][0] + verts[v][0]), 0.5 * (verts[u][1] + verts[v][1])))
-                out_v.append((0.5 * (out_v[u][0] + out_v[v][0]), 0.5 * (out_v[1 * v][1] if False else out_v[v][1]) + 0.5 * out_v[u][1]))
-                new_chain.append(mi)
+                out_v.append((0.5 * (out_v[u][0] + out_v[v][0]), 0.5 * (out_v[u][1] + out_v[v][1])))
+                new_chain.append(mids[key])
         b_chain = new_chain
         for a, b, c in tris:
             for u, v in ((a, b), (b, c), (c, a)):
-                key = (u, v) if u < v else (v, u)
-                if key not in mids and (verts[u][0] - verts[v][0]) ** 2 + (verts[u][1] - verts[v][1]) ** 2 > lim2:
+                key = ek(u, v)
+                if key not in mids and d2(u, v) > lim2:
                     mids[key] = len(verts)
                     verts.append((0.5 * (verts[u][0] + verts[v][0]), 0.5 * (verts[u][1] + verts[v][1])))
                     out_v.append((0.0, 0.0))
@@ -198,7 +204,7 @@ def _subdiv_cap_and_rim(p_out, p_ch, max_edge):
             break
         nxt = []
         for a, b, c in tris:
-            m0, m1, m2 = mids.get((a, b) if a < b else (b, a)), mids.get((b, c) if b < c else (c, b)), mids.get((c, a) if c < a else (a, c))
+            m0, m1, m2 = mids.get(ek(a, b)), mids.get(ek(b, c)), mids.get(ek(c, a))
             cnt = (m0 is not None) + (m1 is not None) + (m2 is not None)
             if cnt == 0:
                 nxt.append((a, b, c))
@@ -212,10 +218,9 @@ def _subdiv_cap_and_rim(p_out, p_ch, max_edge):
             else:
                 x, y, z, ma, mb = (a, b, c, m0, m1) if m2 is None else ((b, c, a, m1, m2) if m0 is None else (c, a, b, m2, m0))
                 assert ma is not None and mb is not None
-                d_xm = (verts[x][0] - verts[mb][0]) ** 2 + (verts[x][1] - verts[mb][1]) ** 2
-                d_zm = (verts[z][0] - verts[ma][0]) ** 2 + (verts[z][1] - verts[ma][1]) ** 2
-                nxt += [(ma, y, mb)] + ([(x, ma, mb), (x, mb, z)] if d_xm <= d_zm else [(x, ma, z), (ma, mb, z)])
+                nxt += [(ma, y, mb)] + ([(x, ma, mb), (x, mb, z)] if d2(x, mb) <= d2(z, ma) else [(x, ma, z), (ma, mb, z)])
         tris = nxt
+        _flip()
     return np.asarray(verts, float), tris, b_chain, np.asarray([out_v[i] for i in b_chain], float)
 
 
@@ -227,30 +232,21 @@ def curved_poly_plate(poly_uv, surf_fn, wall=0.0030, chamfer=0.00085, corner_r=0
     p0 = csg.oriented(np.asarray(poly_uv, float), ccw=True, clean=True)
     p1 = csg.oriented(csg.filleted2d(p0, r=float(corner_r), n=3), ccw=True, clean=True) if corner_r > 1e-4 else p0
     span = min(float(p1[:, 0].max() - p1[:, 0].min()), float(p1[:, 1].max() - p1[:, 1].min()))
-    bev_w = min(1.02 if span > 1.0 else 0.00102, 0.11 * span)
-    p_ch = csg.inset2d(p1, bev_w, outer=True)
+    p_ch = csg.inset2d(p1, min(1.02 if span > 1.0 else 0.00102, 0.11 * span), outer=True)
     if len(p_ch) != len(p1):
-        ctr0 = p1.mean(0)
-        p_ch = ctr0 + 0.90 * (p1 - ctr0)
-    v_uv, cap_t, b_chain, b_out = _subdiv_cap_and_rim(p1, p_ch, max(float(step), 0.0042))
+        p_ch = p1.mean(0) + 0.90 * (p1 - p1.mean(0))
+    v_uv, cap_t, b_chain, b_out = _subdiv_cap_and_rim(p1, p_ch, max(step, 0.0042))
     v_top, v_bot = _orient_uv(surf_fn, v_uv, off), _orient_uv(surf_fn, v_uv, off - wall)
-    t_bev = _orient_uv(surf_fn, b_out, off - min(float(chamfer), 0.42 * float(wall)))
-    b_bev = _orient_uv(surf_fn, b_out, off - wall)
+    t_bev, b_bev = _orient_uv(surf_fn, b_out, off - min(chamfer, 0.42 * wall)), _orient_uv(surf_fn, b_out, off - wall)
     ctr = b_out.mean(0)
-    c_top = np.asarray(surf_fn(float(ctr[0]), float(ctr[1]), float(off)), float)
-    c_bot = np.asarray(surf_fn(float(ctr[0]), float(ctr[1]), float(off - wall)), float)
+    c_top, c_bot = np.asarray(surf_fn(float(ctr[0]), float(ctr[1]), off), float), np.asarray(surf_fn(float(ctr[0]), float(ctr[1]), off - wall), float)
     r_top0, r_bot0 = v_top[b_chain], v_bot[b_chain]
     flip = _winding_flip(r_top0, c_top, c_top - c_bot)
-    ch_col = (102, 106, 114) if col == CRANIUM_DARK else rim_col
-    wl_col = (50, 53, 60) if col == CRANIUM_DARK else rim_col
-    tris = []
-    for a, b, c in cap_t:
-        i0, i1, i2 = (a, c, b) if flip else (a, b, c)
-        tris += [(np.stack((v_top[i0], v_top[i1], v_top[i2])), col),
-                 (np.stack((v_bot[i0], v_bot[i2], v_bot[i1])), rim_col)]
+    ch_col, wl_col = ((102, 106, 114) if col == CRANIUM_DARK else rim_col), ((50, 53, 60) if col == CRANIUM_DARK else rim_col)
+    tris = [t for a, b, c in cap_t for i0, i1, i2 in ((a, c, b) if flip else (a, b, c),)
+            for t in ((np.stack((v_top[i0], v_top[i1], v_top[i2])), col), (np.stack((v_bot[i0], v_bot[i2], v_bot[i1])), rim_col))]
     rt, rb, tb, bb = (r_top0[::-1], r_bot0[::-1], t_bev[::-1], b_bev[::-1]) if flip else (r_top0, r_bot0, t_bev, b_bev)
-    tris += _stitch_rings(rt, tb, ch_col) + _stitch_rings(tb, bb, wl_col) + _stitch_rings(bb, rb, rim_col)
-    return tris + _add_bolts(surf_fn, off, bolts_uv, bolt_r, nrm_fn)
+    return tris + _stitch_rings(rt, tb, ch_col) + _stitch_rings(tb, bb, wl_col) + _stitch_rings(bb, rb, rim_col) + _add_bolts(surf_fn, off, bolts_uv, bolt_r, nrm_fn)
 
 
 def _point_in_poly(xy, poly):
@@ -264,7 +260,7 @@ def _point_in_poly(xy, poly):
 
 def _smooth_inset_pair(p_out, rim_w, step):
     from tools.render import foot
-    np, n, lim = np_mod(), len(p_out), 1.38 * float(rim_w)
+    np, n, lim = np_mod(), len(p_out), 1.38 * rim_w
     p_in = np.zeros_like(p_out)
     for i in range(n):
         e0, e1 = p_out[i] - p_out[(i - 1) % n], p_out[(i + 1) % n] - p_out[i]
@@ -272,21 +268,21 @@ def _smooth_inset_pair(p_out, rim_w, step):
         n0, n1 = np.array([-e0[1] / l0, e0[0] / l0]), np.array([-e1[1] / l1, e1[0] / l1])
         mit = n0 + n1
         ml = float(np.linalg.norm(mit))
-        p_in[i] = p_out[i] + (float(rim_w) * n0 if ml < 1e-6 else min(lim, float(rim_w) / max(0.52, float(np.dot(mit / ml, n0)))) * (mit / ml))
+        p_in[i] = p_out[i] + (rim_w * n0 if ml < 1e-6 else min(lim, rim_w / max(0.52, float(np.dot(mit / ml, n0)))) * (mit / ml))
     p_in = 0.22 * np.roll(p_in, 1, axis=0) + 0.56 * p_in + 0.22 * np.roll(p_in, -1, axis=0)
     bo, bi = [], []
     for i in range(n):
         j = (i + 1) % n
-        k = max(1, int(math.ceil(max(float(np.linalg.norm(p_out[j] - p_out[i])), float(np.linalg.norm(p_in[j] - p_in[i]))) / float(step))))
+        k = max(1, int(math.ceil(max(float(np.linalg.norm(p_out[j] - p_out[i])), float(np.linalg.norm(p_in[j] - p_in[i]))) / step)))
         for s in range(k):
             t = s / k
             bo.append(p_out[i] + t * (p_out[j] - p_out[i]))
             bi.append(p_in[i] + t * (p_in[j] - p_in[i]))
     ctr0 = p_out.mean(0)
     span = max(1e-4, min(float(p_out[:, 0].max() - p_out[:, 0].min()), float(p_out[:, 1].max() - p_out[:, 1].min())))
-    p_back = ctr0 + max(0.38, 1.0 - 1.9 * float(rim_w) / span) * (p_out - ctr0)
-    for cand in (csg.inset2d(p_out, float(rim_w), outer=True), p_in, 0.5 * p_in + 0.5 * p_back, p_back):
-        cl = csg.oriented(csg.clean2d(cand, eps=max(1e-4, 0.05 * float(step))), ccw=True, clean=True)
+    p_back = ctr0 + max(0.38, 1.0 - 1.9 * rim_w / span) * (p_out - ctr0)
+    for cand in (csg.inset2d(p_out, rim_w, outer=True), p_in, 0.5 * p_in + 0.5 * p_back, p_back):
+        cl = csg.oriented(csg.clean2d(cand, eps=max(1e-4, 0.05 * step)), ccw=True, clean=True)
         if len(cl) >= 3 and len(foot._ears(np.asarray(cl, float))) == len(cl) - 2:
             p_back = cl
             break
@@ -299,7 +295,7 @@ def curved_honeycomb_bay(poly_uv, surf_fn, rim_w=0.0052, wall=0.0032, chamfer=0.
                          hole_col=BAFFLE_DARK, back_col=FRAME_VOID, off=0.0,
                          bolts_uv=(), bolt_r=0.0026, nrm_fn=None, step=0.0060, add_back=True):
     """Build watertight curved beveled frame enclosing 3D dark hexagonal honeycomb."""
-    np, ml = np_mod(), max(0.45 * float(rim_w), 0.75 * float(corner_r))
+    np, ml = np_mod(), max(0.45 * rim_w, 0.75 * corner_r)
     pts = [poly_uv[0]]
     for pt in poly_uv[1:]:
         if math.hypot(pt[0] - pts[-1][0], pt[1] - pts[-1][1]) >= ml:
@@ -307,14 +303,13 @@ def curved_honeycomb_bay(poly_uv, surf_fn, rim_w=0.0052, wall=0.0032, chamfer=0.
     while len(pts) > 6 and math.hypot(pts[0][0] - pts[-1][0], pts[0][1] - pts[-1][1]) < ml:
         pts.pop()
     p0 = csg.oriented(np.asarray(pts if len(pts) >= 6 else poly_uv, float), ccw=True, clean=True)
-    p_out = csg.oriented(csg.filleted2d(p0, r=float(corner_r), n=3), ccw=True, clean=True) if corner_r > 1e-4 else p0
+    p_out = csg.oriented(csg.filleted2d(p0, r=corner_r, n=3), ccw=True, clean=True) if corner_r > 1e-4 else p0
     p_in_clean, b_out, b_in = _smooth_inset_pair(p_out, float(rim_w), float(step))
     ctr = b_out.mean(0)
-    c_top, c_bot = np.asarray(surf_fn(float(ctr[0]), float(ctr[1]), float(off)), float), np.asarray(surf_fn(float(ctr[0]), float(ctr[1]), float(off - wall)), float)
+    c_top, c_bot = np.asarray(surf_fn(float(ctr[0]), float(ctr[1]), off), float), np.asarray(surf_fn(float(ctr[0]), float(ctr[1]), off - wall), float)
     if _winding_flip(_orient_uv(surf_fn, b_out, off), c_top, c_top - c_bot):
         b_out, b_in = b_out[::-1].copy(), b_in[::-1].copy()
-
-    ch = min(float(chamfer), 0.38 * float(wall))
+    ch = min(chamfer, 0.38 * wall)
     ch_col = (206, 140, 50) if frame_col == AMBER_GOLD else ((104, 107, 114) if frame_col == CRANIUM_DARK else rim_col)
     r_ft_i, r_ft_o = _orient_uv(surf_fn, b_in + 0.14 * (b_out - b_in), off), _orient_uv(surf_fn, b_out + 0.11 * (b_in - b_out), off)
     r_ch_o, r_bt_o = _orient_uv(surf_fn, b_out, off - ch), _orient_uv(surf_fn, b_out, off - wall)
@@ -322,8 +317,8 @@ def curved_honeycomb_bay(poly_uv, surf_fn, rim_w=0.0052, wall=0.0032, chamfer=0.
     tris = [t for ra, rb, c in ((r_ft_i, r_ft_o, frame_col), (r_ft_o, r_ch_o, ch_col), (r_ch_o, r_bt_o, rim_col),
                                 (r_bt_o, r_bt_i, rim_col), (r_bt_i, r_ch_i, rim_col), (r_ch_i, r_ft_i, ch_col)) for t in _stitch_rings(ra, rb, c)]
     if add_back:
-        tris += curved_poly_plate(p_in_clean, surf_fn, wall=0.0011 * (float(wall) / 0.0032), chamfer=0.00018, corner_r=0.0,
-                                  col=back_col, rim_col=back_col, off=off - wall - 0.16 * float(wall), step=step * 1.4)
+        tris += curved_poly_plate(p_in_clean, surf_fn, wall=0.0011 * (wall / 0.0032), chamfer=0.00018, corner_r=0.0,
+                                  col=back_col, rim_col=back_col, off=off - 1.16 * wall, step=step * 1.4)
     p_in, p_hl = p_in_clean, b_in + 0.06 * (b_out - b_in)
     u0, u1, v0, v1 = float(p_in[:, 0].min()), float(p_in[:, 0].max()), float(p_in[:, 1].min()), float(p_in[:, 1].max())
     mu, mv, pu, pv = 0.5 * (u0 + u1), 0.5 * (v0 + v1), float(pitch_u), float(pitch_v)
@@ -331,9 +326,8 @@ def curved_honeycomb_bay(poly_uv, surf_fn, rim_w=0.0052, wall=0.0032, chamfer=0.
     nu_c, nv_c = int((u1 - u0) / (2.0 * pu)) + 2, int((v1 - v0) / (2.0 * rise)) + 2
     ang = np.arange(6) * (math.pi / 3.0) + math.pi / 6.0
     uo = np.stack([np.cos(ang) * (pu / math.sqrt(3.0)), np.sin(ang) * (pv / math.sqrt(3.0))], 1)
-    ui, ht, hb = uo * float(fill), off - max(0.00090, ch + 0.00032), off - wall + 0.00028
-    flip_h = _winding_flip(_orient_uv(surf_fn, np.array([[mu, mv]]) + uo, ht),
-                           np.asarray(surf_fn(mu, mv, ht), float), c_top - c_bot)
+    ui, ht, hb = uo * fill, off - max(0.00090, ch + 0.00032), off - wall + 0.00028
+    flip_h = _winding_flip(_orient_uv(surf_fn, np.array([[mu, mv]]) + uo, ht), np.asarray(surf_fn(mu, mv, ht), float), c_top - c_bot)
     for jr in range(-nv_c, nv_c + 1):
         cv, us_off = mv + jr * rise, (0.5 * pu if (jr & 1) else 0.0)
         for ic in range(-nu_c, nu_c + 1):
@@ -346,14 +340,8 @@ def curved_honeycomb_bay(poly_uv, surf_fn, rim_w=0.0052, wall=0.0032, chamfer=0.
             ot, ob, it, ib = _orient_uv(surf_fn, o6, ht), _orient_uv(surf_fn, o6, hb), _orient_uv(surf_fn, i6, ht), _orient_uv(surf_fn, i6, hb)
             if flip_h:
                 ot, ob, it, ib = ot[::-1], ob[::-1], it[::-1], ib[::-1]
-            for k in range(6):
-                kn = (k + 1) % 6
-                tris += [
-                    (np.stack((ot[k], ot[kn], it[kn])), hex_col), (np.stack((ot[k], it[kn], it[k])), hex_col),
-                    (np.stack((ob[k], ib[kn], ob[kn])), hex_col), (np.stack((ob[k], ib[k], ib[kn])), hex_col),
-                    (np.stack((it[k], ib[k], ib[kn])), hole_col), (np.stack((it[k], ib[kn], it[kn])), hole_col),
-                    (np.stack((ot[k], ot[kn], ob[kn])), hole_col), (np.stack((ot[k], ob[kn], ob[k])), hole_col),
-                ]
+            for ra, rb, cc in ((ot, it, hex_col), (ib, ob, hex_col), (ib, it, hole_col), (ot, ob, hole_col)):
+                tris += _stitch_rings(ra, rb, cc)
     return tris + _add_bolts(surf_fn, off, bolts_uv, bolt_r, nrm_fn)
 
 

@@ -17,7 +17,7 @@ from tools.render.face_honeycomb import (
 )
 
 TUNING = {
-    'crown_top': 87.8000, 'rx_scale': 1.0260, 'zf_scale': 1.0120, 'zb_scale': 0.9880,
+    'crown_top': 87.4000, 'rx_scale': 1.0260, 'zf_scale': 1.0120, 'zb_scale': 0.9960,
     'diam_z0': 0.0000, 'diam_sx': 0.1400, 'diam_sy': 0.0400, 'wing_zi': 0.0000,
     'wing_zo': 0.1255, 'wing_sx': 1.4650, 'brow_zm': 0.0000, 'brow_zt': 0.2550,
     'brow_sx': 1.4500, 'icheek_z0': 78.4000, 'icheek_sx': 1.0250, 'ocheek_z0': 94.6000,
@@ -27,7 +27,7 @@ TUNING = {
     'jaw_f_sz': 0.5300, 'jaw_r_x0': 5.9500, 'jaw_r_sy': 0.4700, 'jaw_r_sz': 0.3600,
     'temp_xa': 69.8000, 'temp_xp': 68.9000, 'crown_off': -0.7800, 'occ_off': -0.8200,
     'ear_phi': 1.8320, 'ear_y': -13.0000, 'ear_inset': 0.0000, 'ear_r': 19.1000,
-    'spine_dz': 0.6000, 'blade_r': 36.2000, 'bust_rx': 1.0400, 'cam_f_dy': 0.0000,
+    'spine_dz': 0.6000, 'blade_r': 37.8000, 'bust_rx': 1.0400, 'cam_f_dy': 0.0000,
     'cam_s_dz': -0.1600, 'cam_p_dx': 0.0000, 'cam_b_dy': -1.2000,
 }
 
@@ -139,9 +139,9 @@ def _eval_crown_dome_mm(s_rad, c_rad, dr_sc=1.0):
     dr = (dr_sc * fhull.head_dr_mm(phi_c, yl) * w_dr) if dr_sc else 0.0
     sag_t = _sstep(-0.48, -1.03, s_rad) * max(0.0, 1.0 - (c_rad / 0.30) ** 2)
     occ_w = _sstep(-0.98, -1.36, s_rad) * (1.0 - 0.25 * _sstep(-1.72, -2.02, s_rad))
-    af = 76.2 - 61.5 * (abs(ux) ** 2.10)
+    af = 76.2 - 5.2 * _sstep(0.68, 0.98, uy) - 61.5 * (abs(ux) ** 2.10)
     ab = (95.8 - 3.6 * sag_t + 3.8 * occ_w - 4.2 * tl) * p['zb_scale'] + dr
-    return ((68.0 - 3.6 * (max(0.0, uy) ** 1.6) - 8.5 * tl + 0.85 * dr) * p['rx_scale'] * ux, fr.HEAD_CENTER_Y + yl + 0.95 * dr * max(0.0, uy), -4.5 + (ab + (af - ab) * _sstep(-0.55, 0.45, uz)) * uz)
+    return ((68.0 - 5.2 * (max(0.0, uy) ** 1.4) - 8.5 * tl + 0.85 * dr) * p['rx_scale'] * ux, fr.HEAD_CENTER_Y + yl + 0.95 * dr * max(0.0, uy), -4.7 + (ab + (af - ab) * _sstep(-0.55, 0.45, uz)) * uz)
 
 
 def sample_crown_dome_mm(s_rad, c_rad):
@@ -206,10 +206,10 @@ def eval_temple_abs_x(y_mm, z_mm):
     """Evaluate convex temple honeycomb surface `|X|(Y, Z)`."""
     p, fy, fz = cfg(), float(y_mm), float(z_mm)
     x_sil, x_tin, x_tout, z_ant = fhull.ray_front_x_bounds(fy, fz)
-    cy = 5.4 * (max(0.0, (fy - 166.0) / 26.0) ** 1.75) + 3.4 * (max(0.0, (166.0 - fy) / 22.0) ** 1.75)
+    cy = 5.1 * (max(0.0, (fy - 166.0) / 26.0) ** 1.75) + 3.4 * (max(0.0, (166.0 - fy) / 22.0) ** 1.75)
     cz = 6.4 * (max(0.0, (-17.5 - fz) / 35.0) ** 1.75) + 8.8 * (max(0.0, (fz + 17.5) / 36.0) ** 1.65)
     dome = p['temp_xa'] + 1.15 + fhull.panel_offset('temple-hex-bezels', y_mm, z_mm) - cy - cz
-    outer_t = min(68.90, x_sil + 0.40, x_tout + 0.40) - 0.65 * cy
+    outer_t = min(69.20, x_sil + 0.40, x_tout + 0.40) - 0.56 * cy
     x_in = min(dome - 0.10, max(52.4, x_tin + 0.85 + (p['temp_xp'] - 67.85)))
     t_f = max(0.0, min(1.0, (fz - (z_ant - 8.5)) / 8.5))
     return max(52.4, min(outer_t, dome - (dome - x_in) * (t_f ** 1.25)))
@@ -266,9 +266,9 @@ def occipital_panels():
     p, off = cfg(), cfg()['crown_off'] + 2.05
     ru_l, ru_r = _sc_band_plate(7, 6, 0.336, 0.875, off), _sc_band_plate(7, 6, -0.875, -0.336, off)
     rl_l, rl_r = _sc_band_plate(9, 8, 0.336, 0.855, off), _sc_band_plate(9, 8, -0.855, -0.336, off)
-    yoke = _flat_plate((0.0, fr.HEAD_CENTER_Y - 31.0, -83.0 * p['zb_scale']), (0.0, -0.20, -0.980),
-                       [(-28.5, 11.5), (28.5, 11.5), (26.0, -13.6), (15.0, -13.6),
-                        (12.2, -7.8), (-12.2, -7.8), (-15.0, -13.6), (-26.0, -13.6)], ((-21.5, 2.2), (21.5, 2.2)))
+    yoke = _flat_plate((0.0, fr.HEAD_CENTER_Y - 31.0, -86.0 * p['zb_scale']), (0.0, -0.20, -0.980),
+                       [(-28.5, 11.5), (28.5, 11.5), (26.0, -15.5), (15.0, -15.5),
+                        (12.2, -9.2), (-12.2, -9.2), (-15.0, -15.5), (-26.0, -15.5)], ((-21.5, 2.2), (21.5, 2.2)))
     yc, zc, np = fr.HEAD_CENTER_Y + 16.5, -94.0 * p['zb_scale'], np_mod()
     xb = _box_mm((-19.5, 19.5), (yc - 24.5, yc + 24.5), (zc + 17.5, zc + 22.5), FRAME_VOID, ch=0.4)
     for sgn in (1.0, -1.0):
