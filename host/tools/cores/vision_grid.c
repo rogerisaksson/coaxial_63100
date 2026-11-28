@@ -38,6 +38,10 @@ static inline double vs_cross_xy(const double *o, const double *a, const double 
 
 int32_t vs_convex_f64(const double *restrict pts_in, int32_t n_pts, double *restrict work_xy, double *restrict out_xy)
 {
+  if (n_pts > 0x3FFFFFFF)
+  {
+    return -1;
+  }
   if ((n_pts <= 0) || (pts_in == NULL) || (work_xy == NULL) || (out_xy == NULL))
   {
     return 0;
@@ -142,7 +146,10 @@ int32_t vs_grid_cc(const uint8_t *restrict on_u8, const int64_t *restrict codes,
                    int32_t *restrict parent_buf, int32_t *restrict aux_buf, int64_t *restrict coords_out,
                    int32_t *restrict label_out, int32_t *restrict starts_out)
 {
-  if ((d0 <= 0) || (d1 <= 0) || (d2 <= 0) || (n_off < 0) || (ndim < 1) || (ndim > 3))
+  if ((d0 <= 0) || (d1 <= 0) || (d2 <= 0) || (n_off < 0) || (ndim < 1) || (ndim > 3)
+      || ((on_u8 == NULL) && (codes == NULL)) || (pos_buf == NULL) || (parent_buf == NULL) || (aux_buf == NULL)
+      || (coords_out == NULL) || (label_out == NULL) || ((codes == NULL) && (starts_out == NULL))
+      || (((int64_t)d0 * (int64_t)d1 * (int64_t)d2) > (int64_t)0x7FFFFFFF))
   {
     return 0;
   }

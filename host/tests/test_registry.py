@@ -269,6 +269,17 @@ def test_c11_vision_and_way_bit_exact_parity(report, _c):
                  and int(ev[0, 0]) == 0 and int(eu[0, 0]) == 0
                  and np.array_equal(kept_c, kept_py) and ro_ok,
                  'on=%s kept_eq=%s ro=%s' % (eon[0, :3].tolist(), np.array_equal(kept_c, kept_py), ro_ok))
+    mixed_pts = [(0, 0), (2.5, 0.0), (2.5, 2.5), (0.0, 2.5), (1.0, 1.0), (1.2, 1.3), (0.5, 0.5), (1.5, 1.5)]
+    h_mixed = grids.convex(mixed_pts)
+    h_set = grids.convex({(i, i * i) for i in range(10)})
+    h_gen = grids.convex((i, i * i) for i in range(10))
+    big_x = (1 << 55) + 1
+    h_big = grids.convex([(0.0, 0.0), (big_x, 0), (big_x, 1), (0, 10), (1, 1), (2, 2), (3, 3), (4, 4)])
+    bad_shape = vision_core.convex_f64(np.zeros((5, 3)))
+    report.check('grids.convex handles iterables, mixed int/float, large ints, and invalid shapes safely',
+                 h_mixed == [(0, 0), (2.5, 0.0), (2.5, 2.5), (0.0, 2.5)] and h_set == h_gen and len(h_set) == 10
+                 and (big_x, 0) in h_big and bad_shape is None,
+                 'mixed=%s set_gen=%s big=%s bad=%s' % (h_mixed, h_set == h_gen, (big_x, 0) in h_big, bad_shape))
 
 
 ROSTER = (test_c11_vision_and_way_bit_exact_parity, test_the_robots_map_looks_in_c_as_in_numpy,

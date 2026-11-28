@@ -149,14 +149,15 @@ def convex_xy(at):
 
 def convex(pts):
     """The convex hull of (x, y) points, counter-clockwise (Andrew's monotone chain)."""
-    if len(pts) >= 8:
-        p0 = pts[0]
-        is_int = type(p0[0]) is int and type(p0[1]) is int
-        if not is_int or all(abs(x) < (1 << 52) and abs(y) < (1 << 52) for x, y in pts):
+    if isinstance(pts, (list, tuple)) and len(pts) >= 8:
+        all_int = all(len(p) == 2 and type(p[0]) is int and type(p[1]) is int
+                      and abs(p[0]) < (1 << 52) and abs(p[1]) < (1 << 52) for p in pts)
+        all_flt = not all_int and all(len(p) == 2 and type(p[0]) is float and type(p[1]) is float for p in pts)
+        if all_int or all_flt:
             from tools.cores import vision
             got = vision.convex_f64(pts)
             if got is not None:
-                return [(int(x), int(y)) for x, y in got.tolist()] if is_int else [tuple(xy) for xy in got.tolist()]
+                return [(int(x), int(y)) for x, y in got.tolist()] if all_int else [tuple(xy) for xy in got.tolist()]
     pts = sorted(set(pts))
     if len(pts) < 3:
         return pts

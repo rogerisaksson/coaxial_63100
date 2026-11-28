@@ -289,7 +289,7 @@ def _hull_scratch(n_pts: int):
         got = (
             cap,
             np.empty((cap, 2), dtype=np.float64),
-            np.empty((cap + 2, 2), dtype=np.float64),
+            np.empty((2 * cap, 2), dtype=np.float64),
         )
         _vision_tls.hull = got
     return got[1:]
@@ -300,10 +300,13 @@ def convex_f64(pts_xy):
     lib = _lib()
     if lib is None:
         return None
-    pts = np.ascontiguousarray(pts_xy, dtype=np.float64).reshape(-1, 2)
-    n_pts = len(pts)
-    if n_pts == 0:
+    raw = np.asarray(pts_xy, dtype=np.float64)
+    if raw.size == 0:
         return np.empty((0, 2), dtype=np.float64)
+    if raw.ndim != 2 or raw.shape[1] != 2:
+        return None
+    pts = np.ascontiguousarray(raw, dtype=np.float64)
+    n_pts = len(pts)
     work_xy, out_xy = _hull_scratch(n_pts)
     m = lib.vs_convex_f64(pts.ctypes.data, n_pts, work_xy.ctypes.data, out_xy.ctypes.data)
     if m < 0:
@@ -312,9 +315,12 @@ def convex_f64(pts_xy):
 
 
 def _offs3(offsets, ndim: int):
-    offs = np.asarray(offsets, dtype=np.int32).reshape(-1, ndim)
-    if ndim < 3:
-        offs = np.pad(offs, ((0, 0), (3 - ndim, 0)))
+    raw = np.asarray(offsets, dtype=np.int32)
+    if raw.size == 0:
+        return np.empty((0, 3), dtype=np.int32)
+    if raw.ndim != 2 or raw.shape[1] != ndim:
+        return None
+    offs = np.pad(raw, ((0, 0), (3 - ndim, 0))) if ndim < 3 else raw
     return np.ascontiguousarray(offs, dtype=np.int32)
 
 
@@ -327,9 +333,11 @@ def grid_joined(on, offsets):
         return None
     if arr.size == 0:
         return []
+    offs3 = _offs3(offsets, ndim)
+    if offs3 is None:
+        return None
     src = np.ascontiguousarray(arr, dtype=np.uint8)
     d0, d1, d2 = ((1, 1) + src.shape)[-3:]
-    offs3 = _offs3(offsets, ndim)
     pos_b, par_b, aux_b, lbl_b, st_b = _cc_scratch(src.size)
     coords = np.empty(ndim * src.size, dtype=np.int64)
     n_comp = lib.vs_grid_cc(
@@ -353,9 +361,11 @@ def grid_cc_codes(codes, offsets):
         return None
     if arr.size == 0:
         return None
+    offs3 = _offs3(offsets, ndim)
+    if offs3 is None:
+        return None
     src = np.ascontiguousarray(arr, dtype=np.int64)
     d0, d1, d2 = ((1, 1) + src.shape)[-3:]
-    offs3 = _offs3(offsets, ndim)
     pos_b, par_b, aux_b, lbl_b, st_b = _cc_scratch(src.size)
     coords = np.empty(ndim * src.size, dtype=np.int64)
     k_act = lib.vs_grid_cc(
