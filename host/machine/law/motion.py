@@ -59,14 +59,9 @@ def seen(g, dt):
     s = observer.beside(g['observer'], g, body, limbs, qpos, qvel, dt)
     obs = g['observer']
     soles_u, nrm, wt = obs['soles'] * g['unanchored'], obs['normal'], float(g['fr'][modal.WEIGHT])
-    shares = g.get('_shares')
-    if shares is None:
-        shares = np.array([float(soles_u[0]) / wt, float(soles_u[1]) / wt,
-                           float((nrm[_OBS_R1] + nrm[_OBS_R2]) + nrm[_OBS_R3]) / wt])
-    else:
-        shares[0] = float(soles_u[0]) / wt
-        shares[1] = float(soles_u[1]) / wt
-        shares[2] = float((nrm[_OBS_R1] + nrm[_OBS_R2]) + nrm[_OBS_R3]) / wt
+    shares = g['_shares']
+    shares[:] = (float(soles_u[0]) / wt, float(soles_u[1]) / wt,
+                 float((nrm[_OBS_R1] + nrm[_OBS_R2]) + nrm[_OBS_R3]) / wt)
     inekf.stepped(g['inekf'], body, g['sense'], shares, dt, g['inekf_points'], g['inekf_step'], g['inekf_glue'])
     palmar = g['palmar'] = min(float(g['told'][ortho.PALMAR]), float(g['st'][latent.TO][latent.MANIFOLD.start + ortho.PALMAR]))
     # what bears the robot and, sat, its seat's cone in C on its contacts before any is a dict
@@ -201,11 +196,8 @@ def control(g, dt):
     for c, f in zip(s.get('contacts', ()), got.get('borne', ())):
         seat_f[c.get('corner', 0)] += float(f[1]) * float('corner' in c)
     g['seat_f'][:] = seat_f
-    st_f = g.get('_stance_f')
-    if st_f is None:
-        st_f = np.array(ask['stance'], float)
-    else:
-        st_f[0], st_f[1] = ask['stance']
+    st_f = g['_stance_f']
+    st_f[:] = ask['stance']
     g['jeff'], g['leg_kp'] = g['braced'].blend(s['M'], M, s['q'], s['v'], s['h'], ask['posture'], got['qacc'], got['tau'],
                                                got['over'], sw, bw, d_ax, d_lat, w_hop, w_up, st_f)
     _told(g)
