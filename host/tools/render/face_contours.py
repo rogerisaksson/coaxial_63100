@@ -69,14 +69,14 @@ PANEL_HOLES_PX: dict[str, tuple[tuple[float, ...], ...]] = {
 
 def eval_nose_z_mm(x_mm, y_mm, zr, dz=0.0, tip_dz=0.0):
     """Evaluate C2-smooth compact mecha nose `Z(X, Y)` locked to dorsal `zr`."""
-    ax, fy, fzr = math.hypot(float(x_mm), 2.60) - 2.60, float(y_mm), float(zr)
-    za = 62.5 + 0.08 * max(0.0, fy - 135.0) - 0.06 * max(0.0, 125.0 - fy)
-    wt = math.exp(-(((fy - 114.0) / 8.5) ** 2))
-    rw, aw = 2.35 + 0.35 * wt, 9.65 + 2.05 * wt
-    u = max(0.0, (ax - 0.6 * rw) / max(1.0, aw - 0.6 * rw))
-    s = (u * u / (1.0 + u * u)) if u < 1.0 else (0.5 + 0.5 * math.tanh(1.15 * (u - 1.0)))
-    zb = (fzr - 0.12 * ax) * (1.0 - 1.32 * min(0.75, s)) + (za + 1.0 - 0.68 * max(0.0, ax - aw)) * (1.32 * min(0.75, s))
-    phil_lip = 1.65 * math.exp(-(((fy - 99.8) / 4.0) ** 2 + (ax / 9.2) ** 2))
+    ax, fy, fzr = math.hypot(float(x_mm), 3.40) - 3.40, float(y_mm), float(zr)
+    za = 62.6 + 0.05 * (fy - 130.0)
+    wt = math.exp(-(((fy - 113.5) / 8.5) ** 2))
+    aw = 10.5 + 2.4 * wt
+    u = ax / aw
+    s = 0.78 * (u * u) / (1.0 + u * u)
+    zb = (fzr - 0.08 * ax) * (1.0 - s) + (za + 1.2 - 0.32 * ax) * s
+    phil_lip = 1.65 * math.exp(-(((fy - 99.8) / 4.2) ** 2 + (ax / 9.8) ** 2))
     return zb + float(dz) + float(tip_dz) * wt + phil_lip
 
 _UNPACK_CACHE: list[Any] = [None, None]
@@ -371,10 +371,10 @@ def build_oled_mouth_pixels(eval_mouth_z, smile=0.0, jaw_open=0.0):
             g_ul[i, j], g_ll[i, j] = oled_pt(xm, y_up + float(fv) * cupid, 0.46), oled_pt(xm, y_lo - float(fv) * low_h, 0.44)
         for j, fv in enumerate(np.linspace(0.0, 1.0, 5)):
             g_in[i, j] = oled_pt(xm, y_lo + float(fv) * max(0.65 * (0.35 + 0.65 * env), y_up - y_lo), 0.52)
-    tris = (fh.shell_patch(g_ul, 0.00020, 0.00004, (158, 138, 148), (0.0, 0.030, 0.040), fh.MOUTH_SCREEN)
-            + fh.shell_patch(g_ll, 0.00020, 0.00004, (194, 174, 184), (0.0, 0.030, 0.040), fh.MOUTH_SCREEN))
-    cav = (52, 38, 46) if jw > 0.12 else (106, 90, 98)
-    return tris + fh.shell_patch(g_in, 0.00018, 0.00003, cav, (0.0, 0.030, 0.040), (158, 138, 148))
+    tris = (fh.shell_patch(g_ul, 0.00020, 0.00004, (194, 164, 176), (0.0, 0.030, 0.040), fh.MOUTH_SCREEN)
+            + fh.shell_patch(g_ll, 0.00020, 0.00004, (224, 198, 208), (0.0, 0.030, 0.040), fh.MOUTH_SCREEN))
+    cav = (64, 46, 56) if jw > 0.12 else (136, 114, 124)
+    return tris + fh.shell_patch(g_in, 0.00018, 0.00003, cav, (0.0, 0.030, 0.040), (194, 164, 176))
 
 
 def eval_jaw_front_x(y_mm, z_mm):

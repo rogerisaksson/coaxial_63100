@@ -9,9 +9,9 @@ if __package__ in (None, ''):
 from tools.render import csg  # noqa: E402
 
 SHELL_CF, PANEL_RIM, SEAM_SILVER, CHASSIS_CF, TITANIUM = (245, 244, 240), (50, 52, 58), (190, 192, 196), (32, 34, 40), (146, 150, 158)
-CRANIUM_DARK, CRANIUM_RIM, AMBER_GOLD, AMBER_DARK = (86, 88, 94), (44, 46, 52), (232, 154, 58), (158, 96, 26)
+CRANIUM_DARK, CRANIUM_RIM, AMBER_GOLD, AMBER_DARK = (108, 108, 110), (54, 56, 60), (232, 158, 76), (158, 96, 28)
 HEX_DARK, FRAME_VOID, BOLT_RIM, BOLT_SOCK = (40, 42, 48), (14, 16, 20), (32, 34, 38), (10, 12, 14)
-MOUTH_SCREEN, LIP_TINT, LIP_LINE = (242, 243, 248), (218, 198, 204), (176, 158, 166)
+MOUTH_SCREEN, LIP_TINT, LIP_LINE = (254, 254, 255), (222, 196, 206), (184, 160, 170)
 ANODIZED, SERVO_CASE, HORN_BRASS, MESH_PEARL = (226, 48, 178), (28, 32, 40), (206, 168, 84), (234, 236, 240)
 NECK_SKIN, OPTIC_DARK, OPTIC_GLASS, OPTIC_SCLERA = (50, 53, 58), (8, 10, 14), (40, 46, 56), (154, 160, 168)
 BAFFLE_DARK, MIC_GOLD, BROW_DARK = (12, 14, 18), (220, 138, 44), (14, 16, 20)
@@ -408,6 +408,6 @@ def throat_bellows_hoses(to_neck_fn):
         fy, rc, z0, u0 = float(ry), (CRANIUM_DARK if (k & 1) == 0 else FRAME_VOID), zf(ry), (float(ry) + 8.0) / 64.0
         hc += csg.extrude(csg.circle2d(4.05, fn=16, at=(z0, 0.0)), a=fy - 0.74, b=fy + 0.74, axis=1, colour=rc, chamfer=0.28).tris()
         hl += csg.extrude(csg.circle2d(3.22, fn=14, at=(z0 - 1.15, 8.4 + 1.3 * u0)), a=fy - 0.68, b=fy + 0.68, axis=1, colour=rc, chamfer=0.25).tris()
-    hc += csg.extrude(csg.filleted2d(csg.box2d((-13.5, 13.5), (-3.2, 6.2)), r=1.2), a=54.2, b=57.2, axis=1, colour=CRANIUM_DARK, chamfer=0.45).tris()
+    hc += csg.extrude(csg.filleted2d(csg.box2d((-3.2, 5.2), (-13.5, 13.5)), r=1.2), a=54.2, b=57.2, axis=1, colour=CRANIUM_DARK, chamfer=0.45).tris()
     nl = to_neck_fn(hl)
     return {'neck_conduit_center': to_neck_fn(hc), 'neck_conduits_L': nl, 'neck_conduits_R': mirror_x(nl)}

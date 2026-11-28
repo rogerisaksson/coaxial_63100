@@ -17,17 +17,17 @@ from tools.render.face_honeycomb import (
 )
 
 TUNING = {
-    'crown_top': 88.2000, 'rx_scale': 1.0080, 'zf_scale': 1.0120, 'zb_scale': 0.9900,
+    'crown_top': 87.8000, 'rx_scale': 1.0260, 'zf_scale': 1.0120, 'zb_scale': 0.9880,
     'diam_z0': 0.0000, 'diam_sx': 0.1400, 'diam_sy': 0.0400, 'wing_zi': 0.0000,
     'wing_zo': 0.1255, 'wing_sx': 1.4650, 'brow_zm': 0.0000, 'brow_zt': 0.2550,
     'brow_sx': 1.4500, 'icheek_z0': 78.4000, 'icheek_sx': 1.0250, 'ocheek_z0': 94.6000,
-    'ocheek_sx': 1.5180, 'nose_dz': -2.6000, 'nose_wx': 1.0000, 'nose_tip': 0.8500,
+    'ocheek_sx': 1.5180, 'nose_dz': -2.2000, 'nose_wx': 1.0000, 'nose_tip': 1.1500,
     'oled_z0': 0.0000, 'oled_sx': 1.0000, 'oled_sy': 1.3800, 'chin_z0': 0.0000,
     'chin_sx': 0.7800, 'chin_sy': 0.0000, 'jaw_f_x0': 13.6000, 'jaw_f_sy': 0.4100,
     'jaw_f_sz': 0.5300, 'jaw_r_x0': 5.9500, 'jaw_r_sy': 0.4700, 'jaw_r_sz': 0.3600,
-    'temp_xa': 68.6800, 'temp_xp': 67.8500, 'crown_off': -0.7800, 'occ_off': -0.8200,
+    'temp_xa': 69.8000, 'temp_xp': 68.9000, 'crown_off': -0.7800, 'occ_off': -0.8200,
     'ear_phi': 1.8320, 'ear_y': -13.0000, 'ear_inset': 0.0000, 'ear_r': 19.1000,
-    'spine_dz': 0.6000, 'blade_r': 33.2000, 'bust_rx': 1.0400, 'cam_f_dy': 0.0000,
+    'spine_dz': 0.6000, 'blade_r': 36.2000, 'bust_rx': 1.0400, 'cam_f_dy': 0.0000,
     'cam_s_dz': -0.1600, 'cam_p_dx': 0.0000, 'cam_b_dy': -1.2000,
 }
 
@@ -90,7 +90,7 @@ def _eval_head_mm(phi, y_loc, dr_sc=1.0):
     p, sin_p, cos_p = cfg(), math.sin(phi), math.cos(phi)
     ap, c_start, c_top = abs(math.atan2(sin_p, cos_p)), 8.0, p['crown_top']
     u_d = max(0.0, min(0.9994, (y_loc - c_start) / (c_top - c_start)))
-    exp_d = 2.34 - 0.36 * _sstep(1.45, 2.25, ap)
+    exp_d = 2.22 - 0.34 * _sstep(1.45, 2.25, ap)
     dome_s = (max(1e-4, 1.0 - (u_d ** exp_d)) ** (1.0 / exp_d)) if y_loc > c_start else 1.0
     rx = 67.4 * dome_s
     if y_loc < c_start:
@@ -131,7 +131,7 @@ def _eval_crown_dome_mm(s_rad, c_rad, dr_sc=1.0):
     p = cfg()
     ux, cos_c = math.sin(c_rad), math.cos(c_rad)
     cs = cos_c * math.cos(s_rad)
-    exp_y = 0.78 + 0.20 * _sstep(-0.38, 0.38, s_rad)
+    exp_y = 0.85 + 0.16 * _sstep(-0.38, 0.38, s_rad)
     uy = (cs ** exp_y) if cs >= 0.0 else -((-cs) ** 0.88)
     uz, tl, yl = cos_c * math.sin(s_rad), _sstep(-1.62, -2.02, s_rad), 8.0 + (p['crown_top'] - 9.2) * uy
     phi_c = math.atan2(ux, uz)
@@ -139,9 +139,9 @@ def _eval_crown_dome_mm(s_rad, c_rad, dr_sc=1.0):
     dr = (dr_sc * fhull.head_dr_mm(phi_c, yl) * w_dr) if dr_sc else 0.0
     sag_t = _sstep(-0.48, -1.03, s_rad) * max(0.0, 1.0 - (c_rad / 0.30) ** 2)
     occ_w = _sstep(-0.98, -1.36, s_rad) * (1.0 - 0.25 * _sstep(-1.72, -2.02, s_rad))
-    af = 76.4 - 61.5 * (abs(ux) ** 2.10)
+    af = 76.2 - 61.5 * (abs(ux) ** 2.10)
     ab = (95.8 - 3.6 * sag_t + 3.8 * occ_w - 4.2 * tl) * p['zb_scale'] + dr
-    return ((68.2 - 8.5 * tl + 0.85 * dr) * p['rx_scale'] * ux, fr.HEAD_CENTER_Y + yl + 0.95 * dr * max(0.0, uy), -4.5 + (ab + (af - ab) * _sstep(-0.55, 0.45, uz)) * uz)
+    return ((68.0 - 3.6 * (max(0.0, uy) ** 1.6) - 8.5 * tl + 0.85 * dr) * p['rx_scale'] * ux, fr.HEAD_CENTER_Y + yl + 0.95 * dr * max(0.0, uy), -4.5 + (ab + (af - ab) * _sstep(-0.55, 0.45, uz)) * uz)
 
 
 def sample_crown_dome_mm(s_rad, c_rad):
@@ -206,10 +206,10 @@ def eval_temple_abs_x(y_mm, z_mm):
     """Evaluate convex temple honeycomb surface `|X|(Y, Z)`."""
     p, fy, fz = cfg(), float(y_mm), float(z_mm)
     x_sil, x_tin, x_tout, z_ant = fhull.ray_front_x_bounds(fy, fz)
-    cy = 8.8 * (max(0.0, (fy - 166.0) / 26.0) ** 1.75) + 3.6 * (max(0.0, (166.0 - fy) / 22.0) ** 1.75)
+    cy = 5.4 * (max(0.0, (fy - 166.0) / 26.0) ** 1.75) + 3.4 * (max(0.0, (166.0 - fy) / 22.0) ** 1.75)
     cz = 6.4 * (max(0.0, (-17.5 - fz) / 35.0) ** 1.75) + 8.8 * (max(0.0, (fz + 17.5) / 36.0) ** 1.65)
     dome = p['temp_xa'] + 1.15 + fhull.panel_offset('temple-hex-bezels', y_mm, z_mm) - cy - cz
-    outer_t = min(68.00, x_sil + 0.40, x_tout + 0.40) - 0.85 * cy
+    outer_t = min(68.90, x_sil + 0.40, x_tout + 0.40) - 0.65 * cy
     x_in = min(dome - 0.10, max(52.4, x_tin + 0.85 + (p['temp_xp'] - 67.85)))
     t_f = max(0.0, min(1.0, (fz - (z_ant - 8.5)) / 8.5))
     return max(52.4, min(outer_t, dome - (dome - x_in) * (t_f ** 1.25)))
@@ -266,9 +266,9 @@ def occipital_panels():
     p, off = cfg(), cfg()['crown_off'] + 2.05
     ru_l, ru_r = _sc_band_plate(7, 6, 0.336, 0.875, off), _sc_band_plate(7, 6, -0.875, -0.336, off)
     rl_l, rl_r = _sc_band_plate(9, 8, 0.336, 0.855, off), _sc_band_plate(9, 8, -0.855, -0.336, off)
-    yoke = _flat_plate((0.0, fr.HEAD_CENTER_Y - 24.0, -74.5 * p['zb_scale']), (0.0, -0.36, -0.933),
-                       [(-27.8, 8.0), (27.8, 8.0), (25.2, -8.2), (15.2, -8.2),
-                        (12.4, -0.8), (-12.4, -0.8), (-15.2, -8.2), (-25.2, -8.2)], ((-21.0, 1.8), (21.0, 1.8)))
+    yoke = _flat_plate((0.0, fr.HEAD_CENTER_Y - 31.0, -83.0 * p['zb_scale']), (0.0, -0.20, -0.980),
+                       [(-28.5, 11.5), (28.5, 11.5), (26.0, -13.6), (15.0, -13.6),
+                        (12.2, -7.8), (-12.2, -7.8), (-15.0, -13.6), (-26.0, -13.6)], ((-21.5, 2.2), (21.5, 2.2)))
     yc, zc, np = fr.HEAD_CENTER_Y + 16.5, -94.0 * p['zb_scale'], np_mod()
     xb = _box_mm((-19.5, 19.5), (yc - 24.5, yc + 24.5), (zc + 17.5, zc + 22.5), FRAME_VOID, ch=0.4)
     for sgn in (1.0, -1.0):
@@ -347,8 +347,8 @@ def neck_hull_panels():
            'neck_trapezius_R': trap_r, **throat_bellows_hoses(_canon_to_neck)}
     for tag, yh in (('upper', 40.5), ('lower', 18.5)):
         zf, x1 = -0.6 + 2.9 * (((yh - 26.0) / 30.0) ** 2), 8.4 + 1.3 * ((yh + 8.0) / 64.0)
-        yk = csg.oriented([(0.0, zf + 4.25), (4.1, zf + 3.95), (5.6, zf + 2.15), (x1, zf + 3.05),
-                           (x1 + 3.2, zf + 1.65), (14.6, zf - 0.15), (14.6, zf - 4.40), (0.0, zf - 4.40)], ccw=True, clean=True)
+        yk = csg.oriented([(zf + 4.25, 0.0), (zf + 3.95, 4.1), (zf + 2.15, 5.6), (zf + 3.05, x1),
+                           (zf + 1.65, x1 + 3.2), (zf - 0.15, 14.6), (zf - 4.40, 14.6), (zf - 4.40, 0.0)], ccw=True, clean=True)
         yk_l = (_canon_to_neck(csg.extrude(yk, a=yh - 2.5, b=yh + 2.5, axis=1, colour=CRANIUM_DARK, chamfer=0.50).tris())
                 + socket_bolt(fr.canon_to_head((12.7, yh, zf + 0.35)) + _NH, (0.30, 0.0, 0.95), r_out=0.0019, h_out=0.00042))
         kc = csg.extrude(csg.filleted2d(csg.oriented([(-3.0, yh - 2.0), (3.0, yh - 2.0), (3.5, yh + 0.9), (0.0, yh + 2.4), (-3.5, yh + 0.9)], ccw=True, clean=True), r=0.45),

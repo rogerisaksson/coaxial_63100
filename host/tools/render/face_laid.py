@@ -67,7 +67,7 @@ def _eval_icheek_z(x, y):
 def _eval_ocheek_z(x, y):
     ax, fy = abs(float(x)), float(y)
     wb = fc._sstep(138.0, 148.0, fy) * fc._sstep(35.0, 44.5, ax)
-    return _eval_midface_z(ax, fy) * (1.0 - wb) + _eval_brow_z(ax, fy) * wb - 5.4 * fc._sstep(48.6, 55.0, ax) * fc._sstep(134.0, 152.0, fy)
+    return _eval_midface_z(ax, fy) * (1.0 - wb) + _eval_brow_z(ax, fy) * wb - 2.4 * fc._sstep(49.0, 58.0, ax) * fc._sstep(134.0, 152.0, fy)
 
 
 def _eval_mouth_z(x, y):
@@ -76,8 +76,9 @@ def _eval_mouth_z(x, y):
     lip = (1.05 * math.exp(-(((fy - 87.2) / 3.0) ** 2)) + 0.75 * math.exp(-(((fy - 81.2) / 3.2) ** 2))
            - 0.45 * math.exp(-(((fy - 84.4) / 1.5) ** 2))) * math.exp(-((ax / 13.5) ** 2))
     z0 = fhull.eval_side_midline_z(min(100.5, fy)) - 0.55 + lip - 0.55 * fc._sstep(89.5, 95.5, fy) * math.exp(-((ax / 6.5) ** 2)) + p['oled_z0']
-    ax_e, zs = min(35.4, 14.5 + 0.62 * max(0.0, fy - 71.0)), min(z0 - 1.4, 32.0 - 0.18 * max(0.0, fy - 72.0))
-    u = min(0.99, p['oled_sx'] * (math.hypot(fx, 4.5) - 4.5) / max(8.0, ax_e))
+    dy = 0.5 * (fy - 71.0 + math.hypot(fy - 71.0, 4.0))
+    ax_e, zs = min(39.0, 18.5 + 0.68 * dy), min(z0 - 1.4, 32.0 - 0.18 * dy)
+    u = min(0.99, p['oled_sx'] * (math.hypot(fx, 5.5) - 5.5) / max(8.0, ax_e))
     return z0 - (z0 - zs) * (u ** (p['oled_sy'] + 0.34)) + fhull.panel_offset('face-oled-mouth', fx, fy)
 
 
@@ -138,9 +139,10 @@ def _clamp_canon_behind_face(p):
         mx = min(x_sil_lim, x_ti - 2.2, fc.eval_temple_abs_x(wy, min(pz, 18.0)) - 5.2)
         if ax > mx:
             p[0] = math.copysign(max(8.0, mx), float(p[0]))
-    elif wy <= 132.0 and -24.0 < pz < 54.0:
-        jl = min(cp['jaw_r_x0'] - 2.35 + cp['jaw_r_sy'] * wy - cp['jaw_r_sz'] * pz + fhull.panel_offset('jaw-rear-hex', wy, pz),
-                 fcon.eval_jaw_front_x(wy, pz),
+    elif wy <= 122.0 and -54.0 < pz < 54.0:
+        pzc = max(-18.0, pz)
+        jl = min(cp['jaw_r_x0'] - 2.35 + cp['jaw_r_sy'] * wy - cp['jaw_r_sz'] * pzc + fhull.panel_offset('jaw-rear-hex', wy, pzc),
+                 fcon.eval_jaw_front_x(wy, pzc),
                  fhull.front_jaw_max_x(wy, pz)) - 5.8
         if ax > jl:
             p[0] = math.copysign(max(8.0, jl), float(p[0]))
@@ -239,12 +241,11 @@ def cheek_and_nose_panels():
 
     def eval_nz(x, y):
         fx, ax, fy = float(x), abs(float(x)), float(y)
-        xw = 7.6 + 1.3 * fc._sstep(123.0, 114.0, fy) - 1.5 * fc._sstep(140.0, 149.0, fy)
-        wn = fc._sstep(xw - 3.8, xw - 0.15, ax)
+        xw = 8.4 + 1.5 * fc._sstep(123.0, 113.0, fy) - 1.4 * fc._sstep(140.0, 149.0, fy)
+        wn = fc._sstep(xw - 6.0, xw + 1.6, ax)
         zn = fcon.eval_nose_z_mm(fx / sx, fy, fhull.eval_side_midline_z(min(153.5, fy)), p['nose_dz'], p.get('nose_tip', 0.0))
         po_n = fhull.panel_offset('face-nose', fx, fy)
-        wt_lo = fc._sstep(115.5, 112.0, fy)
-        return (1.0 - wn) * (zn + po_n) + wn * (eval_ic(math.copysign(max(ax, xw) + (2.1 if fx < 0.0 else 1.5), fx), fy) + 0.10 + wt_lo * po_n)
+        return (1.0 - wn) * (zn + po_n) + wn * (eval_ic(math.copysign(ax + 1.6, fx), fy) + 0.10)
 
     nose = fr.camera_ray_planar_panel(n_lp, fcam, eval_nz, bevel_outset_px=2.6, bevel_depth_mm=0.66, thickness_mm=4.0, col=SHELL_CF, rim_col=CRANIUM_RIM, holes_px=n_hl, corner_r_px=7.2, inward_x=0.68)
 
@@ -279,7 +280,7 @@ def lower_jaw_and_oled_panels():
     bzl = [(451.0 - dx, py) for dx, py in reversed(bzh)] + [(451.0 + dx, py) for dx, py in bzh]
     bezel = fr.camera_ray_planar_panel(bzl, fcam, lambda x, y: _eval_mouth_z(x, y) - 4.8, bevel_outset_px=0.0, bevel_depth_mm=0.30, thickness_mm=1.8, col=BAFFLE_DARK, rim_col=CHASSIS_CF, corner_r_px=0.0)
     subm = fr.canon_tris_to_head(csg.extrude(csg.filleted2d([(65.8, 19.5), (64.8, 26.5), (63.8, 30.2), (66.0, 30.5), (84.0, 26.5), (84.0, 19.5)], r=1.0, n=3), a=-5.2, b=5.2, axis=0, colour=FRAME_VOID, chamfer=0.35).tris())
-    eval_c = lambda x, y: fhull.eval_side_midline_z(y) + p['chin_z0'] - p['chin_sx'] * max(0.0, abs(float(x)) - 5.5) + fhull.panel_offset('jaw-chin-cap', float(x), float(y))
+    eval_c = lambda x, y: fhull.eval_side_midline_z(y) + p['chin_z0'] - p['chin_sx'] * (math.hypot(abs(float(x)), 5.8) - 5.8) + fhull.panel_offset('jaw-chin-cap', float(x), float(y))
     chin = fr.camera_ray_planar_panel(fcon.active_loop('CHIN_LOOP'), fcam, eval_c, bevel_outset_px=2.8, bevel_depth_mm=0.70, thickness_mm=3.5, col=AMBER_GOLD, rim_col=AMBER_DARK, holes_px=fcon.active_holes('CHIN_LOOP'), corner_r_px=6.4)
     jf_lp = fr.simplify_closed_rdp(fcon.active_loop('PROF_JAW_FRONT_LOOP'), 1.8)
     jr_lp = fr.simplify_closed_rdp(fcon.active_loop('PROF_JAW_REAR_LOOP'), 1.8)
@@ -326,8 +327,8 @@ def ear_microphones():
     nrm = np.array([float(nrm0[0]), -0.045, float(nrm0[2])], float)
     nrm /= max(float(np.linalg.norm(nrm)), 1e-12)
     pos = fr.canon_to_head(pt_mm + (0.95 + p['ear_inset']) * nrm0)
-    ht = min(0.0044, max(0.0030, (0.08795 - float(pos[0]) - 0.10 * re_m) / max(0.35, float(nrm[0]))))
-    col_t = (rev([(0.0155, 0.0), (rc, 0.0), (rc, 0.42 * ht), (rc - 0.0016, 0.65 * ht), (0.0155, 0.65 * ht)], 2, (0.0, 0.0), 40, FRAME_VOID)
+    ht = min(0.0046, max(0.0030, (0.0906 - float(pos[0]) - 0.10 * re_m) / max(0.35, float(nrm[0]))))
+    col_t = (rev([(0.0140, -0.0048), (rc - 0.0018, -0.0048), (rc, 0.0), (rc, 0.42 * ht), (rc - 0.0016, 0.65 * ht), (0.0140, 0.65 * ht)], 2, (0.0, 0.0), 40, FRAME_VOID)
              + rev([(0.0042, 0.0002), (re_m, 0.0002), (re_m, 0.68 * ht), (re_m - 0.0020, ht), (0.0042, ht)], 2, (0.0, 0.0), 40, CRANIUM_DARK)
              + rev([(0.0, 0.0002), (0.0044, 0.0002), (0.0044, ht), (0.0032, ht - 0.0008), (0.0032, ht - 0.0022), (0.0, ht - 0.0022)], 2, (0.0, 0.0), 24, BOLT_RIM))
     e1 = np.cross((0.0, 1.0, 0.0), nrm)
@@ -335,8 +336,8 @@ def ear_microphones():
     bas = np.stack([e1, np.cross(nrm, e1), nrm], axis=0)
     left = [(t @ bas + pos, c) for t, c in col_t] + socket_bolt(pos + (ht - 0.0003) * nrm, nrm, r_out=0.0032, h_out=0.00050, fn=18)
     mx = float(np.vstack([t for t, _ in left])[:, 0].max())
-    if mx > 0.08805:
-        left = [(t * (0.08800 / mx, 1.0, 1.0), c) for t, c in left]
+    if mx > 0.0907:
+        left = [(t * (0.0906 / mx, 1.0, 1.0), c) for t, c in left]
     res = {'left_ear_mic': left, 'right_ear_mic': mirror_x(left)}
     if not ck[4]:
         _EAR_CACHE.clear()
