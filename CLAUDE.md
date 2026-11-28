@@ -265,6 +265,7 @@ Evaluate the prompt and working tree before invoking any tool:
 - Layer Owner: [Physics OR C11-Core OR Executive OR Client OR Target-FW]
 - Generated File: [NO (safe to edit) OR YES (name its generator; the fix goes there)]
 - Precision Domain: [float64 NumPy-exact OR float32 MCU/SoA ABI OR Integer]
+- [INV-INV] Full oracle invariant discovery and solution synthesis? [YES / NO]
 - [INV-SOLVER] Zero oracle corruption (0 weakened tests, relaxed tolerances, or mocked returns)? [YES / NO]
 - [INV-REWARD] Prioritized quality over quantity and speed? [YES / NO]
 - [INV-SYSTEM] System architecture, mechanics and dynamics understood and verified in code? [YES / NO]
