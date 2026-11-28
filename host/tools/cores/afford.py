@@ -29,9 +29,17 @@ def _typed():
     return lib.wbh_afford_near, lib.wbh_afford_clear, ctypes.addressof(held.blas())
 
 
+def _f64(a):
+    return a if (type(a) is np.ndarray and a.dtype == np.float64 and a.flags.c_contiguous) else np.ascontiguousarray(a, dtype=np.float64)
+
+
+def _b8(a):
+    return a if (type(a) is np.ndarray and a.dtype == np.bool_ and a.flags.c_contiguous) else np.ascontiguousarray(a, dtype=np.bool_)
+
+
 def _rows(arrays):
     """A look's (centres, half sizes, rotations) contiguous float64 - the very arrays where they are."""
-    return [np.ascontiguousarray(a, dtype=np.float64) for a in arrays]
+    return (_f64(arrays[0]), _f64(arrays[1]), _f64(arrays[2]))
 
 
 def near(now, was, told, cell, root2):
@@ -40,10 +48,11 @@ def near(now, was, told, cell, root2):
     its own either way, `root2` a rectangle's reach over its circle (`furniture.near_twin`)."""
     fn, _clear, _blas = _typed()
     (cn, hn, rn), (cw, hw, rw) = _rows(now), _rows(was)
-    flags = np.ascontiguousarray(told, dtype=np.bool_)
-    out = np.empty(len(flags), np.bool_)
+    flags = _b8(told)
+    n = len(flags)
+    out = np.empty(n, np.bool_)
     p = wbc.pointer
-    fn(len(flags), p(cn), p(hn), p(rn), p(cw), p(hw), p(rw), p(flags, np.bool_), cell, root2, p(out, np.bool_))
+    fn(n, p(cn), p(hn), p(rn), p(cw), p(hw), p(rw), p(flags, np.bool_), cell, root2, p(out, np.bool_))
     return out
 
 
@@ -53,8 +62,13 @@ def clear(arrays, other, fb, lo, hi, reach, root2):
     a rectangle's reach over its circle (`affordance.clear` on a look's arrays)."""
     _near, fn, blas = _typed()
     c, h, r = _rows(arrays)
-    marks = np.ascontiguousarray(other, dtype=np.bool_)
-    box = np.ascontiguousarray(np.concatenate([np.ravel(fb[0]), np.ravel(fb[1]), np.ravel(fb[2])]), dtype=np.float64)
+    marks = _b8(other)
+    c0, ax, hs = fb
+    ax_r = ax.ravel() if type(ax) is np.ndarray else np.ravel(ax)
+    box = np.empty(8, dtype=np.float64)
+    box[0], box[1] = c0[0], c0[1]
+    box[2], box[3], box[4], box[5] = ax_r[0], ax_r[1], ax_r[2], ax_r[3]
+    box[6], box[7] = hs[0], hs[1]
     p = wbc.pointer
     return float(fn(blas, len(marks), p(c), p(h), p(r), p(marks, np.bool_), p(box), float(lo), float(hi), float(reach),
                     root2))

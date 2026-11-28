@@ -49,6 +49,8 @@ static int beside(int i, int m, const double *c, const double *h, double cell, d
   return (gap <= hyp(h[3 * i], h[3 * i + 2]) + root2 * hyp(h[3 * m], h[3 * m + 2]) + cell + 1e-9) ? 1 : 0;
 }
 
+#define AFFORD_BUF 256
+
 int wbc_afford_near(int n, const double *c_now, const double *h_now, const double *R_now, const double *c_was,
                     const double *h_was, const double *R_was, const uint8_t *told, double cell, double root2,
                     uint8_t *near)
@@ -61,7 +63,59 @@ int wbc_afford_near(int n, const double *c_now, const double *h_now, const doubl
     near[i] = (moved_of(i, c_now, h_now, R_now, c_was, h_was, R_was, told) != 0) ? 1U : 0U;
     moved += (int)near[i];
   }
-  if (moved > 0)
+  if ((moved > 0) && (n <= AFFORD_BUF))
+  {
+    _Alignas(64) double hx[2 * AFFORD_BUF], hz[2 * AFFORD_BUF], r_all[2 * AFFORD_BUF], gaps[2 * AFFORD_BUF];
+    int                 mv[AFFORD_BUF], nm = 0;
+
+    for (int i = 0; i < n; i++)
+    {
+      hx[i] = h_now[3 * i];
+      hz[i] = h_now[3 * i + 2];
+      hx[n + i] = h_was[3 * i];
+      hz[n + i] = h_was[3 * i + 2];
+      if ((near[i] & 1U) != 0U)
+      {
+        mv[nm++] = i;
+      }
+    }
+    wbc_libm_hypot(hx, hz, r_all, 2 * n);
+    for (int i = 0; i < n; i++)
+    {
+      if (near[i] == 0U)
+      {
+        const double cnx = c_now[3 * i], cnz = c_now[3 * i + 2], rni = r_all[i];
+        const double cwx = c_was[3 * i], cwz = c_was[3 * i + 2], rwi = r_all[n + i];
+
+        for (int k = 0; k < nm; k++)
+        {
+          const int m = mv[k];
+
+          hx[k] = cnx - c_now[3 * m];
+          hz[k] = cnz - c_now[3 * m + 2];
+          hx[nm + k] = cwx - c_was[3 * m];
+          hz[nm + k] = cwz - c_was[3 * m + 2];
+        }
+        wbc_libm_hypot(hx, hz, gaps, 2 * nm);
+        for (int k = 0; k < nm; k++)
+        {
+          const int m = mv[k];
+
+          if ((gaps[k] <= rni + root2 * r_all[m] + cell + 1e-9)
+              || (gaps[nm + k] <= rwi + root2 * r_all[n + m] + cell + 1e-9))
+          {
+            near[i] = 2U;
+            break;
+          }
+        }
+      }
+    }
+    for (int i = 0; i < n; i++)
+    {
+      near[i] = (near[i] != 0U) ? 1U : 0U;
+    }
+  }
+  else if (moved > 0)
   {
     for (int i = 0; i < n; i++)
     {
@@ -88,14 +142,41 @@ double wbc_afford_clear(const wbc_blas_t *l, int n, const double *centre, const 
   static const double corners[4][2] = {{-1.0, -1.0}, {-1.0, 1.0}, {1.0, -1.0}, {1.0, 1.0}};
   const wbc_view_t    axes_t = {box + 2, 1, 2};
   pysum_t             covered = {0.0, 0.0, 0};
+  _Alignas(64) double hx[2 * AFFORD_BUF], hz[2 * AFFORD_BUF], hy[2 * AFFORD_BUF];
+  int                 cand[AFFORD_BUF], nc = 0;
 
-  for (int i = 0; i < n; i++)
+  if (n <= AFFORD_BUF)
   {
-    const double *c = centre + 3 * i, *h = half + 3 * i, *r = R + 9 * i;
-    const double  bottom = c[1] - h[1];
+    for (int i = 0; i < n; i++)
+    {
+      const double *c = centre + 3 * i, *h = half + 3 * i;
+      const double  bottom = c[1] - h[1];
 
-    if ((other[i] != 0U) && (bottom >= lo) && (bottom <= hi)
-        && (hyp(c[0] - box[0], c[2] - box[1]) <= reach + root2 * hyp(h[0], h[2]) + 1e-9))
+      if ((other[i] != 0U) && (bottom >= lo) && (bottom <= hi))
+      {
+        hx[nc] = c[0] - box[0];
+        hz[nc] = c[2] - box[1];
+        hx[AFFORD_BUF + nc] = h[0];
+        hz[AFFORD_BUF + nc] = h[2];
+        cand[nc++] = i;
+      }
+    }
+    if (nc > 0)
+    {
+      wbc_libm_hypot(hx, hz, hy, nc);
+      wbc_libm_hypot(hx + AFFORD_BUF, hz + AFFORD_BUF, hy + AFFORD_BUF, nc);
+    }
+  }
+  for (int idx = 0; idx < ((n <= AFFORD_BUF) ? nc : n); idx++)
+  {
+    const int     i = (n <= AFFORD_BUF) ? cand[idx] : idx;
+    const double *c = centre + 3 * i, *h = half + 3 * i, *r = R + 9 * i;
+    const int     hit = (n <= AFFORD_BUF)
+                        ? (hy[idx] <= reach + root2 * hy[AFFORD_BUF + idx] + 1e-9)
+                        : ((other[i] != 0U) && (c[1] - h[1] >= lo) && (c[1] - h[1] <= hi)
+                           && (hyp(c[0] - box[0], c[2] - box[1]) <= reach + root2 * hyp(h[0], h[2]) + 1e-9));
+
+    if (hit != 0)
     {
       /* the thing's corners by its floor axes (its rotation's x and z, transposed), then along the box's */
       const double     oaxes[4] = {r[0], r[6], r[2], r[8]};

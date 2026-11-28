@@ -58,15 +58,21 @@ class Glued:
         buffers."""
         self.turn ^= 1
         local, weights, sh = self.bufs[self.turn]
-        shares = np.ascontiguousarray(shares, dtype=np.float64)
+        if not (type(shares) is np.ndarray and shares.dtype == np.float64 and shares.flags.c_contiguous):
+            shares = np.ascontiguousarray(shares, dtype=np.float64)
         self.fns[0](self.at, wbc.address(y), wbc.address(shares), len(shares), wbc.address(local), wbc.address(weights),
                     wbc.address(sh))
         return local, weights, sh
 
     def rolled(self, f, soles, anchors, sh, dt):
         """`inekf.rolled`: the filter `f`'s drift a law pass `dt` on, its gyro's and its contacts' roll."""
-        soles, anchors = np.ascontiguousarray(soles, dtype=np.float64), np.ascontiguousarray(anchors, dtype=np.float64)
-        on = np.ascontiguousarray(f['on'], dtype=np.float64)
+        if not (type(soles) is np.ndarray and soles.dtype == np.float64 and soles.flags.c_contiguous):
+            soles = np.ascontiguousarray(soles, dtype=np.float64)
+        if not (type(anchors) is np.ndarray and anchors.dtype == np.float64 and anchors.flags.c_contiguous):
+            anchors = np.ascontiguousarray(anchors, dtype=np.float64)
+        on = f['on']
+        if not (type(on) is np.ndarray and on.dtype == np.float64 and on.flags.c_contiguous):
+            on = np.ascontiguousarray(on, dtype=np.float64)
         return self.fns[1](self.at, wbc.address(soles), wbc.address(anchors), wbc.address(sh), wbc.address(on),
                            self.sq(self.roll * dt), self.gyro2 * dt, wbc.address(f['drift']))
 

@@ -59,8 +59,14 @@ def seen(g, dt):
     s = observer.beside(g['observer'], g, body, limbs, qpos, qvel, dt)
     obs = g['observer']
     soles_u, nrm, wt = obs['soles'] * g['unanchored'], obs['normal'], float(g['fr'][modal.WEIGHT])
-    shares = np.array([float(soles_u[0]) / wt, float(soles_u[1]) / wt,
-                       float((nrm[_OBS_R1] + nrm[_OBS_R2]) + nrm[_OBS_R3]) / wt])
+    shares = g.get('_shares')
+    if shares is None:
+        shares = np.array([float(soles_u[0]) / wt, float(soles_u[1]) / wt,
+                           float((nrm[_OBS_R1] + nrm[_OBS_R2]) + nrm[_OBS_R3]) / wt])
+    else:
+        shares[0] = float(soles_u[0]) / wt
+        shares[1] = float(soles_u[1]) / wt
+        shares[2] = float((nrm[_OBS_R1] + nrm[_OBS_R2]) + nrm[_OBS_R3]) / wt
     inekf.stepped(g['inekf'], body, g['sense'], shares, dt, g['inekf_points'], g['inekf_step'], g['inekf_glue'])
     palmar = g['palmar'] = min(float(g['told'][ortho.PALMAR]), float(g['st'][latent.TO][latent.MANIFOLD.start + ortho.PALMAR]))
     # what bears the robot and, sat, its seat's cone in C on its contacts before any is a dict
@@ -195,8 +201,13 @@ def control(g, dt):
     for c, f in zip(s.get('contacts', ()), got.get('borne', ())):
         seat_f[c.get('corner', 0)] += float(f[1]) * float('corner' in c)
     g['seat_f'][:] = seat_f
+    st_f = g.get('_stance_f')
+    if st_f is None:
+        st_f = np.array(ask['stance'], float)
+    else:
+        st_f[0], st_f[1] = ask['stance']
     g['jeff'], g['leg_kp'] = g['braced'].blend(s['M'], M, s['q'], s['v'], s['h'], ask['posture'], got['qacc'], got['tau'],
-                                               got['over'], sw, bw, d_ax, d_lat, w_hop, w_up, np.array(ask['stance'], float))
+                                               got['over'], sw, bw, d_ax, d_lat, w_hop, w_up, st_f)
     _told(g)
     g['released'](g['release'], g['weighed_w'], g['a'], g['distal'], g['distal_side'])
 
@@ -288,6 +299,8 @@ def laid(g):
     g['_acv_sh'] = body.act[g['_cv_sh']]
     g['_derate'] = g['wep_lim'] / np.maximum(1.0, body.wep)
     g['_w_up'] = np.zeros(4)
+    g['_shares'] = np.zeros(3)
+    g['_stance_f'] = np.zeros(2)
     names = [JOINTS[j] for j in joints]
     g['brace'] = np.array([[d.get(n, 0.0) for n in names] for d in (brace.TUCK, brace.AX, brace.LAT)])
     g['braced'] = c_brace.laid(body, g['brace'], g['_cv_sh'], g['_acv_sh'], g['legs'], g['free_kp'])
@@ -300,6 +313,7 @@ def laid(g):
             'sea': np.ascontiguousarray([body_drives.track(nm) > 0.0 for nm in names], dtype=np.bool_),
             'release': np.ones(n)}
     g['release'], g['distal'] = kept['release'], np.array([float(nm.endswith(DISTAL)) for nm in names])
+    g['_qd_j'], g['_joints_i'] = np.zeros(n), kept['joints']
     g['distal_side'] = np.array([int(nm.startswith('right_')) for nm in names])
     g['got'] = {'qacc': kept['qacc'].copy(), 'tau': kept['tau'].copy(), 'over': kept['over'].copy()}
     k, bus, _arrays = g['bus'] = supervisor.bus(names, g['rate_hz'])
