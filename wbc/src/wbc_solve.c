@@ -68,7 +68,7 @@ static void backed(int n, int ld, const double *restrict l, double *restrict x)
   }
 }
 
-void wbc_chol_solve(int n, int ld, const double *restrict l, const double *b, double *x)
+void wbc_chol_solve(int n, int ld, const double *restrict l, const double *restrict b, double *restrict x)
 {
   /* forward: each b[i] less l[i][k] x[k] along row i in k's order from 0, held in a register */
   for (int i = 0; i < n; i++)
@@ -233,7 +233,6 @@ static double dot(const double *restrict g, const double *restrict v, int m)
   return d;
 }
 
-/** Bound i into the set at place k: v_i = K^-1 g_i, and S's new row. */
 /** Bound i in the reduced coordinates, g y <= h with h what the variables so far (`sum`)
     leave; 0 where this level cannot move it (its reduced row all but zero). */
 static int reduced(const wbc_stack_t *restrict s, int i, int m, const double *restrict sum, double *restrict g,
@@ -241,16 +240,24 @@ static int reduced(const wbc_stack_t *restrict s, int i, int m, const double *re
 {
   double got = 0.0, nrm = 0.0;
 
+  memset(g, 0, (size_t)m * sizeof(double));
+  for (int w = 0; w < WBC_V; w++)
+  {
+    const double gw = s->ga[i][w];
+
+    if (gw != 0.0)
+    {
+      const double *restrict zw = s->zb[w];
+
+      for (int c = 0; c < m; c++)
+      {
+        g[c] += gw * zw[c];
+      }
+    }
+  }
   for (int c = 0; c < m; c++)
   {
-    double v = 0.0;
-
-    for (int w = 0; w < WBC_V; w++)
-    {
-      v += s->ga[i][w] * s->zb[w][c];
-    }
-    g[c] = v;
-    nrm += v * v;
+    nrm += g[c] * g[c];
   }
   for (int w = 0; w < WBC_V; w++)
   {
@@ -265,6 +272,7 @@ static void set_add(wbc_stack_t *s, int level, int i, int m, const double *vi, d
 {
   const int k = s->wn[level];
 
+  s->gfixed[i] |= 1;
   s->wset[level][k] = i;
   memcpy(s->vw[k], vi, (size_t)WBC_V * sizeof(double));
   memcpy(s->gs[k], s->gp, (size_t)WBC_V * sizeof(double));
@@ -281,10 +289,11 @@ static void set_add(wbc_stack_t *s, int level, int i, int m, const double *vi, d
 }
 
 /** The bound at place l out of the set: the last takes its place. */
-static void set_drop(wbc_stack_t *s, int level, int l)
+static void set_drop(wbc_stack_t *restrict s, int level, int l, int *restrict sfac_n)
 {
   const int k = s->wn[level] - 1;
 
+  s->gfixed[s->wset[level][l]] &= ~1;
   if (l != k)
   {
     s->wset[level][l] = s->wset[level][k];
@@ -303,23 +312,40 @@ static void set_drop(wbc_stack_t *s, int level, int l)
     s->sm[l][l] = s->sm[k][k];
   }
   s->wn[level] = k;
+  if (l < *sfac_n)
+  {
+    *sfac_n = l;
+  }
 }
 
-/** r = S^-1 b over the k held; 0 where S is not positive. */
-static int schur_solve(wbc_stack_t *s, int k, const double *b, double *r)
+/** r = S^-1 b over the k held, factoring rows from `*sfac_n` on; 0 where S is not positive. */
+static int schur_solve(wbc_stack_t *s, int k, int *sfac_n, const double *b, double *r)
 {
-  for (int i = 0; i < k; i++)
+  for (int i = *sfac_n; i < k; i++)
   {
-    for (int j = 0; j < k; j++)
+    double *restrict row = s->sfac[i];
+    double           d = s->sm[i][i] + 1e-12 * (1.0 + s->sm[i][i]);
+
+    for (int j = 0; j < i; j++)
     {
-      s->sfac[i][j] = s->sm[i][j];
+      const double *restrict rj = s->sfac[j];
+      double                 v = s->sm[i][j];
+
+      for (int p = 0; p < j; p++)
+      {
+        v -= row[p] * rj[p];
+      }
+      row[j] = v / rj[j];
+      d -= row[j] * row[j];
     }
-    s->sfac[i][i] += 1e-12 * (1.0 + s->sm[i][i]);
+    if (d <= 0.0)
+    {
+      *sfac_n = i;
+      return 0;
+    }
+    row[i] = sqrt(d);
   }
-  if (!wbc_cholesky(k, WBC_SMALL, &s->sfac[0][0]))
-  {
-    return 0;
-  }
+  *sfac_n = k;
   wbc_chol_solve(k, WBC_SMALL, &s->sfac[0][0], b, r);
   return 1;
 }
@@ -332,7 +358,7 @@ void wbc_level_solve(wbc_stack_t *restrict s, int level, int last)
   _Alignas(64) double vp[WBC_V], z[WBC_V], gp[WBC_V];
   double              big = 0.0, mu;
   double            (*zn)[WBC_V] = s->ab;   /* the next basis, built where the rows were: they are in qq by then */
-  int                 pending = -1, feasible = 1;
+  int                 pending = -1, feasible = 1, sfac_n = 0;
 
   for (int v = 0; v < WBC_V; v++)
   {
@@ -352,18 +378,23 @@ void wbc_level_solve(wbc_stack_t *restrict s, int level, int last)
   /* The rows in the reduced coordinates, ab = A Z, and their residual asks. */
   for (int i = 0; i < rows; i++)
   {
-    double got = 0.0, nrm = 0.0;
+    double *restrict ab_i = s->ab[i];
+    double           got = 0.0, nrm = 0.0;
 
-    for (int c = 0; c < m; c++)
+    memset(ab_i, 0, (size_t)m * sizeof(double));
+    for (int w = 0; w < WBC_V; w++)
     {
-      double v = 0.0;
+      const double lw = s->la[i][w];
 
-      for (int w = 0; w < WBC_V; w++)
+      if (lw != 0.0)
       {
-        v += s->la[i][w] * s->zb[w][c];
+        const double *restrict zw = s->zb[w];
+
+        for (int c = 0; c < m; c++)
+        {
+          ab_i[c] += lw * zw[c];
+        }
       }
-      s->ab[i][c] = v;
-      nrm += v * v;
     }
     for (int w = 0; w < WBC_V; w++)
     {
@@ -372,10 +403,14 @@ void wbc_level_solve(wbc_stack_t *restrict s, int level, int last)
     s->rho[i] = s->lr[i] - got;
     if (LEVEL_UNIT[level])
     {
+      for (int c = 0; c < m; c++)
+      {
+        nrm += ab_i[c] * ab_i[c];
+      }
       nrm = sqrt(nrm);
       for (int c = 0; c < m; c++)
       {
-        s->ab[i][c] = (nrm > 1e-12) ? s->ab[i][c] / nrm : 0.0;
+        ab_i[c] = (nrm > 1e-12) ? ab_i[c] / nrm : 0.0;
       }
       s->rho[i] = (nrm > 1e-12) ? s->rho[i] / nrm : 0.0;
     }
@@ -424,7 +459,8 @@ void wbc_level_solve(wbc_stack_t *restrict s, int level, int last)
   big = (big > 1e-12) ? big : 1e-12;
   /* The tie-break: the levels below, each row projected once and its curvature summed into
      qq (free till the basis is cut) and its ask into qlow; weighed low once their largest
-     column is known. Kept as rows this was 270 KB of the state. */
+     column is known (not on level 0, the exact rows). Kept as rows this was 270 KB of the state. */
+  if ((level > 0) && (level + 1 < WBC_LEVELS))
   {
     double top = 0.0, low, qlow[WBC_V];
 
@@ -440,16 +476,24 @@ void wbc_level_solve(wbc_stack_t *restrict s, int level, int last)
       {
         double got = 0.0, row[WBC_V];
 
+        memset(row, 0, (size_t)m * sizeof(double));
+        for (int w = 0; w < WBC_V; w++)
+        {
+          const double lw = s->la[i][w];
+
+          if (lw != 0.0)
+          {
+            const double *restrict zw = s->zb[w];
+
+            for (int c = 0; c < m; c++)
+            {
+              row[c] += lw * zw[c];
+            }
+          }
+        }
         for (int c = 0; c < m; c++)
         {
-          double v = 0.0;
-
-          for (int w = 0; w < WBC_V; w++)
-          {
-            v += s->la[i][w] * s->zb[w][c];
-          }
-          row[c] = v;
-          s->lowcol[c] += v * v;
+          s->lowcol[c] += row[c] * row[c];
         }
         for (int w = 0; w < WBC_V; w++)
         {
@@ -458,13 +502,17 @@ void wbc_level_solve(wbc_stack_t *restrict s, int level, int last)
         got = s->lr[i] - got;
         for (int c = 0; c < m; c++)
         {
-          if (row[c] != 0.0)
+          const double rc = row[c];
+
+          if (rc != 0.0)
           {
-            for (int d = 0; d < m; d++)
+            double *restrict qc = s->qq[c];
+
+            for (int d = c; d < m; d++)
             {
-              s->qq[c][d] += row[c] * row[d];
+              qc[d] += rc * row[d];
             }
-            qlow[c] -= row[c] * got;
+            qlow[c] -= rc * got;
           }
         }
       }
@@ -473,9 +521,13 @@ void wbc_level_solve(wbc_stack_t *restrict s, int level, int last)
     {
       top = (s->lowcol[c] > top) ? s->lowcol[c] : top;
     }
-    low = (level == 0) ? 0.0 : LOWER * ((big > 1.0) ? big : 1.0) / ((top > 1.0) ? top : 1.0);
+    low = LOWER * ((big > 1.0) ? big : 1.0) / ((top > 1.0) ? top : 1.0);
     for (int c = 0; c < m; c++)
     {
+      for (int d = 0; d < c; d++)
+      {
+        s->qq[c][d] = s->qq[d][c];
+      }
       for (int d = 0; d < m; d++)
       {
         s->kk[c][d] += low * s->qq[c][d];
@@ -513,7 +565,7 @@ void wbc_level_solve(wbc_stack_t *restrict s, int level, int last)
     {
       if (!reduced(s, warm[j], m, sum, s->gp, &s->hp))
       {
-        s->gfixed[warm[j]] = 1;
+        s->gfixed[warm[j]] |= 2;
         continue;
       }
       if (s->wn[level] < WBC_SMALL)
@@ -534,9 +586,9 @@ void wbc_level_solve(wbc_stack_t *restrict s, int level, int last)
     }
     if (k > 0)
     {
-      if (!schur_solve(s, k, nv, r))
+      if (!schur_solve(s, k, &sfac_n, nv, r))
       {
-        set_drop(s, level, k - 1);
+        set_drop(s, level, k - 1, &sfac_n);
         continue;
       }
       for (int c = 0; c < m; c++)
@@ -559,7 +611,7 @@ void wbc_level_solve(wbc_stack_t *restrict s, int level, int last)
       }
       if (worst >= 0)
       {
-        set_drop(s, level, worst);
+        set_drop(s, level, worst, &sfac_n);
         continue;
       }
     }
@@ -591,17 +643,13 @@ void wbc_level_solve(wbc_stack_t *restrict s, int level, int last)
       }
       for (int i = 0; i < ineq; i++)
       {
-        double v = -s->gh[i];
-        int    in = 0;
+        double v;
 
-        for (int j = 0; j < k; j++)
-        {
-          in |= (s->wset[level][j] == i);
-        }
-        if (in || s->gfixed[i])
+        if (s->gfixed[i] != 0)
         {
           continue;
         }
+        v = -s->gh[i];
         for (int w = 0; w < WBC_V; w++)
         {
           v += s->ga[i][w] * gp[w];
@@ -618,7 +666,7 @@ void wbc_level_solve(wbc_stack_t *restrict s, int level, int last)
       }
       if (!reduced(s, pending, m, sum, s->gp, &s->hp))
       {
-        s->gfixed[pending] = 1;
+        s->gfixed[pending] |= 2;
         pending = -1;
         continue;
       }
@@ -632,9 +680,9 @@ void wbc_level_solve(wbc_stack_t *restrict s, int level, int last)
       {
         nv[j] = dot(s->gs[j], vp, m);
       }
-      if (!schur_solve(s, k, nv, r))
+      if (!schur_solve(s, k, &sfac_n, nv, r))
       {
-        set_drop(s, level, k - 1);
+        set_drop(s, level, k - 1, &sfac_n);
         continue;
       }
     }
@@ -671,7 +719,7 @@ void wbc_level_solve(wbc_stack_t *restrict s, int level, int last)
         s->ud[j] -= t1 * r[j];
       }
       s->upend += t1;
-      set_drop(s, level, l);
+      set_drop(s, level, l, &sfac_n);
       continue;
     }
     t2 = viol / nz;
@@ -695,7 +743,7 @@ void wbc_level_solve(wbc_stack_t *restrict s, int level, int last)
     }
     else
     {
-      set_drop(s, level, l);
+      set_drop(s, level, l, &sfac_n);
     }
     if (it == MAXIT - 1)
     {
