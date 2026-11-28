@@ -50,7 +50,7 @@ def test_the_mechanical_face_clears_plates_gimbals_and_neck(report):
         'face_x = float(np.vstack([t for t, _ in neu["left_maxilla"]])[:, 0].max()); '
         'pos, nrm, uv, mat, idx = f.lit_mesh(f.posed("neutral")); '
         'from coaxial.graphics import lit; '
-        'from tools.render import face_audit as fa, face_cranium as fc, face_honeycomb as fh, face_laid as fl, face_prints as fp, robot_worn as rw, solids; '
+        'from tools.render import face_audit as fa, face_cranium as fc, face_honeycomb as fh, face_invariants as fi, face_laid as fl, face_prints as fp, robot_worn as rw, solids; '
         'pans, spots = fp.assembled_panels(screw_free=True); '
         'm2_open = solids.printable([1e3 * t for t, _ in fc.standard_torx_screw("M2")])["open"]; '
         'm3_open = solids.printable([1e3 * t for t, _ in fc.standard_torx_screw("M3")])["open"]; '
@@ -61,11 +61,18 @@ def test_the_mechanical_face_clears_plates_gimbals_and_neck(report):
         'seam_dz = max(abs(fl._eval_wing_z(48.0, 176.0) - fl._eval_brow_z(48.0, 174.0)), '
         '              abs(fl._eval_brow_z(48.0, 150.0) - fl._eval_ocheek_z(48.0, 148.0))); '
         'ma = fa.mesh_and_seam_audit(); '
+        'gi = fi.geometric_invariants_audit(); '
         'audit_ok = (callable(fa.audit_discrepancies) and seam_dz <= 1.5 and len(fc.temple_prof_loop()) >= 12 '
         '            and ma["porcelain_flipped_nrm"] <= 32 and ma["porcelain_sliver_tris"] <= 32 '
         '            and ma["tiara_crown_gap_mm"] <= 4.8 and ma["occipital_crown_step_mm"] <= 3.5 '
         '            and ma["icheek_nose_step_mm"] <= 1.5 '
         '            and (fc.eval_temple_abs_x(166.5, -17.5) - fc.eval_temple_abs_x(191.5, -17.5)) >= 4.5); '
+        'geom_ok = (gi["crown_willmore_max"] <= 1.0 and gi["crown_max_asp"] <= 90.0 '
+        '           and gi["forehead_saddle_pct"] <= 8.0 and gi["cheek_saddle_pct"] <= 18.0 '
+        '           and gi["seam_med_max_mm"] <= 0.85 and gi["fib_alpha_min"] >= 1.25 '
+        '           and gi["fib_hf_max_1e4"] <= 22.0 and gi["darboux_occ_j"] <= 0.05 '
+        '           and gi["darboux_mastoid_j"] <= 0.05 and gi["darboux_gaze_j"] <= 0.15 '
+        '           and bool(gi["main_seq_ok"])); '
         'pan_open = sum(solids.printable([1e3 * t for t, _ in ts])["open"] for ts, _ in pans.values()); '
         'm2_qty = sum(1 for _, _, s in spots if s == "M2"); '
         'm3_qty = sum(1 for _, _, s in spots if s == "M3"); '
@@ -83,7 +90,7 @@ def test_the_mechanical_face_clears_plates_gimbals_and_neck(report):
         '"shell_n": int(smask.sum()), "shell_soft": ssoft, "dark_hard": dhard, '
         '"pan_n": len(pans), "pan_open": pan_open, "eo_open": eo_open, '
         '"eo_hole_mm": round(float(eo_rxy.min()), 2), "eo_outer_mm": round(float(eo_rxy.max()), 2), '
-        '"nh_keys": nh_keys, "audit_ok": audit_ok, "m2_open": m2_open, "m3_open": m3_open, '
+        '"nh_keys": nh_keys, "audit_ok": audit_ok, "geom_ok": geom_ok, "gi": gi, "m2_open": m2_open, "m3_open": m3_open, '
         '"m2_qty": m2_qty, "m3_qty": m3_qty}))'
     )
     chk: Any = got.get('chk') or {}
@@ -121,6 +128,8 @@ def test_the_mechanical_face_clears_plates_gimbals_and_neck(report):
                  and got.get('m2_open') == 0 and got.get('m3_open') == 0
                  and (got.get('m2_qty') or 0) >= 80 and got.get('m3_qty') == 2,
                  (got.get('pan_n'), got.get('pan_open'), got.get('eo_open'), got.get('eo_hole_mm'), got.get('eo_outer_mm'), got.get('audit_ok')))
+    report.check('crown Willmore fairness, convex saddle bounds, sub-mm 3D facial seams and 16-view Fibonacci FFT hold',
+                 bool(got.get('geom_ok')), got.get('gi'))
 
 
 def test_terminal_ux_renders_coaxial_mechatronics_and_face(report):

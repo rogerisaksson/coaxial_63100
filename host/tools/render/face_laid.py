@@ -174,7 +174,7 @@ def eye_lashes():
 def cranial_liner_shells():
     """Return `(left, right)` bilateral cranial liners."""
     np = np_mod()
-    specs = ((0.0, 1.95, 24.0, 66.0, 12, 12), (0.68, 2.28, -55.5, -16.0, 14, 11), (2.28, math.pi, -38.5, -16.0, 10, 7),
+    specs = ((0.0, 1.95, 24.0, 66.0, 12, 12), (0.68, 2.28, -55.5, -16.0, 14, 11), (2.28, math.pi, -46.5, -16.0, 12, 7),
              (0.68, 2.52, -16.0, 24.0, 10, 12), (0.0, 0.18, -50.0, 12.0, 9, 4),
              (0.18, 0.68, -54.0, -22.0, 9, 7), (0.40, 0.68, -22.0, 6.0, 7, 5), (0.43, 0.69, 6.0, 24.5, 6, 5))
 
@@ -279,7 +279,7 @@ def lower_jaw_and_oled_panels():
     bzh = ((18.0, 730.0), (58.0, 736.0), (112.0, 748.0), (104.0, 814.0), (52.0, 838.0))
     bzl = [(451.0 - dx, py) for dx, py in reversed(bzh)] + [(451.0 + dx, py) for dx, py in bzh]
     bezel = fr.camera_ray_planar_panel(bzl, fcam, lambda x, y: _eval_mouth_z(x, y) - 4.8, bevel_outset_px=0.0, bevel_depth_mm=0.30, thickness_mm=1.8, col=BAFFLE_DARK, rim_col=CHASSIS_CF, corner_r_px=0.0)
-    subm = fr.canon_tris_to_head(csg.extrude(csg.filleted2d([(65.8, 19.5), (64.8, 26.5), (63.8, 30.2), (66.0, 30.5), (84.0, 26.5), (84.0, 19.5)], r=1.0, n=3), a=-5.2, b=5.2, axis=0, colour=FRAME_VOID, chamfer=0.35).tris())
+    subm = fr.canon_tris_to_head(csg.extrude(csg.filleted2d([(64.2, 6.8), (64.2, 26.5), (63.8, 30.2), (66.0, 30.5), (84.0, 26.5), (84.0, 6.8)], r=1.0, n=3), a=-11.5, b=11.5, axis=0, colour=FRAME_VOID, chamfer=0.35).tris())
     eval_c = lambda x, y: fhull.eval_side_midline_z(y) + p['chin_z0'] - p['chin_sx'] * (math.hypot(abs(float(x)), 5.8) - 5.8) + fhull.panel_offset('jaw-chin-cap', float(x), float(y))
     chin = fr.camera_ray_planar_panel(fcon.active_loop('CHIN_LOOP'), fcam, eval_c, bevel_outset_px=2.8, bevel_depth_mm=0.70, thickness_mm=3.5, col=AMBER_GOLD, rim_col=AMBER_DARK, holes_px=fcon.active_holes('CHIN_LOOP'), corner_r_px=6.4)
     jf_lp = fr.simplify_closed_rdp(fcon.active_loop('PROF_JAW_FRONT_LOOP'), 1.8)
