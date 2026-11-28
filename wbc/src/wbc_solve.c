@@ -865,9 +865,19 @@ void wbc_level_solve(wbc_stack_t *restrict s, int level, int last)
 
 void wbc_loads(const double tau[WBC_X], double load[WBC_DRIVEN])
 {
+  int map[WBC_LINKS];
+
   for (int j = 0; j < WBC_DRIVEN; j++)
   {
     load[j] = tau[j];
+  }
+  for (int i = 0; i < WBC_LINKS; i++)
+  {
+    map[i] = -1;
+  }
+  for (int j = 0; j < WBC_DRIVEN; j++)
+  {
+    map[wbc_driven[j]] = j;
   }
   for (int j = 0; j < WBC_DRIVEN; j++)
   {
@@ -875,16 +885,15 @@ void wbc_loads(const double tau[WBC_X], double load[WBC_DRIVEN])
 
     if (pair > 0)
     {
-      for (int other = 0; other < WBC_DRIVEN; other++)
-      {
-        if (wbc_driven[other] == pair - 1)
-        {
-          const double kj = wbc_kt[wbc_driven[j]], ko = wbc_kt[wbc_driven[other]];
-          const double a = tau[j] / kj, c = tau[other] / ko;
+      const int other = map[pair - 1];
 
-          load[j] = (a + c) * kj;
-          load[other] = (a - c) * ko;
-        }
+      if (other >= 0)
+      {
+        const double kj = wbc_kt[wbc_driven[j]], ko = wbc_kt[wbc_driven[other]];
+        const double a = tau[j] / kj, c = tau[other] / ko;
+
+        load[j] = (a + c) * kj;
+        load[other] = (a - c) * ko;
       }
     }
   }
@@ -892,9 +901,19 @@ void wbc_loads(const double tau[WBC_X], double load[WBC_DRIVEN])
 
 void wbc_unload(const double load[WBC_DRIVEN], double tau[WBC_X])
 {
+  int map[WBC_LINKS];
+
   for (int j = 0; j < WBC_DRIVEN; j++)
   {
     tau[j] = load[j];
+  }
+  for (int i = 0; i < WBC_LINKS; i++)
+  {
+    map[i] = -1;
+  }
+  for (int j = 0; j < WBC_DRIVEN; j++)
+  {
+    map[wbc_driven[j]] = j;
   }
   for (int j = 0; j < WBC_DRIVEN; j++)
   {
@@ -902,17 +921,16 @@ void wbc_unload(const double load[WBC_DRIVEN], double tau[WBC_X])
 
     if (pair > 0)
     {
-      for (int other = 0; other < WBC_DRIVEN; other++)
-      {
-        if (wbc_driven[other] == pair - 1)
-        {
-          const double kj = wbc_kt[wbc_driven[j]], ko = wbc_kt[wbc_driven[other]];
-          const double a = 0.5 * (load[j] / kj + load[other] / ko);
-          const double c = 0.5 * (load[j] / kj - load[other] / ko);
+      const int other = map[pair - 1];
 
-          tau[j] = a * kj;
-          tau[other] = c * ko;
-        }
+      if (other >= 0)
+      {
+        const double kj = wbc_kt[wbc_driven[j]], ko = wbc_kt[wbc_driven[other]];
+        const double a = 0.5 * (load[j] / kj + load[other] / ko);
+        const double c = 0.5 * (load[j] / kj - load[other] / ko);
+
+        tau[j] = a * kj;
+        tau[other] = c * ko;
       }
     }
   }

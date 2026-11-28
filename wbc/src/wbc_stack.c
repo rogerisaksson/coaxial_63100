@@ -706,15 +706,26 @@ void wbc_stack_step(wbc_body_t *b, wbc_stack_t *s, const wbc_frame_t *base,
     s->load[j] = out->load[j];
     out->jeff[j] = (col[d] > 1e-9) ? 1.0 / col[d] : 0.0;
   }
-  for (int j = 0; j < WBC_DRIVEN; j++)
   {
-    const int pair = wbc_pair[wbc_driven[j]];
+    int map[WBC_LINKS];
 
-    if (pair != 0)
+    for (int i = 0; i < WBC_LINKS; i++)
     {
-      for (int k = 0; k < WBC_DRIVEN; k++)
+      map[i] = -1;
+    }
+    for (int j = 0; j < WBC_DRIVEN; j++)
+    {
+      map[wbc_driven[j]] = j;
+    }
+    for (int j = 0; j < WBC_DRIVEN; j++)
+    {
+      const int pair = wbc_pair[wbc_driven[j]];
+
+      if (pair != 0)
       {
-        if (wbc_driven[k] == ((pair > 0) ? pair : -pair) - 1)
+        const int k = map[((pair > 0) ? pair : -pair) - 1];
+
+        if (k >= 0)
         {
           out->over[j] = out->over[j] || out->over[k];
         }

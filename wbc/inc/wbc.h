@@ -250,6 +250,10 @@ typedef struct
   double g[WBC_U];
   double gn[WBC_U];               /**< the rows' right-hand side with nothing asked: every acceleration 0, the robot's weight borne */
   double k[WBC_U][WBC_U];
+  double h_fac[WBC_U][WBC_U];     /**< h's Cholesky factor, shared by the ask's round 0 and nothing's */
+  double kin_fac[WBC_U][WBC_U];   /**< the striding metric's factor, shared the same way */
+  int    kin_ready;
+  int    spare_kin;
   double gk[WBC_U];
   double mt[WBC_N][6];            /**< striding: M t and M e, t^T M e, (t^T M t) p + t^T M e */
   double me[WBC_N][WBC_U];
@@ -290,6 +294,7 @@ int wbc_cone_taken(const wbc_body_t *b, wbc_wrench_t *w, const wbc_ask_t *ask, c
     within its bounds [lo, hi], the largest s in [0, 1] with every tau0 + s (tau - tau0) within them,
     0 where none is; and the step's answer into `out`, shrunk to the clamps, each drive clipped to its
     back-EMF's bounds. */
+double wbc_wrench_dof(const wbc_wrench_t *w, int dof, double row[WBC_U]);
 void wbc_wrench_motion(const wbc_wrench_t *w, const double x[WBC_U], double udot[WBC_N]);
 void wbc_wrench_torques(const wbc_body_t *b, const wbc_wrench_t *w, const double stance[2],
                         const double x[WBC_U], const double udot[WBC_N], double tau[WBC_DRIVEN]);

@@ -5,8 +5,36 @@
 #include "wbc.h"
 
 #include <math.h>
+#include <string.h>
 
 #define NU WBC_U
+
+/** A single acceleration `dof` as a row over the unknowns, and what is left of it (`over` on e_dof). */
+double wbc_wrench_dof(const wbc_wrench_t *restrict w, int dof, double row[restrict NU])
+{
+  const double *restrict td = w->t[dof], *restrict ed = w->e[dof];
+  double                 rest = 0.0 + w->t0[dof];
+
+  memset(row, 0, NU * sizeof(double));
+  for (int c = w->reach[dof][0]; c < w->reach[dof][1]; c++)
+  {
+    row[c] = 0.0 + ed[c];
+  }
+  for (int i = 0; i < 6; i++)
+  {
+    const double rti = 0.0 + td[i];
+
+    rest += rti * w->p0[i];
+    if (rti != 0.0)
+    {
+      for (int c = 0; c < NU; c++)
+      {
+        row[c] += rti * w->p[i][c];
+      }
+    }
+  }
+  return rest;
+}
 
 /** Every acceleration at the unknowns x: the pelvis's six by p, then udot = t base + e x + t0. */
 void wbc_wrench_motion(const wbc_wrench_t *w, const double x[NU], double udot[WBC_N])
@@ -92,9 +120,21 @@ double wbc_shrunk(const double tau[WBC_DRIVEN], const double tau0[WBC_DRIVEN], c
   return (s < 0.0) ? 0.0 : s;
 }
 
+static void drive_of_link(int map[WBC_LINKS])
+{
+  for (int i = 0; i < WBC_LINKS; i++)
+  {
+    map[i] = -1;
+  }
+  for (int j = 0; j < WBC_DRIVEN; j++)
+  {
+    map[wbc_driven[j]] = j;
+  }
+}
+
 /** Each drive's load as its boards carry it: a joint's own torque (N m), or a parallel pair's two
     motor currents (A) as common plus or less differential (machine.stack.shrunk.paired). */
-static void paired_vec(const double tau[WBC_DRIVEN], double out[WBC_DRIVEN])
+static void paired_vec(const double tau[WBC_DRIVEN], const int map[WBC_LINKS], double out[WBC_DRIVEN])
 {
   for (int j = 0; j < WBC_DRIVEN; j++)
   {
@@ -104,9 +144,11 @@ static void paired_vec(const double tau[WBC_DRIVEN], double out[WBC_DRIVEN])
   {
     const int pair = wbc_pair[wbc_driven[j]];
 
-    for (int o = 0; (pair > 0) && (o < WBC_DRIVEN); o++)
+    if (pair > 0)
     {
-      if (wbc_driven[o] == pair - 1)
+      const int o = map[pair - 1];
+
+      if (o >= 0)
       {
         const double a = tau[j] / wbc_kt[wbc_driven[j]], c = tau[o] / wbc_kt[wbc_driven[o]];
 
@@ -119,7 +161,7 @@ static void paired_vec(const double tau[WBC_DRIVEN], double out[WBC_DRIVEN])
 
 /** Each drive's ceiling matching paired_vec: its torque limit (N m), or a parallel pair's symmetric
     per-motor current ceiling (A) from its drives' limits (machine.stack.shrunk.paired_limit). */
-static void paired_lim(const double limit[WBC_DRIVEN], double out[WBC_DRIVEN])
+static void paired_lim(const double limit[WBC_DRIVEN], const int map[WBC_LINKS], double out[WBC_DRIVEN])
 {
   for (int j = 0; j < WBC_DRIVEN; j++)
   {
@@ -129,9 +171,11 @@ static void paired_lim(const double limit[WBC_DRIVEN], double out[WBC_DRIVEN])
   {
     const int pair = wbc_pair[wbc_driven[j]];
 
-    for (int o = 0; (pair > 0) && (o < WBC_DRIVEN); o++)
+    if (pair > 0)
     {
-      if (wbc_driven[o] == pair - 1)
+      const int o = map[pair - 1];
+
+      if (o >= 0)
       {
         const double tp = limit[j] / wbc_kt[wbc_driven[j]], tr = limit[o] / wbc_kt[wbc_driven[o]];
         const double top = ((tp > 0.0) && (tr > 0.0)) ? ((tp > tr) ? tp : tr) : 0.0;
@@ -153,8 +197,9 @@ void wbc_wrench_out(const wbc_body_t *b, const wbc_wrench_t *w, const wbc_ask_t 
   double clamps[WBC_DRIVEN], plim[WBC_DRIVEN], nplim[WBC_DRIVEN], pclamp[WBC_DRIVEN];
   double ptau[WBC_DRIVEN], ptau0[WBC_DRIVEN], lo[WBC_DRIVEN], hi[WBC_DRIVEN];
   double s, s_j, s_m, s0 = 1.0;
-  int    past = 0, past0 = 0;
+  int    map[WBC_LINKS], past = 0, past0 = 0;
 
+  drive_of_link(map);
   wbc_wrench_motion(w, whole, out->udot);
   wbc_wrench_torques(b, w, stance, whole, out->udot, tau);
   wbc_wrench_motion(w, stood, out->udot);
@@ -168,10 +213,10 @@ void wbc_wrench_out(const wbc_body_t *b, const wbc_wrench_t *w, const wbc_ask_t 
     lo[j] = (-limit[j] > ask->lo[j]) ? -limit[j] : ask->lo[j];
     hi[j] = (limit[j] < ask->hi[j]) ? limit[j] : ask->hi[j];
   }
-  paired_lim(limit, plim);
-  paired_lim(clamps, pclamp);
-  paired_vec(tau, ptau);
-  paired_vec(tau0, ptau0);
+  paired_lim(limit, map, plim);
+  paired_lim(clamps, map, pclamp);
+  paired_vec(tau, map, ptau);
+  paired_vec(tau0, map, ptau0);
   for (int j = 0; j < WBC_DRIVEN; j++)
   {
     nplim[j] = -plim[j];
@@ -251,9 +296,11 @@ void wbc_wrench_out(const wbc_body_t *b, const wbc_wrench_t *w, const wbc_ask_t 
   {
     const int pair = wbc_pair[wbc_driven[j]];
 
-    for (int o = 0; (pair > 0) && (o < WBC_DRIVEN); o++)
+    if (pair > 0)
     {
-      if (wbc_driven[o] == pair - 1)
+      const int o = map[pair - 1];
+
+      if (o >= 0)
       {
         out->over[j] = out->over[o] = out->over[j] || out->over[o];
       }

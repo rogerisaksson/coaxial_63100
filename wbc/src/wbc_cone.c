@@ -139,13 +139,22 @@ static void kinetic(const wbc_body_t *b, wbc_wrench_t *w, const double mbt[6][6]
   memset(w->me, 0, sizeof(w->me));
   for (int n = 6; n < WBC_N; n++)
   {
-    for (int i = 0; (w->reach[n][0] < w->reach[n][1]) && (i < WBC_N); i++)
+    const int r0 = w->reach[n][0], r1 = w->reach[n][1];
+
+    if (r0 >= r1)
+    {
+      continue;
+    }
+    for (int i = 0; i < WBC_N; i++)
     {
       const double mn = b->m[i][n];
 
-      for (int c = w->reach[n][0]; (mn != 0.0) && (c < w->reach[n][1]); c++)
+      if (mn != 0.0)
       {
-        w->me[i][c] += mn * w->e[n][c];
+        for (int c = r0; c < r1; c++)
+        {
+          w->me[i][c] += mn * w->e[n][c];
+        }
       }
     }
   }
@@ -159,9 +168,12 @@ static void kinetic(const wbc_body_t *b, wbc_wrench_t *w, const double mbt[6][6]
     {
       const double v = me[c];
 
-      for (int a = 0; (v != 0.0) && (a < 6); a++)
+      if (v != 0.0)
       {
-        w->tme[a][c] += t[a] * v;
+        for (int a = 0; a < 6; a++)
+        {
+          w->tme[a][c] += t[a] * v;
+        }
       }
     }
   }
@@ -327,10 +339,24 @@ int wbc_cone_taken(const wbc_body_t *b, wbc_wrench_t *w, const wbc_ask_t *ask, c
                    double lo, double hi, const double mbt[6][6], const double own[NU],
                    const double u0[NU], double at[NU])
 {
-  kinetic(b, w, mbt, own);
-  if (!wbc_cholesky(NU, NU, &w->k[0][0]))
+  if (w->kin_ready == 0)
+  {
+    kinetic(b, w, mbt, own);
+    if (!wbc_cholesky(NU, NU, &w->k[0][0]))
+    {
+      w->kin_ready = -1;
+      return 0;
+    }
+    memcpy(w->kin_fac, w->k, sizeof(w->kin_fac));
+    w->kin_ready = 1;
+  }
+  else if (w->kin_ready < 0)
   {
     return 0;
+  }
+  else
+  {
+    memcpy(w->k, w->kin_fac, sizeof(w->k));
   }
   taken(b, w, ask, stance, lo, hi, u0, at);
   return 1;
