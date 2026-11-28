@@ -4,11 +4,12 @@ Then those that regressed before: a regression stops a run at once."""
 
 #: Suites with prior CI or local regressions, scheduled right after structural checks so a regression stops the run at once:
 #: what GitHub's last host run left red is laid at its head at every commit (tools/dev/ci.py, the pre-commit).
-FAILED_FIRST = ('test_views_flying.py', 'test_vectorized.py', 'test_camera.py', 'test_daq_api.py',
-                'test_views_quad.py', 'test_quick.py', 'test_tick.py', 'test_kernel.py',
-                'test_engrams.py', 'test_docks.py', 'test_errands.py', 'test_move_handover.py',
-                'test_chair_seated.py', 'test_native_heat.py', 'test_ci.py', 'test_smart.py',
-                'test_world_core.py', 'test_wayfinder.py', 'test_views_built.py', 'test_ported.py',
+FAILED_FIRST = ('test_views_terminal.py', 'test_views_flying.py', 'test_vectorized.py',
+                'test_camera.py', 'test_daq_api.py', 'test_views_quad.py', 'test_quick.py',
+                'test_tick.py', 'test_kernel.py', 'test_engrams.py', 'test_docks.py',
+                'test_errands.py', 'test_move_handover.py', 'test_chair_seated.py',
+                'test_native_heat.py', 'test_ci.py', 'test_smart.py', 'test_world_core.py',
+                'test_wayfinder.py', 'test_views_built.py', 'test_ported.py',
                 'test_quad_streams.py', 'test_situation.py', 'test_thermal_app.py', 'test_wear.py',
                 'test_wasd.py', 'test_ortho.py', 'test_sysid_live.py', 'test_scenarios.py',
                 'test_wrench.py', 'test_views_apps.py', 'test_stiction.py', 'test_introspect.py',

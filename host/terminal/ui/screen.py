@@ -305,7 +305,7 @@ class Beat:
 
     def wait(self, now):
         """Seconds to idle after a frame before starting the next so the draw meets its beat."""
-        if self.last is None or not self.works:
+        if self.last is None or (not self.works and self.period <= 1.0 / UI_HZ):
             return 0.0
         lead = self.lead()
         target = self.after(self.last) - lead - 2.0 * LEAD_MARGIN_S
