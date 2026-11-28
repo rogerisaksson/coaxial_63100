@@ -235,6 +235,23 @@ def test_c11_vision_and_way_bit_exact_parity(report, _c):
                  vision_core.ensure() is not None and way_core.ensure() is not None
                  and warp_same and disp_same and vox_same and astar_off == 0,
                  'warp=%s disp=%s vox=%s astar_off=%d' % (warp_same, disp_same, vox_same, astar_off))
+    from machine.way import obstacles, route
+    pts_s = np.array([[0.0, 0.0], [1.0, 1.0], [2.0, 2.0], [3.0, 3.0]])
+    up_r = ((1, 0, 0), (0, 1, 0), (0, 0, 1))
+    th_s = [('chair', (10.0, 0.5, 10.0), (0.3, 0.5, 0.3), up_r, 0, 1.0)]
+    c_scalar = obstacles.costed(pts_s, th_s, 0.0, seen=1.0)
+    c_vec = obstacles.costed(pts_s, th_s, 0.0, seen=np.ones(len(pts_s)))
+    c_nan = way_core.costed(
+        np.array([[0.0, 0.0]]), np.array([[2.0, 0.0], [0.0, 10.0]]),
+        np.array([[[1.0, 0.0], [0.0, 1.0]], [[1.0, 0.0], [0.0, 1.0]]]),
+        np.array([[0.5, 0.5], [np.nan, 0.5]]), np.array([0.5, 0.5]),
+        None, (True, 1.0, 0.5), (False, 0.0), np.array([1.0]), True,
+    )
+    route._grid()
+    report.check('way.costed broadcasts scalar seen, preserves NaN half-extents, and route._GRID is a tuple',
+                 np.array_equal(c_scalar, c_vec) and c_nan is not None and bool(np.isnan(c_nan[0]))
+                 and isinstance(route._GRID, tuple),
+                 'scalar_eq=%s nan=%s grid=%s' % (np.array_equal(c_scalar, c_vec), c_nan, type(route._GRID).__name__))
 
 
 ROSTER = (test_c11_vision_and_way_bit_exact_parity, test_the_robots_map_looks_in_c_as_in_numpy,

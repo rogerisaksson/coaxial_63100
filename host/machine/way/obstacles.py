@@ -170,8 +170,10 @@ def costed(points, things, floor, seen, slot=-1, face=None):
     ordered = sorted(node['layers'], key=lambda n: LAYERS[n][0])
     if apart is _APART and all(LAYERS.get(n) == _BUILTIN.get(n) for n in ordered):
         p1 = [n for n in ordered if LAYERS[n][0] == 1]
-        if ':affordance-aperture' not in p1 or (':clearance' not in p1
-                                                or p1.index(':affordance-aperture') < p1.index(':clearance')):
+        if (p1.count(':clearance') <= 1 and p1.count(':unknown') <= 1
+                and p1.count(':affordance-aperture') <= 1
+                and (':affordance-aperture' not in p1 or ':clearance' not in p1
+                     or p1.index(':affordance-aperture') < p1.index(':clearance'))):
             margin0 = base_margin
             if ':class-margin' in ordered:
                 margins = dict(node['class-margins-mm'] or {})

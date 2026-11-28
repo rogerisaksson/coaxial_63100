@@ -183,10 +183,25 @@ def test_heterogeneous_inverter_and_gearbox_derivations(report, _lib):
                  and abs(flightpack.PACK_AH - 1.0) < 1e-9 and abs(flightpack.PACK_OHM - 0.04) < 1e-9)
 
 
+def test_board_thermal_row_matches_drive_sample(report, _lib):
+    """SimulatedBoard._fill_thermal_row matches drive.sample() when _switching is None."""
+    from coaxial.simulated.board import SimulatedBoard
+    board = SimulatedBoard()
+    board.afe._on = True
+    board.drive._moe = None
+    board.drive._switching = None
+    board.drive._set_mode('hold')
+    fast = list(board.thermal._row(None, True))
+    slow = list(board.thermal._row(board.drive.sample(), True))
+    report.check('SimulatedBoard._fill_thermal_row matches sample() path with _switching=None',
+                 fast == slow and fast[1] == 1.0, 'fast_on=%s slow_on=%s' % (fast[1], slow[1]))
+
+
 ROSTER = (test_the_mirror_lays_what_the_c_lays, test_the_air_is_the_cs,
           test_each_application_sheds_as_its_reasons_say, test_the_stand_in_is_mounted,
           test_the_heat_dry_loss_scales_with_bus_voltage,
-          test_heterogeneous_inverter_and_gearbox_derivations)
+          test_heterogeneous_inverter_and_gearbox_derivations,
+          test_board_thermal_row_matches_drive_sample)
 
 
 def main():

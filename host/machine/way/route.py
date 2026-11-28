@@ -54,13 +54,15 @@ def _free(cells, cell):
 
 
 #: Cached `(key, at, (nx, nz), ones)` for `(X_M, Z_M, CELL_M)` (`_grid`).
-_GRID: list = [None, None, None, None]
+_GRID: tuple = (None, None, None, None)
 
 
-def _grid():
-    """(nx * nz, 2) the robot's map's cells' centres (x, z), and its shape."""
+def _grid_full():
+    """Immutable `(key, at, (nx, nz), ones)` snapshot for `(X_M, Z_M, CELL_M)`."""
+    global _GRID
     key = (voxels.X_M, voxels.Z_M, voxels.CELL_M)
-    if _GRID[0] != key:
+    grid = _GRID
+    if grid[0] != key:
         np = sight._np()
         nx = int(round((voxels.X_M[1] - voxels.X_M[0]) / voxels.CELL_M))
         nz = int(round((voxels.Z_M[1] - voxels.Z_M[0]) / voxels.CELL_M))
@@ -70,8 +72,15 @@ def _grid():
         at.setflags(write=False)
         ones = np.ones(len(at), dtype=np.float64)
         ones.setflags(write=False)
-        _GRID[:] = [key, at, (nx, nz), ones]
-    return _GRID[1], _GRID[2]
+        grid = (key, at, (nx, nz), ones)
+        _GRID = grid
+    return grid
+
+
+def _grid():
+    """(nx * nz, 2) the robot's map's cells' centres (x, z), and its shape."""
+    _key, at, shape, _ones = _grid_full()
+    return at, shape
 
 
 def costs(things, floor, seen=None, slot=-1, face=None):
@@ -83,8 +92,8 @@ def costs(things, floor, seen=None, slot=-1, face=None):
     straight line is the push; ajar, the look along the robot's way rounds its panel - held out of the robot's
     map it ground it onto its 1.92 rad stop and its spring flung the robot at 1.66 m/s."""
     np = sight._np()
-    at, shape = _grid()
-    known = _GRID[3] if seen is None else np.asarray(seen, float).reshape(-1)
+    _key, at, shape, ones = _grid_full()
+    known = ones if seen is None else np.asarray(seen, float).reshape(-1)
     return obstacles.costed(at, things, floor, known, slot, face).reshape(shape)
 
 

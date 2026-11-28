@@ -45,7 +45,7 @@ static inline bool wy_box_check(double px, double pz, size_t j, const double *re
   const double r1 = fabs(t1) - half[j * 2U + 1U];
   const double hi_r = (r0 > r1) ? r0 : r1;
 
-  if (hi_r > mj && (hi_r - mj) >= *min_m)
+  if (!lm_nan(r0) && !lm_nan(r1) && hi_r > mj && (hi_r - mj) >= *min_m)
   {
     return false;
   }

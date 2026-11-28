@@ -95,26 +95,42 @@ def costed(points, centres, axes, half, margin0, aperture, clear_cfg, unk_cfg, s
     out = np.empty(n_pts, dtype=np.float64)
     if n_pts == 0:
         return out
-    c_arr = np.ascontiguousarray(centres, dtype=np.float64)
-    ax_arr = np.ascontiguousarray(axes, dtype=np.float64)
-    hf_arr = np.ascontiguousarray(half, dtype=np.float64)
-    m0_arr = np.ascontiguousarray(margin0, dtype=np.float64)
-    s_arr = seen if (type(seen) is np.ndarray and seen.dtype == np.float64
-                     and seen.ndim == 1 and seen.flags.c_contiguous) \
-        else np.ascontiguousarray(seen, dtype=np.float64).reshape(-1)
-    if aperture is not None:
-        tx, tz, fx, fz, cone_exp, hit_u8, ahead_h = aperture
-        ap_on = 1
-        hit_ptr, ah_ptr = hit_u8.ctypes.data, ahead_h.ctypes.data
-    else:
-        ap_on, tx, tz, fx, fz, cone_exp, hit_ptr, ah_ptr = 0, 0.0, 0.0, 0.0, 0.0, 1.0, 0, 0
+    c_arr = np.ascontiguousarray(centres, dtype=np.float64).reshape(-1, 2)
+    ax_arr = np.ascontiguousarray(axes, dtype=np.float64).reshape(-1, 2, 2)
+    hf_arr = np.ascontiguousarray(half, dtype=np.float64).reshape(-1, 2)
+    m0_arr = np.ascontiguousarray(margin0, dtype=np.float64).reshape(-1)
+    if len(c_arr) < m_things or len(ax_arr) < m_things or len(hf_arr) < m_things:
+        return None
     has_clear, w_clear, decay_m = clear_cfg
     has_unk, w_unk = unk_cfg
+    if has_clear and float(decay_m) == 0.0:
+        return None
+    if has_unk:
+        s_arr = seen if (type(seen) is np.ndarray and seen.dtype == np.float64
+                         and seen.ndim == 1 and seen.flags.c_contiguous) \
+            else np.ascontiguousarray(seen, dtype=np.float64).reshape(-1)
+        if len(s_arr) == 1 and n_pts > 1:
+            s_arr = np.full(n_pts, float(s_arr[0]), dtype=np.float64)
+        elif len(s_arr) != n_pts:
+            return None
+        seen_ptr = s_arr.ctypes.data
+    else:
+        seen_ptr = 0
+    if aperture is not None:
+        tx, tz, fx, fz, cone_exp, hit_u8, ahead_h = aperture
+        hit_c = np.ascontiguousarray(hit_u8, dtype=np.uint8).reshape(-1)
+        ah_c = np.ascontiguousarray(ahead_h, dtype=np.float64).reshape(-1)
+        if len(hit_c) < m_things or len(ah_c) < m_things:
+            return None
+        ap_on = 1
+        hit_ptr, ah_ptr = hit_c.ctypes.data, ah_c.ctypes.data
+    else:
+        ap_on, tx, tz, fx, fz, cone_exp, hit_ptr, ah_ptr = 0, 0.0, 0.0, 0.0, 0.0, 1.0, 0, 0
     lib.wy_costed(
         n_pts, pts.ctypes.data, m_things, c_arr.ctypes.data, ax_arr.ctypes.data, hf_arr.ctypes.data,
         m0_arr.ctypes.data, ap_on, float(tx), float(tz), float(fx), float(fz), float(cone_exp),
         hit_ptr, ah_ptr, int(has_clear), float(w_clear), float(decay_m),
-        int(has_unk), float(w_unk), s_arr.ctypes.data, 1 if clear_first else 0, out.ctypes.data,
+        int(has_unk), float(w_unk), seen_ptr, 1 if clear_first else 0, out.ctypes.data,
     )
     return out
 

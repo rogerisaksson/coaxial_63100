@@ -186,12 +186,12 @@ class SimulatedBoard:
         with drv._lock:
             drv._advance()
             rbuf = stand.row_raw(drv._slot)
-            on = bool(gates._driving()) if drv._switching else False
+            mode, omega_hat = drv._law.mode_and_omega()
+            on = bool(drv._switching()) if drv._switching else (mode != 0.0)
             wbuf = stand.window_raw(drv._slot)
             if wbuf[4]:
                 drv._counted = ((wbuf[0], wbuf[1], wbuf[2]), wbuf[3])
             squares, link_amps = drv._counted if on else ((0.0, 0.0, 0.0), 0.0)
-            mode, omega_hat = drv._law.mode_and_omega()
             if not gates._enabled:
                 du = dv = dw = 0.0
             else:
