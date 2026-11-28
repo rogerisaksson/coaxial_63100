@@ -4,6 +4,7 @@ Shared: the structure suite fails a definition that lives in two files.
 """
 import faulthandler
 import gc
+import math
 import os
 import re
 import sys
@@ -286,7 +287,8 @@ class Beat:
         if not self.works:
             return 0.0
         ordered = sorted(self.works)
-        raw = ordered[int(LEAD_SHARE * (len(ordered) - 1))] + LEAD_MARGIN_S
+        idx = min(len(ordered) - 1, math.ceil(LEAD_SHARE * (len(ordered) - 1)))
+        raw = ordered[idx] + LEAD_MARGIN_S
         if len(ordered) >= 4:
             raw = min(raw, max(self.period, 2.0 * ordered[len(ordered) // 2] + LEAD_MARGIN_S))
         return min(LEAD_MAX_S, raw)
@@ -300,6 +302,14 @@ class Beat:
     def after(self, slot):
         """When the frame after the one at `slot` is to be written, the beat as it stands."""
         return slot + max(self.period, self.lead())
+
+    def wait(self, now):
+        """Seconds to idle after a frame before starting the next so the draw meets its beat."""
+        if self.last is None or not self.works:
+            return 0.0
+        lead = self.lead()
+        target = self.after(self.last) - lead - 2.0 * LEAD_MARGIN_S
+        return max(0.0, target - now)
 
     def took(self, seconds):
         self.works = (self.works + [min(seconds, LEAD_MAX_S)])[-LEAD_FRAMES:]
@@ -365,7 +375,8 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
                 rate_of(board_view).tick(started)
                 if (tick is not None and tick()) or (frames and count >= frames):
                     return None
-                leaving, moved, typed = _wait_frame(keys, page, shown, started, period)
+                leaving, moved, typed = _wait_frame(keys, page, shown, time.monotonic(),
+                                                    beat.wait(time.perf_counter()))
                 leaving, rest = (leaving, ()) if leaving else bindings.act_on(pad or bindings.BARE, typed, state)
                 if leaving:
                     return leaving

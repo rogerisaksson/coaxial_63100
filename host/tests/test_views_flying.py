@@ -154,10 +154,20 @@ def test_the_frames_leave_on_their_beat(report):
     bare = [_beat(slept) for slept in (before, after)]
     host_worst, host_even = max(b[0] for b in bare), max(b[2] for b in bare)
     beat = screen.Beat(0.05)
-    beat.took(10.0)
+    beat.wrote(1.0)
+    cold_wait = beat.wait(1.0)
+    beat.took(0.035)
+    beat.took(0.025)
+    warm_lead = beat.lead()
+    warm_wait = beat.wait(1.0)
+    beat_spike = screen.Beat(0.05)
+    beat_spike.took(10.0)
+    beat_ok = (cold_wait == 0.0 and warm_lead >= 0.035 + screen.LEAD_MARGIN_S - 1e-9
+               and abs(warm_wait - max(0.0, 0.05 - warm_lead - 2.0 * screen.LEAD_MARGIN_S)) < 1e-9
+               and beat_spike.lead() <= screen.LEAD_MAX_S + 1e-9)
     report.check('each frame leaves at the instant it drew, on an even beat, and cold spikes cap Beat.lead',
                  len(sent) == len(drawn) and worst <= 0.008 + host_worst and even <= 0.005 + host_even
-                 and beat.lead() <= screen.LEAD_MAX_S + 1e-9,
+                 and beat_ok,
                  'left %.1f ms from its instant at most, %.1f ms apart, gap to gap %.1f ms at p90; a bare sleeper '
                  'here %.1f and %.1f' % (1e3 * worst, 1e3 * apart, 1e3 * even, 1e3 * host_worst, 1e3 * host_even))
 
