@@ -131,13 +131,16 @@ def _eval_crown_dome_mm(s_rad, c_rad, dr_sc=1.0):
     p = cfg()
     ux, cos_c = math.sin(c_rad), math.cos(c_rad)
     cs = cos_c * math.cos(s_rad)
-    uy = (cs ** (0.98 if s_rad >= 0.0 else 0.78)) if cs >= 0.0 else -((-cs) ** 0.88)
+    exp_y = 0.78 + 0.20 * _sstep(-0.38, 0.38, s_rad)
+    uy = (cs ** exp_y) if cs >= 0.0 else -((-cs) ** 0.88)
     uz, tl, yl = cos_c * math.sin(s_rad), _sstep(-1.62, -2.02, s_rad), 8.0 + (p['crown_top'] - 9.2) * uy
     phi_c = math.atan2(ux, uz)
-    dr = (dr_sc * fhull.head_dr_mm(phi_c, yl) * _sstep(0.80, 0.58, s_rad)) if dr_sc else 0.0
+    w_dr = 1.0 - (1.0 - _sstep(0.15, -0.55, s_rad)) * (1.0 - _sstep(0.35, 0.78, abs(c_rad)) * _sstep(0.95, 0.35, s_rad))
+    dr = (dr_sc * fhull.head_dr_mm(phi_c, yl) * w_dr) if dr_sc else 0.0
     sag_t = _sstep(-0.48, -1.03, s_rad) * max(0.0, 1.0 - (c_rad / 0.30) ** 2)
     occ_w = _sstep(-0.98, -1.36, s_rad) * (1.0 - 0.25 * _sstep(-1.72, -2.02, s_rad))
-    af = 70.6 - 30.8 * (abs(ux) ** 0.85) + 0.80 * dr * _sstep(0.78, 0.48, s_rad)
+    ux_s = (math.hypot(ux, 0.035) ** 0.85) - (0.035 ** 0.85)
+    af = 70.6 - 34.4 * ux_s
     ab = (95.8 - 3.6 * sag_t + 3.8 * occ_w - 4.2 * tl) * p['zb_scale'] + dr
     return ((68.2 - 8.5 * tl + 0.85 * dr) * p['rx_scale'] * ux, fr.HEAD_CENTER_Y + yl + 0.95 * dr * max(0.0, uy), -4.5 + (ab + (af - ab) * _sstep(-0.55, 0.45, uz)) * uz)
 
@@ -145,14 +148,14 @@ def _eval_crown_dome_mm(s_rad, c_rad, dr_sc=1.0):
 def sample_crown_dome_mm(s_rad, c_rad):
     np, eps = np_mod(), 0.008
     p0 = np.asarray(_eval_crown_dome_mm(s_rad, c_rad, 1.0), float)
-    dc = np.asarray(_eval_crown_dome_mm(s_rad, c_rad + eps, 0.15), float) - np.asarray(_eval_crown_dome_mm(s_rad, c_rad - eps, 0.15), float)
-    dns = np.asarray(_eval_crown_dome_mm(s_rad - eps, c_rad, 0.15), float) - np.asarray(_eval_crown_dome_mm(s_rad + eps, c_rad, 0.15), float)
+    dc = np.asarray(_eval_crown_dome_mm(s_rad, c_rad + eps, 0.45), float) - np.asarray(_eval_crown_dome_mm(s_rad, c_rad - eps, 0.45), float)
+    dns = np.asarray(_eval_crown_dome_mm(s_rad - eps, c_rad, 0.45), float) - np.asarray(_eval_crown_dome_mm(s_rad + eps, c_rad, 0.45), float)
     n = np.cross(dc, dns)
     ln = float(np.linalg.norm(n))
     return p0, (n / ln if ln >= 1e-6 else np.array([0.0, 1.0, 0.0], float))
 
 
-_SEAM_AB = ((0.856, -0.064), (0.312, 0.022), (0.256, 0.020), (-0.365, 0.014),
+_SEAM_AB = ((0.845, -0.035), (0.312, 0.022), (0.256, 0.020), (-0.365, 0.014),
             (-0.418, 0.014), (-1.080, 0.195),
             (-1.132, 0.195), (-1.510, 0.100), (-1.565, 0.100), (-1.925, -0.008))
 
@@ -217,8 +220,9 @@ def temporal_amber_vents():
     """Return `(left, right)` rotated and scaled temple honeycomb modules."""
     raw = fcon.active_loop('PROF_TEMPLE_LOOP')
     bolts = _xform_temple([(*b, 0.96) for b in ((422, 226), (562, 182), (692, 242), (478, 302), (616, 334))], raw)
-    tv = fr.profile_ray_honeycomb(_xform_temple(raw, raw), 1, eval_temple_abs_x, frame_w_px=10.2,
-                                  pitch_px=14.0, fill=0.80, bezel_mm=1.42, chamfer_mm=0.52, bolts_px=bolts)
+    lp = fr.simplify_closed_rdp(_xform_temple(raw, raw), 2.4)
+    tv = fr.profile_ray_honeycomb(lp, 1, eval_temple_abs_x, frame_w_px=10.6,
+                                  pitch_px=14.0, fill=0.80, bezel_mm=1.48, chamfer_mm=0.50, bolts_px=bolts)
     return tv, mirror_x(tv)
 
 

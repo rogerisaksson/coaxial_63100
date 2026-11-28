@@ -17,41 +17,41 @@ LOOP_NAMES = (
 )
 
 CONTOURS_PACKED = (
-    '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'
-    '6n8BDJF90A=='
+    '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'
+    'Zn120A=='
 )
 
 PANEL_HOLES_PX: dict[str, tuple[tuple[float, ...], ...]] = {
@@ -355,7 +355,7 @@ def build_oled_mouth_pixels(eval_mouth_z, smile=0.0, jaw_open=0.0):
     from tools.render import face_honeycomb as fh, face_ray as fr
     np = fh.np_mod()
     sm, jw = max(-1.0, min(1.0, float(smile))), max(0.0, min(1.0, float(jaw_open)))
-    yc0, open_h, half_w = 83.4, 4.6 * jw, 14.4 + 2.0 * sm - 1.3 * jw * (1.0 - max(0.0, sm))
+    yc0, open_h, half_w = 84.8, 4.6 * jw, 14.4 + 2.0 * sm - 1.3 * jw * (1.0 - max(0.0, sm))
     us = np.linspace(-1.0, 1.0, 19)
     g_ul, g_ll, g_in = np.zeros((19, 4, 3)), np.zeros((19, 4, 3)), np.zeros((19, 5, 3))
     oled_pt = lambda xm, ym, dz_mm: fr.canon_to_head((xm, ym, eval_mouth_z(xm, ym) + dz_mm))
@@ -367,9 +367,9 @@ def build_oled_mouth_pixels(eval_mouth_z, smile=0.0, jaw_open=0.0):
         cupid = (3.7 - 0.4 * jw) * (env ** 0.78) * (1.0 - 0.28 * math.exp(-((au / 0.15) ** 2)))
         low_h = (3.8 - 0.4 * jw) * (env ** 0.80)
         for j, fv in enumerate(np.linspace(0.0, 1.0, 4)):
-            g_ul[i, j], g_ll[i, j] = oled_pt(xm, y_up + float(fv) * cupid, 0.78), oled_pt(xm, y_lo - float(fv) * low_h, 0.76)
+            g_ul[i, j], g_ll[i, j] = oled_pt(xm, y_up + float(fv) * cupid, 0.46), oled_pt(xm, y_lo - float(fv) * low_h, 0.44)
         for j, fv in enumerate(np.linspace(0.0, 1.0, 5)):
-            g_in[i, j] = oled_pt(xm, y_lo + float(fv) * max(0.65 * (0.35 + 0.65 * env), y_up - y_lo), 0.84)
+            g_in[i, j] = oled_pt(xm, y_lo + float(fv) * max(0.65 * (0.35 + 0.65 * env), y_up - y_lo), 0.52)
     tris = (fh.shell_patch(g_ul, 0.00020, 0.00004, (158, 138, 148), (0.0, 0.030, 0.040), fh.MOUTH_SCREEN)
             + fh.shell_patch(g_ll, 0.00020, 0.00004, (194, 174, 184), (0.0, 0.030, 0.040), fh.MOUTH_SCREEN))
     cav = (52, 38, 46) if jw > 0.12 else (106, 90, 98)

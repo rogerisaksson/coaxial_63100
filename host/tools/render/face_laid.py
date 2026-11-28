@@ -67,11 +67,10 @@ def _eval_ocheek_z(x, y):
 def _eval_mouth_z(x, y):
     p, fx, fy = fc.cfg(), float(x), float(y)
     ax, dy = abs(fx), max(0.0, fy - 70.0)
-    lip = (1.35 * math.exp(-(((fy - 86.2) / 3.2) ** 2)) + 0.85 * math.exp(-(((fy - 79.6) / 3.4) ** 2))
-           - 0.45 * math.exp(-(((fy - 83.2) / 1.6) ** 2))) * math.exp(-(((ax / 13.8) ** 2)))
-    z0 = 56.2 + 0.30 * dy + 5.0 * ((max(0.0, fy - 72.0) / 31.0) ** 2.15) + lip + p['oled_z0']
-    ax_e = min(35.4, 14.5 + 0.62 * max(0.0, fy - 71.0))
-    zs = min(z0 - 1.4, 34.6 - 0.23 * max(0.0, fy - 72.0))
+    lip = (1.45 * math.exp(-(((fy - 87.2) / 3.0) ** 2)) + 0.95 * math.exp(-(((fy - 81.2) / 3.2) ** 2))
+           - 0.50 * math.exp(-(((fy - 84.4) / 1.5) ** 2))) * math.exp(-((ax / 13.8) ** 2))
+    z0 = 56.2 + 0.28 * dy + 1.9 * ((max(0.0, fy - 72.0) / 31.0) ** 1.85) + lip - 1.85 * fc._sstep(88.5, 97.5, fy) * math.exp(-((ax / 22.0) ** 2)) + p['oled_z0']
+    ax_e, zs = min(35.4, 14.5 + 0.62 * max(0.0, fy - 71.0)), min(z0 - 1.4, 34.6 - 0.23 * max(0.0, fy - 72.0))
     u = min(0.99, p['oled_sx'] * (math.hypot(fx, 4.5) - 4.5) / max(8.0, ax_e))
     return z0 - (z0 - zs) * (u ** p['oled_sy']) + 0.65 * fhull.panel_offset('face-oled-mouth', fx, fy)
 
@@ -149,9 +148,7 @@ def _clamp_canon_behind_face(p):
 
 def _clamped_liner_pt(phi, yl, off_mm=0.0):
     p, (pt, nrm) = fc.cfg(), fc.sample_head_surface_mm(phi, yl)
-    ep, ey = (abs(float(phi)) - p['ear_phi']) / 0.46, (float(yl) - p['ear_y']) / 25.5
-    recess = 7.5 * math.exp(-(ep * ep + ey * ey))
-    return _clamp_canon_behind_face(pt + (float(off_mm) - recess) * nrm)
+    return _clamp_canon_behind_face(pt + (off_mm - 7.5 * math.exp(-(((abs(phi) - p['ear_phi']) / 0.46) ** 2 + ((yl - p['ear_y']) / 25.5) ** 2))) * nrm)
 
 
 def eye_lashes():

@@ -204,7 +204,7 @@ def main(argv=None):
                              "cold, said on stderr")
     parser.add_argument('--feed', default='', help="what a terminal would send, a chunk a poll, '|' between: "
                                                   'escapes as in Python, ESC [<0;60;20M a left press reported')
-    parser.add_argument('--model', default='', help='model override for render page (cube, board, head)')
+    parser.add_argument('--model', default='', help='model override for render page (cube, board, head, robot)')
     for flag in ('--yaw', '--pitch', '--zoom'):
         parser.add_argument(flag, type=float, default=None)
     parser.add_argument('--pan', type=float, nargs=2, default=None)

@@ -81,6 +81,34 @@ def engine(view, tris, cost_ms):
                           ('SPOT', '%.2f' % shading.SPOT)))
 
 
+_ROBOT_MESH: dict = {}
+
+
+def _render_robot(pose, width, height, zoom=1.0, colour=True, lit_r=None):
+    """Render the full coaxial Robot 2.0 body in truecolor Braille using `gynoid` + `mecha_coax`."""
+    from coaxial.graphics import engine, gynoid, likeness, lit
+    from coaxial.model.blocks import numpy as np
+    from machine.body import figure
+    who = gynoid.body(dressed=False, see=None, like=likeness.FOUND, plates=True, own_head=True, built=True)
+    key = id(who)
+    if key not in _ROBOT_MESH:
+        pos, nrm = who.pose(figure.stand())
+        ctr = 0.5 * (pos.min(axis=0) + pos.max(axis=0))
+        pos_c = (pos - ctr).astype(np.float32)
+        reach = float(np.linalg.norm(pos_c, axis=1).max())
+        _ROBOT_MESH[key] = (pos_c, nrm.astype(np.float32), who.uv.astype(np.float32),
+                            who.materials.astype(np.uint32), who.index.astype(np.uint32), reach)
+    pos_c, nrm, uv, mat, idx, reach = _ROBOT_MESH[key]
+    m = matrix(pose)
+    fine = engine.fine(engine.camera(width, height, reach * 0.88, distance=2.6, zoom=zoom))
+    c0 = np.zeros(3, dtype=np.float32)
+    if lit_r is not None:
+        depth, rgba = lit_r.raster(pos_c, nrm, uv, mat, idx, m, fine, c0, reach * 1.35)
+    else:
+        depth, rgba = lit.splat((pos_c, nrm, mat, uv), m, fine, c0)
+    return '\n'.join(lit.braille(depth, rgba, np.zeros_like(depth), width, height, colour)), int(len(idx))
+
+
 def compose(view, size, rate=''):
     wide = max(24, room(size.width))
     tall = max(10, size.height - 4)
@@ -89,6 +117,8 @@ def compose(view, size, rate=''):
     if view['model'] == 'head':
         from tools.render import face_audit
         art, tris = face_audit.render_terminal_head(q, wide, tall, zoom=view['zoom'], colour=True, lit_r=view.get('lit'))
+    elif view['model'] == 'robot':
+        art, tris = _render_robot(q, wide, tall, zoom=view['zoom'], colour=True, lit_r=view.get('lit'))
     else:
         cube = view['model'] == 'cube'
         override = solid_of('cube') if cube else None
@@ -149,15 +179,15 @@ PAD = bindings.page((
     ('POSE', 'SPACE', 'the idle tumble, or still', (('SPACE', 'SPIN'),), {' ': bindings.did(lambda v: v.update(spin=not v['spin']))}),
     ('POSE', 'R', 'the pose square again', (('R', 'RESET'),),
      bindings.cased('r', bindings.did(lambda v: v.update(pose=(0.0, 0.0, 0.0, 1.0))))),
-    ('POSE', 'M', 'the cube, the board, or the head', (('M', 'MODEL'),),
+    ('POSE', 'M', 'the cube, the board, the head, or the robot', (('M', 'MODEL'),),
      bindings.cased('m', bindings.did(lambda v: v.update(
-         model=('cube', 'board', 'head')[(('cube', 'board', 'head').index(v['model']) + 1) % 3])))),
+         model=('cube', 'board', 'head', 'robot')[(('cube', 'board', 'head', 'robot').index(v['model']) + 1) % 4])))),
 ))
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
-    parser.add_argument('--model', choices=('cube', 'board', 'head'),
+    parser.add_argument('--model', choices=('cube', 'board', 'head', 'robot'),
                         default='cube')
     parser.add_argument('--yaw', type=float, default=0.0)
     parser.add_argument('--pitch', type=float, default=0.0)

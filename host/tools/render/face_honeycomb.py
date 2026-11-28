@@ -298,37 +298,40 @@ def curved_honeycomb_bay(poly_uv, surf_fn, rim_w=0.0052, wall=0.0032, chamfer=0.
                          frame_col=AMBER_GOLD, rim_col=AMBER_DARK, hex_col=HEX_DARK,
                          hole_col=BAFFLE_DARK, back_col=FRAME_VOID, off=0.0,
                          bolts_uv=(), bolt_r=0.0026, nrm_fn=None, step=0.0060, add_back=True):
-    """Build a watertight curved beveled frame enclosing 3D dark hexagonal honeycomb and corner bolts."""
-    np = np_mod()
-    p0 = csg.oriented(np.asarray(poly_uv, float), ccw=True, clean=True)
+    """Build watertight curved beveled frame enclosing 3D dark hexagonal honeycomb."""
+    np, ml = np_mod(), max(0.45 * float(rim_w), 0.75 * float(corner_r))
+    pts = [poly_uv[0]]
+    for pt in poly_uv[1:]:
+        if math.hypot(pt[0] - pts[-1][0], pt[1] - pts[-1][1]) >= ml:
+            pts.append(pt)
+    while len(pts) > 6 and math.hypot(pts[0][0] - pts[-1][0], pts[0][1] - pts[-1][1]) < ml:
+        pts.pop()
+    p0 = csg.oriented(np.asarray(pts if len(pts) >= 6 else poly_uv, float), ccw=True, clean=True)
     p_out = csg.oriented(csg.filleted2d(p0, r=float(corner_r), n=3), ccw=True, clean=True) if corner_r > 1e-4 else p0
     p_in_clean, b_out, b_in = _smooth_inset_pair(p_out, float(rim_w), float(step))
     ctr = b_out.mean(0)
-    c_top = np.asarray(surf_fn(float(ctr[0]), float(ctr[1]), float(off)), float)
-    c_bot = np.asarray(surf_fn(float(ctr[0]), float(ctr[1]), float(off - wall)), float)
+    c_top, c_bot = np.asarray(surf_fn(float(ctr[0]), float(ctr[1]), float(off)), float), np.asarray(surf_fn(float(ctr[0]), float(ctr[1]), float(off - wall)), float)
     if _winding_flip(_orient_uv(surf_fn, b_out, off), c_top, c_top - c_bot):
         b_out, b_in = b_out[::-1].copy(), b_in[::-1].copy()
 
     ch = min(float(chamfer), 0.38 * float(wall))
     ch_col = (206, 140, 50) if frame_col == AMBER_GOLD else ((104, 107, 114) if frame_col == CRANIUM_DARK else rim_col)
-    r_ft_i, r_ft_o = _orient_uv(surf_fn, b_in + 0.12 * (b_out - b_in), off), _orient_uv(surf_fn, b_out + 0.11 * (b_in - b_out), off)
+    r_ft_i, r_ft_o = _orient_uv(surf_fn, b_in + 0.14 * (b_out - b_in), off), _orient_uv(surf_fn, b_out + 0.11 * (b_in - b_out), off)
     r_ch_o, r_bt_o = _orient_uv(surf_fn, b_out, off - ch), _orient_uv(surf_fn, b_out, off - wall)
     r_bt_i, r_ch_i = _orient_uv(surf_fn, b_in, off - wall), _orient_uv(surf_fn, b_in, off - ch)
-    tris = []
-    for ra, rb, c in ((r_ft_i, r_ft_o, frame_col), (r_ft_o, r_ch_o, ch_col), (r_ch_o, r_bt_o, rim_col),
-                      (r_bt_o, r_bt_i, rim_col), (r_bt_i, r_ch_i, rim_col), (r_ch_i, r_ft_i, ch_col)):
-        tris += _stitch_rings(ra, rb, c)
+    tris = [t for ra, rb, c in ((r_ft_i, r_ft_o, frame_col), (r_ft_o, r_ch_o, ch_col), (r_ch_o, r_bt_o, rim_col),
+                                (r_bt_o, r_bt_i, rim_col), (r_bt_i, r_ch_i, rim_col), (r_ch_i, r_ft_i, ch_col)) for t in _stitch_rings(ra, rb, c)]
     if add_back:
-        tris += curved_poly_plate(p_in_clean, surf_fn, wall=0.0012 * (float(wall) / 0.0032), chamfer=0.0002, corner_r=0.0,
-                                  col=back_col, rim_col=back_col, off=off - wall - 0.12 * float(wall), step=step * 1.5)
-    p_in = p_in_clean
+        tris += curved_poly_plate(p_in_clean, surf_fn, wall=0.0011 * (float(wall) / 0.0032), chamfer=0.00018, corner_r=0.0,
+                                  col=back_col, rim_col=back_col, off=off - wall - 0.16 * float(wall), step=step * 1.4)
+    p_in, p_hl = p_in_clean, b_in + 0.06 * (b_out - b_in)
     u0, u1, v0, v1 = float(p_in[:, 0].min()), float(p_in[:, 0].max()), float(p_in[:, 1].min()), float(p_in[:, 1].max())
     mu, mv, pu, pv = 0.5 * (u0 + u1), 0.5 * (v0 + v1), float(pitch_u), float(pitch_v)
     rise = pv * math.sqrt(3.0) * 0.5
     nu_c, nv_c = int((u1 - u0) / (2.0 * pu)) + 2, int((v1 - v0) / (2.0 * rise)) + 2
     ang = np.arange(6) * (math.pi / 3.0) + math.pi / 6.0
     uo = np.stack([np.cos(ang) * (pu / math.sqrt(3.0)), np.sin(ang) * (pv / math.sqrt(3.0))], 1)
-    ui, ht, hb = uo * float(fill), off - 0.0010, off - wall + 0.0002
+    ui, ht, hb = uo * float(fill), off - max(0.00090, ch + 0.00032), off - wall + 0.00028
     flip_h = _winding_flip(_orient_uv(surf_fn, np.array([[mu, mv]]) + uo, ht),
                            np.asarray(surf_fn(mu, mv, ht), float), c_top - c_bot)
     for jr in range(-nv_c, nv_c + 1):
@@ -338,7 +341,7 @@ def curved_honeycomb_bay(poly_uv, surf_fn, rim_w=0.0052, wall=0.0032, chamfer=0.
             if not _point_in_poly(np.array([[cu, cv]]), p_in)[0]:
                 continue
             o6, i6 = np.array([cu, cv]) + uo, np.array([cu, cv]) + ui
-            if not _point_in_poly(o6, p_out).all():
+            if not _point_in_poly(o6, p_hl).all():
                 continue
             ot, ob, it, ib = _orient_uv(surf_fn, o6, ht), _orient_uv(surf_fn, o6, hb), _orient_uv(surf_fn, i6, ht), _orient_uv(surf_fn, i6, hb)
             if flip_h:

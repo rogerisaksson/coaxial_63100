@@ -443,7 +443,7 @@ def profile_ray_honeycomb(prof_loop_px, side, eval_abs_x, frame_w_px=14.5, pitch
         chamfer=float(chamfer_mm) * SCALE_M, pitch_u=float(pitch_px), pitch_v=float(pitch_px),
         fill=float(fill), corner_r=6.4, frame_col=frame_col, rim_col=rim_col,
         hex_col=fh.HEX_DARK, hole_col=fh.BAFFLE_DARK, back_col=fh.FRAME_VOID,
-        off=0.0, bolts_uv=(), step=9.0, add_back=True)
+        off=0.0, bolts_uv=(), step=6.5, add_back=True)
     for bpx, bpy, bsc in bolts_px:
         pt, nrm = project_profile_ray_x(bpx, bpy, side, cam, eval_abs_x, 0.42)
         s = float(bsc)
