@@ -85,22 +85,25 @@ def compose(view, size, rate=''):
     wide = max(24, room(size.width))
     tall = max(10, size.height - 4)
     q = view['pose']
-    # The cube is drawn from its own solid; the board is render's own, art and
-    # all.
-    cube = view['model'] == 'cube'
-    override = solid_of('cube') if cube else None
-    if cube and override is None:
-        raise RigError('no cube to draw')
-    solid = override if override is not None else wireframe._model()[1]
     began = time.perf_counter()
-    art = wireframe.render(q, wide, tall, zoom=view['zoom'], colour=True,
-                           horizon=False, tip=0.0,
-                           solid=override, crew=view.get('crew'))
+    if view['model'] == 'head':
+        from tools.render import face_audit
+        art, tris = face_audit.render_terminal_head(q, wide, tall, zoom=view['zoom'], colour=True, lit_r=view.get('lit'))
+    else:
+        cube = view['model'] == 'cube'
+        override = solid_of('cube') if cube else None
+        if cube and override is None:
+            raise RigError('no cube to draw')
+        solid = override if override is not None else wireframe._model()[1]
+        tris = len(solid[1]) // 3
+        art = wireframe.render(q, wide, tall, zoom=view['zoom'], colour=True,
+                               horizon=False, tip=0.0,
+                               solid=override, crew=view.get('crew'))
     cost = 1000.0 * (time.perf_counter() - began)
 
     body = Layout()
     body.split_row(Layout(viewport('RENDER', art, rate, 'RENDER'), name='view'),
-                   Layout(engine(view, len(solid[1]) // 3, cost) if bindings.UX['column'] else rail(), name='hud',
+                   Layout(engine(view, tris, cost) if bindings.UX['column'] else rail(), name='hud',
                           size=column()))
 
     whole = Layout()
@@ -146,15 +149,19 @@ PAD = bindings.page((
     ('POSE', 'SPACE', 'the idle tumble, or still', (('SPACE', 'SPIN'),), {' ': bindings.did(lambda v: v.update(spin=not v['spin']))}),
     ('POSE', 'R', 'the pose square again', (('R', 'RESET'),),
      bindings.cased('r', bindings.did(lambda v: v.update(pose=(0.0, 0.0, 0.0, 1.0))))),
-    ('POSE', 'M', 'the cube, or the board', (('M', 'MODEL'),),
-     bindings.cased('m', bindings.did(lambda v: v.update(model='board' if v['model'] == 'cube' else 'cube')))),
+    ('POSE', 'M', 'the cube, the board, or the head', (('M', 'MODEL'),),
+     bindings.cased('m', bindings.did(lambda v: v.update(
+         model=('cube', 'board', 'head')[(('cube', 'board', 'head').index(v['model']) + 1) % 3])))),
 ))
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
-    parser.add_argument('--model', choices=('cube', 'board'),
+    parser.add_argument('--model', choices=('cube', 'board', 'head'),
                         default='cube')
+    parser.add_argument('--yaw', type=float, default=0.0)
+    parser.add_argument('--pitch', type=float, default=0.0)
+    parser.add_argument('--zoom', type=float, default=1.0)
     parser.add_argument('--frames', type=int, default=0,
                         help='draw this many and exit 0 - the smoke test')
     parser.add_argument('--simulated', action='store_true',
@@ -170,12 +177,19 @@ def main(argv=None):
     page = stage()
     # Spin is off at start; SPACE starts the idle tumble.
     view = {'model': args.model, 'pose': (0.0, 0.0, 0.0, 1.0),
-            'spin': False, 'zoom': 1.0,
+            'spin': False, 'zoom': float(args.zoom),
             'carry': (0.0, 0.0)}
+    if args.yaw:
+        turn(view, (0, 1, 0), float(args.yaw))
+    if args.pitch:
+        turn(view, (1, 0, 0), float(args.pitch))
+    found = card.adapter()
+    if found is not None:
+        view['lit'] = gpu.LitRaster(found=found)
     if args.workers > 0:
         view['crew'] = Crew(wireframe._lods(), art=shading._face(),
                             workers=args.workers)
-    elif (found := card.adapter()) is not None:
+    elif found is not None:
         view['crew'] = gpu.GpuCrew(wireframe._lods(), art=shading._face(), found=found)
     frame, last = 0, time.monotonic()
 

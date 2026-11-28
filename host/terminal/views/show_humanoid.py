@@ -239,7 +239,7 @@ def _draw_viewport(state, now, width, height, terminal):
         rounds=now.get('rounds'), mark=marked(state, now, time.monotonic()),
         legend=legend(state['shown'], width) if state['called'] != 'none' else None,
         dressed=state['skin'] == 'dressed', like=likeness.FOUND, see=_seen(state), inset=inset, arrows=(now, state.get('pad')),
-        hosed=None if state['skin'] == 'dressed' else now['t'],
+        hosed=None if state['skin'] == 'dressed' else now['t'], mecha=True,
         horizon=horizon.segments(now, now.get('props') or (), state.get('horizon') or 'off') or None)
     asked = state.setdefault('asked', collections.deque(maxlen=ASKED))
     asked.append(now)
@@ -277,6 +277,9 @@ def main(argv=None):
     parser.add_argument('--prompt', default='', help='send an initial natural-language LLM prompt to the robot')
     parser.add_argument('--telemetry', type=int, default=0,
                         help='serve the robot\'s latent, impedance and wrench live on 127.0.0.1:PORT (machine.process.introspect)')
+    for flag in ('--yaw', '--pitch', '--zoom'):
+        parser.add_argument(flag, type=float, default=None)
+    parser.add_argument('--pan', type=float, nargs=2, default=None)
     args, board_view = parser.parse_args(argv), stage()
     if args.telemetry:
         from machine.process import worker as _worker
@@ -289,6 +292,11 @@ def main(argv=None):
              'now': None, 'tour': None, 'pad': pad(), 'max': args.max,
              'emu_port': emu_port, 'emu': None, 'origin': ORIGIN,
              'chat_rows': [gym.CHAT_GREETING]}
+    for k in ('yaw', 'pitch', 'zoom'):
+        if getattr(args, k) is not None:
+            state[k] = float(getattr(args, k))
+    if args.pan is not None:
+        state['pan'] = (float(args.pan[0]), float(args.pan[1]))
 
     def draw():
         scripted(state, args.keys)

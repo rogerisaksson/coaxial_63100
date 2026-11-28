@@ -55,6 +55,8 @@
     The CPython release to install from python.org when python is absent, e.g. '3.13.1'.
 .PARAMETER AllowScripts
     Set the CurrentUser execution policy to RemoteSigned, so env.ps1 loads.
+.PARAMETER Mesh3D
+    Include the optional 3D mesh export, GLB and visual diff/delta toolchain (host/requirements-3d.txt).
 #>
 [CmdletBinding()]
 param(
@@ -80,7 +82,8 @@ param(
     [string]$Repository = (Join-Path $env:USERPROFILE 'STM32Cube\Repository'),
     [switch]$WingetToolchain,
     [string]$PythonVersion,
-    [switch]$AllowScripts
+    [switch]$AllowScripts,
+    [switch]$Mesh3D
 )
 
 $ErrorActionPreference = 'Continue'

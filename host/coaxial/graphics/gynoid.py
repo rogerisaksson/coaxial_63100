@@ -75,12 +75,9 @@ def _wear():
 
 _SEAT = ((-0.07, 0.148, 0.084, 0.126), (-0.03, 0.18, 0.096, 0.157), (0.02, 0.178, 0.096, 0.159),
          (0.07, 0.146, 0.088, 0.116))
-#: The torso's rings, (y, rx, rz): the tee hangs on them.
 _TORSO = ((-0.045, 0.094, 0.066), (0.0, 0.098, 0.069), (0.047, 0.102, 0.072), (0.093, 0.112, 0.079),
           (0.149, 0.122, 0.082), (0.205, 0.126, 0.083), (0.26, 0.13, 0.078), (0.307, 0.132, 0.07),
           (0.344, 0.118, 0.062), (0.372, 0.086, 0.055), (0.39, 0.052, 0.046))
-#: The jeans' waistband under the tee's hem, in the torso's frame, (y, rx, front, back), the
-#: hem at HEM_Y over it; the tee fitted, EASE_M off the body.
 HEM_Y = -0.035
 _HIPS = ((HEM_Y, 0.118, 0.084, 0.084), (-0.012, 0.118, 0.084, 0.084))
 EASE_M = 0.008
@@ -91,8 +88,7 @@ def _hung(y, rx, front, back):
 
 
 def _draped():
-    """The fitted tee's rings: the torso's each EASE_M off, over the bust where it is, the hem
-    over the jeans' waistband; its collar the torso's own."""
+    """The fitted tee's rings: EASE_M off the torso, over the bust, hem over waistband."""
     bust = BUST_AT[2] + BUST_R[2] + LOOSE_M / 2.0
     out = [_hung(y, rx + EASE_M, front + EASE_M, back + EASE_M) for y, rx, front, back in _HIPS]
     for y, rx, rz in _TORSO[1:9]:
@@ -104,11 +100,8 @@ def _draped():
 HEAD_Y = 0.095
 HAIR, HAIR_ENDS, LIPS, EYES = (118, 80, 52), (222, 168, 100), (192, 112, 112), (46, 46, 58)
 PART_M, BALAYAGE = 0.004, 1.2
-#: The robot's ponytail: gathered at the occiput, hanging behind the neck.
 HAIR_FALL = ((0.085, 0.030, 0.026, -0.082), (0.05, 0.030, 0.026, -0.094), (0.0, 0.028, 0.024, -0.098),
              (-0.06, 0.026, 0.022, -0.100), (-0.12, 0.020, 0.016, -0.102))
-#: The skull's radii and its middle; the hair a cap HAIR_M over it from ear level, its front
-#: edge the hairline: at the ears' line below, up the forehead to HAIRLINE of the skull's height.
 SKULL_R, SKULL_Z, HAIR_M, HAIRLINE = (0.07, 0.104, 0.09), 0.012, 0.02, 0.65
 BUST_AT, BUST_R = (0.056, 0.208, 0.062), (0.062, 0.056, 0.052)
 HUNG = (('hair_x', 'x', 1), ('hair_z', 'z', 1))
@@ -204,26 +197,37 @@ def _worn(name):
     return name.startswith(('cloth_', 'hair')) or name.endswith('_sole')
 
 
-def _parts(dressed=True, like=None, plates=False):
+def _parts(dressed=True, like=None, plates=False, mecha=False):
     meshes, extra = _meshes()
     meshes = panels.over(meshes)
-    if plates:
-        # Plated (`plated`): a figure's likeness's head on it and, dressed, its tee and jeans.
+    if plates or (mecha and not dressed):
         worn = like and _liked(like)
-        got = plated.parts(meshes, extra, worn)
-        return plated.dressed(got, worn) if dressed and worn else got
+        got = plated.parts(meshes, extra, worn, mecha=mecha)
+        if dressed and worn:
+            got = [p for p in got if not (mecha and p[0] == 'mecha_collar')]
+            return plated.dressed(got, worn)
+        return got
     if not dressed:
         extra = [part for part in extra if not _worn(part[0])] + mechanism.bands(meshes)
         for name, (c, t, u, _m) in list(meshes.items()):
             if name.endswith(('_foot', '_toes')):
                 meshes[name] = (c, t, u, _np().full(len(c), PLATE))
-    out = [(seg[0], seg[1], seg[2], seg[3], seg[4], meshes[seg[0]]) for seg in figure.SEGMENTS]
-    return out + [(name, parent, joints, offset, 0.0, mesh)
-                  for name, parent, *rest in extra for joints, offset, mesh in [_split(rest)]]
+    head_m: Any = meshes['head']
+    empty = tuple(a[:0] for a in head_m)
+    out = [(seg[0], seg[1], seg[2], seg[3], seg[4], empty if (mecha and seg[0] in ('head', 'neck')) else meshes[seg[0]])
+           for seg in figure.SEGMENTS]
+    extra_f = [e for e in extra if not (mecha and e[1] == 'head')]
+    out += [(name, parent, joints, offset, 0.0, mesh)
+            for name, parent, *rest in extra_f for joints, offset, mesh in [_split(rest)]]
+    if mecha:
+        from tools.render import face_audit as _fa
+        at = {s: _np().array(p) for s, (p, _t) in figure.frames({}, Z0, figure.IDENT).items()}
+        out += _fa.terminal_parts(at['torso'], at['neck'], at['head'])[:2]
+    return out
 
 
 def _liked(like, _read={}):
-    """The figure at `like` on the robot (`likeness.worn`), read once: dressed and bare wear it."""
+    """The figure at `like` on the robot (`likeness.worn`), read once."""
     if like not in _read:
         _read[like] = likeness.worn(like, (('hair', paint(HAIR)), ('eye', paint(EYES)), ('jean', paint(DENIM, True)), (
             'skin', SHELL), ('face', SKIN), ('', paint(TEE, True)), ('joint', panels.OPEN)), HUNG) + form.worn(like)
@@ -238,14 +242,16 @@ class Body:
 
     """The parts' meshes laid end to end once, normals smoothed; `pose(angles)` turns them."""
 
-    def __init__(self, dressed=True, see=None, like=None, plates=False):
-        plates = not see and (plates or bool(like))                  # a likeness is worn on the robot plated
-        self.parts: list[Any] = mechanism.parts(see == 'actuators') if see else _parts(dressed, like, plates)
-        self.see = see = see or ('plated' if plates else None)       # plated, posed as its mechanism is
+    def __init__(self, dressed=True, see=None, like=None, plates=False, mecha=False):
+        plates = not see and (plates or bool(like))
+        self.parts: list[Any] = mechanism.parts(see == 'actuators') if see else _parts(dressed, like, plates, mecha)
+        self.see = see = see or ('plated' if plates else None)
         if not see:
             rest = self._frames({})
-            self.parts = under.covered(self.parts, rest)
-            self.parts = under.dressed(self.parts, rest, _worn) if dressed else self.parts
+            keep = [p for p in self.parts if p[0].startswith('mecha_')]
+            base = [p for p in self.parts if not p[0].startswith('mecha_')]
+            base = under.covered(base, rest[:len(base)])
+            self.parts = (under.dressed(base, rest[:len(base)], _worn) if dressed else base) + keep
         self._lay(like)
 
     def _lay(self, like):
@@ -334,10 +340,10 @@ def _band(depth, width):
 _BODY = {}
 
 
-def body(dressed=True, see=None, like=None, plates=False):
-    got = _BODY.get((dressed, see, like, plates))
+def body(dressed=True, see=None, like=None, plates=False, mecha=False):
+    got = _BODY.get((dressed, see, like, plates, mecha))
     if got is None:
-        got = _BODY[(dressed, see, like, plates)] = Body(dressed, see, like, plates)
+        got = _BODY[(dressed, see, like, plates, mecha)] = Body(dressed, see, like, plates, mecha)
     return got
 
 
@@ -432,10 +438,9 @@ def cells(points, width, height, yaw=30.0, pitch=8.0, zoom=1.0, travel=(0.0, 0.0
 def render(angles, width, height, yaw=30.0, pitch=8.0, zoom=1.0, colour=True, travel=(0.0, 0.0),
            lit=None, root=None, labels=None, heat=None, props=None, legend=None, dressed=True, dents=None,
            mark=None, around=False, see=None, pan=(0.0, 0.0), inset=None, arrows=None, horizon=None, rounds=None,
-           like=None, hosed=None):
-    """Render the robot at `angles` (`{joint: deg}`) into `width` x `height` braille lines;
-    `horizon` [(segments, ink)] on it (`coaxial.graphics.horizon`); `props` drawn round where `rounds` says."""
-    who = body(dressed, see, like if not see else None, not dressed and not see)
+           like=None, hosed=None, mecha=False):
+    """Render the robot at `angles` (`{joint: deg}`) into `width` x `height` braille lines."""
+    who = body(dressed, see, like if not see else None, not dressed and not see, mecha and not see)
     m, fine, centre = _looked(width, height, yaw, pitch, zoom, pan)
     mats = _heated(who, heat)
     frames, wired, laid = who._frames(angles, root), [], None

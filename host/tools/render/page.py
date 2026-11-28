@@ -21,6 +21,9 @@ import shutil
 import sys
 import time
 
+if __package__ in (None, ''):
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 from rich.console import Console
 from rich.live import Live
 
@@ -93,7 +96,7 @@ class _Nowhere(io.StringIO):
         return len(text)
 
 
-def frame(name, width=150, height=44, frames=12, port=None, keys='', fed=None, live=False, timed=None):
+def frame(name, width=150, height=44, frames=12, port=None, keys='', fed=None, live=False, timed=None, extra=()):
     """The page's last frame as ANSI text: simulated, or on `port`; `keys` typed a frame each
     where the page takes `--keys`; `fed` what a terminal would send, a chunk a poll, through the
     console's own decoder (mouse reports among it); `live` its drawing never waited for, as on a terminal
@@ -150,7 +153,7 @@ def frame(name, width=150, height=44, frames=12, port=None, keys='', fed=None, l
         if timed is not None and getattr(module, 'run_view', None) is view:
             setattr(module, 'run_view', viewed)
         argv = ((['--port', port] if port else ['--simulated']) + ['--frames', str(frames)]
-                + (['--keys', keys] if keys else []) + (['--live'] if live else []))
+                + (['--keys', keys] if keys else []) + (['--live'] if live else []) + list(extra))
         if inspect.signature(module.main).parameters:
             module.main(argv)
         else:
@@ -201,12 +204,30 @@ def main(argv=None):
                              "cold, said on stderr")
     parser.add_argument('--feed', default='', help="what a terminal would send, a chunk a poll, '|' between: "
                                                   'escapes as in Python, ESC [<0;60;20M a left press reported')
+    parser.add_argument('--model', default='', help='model override for render page (cube, board, head)')
+    for flag in ('--yaw', '--pitch', '--zoom'):
+        parser.add_argument(flag, type=float, default=None)
+    parser.add_argument('--pan', type=float, nargs=2, default=None)
+    parser.add_argument('--column', action='store_true', help='unfold the right-hand HUD column')
     args = parser.parse_args(argv)
     fed = [chunk.encode('latin-1', 'backslashreplace').decode('unicode_escape')
            for chunk in args.feed.split('|')] if args.feed else None
     timed = [] if args.timed else None
-    art = frame(args.page, *args.size, frames=args.frames, port=args.port, keys=args.keys, fed=fed, live=args.live,
-                timed=timed)
+    extra = (['--model', args.model] if args.model else [])
+    for k in ('yaw', 'pitch', 'zoom'):
+        if getattr(args, k) is not None:
+            extra += [f'--{k}', str(getattr(args, k))]
+    if args.pan is not None:
+        extra += ['--pan', str(args.pan[0]), str(args.pan[1])]
+    from terminal.ui import bindings as _bindings
+    was_col = _bindings.UX['column']
+    if args.column:
+        _bindings.UX['column'] = True
+    try:
+        art = frame(args.page, *args.size, frames=args.frames, port=args.port, keys=args.keys, fed=fed, live=args.live,
+                    timed=timed, extra=extra)
+    finally:
+        _bindings.UX['column'] = was_col
     print(art)
     if timed:
         print(paced(timed), file=sys.stderr)

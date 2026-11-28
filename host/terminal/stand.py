@@ -140,7 +140,7 @@ def _robot(view, width, height):
     from machine.body import figure
     return '\n'.join(gynoid.render(figure.stand(), width, height,
                                     yaw=(view['spun'] * TURN_DPS) % 360.0, lit=_STAGE['lit'],
-                                    root=((0.0, figure.standing(), 0.0), figure.IDENT)))
+                                    root=((0.0, figure.standing(), 0.0), figure.IDENT), mecha=True))
 
 
 def _quad(view, width, height):

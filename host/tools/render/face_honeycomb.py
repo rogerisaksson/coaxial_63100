@@ -1,4 +1,4 @@
-"""Flat angular faceted honeycomb armor panels, bevel shells, heatsink fins and eye optics."""
+"""Beveled armor plates, skew-free surface triangulation, curved honeycombs, Torx seats and optics."""
 import math
 import os
 import sys
@@ -8,11 +8,16 @@ if __package__ in (None, ''):
 
 from tools.render import csg  # noqa: E402
 
-SHELL_CF, PANEL_RIM, SEAM_SILVER, CHASSIS_CF, TITANIUM = (244, 247, 252), (56, 62, 74), (206, 212, 224), (30, 34, 42), (182, 188, 200)
-ANODIZED, SERVO_CASE, HORN_BRASS, MESH_PEARL = (226, 48, 178), (28, 32, 40), (206, 168, 84), (242, 245, 250)
-NECK_SKIN, OPTIC_DARK, OPTIC_GLASS, OPTIC_SCLERA = (48, 52, 62), (8, 12, 22), (36, 186, 255), (248, 250, 255)
-BAFFLE_DARK, MIC_GOLD, BROW_DARK = (16, 19, 26), (224, 188, 96), (20, 24, 32)
-PORCELAIN, HEX_WALL = (230, 235, 244), (96, 104, 118)
+SHELL_CF, PANEL_RIM, SEAM_SILVER, CHASSIS_CF, TITANIUM = (245, 244, 240), (50, 52, 58), (190, 192, 196), (32, 34, 40), (146, 150, 158)
+CRANIUM_DARK, CRANIUM_RIM, AMBER_GOLD, AMBER_DARK = (86, 88, 94), (44, 46, 52), (232, 154, 58), (158, 96, 26)
+HEX_DARK, FRAME_VOID, BOLT_RIM, BOLT_SOCK = (40, 42, 48), (14, 16, 20), (32, 34, 38), (10, 12, 14)
+MOUTH_SCREEN, LIP_TINT, LIP_LINE = (242, 243, 248), (218, 198, 204), (176, 158, 166)
+ANODIZED, SERVO_CASE, HORN_BRASS, MESH_PEARL = (226, 48, 178), (28, 32, 40), (206, 168, 84), (234, 236, 240)
+NECK_SKIN, OPTIC_DARK, OPTIC_GLASS, OPTIC_SCLERA = (50, 53, 58), (8, 10, 14), (40, 46, 56), (154, 160, 168)
+BAFFLE_DARK, MIC_GOLD, BROW_DARK = (12, 14, 18), (220, 138, 44), (14, 16, 20)
+PORCELAIN, HEX_WALL = (234, 236, 240), (36, 38, 44)
+SCREW_FREE_PANELS = False
+FASTENER_LOG = []
 
 
 def np_mod():
@@ -50,7 +55,6 @@ def rev(rz, axis=2, at=(0.0, 0.0), fn=36, col=TITANIUM):
 
 
 def _surface_frame(grid, wall, chamfer, ref):
-    """Orient `(Nu, Nv, 3)` shell grid outward from `ref` and return `(g, du, dv, nrm, ch)`."""
     np = np_mod()
     g = np.asarray(grid, float).copy()
     for _ in range(2):
@@ -65,22 +69,19 @@ def _surface_frame(grid, wall, chamfer, ref):
     return g, du, dv, nrm, min(float(chamfer), 0.38 * float(wall))
 
 
-def shell_patch(grid, wall=0.0024, chamfer=0.00048, col=SHELL_CF, ref=(0.0, 0.115, 0.020), rim_col=SEAM_SILVER):
+def shell_patch(grid, wall=0.0026, chamfer=0.00055, col=CRANIUM_DARK, ref=(0.0, 0.115, 0.015), rim_col=CRANIUM_RIM):
     """Build a watertight contoured armor panel with a distinct bevel rim (`rim_col`)."""
     np = np_mod()
     g, du, dv, nrm, ch = _surface_frame(grid, wall, chamfer, ref)
     nu, nv = g.shape[:2]
-    su = np.maximum(np.linalg.norm(du, axis=-1, keepdims=True), 1e-12)
-    sv = np.maximum(np.linalg.norm(dv, axis=-1, keepdims=True), 1e-12)
+    su, sv = np.maximum(np.linalg.norm(du, axis=-1, keepdims=True), 1e-12), np.maximum(np.linalg.norm(dv, axis=-1, keepdims=True), 1e-12)
     ins = np.zeros_like(g)
     ins[0] += np.minimum(ch, 0.28 * su[0]) * (du[0] / su[0])
     ins[-1] -= np.minimum(ch, 0.28 * su[-1]) * (du[-1] / su[-1])
     ins[:, 0] += np.minimum(ch, 0.28 * sv[:, 0]) * (dv[:, 0] / sv[:, 0])
     ins[:, -1] -= np.minimum(ch, 0.28 * sv[:, -1]) * (dv[:, -1] / sv[:, -1])
-    outer, inner = g + ins, g - float(wall) * nrm + ins
-    co_g, ci_g = g - ch * nrm, g - (float(wall) - ch) * nrm
-    rcol = col if rim_col is None else rim_col
-    tris = []
+    outer, inner, co_g, ci_g = g + ins, g - float(wall) * nrm + ins, g - ch * nrm, g - (float(wall) - ch) * nrm
+    rcol, tris = col if rim_col is None else rim_col, []
     for i in range(nu - 1):
         for j in range(nv - 1):
             a, b, c, d = outer[i, j], outer[i + 1, j], outer[i + 1, j + 1], outer[i, j + 1]
@@ -97,296 +98,290 @@ def shell_patch(grid, wall=0.0024, chamfer=0.00048, col=SHELL_CF, ref=(0.0, 0.11
     return tris
 
 
-def _clip_convex_poly(poly, a_e, n_e, min_area=1e-10):
-    """Clip 2D polygon `poly` against every inward half-plane `(x - a_e[i]) . n_e[i] >= 0`."""
+def socket_bolt(pt, nrm, r_out=0.0022, h_out=0.0005, col_rim=BOLT_RIM, col_sock=BOLT_SOCK, fn=24):
+    """Build flush 6-lobe Torx bolt (or screw-free counterbore seat when `SCREW_FREE_PANELS` is active)."""
     np = np_mod()
-    cur = poly
-    for a, n in zip(a_e, n_e):
-        f = (cur - a) @ n
-        if (f >= 0.0).all():
-            continue
-        if (f <= 0.0).all():
-            return None
-        nxt, m = [], len(cur)
-        for i in range(m):
-            j = (i + 1) % m
-            p, q, fp, fq = cur[i], cur[j], float(f[i]), float(f[j])
-            if fp >= 0.0:
-                nxt.append(p)
-            if (fp >= 0.0) != (fq >= 0.0) and abs(fp - fq) > 1e-12:
-                nxt.append(p + (fp / (fp - fq)) * (q - p))
-        if len(nxt) < 3:
-            return None
-        cur = np.asarray(nxt, float)
-    area = 0.5 * abs(float(np.sum(cur[:, 0] * np.roll(cur[:, 1], -1) - np.roll(cur[:, 0], -1) * cur[:, 1])))
-    if area < float(min_area):
-        return None
-    if min(float(cur[:, 0].max() - cur[:, 0].min()), float(cur[:, 1].max() - cur[:, 1].min())) < 0.00045:
-        return None
-    return cur
-
-
-def _prism_tris(top, bot, top_col, side_col):
-    """Emit watertight closed 3D prism triangles for CCW `top` and `bot` `(m, 3)` loops."""
-    np = np_mod()
-    m, tris = len(top), []
-    for k in range(1, m - 1):
-        tris.append((np.stack((top[0], top[k], top[k + 1])), top_col))
-        tris.append((np.stack((bot[0], bot[k + 1], bot[k])), top_col))
+    n = np.asarray(nrm, float)
+    n /= max(float(np.linalg.norm(n)), 1e-12)
+    up = np.array([0.0, 1.0, 0.0]) if abs(float(n[1])) < 0.9 else np.array([1.0, 0.0, 0.0])
+    e1 = np.cross(up, n)
+    e1 /= max(float(np.linalg.norm(e1)), 1e-12)
+    e2, p0, is_screw = np.cross(n, e1), np.asarray(pt, float), (col_rim == BOLT_RIM)
+    if SCREW_FREE_PANELS and is_screw:
+        spec = 'M3' if float(r_out) >= 0.0028 else 'M2'
+        FASTENER_LOG.append((tuple(float(v) for v in p0), tuple(float(v) for v in n), spec))
+        r_cb, r_cl = (0.00295, 0.00160) if spec == 'M3' else (0.00210, 0.00110)
+        ang = np.linspace(0.0, 2.0 * math.pi, 18, endpoint=False)
+        ca, sa = np.cos(ang), np.sin(ang)
+        ring = lambda rad, h: p0[None, :] + float(h) * n[None, :] + rad * (ca[:, None] * e1[None, :] + sa[:, None] * e2[None, :])
+        rc0, rc1, rc2, rc3 = ring(r_cb, 0.00005), ring(r_cb, -0.0009), ring(r_cl, -0.0009), ring(r_cl, -0.0018)
+        cb_top, cb_bot, tris, m = p0 + 0.00005 * n, p0 - 0.0018 * n, [], len(ang)
+        for ra, rb in ((rc0, rc1), (rc1, rc2), (rc2, rc3)):
+            tris += _stitch_rings(rb, ra, col_sock)
+        for k in range(m):
+            kn = (k + 1) % m
+            tris += [(np.stack((cb_top, rc0[kn], rc0[k])), col_sock), (np.stack((cb_bot, rc3[k], rc3[kn])), col_sock)]
+        return tris
+    m = max(18, int(fn)) if is_screw else int(fn)
+    ang = np.linspace(0.0, 2.0 * math.pi, m, endpoint=False)
+    ca, sa = np.cos(ang), np.sin(ang)
+    star = (0.50 * float(r_out) * (0.72 + 0.28 * np.cos(6.0 * ang))) if is_screw else np.full(m, 0.56 * float(r_out))
+    ring = lambda rad, h: p0[None, :] + float(h) * n[None, :] + (np.asarray(rad, float)[:, None] if np.ndim(rad) > 0 else float(rad)) * (ca[:, None] * e1[None, :] + sa[:, None] * e2[None, :])
+    r0, r1, r2, r3, r4 = ring(r_out, -0.0008), ring(r_out, 0.35 * h_out), ring(0.86 * float(r_out), h_out), ring(star, h_out), ring(0.92 * star, 0.12 * h_out)
+    cb, ct, tris = p0 - 0.0008 * n, p0 + 0.10 * h_out * n, []
+    for ra, rb, col in ((r0, r1, col_rim), (r1, r2, col_rim), (r2, r3, col_rim), (r3, r4, col_sock)):
+        tris += _stitch_rings(ra, rb, col)
     for k in range(m):
         kn = (k + 1) % m
-        tris.append((np.stack((top[k], bot[k], bot[kn])), side_col))
-        tris.append((np.stack((top[k], bot[kn], top[kn])), side_col))
+        tris += [(np.stack((ct, r4[k], r4[kn])), col_sock), (np.stack((cb, r0[kn], r0[k])), col_rim)]
     return tris
 
 
-def _plane_basis(poly_3d, ref):
-    """Fit outward-oriented orthonormal plane basis `(ctr, e1, e2, nrm, p2)` for 3D polygon `poly_3d`."""
+def _orient_uv(surf_fn, loop_uv, off):
+    return np_mod().asarray([surf_fn(float(u), float(v), float(off)) for u, v in loop_uv], float)
+
+
+def _winding_flip(ring_3d, ctr_3d, nrm_3d):
     np = np_mod()
-    pts = np.asarray(poly_3d, float)
-    ctr = pts.mean(0)
-    _, _, vt = np.linalg.svd(pts - ctr, full_matrices=False)
-    nrm = vt[2] / max(float(np.linalg.norm(vt[2])), 1e-12)
-    if float(np.dot(nrm, ctr - np.asarray(ref, float))) < 0.0:
-        nrm = -nrm
-    e1 = pts[1] - pts[0]
-    e1 = e1 - float(np.dot(e1, nrm)) * nrm
-    e1 = e1 / max(float(np.linalg.norm(e1)), 1e-12)
-    e2 = np.cross(nrm, e1)
-    p2 = csg.oriented(np.c_[(pts - ctr) @ e1, (pts - ctr) @ e2], ccw=True, clean=True)
-    return ctr, e1, e2, nrm, p2
+    acc = sum(np.cross(ring_3d[k] - ctr_3d, ring_3d[(k + 1) % len(ring_3d)] - ctr_3d) for k in range(len(ring_3d)))
+    return float(np.dot(acc, nrm_3d)) < 0.0
 
 
-def planar_backing(poly_3d, wall=0.0012, inset_m=0.0022, corner_c=0.0014, col=BAFFLE_DARK,
-                   ref=(0.0, 0.115, 0.020), shift_n=-0.0036):
-    """Build a watertight flat matte backing slab strictly parallel to `planar_honeycomb_panel(poly_3d)`."""
-    ctr, e1, e2, nrm, p2 = _plane_basis(poly_3d, ref)
-    p_out = csg.oriented(csg.filleted2d(p2, r=float(corner_c), n=1), ccw=True, clean=True) if corner_c > 1e-4 else p2
-    p_in = csg.inset2d(p_out, float(inset_m), outer=True) if inset_m > 1e-4 else p_out
-    orig = ctr + float(shift_n) * nrm
-    top = orig[None, :] + p_in[:, 0:1] * e1[None, :] + p_in[:, 1:2] * e2[None, :]
-    bot = top - float(wall) * nrm[None, :]
-    return _prism_tris(top, bot, col, col)
+def _stitch_rings(ra, rb, col):
+    np, m, out = np_mod(), len(ra), []
+    for k in range(m):
+        kn = (k + 1) % m
+        out += [(np.stack((ra[k], ra[kn], rb[kn])), col), (np.stack((ra[k], rb[kn], rb[k])), col)]
+    return out
 
 
-def planar_honeycomb_panel(poly_3d, wall=0.0024, chamfer=0.00068, rim_m=0.0034, pitch=0.0074, fill=0.72,
-                           corner_c=0.0014, col=SHELL_CF, bar_col=MESH_PEARL, hole_col=BAFFLE_DARK,
-                           rim_col=SEAM_SILVER, ref=(0.0, 0.115, 0.020), shift_n=0.0):
-    """Build a 100% flat unsculpted angular polygonal frame (`col`) enclosing flat coarse honeycomb (`bar_col`)."""
+def _add_bolts(surf_fn, off, bolts_uv, bolt_r, nrm_fn=None):
+    np, tris = np_mod(), []
+    for bu, bv in bolts_uv:
+        bp = np.asarray(surf_fn(float(bu), float(bv), float(off)), float)
+        bn = (np.asarray(nrm_fn(float(bu), float(bv)), float) if nrm_fn is not None
+              else bp - np.asarray(surf_fn(float(bu), float(bv), float(off - 0.002)), float))
+        tris += socket_bolt(bp, bn, r_out=float(bolt_r))
+    return tris
+
+
+def _subdiv_cap_and_rim(p_out, p_ch, max_edge):
+    """Ear-clip clean non-collinear `p_ch`, then split interior AND boundary edges > `max_edge` in lockstep."""
+    from tools.render import foot
     np = np_mod()
-    ctr, e1, e2, nrm, p2 = _plane_basis(poly_3d, ref)
-    p_out = csg.oriented(csg.filleted2d(p2, r=float(corner_c), n=1), ccw=True, clean=True) if corner_c > 1e-4 else p2
-    # Cap rim width cleanly so narrow facets (e.g. nose) always retain an open central honeycomb bay.
-    span = min(float(p_out[:, 0].max() - p_out[:, 0].min()), float(p_out[:, 1].max() - p_out[:, 1].min()))
-    rim = min(float(rim_m), 0.25 * span)
-    ch = min(float(chamfer), 0.34 * float(wall), 0.35 * rim)
-    p_in = csg.inset2d(p_out, rim, outer=True)
-    p_rab = csg.inset2d(p_out, 0.52 * rim, outer=True)
-    p_ch = csg.inset2d(p_out, ch, outer=True)
-    orig = ctr + float(shift_n) * nrm
-
-    def _lift(xy, h_off):
-        return orig[None, :] + float(h_off) * nrm[None, :] + xy[:, 0:1] * e1[None, :] + xy[:, 1:2] * e2[None, :]
-
-    # Crisp flat angular cross-section: flat front face (`col`), flat 45-deg chamfer (`rim_col`), flat walls (`PANEL_RIM`).
-    frame_rings = (
-        _lift(p_in, 0.0),
-        _lift(p_ch, 0.0),
-        _lift(p_out, -ch),
-        _lift(p_out, -float(wall)),
-        _lift(p_rab, -float(wall)),
-        _lift(p_in, -float(wall) + 0.00042),
-    )
-    band_cols = (col, rim_col, PANEL_RIM, PANEL_RIM, PANEL_RIM, PANEL_RIM)
-    tris, nb = [], len(p_out)
-    for idx_b, bcol in enumerate(band_cols):
-        ra, rb = frame_rings[idx_b], frame_rings[(idx_b + 1) % len(frame_rings)]
+    verts = [(float(p[0]), float(p[1])) for p in p_ch]
+    out_v = [(float(p[0]), float(p[1])) for p in p_out]
+    b_chain = list(range(len(verts)))
+    tris = [(int(t[0]), int(t[1]), int(t[2])) for t in foot._ears(np.asarray(verts, float))]
+    lim2 = float(max_edge) ** 2
+    for _ in range(5):
+        mids, new_chain, nb = {}, [], len(b_chain)
         for k in range(nb):
-            kn = (k + 1) % nb
-            tris.append((np.stack((ra[k], rb[k], rb[kn])), bcol))
-            tris.append((np.stack((ra[k], rb[kn], ra[kn])), bcol))
-
-    a_e = p_rab
-    d_e = np.roll(p_rab, -1, axis=0) - p_rab
-    n_e = np.c_[-d_e[:, 1], d_e[:, 0]] / np.maximum(np.linalg.norm(d_e, axis=1, keepdims=True), 1e-12)
-    c_e = np.einsum('ei,ei->e', a_e, n_e)
-
-    def _sdf(xy):
-        return np.min(np.einsum('ki,ei->ke', xy, n_e) - c_e[None, :], axis=1)
-
-    p_m = max(0.0030, float(pitch))
-    rise = p_m * math.sqrt(3.0) * 0.5
-    x0, x1 = float(p_rab[:, 0].min()), float(p_rab[:, 0].max())
-    y0, y1 = float(p_rab[:, 1].min()), float(p_rab[:, 1].max())
-    mx0, my0 = 0.5 * (x0 + x1), 0.5 * (y0 + y1)
-    nx, ny = int((x1 - x0) / (2.0 * p_m)) + 2, int((y1 - y0) / (2.0 * rise)) + 2
-    ang = np.arange(6) * (math.pi / 3.0) + math.pi / 6.0
-    unit_o = np.stack([np.cos(ang), np.sin(ang)], 1) * (p_m / math.sqrt(3.0))
-    unit_i = unit_o * float(fill)
-    ht, hb = -0.00032, -float(wall) + 0.00038
-    whole, partial = {}, []
-    for jr in range(-ny, ny + 1):
-        cy, xs = my0 + jr * rise, 0.5 * p_m if (jr & 1) else 0.0
-        for ic in range(-nx, nx + 1):
-            o6 = np.array([mx0 + ic * p_m + xs, cy]) + unit_o
-            i6 = np.array([mx0 + ic * p_m + xs, cy]) + unit_i
-            fo = _sdf(o6)
-            if (fo <= -0.0004).all():
-                continue
-            if (fo >= 0.0).all():
-                whole[(ic, jr)] = (o6, i6)
+            u, v = b_chain[k], b_chain[(k + 1) % nb]
+            new_chain.append(u)
+            key = (u, v) if u < v else (v, u)
+            if (verts[u][0] - verts[v][0]) ** 2 + (verts[u][1] - verts[v][1]) ** 2 > lim2:
+                mi = len(verts)
+                mids[key] = mi
+                verts.append((0.5 * (verts[u][0] + verts[v][0]), 0.5 * (verts[u][1] + verts[v][1])))
+                out_v.append((0.5 * (out_v[u][0] + out_v[v][0]), 0.5 * (out_v[1 * v][1] if False else out_v[v][1]) + 0.5 * out_v[u][1]))
+                new_chain.append(mi)
+        b_chain = new_chain
+        for a, b, c in tris:
+            for u, v in ((a, b), (b, c), (c, a)):
+                key = (u, v) if u < v else (v, u)
+                if key not in mids and (verts[u][0] - verts[v][0]) ** 2 + (verts[u][1] - verts[v][1]) ** 2 > lim2:
+                    mids[key] = len(verts)
+                    verts.append((0.5 * (verts[u][0] + verts[v][0]), 0.5 * (verts[u][1] + verts[v][1])))
+                    out_v.append((0.0, 0.0))
+        if not mids:
+            break
+        nxt = []
+        for a, b, c in tris:
+            m0, m1, m2 = mids.get((a, b) if a < b else (b, a)), mids.get((b, c) if b < c else (c, b)), mids.get((c, a) if c < a else (a, c))
+            cnt = (m0 is not None) + (m1 is not None) + (m2 is not None)
+            if cnt == 0:
+                nxt.append((a, b, c))
+            elif cnt == 3:
+                assert m0 is not None and m1 is not None and m2 is not None
+                nxt += [(a, m0, m2), (m0, b, m1), (m2, m1, c), (m0, m1, m2)]
+            elif cnt == 1:
+                x, y, z, m = (a, b, c, m0) if m0 is not None else ((b, c, a, m1) if m1 is not None else (c, a, b, m2))
+                assert m is not None
+                nxt += [(x, m, z), (m, y, z)]
             else:
-                partial.append((o6, i6))
-    even_nbr = ((0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, 0))
-    odd_nbr = ((1, 1), (0, 1), (-1, 0), (0, -1), (1, -1), (1, 0))
-    for (ic, jr), (o6, i6) in whole.items():
-        ot, ob, it, ib = _lift(o6, ht), _lift(o6, hb), _lift(i6, ht), _lift(i6, hb)
-        nbrs = odd_nbr if (jr & 1) else even_nbr
-        for k in range(6):
-            kn = (k + 1) % 6
-            tris += [
-                (np.stack((ot[k], ot[kn], it[kn])), bar_col), (np.stack((ot[k], it[kn], it[k])), bar_col),
-                (np.stack((ob[k], ib[kn], ob[kn])), bar_col), (np.stack((ob[k], ib[k], ib[kn])), bar_col),
-                (np.stack((it[k], it[kn], ib[kn])), hole_col), (np.stack((it[k], ib[kn], ib[k])), hole_col),
-            ]
-            di, dj = nbrs[k]
-            if (ic + di, jr + dj) not in whole:
-                tris += [(np.stack((ot[k], ob[kn], ot[kn])), hole_col), (np.stack((ot[k], ob[k], ob[kn])), hole_col)]
-    min_bar_a = 0.12 * (1.0 - float(fill) ** 2) * (math.sqrt(3.0) * 0.5 * p_m * p_m / 6.0)
-    for o6, i6 in partial:
-        for k in range(6):
-            kn = (k + 1) % 6
-            clip = _clip_convex_poly(np.stack((o6[k], o6[kn], i6[kn], i6[k])), a_e, n_e, min_bar_a)
-            if clip is not None:
-                tris += _prism_tris(_lift(clip, ht), _lift(clip, hb), bar_col, hole_col)
-    return tris
+                x, y, z, ma, mb = (a, b, c, m0, m1) if m2 is None else ((b, c, a, m1, m2) if m0 is None else (c, a, b, m2, m0))
+                assert ma is not None and mb is not None
+                d_xm = (verts[x][0] - verts[mb][0]) ** 2 + (verts[x][1] - verts[mb][1]) ** 2
+                d_zm = (verts[z][0] - verts[ma][0]) ** 2 + (verts[z][1] - verts[ma][1]) ** 2
+                nxt += [(ma, y, mb)] + ([(x, ma, mb), (x, mb, z)] if d_xm <= d_zm else [(x, ma, z), (ma, mb, z)])
+        tris = nxt
+    return np.asarray(verts, float), tris, b_chain, np.asarray([out_v[i] for i in b_chain], float)
 
 
-def compute_heatsink():
-    """Build recessed cranial compute fins and titanium heatpipes inside the cranial bay."""
+def curved_poly_plate(poly_uv, surf_fn, wall=0.0030, chamfer=0.00085, corner_r=0.0034,
+                      col=CRANIUM_DARK, rim_col=CRANIUM_RIM, off=0.0, n_rings=3, step=0.007,
+                      bolts_uv=(), bolt_r=0.0028, nrm_fn=None):
+    """Build a skew-free watertight curved beveled polygonal armor plate on `surf_fn(u, v, off)`."""
+    np, _ = np_mod(), n_rings
+    p0 = csg.oriented(np.asarray(poly_uv, float), ccw=True, clean=True)
+    p1 = csg.oriented(csg.filleted2d(p0, r=float(corner_r), n=3), ccw=True, clean=True) if corner_r > 1e-4 else p0
+    span = min(float(p1[:, 0].max() - p1[:, 0].min()), float(p1[:, 1].max() - p1[:, 1].min()))
+    bev_w = min(1.02 if span > 1.0 else 0.00102, 0.11 * span)
+    p_ch = csg.inset2d(p1, bev_w, outer=True)
+    if len(p_ch) != len(p1):
+        ctr0 = p1.mean(0)
+        p_ch = ctr0 + 0.90 * (p1 - ctr0)
+    v_uv, cap_t, b_chain, b_out = _subdiv_cap_and_rim(p1, p_ch, max(float(step), 0.0042))
+    v_top, v_bot = _orient_uv(surf_fn, v_uv, off), _orient_uv(surf_fn, v_uv, off - wall)
+    t_bev = _orient_uv(surf_fn, b_out, off - min(float(chamfer), 0.42 * float(wall)))
+    b_bev = _orient_uv(surf_fn, b_out, off - wall)
+    ctr = b_out.mean(0)
+    c_top = np.asarray(surf_fn(float(ctr[0]), float(ctr[1]), float(off)), float)
+    c_bot = np.asarray(surf_fn(float(ctr[0]), float(ctr[1]), float(off - wall)), float)
+    r_top0, r_bot0 = v_top[b_chain], v_bot[b_chain]
+    flip = _winding_flip(r_top0, c_top, c_top - c_bot)
+    ch_col = (102, 106, 114) if col == CRANIUM_DARK else rim_col
+    wl_col = (50, 53, 60) if col == CRANIUM_DARK else rim_col
     tris = []
-    for th_deg in (14.0, 34.0, 54.0, 74.0, 94.0, 114.0, 134.0, 154.0, 174.0, 194.0):
-        th = math.radians(th_deg)
-        sy, cz = math.sin(th), math.cos(th)
-        ys, zs = 0.144 + 0.056 * sy, -0.004 + (0.062 if cz >= 0.0 else 0.064) * cz
-        ang_x = math.atan2(0.062 * cz, 0.056 * sy)
-        fin = csg.extrude(csg.filleted2d(csg.box2d((-0.020, 0.020), (-0.0036, 0.0036)), r=0.0005),
-                          a=-0.0009, b=0.0009, axis=2, colour=BAFFLE_DARK, chamfer=0.0002).tris()
-        tris += turn_tris(fin, rot('x', -ang_x), (0.0, 0.0, 0.0), (0.0, ys, zs))
-    for sgn in (1.0, -1.0):
-        tris += csg.sweep(csg.circle2d(0.0019, fn=14), [
-            (sgn * 0.015, 0.130, 0.058), (sgn * 0.032, 0.150, 0.042),
-            (sgn * 0.038, 0.164, 0.002), (sgn * 0.034, 0.146, -0.042),
-            (sgn * 0.018, 0.118, -0.060),
-        ], chamfer_ends=0.0005, colour=TITANIUM).tris()
-    return tris
+    for a, b, c in cap_t:
+        i0, i1, i2 = (a, c, b) if flip else (a, b, c)
+        tris += [(np.stack((v_top[i0], v_top[i1], v_top[i2])), col),
+                 (np.stack((v_bot[i0], v_bot[i2], v_bot[i1])), rim_col)]
+    rt, rb, tb, bb = (r_top0[::-1], r_bot0[::-1], t_bev[::-1], b_bev[::-1]) if flip else (r_top0, r_bot0, t_bev, b_bev)
+    tris += _stitch_rings(rt, tb, ch_col) + _stitch_rings(tb, bb, wl_col) + _stitch_rings(bb, rb, rim_col)
+    return tris + _add_bolts(surf_fn, off, bolts_uv, bolt_r, nrm_fn)
 
 
-def modern_optics_local():
-    """Build flush expressive anime-gynoid eye module with 9.4 mm sclera, 7.3 mm sapphire-cyan iris and catchlights."""
-    cam = (rev([(0.0, 0.0030), (0.0056, 0.0030), (0.0066, 0.0018), (0.0066, -0.0012),
-                (0.0056, -0.0018), (0.0048, -0.0014), (0.0, -0.0014)], col=CHASSIS_CF)
-           + rev([(0.0070, -0.0006), (0.0092, -0.0006), (0.0094, -0.0013), (0.0085, -0.0026),
-                  (0.0073, -0.0033), (0.0070, -0.0015)], fn=48, col=OPTIC_SCLERA)
-           + rev([(0.0065, -0.0015), (0.0073, -0.0015), (0.0073, -0.0033), (0.0065, -0.0038)], fn=44, col=(14, 42, 108))
-           + rev([(0.0036, -0.0014), (0.0065, -0.0014), (0.0065, -0.0038), (0.0050, -0.0043), (0.0036, -0.0045)],
-                 fn=48, col=OPTIC_GLASS)
-           + rev([(0.0022, -0.0014), (0.0036, -0.0014), (0.0036, -0.0045), (0.0022, -0.0047)], fn=40, col=(168, 244, 255))
-           + rev([(0.0, -0.0014), (0.0022, -0.0014), (0.0022, -0.0047), (0.0, -0.0048)], fn=32, col=OPTIC_DARK)
-           + rev([(0.0, -0.0042), (0.00144, -0.0042), (0.00144, -0.00478), (0.00068, -0.00502), (0.0, -0.00506)],
-                 at=(0.0023, 0.0020), fn=20, col=(255, 255, 255))
-           + rev([(0.0, -0.0042), (0.00072, -0.0042), (0.00072, -0.00474), (0.0, -0.00492)],
-                 at=(-0.0020, -0.0020), fn=16, col=(216, 250, 255))
-           + csg.extrude(csg.filleted2d(csg.box2d((-0.0011, 0.0011), (0.0054, 0.0074)), r=0.00038),
-                         a=0.0006, b=0.0026, axis=2, colour=TITANIUM, chamfer=0.0003).tris())
-    ring = rev(csg.filleted2d([(0.0073, -0.0012), (0.0084, -0.0012), (0.0084, 0.0013), (0.0073, 0.0013)],
-                              r=0.00038, n=3), fn=40, col=PANEL_RIM)
-    pins = (csg.extrude(csg.circle2d(0.0009, fn=14), a=-0.0098, b=-0.0083, axis=1, colour=TITANIUM).tris()
-            + csg.extrude(csg.circle2d(0.0009, fn=14), a=0.0083, b=0.0098, axis=1, colour=TITANIUM).tris())
-    return cam, ring, pins
-
-
-def rod(p0, p1, r=0.00085, col=TITANIUM):
-    """Build chamfered titanium pushrod with dark collars between `p0` and `p1`."""
+def _point_in_poly(xy, poly):
     np = np_mod()
-    a, b = np.asarray(p0, float), np.asarray(p1, float)
-    ln = float(np.linalg.norm(b - a))
-    if ln < 0.003:
-        return []
-    u, c2, c3 = (b - a) / ln, csg.circle2d(r, fn=14), csg.circle2d(1.48 * r, fn=14)
-    return (csg.sweep(c2, [a + u * s for s in (0.0, 0.0018, 0.5 * ln, ln - 0.0018, ln)],
-                      chamfer_ends=0.35 * r, colour=col).tris()
-            + csg.sweep(c3, [a, a + 0.0016 * u], chamfer_ends=0.3 * r, colour=PANEL_RIM).tris()
-            + csg.sweep(c3, [b - 0.0016 * u, b], chamfer_ends=0.3 * r, colour=PANEL_RIM).tris())
+    x, y, px, py = xy[:, 0], xy[:, 1], poly[:, 0], poly[:, 1]
+    qx, qy, inside = np.roll(px, -1), np.roll(py, -1), np.zeros(len(xy), dtype=bool)
+    for i in range(len(poly)):
+        inside ^= ((py[i] > y) != (qy[i] > y)) & (x < (qx[i] - px[i]) * (y - py[i]) / ((qy[i] - py[i]) + 1e-18) + px[i])
+    return inside
 
 
-def micro_servo(at, axis, ang, hlen=0.0058, hdir=(0.0, 0.0, 1.0), dual=False, sgn=1.0):
-    """Build compact sub-micro servo body at `at`, spline on `axis`, and titanium horn at `ang` rad."""
+def _smooth_inset_pair(p_out, rim_w, step):
+    from tools.render import foot
+    np, n, lim = np_mod(), len(p_out), 1.38 * float(rim_w)
+    p_in = np.zeros_like(p_out)
+    for i in range(n):
+        e0, e1 = p_out[i] - p_out[(i - 1) % n], p_out[(i + 1) % n] - p_out[i]
+        l0, l1 = max(float(np.linalg.norm(e0)), 1e-9), max(float(np.linalg.norm(e1)), 1e-9)
+        n0, n1 = np.array([-e0[1] / l0, e0[0] / l0]), np.array([-e1[1] / l1, e1[0] / l1])
+        mit = n0 + n1
+        ml = float(np.linalg.norm(mit))
+        p_in[i] = p_out[i] + (float(rim_w) * n0 if ml < 1e-6 else min(lim, float(rim_w) / max(0.52, float(np.dot(mit / ml, n0)))) * (mit / ml))
+    p_in = 0.22 * np.roll(p_in, 1, axis=0) + 0.56 * p_in + 0.22 * np.roll(p_in, -1, axis=0)
+    bo, bi = [], []
+    for i in range(n):
+        j = (i + 1) % n
+        k = max(1, int(math.ceil(max(float(np.linalg.norm(p_out[j] - p_out[i])), float(np.linalg.norm(p_in[j] - p_in[i]))) / float(step))))
+        for s in range(k):
+            t = s / k
+            bo.append(p_out[i] + t * (p_out[j] - p_out[i]))
+            bi.append(p_in[i] + t * (p_in[j] - p_in[i]))
+    ctr0 = p_out.mean(0)
+    span = max(1e-4, min(float(p_out[:, 0].max() - p_out[:, 0].min()), float(p_out[:, 1].max() - p_out[:, 1].min())))
+    p_back = ctr0 + max(0.38, 1.0 - 1.9 * float(rim_w) / span) * (p_out - ctr0)
+    for cand in (csg.inset2d(p_out, float(rim_w), outer=True), p_in, 0.5 * p_in + 0.5 * p_back, p_back):
+        cl = csg.oriented(csg.clean2d(cand, eps=max(1e-4, 0.05 * float(step))), ccw=True, clean=True)
+        if len(cl) >= 3 and len(foot._ears(np.asarray(cl, float))) == len(cl) - 2:
+            p_back = cl
+            break
+    return p_back, np.asarray(bo, float), np.asarray(bi, float)
+
+
+def curved_honeycomb_bay(poly_uv, surf_fn, rim_w=0.0052, wall=0.0032, chamfer=0.0009,
+                         pitch_u=0.0054, pitch_v=0.0054, fill=0.72, corner_r=0.0040,
+                         frame_col=AMBER_GOLD, rim_col=AMBER_DARK, hex_col=HEX_DARK,
+                         hole_col=BAFFLE_DARK, back_col=FRAME_VOID, off=0.0,
+                         bolts_uv=(), bolt_r=0.0026, nrm_fn=None, step=0.0060, add_back=True):
+    """Build a watertight curved beveled frame enclosing 3D dark hexagonal honeycomb and corner bolts."""
     np = np_mod()
-    cx, cy, cz = (float(v) for v in at)
-    hx, hy, hz = (0.0050, 0.0044, 0.0048) if axis == 'x' else (
-        (0.0044, 0.0050, 0.0048) if axis == 'y' else (0.0044, 0.0048, 0.0050))
-    ai = {'x': 0, 'y': 1, 'z': 2}[axis]
-    ur, vr = ((-hy, hy), (-hz, hz)) if ai == 0 else (((-hz, hz), (-hx, hx)) if ai == 1 else ((-hx, hx), (-hy, hy)))
-    lo, hi = (cx - hx, cy - hy, cz - hz)[ai], (cx + hx, cy + hy, cz + hz)[ai]
-    off = (0.0, cy, cz) if ai == 0 else ((cx, 0.0, cz) if ai == 1 else (cx, cy, 0.0))
-    body = csg.extrude(csg.filleted2d(csg.box2d(ur, vr), r=0.0009, n=4), a=lo, b=hi, axis=ai,
-                       colour=SERVO_CASE, chamfer=0.0005).translate(*off).tris()
-    ears = csg.filleted2d(csg.box2d((ur[0] - 0.0016, ur[1] + 0.0016), (vr[0] * 0.45, vr[1] * 0.45)), r=0.0004)
-    mid = 0.5 * (lo + hi)
-    body += csg.extrude(ears, a=mid - 0.0008, b=mid + 0.0008, axis=ai, colour=PANEL_RIM, chamfer=0.00025).translate(*off).tris()
-    sp = np.array([cx, cy, cz], float)
-    sp[ai] = (hi + 0.0013) if sgn >= 0.0 else (lo - 0.0013)
-    hd = np.asarray(hdir, float)
-    hd[ai] = 0.0
-    hd = rot(axis, ang) @ (hd / max(float(np.linalg.norm(hd)), 1e-12))
-    t1, t0 = sp + float(hlen) * hd, sp - (float(hlen) if dual else 0.0014) * hd
-    horn = csg.sweep(csg.filleted2d(csg.box2d((-0.0013, 0.0013), (-0.0007, 0.0007)), r=0.00032),
-                     [t0, sp, t1], chamfer_ends=0.00025, colour=TITANIUM).tris()
-    return body, horn, t1, t0
+    p0 = csg.oriented(np.asarray(poly_uv, float), ccw=True, clean=True)
+    p_out = csg.oriented(csg.filleted2d(p0, r=float(corner_r), n=3), ccw=True, clean=True) if corner_r > 1e-4 else p0
+    p_in_clean, b_out, b_in = _smooth_inset_pair(p_out, float(rim_w), float(step))
+    ctr = b_out.mean(0)
+    c_top = np.asarray(surf_fn(float(ctr[0]), float(ctr[1]), float(off)), float)
+    c_bot = np.asarray(surf_fn(float(ctr[0]), float(ctr[1]), float(off - wall)), float)
+    if _winding_flip(_orient_uv(surf_fn, b_out, off), c_top, c_top - c_bot):
+        b_out, b_in = b_out[::-1].copy(), b_in[::-1].copy()
+
+    ch = min(float(chamfer), 0.38 * float(wall))
+    ch_col = (206, 140, 50) if frame_col == AMBER_GOLD else ((104, 107, 114) if frame_col == CRANIUM_DARK else rim_col)
+    r_ft_i, r_ft_o = _orient_uv(surf_fn, b_in + 0.12 * (b_out - b_in), off), _orient_uv(surf_fn, b_out + 0.11 * (b_in - b_out), off)
+    r_ch_o, r_bt_o = _orient_uv(surf_fn, b_out, off - ch), _orient_uv(surf_fn, b_out, off - wall)
+    r_bt_i, r_ch_i = _orient_uv(surf_fn, b_in, off - wall), _orient_uv(surf_fn, b_in, off - ch)
+    tris = []
+    for ra, rb, c in ((r_ft_i, r_ft_o, frame_col), (r_ft_o, r_ch_o, ch_col), (r_ch_o, r_bt_o, rim_col),
+                      (r_bt_o, r_bt_i, rim_col), (r_bt_i, r_ch_i, rim_col), (r_ch_i, r_ft_i, ch_col)):
+        tris += _stitch_rings(ra, rb, c)
+    if add_back:
+        tris += curved_poly_plate(p_in_clean, surf_fn, wall=0.0012 * (float(wall) / 0.0032), chamfer=0.0002, corner_r=0.0,
+                                  col=back_col, rim_col=back_col, off=off - wall - 0.12 * float(wall), step=step * 1.5)
+    p_in = p_in_clean
+    u0, u1, v0, v1 = float(p_in[:, 0].min()), float(p_in[:, 0].max()), float(p_in[:, 1].min()), float(p_in[:, 1].max())
+    mu, mv, pu, pv = 0.5 * (u0 + u1), 0.5 * (v0 + v1), float(pitch_u), float(pitch_v)
+    rise = pv * math.sqrt(3.0) * 0.5
+    nu_c, nv_c = int((u1 - u0) / (2.0 * pu)) + 2, int((v1 - v0) / (2.0 * rise)) + 2
+    ang = np.arange(6) * (math.pi / 3.0) + math.pi / 6.0
+    uo = np.stack([np.cos(ang) * (pu / math.sqrt(3.0)), np.sin(ang) * (pv / math.sqrt(3.0))], 1)
+    ui, ht, hb = uo * float(fill), off - 0.0010, off - wall + 0.0002
+    flip_h = _winding_flip(_orient_uv(surf_fn, np.array([[mu, mv]]) + uo, ht),
+                           np.asarray(surf_fn(mu, mv, ht), float), c_top - c_bot)
+    for jr in range(-nv_c, nv_c + 1):
+        cv, us_off = mv + jr * rise, (0.5 * pu if (jr & 1) else 0.0)
+        for ic in range(-nu_c, nu_c + 1):
+            cu = mu + ic * pu + us_off
+            if not _point_in_poly(np.array([[cu, cv]]), p_in)[0]:
+                continue
+            o6, i6 = np.array([cu, cv]) + uo, np.array([cu, cv]) + ui
+            if not _point_in_poly(o6, p_out).all():
+                continue
+            ot, ob, it, ib = _orient_uv(surf_fn, o6, ht), _orient_uv(surf_fn, o6, hb), _orient_uv(surf_fn, i6, ht), _orient_uv(surf_fn, i6, hb)
+            if flip_h:
+                ot, ob, it, ib = ot[::-1], ob[::-1], it[::-1], ib[::-1]
+            for k in range(6):
+                kn = (k + 1) % 6
+                tris += [
+                    (np.stack((ot[k], ot[kn], it[kn])), hex_col), (np.stack((ot[k], it[kn], it[k])), hex_col),
+                    (np.stack((ob[k], ib[kn], ob[kn])), hex_col), (np.stack((ob[k], ib[k], ib[kn])), hex_col),
+                    (np.stack((it[k], ib[k], ib[kn])), hole_col), (np.stack((it[k], ib[kn], it[kn])), hole_col),
+                    (np.stack((ot[k], ot[kn], ob[kn])), hole_col), (np.stack((ot[k], ob[kn], ob[k])), hole_col),
+                ]
+    return tris + _add_bolts(surf_fn, off, bolts_uv, bolt_r, nrm_fn)
 
 
-def ear_microphones():
-    """Build anime-mecha concentric binaural ear-pods with luminous cyan halo and gold ring."""
-    ye, ze = 0.095, 0.002
-    outer = rev([(0.0156, 0.0615), (0.0156, 0.0692), (0.0192, 0.0702), (0.0206, 0.0686),
-                 (0.0206, 0.0610), (0.0188, 0.0598), (0.0156, 0.0615)], 0, (ye, ze), 48, SHELL_CF)
-    inner_t = rev([(0.0098, 0.0640), (0.0098, 0.0688), (0.0124, 0.0694), (0.0134, 0.0682), (0.0134, 0.0640)], 0, (ye, ze), 40, TITANIUM)
-    cyan = rev([(0.0134, 0.0666), (0.0146, 0.0676), (0.0146, 0.0652), (0.0134, 0.0652)], 0, (ye, ze), 44, OPTIC_GLASS)
-    accent = rev([(0.0146, 0.0668), (0.0156, 0.0674), (0.0156, 0.0652), (0.0146, 0.0652)], 0, (ye, ze), 44, MIC_GOLD)
-    holes = [csg.circle2d(0.0014, fn=12, at=(ye + 0.0064 * math.cos(math.radians(60.0 * k)), ze + 0.0064 * math.sin(math.radians(60.0 * k))))
-             for k in range(6)] + [csg.circle2d(0.0032, fn=20, at=(ye, ze))]
-    baffle = csg.extrude(csg.circle2d(0.0155, fn=40, at=(ye, ze)), holes=holes, a=0.0645, b=0.0662, axis=0, colour=BAFFLE_DARK, chamfer=0.0003).tris()
-    core = rev([(0.0, 0.0645), (0.0030, 0.0645), (0.0030, 0.0678), (0.0018, 0.0684), (0.0, 0.0684)], 0, (ye, ze), 28, MIC_GOLD)
-    left = outer + inner_t + cyan + accent + baffle + core
-    return {'left_ear_mic': left, 'right_ear_mic': mirror_x(left)}
-
-
-def piston(p0, p1, r_rod=0.0015, r_bar=0.0023):
-    """Build straight machined titanium telescoping piston with anodized champagne-gold clevis collars."""
+def standard_torx_screw(spec='M2', col_head=None, col_sock=None):
+    """Build watertight ISO 14580 Torx screw (`'M2'` or `'M3'`) along +Z (m)."""
     np = np_mod()
-    a, b = np.asarray(p0, float), np.asarray(p1, float)
-    d = b - a
-    ln = float(np.linalg.norm(d))
-    if ln < 0.006:
-        return []
-    u, cr, cb, cg = d / ln, csg.circle2d(r_rod, fn=14), csg.circle2d(r_bar, fn=16), csg.circle2d(r_bar + 0.0005, fn=16)
-    return (csg.sweep(cr, [a, b], chamfer_ends=0.0004, colour=TITANIUM).tris()
-            + csg.sweep(cb, [a + 0.14 * ln * u, a + 0.62 * ln * u], chamfer_ends=0.0005, colour=PANEL_RIM).tris()
-            + csg.sweep(cg, [a + 0.10 * ln * u, a + 0.18 * ln * u], chamfer_ends=0.0003, colour=MIC_GOLD).tris()
-            + csg.sweep(cg, [a + 0.58 * ln * u, a + 0.66 * ln * u], chamfer_ends=0.0003, colour=MIC_GOLD).tris()
-            + csg.sweep(cg, [a + 0.86 * ln * u, a + 0.94 * ln * u], chamfer_ends=0.0003, colour=MIC_GOLD).tris())
+    ch, cs = BOLT_RIM if col_head is None else col_head, BOLT_SOCK if col_sock is None else col_sock
+    r_sh, l_sh, r_hd, h_hd, r_tx = ((0.0010, 0.0060, 0.00190, 0.00165, 0.00088) if spec == 'M2'
+                                    else (0.0015, 0.0080, 0.00275, 0.00240, 0.00135))
+    ang = np.linspace(0.0, 2.0 * math.pi, 36, endpoint=False)
+    ca, sa, star = np.cos(ang), np.sin(ang), r_tx * (0.72 + 0.28 * np.cos(6.0 * ang))
+    cr = lambda r, z: np.c_[(np.full(36, float(r)) if np.ndim(r) == 0 else np.asarray(r, float)) * ca,
+                            (np.full(36, float(r)) if np.ndim(r) == 0 else np.asarray(r, float)) * sa, np.full(36, float(z))]
+    rings = (cr(0.72 * r_sh, -l_sh), cr(r_sh, -l_sh + 0.28 * r_sh), cr(r_sh, 0.0), cr(r_hd, 0.0),
+             cr(r_hd, 0.72 * h_hd), cr(0.88 * r_hd, h_hd), cr(star, h_hd), cr(0.92 * star, 0.28 * h_hd))
+    cb, ct_p, tris = np.array([0.0, 0.0, -l_sh]), np.array([0.0, 0.0, 0.22 * h_hd]), []
+    for ra, rb, c in zip(rings[:-1], rings[1:], (ch, ch, ch, ch, ch, ch, cs)):
+        tris += _stitch_rings(ra, rb, c)
+    return tris + [t for k in range(36) for kn in ((k + 1) % 36,) for t in ((np.stack((cb, rings[0][kn], rings[0][k])), ch), (np.stack((ct_p, rings[7][k], rings[7][kn])), cs))]
 
 
-def rotary_hub(at_x, at_y, at_z):
-    """Build gleaming machined titanium and champagne-gold temple rotary actuator hub."""
-    base = rev([(0.0032, at_x - 0.0022), (0.0032, at_x + 0.0028), (0.0092, at_x + 0.0028),
-                (0.0102, at_x + 0.0016), (0.0102, at_x - 0.0016), (0.0086, at_x - 0.0022)], 0, (at_y, at_z), 32, TITANIUM)
-    gold = rev([(0.0052, at_x + 0.0020), (0.0052, at_x + 0.0038), (0.0078, at_x + 0.0038),
-                (0.0082, at_x + 0.0028), (0.0082, at_x + 0.0020)], 0, (at_y, at_z), 28, MIC_GOLD)
-    core = rev([(0.0, at_x - 0.0014), (0.0036, at_x - 0.0014), (0.0036, at_x + 0.0042),
-                (0.0020, at_x + 0.0046), (0.0, at_x + 0.0046)], 0, (at_y, at_z), 24, CHASSIS_CF)
-    return base + gold + core
+def place_screw(screw_local, pt, nrm):
+    """Orient `+Z` `screw_local` triangles along unit normal `nrm` seated at `pt`."""
+    np = np_mod()
+    n = np.asarray(nrm, float)
+    n /= max(float(np.linalg.norm(n)), 1e-12)
+    up = np.array([0.0, 1.0, 0.0]) if abs(float(n[1])) < 0.9 else np.array([1.0, 0.0, 0.0])
+    e1 = np.cross(up, n)
+    e1 /= max(float(np.linalg.norm(e1)), 1e-12)
+    basis, p0 = np.stack([e1, np.cross(n, e1), n], axis=0), np.asarray(pt, float)
+    return [(t @ basis + p0, c) for t, c in screw_local]
 
 
 def neck_band(yn, tri):
@@ -397,3 +392,19 @@ def neck_band(yn, tri):
     if ym < 0.004:
         return BAFFLE_DARK
     return PANEL_RIM if (0.018 <= ym < 0.024 or 0.034 <= ym < 0.040 or 0.050 <= ym < 0.056) else CHASSIS_CF
+
+
+def throat_bellows_hoses(to_neck_fn):
+    """Build 3 S-curved corrugated robotic throat hoses (1 central + 2 flanking)."""
+    np = np_mod()
+    zf = lambda y: -0.6 + 2.9 * (((float(y) - 26.0) / 30.0) ** 2)
+    ys = np.linspace(-8.0, 56.0, 15)
+    hc = csg.sweep(csg.circle2d(3.05, fn=16), [(0.0, float(y), zf(y)) for y in ys], chamfer_ends=0.45, colour=CHASSIS_CF).tris()
+    hl = csg.sweep(csg.circle2d(2.45, fn=14), [(8.4 + 1.3 * (float(y) + 8.0) / 64.0, float(y), zf(y) - 1.15) for y in ys], chamfer_ends=0.38, colour=CHASSIS_CF).tris()
+    for k, ry in enumerate(np.linspace(-3.0, 53.0, 19)):
+        fy, rc, z0, u0 = float(ry), (CRANIUM_DARK if (k & 1) == 0 else FRAME_VOID), zf(ry), (float(ry) + 8.0) / 64.0
+        hc += csg.extrude(csg.circle2d(4.05, fn=16, at=(z0, 0.0)), a=fy - 0.74, b=fy + 0.74, axis=1, colour=rc, chamfer=0.28).tris()
+        hl += csg.extrude(csg.circle2d(3.22, fn=14, at=(z0 - 1.15, 8.4 + 1.3 * u0)), a=fy - 0.68, b=fy + 0.68, axis=1, colour=rc, chamfer=0.25).tris()
+    hc += csg.extrude(csg.filleted2d(csg.box2d((-13.5, 13.5), (-3.2, 6.2)), r=1.2), a=54.2, b=57.2, axis=1, colour=CRANIUM_DARK, chamfer=0.45).tris()
+    nl = to_neck_fn(hl)
+    return {'neck_conduit_center': to_neck_fn(hc), 'neck_conduits_L': nl, 'neck_conduits_R': mirror_x(nl)}

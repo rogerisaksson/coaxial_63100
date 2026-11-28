@@ -1,0 +1,22 @@
+# Optional 3D mesh export, image-to-3D interop and visual diff/delta verification toolchain.
+# Every package here is imported where called: bench PCs, CI and the core CAD raster keep running
+# without this file, and host/constraints.txt stays unchanged. Install alongside requirements.txt
+# when exporting GLB meshes or running local mesh diff/delta checks:
+#
+#   pip install -r host/requirements-3d.txt -c host/constraints.txt
+#
+#   trimesh          GLB/OBJ/STL mesh loading, watertightness checks and vertex-colored CAD export
+#                    (tools/render/face_delta.py).
+#   pygltflib        glTF 2.0 / GLB scene inspection and binary chunk verification.
+#   scikit-image     structural similarity (SSIM), morphological edges and visual diff metrics.
+#   imageio          lossless raster I/O for multi-view comparison sheets and delta heatmaps.
+#   xatlas           UV chart packing for textured mesh inspection.
+#   huggingface-hub  local weight cache management for image-to-3D model containers (the Hunyuan3D-2
+#                    CUDA 12.4 runtime itself stays isolated inside Docker via host/requirements-linux.txt
+#                    so host/requirements-gpu.txt keeps its CUDA 13.0 stack untouched).
+trimesh>=4.5
+pygltflib>=1.16
+scikit-image>=0.24
+imageio>=2.34
+xatlas>=0.0.9
+huggingface-hub>=0.27

@@ -160,7 +160,7 @@ def _skin_neck(figured):
                 poles=(-0.044, 0.076))
 
 
-def parts(meshes, extra, liked: Any = None):
+def parts(meshes, extra, liked: Any = None, mecha=False):
     """[(name, parent, joints, offset, rest, mesh)]: the robot bare of its clothes - its
     mechanism (`framed`), its head, its hands, its shoes and its guards. `meshes` {segment:
     mesh} and `extra` [(name, parent, offset, mesh)] are its shell as built: its head's parts
@@ -172,16 +172,20 @@ def parts(meshes, extra, liked: Any = None):
     from coaxial.model.blocks import numpy as np
     liked = list(liked or ())
     body = {part[1]: part for part in liked if part[0].startswith('form_')}
-    worn = [part for part in liked if part[0] in WORN and not (body and part[0].endswith('_hand'))]
+    worn = [part for part in liked if part[0] in WORN and not (body and part[0].endswith('_hand'))
+            and not (mecha and part[0] in ('like_head', 'like_hair', 'like_fall'))]
     worn += [part for seg, part in body.items() if seg.endswith('_hand')]
-    figured, coax, z0 = any(part[0] == 'like_head' for part in worn), mechatronics.ROBOT != mechatronics.STOCK, (0.0, 0.0, 0.0)
+    figured = mecha or any(part[0] == 'like_head' for part in worn)
+    coax, z0 = mechatronics.ROBOT != mechatronics.STOCK, (0.0, 0.0, 0.0)
     gone = HANDS if any(part[0].endswith('_hand') for part in worn) else ()
-    if coax:
+    if coax or mecha:
         gone = tuple(gone) + tuple(p[0] for p in mechanism.parts()
                                    if p[0] not in ('head', 'board_neck', 'board_head')
                                    and p[0].endswith(('_neck', '_neck_frame', '_head')))
     out = framed(gone)
-    if coax:
+    if mecha:
+        out = [(*p[:5], tuple(a[:0] for a in p[5])) if p[0] == 'head' else p for p in out]
+    if coax and not mecha:
         out.append(('skin_neck', 'neck', (), z0, 0.0, _skin_neck(figured)))
     for name, parent, *rest in worn:
         joints, offset = (rest[0], rest[1]) if len(rest) == 3 else ((), rest[0])
@@ -200,6 +204,10 @@ def parts(meshes, extra, liked: Any = None):
         if len(rest) == 2 and parent == 'head' and not figured and (name in KEPT or name.endswith(ENDS)):
             out.append(('shell_' + name, parent, (), rest[0], 0.0, rest[1]))
     placed, frames = _rested(out)
+    if mecha:
+        from tools.render import face_audit as _fa
+        out.extend(_fa.terminal_parts(placed['torso'][1], placed['neck'][1], placed['head'][1]))
+        placed, frames = _rested(out)
     rested = [(part[0], part[1], part[5][0] @ frame[0].T + frame[1], part[5][1]) for part, frame in zip(out, frames)
               if frame is not None and len(part[5][0])]
     pelvis = [(c, t) for _n, parent, c, t in rested if parent == 'pelvis']

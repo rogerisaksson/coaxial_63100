@@ -71,6 +71,32 @@ print('\n'.join(tomllib.load(open(r'HOST_PATH\pyproject.toml', 'rb'))['build-sys
         }
     }
 
+    # The optional 3D mesh export and visual diff/delta toolchain (host/requirements-3d.txt) is checked
+    # where present and installed only when flagged in with -Mesh3D: bench PCs and CI stay unaffected.
+    $mesh3dReq = Join-Path $Host_ 'requirements-3d.txt'
+    if ($present -and (Test-Path $mesh3dReq)) {
+        $lacks3d = Invoke-Host -Python $Python -Arguments ($probe + $mesh3dReq)
+        if (($LASTEXITCODE -eq 0) -and [string]::IsNullOrWhiteSpace($lacks3d)) {
+            Write-Item 'requirements-3d' 'ok' 'all present'
+        } elseif ($Mesh3D) {
+            Write-Item 'requirements-3d' 'missing' $lacks3d
+            if (Confirm-Step 'pip install -r host/requirements-3d.txt -c host/constraints.txt ?') {
+                & $Python -m pip install --disable-pip-version-check -r $mesh3dReq @through
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Item 'requirements-3d' 'done' 'installed'
+                } else {
+                    Write-Item 'requirements-3d' 'failed' "pip exit $LASTEXITCODE"
+                    Add-Todo 'pip install -r host/requirements-3d.txt failed - read the output above'
+                }
+            } else {
+                Add-Todo 'python -m pip install -r host/requirements-3d.txt -c host/constraints.txt'
+            }
+        } else {
+            Write-Item 'requirements-3d' 'missing' ('optional (-Mesh3D) - 3D mesh export and visual diff/delta toolchain: ' + $lacks3d)
+            Add-Todo -Optional '.\setup.ps1 -Mesh3D   (or: python -m pip install -r host/requirements-3d.txt -c host/constraints.txt)'
+        }
+    }
+
     # Required: every script, test and view imports the installed packages
     # (nothing sets sys.path); pyproject also hands out `coaxial`, `coaxial-dbg`
     # and `coaxial-mcp` as commands.
