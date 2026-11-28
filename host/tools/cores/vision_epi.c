@@ -369,8 +369,12 @@ static void vs_warp_task(void *raw, int32_t tid, int32_t nt)
 void vs_warp_u8(const uint8_t *restrict src, const int32_t *restrict at4, const int32_t *restrict wt4,
                 const uint8_t *restrict on_mask, int32_t height, int32_t width, int32_t bits, uint8_t *restrict dst)
 {
+  if ((height <= 0) || (width <= 0) || (bits < 0) || (bits > 30))
+  {
+    return;
+  }
   vs_warp_ctx_t ctx = {src, at4, wt4, on_mask, dst, height, width, bits};
-  const int32_t nt = (height * width >= 16384) ? vs_threads_acquire(VS_MAX_THREADS) : 1;
+  const int32_t nt = ((int64_t)height * (int64_t)width >= 16384) ? vs_threads_acquire(VS_MAX_THREADS) : 1;
   vs_parallel(nt, vs_warp_task, &ctx);
   vs_threads_release(nt);
 }
@@ -415,15 +419,21 @@ static void vs_epi_task(void *raw, int32_t tid, int32_t nt)
     const double ahead = (d2 < 0.0) ? -d2 : 1.0;
     double       av = half_h - (c->f_px * d1) / ahead;
     double       au = half_w + (c->f_px * d0) / ahead;
-    av = (av < -1.0) ? -1.0 : ((av > h_d) ? h_d : av);
-    au = (au < -1.0) ? -1.0 : ((au > w_d) ? w_d : au);
-    int64_t    V = (int64_t)rint(av * q_d);
-    int64_t    U = (int64_t)rint(au * q_d);
-    const bool is_on = (d2 < 0.0) && (U >= 0) && (U <= u_max) && (V >= 0) && (V <= v_max);
-    if (!is_on)
+    int64_t      V = 0;
+    int64_t      U = 0;
+    bool         is_on = false;
+    if ((d2 < 0.0) && isfinite(av) && isfinite(au))
     {
-      V = 0;
-      U = 0;
+      av = (av < -1.0) ? -1.0 : ((av > h_d) ? h_d : av);
+      au = (au < -1.0) ? -1.0 : ((au > w_d) ? w_d : au);
+      V = (int64_t)rint(av * q_d);
+      U = (int64_t)rint(au * q_d);
+      is_on = (U >= 0) && (U <= u_max) && (V >= 0) && (V <= v_max);
+      if (!is_on)
+      {
+        V = 0;
+        U = 0;
+      }
     }
     c->on_out[p] = (uint8_t)is_on;
     c->v_out[p] = V;
@@ -451,8 +461,12 @@ void vs_epi_from_d(const double *restrict d_xyz, int32_t height, int32_t width, 
                    int64_t *restrict v_out, int64_t *restrict u_out, uint8_t *restrict on_out,
                    int32_t *restrict at4_out, int32_t *restrict wt4_out)
 {
+  if ((height <= 0) || (width <= 0) || (fine <= 0) || (bits < 0) || (bits > 30))
+  {
+    return;
+  }
   vs_epi_ctx_t  ctx = {d_xyz, v_out, u_out, on_out, at4_out, wt4_out, f_px, height, width, bits, fine};
-  const int32_t nt = (height * width >= 16384) ? vs_threads_acquire(VS_MAX_THREADS) : 1;
+  const int32_t nt = ((int64_t)height * (int64_t)width >= 16384) ? vs_threads_acquire(VS_MAX_THREADS) : 1;
   vs_parallel(nt, vs_epi_task, &ctx);
   vs_threads_release(nt);
 }
@@ -460,6 +474,10 @@ void vs_epi_from_d(const double *restrict d_xyz, int32_t height, int32_t width, 
 void vs_epi_kept(const uint8_t *restrict inner0, const uint8_t *restrict inner1, const double *restrict disp,
                  int32_t height, int32_t width, uint8_t *restrict out)
 {
+  if ((height <= 0) || (width <= 0))
+  {
+    return;
+  }
   const double w_hi = (double)(width - 1);
   for (int32_t y = 0; y < height; y++)
   {

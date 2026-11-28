@@ -252,6 +252,23 @@ def test_c11_vision_and_way_bit_exact_parity(report, _c):
                  np.array_equal(c_scalar, c_vec) and c_nan is not None and bool(np.isnan(c_nan[0]))
                  and isinstance(route._GRID, tuple),
                  'scalar_eq=%s nan=%s grid=%s' % (np.array_equal(c_scalar, c_vec), c_nan, type(route._GRID).__name__))
+    bad_d = np.full((4, 4, 3), -1.0, dtype=np.float64)
+    bad_d[0, 0, 0], bad_d[0, 1, 1], bad_d[0, 2, 0] = np.nan, np.inf, -np.inf
+    epi_got = vision_core.epi_from_d(bad_d, 4, 4, 100.0, 5, 2)
+    assert epi_got is not None
+    (ev, eu), eon, _ = epi_got
+    kept_c = laid.kept(got_d)
+    inner = laid._inner
+    assert inner is not None
+    rows_e, cols_e = stereo.indices(np)
+    kept_py = inner[0] & inner[1][rows_e, np.clip(np.rint(cols_e - got_d).astype(np.int64), 0, stereo.W - 1)]
+    ro_ok = (not laid.E.flags.writeable and not laid.on[0].flags.writeable
+             and not laid.at[0][0].flags.writeable and not inner[0].flags.writeable)
+    report.check('epi_from_d rejects non-finite rays cleanly, epi_kept matches numpy, and Laid cache is read-only',
+                 not bool(eon[0, 0]) and not bool(eon[0, 1]) and not bool(eon[0, 2])
+                 and int(ev[0, 0]) == 0 and int(eu[0, 0]) == 0
+                 and np.array_equal(kept_c, kept_py) and ro_ok,
+                 'on=%s kept_eq=%s ro=%s' % (eon[0, :3].tolist(), np.array_equal(kept_c, kept_py), ro_ok))
 
 
 ROSTER = (test_c11_vision_and_way_bit_exact_parity, test_the_robots_map_looks_in_c_as_in_numpy,

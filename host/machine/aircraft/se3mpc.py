@@ -288,17 +288,29 @@ class Mppi:
         a law's controls, weighed beside the samples, held over the horizon."""
         xp, k, h = self.xp, self.k, self.h
         ar_scale = math.sqrt(1.0 - self.ar ** 2)
-        if self._lib is not None and self.costs.__func__ is Mppi.costs:
+        lib = self._lib
+        fast = (lib is not None and getattr(self.costs, '__func__', None) is Mppi.costs
+                and self.run is lib.mppi_plane_costs and k > 0 and h > 0)
+        if fast:
             import numpy as np
+            nom = np.ascontiguousarray(self.nominal, dtype=np.float64)
+            sig_a = np.asarray(self.sigma, dtype=np.float64)
+            lo_a = np.asarray(self.lo, dtype=np.float64)
+            hi_a = np.asarray(self.hi, dtype=np.float64)
+            sig = np.ascontiguousarray(np.broadcast_to(sig_a, (4,)) if sig_a.ndim == 0 or sig_a.shape == (1,) else sig_a)
+            lo = np.ascontiguousarray(np.broadcast_to(lo_a, (4,)) if lo_a.ndim == 0 or lo_a.shape == (1,) else lo_a)
+            hi = np.ascontiguousarray(np.broadcast_to(hi_a, (4,)) if hi_a.ndim == 0 or hi_a.shape == (1,) else hi_a)
+            ref_c = np.ascontiguousarray(ref, dtype=np.float64)
+            wind_a = np.asarray(wind, dtype=np.float64)
+            x_ok = (len(x) == 4 and np.size(x[0]) == 3 and np.size(x[1]) == 3
+                    and np.size(x[2]) == 9 and np.size(x[3]) == 3)
+            fast = (x_ok and nom.shape == (h, 4) and sig.shape == (4,) and lo.shape == (4,)
+                    and hi.shape == (4,) and ref_c.shape == (h, REF) and wind_a.shape == (3,))
+        if fast and lib is not None:
             white, u, noise, cost, x0, pr_buf, wind_buf = self._cpu_bufs(k, h)
             self.rng.standard_normal(out=white)
             x0[0:3], x0[3:6], x0[6:15], x0[15:18] = x[0], x[1], np.ravel(x[2]), x[3]
-            wind_buf[:] = wind
-            nom = np.ascontiguousarray(self.nominal, dtype=np.float64)
-            sig = np.ascontiguousarray(self.sigma, dtype=np.float64)
-            lo = np.ascontiguousarray(self.lo, dtype=np.float64)
-            hi = np.ascontiguousarray(self.hi, dtype=np.float64)
-            ref_c = np.ascontiguousarray(ref, dtype=np.float64)
+            wind_buf[:] = wind_a
             consts_c = np.ascontiguousarray(self.consts, dtype=np.float64)
             contacts_c = np.ascontiguousarray(self.contacts, dtype=np.float64)
             rest_c = np.ascontiguousarray(self.rest, dtype=np.float64)
@@ -311,7 +323,7 @@ class Mppi:
                 pr_ptr = pr_buf.ctypes.data_as(dp)
             elif pr_arr is not None:
                 pr_buf[:] = 0.0
-            self._lib.mppi_sample_and_costs(
+            lib.mppi_sample_and_costs(
                 x0.ctypes.data_as(dp), white.ctypes.data_as(dp), nom.ctypes.data_as(dp),
                 sig.ctypes.data_as(dp), lo.ctypes.data_as(dp), hi.ctypes.data_as(dp), pr_ptr,
                 float(self.ar), ar_scale, u.ctypes.data_as(dp), noise.ctypes.data_as(dp),
@@ -334,7 +346,7 @@ class Mppi:
             cost = self.costs(x, u, ref, w_p, w_v, wind)
         c_min = float(cost.min())
         gap = cost - c_min
-        idx = max(1, int(self.share * k))
+        idx = min(k - 1, max(1, int(self.share * k)))
         lam = max(1e-6, float(xp.partition(gap, idx)[idx]))    # a share of them weighs
         weight = xp.exp(-gap / lam)
         self.nominal = self.nominal + (weight[:, None, None] * noise).sum(0) / weight.sum()

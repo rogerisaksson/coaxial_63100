@@ -104,6 +104,23 @@ def test_the_c_is_its_twin(report):
                  'tail65=%s tail17=%s far=%.1e' % (
                      tail.tobytes() == cpu_got[:65].tobytes(),
                      tail_serial.tobytes() == cpu_got[:17].tobytes(), far_err))
+    m_c, m_py = se3mpc.Mppi(aerobat, k=128, h=8, xp=np, seed=9), se3mpc.Mppi(aerobat, k=128, h=8, xp=np, seed=9)
+    m_py._lib = None
+    ref_s = _asked(np, se3mpc, m_c)
+    pr_1d = (0.35, 0.1, -0.1, 0.05)
+    pr_2d = np.full((8, 4), pr_1d)
+    u_c1, u_p1 = m_c.solve(x, ref_s, 365.0, 345.0, prior=pr_1d), m_py.solve(x, ref_s, 365.0, 345.0, prior=pr_1d)
+    u_c2, u_p2 = m_c.solve(x, ref_s, 365.0, 345.0, prior=pr_2d), m_py.solve(x, ref_s, 365.0, 345.0, prior=pr_2d)
+    m_sc = se3mpc.Mppi(aerobat, k=64, h=8, sigma=0.1, xp=np, seed=9)
+    m_vec = se3mpc.Mppi(aerobat, k=64, h=8, sigma=(0.1, 0.1, 0.1, 0.1), xp=np, seed=9)
+    u_sc, u_vec = m_sc.solve(x, ref_s, 365.0, 345.0), m_vec.solve(x, ref_s, 365.0, 345.0)
+    calls = []
+    orig_costs = m_sc.costs
+    m_sc.costs = lambda *a, **kw: (calls.append(1) or orig_costs(*a, **kw))
+    m_sc.solve(x, ref_s, 365.0, 345.0)
+    report.check('fused C11 solve matches Python fallback, broadcasts scalar sigma, and honours costs overrides',
+                 u_c1 == u_p1 and u_c2 == u_p2 and u_sc == u_vec and len(calls) == 1,
+                 '1d=%s 2d=%s scalar=%s calls=%d' % (u_c1 == u_p1, u_c2 == u_p2, u_sc == u_vec, len(calls)))
     xp = se3mpc.backend()
     if xp is np:
         report.check('no card answers here: the CPU\'s C is the one path', True, 'COAXIAL_GPU or no cupy')

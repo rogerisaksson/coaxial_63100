@@ -18,6 +18,7 @@ match's point lies on its row's plane where its bearings from both eyes meet: it
 baseline over their tangents' gap, along it that times the left's (`points`).
 """
 import math
+import threading
 
 from machine import libm
 from machine.eyes.stereo import BASELINE_M, FOVY_DEG, H, W, WINDOW, _array_disparity, _boxed, _np, card, cpu_disparity, indices
@@ -66,6 +67,16 @@ def turn(w):
 
 #: Cached CPU `Laid` geometry keyed by `(left_R, right_R, line)` bytes so steady-gaze looks skip recomputing maps.
 _LAID_CACHE: dict = {}
+_LAID_LOCK = threading.Lock()
+
+
+def _freeze_arrays(item):
+    """Mark every cached numpy array read-only so shared `Laid` geometry cannot be mutated in place."""
+    if hasattr(item, 'setflags'):
+        item.setflags(write=False)
+    elif isinstance(item, tuple):
+        for part in item:
+            _freeze_arrays(part)
 
 
 class Laid:
@@ -86,9 +97,11 @@ class Laid:
         lr = np.ascontiguousarray(left_R, dtype=float)
         rr = np.ascontiguousarray(right_R, dtype=float)
         ln = np.array(LINE) * BASELINE_M if line is None else np.ascontiguousarray(line, dtype=float)
-        key = (lr.tobytes(), rr.tobytes(), ln.tobytes()) if xp is np else None
+        key = ((lr.tobytes(), rr.tobytes(), ln.tobytes())
+               if xp is np and lr.shape == (3, 3) and rr.shape == (3, 3) and ln.shape == (3,) else None)
         self._key = key
-        cached = _LAID_CACHE.get(key) if key is not None else None
+        with _LAID_LOCK:
+            cached = _LAID_CACHE.get(key) if key is not None else None
         if cached is not None:
             self.B, self.E, self.beta, self.fv, self._at, self._on, self._four, self._inner = cached
             return
@@ -109,9 +122,11 @@ class Laid:
         rays = xp.stack([xp.sin(b), cb * t * c, -cb * c], axis=-1)
         self._at, self._on, self._four = zip(*(self._map(rays, R) for R in (lr, rr)))
         if key is not None:
-            if len(_LAID_CACHE) >= 8:
-                _LAID_CACHE.pop(next(iter(_LAID_CACHE)))
-            _LAID_CACHE[key] = (self.B, self.E, self.beta, self.fv, self._at, self._on, self._four, None)
+            _freeze_arrays((self.E, self._at, self._on, self._four))
+            with _LAID_LOCK:
+                if len(_LAID_CACHE) >= 8 and key not in _LAID_CACHE:
+                    _LAID_CACHE.pop(next(iter(_LAID_CACHE)))
+                _LAID_CACHE[key] = (self.B, self.E, self.beta, self.fv, self._at, self._on, self._four, None)
 
     @property
     def at(self):
@@ -183,9 +198,13 @@ class Laid:
         """`kept` on its array module."""
         xp = self.xp
         if self._inner is None:
-            self._inner = tuple(_boxed((~on).astype(xp.int64), WINDOW // 2, xp) == 0 for on in self._on)
-            if self._key is not None and self._key in _LAID_CACHE:
-                _LAID_CACHE[self._key] = _LAID_CACHE[self._key][:-1] + (self._inner,)
+            inner = tuple(_boxed((~on).astype(xp.int64), WINDOW // 2, xp) == 0 for on in self._on)
+            if self._key is not None:
+                _freeze_arrays(inner)
+                with _LAID_LOCK:
+                    if self._key in _LAID_CACHE:
+                        _LAID_CACHE[self._key] = _LAID_CACHE[self._key][:-1] + (inner,)
+            self._inner = inner
         if xp is _np():
             from tools.cores import vision
             got = vision.epi_kept(self._inner[0], self._inner[1], disp, H, W)

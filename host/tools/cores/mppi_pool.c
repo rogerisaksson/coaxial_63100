@@ -76,6 +76,10 @@ static inline double clamp_d(double v, double lo, double hi)
 
 static void prepare_chunk(const mppi_job_t *j, int base, int stop)
 {
+  if ((j->h <= 0) || (base >= stop))
+  {
+    return;
+  }
   const size_t  stride = (size_t)j->h * 4U;
   const double  ar = j->ar, ar_s = j->ar_scale;
   const double  s0 = j->sigma[0], s1 = j->sigma[1], s2 = j->sigma[2], s3 = j->sigma[3];
@@ -400,6 +404,10 @@ static int ensure_worker(int idx
 
 static void dispatch_job(const mppi_job_t *job)
 {
+  if ((job->n <= 0) || (job->h <= 0))
+  {
+    return;
+  }
   if (job->n < MPPI_MIN_BATCH)
   {
     if (job->white != NULL)

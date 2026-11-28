@@ -133,12 +133,17 @@ def disparity(left, right, d_count: int, census_xy: tuple[int, int], quantum: in
     if lib is None:
         return None
     d_stride = (int(d_count) + 15) & ~15
-    if d_stride > 128:
+    cx, cy = int(census_xy[0]), int(census_xy[1])
+    if int(d_count) <= 0 or d_stride > 128 or cx <= 0 or cy <= 0 or (cx * cy - 1) > 64:
         return None
     l_arr, r_arr = np.asarray(left), np.asarray(right)
+    if l_arr.ndim < 2 or r_arr.ndim < 2:
+        return None
     height, width = l_arr.shape[:2]
-    npix = height * width
     rad = int(window) // 2
+    if height <= 0 or width <= 0 or rad < 0 or r_arr.shape[:2] != (height, width):
+        return None
+    npix = height * width
     (census_buf, cost_u8, total_hwd, wave_buf, ring_buf, vsum_buf,
      box_a, box_b, box_c, gl_buf, gr_buf, best, tbest, second, seen, c0, lo, hi) = _stereo_scratch(
          height, width, d_stride, rad)
@@ -224,9 +229,11 @@ def warp_u8(img, at4, wt4, on_mask, height: int, width: int, bits: int):
 def epi_from_d(d_xyz, height: int, width: int, f_px: float, bits: int, fine: int):
     """Compute `((V, U), on, (at4, wt4))` from `(height, width, 3)` `d_xyz` in C, or `None` without C."""
     lib = _lib()
-    if lib is None:
+    if lib is None or height <= 0 or width <= 0 or fine <= 0 or bits < 0 or bits > 30:
         return None
     dc = np.ascontiguousarray(d_xyz, dtype=np.float64)
+    if dc.shape != (height, width, 3):
+        return None
     npix = height * width
     v_out = np.empty((height, width), dtype=np.int64)
     u_out = np.empty((height, width), dtype=np.int64)
@@ -242,11 +249,13 @@ def epi_from_d(d_xyz, height: int, width: int, f_px: float, bits: int, fine: int
 def epi_kept(inner0, inner1, disp, height: int, width: int):
     """Compute `(height, width)` epipolar kept mask in C, or `None` without C."""
     lib = _lib()
-    if lib is None:
+    if lib is None or height <= 0 or width <= 0:
         return None
     i0 = np.ascontiguousarray(inner0, dtype=np.uint8)
     i1 = np.ascontiguousarray(inner1, dtype=np.uint8)
     dc = np.ascontiguousarray(disp, dtype=np.float64)
+    if i0.shape != (height, width) or i1.shape != (height, width) or dc.shape != (height, width):
+        return None
     out = np.empty((height, width), dtype=np.bool_)
     lib.vs_epi_kept(i0.ctypes.data, i1.ctypes.data, dc.ctypes.data, int(height), int(width), out.ctypes.data)
     return out
