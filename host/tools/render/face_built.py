@@ -79,24 +79,24 @@ def eye_oled_local():
                 if t > 2.0 and -1e-6 <= us <= 1.0 + 1e-6 and (bt == 28.0 or t < bt):
                     bt = t
         if dx > 0.15:
-            bt = min(bt, (638.0 - uc) / dx)
-        r_alm[k] = max(11.6, bt - 6.45)
+            bt = min(bt, (646.0 - uc) / dx)
+        r_alm[k] = max(12.0, bt - 2.35)
     for _ in range(3):
         r_alm = 0.25 * np.roll(r_alm, 1) + 0.50 * r_alm + 0.25 * np.roll(r_alm, -1)
-    r_hole, r_iris = np.full(fn, 11.8), np.minimum(r_alm - 1.35, 20.8 / np.hypot(ca * 1.02, sa * 0.96))
-    z_dome = lambda x, y: 43.4 - 0.44 * (abs(float(x)) - 24.8) + 4.8 * math.sqrt(max(0.0, 1.0 - (((abs(float(x)) - 24.8) / 16.5) ** 2) - (((float(y) - 139.6) / 12.5) ** 2)))
+    r_hole, r_iris = np.full(fn, 12.6), np.minimum(r_alm - 1.15, np.full(fn, 33.0))
+    z_dome = lambda x, y: 48.2 - 0.30 * (abs(float(x)) - 24.8) + 4.8 * math.sqrt(max(0.0, 1.0 - (((abs(float(x)) - 24.8) / 16.5) ** 2) - (((float(y) - 139.6) / 12.5) ** 2)))
     po_c = lambda k, x, y: min(0.0, fhull.panel_offset(k, float(x), float(y)), fhull.panel_offset(k, -float(x), float(y)))
-    rim_z = lambda x, y: min((fl._eval_icheek_z(x, y) + 0.35 * po_c('face-inner-cheeks', x, y)) if abs(float(x)) < 34.0
+    rim_z = lambda x, y: min((fl._eval_icheek_z(x, y) + po_c('face-inner-cheeks', x, y)) if abs(float(x)) < 34.0
                              else (fl._eval_ocheek_z(x, y) + po_c('face-outer-cheeks', x, y)),
-                             fl._eval_brow_z(x, y) + 0.65 * po_c('face-brows', x, y))
+                             fl._eval_brow_z(x, y) + po_c('face-brows', x, y))
 
     def mk_ring(s, is_back=False, z_ch=0.0):
         rp = (r_hole + (r_iris - r_hole) * (s / 0.62)) if s <= 0.62 else (r_iris + (r_alm - r_iris) * ((s - 0.62) / 0.38))
         wc0, pts = max(0.0, (s - 0.36) / 0.64) ** 0.85, []
         for k in range(fn):
             xyz = np.asarray(fr.project_ray_z(uc + float(rp[k] * ca[k]), vc + float(rp[k] * sa[k]), fcam, z_dome, 0.0)[0], float)
-            wc, rz_c = max(wc0, fc._sstep(28.0, 31.2, xyz[0])), rim_z(xyz[0], xyz[1]) - 6.85
-            xyz[2] = xyz[2] * (1.0 - wc) + min(xyz[2], rz_c) * wc + z_ch - (0.94 if is_back else 0.0)
+            wc, rz0 = max(wc0, fc._sstep(29.0, 32.5, xyz[0])), rim_z(xyz[0], xyz[1])
+            xyz[2] = min(xyz[2], rz0 - 1.65) * (1.0 - wc) + min(xyz[2], rz0 - 4.85) * wc + z_ch - (3.8 if (is_back and s > 0.8) else (0.94 if is_back else 0.0))
             if 18.9 <= xyz[0] <= 29.6:
                 xyz[2] = max(xyz[2], 40.98 if is_back else 41.75)
             pts.append(fr.canon_to_head(xyz) - at0)
@@ -106,7 +106,7 @@ def eye_oled_local():
              mk_ring(0.48, False), mk_ring(0.56, False), mk_ring(0.63, False), mk_ring(0.94, False),
              mk_ring(1.0, False, -0.32), mk_ring(1.0, True), mk_ring(0.48, True))
     cols = ((14, 16, 20), (36, 40, 48), (16, 18, 24), (26, 30, 38), (40, 44, 52),
-            (12, 14, 18), (104, 108, 114), (78, 82, 88), fh.PANEL_RIM, fh.CHASSIS_CF, fh.CHASSIS_CF)
+            (12, 14, 18), (118, 124, 132), (88, 94, 102), fh.PANEL_RIM, fh.CHASSIS_CF, fh.CHASSIS_CF)
     return [t for k in range(len(rings)) for t in fh._stitch_rings(rings[(k + 1) % len(rings)], rings[k], cols[k])]
 
 

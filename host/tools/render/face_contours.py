@@ -17,41 +17,41 @@ LOOP_NAMES = (
 )
 
 CONTOURS_PACKED = (
-    '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'
-    'Zn120A=='
+    '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'
+    'eva/nvt70A=='
 )
 
 PANEL_HOLES_PX: dict[str, tuple[tuple[float, ...], ...]] = {
@@ -69,14 +69,15 @@ PANEL_HOLES_PX: dict[str, tuple[tuple[float, ...], ...]] = {
 
 def eval_nose_z_mm(x_mm, y_mm, zr, dz=0.0, tip_dz=0.0):
     """Evaluate C2-smooth compact mecha nose `Z(X, Y)` locked to dorsal `zr`."""
-    ax, fy, fzr = math.hypot(float(x_mm), 1.15) - 1.15, float(y_mm), float(zr)
+    ax, fy, fzr = math.hypot(float(x_mm), 2.60) - 2.60, float(y_mm), float(zr)
     za = 62.5 + 0.08 * max(0.0, fy - 135.0) - 0.06 * max(0.0, 125.0 - fy)
     wt = math.exp(-(((fy - 114.0) / 8.5) ** 2))
     rw, aw = 2.35 + 0.35 * wt, 9.65 + 2.05 * wt
     u = max(0.0, (ax - 0.6 * rw) / max(1.0, aw - 0.6 * rw))
     s = (u * u / (1.0 + u * u)) if u < 1.0 else (0.5 + 0.5 * math.tanh(1.15 * (u - 1.0)))
     zb = (fzr - 0.12 * ax) * (1.0 - 1.32 * min(0.75, s)) + (za + 1.0 - 0.68 * max(0.0, ax - aw)) * (1.32 * min(0.75, s))
-    return zb + float(dz) + float(tip_dz) * wt
+    phil_lip = 1.65 * math.exp(-(((fy - 99.8) / 4.0) ** 2 + (ax / 9.2) ** 2))
+    return zb + float(dz) + float(tip_dz) * wt + phil_lip
 
 _UNPACK_CACHE: list[Any] = [None, None]
 _ENV_CACHE: list[Any] = [None, None]
@@ -386,4 +387,4 @@ def eval_jaw_front_x(y_mm, z_mm):
     x_r = (min(fhull.front_jaw_max_x(fy, fz) - 0.25, 40.6 + 0.32 * (fy - 79.0))
            if fy >= 79.0 else (14.4 + 26.2 * ((max(0.0, fy - 61.0) / 18.0) ** 1.28)))
     u_z = max(0.0, min(1.0, (fz - z_r) / max(4.5, z_f - z_r)))
-    return max(13.2, x_f + (max(x_f + 1.2, x_r) - x_f) * ((1.0 - u_z) ** 1.32) + 0.55 * fhull.panel_offset('jaw-front-hex', fy, fz))
+    return max(13.2, x_f + (max(x_f + 1.2, x_r) - x_f) * ((1.0 - u_z) ** 1.32) + fhull.panel_offset('jaw-front-hex', fy, fz))

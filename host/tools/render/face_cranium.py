@@ -17,11 +17,11 @@ from tools.render.face_honeycomb import (
 )
 
 TUNING = {
-    'crown_top': 87.8500, 'rx_scale': 1.0080, 'zf_scale': 1.0120, 'zb_scale': 1.0460,
+    'crown_top': 88.2000, 'rx_scale': 1.0080, 'zf_scale': 1.0120, 'zb_scale': 0.9900,
     'diam_z0': 0.0000, 'diam_sx': 0.1400, 'diam_sy': 0.0400, 'wing_zi': 0.0000,
     'wing_zo': 0.1255, 'wing_sx': 1.4650, 'brow_zm': 0.0000, 'brow_zt': 0.2550,
     'brow_sx': 1.4500, 'icheek_z0': 78.4000, 'icheek_sx': 1.0250, 'ocheek_z0': 94.6000,
-    'ocheek_sx': 1.5180, 'nose_dz': -5.2500, 'nose_wx': 1.0000, 'nose_tip': -3.4500,
+    'ocheek_sx': 1.5180, 'nose_dz': -2.6000, 'nose_wx': 1.0000, 'nose_tip': 0.8500,
     'oled_z0': 0.0000, 'oled_sx': 1.0000, 'oled_sy': 1.3800, 'chin_z0': 0.0000,
     'chin_sx': 0.7800, 'chin_sy': 0.0000, 'jaw_f_x0': 13.6000, 'jaw_f_sy': 0.4100,
     'jaw_f_sz': 0.5300, 'jaw_r_x0': 5.9500, 'jaw_r_sy': 0.4700, 'jaw_r_sz': 0.3600,
@@ -139,8 +139,7 @@ def _eval_crown_dome_mm(s_rad, c_rad, dr_sc=1.0):
     dr = (dr_sc * fhull.head_dr_mm(phi_c, yl) * w_dr) if dr_sc else 0.0
     sag_t = _sstep(-0.48, -1.03, s_rad) * max(0.0, 1.0 - (c_rad / 0.30) ** 2)
     occ_w = _sstep(-0.98, -1.36, s_rad) * (1.0 - 0.25 * _sstep(-1.72, -2.02, s_rad))
-    ux_s = (math.hypot(ux, 0.035) ** 0.85) - (0.035 ** 0.85)
-    af = 70.6 - 34.4 * ux_s
+    af = 76.4 - 61.5 * (abs(ux) ** 2.10)
     ab = (95.8 - 3.6 * sag_t + 3.8 * occ_w - 4.2 * tl) * p['zb_scale'] + dr
     return ((68.2 - 8.5 * tl + 0.85 * dr) * p['rx_scale'] * ux, fr.HEAD_CENTER_Y + yl + 0.95 * dr * max(0.0, uy), -4.5 + (ab + (af - ab) * _sstep(-0.55, 0.45, uz)) * uz)
 
@@ -155,9 +154,9 @@ def sample_crown_dome_mm(s_rad, c_rad):
     return p0, (n / ln if ln >= 1e-6 else np.array([0.0, 1.0, 0.0], float))
 
 
-_SEAM_AB = ((0.845, -0.035), (0.312, 0.022), (0.256, 0.020), (-0.365, 0.014),
-            (-0.418, 0.014), (-1.080, 0.195),
-            (-1.132, 0.195), (-1.510, 0.100), (-1.565, 0.100), (-1.925, -0.008))
+_SEAM_AB = ((0.844, -0.024), (0.205, 0.024), (0.105, 0.022), (-0.455, 0.015),
+            (-0.555, 0.015), (-1.080, 0.195),
+            (-1.138, 0.195), (-1.490, 0.100), (-1.575, 0.100), (-1.925, -0.008))
 
 
 def _s_seam(row, c):
@@ -192,9 +191,9 @@ def cranium_dome_panels():
     off, out = cfg()['crown_off'] + 2.05, {}
     for tag, rh, rl in (('front', 1, 0), ('mid', 3, 2), ('rear', 5, 4)):
         c1 = 0.955 if tag != 'front' else 0.892
-        out[f'dome_sagittal_{tag}'] = _sc_band_plate(rh, rl, -0.228, 0.228, off)
-        out[f'dome_parietal_{tag}_L'] = _sc_band_plate(rh, rl, 0.282, c1, off)
-        out[f'dome_parietal_{tag}_R'] = _sc_band_plate(rh, rl, -c1, -0.282, off)
+        out[f'dome_sagittal_{tag}'] = _sc_band_plate(rh, rl, -0.248, 0.248, off)
+        out[f'dome_parietal_{tag}_L'] = _sc_band_plate(rh, rl, 0.342, c1, off)
+        out[f'dome_parietal_{tag}_R'] = _sc_band_plate(rh, rl, -c1, -0.342, off)
     return out
 
 
@@ -209,7 +208,7 @@ def eval_temple_abs_x(y_mm, z_mm):
     x_sil, x_tin, x_tout, z_ant = fhull.ray_front_x_bounds(fy, fz)
     cy = 8.8 * (max(0.0, (fy - 166.0) / 26.0) ** 1.75) + 3.6 * (max(0.0, (166.0 - fy) / 22.0) ** 1.75)
     cz = 6.4 * (max(0.0, (-17.5 - fz) / 35.0) ** 1.75) + 8.8 * (max(0.0, (fz + 17.5) / 36.0) ** 1.65)
-    dome = p['temp_xa'] + 1.15 + 0.35 * fhull.panel_offset('temple-hex-bezels', y_mm, z_mm) - cy - cz
+    dome = p['temp_xa'] + 1.15 + fhull.panel_offset('temple-hex-bezels', y_mm, z_mm) - cy - cz
     outer_t = min(68.00, x_sil + 0.40, x_tout + 0.40) - 0.85 * cy
     x_in = min(dome - 0.10, max(52.4, x_tin + 0.85 + (p['temp_xp'] - 67.85)))
     t_f = max(0.0, min(1.0, (fz - (z_ant - 8.5)) / 8.5))
@@ -219,7 +218,7 @@ def eval_temple_abs_x(y_mm, z_mm):
 def temporal_amber_vents():
     """Return `(left, right)` rotated and scaled temple honeycomb modules."""
     raw = fcon.active_loop('PROF_TEMPLE_LOOP')
-    bolts = _xform_temple([(*b, 0.96) for b in ((422, 226), (562, 182), (692, 242), (478, 302), (616, 334))], raw)
+    bolts = ((399.5, 217.0, 1.0), (705.5, 239.0, 1.0), (484.5, 316.0, 1.0), (622.0, 352.0, 1.0))
     lp = fr.simplify_closed_rdp(_xform_temple(raw, raw), 2.4)
     tv = fr.profile_ray_honeycomb(lp, 1, eval_temple_abs_x, frame_w_px=10.6,
                                   pitch_px=14.0, fill=0.80, bezel_mm=1.48, chamfer_mm=0.50, bolts_px=bolts)
@@ -265,8 +264,8 @@ def _box_mm(xr, yr, zr, col, ch=0.6):
 def occipital_panels():
     """Return `{panel_name: tris}` for occipital plates, nape yoke and X-truss."""
     p, off = cfg(), cfg()['crown_off'] + 2.05
-    ru_l, ru_r = _sc_band_plate(7, 6, 0.296, 0.875, off), _sc_band_plate(7, 6, -0.875, -0.296, off)
-    rl_l, rl_r = _sc_band_plate(9, 8, 0.296, 0.855, off), _sc_band_plate(9, 8, -0.855, -0.296, off)
+    ru_l, ru_r = _sc_band_plate(7, 6, 0.336, 0.875, off), _sc_band_plate(7, 6, -0.875, -0.336, off)
+    rl_l, rl_r = _sc_band_plate(9, 8, 0.336, 0.855, off), _sc_band_plate(9, 8, -0.855, -0.336, off)
     yoke = _flat_plate((0.0, fr.HEAD_CENTER_Y - 24.0, -74.5 * p['zb_scale']), (0.0, -0.36, -0.933),
                        [(-27.8, 8.0), (27.8, 8.0), (25.2, -8.2), (15.2, -8.2),
                         (12.4, -0.8), (-12.4, -0.8), (-15.2, -8.2), (-25.2, -8.2)], ((-21.0, 1.8), (21.0, 1.8)))

@@ -445,8 +445,8 @@ def profile_ray_honeycomb(prof_loop_px, side, eval_abs_x, frame_w_px=14.5, pitch
         hex_col=fh.HEX_DARK, hole_col=fh.BAFFLE_DARK, back_col=fh.FRAME_VOID,
         off=0.0, bolts_uv=(), step=6.5, add_back=True)
     for bpx, bpy, bsc in bolts_px:
-        pt, nrm = project_profile_ray_x(bpx, bpy, side, cam, eval_abs_x, 0.42)
+        pt, nrm = project_profile_ray_x(bpx, bpy, side, cam, eval_abs_x, 0.12)
         s = float(bsc)
-        tris += (fh.socket_bolt(canon_to_head(pt), nrm, 0.0029 * s, 0.00022 * s, fh.BAFFLE_DARK, fh.BAFFLE_DARK, 18)
-                 + fh.socket_bolt(canon_to_head(tuple(pt[k] + 0.14 * nrm[k] for k in range(3))), nrm, 0.0022 * s, 0.00058 * s))
+        tris += (fh.socket_bolt(canon_to_head(pt), nrm, 0.0034 * s, 0.00024 * s, frame_col, rim_col, 18)
+                 + fh.socket_bolt(canon_to_head(tuple(pt[k] + 0.24 * nrm[k] for k in range(3))), nrm, 0.0023 * s, 0.00062 * s))
     return tris

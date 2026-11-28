@@ -30,49 +30,55 @@ def anchors():
 
 def eval_cranio_z(ax, fy):
     ax, fy = abs(float(ax)), float(fy)
-    w_m = math.exp(-((ax / 13.5) ** 2))
-    u = (min(206.0, max(105.0, fy)) - 156.0) / 46.0
-    z_lat = 71.0 - 1.6 * u - 15.2 * (u * u)
-    z0 = fhull.eval_side_midline_z(min(206.0, max(105.0, fy))) * w_m + z_lat * (1.0 - w_m)
-    t_lo = 1.0 / (1.0 + math.exp((fy - 138.0) / 10.5))
-    return z0 - (0.56 + 0.21 * t_lo) * ax - (13.6 - 1.5 * t_lo) * ((ax / 50.0) ** 1.78)
+    z0 = fhull.eval_side_midline_z(min(206.0, max(105.0, fy)))
+    rx = 51.4 - 3.6 * fc._sstep(172.0, 202.0, fy)
+    drop = 45.2 + 3.2 * fc._sstep(166.0, 196.0, fy) + 3.4 * fc._sstep(156.0, 140.0, fy)
+    return z0 - drop * ((ax / rx) ** 2.18)
 
 
 _eval_wing_z = eval_cranio_z
 
 
 def _lacrimal_recess_mm(ax, fy):
-    fa = abs(float(ax))
-    ux, um = fc._sstep(24.5, 10.5, fa), fc._sstep(9.5, 15.0, fa)
-    return ux * (2.4 + 4.6 * math.exp(-(((float(fy) - 141.5) / 13.5) ** 2)) * (0.38 + 0.62 * um))
+    fa, yf = abs(float(ax)), float(fy)
+    orb = math.exp(-(((fa - 24.5) / 13.0) ** 2 + ((yf - 137.5) / 9.8) ** 2))
+    lac = fc._sstep(24.0, 11.5, fa) * fc._sstep(9.0, 14.5, fa) * math.exp(-(((yf - 140.0) / 10.5) ** 2))
+    return 7.4 * orb + 3.0 * lac
 
 
 def _eval_brow_z(x, y):
-    return eval_cranio_z(x, y) - 3.0 * fc._sstep(22.0, 10.0, abs(float(x))) * math.exp(-(((float(y) - 146.0) / 13.5) ** 2))
+    ax, fy = abs(float(x)), float(y)
+    arch = 2.4 * math.exp(-(((ax - 23.0) / 18.0) ** 2 + ((fy - 157.5) / 8.0) ** 2))
+    hood = 3.4 * math.exp(-(((ax - 24.5) / 14.5) ** 2 + ((fy - 145.0) / 6.5) ** 2))
+    return eval_cranio_z(ax, fy) + arch - hood
+
+
+def _eval_midface_z(ax, fy):
+    z0 = 67.6 + 0.05 * (fy - 125.0) - 0.12 * max(0.0, fy - 142.0)
+    rx = 51.8 + 0.8 * fc._sstep(122.0, 142.0, fy)
+    malar = 4.2 * math.exp(-(((ax - 30.5) / 12.0) ** 2 + ((fy - 122.5) / 13.5) ** 2))
+    return z0 - 52.8 * ((ax / rx) ** 2.15) + malar - _lacrimal_recess_mm(ax, fy)
 
 
 def _eval_icheek_z(x, y):
-    ax, fy = abs(float(x)), float(y)
-    zm = 82.6 - 1.295 * (ax - 2.52 * fc._sstep(28.2, 31.8, ax)) + 0.02 * (fy - 122.0) - 0.09 * max(0.0, fy - 138.0)
-    return zm - _lacrimal_recess_mm(ax, fy)
+    return _eval_midface_z(abs(float(x)), float(y))
 
 
 def _eval_ocheek_z(x, y):
     ax, fy = abs(float(x)), float(y)
-    zi = _eval_icheek_z(min(ax, 34.5), min(144.0, fy)) - 1.28 * max(0.0, ax - 34.5)
-    wb = max(fc._sstep(32.2, 41.5, ax), fc._sstep(140.0, 148.0, fy))
-    return zi * (1.0 - wb) + (eval_cranio_z(ax, fy) - 2.4 * fc._sstep(36.0, 52.0, ax) * fc._sstep(150.0, 134.0, fy)) * wb
+    wb = fc._sstep(138.0, 148.0, fy) * fc._sstep(35.0, 44.5, ax)
+    return _eval_midface_z(ax, fy) * (1.0 - wb) + _eval_brow_z(ax, fy) * wb - 5.4 * fc._sstep(48.6, 55.0, ax) * fc._sstep(134.0, 152.0, fy)
 
 
 def _eval_mouth_z(x, y):
     p, fx, fy = fc.cfg(), float(x), float(y)
-    ax, dy = abs(fx), max(0.0, fy - 70.0)
-    lip = (1.45 * math.exp(-(((fy - 87.2) / 3.0) ** 2)) + 0.95 * math.exp(-(((fy - 81.2) / 3.2) ** 2))
-           - 0.50 * math.exp(-(((fy - 84.4) / 1.5) ** 2))) * math.exp(-((ax / 13.8) ** 2))
-    z0 = 56.2 + 0.28 * dy + 1.9 * ((max(0.0, fy - 72.0) / 31.0) ** 1.85) + lip - 1.85 * fc._sstep(88.5, 97.5, fy) * math.exp(-((ax / 22.0) ** 2)) + p['oled_z0']
-    ax_e, zs = min(35.4, 14.5 + 0.62 * max(0.0, fy - 71.0)), min(z0 - 1.4, 34.6 - 0.23 * max(0.0, fy - 72.0))
+    ax = abs(fx)
+    lip = (1.05 * math.exp(-(((fy - 87.2) / 3.0) ** 2)) + 0.75 * math.exp(-(((fy - 81.2) / 3.2) ** 2))
+           - 0.45 * math.exp(-(((fy - 84.4) / 1.5) ** 2))) * math.exp(-((ax / 13.5) ** 2))
+    z0 = fhull.eval_side_midline_z(min(100.5, fy)) - 0.55 + lip - 0.55 * fc._sstep(89.5, 95.5, fy) * math.exp(-((ax / 6.5) ** 2)) + p['oled_z0']
+    ax_e, zs = min(35.4, 14.5 + 0.62 * max(0.0, fy - 71.0)), min(z0 - 1.4, 32.0 - 0.18 * max(0.0, fy - 72.0))
     u = min(0.99, p['oled_sx'] * (math.hypot(fx, 4.5) - 4.5) / max(8.0, ax_e))
-    return z0 - (z0 - zs) * (u ** p['oled_sy']) + 0.65 * fhull.panel_offset('face-oled-mouth', fx, fy)
+    return z0 - (z0 - zs) * (u ** (p['oled_sy'] + 0.34)) + fhull.panel_offset('face-oled-mouth', fx, fy)
 
 
 @functools.lru_cache(maxsize=None)
@@ -100,9 +106,9 @@ def _clamp_canon_behind_face(p):
     cp, wy, fx, ax, pz = fc.cfg(), float(p[1]), float(p[0]), abs(float(p[0])), float(p[2])
     if wy < 218.0 and pz > -4.0:
         ym_seam = min(122.0, 100.0 + 0.80 * max(0.0, min(ax, 42.0) - 12.0))
-        po_min = min(0.0, 0.65 * fhull.panel_offset('forehead-wings', fx, wy), 0.65 * fhull.panel_offset('face-brows', fx, wy),
-                     0.35 * fhull.panel_offset('face-inner-cheeks', fx, wy), fhull.panel_offset('face-outer-cheeks', fx, wy),
-                     0.65 * fhull.panel_offset('face-oled-mouth', fx, wy))
+        po_min = min(0.0, fhull.panel_offset('forehead-wings', fx, wy), fhull.panel_offset('face-brows', fx, wy),
+                     fhull.panel_offset('face-inner-cheeks', fx, wy), fhull.panel_offset('face-outer-cheeks', fx, wy),
+                     fhull.panel_offset('face-oled-mouth', fx, wy))
         if 164.0 <= wy <= 216.0:
             zl = min(_eval_wing_z(fx, wy), _eval_brow_z(ax, wy)) + po_min - 6.80
         else:
@@ -116,7 +122,7 @@ def _clamp_canon_behind_face(p):
             zl = min(zl, 16.5)
         if ax <= 15.0 and 104.0 <= wy <= 170.0:
             zl = min(zl, fcon.eval_nose_z_mm(ax, wy, fhull.eval_side_midline_z(wy), cp['nose_dz'], cp.get('nose_tip', 0.0))
-                     + min(0.0, 0.65 * fhull.panel_offset('face-nose', fx, wy)) - (15.5 if wy >= 122.0 else 8.5))
+                     + min(0.0, fhull.panel_offset('face-nose', fx, wy)) - (15.5 if wy >= 122.0 else 8.5))
         p[2] = pz = min(pz, zl)
     elif ax <= 24.5 and 126.0 <= wy <= 184.0 and pz < -60.0:
         p[2] = pz = max(pz, -79.8)
@@ -133,7 +139,7 @@ def _clamp_canon_behind_face(p):
         if ax > mx:
             p[0] = math.copysign(max(8.0, mx), float(p[0]))
     elif wy <= 132.0 and -24.0 < pz < 54.0:
-        jl = min(cp['jaw_r_x0'] - 2.35 + cp['jaw_r_sy'] * wy - cp['jaw_r_sz'] * pz + 0.6 * fhull.panel_offset('jaw-rear-hex', wy, pz),
+        jl = min(cp['jaw_r_x0'] - 2.35 + cp['jaw_r_sy'] * wy - cp['jaw_r_sz'] * pz + fhull.panel_offset('jaw-rear-hex', wy, pz),
                  fcon.eval_jaw_front_x(wy, pz),
                  fhull.front_jaw_max_x(wy, pz)) - 5.8
         if ax > jl:
@@ -153,12 +159,13 @@ def _clamped_liner_pt(phi, yl, off_mm=0.0):
 
 def eye_lashes():
     """Return `(lash_l, lash_r)` swept cat-eye lash ribbons."""
-    rim = lambda x, y: ((_eval_icheek_z(x, y) + 0.35 * fhull.panel_offset('face-inner-cheeks', float(x), float(y)))
-                        if abs(float(x)) < 34.0 else (_eval_ocheek_z(x, y) + fhull.panel_offset('face-outer-cheeks', float(x), float(y)))) - 0.18
-    lr = (fcon.build_lash_ribbon(rim, ((374.0, 529.0), (355.0, 496.0), (316.0, 477.5), (276.0, 483.0), (258.0, 502.5)),
-                                 ((369.0, 531.0), (350.0, 503.0), (315.0, 484.5), (278.0, 489.0), (262.0, 504.0)), -0.10, -0.68)
-          + fcon.build_lash_ribbon(rim, ((372.0, 535.0), (327.0, 546.0), (279.0, 532.0), (259.0, 505.5)),
-                                   ((368.0, 533.0), (326.0, 542.0), (280.0, 528.0), (262.0, 504.5)), -0.10, -0.64))
+    po = fhull.panel_offset
+    rim = lambda x, y: min((_eval_icheek_z(x, y) + po('face-inner-cheeks', x, y)) if abs(x) < 34.0
+                           else (_eval_ocheek_z(x, y) + po('face-outer-cheeks', x, y)), _eval_brow_z(x, y) + po('face-brows', x, y)) - 0.22
+    lr = (fcon.build_lash_ribbon(rim, ((376, 531), (354, 493), (318, 473), (278, 475.5), (248, 492), (223, 505.5)),
+                                 ((371, 533), (350, 500), (317, 480.5), (279, 482.5), (252, 498.5), (230, 507)), -0.10, -0.72)
+          + fcon.build_lash_ribbon(rim, ((374, 535), (328, 548), (280, 541), (252, 521), (232, 507.5)),
+                                   ((370, 533), (327, 543.5), (281, 536.5), (256, 517.5), (236, 506)), -0.10, -0.68))
     return mirror_x(lr), lr
 
 
@@ -166,7 +173,7 @@ def cranial_liner_shells():
     """Return `(left, right)` bilateral cranial liners."""
     np = np_mod()
     specs = ((0.0, 1.95, 24.0, 66.0, 12, 12), (0.68, 2.28, -55.5, -16.0, 14, 11), (2.28, math.pi, -38.5, -16.0, 10, 7),
-             (0.68, 1.95, -16.0, 24.0, 10, 10), (0.0, 0.18, -50.0, 12.0, 9, 4),
+             (0.68, 2.52, -16.0, 24.0, 10, 12), (0.0, 0.18, -50.0, 12.0, 9, 4),
              (0.18, 0.68, -54.0, -22.0, 9, 7), (0.40, 0.68, -22.0, 6.0, 7, 5), (0.43, 0.69, 6.0, 24.5, 6, 5))
 
     def _side(sgn):
@@ -214,13 +221,11 @@ def _front_plate(ln, fn_z, col=SHELL_CF, rim=CRANIUM_RIM, bd=0.68, th=3.6, cr=6.
 
 
 def frontal_panels():
-    eval_d = lambda x, y: eval_cranio_z(x, y) + 0.30 + 0.55 * fhull.panel_offset('forehead-diamond', float(x), float(y))
-    eval_w = lambda x, y: eval_cranio_z(x, y) + 0.65 * fhull.panel_offset('forehead-wings', float(x), float(y))
-    eval_b = lambda x, y: _eval_brow_z(x, y) + 0.65 * fhull.panel_offset('face-brows', float(x), float(y))
-    return {'brow_amber_keystone': _front_plate('DIAMOND_LOOP', eval_d, AMBER_GOLD, AMBER_DARK, 0.72, 3.7),
-            'brow_amber_tiara': _front_plate('TIARA_LOOP', eval_w, AMBER_GOLD, AMBER_DARK, 0.68, 3.6),
-            'forehead_porcelain_L': _front_plate('BROW_L_LOOP', eval_b, SHELL_CF, CRANIUM_RIM, 0.70, 3.7),
-            'forehead_porcelain_R': _front_plate('BROW_R_LOOP', eval_b, SHELL_CF, CRANIUM_RIM, 0.70, 3.7)}
+    po = fhull.panel_offset
+    return {'brow_amber_keystone': _front_plate('DIAMOND_LOOP', lambda x, y: eval_cranio_z(x, y) + 0.30 + po('forehead-diamond', x, y), AMBER_GOLD, AMBER_DARK, 0.72, 3.7),
+            'brow_amber_tiara': _front_plate('TIARA_LOOP', lambda x, y: eval_cranio_z(x, y) + po('forehead-wings', x, y), AMBER_GOLD, AMBER_DARK, 0.68, 3.6),
+            'forehead_porcelain_L': _front_plate('BROW_L_LOOP', lambda x, y: _eval_brow_z(x, y) + po('face-brows', x, y), SHELL_CF, CRANIUM_RIM, 0.70, 3.7),
+            'forehead_porcelain_R': _front_plate('BROW_R_LOOP', lambda x, y: _eval_brow_z(x, y) + po('face-brows', x, y), SHELL_CF, CRANIUM_RIM, 0.70, 3.7)}
 
 
 def cheek_and_nose_panels():
@@ -229,7 +234,7 @@ def cheek_and_nose_panels():
     sx = p.get('nose_wx', 1.000)
     n_lp = [(450.0 + (px - 450.0) * sx, py) for px, py in fcon.active_loop('NOSE_LOOP')]
     n_hl = tuple((450.0 + (h[0] - 450.0) * sx, h[1], h[2] * sx, h[3], h[4], h[5]) for h in fcon.active_holes('NOSE_LOOP'))
-    eval_ic = lambda x, y: _eval_icheek_z(x, y) + 0.35 * fhull.panel_offset('face-inner-cheeks', float(x), float(y))
+    eval_ic = lambda x, y: _eval_icheek_z(x, y) + fhull.panel_offset('face-inner-cheeks', float(x), float(y))
     eval_oc = lambda x, y: _eval_ocheek_z(x, y) + fhull.panel_offset('face-outer-cheeks', float(x), float(y))
 
     def eval_nz(x, y):
@@ -237,7 +242,7 @@ def cheek_and_nose_panels():
         xw = 7.6 + 1.3 * fc._sstep(123.0, 114.0, fy) - 1.5 * fc._sstep(140.0, 149.0, fy)
         wn = fc._sstep(xw - 3.8, xw - 0.15, ax)
         zn = fcon.eval_nose_z_mm(fx / sx, fy, fhull.eval_side_midline_z(min(153.5, fy)), p['nose_dz'], p.get('nose_tip', 0.0))
-        po_n = 0.65 * fhull.panel_offset('face-nose', fx, fy)
+        po_n = fhull.panel_offset('face-nose', fx, fy)
         wt_lo = fc._sstep(115.5, 112.0, fy)
         return (1.0 - wn) * (zn + po_n) + wn * (eval_ic(math.copysign(max(ax, xw) + (2.1 if fx < 0.0 else 1.5), fx), fy) + 0.10 + wt_lo * po_n)
 
@@ -278,9 +283,9 @@ def lower_jaw_and_oled_panels():
     chin = fr.camera_ray_planar_panel(fcon.active_loop('CHIN_LOOP'), fcam, eval_c, bevel_outset_px=2.8, bevel_depth_mm=0.70, thickness_mm=3.5, col=AMBER_GOLD, rim_col=AMBER_DARK, holes_px=fcon.active_holes('CHIN_LOOP'), corner_r_px=6.4)
     jf_lp = fr.simplify_closed_rdp(fcon.active_loop('PROF_JAW_FRONT_LOOP'), 1.8)
     jr_lp = fr.simplify_closed_rdp(fcon.active_loop('PROF_JAW_REAR_LOOP'), 1.8)
-    eval_jr = lambda y, z: min(fhull.front_jaw_max_x(y, z) - 0.85, p['jaw_r_x0'] - 2.35 + p['jaw_r_sy'] * float(y) - p['jaw_r_sz'] * float(z) + 0.6 * fhull.panel_offset('jaw-rear-hex', y, z))
-    jf_l = fr.profile_ray_honeycomb(jf_lp, 1, fcon.eval_jaw_front_x, frame_w_px=10.8, pitch_px=10.6, fill=0.80, bezel_mm=1.80, chamfer_mm=0.50, bolts_px=((725.0, 544.0, 0.92), (784.0, 660.0, 0.92), (665.0, 616.0, 0.92)))
-    jr_l = fr.profile_ray_honeycomb(jr_lp, 1, eval_jr, frame_w_px=11.4, pitch_px=11.0, fill=0.80, bezel_mm=1.90, chamfer_mm=0.50, bolts_px=((630.0, 478.0, 0.92), (680.0, 509.0, 0.92), (630.0, 592.0, 0.92)))
+    eval_jr = lambda y, z: min(fhull.front_jaw_max_x(y, z) - 0.85, p['jaw_r_x0'] - 2.35 + p['jaw_r_sy'] * float(y) - p['jaw_r_sz'] * float(z) + fhull.panel_offset('jaw-rear-hex', y, z))
+    jf_l = fr.profile_ray_honeycomb(jf_lp, 1, fcon.eval_jaw_front_x, frame_w_px=10.8, pitch_px=10.6, fill=0.80, bezel_mm=1.80, chamfer_mm=0.50, bolts_px=((726.0, 520.5, 0.95), (767.0, 665.5, 0.95), (637.5, 620.5, 0.95)))
+    jr_l = fr.profile_ray_honeycomb(jr_lp, 1, eval_jr, frame_w_px=11.4, pitch_px=11.0, fill=0.80, bezel_mm=1.90, chamfer_mm=0.50, bolts_px=((636.5, 470.5, 0.95), (618.0, 608.0, 0.95)))
     return {'oled_carrier_bezel': bezel + subm, 'flexible_oled_panel': oled, 'chin_amber_bridge': chin,
             'jaw_amber_rear_L': jr_l, 'jaw_amber_rear_R': mirror_x(jr_l), 'jaw_amber_front_L': jf_l, 'jaw_amber_front_R': mirror_x(jf_l)}
 
