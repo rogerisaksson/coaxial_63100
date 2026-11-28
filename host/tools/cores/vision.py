@@ -11,7 +11,8 @@ from tools.cores import build
 _DIR = os.path.dirname(os.path.abspath(__file__))
 VISION_C = os.path.join(_DIR, 'vision.c')
 VISION_EPI_C = os.path.join(_DIR, 'vision_epi.c')
-VISION_SOURCES = [VISION_C, VISION_EPI_C]
+VISION_GRID_C = os.path.join(_DIR, 'vision_grid.c')
+VISION_SOURCES = [VISION_C, VISION_EPI_C, VISION_GRID_C]
 VISION_FLAGS = ('-O3', '-ffp-contract=off', '-fno-math-errno', '-fno-trapping-math',
                 '-fvect-cost-model=dynamic') + build.native()
 MAX_THREADS = 8
@@ -64,6 +65,10 @@ def _lib():
     lib.vs_epi_from_d.restype = None
     lib.vs_epi_kept.argtypes = [vp, vp, vp, i32, i32, vp]
     lib.vs_epi_kept.restype = None
+    lib.vs_convex_f64.argtypes = [vp, i32, vp, vp]
+    lib.vs_convex_f64.restype = i32
+    lib.vs_grid_cc.argtypes = [vp, vp, i32, i32, i32, i32, vp, i32, vp, vp, vp, vp, vp, vp]
+    lib.vs_grid_cc.restype = i32
     return lib
 
 
@@ -259,3 +264,107 @@ def epi_kept(inner0, inner1, disp, height: int, width: int):
     out = np.empty((height, width), dtype=np.bool_)
     lib.vs_epi_kept(i0.ctypes.data, i1.ctypes.data, dc.ctypes.data, int(height), int(width), out.ctypes.data)
     return out
+
+
+def _cc_scratch(n_total: int):
+    got = getattr(_vision_tls, 'cc', None)
+    if got is None or got[0] < n_total:
+        cap = max(n_total, 4096)
+        got = (
+            cap,
+            np.empty(cap, dtype=np.int32),
+            np.empty(cap, dtype=np.int32),
+            np.empty(cap, dtype=np.int32),
+            np.empty(cap, dtype=np.int32),
+            np.empty(cap + 1, dtype=np.int32),
+        )
+        _vision_tls.cc = got
+    return got[1:]
+
+
+def _hull_scratch(n_pts: int):
+    got = getattr(_vision_tls, 'hull', None)
+    if got is None or got[0] < n_pts:
+        cap = max(n_pts, 512)
+        got = (
+            cap,
+            np.empty((cap, 2), dtype=np.float64),
+            np.empty((cap + 2, 2), dtype=np.float64),
+        )
+        _vision_tls.hull = got
+    return got[1:]
+
+
+def convex_f64(pts_xy):
+    """`(m, 2)` float64 CCW convex hull of `(n, 2)` `pts_xy` in C, or `None` on non-finite/no C."""
+    lib = _lib()
+    if lib is None:
+        return None
+    pts = np.ascontiguousarray(pts_xy, dtype=np.float64).reshape(-1, 2)
+    n_pts = len(pts)
+    if n_pts == 0:
+        return np.empty((0, 2), dtype=np.float64)
+    work_xy, out_xy = _hull_scratch(n_pts)
+    m = lib.vs_convex_f64(pts.ctypes.data, n_pts, work_xy.ctypes.data, out_xy.ctypes.data)
+    if m < 0:
+        return None
+    return out_xy[:m].copy()
+
+
+def _offs3(offsets, ndim: int):
+    offs = np.asarray(offsets, dtype=np.int32).reshape(-1, ndim)
+    if ndim < 3:
+        offs = np.pad(offs, ((0, 0), (3 - ndim, 0)))
+    return np.ascontiguousarray(offs, dtype=np.int32)
+
+
+def grid_joined(on, offsets):
+    """Connected components of boolean `on` (1D/2D/3D) in C matching `grids.joined`, or `None`."""
+    lib = _lib()
+    arr = np.asarray(on, dtype=np.bool_)
+    ndim = arr.ndim
+    if lib is None or ndim not in (1, 2, 3) or arr.size > (1 << 26):
+        return None
+    if arr.size == 0:
+        return []
+    src = np.ascontiguousarray(arr, dtype=np.uint8)
+    d0, d1, d2 = ((1, 1) + src.shape)[-3:]
+    offs3 = _offs3(offsets, ndim)
+    pos_b, par_b, aux_b, lbl_b, st_b = _cc_scratch(src.size)
+    coords = np.empty(ndim * src.size, dtype=np.int64)
+    n_comp = lib.vs_grid_cc(
+        src.ctypes.data, None, ndim, d0, d1, d2, offs3.ctypes.data, len(offs3),
+        pos_b.ctypes.data, par_b.ctypes.data, aux_b.ctypes.data,
+        coords.ctypes.data, lbl_b.ctypes.data, st_b.ctypes.data)
+    if n_comp == 0:
+        return []
+    k_act = int(st_b[n_comp])
+    c_tight = coords[:ndim * k_act].reshape(ndim, k_act)
+    st = st_b[:n_comp + 1].tolist()
+    return [tuple(c_tight[d, st[g]:st[g + 1]] for d in range(ndim)) for g in range(n_comp)]
+
+
+def grid_cc_codes(codes, offsets):
+    """`(idx, label, value)` for `codes >= 0` (1D/2D/3D) in C matching `grids.joined_by`, or `None`."""
+    lib = _lib()
+    arr = np.asarray(codes)
+    ndim = arr.ndim
+    if lib is None or ndim not in (1, 2, 3) or arr.size > (1 << 26):
+        return None
+    if arr.size == 0:
+        return None
+    src = np.ascontiguousarray(arr, dtype=np.int64)
+    d0, d1, d2 = ((1, 1) + src.shape)[-3:]
+    offs3 = _offs3(offsets, ndim)
+    pos_b, par_b, aux_b, lbl_b, st_b = _cc_scratch(src.size)
+    coords = np.empty(ndim * src.size, dtype=np.int64)
+    k_act = lib.vs_grid_cc(
+        None, src.ctypes.data, ndim, d0, d1, d2, offs3.ctypes.data, len(offs3),
+        pos_b.ctypes.data, par_b.ctypes.data, aux_b.ctypes.data,
+        coords.ctypes.data, lbl_b.ctypes.data, st_b.ctypes.data)
+    if k_act == 0:
+        return ()
+    idx = coords[:ndim * k_act].reshape(ndim, k_act).copy()
+    label = lbl_b[:k_act].astype(np.int64)
+    value = src.reshape(-1)[aux_b[:k_act]]
+    return idx, label, value

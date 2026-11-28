@@ -33,6 +33,10 @@ def grown(cells, r, join=None):
 def joined(on, offsets):
     """The connected groups of the set voxels of `on` (any rank), neighbours by `offsets` (one of each
     pair): each a tuple of index arrays, union-find on the flat indices with pointer jumping."""
+    from tools.cores import vision
+    got = vision.grid_joined(on, offsets)
+    if got is not None:
+        return got
     import numpy as np
     at = np.flatnonzero(on)
     if not len(at):
@@ -47,6 +51,14 @@ def joined_by(codes, offsets):
     value and each value's lowest first - `joined(codes == value)` a value at a time, in one union-find: a full grid's
     a value was most of the robot's picture's lumps."""
     import numpy as np
+    from tools.cores import vision
+    got = vision.grid_cc_codes(codes, offsets)
+    if got is not None:
+        if not got:
+            return []
+        idx, label, value = got
+        order = np.lexsort((label, value))
+        return list(zip(value[order][_starts(label, order)].tolist(), _grouped(idx, label, order)))
     at = np.flatnonzero(codes >= 0)
     if not len(at):
         return []
@@ -125,8 +137,26 @@ def rim(cols, rows):
     return list(zip(c[ends].tolist(), r[ends].tolist()))
 
 
+def convex_xy(at):
+    """`(m, 2)` float64 convex hull of `(n, 2)` array `at`."""
+    import numpy as np
+    from tools.cores import vision
+    got = vision.convex_f64(at)
+    if got is not None:
+        return got
+    return np.array(convex(list(map(tuple, np.asarray(at).tolist()))), float).reshape(-1, 2)
+
+
 def convex(pts):
     """The convex hull of (x, y) points, counter-clockwise (Andrew's monotone chain)."""
+    if len(pts) >= 8:
+        p0 = pts[0]
+        is_int = type(p0[0]) is int and type(p0[1]) is int
+        if not is_int or all(abs(x) < (1 << 52) and abs(y) < (1 << 52) for x, y in pts):
+            from tools.cores import vision
+            got = vision.convex_f64(pts)
+            if got is not None:
+                return [(int(x), int(y)) for x, y in got.tolist()] if is_int else [tuple(xy) for xy in got.tolist()]
     pts = sorted(set(pts))
     if len(pts) < 3:
         return pts

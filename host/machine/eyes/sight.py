@@ -293,16 +293,23 @@ class Keep:
         span = int(one.max()) + 2 if len(one) else 1
         pair = code * span + one + 1
         out = []
-        for key in np.unique(pair).tolist():
-            kind, at = kinds[key // span], np.flatnonzero(pair == key)
-            hull = convex(_rim(last.cols[at], last.rows[at]))
-            if kind != 'thing' and len(hull) >= 3 and len(at) >= LUMP:
-                out.append((kind, INK.get(kind, INK['thing']), hull))
+        if len(pair):
+            order = np.argsort(pair, kind='stable')
+            sp = pair[order]
+            starts = np.flatnonzero(np.r_[True, sp[1:] != sp[:-1]])
+            for s, e in zip(starts.tolist(), np.r_[starts[1:], len(order)].tolist()):
+                kind = kinds[int(sp[s]) // span]
+                if kind != 'thing' and e - s >= LUMP:
+                    at = order[s:e]
+                    hull = convex(_rim(last.cols[at], last.rows[at]))
+                    if len(hull) >= 3:
+                        out.append((kind, INK.get(kind, INK['thing']), hull))
         for b, kind in enumerate(built):
             at = np.flatnonzero(housed == b)
-            hull = convex(_rim(last.cols[at], last.rows[at]))
-            if len(hull) >= 3:
-                out.append((kind, INK.get(kind, INK['thing']), hull))
+            if len(at) >= 3:
+                hull = convex(_rim(last.cols[at], last.rows[at]))
+                if len(hull) >= 3:
+                    out.append((kind, INK.get(kind, INK['thing']), hull))
         return out
 
     def _told(self, last):
@@ -345,8 +352,10 @@ class Keep:
             thing[off[i]] = n + j
         (ones, built), housed = wholes.grouped(names, whole, *boxes), np.full(len(last.at), -1)
         for b, (_name, c, h, members) in enumerate(built):
-            seen_out = bool((np.abs(np.asarray(last.seen.at)[::2] - c[::2]) > h[::2]).any())
-            housed = np.where(seen_out & np.isin(thing, members), b, housed)
+            if bool((np.abs(np.asarray(last.seen.at)[::2] - c[::2]) > h[::2]).any()):
+                in_b = np.zeros(n + m + 1, bool)
+                in_b[members] = True
+                housed = np.where(in_b[thing], b, housed)
         return (np.array(names + ['thing'], object)[thing], np.append(ones, -1)[thing], housed,
                 [b[0] for b in built])
 

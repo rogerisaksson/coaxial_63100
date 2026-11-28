@@ -34,7 +34,7 @@ import numpy as np
 
 from machine import libm
 from machine.body import figure
-from machine.eyes.grids import convex, grown, joined as _joined
+from machine.eyes.grids import convex_xy, grown, joined as _joined
 from machine.world import room
 
 #: The robot's map: CELL_M voxels over the room's floor (X_M, Z_M), FLOOR_M to CEIL_M high; a voxel is a thing from
@@ -70,9 +70,9 @@ def lit(c, means):
     """(..., K) each chromaticity's distance from each kind's: the least to the line from the kind's body
     colour `means` (K, 3) to the light's GREY, a highlight anywhere on it."""
     body = means - GREY
-    span = np.maximum((body * body).sum(axis=1), 1e-12)
+    span = np.maximum(libm.sq(body).sum(axis=1), 1e-12)
     t = np.clip(((c[..., None, :] - GREY) * body).sum(axis=-1) / span, 0.0, 1.0)
-    return np.linalg.norm(c[..., None, :] - (GREY + t[..., None] * body), axis=-1)
+    return np.sqrt(libm.sq(c[..., None, :] - (GREY + t[..., None] * body)).sum(axis=-1))
 
 
 class Map:
@@ -383,7 +383,7 @@ def least_area(at, voxel):
     """(a, b) the floor axes of the least-area rectangle round points `at` (n, 2), a its longer: over
     their hull's edges' directions, each extent a voxel wider (rotating calipers). The hull of the points as python's
     floats - the same doubles, the same arithmetic -: of numpy's scalars its chain's crosses were 35 ms a look."""
-    h = np.array(convex(list(map(tuple, at.tolist()))), float).reshape(-1, 2)
+    h = convex_xy(at)
     e = np.roll(h, -1, axis=0) - h
     th = libm.arctan2(e[:, 1], e[:, 0]) % (0.5 * math.pi)
     c, s = libm.cos(th), libm.sin(th)

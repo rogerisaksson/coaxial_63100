@@ -45,5 +45,10 @@ void vs_epi_from_d(const double *restrict d_xyz, int32_t height, int32_t width, 
                    int32_t *restrict at4_out, int32_t *restrict wt4_out);
 void vs_epi_kept(const uint8_t *restrict inner0, const uint8_t *restrict inner1, const double *restrict disp,
                  int32_t height, int32_t width, uint8_t *restrict out);
+int32_t vs_convex_f64(const double *restrict pts_in, int32_t n_pts, double *restrict work_xy, double *restrict out_xy);
+int32_t vs_grid_cc(const uint8_t *restrict on_u8, const int64_t *restrict codes, int32_t ndim, int32_t d0, int32_t d1,
+                   int32_t d2, const int32_t *restrict offs3, int32_t n_off, int32_t *restrict pos_buf,
+                   int32_t *restrict parent_buf, int32_t *restrict aux_buf, int64_t *restrict coords_out,
+                   int32_t *restrict label_out, int32_t *restrict starts_out);
 
 #endif
