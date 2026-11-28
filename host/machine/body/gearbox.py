@@ -149,10 +149,7 @@ class Boxes:
             self.p_int[:] = np.where(on, self.p_int + h * (self.drive - brake * self.w - self.hat), 0.0)
             self.hat[:] = self.observe * (self.p_int - j * self.w)
             cap = np.minimum(top, np.maximum(np.abs(self.hat), np.abs(feed)) + PLAY_NM)
-            eng = np.minimum(1.0, np.abs(self.hat) / PLAY_NM)
-            cd_e = trk * self.c + eng * (cd - trk * self.c)
-            ev = self.rate / k - rel
-            drive = ctrl + trk * np.clip(feed - self.hat, -cap, cap) + np.where(feed * ev > 0.0, cd, cd_e) * ev
+            drive = ctrl + trk * np.clip(feed - self.hat, -cap, cap) + cd * (self.rate / k - rel)
             self.drive[:] = np.where(on, np.clip(drive, -top, top), ctrl)
             self.w[:] = np.where(on, (self.w + h * (self.drive - passed) / j) / (1.0 + h * brake / j), qd)
             self.delta[:] = np.where(on, np.clip(self.delta + h * (self.w - qd), -lim, lim), self.delta)

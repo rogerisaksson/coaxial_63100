@@ -229,12 +229,14 @@ def docked(at, things, floor, sc, box, standoff):
 
     def laid(row):
         off, hn, edge, n, lat, rank = row
-        if not any(route._free(cells, c) and far[c] < math.inf for c in (route._cell(*(edge + s * n)) for s in outs)):
+        free = np.array([route._free(cells, c) and far[c] < math.inf
+                         for c in (route._cell(*(edge + s * n)) for s in outs)], bool)
+        if not free.any():
             return {'hn': hn, 'face': tuple(n), 'edge': tuple(edge), 'off': off, 'lat_tol': lat, 'd_stage': None,
                     'stage': tuple(edge), 'key': (True, rank, abs(off), math.inf)}
         turns = [turned(edge, hn, n, a) for a in ARRIVALS] if run_in is None else []
-        fits = np.ones(1, bool) if run_in is not None else (
-            backed(edge, hn, n) & turns[0] & (turns[1] | turns[2]) & (turns[3] | turns[4]))
+        fits = free if run_in is not None else (
+            free & backed(edge, hn, n) & turns[0] & (turns[1] | turns[2]) & (turns[3] | turns[4]))
         s = float(outs[np.argmax(fits)]) if fits.any() else None
         stage = edge + (s or 0.0) * n
         cell = route._cell(*stage)
